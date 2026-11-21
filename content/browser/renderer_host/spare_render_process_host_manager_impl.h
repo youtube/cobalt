@@ -93,7 +93,7 @@ class CONTENT_EXPORT SpareRenderProcessHostManagerImpl
   void AddObserver(Observer* observer) override;
   void RemoveObserver(Observer* observer) override;
   RenderProcessHost* WarmupSpare(BrowserContext* browser_context) override;
-  const std::vector<RenderProcessHost*>& GetSpares() override;
+  const std::vector<raw_ptr<RenderProcessHost>>& GetSpares() override;
   std::vector<ChildProcessId> GetSpareIds() override;
   void CleanupSparesForTesting() override;
   const std::optional<LastSpareRendererCreationInfo>&
@@ -233,7 +233,7 @@ class CONTENT_EXPORT SpareRenderProcessHostManagerImpl
   base::ObserverList<Observer> observer_list_;
 
   // All spare RPHs. RPH instances are self-owned, hence the raw pointers.
-  std::vector<RenderProcessHost*> spare_rphs_;
+  std::vector<raw_ptr<RenderProcessHost>> spare_rphs_;
 
   // The timer used to track the startup time of the spare renderer process.
   // The elapsed time will be tracked even if the spare renderer is destroyed

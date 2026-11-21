@@ -371,8 +371,6 @@ class WebNNContextHelper {
  private:
   std::map<blink::WebNNTensorToken, std::unique_ptr<FakeWebNNTensor>>
       tensor_impls_;
-
-  mojo::UniqueReceiverSet<blink_mojom::WebNNGraphBuilder> builders_;
 };
 
 class FakeWebNNGraph : public blink_mojom::WebNNGraph {
@@ -553,6 +551,12 @@ class FakeWebNNContext : public blink_mojom::WebNNContext {
       const HashMap<String, blink::WebNNTensorToken>& named_inputs,
       const HashMap<String, blink::WebNNTensorToken>& named_outputs) override {
     // No-op for testing.
+  }
+
+  void RequestCompilerContext(
+      mojo::PendingReceiver<blink_mojom::WebNNCompilerContext>
+          compiler_context_receiver) override {
+    // No-op for testing; drop the receiver so the peer endpoint disconnects.
   }
 
   void DestroyGraph(const blink::WebNNGraphToken& graph_handle) override {

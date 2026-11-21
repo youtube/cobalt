@@ -20,6 +20,7 @@ class RasterContextProvider;
 
 namespace content {
 
+class BackForwardCacheImpl;
 struct EntryChangedDetails;
 struct LoadCommittedDetails;
 struct PrunedDetails;
@@ -29,6 +30,8 @@ struct PrunedDetails;
 class NavigationControllerDelegate {
  public:
   virtual ~NavigationControllerDelegate() {}
+
+  virtual BackForwardCacheImpl& GetBackForwardCache() = 0;
 
   virtual void NotifyNavigationStateChangedFromController(
       InvalidateTypes changed_flags) = 0;

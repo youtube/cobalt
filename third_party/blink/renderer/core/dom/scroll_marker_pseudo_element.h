@@ -31,6 +31,7 @@ class ScrollMarkerPseudoElement : public PseudoElement {
 
   void AttachLayoutTree(AttachContext&) final;
   void Dispose() final;
+  void RemovedFrom(ContainerNode&) override;
   void Trace(Visitor* v) const final;
 
   void SetHovered(bool hovered) final;

@@ -20,7 +20,9 @@ class ActorTaskListBubbleRowButton : public views::Button {
                                actor::ActorTask::State state,
                                std::u16string title_text,
                                bool requires_processing,
-                               bool has_tab);
+                               bool has_tab,
+                               glic::mojom::FeatureMode feature_mode =
+                                   glic::mojom::FeatureMode::kUnspecified);
   ActorTaskListBubbleRowButton(const ActorTaskListBubbleRowButton&) = delete;
   ActorTaskListBubbleRowButton& operator=(const ActorTaskListBubbleRowButton&) =
       delete;
@@ -35,7 +37,7 @@ class ActorTaskListBubbleRowButton : public views::Button {
 
  private:
   // Update row to reflect an unclickable state.
-  void MaybeSetDisabledRowUi();
+  void MaybeSetDisabledRowUi(actor::ActorTask::State state);
 
   // Forwards clicks on the redirect icon to the row button.
   void OnRedirectIconPressed(const ui::Event& event);

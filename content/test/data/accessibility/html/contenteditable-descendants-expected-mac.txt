@@ -16,7 +16,7 @@ AXWebArea
 ++++++AXColumn
 ++++++++AXCell AXEditableAncestor=:2 AXHighestEditableAncestor=:2
 ++++++++++AXStaticText AXEditableAncestor=:2 AXHighestEditableAncestor=:2 AXValue='Always expose editable tables as tables.'
-++++++AXGroup
+++++++AXGroup AXSubrole=AXEmptyGroup
 ++++AXList AXSubrole=AXContentList AXEditableAncestor=:2 AXHighestEditableAncestor=:2
 ++++++AXGroup AXEditableAncestor=:2 AXHighestEditableAncestor=:2
 ++++++++AXListMarker AXValue='1. '

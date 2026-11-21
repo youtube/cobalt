@@ -42,6 +42,12 @@ DesktopBnplStrategy::GetBeforeViewSwitchAction() {
   return BeforeSwitchingViewAction::kCloseCurrentUi;
 }
 
+BnplStrategy::BnplAiBasedAmountExtractionReturnedNextAction
+DesktopBnplStrategy::GetNextActionOnAiBasedAmountExtractionReturned() {
+  return BnplAiBasedAmountExtractionReturnedNextAction::
+      kReplaceLoadingThrobberWithIssuerSuggestionsOnDesktop;
+}
+
 bool DesktopBnplStrategy::ShouldRemoveExistingUiOnServerReturn(
     PaymentsAutofillClient::PaymentsRpcResult result) {
   return true;

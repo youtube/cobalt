@@ -428,6 +428,10 @@ IN_PROC_BROWSER_TEST_P(DumpAccessibilityScriptTest, AXSize) {
   RunTypedTest<kMacAttributes>("ax-size.html");
 }
 
+IN_PROC_BROWSER_TEST_P(DumpAccessibilityScriptTest, AXSubrole) {
+  RunTypedTest<kMacAttributes>("ax-subrole.html");
+}
+
 IN_PROC_BROWSER_TEST_P(DumpAccessibilityScriptTest, AXTitleUIElement) {
   RunTypedTest<kMacAttributes>("ax-title-ui-element.html");
 }

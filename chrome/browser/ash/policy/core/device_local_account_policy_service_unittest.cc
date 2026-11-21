@@ -57,6 +57,8 @@
 #include "extensions/common/mojom/manifest.mojom.h"
 #include "net/base/net_errors.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/test/test_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using extensions::mojom::ManifestLocation;
@@ -144,6 +146,7 @@ class DeviceLocalAccountPolicyServiceTestBase
   const std::string account_2_user_id_;
   const std::string account_1_web_kiosk_user_id_;
 
+  network::TestURLLoaderFactory test_url_loader_factory_;
   PolicyMap expected_policy_map_;
   UserPolicyBuilder device_local_account_policy_;
   std::unique_ptr<ash::ScopedStubInstallAttributes> install_attributes_;
@@ -204,6 +207,9 @@ void DeviceLocalAccountPolicyServiceTestBase::SetUp() {
       TestingBrowserProcess::GetGlobal()->local_state());
   extension_cache_task_runner_ = new base::TestSimpleTaskRunner;
 
+  TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(
+      test_url_loader_factory_.GetSafeWeakWrapper());
+
   if (type() == DeviceLocalAccountType::kPublicSession) {
     expected_policy_map_.Set(key::kSearchSuggestEnabled, POLICY_LEVEL_MANDATORY,
                              POLICY_SCOPE_USER, POLICY_SOURCE_CLOUD,
@@ -224,6 +230,7 @@ void DeviceLocalAccountPolicyServiceTestBase::TearDown() {
   service_->Shutdown();
   service_.reset();
   extension_cache_task_runner_->RunUntilIdle();
+  TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(nullptr);
   cros_settings_holder_.reset();
   install_attributes_.reset();
   ash::DeviceSettingsTestBase::TearDown();
@@ -231,13 +238,13 @@ void DeviceLocalAccountPolicyServiceTestBase::TearDown() {
 
 void DeviceLocalAccountPolicyServiceTestBase::CreatePolicyService() {
   service_ = std::make_unique<DeviceLocalAccountPolicyService>(
+      TestingBrowserProcess::GetGlobal()->shared_url_loader_factory(),
       &session_manager_client_, device_settings_service_.get(),
       ash::CrosSettings::Get(), &invalidation_listener_,
       base::SingleThreadTaskRunner::GetCurrentDefault(),
       base::SingleThreadTaskRunner::GetCurrentDefault(),
       extension_cache_task_runner_,
-      base::SingleThreadTaskRunner::GetCurrentDefault(),
-      /*url_loader_factory=*/nullptr);
+      base::SingleThreadTaskRunner::GetCurrentDefault());
 }
 
 void DeviceLocalAccountPolicyServiceTestBase::InstallDeviceLocalAccountPolicy(

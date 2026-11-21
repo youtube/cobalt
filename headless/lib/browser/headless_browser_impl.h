@@ -52,7 +52,8 @@ class HEADLESS_EXPORT HeadlessBrowserImpl : public HeadlessBrowser {
   ~HeadlessBrowserImpl() override;
 
   // HeadlessBrowser implementation:
-  HeadlessBrowserContext::Builder CreateBrowserContextBuilder() override;
+  HeadlessBrowserContext* CreateBrowserContext(
+      HeadlessBrowserContext::CreateParams params) override;
   scoped_refptr<base::SingleThreadTaskRunner> BrowserMainThread()
       const override;
   void Shutdown() override;
@@ -66,8 +67,6 @@ class HEADLESS_EXPORT HeadlessBrowserImpl : public HeadlessBrowser {
   void SetOptions(HeadlessBrowser::Options options);
   HeadlessBrowser::Options* options() { return &options_.value(); }
 
-  HeadlessBrowserContext* CreateBrowserContext(
-      HeadlessBrowserContext::Builder* builder);
   // Close given |browser_context| and delete it
   // (all web contents associated with it go away too).
   void DestroyBrowserContext(HeadlessBrowserContextImpl* browser_context);

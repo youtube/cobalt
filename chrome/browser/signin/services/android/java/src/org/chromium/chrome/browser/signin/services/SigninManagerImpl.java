@@ -130,15 +130,8 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         mAccountManagerFacade = AccountManagerFacadeProvider.getInstance();
         mAccountManagerFacade.addObserver(this);
         var accountsPromise = mAccountManagerFacade.getAccounts();
-        if (SigninFeatureMap.isEnabled(SigninFeatures.SIGNIN_MANAGER_SEEDING_FIX)) {
-            if (accountsPromise.isFulfilled()) {
-                onAccountsChanged();
-            }
-        } else if (accountsPromise.isFulfilled()
-                && (didAccountsFetchSucceed() || !accountsPromise.getResult().isEmpty())) {
-            seedThenReloadAllAccountsFromSystem(
-                    mAccountManagerFacade.getAccounts().getResult(),
-                    CoreAccountInfo.getIdFrom(identityManager.getPrimaryAccountInfo()));
+        if (accountsPromise.isFulfilled()) {
+            onAccountsChanged();
         }
         mPrefChangeRegistrar = new PrefChangeRegistrar(mPrefService);
         mPrefChangeRegistrar.addObserver(Pref.SIGNIN_ALLOWED, this::notifySignInAllowedChanged);
@@ -446,13 +439,11 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
 
         mIdentityMutator.removePrimaryAccountButKeepTokens(signoutSource);
 
-        if (SigninFeatureMap.isEnabled(SigninFeatures.SIGNIN_MANAGER_SEEDING_FIX)) {
-            var accountsPromise = mAccountManagerFacade.getAccounts();
-            if (accountsPromise.isFulfilled()) {
-                // If accounts are already available - we might need to re-seed them. If the primary
-                // account disappears - we trigger a sign-out instead of re-seeding immediately.
-                seedThenReloadAllAccountsFromSystem(accountsPromise.getResult(), null);
-            }
+        var accountsPromise = mAccountManagerFacade.getAccounts();
+        if (accountsPromise.isFulfilled()) {
+            // If accounts are already available - we might need to re-seed them. If the primary
+            // account disappears - we trigger a sign-out instead of re-seeding immediately.
+            seedThenReloadAllAccountsFromSystem(accountsPromise.getResult(), null);
         }
 
         notifySignOutAllowedChanged();

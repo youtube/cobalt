@@ -522,7 +522,7 @@ AutocompleteMatch ShortcutsProvider::ShortcutMatchToACMatch(
         match.keyword != default_search_provider->keyword() ||
         // or keyword mode was invoked explicitly and the keyword in the input
         // is also of the default search provider.
-        (input.prefer_keyword() && keyword_matches);
+        (input.in_keyword_mode() && keyword_matches);
     match.search_terms_args =
         std::make_unique<TemplateURLRef::SearchTermsArgs>(match.contents);
     match.search_terms_args->page_classification =
@@ -537,7 +537,7 @@ AutocompleteMatch ShortcutsProvider::ShortcutMatchToACMatch(
   // If the input is in keyword mode, don't inline a match without or with a
   // different keyword. Otherwise, if the input is not in keyword mode, don't
   // inline a match with a keyword that is not from the default search provider.
-  if (input.prefer_keyword()
+  if (input.in_keyword_mode()
           ? is_search_type && keyword_matches && match_has_explicit_keyword
           : !match_has_explicit_keyword &&
                 (match.keyword.empty() || match_from_dsp)) {

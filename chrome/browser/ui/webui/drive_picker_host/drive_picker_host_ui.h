@@ -22,6 +22,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "url/gurl.h"
 
 namespace signin {
 class PrimaryAccountAccessTokenFetcher;
@@ -67,6 +68,12 @@ class DrivePickerHostUI
   void BindInterface(
       mojo::PendingReceiver<drive_picker_host::mojom::DrivePickerHostHandler>
           receiver);
+
+  // Instructs the untrusted context to load the provided ConsentKit URL
+  // within an iframe.
+  //
+  // `consent_kit_url`: The ConsentKit URL to load.
+  void LoadConsentKitUrl(const GURL& consent_kit_url);
 
  private:
   // Callback for the access token fetcher.

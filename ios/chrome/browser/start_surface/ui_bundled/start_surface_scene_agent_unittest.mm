@@ -22,6 +22,7 @@
 #import "ios/chrome/browser/shared/model/browser/browser_provider_interface.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
+#import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/url/url_util.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
@@ -49,14 +50,15 @@ using tab_groups::TabGroupId;
 namespace {
 
 const char kURL[] = "https://chromium.org/";
-const char kOneHourThreshold[] = "3600";
 
 }  // namespace
 
 class StartSurfaceSceneAgentTest : public PlatformTest {
  public:
   StartSurfaceSceneAgentTest() {
-    profile_ = TestProfileIOS::Builder().Build();
+    TestProfileIOS::Builder builder;
+    builder.SetName(profile_manager_.ReserveNewProfileName());
+    profile_ = profile_manager_.AddProfileWithBuilder(std::move(builder));
     startup_information_ = [[FakeStartupInformation alloc] init];
     app_state_ = OCMClassMock([AppState class]);
     OCMStub([app_state_ startupInformation]).andReturn(startup_information_);
@@ -117,7 +119,8 @@ class StartSurfaceSceneAgentTest : public PlatformTest {
  protected:
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
-  std::unique_ptr<TestProfileIOS> profile_;
+  TestProfileManagerIOS profile_manager_;
+  raw_ptr<TestProfileIOS> profile_;
   FakeStartupInformation* startup_information_;
   AppState* app_state_;
   ProfileState* profile_state_;
@@ -459,15 +462,6 @@ TEST_F(StartSurfaceSceneAgentTest, PrefetchCapabilitiesOnAppStart) {
 // Tests that the tab group in grid view is opened if Chrome is activated in the
 // right time interval.
 TEST_F(StartSurfaceSceneAgentTest, ShowTabGroupInGridOnStart) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   // Within the interval.
   base::Time time_last_background = base::Time::Now() - base::Hours(2);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(
@@ -495,15 +489,6 @@ TEST_F(StartSurfaceSceneAgentTest, ShowTabGroupInGridOnStart) {
 // the right time interval but in IncognitoMode.
 TEST_F(StartSurfaceSceneAgentTest,
        DoNotShowTabGroupInGridOnStartInIncognitoMode) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   // Within the interval
   base::Time time_last_background = base::Time::Now() - base::Hours(2);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(
@@ -538,15 +523,6 @@ TEST_F(StartSurfaceSceneAgentTest,
 // before the time interval.
 TEST_F(StartSurfaceSceneAgentTest,
        DoNotShowTabGroupInGridOnStartIfOpenedTooEarly) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   // Not in interval.
   base::Time time_last_background = base::Time::Now() - base::Minutes(30);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(
@@ -574,15 +550,6 @@ TEST_F(StartSurfaceSceneAgentTest,
 // after the time interval.
 TEST_F(StartSurfaceSceneAgentTest,
        DoNotShowTabGroupInGridOnStartIfOpenedTooLate) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   // Not in interval.
   base::Time time_last_background = base::Time::Now() - base::Hours(5);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(
@@ -613,15 +580,6 @@ TEST_F(StartSurfaceSceneAgentTest,
 // part of a group.
 TEST_F(StartSurfaceSceneAgentTest,
        DoNotShowTabGroupInGridOnStartIfNotInAGroup) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   // Within the interval but no group.
   base::Time time_last_background = base::Time::Now() - base::Hours(2);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(
@@ -649,15 +607,6 @@ TEST_F(StartSurfaceSceneAgentTest,
 // level is set to ForegroundActive.
 TEST_F(StartSurfaceSceneAgentTest,
        DoNotShowTabGroupInGridOnStartBeforeForegroundActivation) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   // Within the interval.
   base::Time time_last_background = base::Time::Now() - base::Hours(2);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(
@@ -685,15 +634,6 @@ TEST_F(StartSurfaceSceneAgentTest,
 // Tests that a NTP is created when Chrome is foregrounded after being in
 // background past the threshold.
 TEST_F(StartSurfaceSceneAgentTest, OpenNTPAfterThreshold) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   base::Time time_last_background = base::Time::Now() - base::Hours(5);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(
       scene_state_, time_last_background);
@@ -717,15 +657,6 @@ TEST_F(StartSurfaceSceneAgentTest, OpenNTPAfterThreshold) {
 // Tests that a NTP is created outside the active group when Chrome is
 // foregrounded after being in background past the threshold.
 TEST_F(StartSurfaceSceneAgentTest, OpenNTPAfterThresholdOutsideActiveGroup) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   base::Time time_last_background = base::Time::Now() - base::Hours(5);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(
       scene_state_, time_last_background);
@@ -752,13 +683,7 @@ TEST_F(StartSurfaceSceneAgentTest, OpenNTPAfterThresholdOutsideActiveGroup) {
 // background past the threshold if the Start Surface setting is disabled.
 TEST_F(StartSurfaceSceneAgentTest, OpenNTPAfterThresholdSettingOff) {
   base::test::ScopedFeatureList scoped_feature_list;
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold},
-       {kStartSurfaceUserSetting, {}}},
-      /*disabled_features=*/{});
+  scoped_feature_list.InitAndEnableFeature(kStartSurfaceUserSetting);
 
   profile_->GetPrefs()->SetBoolean(prefs::kStartSurfaceEnabled, false);
 
@@ -788,13 +713,7 @@ TEST_F(StartSurfaceSceneAgentTest, OpenNTPAfterThresholdSettingOff) {
 // enabled.
 TEST_F(StartSurfaceSceneAgentTest, OpenNTPAfterThresholdSettingOn) {
   base::test::ScopedFeatureList scoped_feature_list;
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold},
-       {kStartSurfaceUserSetting, {}}},
-      /*disabled_features=*/{});
+  scoped_feature_list.InitAndEnableFeature(kStartSurfaceUserSetting);
 
   profile_->GetPrefs()->SetBoolean(prefs::kStartSurfaceEnabled, true);
 
@@ -823,13 +742,7 @@ TEST_F(StartSurfaceSceneAgentTest, OpenNTPAfterThresholdSettingOn) {
 // threshold, even if the Start Surface setting is enabled.
 TEST_F(StartSurfaceSceneAgentTest, OpenNTPWithinThresholdSettingOn) {
   base::test::ScopedFeatureList scoped_feature_list;
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold},
-       {kStartSurfaceUserSetting, {}}},
-      /*disabled_features=*/{});
+  scoped_feature_list.InitAndEnableFeature(kStartSurfaceUserSetting);
 
   profile_->GetPrefs()->SetBoolean(prefs::kStartSurfaceEnabled, true);
 
@@ -858,13 +771,7 @@ TEST_F(StartSurfaceSceneAgentTest, OpenNTPWithinThresholdSettingOn) {
 // threshold when the Start Surface setting is disabled.
 TEST_F(StartSurfaceSceneAgentTest, OpenNTPWithinThresholdSettingOff) {
   base::test::ScopedFeatureList scoped_feature_list;
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold},
-       {kStartSurfaceUserSetting, {}}},
-      /*disabled_features=*/{});
+  scoped_feature_list.InitAndEnableFeature(kStartSurfaceUserSetting);
 
   profile_->GetPrefs()->SetBoolean(prefs::kStartSurfaceEnabled, false);
 
@@ -891,15 +798,6 @@ TEST_F(StartSurfaceSceneAgentTest, OpenNTPWithinThresholdSettingOff) {
 
 // Tests that the app does not crash when the webStateList is empty.
 TEST_F(StartSurfaceSceneAgentTest, AppDoesNotCrashWhenWebStateListEmpty) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  // Setting the ShowTabGroupInGridInactiveDuration to 1 hour.
-  base::FieldTrialParams show_tab_grid_threshold = {
-      {kShowTabGroupInGridInactiveDurationInSeconds, kOneHourThreshold}};
-  scoped_feature_list.InitWithFeaturesAndParameters(
-      /*enabled_features=*/
-      {{kShowTabGroupInGridOnStart, show_tab_grid_threshold}},
-      /*disabled_features=*/{});
-
   // Within the interval.
   base::Time time_last_background = base::Time::Now() - base::Hours(2);
   test::SetStartSurfaceSessionObjectForSceneStateForTesting(

@@ -187,6 +187,45 @@ struct DomainLookupTiming {
   mojo_base.mojom.TimeDelta? domain_lookup_end;
 };
 
+// Represents Unicode scripts (and Emojis) that we track for font fallback.
+// This is a curated subset of ICU's UScriptCode (plus kEmoji) designed
+// specifically for tracking high-impact font fallback categories in UMA.
+// LINT.IfChange(ScriptType)
+enum ScriptType {
+  // Catch-all for scripts not explicitly listed below.
+  kOther = 0,
+  // Latin script (USCRIPT_LATIN).
+  kLatin = 1,
+  // Han (CJK Ideographs) script (USCRIPT_HAN).
+  kHan = 2,
+  // Hangul script (USCRIPT_HANGUL).
+  kHangul = 3,
+  // Hiragana script (USCRIPT_HIRAGANA).
+  kHiragana = 4,
+  // Katakana script (USCRIPT_KATAKANA).
+  kKatakana = 5,
+  // Arabic script (USCRIPT_ARABIC).
+  kArabic = 6,
+  // Bengali script (USCRIPT_BENGALI).
+  kBengali = 7,
+  // Devanagari script (USCRIPT_DEVANAGARI).
+  kDevanagari = 8,
+  // Cyrillic script (USCRIPT_CYRILLIC).
+  kCyrillic = 9,
+  // Common script (USCRIPT_COMMON), used for math, symbols, etc.
+  kCommon = 10,
+  // Emojis (detected via fallback priority instead of script code).
+  kEmoji = 11,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/page/histograms.xml:GWSFontFallbackScript)
+
+struct ScriptFallbackInfo {
+  // The script type (or Emoji) of the fallback character.
+  ScriptType script_type;
+  // The number of fallback events for this script/Emoji.
+  uint32 fallback_count;
+};
+
 struct FontLoadingMetrics {
   // Total cumulative time spent in character fallback.
   mojo_base.mojom.TimeDelta? fallback_duration;
@@ -202,6 +241,9 @@ struct FontLoadingMetrics {
 
   // NGShapeCache misses.
   uint32 shape_cache_miss_count;
+
+  // Detailed fallback metrics per script.
+  array<ScriptFallbackInfo> script_fallback_metrics;
 };
 
 // PageLoadTiming contains timing metrics associated with a page load. Many of

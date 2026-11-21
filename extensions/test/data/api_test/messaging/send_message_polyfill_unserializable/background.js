@@ -7,13 +7,17 @@ function onMessageListener(message, sender, sendResponse) {
       // JS functions are not JSON serializable. The below causes extensions v8
       // C++ logic to throw a TypeError in this context.
     case 'respond synchronously with an unserializable value':
+      // Verify `sendResponse` throws when responding synchronously with an
+      // unserializable function.
       chrome.test.assertThrows(
-          sendResponse, [() => {}], 'Could not serialize message.');
+          sendResponse.bind(null, () => {}), 'Could not serialize message.');
       break;
     case 'respond asynchronously with an unserializable value':
       setTimeout(() => {
+        // Verify `sendResponse` throws when responding asynchronously with an
+        // unserializable function.
         chrome.test.assertThrows(
-            sendResponse, [() => {}], 'Could not serialize message.');
+            sendResponse.bind(null, () => {}), 'Could not serialize message.');
       }, 1);
       return true;
     default:

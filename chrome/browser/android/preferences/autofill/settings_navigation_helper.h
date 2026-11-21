@@ -17,6 +17,15 @@ void ShowAutofillProfileSettings(content::WebContents* web_contents);
 // Opens the autofill settings page for credit cards.
 void ShowAutofillCreditCardSettings(content::WebContents* web_contents);
 
+// Opens the autofill settings page for identity docs.
+void ShowAutofillIdentityDocsSettings(content::WebContents* web_contents);
+
+// Opens the autofill settings page for travel.
+void ShowAutofillTravelSettings(content::WebContents* web_contents);
+
+// Opens the autofill settings page for shopping.
+void ShowAutofillShoppingSettings(content::WebContents* web_contents);
+
 }  // namespace autofill
 
 #endif  // CHROME_BROWSER_ANDROID_PREFERENCES_AUTOFILL_SETTINGS_NAVIGATION_HELPER_H_

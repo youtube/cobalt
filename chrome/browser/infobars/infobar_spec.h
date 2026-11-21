@@ -20,7 +20,9 @@ class WebContents;
 namespace infobars {
 
 enum class InfoBarScope {
-  kCurrentTab,
+  // The infobar will only show for the web contents specified.
+  kTab,
+  // The infobar will show for all the tabs/web contents across all browsers.
   kGlobal,
 };
 
@@ -78,7 +80,7 @@ class InfoBarSpec {
   std::u16string link_text_;
   GURL link_navigation_url_;
   InfoBarPriority priority_ = InfoBarPriority::kDefault;
-  InfoBarScope scope_ = InfoBarScope::kCurrentTab;
+  InfoBarScope scope_ = InfoBarScope::kTab;
   raw_ptr<const gfx::VectorIcon> icon_ = nullptr;
   int icon_id_ = 0;
   bool expire_on_navigation_ = true;

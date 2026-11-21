@@ -342,10 +342,18 @@ class CONTENT_EXPORT SiteInstanceImpl final : public SiteInstance {
   // SiteInstance.
   void SetSite(const UrlInfo& url_info);
 
-  // Same as above, but for SiteInfo. The above version should be used in most
-  // cases, unless the UrlInfo is unavailable, such as for sandboxed srcdoc
-  // frames.
-  void SetSite(const SiteInfo& site_info);
+  // Directly assigns the precomputed |site_info| and |original_url| to this
+  // SiteInstance, avoiding redundant recalculation of the SiteInfo.
+  // |original_url| specifies the first GURL navigated to in this SiteInstance.
+  // Used in the precomputed SiteInfo navigation path.
+  void SetSiteInfoAndOriginalUrl(const SiteInfo& site_info,
+                                 const GURL& original_url);
+
+  // Directly assigns the |site_info| to this SiteInstance. Used in cases where
+  // the original URL is not available or not applicable, such as when creating
+  // a SiteInstance for a fenced frame (which reuses the embedder's SiteInfo),
+  // or when creating guest or sandboxed SiteInstances from a SiteInfo directly.
+  void SetSiteInfo(const SiteInfo& site_info);
 
   // Similar to SetSite(), but first attempts to convert this object to a
   // default SiteInstance if |url_info| can be placed inside a default

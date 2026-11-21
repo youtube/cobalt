@@ -14,6 +14,7 @@
 #include <csignal>
 #include <cstddef>
 #include <string>
+#include <vector>
 
 #include "base/android/library_loader/anchor_functions.h"
 #include "base/android/orderfile/orderfile_buildflags.h"
@@ -195,11 +196,15 @@ PrefetchStatus PrefetchWithForkOrMadvise() {
     return PrefetchStatus::kWrongOrdering;
   }
 
-  const std::array<const Section, 2> sections{
-      // Fetch the ordered section first.
-      Section::CreateAligned("ordered", kStartOfOrderedText, kEndOfOrderedText),
-      Section::CreateAligned("text", kStartOfText, kEndOfText),
-  };
+  std::vector<Section> sections;
+  sections.push_back(Section::CreateAligned("ordered", kStartOfOrderedText,
+                                            kEndOfOrderedText));
+
+  if (!base::FeatureList::IsEnabled(
+          features::kLibraryPrefetcherOnlyOrderedText)) {
+    sections.push_back(
+        Section::CreateAligned("text", kStartOfText, kEndOfText));
+  }
 
   if (base::FeatureList::IsEnabled(features::kLibraryPrefetcherMadvise)) {
     // MADV_POPULATE_READ was an alternative considered. The differences being:

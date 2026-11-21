@@ -59,11 +59,14 @@ struct SameSizeAsVectorWithInlineCapacity<T, 0> {
 #if DCHECK_IS_ON()
   int64_t modifications;
 #endif
+#if BUILDFLAG(ENABLE_VECTOR_ACTIVE_ITERATOR_CHECKS)
+  wtf_size_t active_iterator_count;
+#endif
 };
 
 template <typename T, wtf_size_t inlineCapacity>
-struct SameSizeAsVectorWithInlineCapacity {
-  SameSizeAsVectorWithInlineCapacity<T, 0> base_capacity;
+struct SameSizeAsVectorWithInlineCapacity
+    : public SameSizeAsVectorWithInlineCapacity<T, 0> {
 #if !defined(ANNOTATE_CONTIGUOUS_CONTAINER)
   T inline_buffer[inlineCapacity];
 #endif

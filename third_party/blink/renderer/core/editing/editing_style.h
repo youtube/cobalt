@@ -131,7 +131,7 @@ class CORE_EXPORT EditingStyle final : public GarbageCollected<EditingStyle> {
       ShouldExtractMatchingStyle) const;
   bool StyleIsPresentInComputedStyleOfNode(Node*) const;
 
-  static bool ElementIsStyledSpanOrHTMLEquivalent(const HTMLElement*);
+  static bool ElementIsStyledSpanOrHtmlEquivalent(const HTMLElement*);
 
   void PrepareToApplyAt(
       const Position&,

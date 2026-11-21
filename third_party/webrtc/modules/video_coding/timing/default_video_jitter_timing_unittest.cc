@@ -31,33 +31,79 @@ constexpr Timestamp kInitialTime = Timestamp::Millis(789);
 constexpr DataSize kFrameSize = DataSize::Bytes(1000);
 constexpr TimeDelta kRtt = TimeDelta::Millis(100);
 
-TEST(DefaultVideoJitterTimingTest, ExtrapolatorReturnsNulloptInitially) {
+TEST(DefaultVideoJitterTimingTest, LocalTimeReturnsNulloptInitially) {
   SimulatedClock clock(kInitialTime);
   Environment env = CreateTestEnvironment({.time = &clock});
   DefaultVideoJitterTiming timing(env);
 
-  EXPECT_EQ(timing.ExtrapolateLocalTime(kRtpTimestamp), std::nullopt);
+  EXPECT_EQ(timing.LocalTime(kRtpTimestamp), std::nullopt);
 }
 
-TEST(DefaultVideoJitterTimingTest, ExtrapolatorReturnsTimeAfterUpdate) {
+TEST(DefaultVideoJitterTimingTest, LocalTimeReturnsTimeAfterUpdate) {
   SimulatedClock clock(kInitialTime);
   Environment env = CreateTestEnvironment({.time = &clock});
   DefaultVideoJitterTiming timing(env);
 
-  timing.OnCompleteTemporalUnit(kRtpTimestamp, clock.CurrentTime());
-  EXPECT_EQ(timing.ExtrapolateLocalTime(kRtpTimestamp), clock.CurrentTime());
+  timing.OnCompleteFrame({.rtp_timestamp = kRtpTimestamp,
+                          .time = clock.CurrentTime(),
+                          .last_spatial_layer = true,
+                          .was_retransmitted = false});
+  EXPECT_EQ(timing.LocalTime(kRtpTimestamp), clock.CurrentTime());
 }
 
-TEST(DefaultVideoJitterTimingTest, ExtrapolatorReturnsNulloptAfterReset) {
+TEST(DefaultVideoJitterTimingTest, LocalTimeReturnsNulloptAfterReset) {
   SimulatedClock clock(kInitialTime);
   Environment env = CreateTestEnvironment({.time = &clock});
   DefaultVideoJitterTiming timing(env);
 
-  timing.OnCompleteTemporalUnit(kRtpTimestamp, clock.CurrentTime());
-  EXPECT_EQ(timing.ExtrapolateLocalTime(kRtpTimestamp), clock.CurrentTime());
+  timing.OnCompleteFrame({.rtp_timestamp = kRtpTimestamp,
+                          .time = clock.CurrentTime(),
+                          .last_spatial_layer = true,
+                          .was_retransmitted = false});
+  EXPECT_EQ(timing.LocalTime(kRtpTimestamp), clock.CurrentTime());
 
   timing.Reset();
-  EXPECT_EQ(timing.ExtrapolateLocalTime(kRtpTimestamp), std::nullopt);
+  EXPECT_EQ(timing.LocalTime(kRtpTimestamp), std::nullopt);
+}
+
+TEST(DefaultVideoJitterTimingTest, LocalTimeNotUpdatedByRetransmittedFrame) {
+  SimulatedClock clock(kInitialTime);
+  Environment env = CreateTestEnvironment({.time = &clock});
+  DefaultVideoJitterTiming timing(env);
+
+  timing.OnCompleteFrame({.rtp_timestamp = kRtpTimestamp,
+                          .time = clock.CurrentTime(),
+                          .last_spatial_layer = true,
+                          .was_retransmitted = true});
+  EXPECT_EQ(timing.LocalTime(kRtpTimestamp), std::nullopt);
+}
+
+TEST(DefaultVideoJitterTimingTest, LocalTimeNotUpdatedByNonLastSpatialLayer) {
+  SimulatedClock clock(kInitialTime);
+  Environment env = CreateTestEnvironment({.time = &clock});
+  DefaultVideoJitterTiming timing(env);
+
+  timing.OnCompleteFrame({.rtp_timestamp = kRtpTimestamp,
+                          .time = clock.CurrentTime(),
+                          .last_spatial_layer = false,
+                          .was_retransmitted = false});
+  EXPECT_EQ(timing.LocalTime(kRtpTimestamp), std::nullopt);
+}
+
+TEST(DefaultVideoJitterTimingTest,
+     LocalTimeUpdatedByNonLastSpatialLayerWhenMarkerBitOnlyDisabled) {
+  FieldTrials field_trials = CreateTestFieldTrials(
+      "WebRTC-IncomingTimestampOnMarkerBitOnly/Disabled/");
+  SimulatedClock clock(kInitialTime);
+  Environment env =
+      CreateTestEnvironment({.field_trials = field_trials, .time = &clock});
+  DefaultVideoJitterTiming timing(env);
+
+  timing.OnCompleteFrame({.rtp_timestamp = kRtpTimestamp,
+                          .time = clock.CurrentTime(),
+                          .last_spatial_layer = false,
+                          .was_retransmitted = false});
+  EXPECT_NE(timing.LocalTime(kRtpTimestamp), std::nullopt);
 }
 
 TEST(DefaultVideoJitterTimingTest, OnDecodableTemporalUnitReturnsEstimate) {
@@ -65,9 +111,10 @@ TEST(DefaultVideoJitterTimingTest, OnDecodableTemporalUnitReturnsEstimate) {
   Environment env = CreateTestEnvironment({.time = &clock});
   DefaultVideoJitterTiming timing(env);
 
-  EXPECT_NE(timing.OnDecodableTemporalUnit(kRtpTimestamp, kFrameSize,
-                                           clock.CurrentTime(),
-                                           /*was_retransmitted=*/false),
+  EXPECT_NE(timing.OnDecodableTemporalUnit({.rtp_timestamp = kRtpTimestamp,
+                                            .size = kFrameSize,
+                                            .time = clock.CurrentTime(),
+                                            .was_retransmitted = false}),
             std::nullopt);
 }
 
@@ -77,9 +124,10 @@ TEST(DefaultVideoJitterTimingTest,
   Environment env = CreateTestEnvironment({.time = &clock});
   DefaultVideoJitterTiming timing(env);
 
-  EXPECT_EQ(timing.OnDecodableTemporalUnit(kRtpTimestamp, kFrameSize,
-                                           clock.CurrentTime(),
-                                           /*was_retransmitted=*/true),
+  EXPECT_EQ(timing.OnDecodableTemporalUnit({.rtp_timestamp = kRtpTimestamp,
+                                            .size = kFrameSize,
+                                            .time = clock.CurrentTime(),
+                                            .was_retransmitted = true}),
             std::nullopt);
 }
 
@@ -92,25 +140,29 @@ TEST(DefaultVideoJitterTimingTest, EstimateIncludesRttAfterRetransmission) {
       CreateTestEnvironment({.field_trials = field_trials, .time = &clock});
   DefaultVideoJitterTiming timing(env);
 
-  timing.UpdateRtt(kRtt);
+  timing.OnNetworkUpdate({.rtt = kRtt});
 
-  std::optional<TimeDelta> initial_estimate = timing.OnDecodableTemporalUnit(
-      /*rtp_timestamp=*/3000, kFrameSize, clock.CurrentTime(),
-      /*was_retransmitted=*/false);
+  std::optional<TimeDelta> initial_estimate =
+      timing.OnDecodableTemporalUnit({.rtp_timestamp = 3000,
+                                      .size = kFrameSize,
+                                      .time = clock.CurrentTime(),
+                                      .was_retransmitted = false});
   ASSERT_TRUE(initial_estimate.has_value());
 
   // Retransmitted frame.
   clock.AdvanceTime(TimeDelta::Millis(33));
-  EXPECT_EQ(timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/6000, kFrameSize,
-                                           clock.CurrentTime(),
-                                           /*was_retransmitted=*/true),
+  EXPECT_EQ(timing.OnDecodableTemporalUnit({.rtp_timestamp = 6000,
+                                            .size = kFrameSize,
+                                            .time = clock.CurrentTime(),
+                                            .was_retransmitted = true}),
             std::nullopt);
 
   // Get estimate after retransmission.
   clock.AdvanceTime(TimeDelta::Millis(33));
-  EXPECT_GT(timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/9000, kFrameSize,
-                                           clock.CurrentTime(),
-                                           /*was_retransmitted=*/false),
+  EXPECT_GT(timing.OnDecodableTemporalUnit({.rtp_timestamp = 9000,
+                                            .size = kFrameSize,
+                                            .time = clock.CurrentTime(),
+                                            .was_retransmitted = false}),
             *initial_estimate + kMargin * kRtt);
 }
 
@@ -123,27 +175,31 @@ TEST(DefaultVideoJitterTimingTest, ResetClearsJitterEstimator) {
       CreateTestEnvironment({.field_trials = field_trials, .time = &clock});
   DefaultVideoJitterTiming timing(env);
 
-  timing.UpdateRtt(kRtt);
+  timing.OnNetworkUpdate({.rtt = kRtt});
 
-  std::optional<TimeDelta> initial_estimate = timing.OnDecodableTemporalUnit(
-      /*rtp_timestamp=*/3000, kFrameSize, clock.CurrentTime(),
-      /*was_retransmitted=*/false);
+  std::optional<TimeDelta> initial_estimate =
+      timing.OnDecodableTemporalUnit({.rtp_timestamp = 3000,
+                                      .size = kFrameSize,
+                                      .time = clock.CurrentTime(),
+                                      .was_retransmitted = false});
   ASSERT_TRUE(initial_estimate.has_value());
 
   // Retransmitted frame.
   clock.AdvanceTime(TimeDelta::Millis(33));
-  EXPECT_EQ(timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/6000, kFrameSize,
-                                           clock.CurrentTime(),
-                                           /*was_retransmitted=*/true),
+  EXPECT_EQ(timing.OnDecodableTemporalUnit({.rtp_timestamp = 6000,
+                                            .size = kFrameSize,
+                                            .time = clock.CurrentTime(),
+                                            .was_retransmitted = true}),
             std::nullopt);
 
   timing.Reset();
 
   // Get estimate after retransmission and reset, should not include RTT.
   clock.AdvanceTime(TimeDelta::Millis(33));
-  EXPECT_LT(timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/9000, kFrameSize,
-                                           clock.CurrentTime(),
-                                           /*was_retransmitted=*/false),
+  EXPECT_LT(timing.OnDecodableTemporalUnit({.rtp_timestamp = 9000,
+                                            .size = kFrameSize,
+                                            .time = clock.CurrentTime(),
+                                            .was_retransmitted = false}),
             *initial_estimate + kMargin * kRtt);
 }
 

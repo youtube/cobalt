@@ -15,7 +15,7 @@ class GURL;
 // Shared code between PluginObserver and PluginObserverAndroid.
 
 // Only sets `referrer` on success.
-bool CanOpenPdfUrl(content::RenderFrameHost* render_frame_host,
+bool CanOpenPdfUrl(content::RenderFrameHost& render_frame_host,
                    const GURL& url,
                    const GURL& last_committed_url,
                    content::Referrer* referrer);

@@ -38,6 +38,10 @@ void FakeFidoDiscovery::WaitForCallToStartAndSimulateSuccess() {
   SimulateStarted(true /* success */);
 }
 
+base::WeakPtr<FakeFidoDiscovery> FakeFidoDiscovery::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
+
 void FakeFidoDiscovery::StartInternal() {
   wait_for_start_loop_.Quit();
 

@@ -268,8 +268,10 @@ void CreateAndShowNewWindowWithContents(
   DCHECK(original_browser->GetType() != BrowserWindowInterface::TYPE_APP_POPUP);
   if (original_browser->GetType() == BrowserWindowInterface::TYPE_APP) {
     const Browser* browser = original_browser->GetBrowserForMigrationOnly();
+    const bool is_trusted_source =
+        WindowFeatureController::From(original_browser)->IsTrustedSource();
     new_browser = Browser::Create(Browser::CreateParams::CreateForApp(
-        browser->app_name(), browser->is_trusted_source(), gfx::Rect(),
+        browser->app_name(), is_trusted_source, gfx::Rect(),
         original_browser->GetProfile(), true));
   } else {
     new_browser = Browser::Create(Browser::CreateParams(
@@ -560,30 +562,31 @@ const extensions::Extension* GetExtensionForBrowser(
 // appropriate tab to navigate.  If that tab is the |current_tab|, reverts the
 // location bar contents, since all browser-UI-triggered navigations should
 // revert any omnibox edits in the |current_tab|.
-WebContents* GetTabAndRevertIfNecessaryHelper(BrowserWindowInterface* browser,
-                                              WindowOpenDisposition disposition,
-                                              WebContents* current_tab) {
+tabs::TabInterface* GetTabAndRevertIfNecessaryHelper(
+    BrowserWindowInterface* browser,
+    WindowOpenDisposition disposition,
+    tabs::TabInterface* current_tab) {
+  CHECK(current_tab);
+  WebContents* current_contents = current_tab->GetContents();
+
   switch (disposition) {
     case WindowOpenDisposition::NEW_FOREGROUND_TAB:
     case WindowOpenDisposition::NEW_BACKGROUND_TAB: {
-      std::unique_ptr<WebContents> new_tab = current_tab->Clone();
+      std::unique_ptr<WebContents> new_tab = current_contents->Clone();
       WebContents* raw_new_tab = new_tab.get();
       if (disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB) {
         new_tab->WasHidden();
       }
-      const int index =
-          browser->GetTabStripModel()->GetIndexOfWebContents(current_tab);
-      const auto group = browser->GetTabStripModel()->GetTabGroupForTab(index);
       browser->GetTabStripModel()->AddWebContents(
           std::move(new_tab), -1, ui::PAGE_TRANSITION_LINK,
           (disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB)
               ? AddTabTypes::ADD_ACTIVE
               : AddTabTypes::ADD_NONE,
-          group);
-      return raw_new_tab;
+          current_tab->GetGroup());
+      return browser->GetTabStripModel()->GetTabForWebContents(raw_new_tab);
     }
     case WindowOpenDisposition::NEW_WINDOW: {
-      std::unique_ptr<WebContents> new_tab = current_tab->Clone();
+      std::unique_ptr<WebContents> new_tab = current_contents->Clone();
       WebContents* raw_new_tab = new_tab.get();
       Browser* new_browser =
           Browser::Create(Browser::CreateParams(browser->GetProfile(), true));
@@ -591,7 +594,7 @@ WebContents* GetTabAndRevertIfNecessaryHelper(BrowserWindowInterface* browser,
                                                      ui::PAGE_TRANSITION_LINK,
                                                      AddTabTypes::ADD_ACTIVE);
       new_browser->GetWindow()->Show();
-      return raw_new_tab;
+      return new_browser->tab_strip_model()->GetTabForWebContents(raw_new_tab);
     }
     default:
       BrowserWindow::FromBrowser(browser)->GetLocationBar()->Revert();
@@ -600,11 +603,11 @@ WebContents* GetTabAndRevertIfNecessaryHelper(BrowserWindowInterface* browser,
 }
 
 // Like the above, but auto-computes the current tab
-WebContents* GetTabAndRevertIfNecessary(BrowserWindowInterface* browser,
-                                        WindowOpenDisposition disposition) {
-  WebContents* activate_tab =
-      browser->GetTabStripModel()->GetActiveWebContents();
-  return GetTabAndRevertIfNecessaryHelper(browser, disposition, activate_tab);
+tabs::TabInterface* GetTabAndRevertIfNecessary(
+    BrowserWindowInterface* browser,
+    WindowOpenDisposition disposition) {
+  tabs::TabInterface* active_tab = browser->GetTabStripModel()->GetActiveTab();
+  return GetTabAndRevertIfNecessaryHelper(browser, disposition, active_tab);
 }
 
 void ReloadInternal(BrowserWindowInterface* browser,
@@ -612,9 +615,8 @@ void ReloadInternal(BrowserWindowInterface* browser,
                     bool bypass_cache) {
   TabStripModel* const tab_strip_model = browser->GetTabStripModel();
   tabs::TabInterface* const active_tab = tab_strip_model->GetActiveTab();
-  WebContents* const active_contents = tab_strip_model->GetActiveWebContents();
 
-  std::vector<WebContents*> tabs_to_reload;
+  std::vector<tabs::TabInterface*> tabs_to_reload;
 
   // When using split view, both tabs composing the split view are considered
   // selected by the `selection_model` and `selection_model().size()` returns 2;
@@ -634,29 +636,33 @@ void ReloadInternal(BrowserWindowInterface* browser,
     // tabstrip (e.g. if `disposition` is NEW_BACKGROUND_TAB).
     for (tabs::TabInterface* t :
          tab_strip_model->selection_model().selected_tabs()) {
-      tabs_to_reload.push_back(t->GetContents());
+      tabs_to_reload.push_back(t);
     }
   } else {
-    tabs_to_reload.push_back(active_contents);
+    CHECK(active_tab);
+    tabs_to_reload.push_back(active_tab);
   }
 
   base::UmaHistogramCounts100("TabStrip.Tab.ReloadCount",
                               tabs_to_reload.size());
 
-  for (WebContents* const tab : tabs_to_reload) {
+  for (tabs::TabInterface* const tab : tabs_to_reload) {
     // Skip this tab if it is no longer part of this tabstrip. N.B. we do this
     // instead of using WeakPtr<WebContents> because we do not want to reload
     // tabs that move to another browser.
-    if (tab_strip_model->GetIndexOfWebContents(tab) == TabStripModel::kNoTab) {
+    if (tab->GetBrowserWindowInterface() != browser) {
       continue;
     }
 
-    WebContents* const new_tab =
+    tabs::TabInterface* const new_tab_interface =
         GetTabAndRevertIfNecessaryHelper(browser, disposition, tab);
+    CHECK(new_tab_interface);
+    WebContents* const new_tab = new_tab_interface->GetContents();
+    CHECK(new_tab);
 
     // If the `tab` is the activated page, give the focus to it, as this is
     // caused by a user action
-    if (tab == active_contents && !new_tab->FocusLocationBarByDefault()) {
+    if (tab == active_tab && !new_tab->FocusLocationBarByDefault()) {
       new_tab->Focus();
     }
 
@@ -949,7 +955,9 @@ void MaybeShowFeatureBackNavigationMenuPromo(BrowserWindowInterface* browser,
 
 void GoBack(BrowserWindowInterface* browser,
             WindowOpenDisposition disposition) {
-  GoBack(GetTabAndRevertIfNecessary(browser, disposition));
+  tabs::TabInterface* tab = GetTabAndRevertIfNecessary(browser, disposition);
+  CHECK(tab);
+  GoBack(tab->GetContents());
 }
 
 void GoBack(content::WebContents* web_contents) {
@@ -997,9 +1005,9 @@ void GoForward(BrowserWindowInterface* browser,
                WindowOpenDisposition disposition) {
   base::RecordAction(UserMetricsAction("Forward"));
   if (CanGoForward(browser)) {
-    GetTabAndRevertIfNecessary(browser, disposition)
-        ->GetController()
-        .GoForward();
+    tabs::TabInterface* tab = GetTabAndRevertIfNecessary(browser, disposition);
+    CHECK(tab);
+    tab->GetContents()->GetController().GoForward();
   }
 }
 
@@ -1013,8 +1021,11 @@ void GoForward(content::WebContents* web_contents) {
 void NavigateToIndexWithDisposition(BrowserWindowInterface* browser,
                                     int index,
                                     WindowOpenDisposition disposition) {
-  NavigationController* controller =
-      &GetTabAndRevertIfNecessary(browser, disposition)->GetController();
+  tabs::TabInterface* tab = GetTabAndRevertIfNecessary(browser, disposition);
+  CHECK(tab);
+  WebContents* web_contents = tab->GetContents();
+  CHECK(web_contents);
+  NavigationController* controller = &web_contents->GetController();
   DCHECK_GE(index, 0);
   DCHECK_LT(index, controller->GetEntryCount());
   controller->GoToIndex(index);

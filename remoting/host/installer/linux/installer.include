@@ -230,7 +230,8 @@ stage_install_common() {
     install -m 644 "${OUTPUTDIR}/vk_swiftshader_icd.json" "${STAGEDIR}/${INSTALLDIR}/"
   fi
 
-  # Optimization Guide Internal
+  # TODO(crbug.com/525478189): Determine if Optimization Guide Internal is still
+  # required and remove if obsolete.
   if [ -f "${OUTPUTDIR}/liboptimization_guide_internal.so" ]; then
     file="liboptimization_guide_internal.so"
     strippedfile="${OUTPUTDIR}/${file}.stripped"

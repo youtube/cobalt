@@ -20,6 +20,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <array>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -28,6 +29,8 @@
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
+#include "base/containers/auto_spanification_helper.h"
+#include "base/containers/span.h"
 #include "base/debug/debugger.h"
 #include "base/files/dir_reader_posix.h"
 #include "base/files/file_util.h"
@@ -37,6 +40,7 @@
 #include "base/process/environment_internal.h"
 #include "base/process/process.h"
 #include "base/process/process_metrics.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/platform_thread_internal_posix.h"
@@ -78,18 +82,6 @@ void CheckPThreadStackMinIsSafe() {
 }
 
 namespace {
-
-// Get the process's "environment" (i.e. the thing that setenv/getenv
-// work with).
-char** GetEnvironment() {
-  return environ;
-}
-
-// Set the process's "environment" (i.e. the thing that setenv/getenv
-// work with).
-void SetEnvironment(char** env) {
-  environ = env;
-}
 
 // Set the calling thread's signal mask to new_sigmask and return
 // the previous signal mask.
@@ -314,13 +306,18 @@ Process LaunchProcess(const std::vector<std::string>& argv,
   argv_cstr.push_back(nullptr);
 
   base::HeapArray<char*> new_environ;
-  char* const empty_environ = nullptr;
-  char* const* old_environ = GetEnvironment();
+  base::span<const char* const> old_environ = internal::GetEnvironment();
   if (options.clear_environment) {
-    old_environ = &empty_environ;
+    old_environ = base::span<const char* const>();
   }
   if (!options.environment.empty()) {
-    new_environ = internal::AlterEnvironment(old_environ, options.environment);
+    // SAFETY: AlterEnvironment() requires each string in the input span to be
+    // null-terminated. internal::GetEnvironment() promises in its header
+    // contract (see environment_internal.h) that each string it returns is
+    // null-terminated, satisfying this requirement. See:
+    // https://man7.org/linux/man-pages/man7/environ.7.html
+    new_environ = UNSAFE_BUFFERS(
+        internal::AlterEnvironment(old_environ, options.environment));
   }
 
   sigset_t full_sigset;
@@ -474,7 +471,19 @@ Process LaunchProcess(const std::vector<std::string>& argv,
     }
 
     if (!options.environment.empty() || options.clear_environment) {
-      SetEnvironment(new_environ.data());
+      // `new_environ` is a single allocation containing both the pointer array
+      // and the backing string storage. Because `SetEnvironment` expects a span
+      // containing only the pointers (ending with the null terminator), we must
+      // scan `new_environ` to find the null pointer and reconstruct a span
+      // that excludes the trailing string data.
+      size_t ptr_count = 0;
+      if (!new_environ.empty()) {
+        while (new_environ[ptr_count] != nullptr) {
+          ptr_count++;
+        }
+        ptr_count++;  // Include the nullptr.
+      }
+      internal::SetEnvironment(new_environ.first(ptr_count));
     }
 
     // fd_shuffle1 is mutated by this call because it cannot malloc.

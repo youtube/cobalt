@@ -149,11 +149,28 @@ void MimeHandlerBodyCache::OnSourceDone() {
 
   if (forwarding_producer_.is_valid()) {
     WritePendingToForwarding();
-    if (forwarding_offset_ >= buffer_.size()) {
-      forwarding_producer_.reset();
-      forwarding_watcher_.Cancel();
+  }
+}
+
+MimeHandlerBodyCache::ForwardResult MimeHandlerBodyCache::ForwardBytes(
+    base::span<const uint8_t> pending,
+    size_t& offset) {
+  while (offset < pending.size()) {
+    size_t bytes_written = 0;
+    MojoResult result = forwarding_producer_->WriteData(
+        pending.subspan(offset), MOJO_WRITE_DATA_FLAG_NONE, bytes_written);
+
+    if (result == MOJO_RESULT_OK) {
+      offset += bytes_written;
+    } else if (result == MOJO_RESULT_SHOULD_WAIT) {
+      // The pipe is full; re-arm the writable watcher to resume later.
+      forwarding_watcher_.ArmOrNotify();
+      return ForwardResult::kBackpressured;
+    } else {
+      return ForwardResult::kPeerGone;
     }
   }
+  return ForwardResult::kDrained;
 }
 
 void MimeHandlerBodyCache::WritePendingToForwarding() {
@@ -161,28 +178,18 @@ void MimeHandlerBodyCache::WritePendingToForwarding() {
     return;
   }
 
-  while (forwarding_offset_ < buffer_.size()) {
-    size_t bytes_written = 0;
-    base::span<const uint8_t> data_to_write =
-        base::span(buffer_).subspan(forwarding_offset_);
-    MojoResult result = forwarding_producer_->WriteData(
-        data_to_write, MOJO_WRITE_DATA_FLAG_NONE, bytes_written);
-
-    if (result == MOJO_RESULT_OK) {
-      forwarding_offset_ += bytes_written;
-    } else if (result == MOJO_RESULT_SHOULD_WAIT) {
-      forwarding_watcher_.ArmOrNotify();
+  switch (ForwardBytes(buffer_, forwarding_offset_)) {
+    case ForwardResult::kBackpressured:
       return;
-    } else {
-      forwarding_producer_.reset();
-      forwarding_watcher_.Cancel();
+    case ForwardResult::kPeerGone:
+      CloseForwarding();
       return;
-    }
+    case ForwardResult::kDrained:
+      break;
   }
 
   if (state_ == State::kComplete && forwarding_offset_ >= buffer_.size()) {
-    forwarding_producer_.reset();
-    forwarding_watcher_.Cancel();
+    CloseForwarding();
   }
 }
 
@@ -190,12 +197,16 @@ void MimeHandlerBodyCache::OnForwardingPipeWritable(
     MojoResult result,
     const mojo::HandleSignalsState& state) {
   if (result != MOJO_RESULT_OK || state.peer_closed()) {
-    forwarding_producer_.reset();
-    forwarding_watcher_.Cancel();
+    CloseForwarding();
     return;
   }
 
   WritePendingToForwarding();
+}
+
+void MimeHandlerBodyCache::CloseForwarding() {
+  forwarding_watcher_.Cancel();
+  forwarding_producer_.reset();
 }
 
 mojo::ScopedDataPipeConsumerHandle MimeHandlerBodyCache::CreatePipe() {

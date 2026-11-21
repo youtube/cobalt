@@ -59,12 +59,12 @@ HTMLCanvasAccessibilityManager::HTMLCanvasAccessibilityManager(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     bool is_ignored,
     HTMLCanvasElement* canvas_element,
-    bool is_for_ukm_only)
-    : is_ignored_(is_ignored),
+    Options options)
+    : options_(options),
+      is_ignored_(is_ignored),
       uma_timer_(std::move(task_runner),
                  this,
                  &HTMLCanvasAccessibilityManager::RecordUma),
-      is_for_ukm_only_(is_for_ukm_only),
       canvas_element_(canvas_element) {
   UpdateHasFallbackElementContent();
 
@@ -72,22 +72,41 @@ HTMLCanvasAccessibilityManager::HTMLCanvasAccessibilityManager(
 
   ReadAriaAttributes();
 
-  is_initialized_ = true;
+  // If the manager is created with the kCollectTextRuns option only, capture
+  // the rendered text until heuristic decides otherwise.
+  if (options_ == kCollectTextRuns) {
+    canvas_element_->UpdateCaptureRenderedText(true);
+    return;
+  }
+
+  if (options_ & kUpdateHeuristicResults) {
+    OnUpdate();
+  }
+}
+
+void HTMLCanvasAccessibilityManager::SetIsIgnored(bool is_ignored) {
+  // If AX tree annotation is already enabled and `is_ignored` state is not
+  // changed, update is not needed.
+  if ((options_ & kAnnotateAXTree) && is_ignored_ == is_ignored) {
+    return;
+  }
+
+  // Receiving `is_ignored` indicates that AXObject is created for the canvas,
+  // and the manager should go to full operation mode to decide if the canvas
+  // needs accessibility support or not, and support it if needed.
+  // Note that support is not needed if `is_ignored` is true, however the
+  // update flow is triggered to update the heuristic result and collect
+  // metrics.
+  options_ |= kAll;
+  is_ignored_ = is_ignored;
   OnUpdate();
 }
 
-void HTMLCanvasAccessibilityManager::SetIgnored(bool is_ignored) {
-  // If the manager is in `is_for_ukm_only` mode, exit the mode and update
-  // anyway.
-  if (is_for_ukm_only_) {
-    is_for_ukm_only_ = false;
-  } else if (is_ignored_ == is_ignored) {
+void HTMLCanvasAccessibilityManager::EnableUpdatingHeuristicResults() {
+  if (options_ & kUpdateHeuristicResults) {
     return;
   }
-  // The manager is only created if the canvas is initially not ignored. If it
-  // becomes ignored later, we keep it to avoid the overhead of repeated
-  // creation and destruction.
-  is_ignored_ = is_ignored;
+  options_ |= kUpdateHeuristicResults;
   OnUpdate();
 }
 
@@ -134,7 +153,7 @@ void HTMLCanvasAccessibilityManager::OnResize() {
 }
 
 void HTMLCanvasAccessibilityManager::OnUpdate() {
-  if (!is_initialized_) {
+  if (!(options_ & kUpdateHeuristicResults)) {
     return;
   }
 
@@ -189,21 +208,22 @@ void HTMLCanvasAccessibilityManager::SetHeuristicResult(
   }
   heuristic_result_ = result;
 
-  if (!is_uma_recorded_ && !is_for_ukm_only_) {
+  if (!(options_ & kAnnotateAXTree)) {
+    return;
+  }
+
+  if (!is_uma_recorded_) {
     uma_timer_.StartOneShot(kUMATimerDelay, FROM_HERE);
   }
 
   if (heuristic_result_ == HeuristicResult::kNeedsA11ySupport &&
-      base::FeatureList::IsEnabled(::features::kAccessibilityCanvas) &&
-      !is_for_ukm_only_) {
-    should_capture_rendered_text_ = true;
-  } else if (should_capture_rendered_text_) {
-    should_capture_rendered_text_ = false;
+      base::FeatureList::IsEnabled(::features::kAccessibilityCanvas)) {
+    options_ |= kCollectTextRuns;
+  } else if (options_ & kCollectTextRuns) {
     ClearRenderedText();
+    options_ &= ~kCollectTextRuns;
   }
-  canvas_element_->UpdateCaptureRenderedText();
-  // TODO(crbug.com/475512055): Add UKM for cases that need a11y support for
-  // verification.
+  canvas_element_->UpdateCaptureRenderedText(options_ & kCollectTextRuns);
 }
 
 void HTMLCanvasAccessibilityManager::RecordUma(TimerBase*) {
@@ -226,7 +246,7 @@ void HTMLCanvasAccessibilityManager::RecordRenderedText(
     const String& text,
     const gfx::RectF& bounds,
     float font_height) {
-  if (!should_capture_rendered_text_) {
+  if (!(options_ & kCollectTextRuns)) {
     return;
   }
 
@@ -247,7 +267,7 @@ void HTMLCanvasAccessibilityManager::RecordRenderedText(
 }
 
 void HTMLCanvasAccessibilityManager::ClearRenderedText(const gfx::RectF& rect) {
-  if (!should_capture_rendered_text_) {
+  if (!(options_ & kCollectTextRuns)) {
     return;
   }
 

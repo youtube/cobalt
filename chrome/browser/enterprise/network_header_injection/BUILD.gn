@@ -22,6 +22,7 @@ static_library("network_header_injection") {
   public_deps = [
     "//base",
     "//chrome/browser/profiles:profile",
+    "//content/public/browser",
     "//services/network/public/mojom",
   ]
 

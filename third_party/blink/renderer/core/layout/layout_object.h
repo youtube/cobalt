@@ -2426,6 +2426,12 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   // gfx::Rect can be larger than the integral size.
   gfx::Rect AbsoluteBoundingBoxRect(MapCoordinatesFlags = 0) const;
 
+  // Returns the absolute bounding box rect including ink overflow (such as CSS
+  // drop-shadow) of this unbounded element, mapped to absolute coordinates.
+  // This is a specialized API for unbounded elements that traverses document
+  // boundaries.
+  gfx::Rect AbsoluteBoundingBoxRectForUnboundedElement() const;
+
   // These two functions also handle inlines without content for which the
   // location of the result rect (which may be empty) should be the absolute
   // location of the inline. This is especially useful to get the bounding

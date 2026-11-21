@@ -67,10 +67,8 @@ void SMILAnimationSandwich::Remove(SVGAnimationElement* animation) {
 
 void SMILAnimationSandwich::UpdateActiveAnimationStack(
     SMILTime presentation_time) {
-  if (!std::is_sorted(sandwich_.begin(), sandwich_.end(),
-                      PriorityCompare(presentation_time))) {
-    std::sort(sandwich_.begin(), sandwich_.end(),
-              PriorityCompare(presentation_time));
+  if (!std::ranges::is_sorted(sandwich_, PriorityCompare(presentation_time))) {
+    std::ranges::sort(sandwich_, PriorityCompare(presentation_time));
   }
 
   const bool was_active = !active_.empty();

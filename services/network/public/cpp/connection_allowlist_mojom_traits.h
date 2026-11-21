@@ -63,6 +63,16 @@ struct COMPONENT_EXPORT(NETWORK_CPP_CONNECTION_ALLOWLIST)
     }
   }
 
+  static bool match_response_origin(
+      const network::ConnectionAllowlist& allowlist) {
+    return allowlist.match_response_origin;
+  }
+
+  static const std::string& serialized_value(
+      const network::ConnectionAllowlist& allowlist) {
+    return allowlist.serialized_value;
+  }
+
   static bool Read(network::mojom::ConnectionAllowlistDataView data,
                    network::ConnectionAllowlist* out);
 };

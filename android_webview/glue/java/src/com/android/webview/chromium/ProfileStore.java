@@ -4,6 +4,8 @@
 
 package com.android.webview.chromium;
 
+import android.os.Looper;
+
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -62,28 +64,34 @@ public final class ProfileStore {
         };
     }
 
+    /**
+     * Gets or creates a Profile with the given name.
+     *
+     * <p>Note: This method does not trigger Chromium startup. Chromium will be initialized when the
+     * first method requiring Chromium state is called on the returned {@link Profile}.
+     *
+     * @param name The name of the profile.
+     */
     @NonNull
     public Profile getOrCreateProfile(@NonNull String name, @CallSite int callSite) {
-        mAwInit.triggerAndWaitForChromiumStarted(
-                WebViewChromiumAwInit.CallSite.GET_OR_CREATE_PROFILE);
-
         try (TraceEvent event =
                 TraceEvent.scoped(
                         "WebView.ProfileStore.GET_OR_CREATE_PROFILE", callSiteToString(callSite))) {
+            mAwInit.maybeSetChromiumUiThread(Looper.getMainLooper());
             ThreadUtils.checkUiThread();
+
             RecordHistogram.recordBooleanHistogram(
                     PROFILE_WAS_CREATED_BY_ASYNC_WEBVIEW_STARTUP_HISTOGRAM,
                     callSite == CallSite.ASYNC_WEBVIEW_STARTUP);
             return mProfiles.computeIfAbsent(
-                    name,
-                    profileName ->
-                            new Profile(AwBrowserContextStore.getNamedContext(profileName, true)));
+                    name, profileName -> new Profile(profileName, mAwInit));
         }
     }
 
     @Nullable
     public Profile getProfile(@NonNull String name) {
-        mAwInit.triggerAndWaitForChromiumStarted(WebViewChromiumAwInit.CallSite.GET_PROFILE);
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.PROFILE_STORE_GET_PROFILE);
 
         try (TraceEvent event = TraceEvent.scoped("WebView.ProfileStore.ApiCall.GET_PROFILE")) {
             ThreadUtils.checkUiThread();
@@ -92,7 +100,12 @@ public final class ProfileStore {
                     profileName -> {
                         AwBrowserContext browserContext =
                                 AwBrowserContextStore.getNamedContext(profileName, false);
-                        return browserContext != null ? new Profile(browserContext) : null;
+
+                        if (browserContext == null) {
+                            return null;
+                        }
+
+                        return new Profile(profileName, mAwInit);
                     });
         }
     }
@@ -100,7 +113,7 @@ public final class ProfileStore {
     @NonNull
     public List<String> getAllProfileNames() {
         mAwInit.triggerAndWaitForChromiumStarted(
-                WebViewChromiumAwInit.CallSite.GET_ALL_PROFILE_NAMES);
+                WebViewChromiumAwInit.CallSite.PROFILE_STORE_GET_ALL_PROFILE_NAMES);
 
         try (TraceEvent event =
                 TraceEvent.scoped("WebView.ProfileStore.ApiCall.GET_ALL_PROFILE_NAMES")) {
@@ -110,7 +123,8 @@ public final class ProfileStore {
     }
 
     public boolean deleteProfile(@NonNull String name) {
-        mAwInit.triggerAndWaitForChromiumStarted(WebViewChromiumAwInit.CallSite.DELETE_PROFILE);
+        mAwInit.triggerAndWaitForChromiumStarted(
+                WebViewChromiumAwInit.CallSite.PROFILE_STORE_DELETE_PROFILE);
 
         try (TraceEvent event = TraceEvent.scoped("WebView.ProfileStore.ApiCall.DELETE_PROFILE")) {
             ThreadUtils.checkUiThread();

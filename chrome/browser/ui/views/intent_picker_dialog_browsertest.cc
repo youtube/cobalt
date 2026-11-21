@@ -134,12 +134,8 @@ INSTANTIATE_TEST_SUITE_P(
     ,
     IntentPickerDialogGridViewTest,
     testing::Combine(
-#if BUILDFLAG(IS_CHROMEOS)
-        testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff),
-#else
         testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
                         apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
-#endif  // BUILDFLAG(IS_CHROMEOS)
         testing::Bool()),
     [](const testing::TestParamInfo<
         std::tuple<apps::test::LinkCapturingFeatureVersion, bool>>& info) {

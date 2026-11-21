@@ -204,7 +204,7 @@ TEST(FromAccessibilityAnnotatorTest, EntityConversion_Shipment) {
   s.delivery_zip_code = "234987";
   s.carrier_name = "Bar";
   s.carrier_domain = GURL("https://bar.com");
-  s.estimated_delivery_date = aa::Date{.day = 31, .month = 7, .year = 2030};
+  s.shipped_date = aa::Date{.day = 31, .month = 7, .year = 2030};
 
   aa::Entity entity;
   entity.entity_id = "test-id";
@@ -222,8 +222,7 @@ TEST(FromAccessibilityAnnotatorTest, EntityConversion_Shipment) {
               IsAttribute(AttributeType(kShipmentCarrierName), u"Bar"),
               IsAttribute(AttributeType(kShipmentCarrierDomain),
                           u"https://bar.com/"),
-              IsAttribute(AttributeType(kShipmentEstimatedDeliveryDate),
-                          u"2030-07-31"),
+              IsAttribute(AttributeType(kShipmentShippedDate), u"2030-07-31"),
               IsAttribute(AttributeType(kShipmentDeliveryZipCode),
                           u"234987")))));
 }

@@ -74,8 +74,7 @@ class AutofillPopupControllerImplTest
     // 1. Set the trigger source inside the delegate.
     manager().external_delegate().OnQuery(
         FormData(), FormFieldData(), gfx::Rect(),
-        AutofillSuggestionTriggerSource::kAtMemory,
-        /*update_datalist=*/false);
+        AutofillSuggestionTriggerSource::kAtMemory);
 
     // 2. Setup the bridge so the mock delegate executes real initialization
     // logic.
@@ -468,32 +467,55 @@ TEST_F(AutofillPopupControllerImplTest, DoesNotSelectUnacceptableSuggestions) {
   client().suggestion_controller(manager()).SelectSuggestion(/*index=*/0);
 }
 
-TEST_F(AutofillPopupControllerImplTest,
-       ManualFallBackTriggerSource_IgnoresClickOutsideCheck) {
-  ShowSuggestions(
-      manager(), {SuggestionType::kAddressEntry},
-      AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess);
+// Parameterized tests for AutofillSuggestionTriggerSource values that are
+// exempt from standard safety checks.
+class AutofillPopupControllerImplTestWithTriggerSource
+    : public AutofillPopupControllerImplTest,
+      public ::testing::WithParamInterface<AutofillSuggestionTriggerSource> {};
 
-  // Generate a popup, so it can be hidden later. It doesn't matter what the
-  // external_delegate thinks is being shown in the process, since we are just
-  // testing the popup here.
-  test::GenerateTestAutofillPopup(&manager().external_delegate());
-
-  EXPECT_TRUE(client()
-                  .suggestion_controller(manager())
-                  .ShouldIgnoreMouseObservedOutsideItemBoundsCheck());
-}
-
-TEST_F(AutofillPopupControllerImplTest,
-       PlusAddressUpdateTriggerSource_IgnoresClickOutsideCheck) {
-  ShowSuggestions(
-      manager(), {SuggestionType::kAddressEntry},
-      AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess);
+// Tests that the accidental click safety bounds checks are ignored.
+TEST_P(AutofillPopupControllerImplTestWithTriggerSource,
+       IgnoreClickOutsideCheck) {
+  const AutofillSuggestionTriggerSource trigger_source = GetParam();
+  ShowSuggestions(manager(), {SuggestionType::kAddressEntry}, trigger_source);
   test::GenerateTestAutofillPopup(&manager().external_delegate());
   EXPECT_TRUE(client()
                   .suggestion_controller(manager())
                   .ShouldIgnoreMouseObservedOutsideItemBoundsCheck());
 }
+
+// Tests that updates to the popup suggestions do not reset the accidental click
+// lockout (idle barrier).
+TEST_P(AutofillPopupControllerImplTestWithTriggerSource,
+       UpdateDoesNotResetIdleBarrier) {
+  const AutofillSuggestionTriggerSource trigger_source = GetParam();
+  EXPECT_CALL(manager().external_delegate(), DidAcceptSuggestion);
+
+  ShowSuggestions(manager(), {SuggestionType::kAddressEntry}, trigger_source);
+  client().suggestion_controller(manager()).OnPopupPainted();
+
+  // Fast forward 400ms (barrier not expired yet).
+  task_environment()->FastForwardBy(base::Milliseconds(400));
+
+  // Reshow suggestions with the trigger source. This should NOT reset the
+  // 500ms barrier.
+  ShowSuggestions(manager(), {SuggestionType::kAddressEntry}, trigger_source);
+
+  // Fast forward another 150ms (total 550ms since initial open, 150ms since
+  // reshow). The barrier should have expired.
+  task_environment()->FastForwardBy(base::Milliseconds(150));
+
+  client().suggestion_controller(manager()).AcceptSuggestion(
+      /*index=*/0, AutofillMetrics::SuggestionAcceptedMethod::kMouse);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All, AutofillPopupControllerImplTestWithTriggerSource,
+    ::testing::Values(
+        AutofillSuggestionTriggerSource::kPlusAddressUpdatedInBrowserProcess,
+        AutofillSuggestionTriggerSource::kAtMemory,
+        AutofillSuggestionTriggerSource::kAtMemoryContextMenu,
+        AutofillSuggestionTriggerSource::kAtMemoryInactivityNudge));
 
 // Tests that Compose saved state notification popup gets hidden after 2
 // seconds, but not after 1 second.

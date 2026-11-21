@@ -104,7 +104,7 @@ class FakeBrowser {
       TabActivitySimulator().AddWebContentsAndNavigate(
           browser_->tab_strip_model(), GURL(kTestUrl));
     }
-    static_cast<TestBrowserWindow*>(browser_->window())
+    static_cast<TestBrowserWindow*>(browser_->GetWindow())
         ->SetCloseCallback(base::BindOnce(&FakeBrowser::OnBrowserWindowClosed,
                                           weak_ptr_.GetWeakPtr()));
   }

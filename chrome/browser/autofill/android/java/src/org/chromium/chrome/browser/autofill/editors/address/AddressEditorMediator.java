@@ -218,6 +218,10 @@ public class AddressEditorMediator {
         mAllowDelete = allowDelete;
     }
 
+    public @SaveUpdateAddressProfilePromptMode int getPromptMode() {
+        return mPromptMode;
+    }
+
     void setCustomDoneButtonText(@Nullable String customDoneButtonText) {
         mCustomDoneButtonText = customDoneButtonText;
     }

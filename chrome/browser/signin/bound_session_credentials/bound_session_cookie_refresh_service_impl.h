@@ -80,6 +80,7 @@ class BoundSessionCookieRefreshServiceImpl
                              const net::HttpResponseHeaders* headers) override;
   std::vector<chrome::mojom::BoundSessionThrottlerParamsPtr>
   GetBoundSessionThrottlerParams() const override;
+  std::vector<BoundSessionKey> GetAllSessions() const override;
   void AddBoundSessionRequestThrottledHandlerReceiver(
       mojo::PendingReceiver<chrome::mojom::BoundSessionRequestThrottledHandler>
           receiver) override;

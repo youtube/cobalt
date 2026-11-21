@@ -4,9 +4,9 @@
 
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.h"
 
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/views/view.h"

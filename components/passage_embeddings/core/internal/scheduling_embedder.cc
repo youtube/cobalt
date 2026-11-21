@@ -108,13 +108,17 @@ Embedder::Job SchedulingEmbedder::ComputePassagesEmbeddings(
     ComputePassagesEmbeddingsCallback callback) {
   if (!execute_for_gemma_) {
     base::UmaHistogramCounts1000("History.Embeddings.ScheduledJobCount",
-                                 jobs_.size());
+                                 pending_jobs_.size() + active_jobs_.size());
+
+    auto count_remaining_passages = [](size_t sum, const Job& job) {
+      return sum + job.passages.size() - job.embeddings.size();
+    };
     base::UmaHistogramCounts1000(
         "History.Embeddings.ScheduledPassageCount",
-        std::accumulate(
-            jobs_.begin(), jobs_.end(), 0u, [](size_t sum, const Job& job) {
-              return sum + job.passages.size() - job.embeddings.size();
-            }));
+        std::accumulate(pending_jobs_.begin(), pending_jobs_.end(), 0u,
+                        count_remaining_passages) +
+            std::accumulate(active_jobs_.begin(), active_jobs_.end(), 0u,
+                            count_remaining_passages));
   }
 
   const uint64_t job_id = next_job_id_++;
@@ -132,10 +136,11 @@ Embedder::Job SchedulingEmbedder::ComputePassagesEmbeddings(
 
   // Limit the number of jobs accepted to avoid high memory use when
   // waiting a long time to process the queue.
-  if (jobs_.size() >= max_jobs_) {
-    auto worst_job_it = FindWorstJob(jobs_);
+  if (pending_jobs_.size() + active_jobs_.size() >= max_jobs_) {
+    auto worst_job_it = FindWorstJob(pending_jobs_);
 
-    if (worst_job_it == jobs_.end() || priority >= worst_job_it->priority) {
+    if (worst_job_it == pending_jobs_.end() ||
+        priority >= worst_job_it->priority) {
       // Drop the new job immediately.
       FinishJob(Job(priority, job_id, std::move(passages), std::move(callback)),
                 ComputeEmbeddingsStatus::kCanceled,
@@ -144,14 +149,14 @@ Embedder::Job SchedulingEmbedder::ComputePassagesEmbeddings(
     } else {
       // Drop the worst job from the queue to make room for the new job.
       Job canceled_job = std::move(*worst_job_it);
-      jobs_.erase(worst_job_it);
+      pending_jobs_.erase(worst_job_it);
       FinishJob(std::move(canceled_job), ComputeEmbeddingsStatus::kCanceled,
                 /*record_histograms=*/!execute_for_gemma_);
     }
   }
 
-  jobs_.emplace_back(priority, job_id, std::move(passages),
-                     std::move(callback));
+  pending_jobs_.emplace_back(priority, job_id, std::move(passages),
+                             std::move(callback));
 
   SubmitWorkToEmbedder();
 
@@ -175,7 +180,7 @@ void SchedulingEmbedder::SubmitWorkToEmbedder() {
     return;
   }
 
-  if (jobs_.empty()) {
+  if (pending_jobs_.empty()) {
     // No jobs to start.
     VLOG(5) << "SubmitWorkToEmbedder: no jobs";
     return;
@@ -187,31 +192,31 @@ void SchedulingEmbedder::SubmitWorkToEmbedder() {
     return;
   }
 
-  // Put higher priority jobs at the front. This may suspend partially
-  // completed jobs of lower priority by pushing them toward the back.
-  std::stable_sort(jobs_.begin(), jobs_.end(), [](const Job& a, const Job& b) {
-    return a.priority < b.priority;
-  });
+  // Put higher priority jobs at the front.
+  std::stable_sort(
+      pending_jobs_.begin(), pending_jobs_.end(),
+      [](const Job& a, const Job& b) { return a.priority < b.priority; });
 
   // Submit a batch of passages taken from jobs near the front of the queue.
   // Only submit one priority type of passage, regardless of count.
-  PassagePriority priority = jobs_.front().priority;
+  PassagePriority priority = pending_jobs_.front().priority;
   std::vector<std::string> passages;
-  size_t job_index = 0;
-  while (passages.size() < max_batch_size_ && job_index < jobs_.size() &&
-         jobs_.at(job_index).priority == priority) {
-    Job& job = jobs_.at(job_index);
-    job.in_progress = true;
+
+  while (passages.size() < max_batch_size_ && !pending_jobs_.empty() &&
+         pending_jobs_.front().priority == priority) {
+    Job job = std::move(pending_jobs_.front());
+    pending_jobs_.pop_front();
+
     size_t accept = std::min(max_batch_size_ - passages.size(),
                              job.passages.size() - job.embeddings.size());
     VLOG(3) << "Batching range [" << job.embeddings.size() << ','
             << job.embeddings.size() + accept << ") of " << job.passages.size()
-            << " passages from job " << job_index << '/' << jobs_.size();
+            << " passages from job";
     for (size_t i = job.embeddings.size();
          i < job.passages.size() && accept > 0; i++, accept--) {
       passages.push_back(job.passages[i]);
     }
-    job_index++;
+    active_jobs_.push_back(std::move(job));
   }
 
   work_submitted_ = true;
@@ -222,9 +227,9 @@ void SchedulingEmbedder::SubmitWorkToEmbedder() {
 }
 
 bool SchedulingEmbedder::IsPerformanceScenarioReady() {
-  if (!jobs_.empty() &&
-      (jobs_.front().priority == PassagePriority::kUserInitiated ||
-       jobs_.front().priority == PassagePriority::kUrgent)) {
+  if (!pending_jobs_.empty() &&
+      (pending_jobs_.front().priority == PassagePriority::kUserInitiated ||
+       pending_jobs_.front().priority == PassagePriority::kUrgent)) {
     // Do not block on performance scenario if user initiated a query or it's
     // urgent.
     return true;
@@ -246,9 +251,6 @@ std::deque<SchedulingEmbedder::Job>::iterator SchedulingEmbedder::FindWorstJob(
     std::deque<Job>& jobs) {
   auto worst_job_it = jobs.end();
   for (auto it = jobs.begin(); it != jobs.end(); ++it) {
-    if (it->in_progress) {
-      continue;
-    }
     if (worst_job_it == jobs.end() || it->priority >= worst_job_it->priority) {
       worst_job_it = it;
     }
@@ -258,7 +260,13 @@ std::deque<SchedulingEmbedder::Job>::iterator SchedulingEmbedder::FindWorstJob(
 
 void SchedulingEmbedder::ReprioritizeJobs(PassagePriority priority,
                                           const std::set<uint64_t>& job_ids) {
-  for (Job& job : jobs_) {
+  for (Job& job : pending_jobs_) {
+    const auto loc = job_ids.find(job.job_id);
+    if (loc != job_ids.end()) {
+      job.priority = priority;
+    }
+  }
+  for (Job& job : active_jobs_) {
     const auto loc = job_ids.find(job.job_id);
     if (loc != job_ids.end()) {
       job.priority = priority;
@@ -270,9 +278,9 @@ void SchedulingEmbedder::ReprioritizeJobs(PassagePriority priority,
 }
 
 bool SchedulingEmbedder::TryCancel(uint64_t job_id) {
-  for (auto itr = jobs_.begin(); itr < jobs_.end(); itr++) {
+  for (auto itr = pending_jobs_.begin(); itr < pending_jobs_.end(); itr++) {
     Job& job = *itr;
-    if (job_id == job.job_id && !job.in_progress) {
+    if (job_id == job.job_id) {
       VLOG(2) << "Aborted embedding work for " << job.passages.size()
               << " passages starting with `"
               << (job.passages.empty() ? "" : job.passages[0]) << "`";
@@ -286,7 +294,7 @@ bool SchedulingEmbedder::TryCancel(uint64_t job_id) {
         RecordStatusHistograms(job.priority,
                                ComputeEmbeddingsStatus::kCanceled);
       }
-      jobs_.erase(itr);
+      pending_jobs_.erase(itr);
       return true;
     }
   }
@@ -331,9 +339,17 @@ void SchedulingEmbedder::OnEmbeddingsComputed(
   VLOG(3) << embeddings.size() << " embeddings computed with status "
           << static_cast<int>(status);
 
+  if (active_jobs_.empty()) {
+    // This should not happen if the service is behaving correctly, but
+    // handle it gracefully.
+    work_submitted_ = false;
+    SubmitWorkToEmbedder();
+    return;
+  }
+
   if (embeddings.empty()) {
-    Job completed_job = std::move(jobs_.front());
-    jobs_.pop_front();
+    Job completed_job = std::move(active_jobs_.front());
+    active_jobs_.pop_front();
     FinishJob(std::move(completed_job), status,
               /*record_histograms=*/!execute_for_gemma_);
     // Continue on to allow possibility of resuming any remaining jobs.
@@ -349,11 +365,11 @@ void SchedulingEmbedder::OnEmbeddingsComputed(
   }
 
   // Take embeddings into jobs and pop them as they're filled. The
-  // !jobs_.empty() check ensures we don't overrun the available jobs if the
-  // service were to maliciously send too many embeddings.
+  // !active_jobs_.empty() check ensures we don't overrun the available jobs if
+  // the service were to maliciously send too many embeddings.
   size_t read_index = 0;
-  while (read_index < embeddings.size() && !jobs_.empty()) {
-    Job& job = jobs_.front();
+  while (read_index < embeddings.size() && !active_jobs_.empty()) {
+    Job& job = active_jobs_.front();
     while (job.embeddings.size() < job.passages.size() &&
            read_index < embeddings.size()) {
       job.embeddings.push_back(std::move(embeddings[read_index]));
@@ -361,10 +377,23 @@ void SchedulingEmbedder::OnEmbeddingsComputed(
     }
     if (job.embeddings.size() == job.passages.size()) {
       Job completed_job = std::move(job);
-      jobs_.pop_front();
+      active_jobs_.pop_front();
       FinishJob(std::move(completed_job), status,
                 /*record_histograms=*/!execute_for_gemma_);
+    } else {
+      // Job is not fully completed. Stop processing results and move it
+      // back to pending in the next step.
+      break;
     }
+  }
+
+  // Move any remaining active jobs (including any partially filled one) back to
+  // pending since the current batch is done. They are moved back in reverse
+  // order (back to front) to the front of pending_jobs_ so that their relative
+  // order is preserved.
+  while (!active_jobs_.empty()) {
+    pending_jobs_.push_front(std::move(active_jobs_.back()));
+    active_jobs_.pop_back();
   }
 
   // Note, this could call back later/asynchronously or
@@ -379,9 +408,15 @@ void SchedulingEmbedder::FinishJob(Job job,
                                    bool record_histograms) {
   VLOG(2) << "Finished embedding work with status " << static_cast<int>(status)
           << " for " << job.passages.size() << " passages starting with `"
-          << job.passages[0] << "`";
+          << (job.passages.empty() ? "" : job.passages[0]) << "`";
   if (job.passages.size() != job.embeddings.size()) {
     job.embeddings.clear();
+    // If the service reported success but provided no embeddings for the lead
+    // job, ensure that we report a failure to the client to maintain the
+    // invariant that success implies all embeddings were provided.
+    if (status == ComputeEmbeddingsStatus::kSuccess) {
+      status = ComputeEmbeddingsStatus::kExecutionFailure;
+    }
   }
 
   std::move(job.callback)

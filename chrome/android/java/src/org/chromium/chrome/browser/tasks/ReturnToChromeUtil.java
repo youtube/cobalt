@@ -17,6 +17,7 @@ import android.text.format.DateUtils;
 
 import androidx.annotation.IntDef;
 
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
@@ -26,7 +27,6 @@ import org.chromium.chrome.browser.ChromeInactivityTracker;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp.NewTabPage;
-import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -129,7 +129,7 @@ public final class ReturnToChromeUtil {
             PersistableBundle persistableBundle,
             ChromeInactivityTracker inactivityTracker) {
         // If the device is android desktop, don't show a NTP homepage.
-        if (NtpCustomizationUtils.isNtpSimplificationEnabledOnDesktop()) {
+        if (DeviceInfo.isDesktop()) {
             return false;
         }
 

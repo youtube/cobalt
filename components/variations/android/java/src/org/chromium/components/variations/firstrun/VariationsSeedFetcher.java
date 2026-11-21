@@ -103,7 +103,7 @@ public class VariationsSeedFetcher {
 
     // Values for the "Variations.FirstRun.SeedFetchResult" sparse histogram, which also logs
     // HTTP result codes. These are negative so that they don't conflict with the HTTP codes.
-    // These values should not be renumbered or re-used since they are logged to UMA.
+    // These values should not be renumbered or reused since they are logged to UMA.
     @VisibleForTesting public static final int SEED_FETCH_RESULT_DELTA_PATCH_EXCEPTION = -6;
     @VisibleForTesting public static final int SEED_FETCH_RESULT_INVALID_IM_HEADER = -5;
     // private static final int SEED_FETCH_RESULT_INVALID_DATE_HEADER = -4;

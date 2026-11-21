@@ -48,9 +48,15 @@ class CORE_EXPORT GridLayoutAlgorithm
       const LogicalRect& padding_box_rect,
       GridItemData* item);
 
+  // TODO(layout-dev): It would be cleaner to split out creating the line
+  // resolver and merging it with the parent line names (in the case of
+  // subgrids) as separate methods. This would allow us to skip the latter in
+  // the case of `can_inherit_line_names_from_parent` rather than needing to
+  // pass that in.
   GridLineResolver BuildGridLineResolver(
       const GridArea& subgrid_area = GridArea(),
-      const GridLineResolver* opt_parent_line_resolver = nullptr) const;
+      const GridLineResolver* opt_parent_line_resolver = nullptr,
+      bool can_inherit_line_names_from_parent = true) const;
 
   // Builds a sizing track collection for `track_direction` and sets it on
   // `layout_data`. `sizing_constraint`, `needs_intrinsic_track_size`, and

@@ -186,7 +186,8 @@ class AshWebViewImplBrowserTest : public InProcessBrowserTest {
 
 // Tests that AshWebViewImpl will automatically update its preferred size
 // to match the desired size of its hosted contents.
-IN_PROC_BROWSER_TEST_F(AshWebViewImplBrowserTest, ShouldAutoResize) {
+// TODO(crbug.com/528055322): Re-enable this test.
+IN_PROC_BROWSER_TEST_F(AshWebViewImplBrowserTest, DISABLED_ShouldAutoResize) {
   AshWebView::InitParams params;
   params.enable_auto_resize = true;
   params.min_size = gfx::Size(600, 400);

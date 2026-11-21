@@ -5,9 +5,9 @@ AXWebArea
 ++AXList AXOrientation='AXVerticalOrientation'
 ++AXList AXOrientation='AXHorizontalOrientation'
 ++AXList AXOrientation='AXVerticalOrientation'
-++AXGroup AXOrientation='AXVerticalOrientation'
-++AXGroup AXOrientation='AXHorizontalOrientation'
-++AXGroup AXOrientation='AXVerticalOrientation'
+++AXGroup AXSubrole=AXEmptyGroup AXOrientation='AXVerticalOrientation'
+++AXGroup AXSubrole=AXEmptyGroup AXOrientation='AXHorizontalOrientation'
+++AXGroup AXSubrole=AXEmptyGroup AXOrientation='AXVerticalOrientation'
 ++AXMenuBar AXOrientation='AXHorizontalOrientation'
 ++AXMenuBar AXOrientation='AXHorizontalOrientation'
 ++AXMenuBar AXOrientation='AXVerticalOrientation'
@@ -33,8 +33,8 @@ AXWebArea
 ++AXOutline AXOrientation='AXHorizontalOrientation'
 ++AXOutline AXOrientation='AXVerticalOrientation'
 ++AXTable
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable AXOrientation='AXHorizontalOrientation'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable AXOrientation='AXVerticalOrientation'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

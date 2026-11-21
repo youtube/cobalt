@@ -16,10 +16,12 @@
 #include "base/containers/span.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "pdf/pdf_rect.h"
 #include "pdf/pdfium/pdfium_api_string_buffer_adapter.h"
 #include "printing/units.h"
 #include "third_party/pdfium/public/cpp/fpdf_scopers.h"
+#include "third_party/pdfium/public/fpdf_catalog.h"
 #include "third_party/pdfium/public/fpdf_edit.h"
 #include "third_party/pdfium/public/fpdfview.h"
 #include "ui/gfx/geometry/rect.h"
@@ -384,5 +386,11 @@ bool RenderPageToDC(FPDF_PAGE page,
   return true;
 }
 #endif  // BUILDFLAG(IS_WIN)
+
+std::string GetDocumentLanguage(FPDF_DOCUMENT document) {
+  return base::UTF16ToUTF8(CallPDFiumWideStringBufferApi(
+      base::BindRepeating(&FPDFCatalog_GetLanguage, document),
+      /*check_expected_size=*/true));
+}
 
 }  // namespace chrome_pdf

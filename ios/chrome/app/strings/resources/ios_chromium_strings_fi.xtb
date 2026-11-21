@@ -78,6 +78,7 @@ Uusia kirjanmerkkejä ei voi tallentaa tilillesi, ennen kuin poistat joitakin. J
 <translation id="2386292341327187942">Kirjoita Haku-widgetin kenttään "Chromium"</translation>
 <translation id="2389827884654658221">Avaa Chromium nopeammin iPadin aloitusnäytöltä.</translation>
 <translation id="2426113998523353159">Organisaatiosi edellyttää sisäänkirjautumista, jotta voit käyttää Chromiumia.</translation>
+<translation id="244367646885670394">Vahvista henkilöllisyytesi, niin voit tallentaa salasanan ja käyttää Chromium-dataa kaikilla laitteilla</translation>
 <translation id="2450140762465183767">Voit nyt käyttää Chromiumia aina, kun napautat linkkejä viesteissä, dokumenteissa ja muissa sovelluksissa.</translation>
 <translation id="2459183986985456602">Avaa edellinen välilehti Chromiumissa.</translation>
 <translation id="2476409803017965813">Voit muuttaa valintoja milloin tahansa Chromiumin asetuksista.</translation>
@@ -108,6 +109,7 @@ Siirry <ph name="BEGIN_LINK" />Googlen palveluihin<ph name="END_LINK" />, niin n
 <translation id="3054480780637153380">Avaa Chromiumin asetukset iOS:lla, napauta sitten Oletusselainsovellus ja valitse Chromium.</translation>
 <translation id="3115956258722352278">Tehdäänkö Chromiumista oletusselain?</translation>
 <translation id="3180939591219927904">Laita "Lukitse incognito-välilehdet, kun suljet Chromiumin" päälle</translation>
+<translation id="327628223428512207">Lisää tunnuslause, niin voit tallentaa salasanan ja käyttää Chromium-dataa kaikilla laitteilla</translation>
 <translation id="328933489847748230">{count,plural, =1{Nyt näkyvissä 1 Chromium-ikkuna}other{Nyt näkyvissä {count} Chromium-ikkunaa}}</translation>
 <translation id="3344973607274501920">Chromium ei voinut tarkistaa salasanojasi. Tarkista internetyhteytesi.</translation>
 <translation id="3366305173356742781">Tilisi Chromium-data</translation>

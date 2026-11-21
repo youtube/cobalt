@@ -87,8 +87,9 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
     kBatchUploadAsPrimaryButton = 29,
     kBatchUploadWindows10DepreciationAsPrimaryButton = 30,
     kPasskeyUnlockButton = 31,
+    kSigninOnPhoneButton = 32,
 
-    kMaxValue = kPasskeyUnlockButton,
+    kMaxValue = kSigninOnPhoneButton,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/profile/enums.xml:ProfileMenuActionableItem)
 
@@ -272,6 +273,8 @@ class ProfileMenuViewBase : public content::WebContentsDelegate,
   std::u16string profile_mgmt_heading_;
 
   std::unique_ptr<AXMenuWidgetObserver> ax_widget_observer_;
+
+  base::WeakPtrFactory<ProfileMenuViewBase> weak_factory_{this};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_PROFILES_PROFILE_MENU_VIEW_BASE_H_

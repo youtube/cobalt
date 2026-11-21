@@ -97,7 +97,7 @@ bool SupportsSharedImageEncoding(
   if (workarounds.disable_nv12_upload) {
     return false;
   }
-  return base::FeatureList::IsEnabled(kMediaFoundationD3DVideoProcessing);
+  return IsMediaFoundationD3DVideoProcessingEnabled(workarounds);
 }
 
 // static
@@ -217,11 +217,9 @@ void MediaFoundationVideoEncoderSharedState::GetSupportedProfilesInternal() {
       }
 
       if (SupportsSharedImageEncoding(workarounds_)) {
-        if (base::FeatureList::IsEnabled(kMediaFoundationD3DVideoProcessing)) {
-          std::ranges::copy(
-              kSupportedPixelFormatsD3DVideoProcessing,
-              std::back_inserter(profile.gpu_supported_pixel_formats));
-        }
+        std::ranges::copy(
+            kSupportedPixelFormatsD3DVideoProcessing,
+            std::back_inserter(profile.gpu_supported_pixel_formats));
       }
 
       VideoEncodeAccelerator::SupportedProfile portrait_profile(profile);

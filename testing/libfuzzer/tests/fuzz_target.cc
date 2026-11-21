@@ -49,6 +49,7 @@ base::CommandLine FuzzTarget::LibfuzzerCommandLine(
       "-artifact_prefix=",
       temp_dir_.GetPath().AppendASCII("crash-").MaybeAsASCII(),
   }));
+  cmd.AppendArg("-rss_limit_mb=0");
   return cmd;
 }
 

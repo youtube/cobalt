@@ -82,6 +82,9 @@ class GlicMediaContext : public content::DocumentUserData<GlicMediaContext>,
   // Returns whether there are any final transcript chunks.
   bool HasTranscriptChunks() const;
 
+  // Clears all stored transcripts.
+  void ClearAllTranscripts();
+
  protected:
   // Gets the current media session, if one exists. Virtual for testing.
   virtual content::MediaSession* GetMediaSessionIfExists() const;

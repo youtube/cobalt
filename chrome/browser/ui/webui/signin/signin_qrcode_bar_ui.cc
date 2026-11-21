@@ -15,7 +15,7 @@
 
 bool SigninQRCodeBarUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  return base::FeatureList::IsEnabled(switches::kMagiChromeSignInBanner);
+  return switches::IsMagiChromePasskeyBannerEnabled();
 }
 
 SigninQRCodeBarUI::SigninQRCodeBarUI(content::WebUI* web_ui)

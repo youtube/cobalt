@@ -19,6 +19,7 @@
 #include "content/public/browser/render_frame_host.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/facilitated_payments/android/java/jni_headers/AccountLinkingResult_jni.h"
 #include "components/facilitated_payments/android/java/jni_headers/FacilitatedPaymentsApiClientBridge_jni.h"
 
 namespace payments::facilitated {
@@ -90,6 +91,19 @@ void FacilitatedPaymentsApiClientAndroid::InvokePurchaseAction(
       ConvertSecurePayloadToJavaObject(secure_payload));
 }
 
+void FacilitatedPaymentsApiClientAndroid::InvokeInstrumentManager(
+    CoreAccountInfo primary_account,
+    const std::vector<uint8_t>& action_token,
+    base::OnceCallback<void(AccountLinkingResult)> callback) {
+  DCHECK(!IsAnyCallbackPending());
+
+  invoke_instrument_manager_callback_ = std::move(callback);
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_FacilitatedPaymentsApiClientBridge_invokeInstrumentManager(
+      env, java_bridge_, primary_account,
+      base::android::ToJavaByteArray(env, action_token));
+}
+
 void FacilitatedPaymentsApiClientAndroid::OnIsAvailable(JNIEnv* env,
                                                         bool is_api_available) {
   if (is_available_callback_) {
@@ -125,10 +139,37 @@ void FacilitatedPaymentsApiClientAndroid::OnPurchaseActionResultEnum(
       .Run(static_cast<PurchaseActionResult>(purchase_action_result));
 }
 
+void FacilitatedPaymentsApiClientAndroid::OnInvokeInstrumentManagerResult(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& jaccount_linking_result) {
+  if (!invoke_instrument_manager_callback_ || !jaccount_linking_result) {
+    return;
+  }
+
+  bool is_successful =
+      Java_AccountLinkingResult_isSuccessful(env, jaccount_linking_result);
+  int64_t instrument_id =
+      Java_AccountLinkingResult_getInstrumentId(env, jaccount_linking_result);
+  int error_code =
+      Java_AccountLinkingResult_getErrorCode(env, jaccount_linking_result);
+
+  if (error_code <
+          static_cast<int>(AccountLinkingResultCode::kCouldNotInvoke) ||
+      error_code > static_cast<int>(AccountLinkingResultCode::kResultError)) {
+    return;
+  }
+
+  std::move(invoke_instrument_manager_callback_)
+      .Run(AccountLinkingResult{
+          is_successful, instrument_id,
+          static_cast<AccountLinkingResultCode>(error_code)});
+}
+
 bool FacilitatedPaymentsApiClientAndroid::IsAnyCallbackPending() const {
   return !is_available_callback_.is_null() ||
          !get_client_token_callback_.is_null() ||
-         !purchase_action_callback_.is_null();
+         !purchase_action_callback_.is_null() ||
+         !invoke_instrument_manager_callback_.is_null();
 }
 
 }  // namespace payments::facilitated

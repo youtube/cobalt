@@ -100,7 +100,7 @@ class CORE_EXPORT DocumentTimeline : public AnimationTimeline {
   void Trace(Visitor*) const override;
 
  protected:
-  PhaseAndTime CurrentPhaseAndTime() override;
+  std::optional<base::TimeDelta> CurrentTimeInternal() override;
 
  private:
   // Origin time for the timeline relative to the time origin of the document.

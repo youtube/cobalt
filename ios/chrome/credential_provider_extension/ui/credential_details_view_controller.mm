@@ -311,7 +311,6 @@ typedef NS_ENUM(NSInteger, RowIdentifier) {
   return
       [baseLocalizedString stringByReplacingOccurrencesOfString:@"$1"
                                                      withString:formattedDate];
-  ;
 }
 
 // Formats and returns the passkey creation date to be displayed in the UI.

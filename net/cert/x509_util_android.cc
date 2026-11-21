@@ -21,11 +21,6 @@ static void JNI_X509Util_NotifyClientCertStoreChanged(JNIEnv* env) {
   CertDatabase::GetInstance()->NotifyObserversClientCertStoreChanged();
 }
 
-static bool JNI_X509Util_UseLockFreeVerification(JNIEnv* env) {
-  return base::FeatureList::IsEnabled(
-      net::features::kUseLockFreeX509Verification);
-}
-
 }  // namespace net
 
 DEFINE_JNI(X509Util)

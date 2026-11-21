@@ -128,6 +128,12 @@ void SetFetchDestinationFromModuleType(
       resource_request.SetRequestContext(module_request.ContextType());
       resource_request.SetRequestDestination(module_request.Destination());
       break;
+    case ModuleType::kTEXT:
+      resource_request.SetRequestContext(
+          mojom::blink::RequestContextType::TEXT);
+      resource_request.SetRequestDestination(
+          network::mojom::RequestDestination::kText);
+      break;
     case ModuleType::kInvalid:
       // ModuleTreeLinker checks that the module type is valid
       // before creating ModuleScriptFetchRequest objects.
@@ -331,6 +337,10 @@ void ModuleScriptLoader::NotifyFetchFinishedSuccess(
       // script given sourceText and settingsObject</spec>
       module_script_ = ValueWrapperSyntheticModuleScript::
           CreateJSONWrapperSyntheticModuleScript(params, modulator_);
+      break;
+    case ResolvedModuleType::kTEXT:
+      module_script_ = ValueWrapperSyntheticModuleScript::
+          CreateTextWrapperSyntheticModuleScript(params, modulator_);
       break;
     case ResolvedModuleType::kCSS:
       // <spec step="13.7.3"> If mimeType is "text/css" and moduleType is "css",

@@ -255,7 +255,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(ConvertUntaggedToJSPrimitive)               \
   V(ConvertWordToSmiOrDeopt)                    \
   V(TruncateJSPrimitiveToUntagged)              \
-  V(TruncateJSPrimitiveToUntaggedOrDeopt)       \
+  V(TruncateJSPrimitiveToWord32OrDeopt)         \
   V(DoubleArrayMinMax)                          \
   V(EnsureWritableFastElements)                 \
   V(FastApiCall)                                \
@@ -798,7 +798,10 @@ struct __attribute__((packed)) OpEffects {
   // because of return, deopt, exception throw or abort/trap.
   constexpr OpEffects CanLeaveCurrentFunction() const {
     // All memory becomes observable.
-    return CanChangeControlFlow().CanReadMemory().RequiredWhenUnused();
+    return AssumesConsistentHeap()
+        .CanChangeControlFlow()
+        .CanReadMemory()
+        .RequiredWhenUnused();
   }
   // The operation can deopt.
   constexpr OpEffects CanDeopt() const {
@@ -5724,24 +5727,16 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(
 
 DEFINE_MULTI_SWITCH_INTEGRAL(TruncateJSPrimitiveToUntaggedOp::UntaggedKind, 4)
 
-struct TruncateJSPrimitiveToUntaggedOrDeoptOp
-    : FixedArityOperationT<2, TruncateJSPrimitiveToUntaggedOrDeoptOp> {
-  enum class UntaggedKind : uint8_t {
-    kInt32,
-  };
+struct TruncateJSPrimitiveToWord32OrDeoptOp
+    : FixedArityOperationT<2, TruncateJSPrimitiveToWord32OrDeoptOp> {
   using InputRequirement =
       ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind;
-  UntaggedKind kind;
   InputRequirement input_requirement;
   FeedbackSource feedback;
 
   static constexpr OpEffects effects = OpEffects().CanDeopt();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    switch (kind) {
-      case UntaggedKind::kInt32:
         return RepVector<RegisterRepresentation::Word32()>();
-    }
-    UNREACHABLE();
   }
 
   base::Vector<const MaybeRegisterRepresentation> inputs_rep(
@@ -5754,24 +5749,19 @@ struct TruncateJSPrimitiveToUntaggedOrDeoptOp
     return Base::input<EagerFrameState>(1);
   }
 
-  TruncateJSPrimitiveToUntaggedOrDeoptOp(V<JSPrimitive> input,
-                                         V<EagerFrameState> frame_state,
-                                         UntaggedKind kind,
-                                         InputRequirement input_requirement,
-                                         const FeedbackSource& feedback)
+  TruncateJSPrimitiveToWord32OrDeoptOp(V<JSPrimitive> input,
+                                       V<EagerFrameState> frame_state,
+                                       InputRequirement input_requirement,
+                                       const FeedbackSource& feedback)
       : Base(input, frame_state),
-        kind(kind),
         input_requirement(input_requirement),
         feedback(feedback) {}
   void Validate(const Graph& graph) const {
     DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
   }
 
-  auto options() const { return std::tuple{kind, input_requirement, feedback}; }
+  auto options() const { return std::tuple{input_requirement, feedback}; }
 };
-V8_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os,
-    TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
 struct ConvertJSPrimitiveToObjectOp
     : FixedArityOperationT<3, ConvertJSPrimitiveToObjectOp> {
@@ -8154,14 +8144,18 @@ struct StructGetOp : OperationT<StructGetOp> {
 };
 
 struct StructSetOp : OperationT<StructSetOp> {
-  CheckForNull null_check;
-  const wasm::StructType* type;
+  // Initialization has stricter OpEffects limiting e.g. the rescheduling of the
+  // operation.
+  enum class Kind : uint8_t { kInitialize, kAssign };
   // TODO(jkummerow): If we stored the ValueType here, that would save a few
   // lookups later.
   wasm::ModuleTypeIndex type_index;
+  const wasm::StructType* type;
   int field_index;
   std::optional<AtomicMemoryOrder> memory_order;
   WriteBarrierKind write_barrier;
+  CheckForNull null_check : 1;
+  Kind kind : 1;
 
   OpEffects Effects() const {
     OpEffects result =
@@ -8169,6 +8163,9 @@ struct StructSetOp : OperationT<StructSetOp> {
             // This should not float above a protective null check.
             .CanDependOnChecks()
             .CanWriteMemory();
+    if (kind == Kind::kInitialize) {
+      result = result.CanDoRawHeapAccess();
+    }
     if (null_check == kWithNullCheck) {
       // This may trap.
       result = result.CanLeaveCurrentFunction();
@@ -8181,14 +8178,15 @@ struct StructSetOp : OperationT<StructSetOp> {
               const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
               int field_index, CheckForNull null_check,
               std::optional<AtomicMemoryOrder> memory_order,
-              WriteBarrierKind write_barrier)
+              WriteBarrierKind write_barrier, Kind kind)
       : Base(2 + frame_state.valid()),
-        null_check(null_check),
-        type(type),
         type_index(type_index),
+        type(type),
         field_index(field_index),
         memory_order(memory_order),
-        write_barrier(write_barrier) {
+        write_barrier(write_barrier),
+        null_check(null_check),
+        kind(kind) {
     input(0) = object;
     input(1) = value;
     if (frame_state.valid()) {
@@ -8202,10 +8200,10 @@ struct StructSetOp : OperationT<StructSetOp> {
                           wasm::ModuleTypeIndex type_index, int field_index,
                           CheckForNull null_check,
                           std::optional<AtomicMemoryOrder> memory_order,
-                          WriteBarrierKind write_barrier) {
+                          WriteBarrierKind write_barrier, Kind kind) {
     return Base::New(graph, 2 + frame_state.valid(), object, value, frame_state,
                      type, type_index, field_index, null_check, memory_order,
-                     write_barrier);
+                     write_barrier, kind);
   }
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
@@ -8230,15 +8228,15 @@ struct StructSetOp : OperationT<StructSetOp> {
   }
 
   auto options() const {
-    return std::tuple{type,       type_index,   field_index,
-                      null_check, memory_order, write_barrier};
+    return std::tuple{type,         type_index,    field_index, null_check,
+                      memory_order, write_barrier, kind};
   }
 
   template <typename Fn, typename Mapper>
   V8_INLINE auto Explode(Fn fn, Mapper& mapper) const {
     return fn(mapper.Map(object()), mapper.Map(value()),
               mapper.Map(frame_state()), type, type_index, field_index,
-              null_check, memory_order, write_barrier);
+              null_check, memory_order, write_barrier, kind);
   }
 
   void PrintOptions(std::ostream& os) const;
@@ -8387,25 +8385,35 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
 };
 
 struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
+  // Initialization has stricter OpEffects limiting e.g. the rescheduling of the
+  // operation.
+  enum class Kind { kInitialize, kAssign };
   wasm::ValueType element_type;
   std::optional<AtomicMemoryOrder> memory_order;
   WriteBarrierKind write_barrier;
+  Kind kind;
 
-  // ArraySetOp may never trap as it is always protected by a length check.
-  static constexpr OpEffects effects =
-      OpEffects()
-          // This should not float above a protective null/length check.
-          .CanDependOnChecks()
-          .CanWriteMemory();
+  OpEffects Effects() const {
+    OpEffects result =
+        OpEffects()
+            // This should not float above a protective null/length check.
+            .CanDependOnChecks()
+            .CanWriteMemory();
+    if (kind == Kind::kInitialize) {
+      result = result.CanDoRawHeapAccess();
+    }
+    return result;
+  }
 
   ArraySetOp(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
              wasm::ValueType element_type,
              std::optional<AtomicMemoryOrder> memory_order,
-             WriteBarrierKind write_barrier)
+             WriteBarrierKind write_barrier, Kind kind)
       : Base(array, index, value),
         element_type(element_type),
         memory_order(memory_order),
-        write_barrier(write_barrier) {}
+        write_barrier(write_barrier),
+        kind(kind) {}
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
@@ -8421,7 +8429,7 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   }
 
   auto options() const {
-    return std::tuple{element_type, memory_order, write_barrier};
+    return std::tuple{element_type, memory_order, write_barrier, kind};
   }
   void PrintOptions(std::ostream& os) const;
 };
@@ -8564,7 +8572,7 @@ struct ArrayLengthOp : OperationT<ArrayLengthOp> {
 
 struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
   static constexpr OpEffects effects =
-      OpEffects().CanAllocate().CanLeaveCurrentFunction();
+      OpEffects().CanAllocate().CanDoRawHeapAccess().CanLeaveCurrentFunction();
 
   const wasm::ArrayType* array_type;
   SharedFlag is_shared;
@@ -8593,7 +8601,7 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
 
 struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
   static constexpr OpEffects effects =
-      OpEffects().CanAllocate().CanLeaveCurrentFunction();
+      OpEffects().CanAllocate().CanDoRawHeapAccess().CanLeaveCurrentFunction();
 
   const wasm::StructType* struct_type;
   wasm::ModuleTypeIndex type_index;
@@ -10566,6 +10574,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<StructSetOp>().Effects();
     case Opcode::kArrayGet:
       return Cast<ArrayGetOp>().Effects();
+    case Opcode::kArraySet:
+      return Cast<ArraySetOp>().Effects();
     case Opcode::kStructAtomicRMW:
       return Cast<StructAtomicRMWOp>().Effects();
     case Opcode::kArrayAtomicRMW:

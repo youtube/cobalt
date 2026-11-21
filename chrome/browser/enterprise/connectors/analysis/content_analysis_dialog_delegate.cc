@@ -585,9 +585,10 @@ void ContentAnalysisDialogDelegate::UpdateViews() {
 
   // There isn't always a spinner, for instance when the dialog is started in a
   // state other than the "pending" state.
-  if (side_icon_spinner_) {
-    // Calling `Update` leads to the deletion of the spinner.
-    side_icon_spinner_.ExtractAsDangling()->Update();
+  if (side_icon_spinner_ && is_result()) {
+    auto spinner = side_icon_spinner_.ExtractAsDangling();
+    // unique_ptr to spinner is returned from RemoveChildViewT and deleted
+    spinner->parent()->RemoveChildViewT(spinner);
   }
 
   // Update the buttons.

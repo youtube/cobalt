@@ -979,7 +979,11 @@ bool IsValidRemoteBoundLogFilename(const std::string& filename) {
     }
 
     const std::string diagnostic_uuid = rest.substr(0, underscore_pos);
-    const std::string session_id = rest.substr(underscore_pos + 1);
+    std::string session_id = rest.substr(underscore_pos + 1);
+
+    if (base::EndsWith(session_id, "_local", base::CompareCase::SENSITIVE)) {
+      session_id = session_id.substr(0, session_id.length() - 6);
+    }
 
     if (session_id.empty()) {
       return false;
@@ -1000,6 +1004,16 @@ bool IsValidRemoteBoundLogFilename(const std::string& filename) {
 bool IsValidRemoteBoundLogFilePath(const base::FilePath& path) {
   const std::string filename = path.BaseName().RemoveExtension().MaybeAsASCII();
   return IsValidRemoteBoundLogFilename(filename);
+}
+
+bool IsLocalOnlyRemoteBoundLogFilename(const std::string& filename) {
+  return IsValidRemoteBoundLogFilename(filename) &&
+         base::EndsWith(filename, "_local", base::CompareCase::SENSITIVE);
+}
+
+bool IsLocalOnlyRemoteBoundLogFilePath(const base::FilePath& path) {
+  const std::string filename = path.BaseName().RemoveExtension().MaybeAsASCII();
+  return IsLocalOnlyRemoteBoundLogFilename(filename);
 }
 
 base::FilePath GetWebRtcEventLogHistoryFilePath(const base::FilePath& path) {

@@ -140,7 +140,7 @@ class TranslateMessage implements TranslateMessageSecondaryMenu.Handler {
                                     MessageIdentifier.TRANSLATE)
                             .with(
                                     MessageBannerProperties.ICON_RESOURCE_ID,
-                                    R.drawable.infobar_translate_compact)
+                                    R.drawable.message_translate_compact)
                             .with(
                                     MessageBannerProperties.ICON_TINT_COLOR,
                                     MessageBannerProperties.TINT_NONE)

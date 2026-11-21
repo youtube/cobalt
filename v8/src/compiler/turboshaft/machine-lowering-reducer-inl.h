@@ -1851,14 +1851,10 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
-  V<Word> REDUCE(TruncateJSPrimitiveToUntaggedOrDeopt)(
+  V<Word> REDUCE(TruncateJSPrimitiveToWord32OrDeopt)(
       V<JSPrimitive> input, V<EagerFrameState> frame_state,
-      TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
-      TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
-          input_requirement,
+      TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement input_requirement,
       const FeedbackSource& feedback) {
-    DCHECK_EQ(kind,
-              TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32);
     Label<Word32> done(this);
     // In the Smi case, just convert to int32.
     GOTO_IF(LIKELY(__ ObjectIsSmi(input)), done,
@@ -2064,19 +2060,17 @@ class MachineLoweringReducer : public Next {
                        AccessBuilder::ForFixedArrayLengthPadding(),
                        __ Word32Constant(0));
 #endif
-    // TODO(nicohartmann@): Should finish initialization only after all elements
-    // have been initialized.
-    auto array = __ FinishInitialization(std::move(uninitialized_array));
 
     ScopedVar<WordPtr> index(this, 0);
 
     WHILE(__ UintPtrLessThan(index, length)) {
-      __ StoreNonArrayBufferElement(array, access, index, the_hole_value);
+      __ InitializeNonArrayBufferElement(uninitialized_array, access, index,
+                                         the_hole_value);
       // Advance the {index}.
       index = __ WordPtrAdd(index, 1);
     }
 
-    GOTO(done, array);
+    GOTO(done, __ FinishInitialization(std::move(uninitialized_array)));
 
     BIND(done, result);
     return result;
@@ -2977,7 +2971,7 @@ class MachineLoweringReducer : public Next {
   V<String> REDUCE(StringConcat)(V<Smi> length, V<String> left,
                                  V<String> right) {
     // TODO(nicohartmann@): Port StringBuilder once it is stable.
-    return __ template CallBuiltin<builtin::StringAdd_CheckNone>(
+    return __ template CallBuiltin<builtin::StringAdd_NoMapCheck>(
         __ NoContextConstant(), {.left = left, .right = right});
   }
 

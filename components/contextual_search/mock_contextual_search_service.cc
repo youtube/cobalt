@@ -18,7 +18,8 @@ MockContextualSearchService::MockContextualSearchService(
                               template_url_service,
                               variations_client,
                               channel,
-                              locale) {}
+                              locale,
+                              /*tab_validator=*/nullptr) {}
 
 MockContextualSearchService::~MockContextualSearchService() = default;
 

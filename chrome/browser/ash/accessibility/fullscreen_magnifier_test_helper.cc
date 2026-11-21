@@ -5,12 +5,12 @@
 #include "chrome/browser/ash/accessibility/fullscreen_magnifier_test_helper.h"
 
 #include "ash/accessibility/magnifier/fullscreen_magnifier_controller.h"
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/shell.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/ash/accessibility/accessibility_test_utils.h"
 #include "chrome/browser/ash/accessibility/magnification_manager.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/accessibility_notification_waiter.h"
 #include "extensions/browser/browsertest_util.h"

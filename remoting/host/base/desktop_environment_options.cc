@@ -96,6 +96,14 @@ void DesktopEnvironmentOptions::set_enable_remote_webauthn(bool enabled) {
   enable_remote_webauthn_ = enabled;
 }
 
+bool DesktopEnvironmentOptions::enable_security_key() const {
+  return enable_security_key_;
+}
+
+void DesktopEnvironmentOptions::set_enable_security_key(bool enabled) {
+  enable_security_key_ = enabled;
+}
+
 base::TimeDelta DesktopEnvironmentOptions::maximum_session_duration() const {
   return maximum_session_duration_;
 }

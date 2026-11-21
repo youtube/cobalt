@@ -18,6 +18,7 @@ import android.util.FloatProperty;
 import android.util.Size;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.ColorRes;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
@@ -42,8 +43,8 @@ import org.chromium.chrome.browser.tab.TabUtils;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.ui.accessibility.AccessibilityState;
 import org.chromium.ui.base.LocalizationUtils;
-import org.chromium.ui.util.ColorUtils;
 import org.chromium.ui.util.MotionEventUtils;
 import org.chromium.ui.util.StyleUtils;
 
@@ -119,8 +120,43 @@ public class StripLayoutTab extends StripLayoutView {
                 }
             };
 
+    /** A property for animations to use for changing the Glic underline opacity. */
+    public static final FloatProperty<StripLayoutTab> UNDERLINE_OPACITY =
+            new FloatProperty<>("underlineOpacity") {
+                @Override
+                public void setValue(StripLayoutTab object, float value) {
+                    object.mUnderlineOpacity = value;
+                }
+
+                @Override
+                public Float get(StripLayoutTab object) {
+                    return object.getUnderlineOpacity();
+                }
+            };
+
+    /**
+     * A property for animations to use for changing the Glic underline shimmer offset. The shimmer
+     * offset drives a left-to-right "wave/shimmer" effect where parts of the underline dynamically
+     * get lighter or darker.
+     */
+    public static final FloatProperty<StripLayoutTab> UNDERLINE_SHIMMER_OFFSET =
+            new FloatProperty<>("underlineShimmerOffset") {
+                @Override
+                public void setValue(StripLayoutTab object, float value) {
+                    object.mUnderlineShimmerOffset = value;
+                }
+
+                @Override
+                public Float get(StripLayoutTab object) {
+                    return object.getUnderlineShimmerOffset();
+                }
+            };
+
     // Animation/Timer Constants
     private static final int ANIM_TAB_CLOSE_BUTTON_FADE_MS = 150;
+    private static final int ANIM_UNDERLINE_RAMP_UP_MS = 500;
+    private static final int ANIM_UNDERLINE_RAMP_DOWN_MS = 200;
+    private static final int ANIM_UNDERLINE_SHIMMER_CYCLE_MS = 3000;
 
     // Close Button Constants
     // Close button padding value comes from the built-in padding in the source png.
@@ -171,10 +207,6 @@ public class StripLayoutTab extends StripLayoutView {
     // Divider Constants
     private static final int DIVIDER_OFFSET_X = 13;
 
-    // Close button hover highlight alpha
-    private static final float CLOSE_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY = 0.12f;
-    private static final float CLOSE_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY = 0.08f;
-
     // Tab's ID this view refers to.
     private int mTabId;
 
@@ -199,6 +231,11 @@ public class StripLayoutTab extends StripLayoutView {
     private @TabIndicatorStatus int mTabIndicatorStatus;
     private float mTabIndicatorOverlayRotation;
     private boolean mIsUnderlined;
+    // The offset of the left-to-right wave/shimmer effect on the tab underline (from 0.f to 1.f).
+    private float mUnderlineShimmerOffset;
+    private float mUnderlineOpacity;
+    private @Nullable CompositorAnimator mUnderlineOpacityAnimator;
+    private @Nullable CompositorAnimator mUnderlineShimmerAnimator;
 
     // For avoiding unnecessary accessibility description updates.
     private @Nullable String mCachedA11yDescriptionTitle;
@@ -210,7 +247,7 @@ public class StripLayoutTab extends StripLayoutView {
     private boolean mShowingCloseButton = true;
 
     // Content Animations
-    private @Nullable CompositorAnimator mButtonOpacityAnimation;
+    private @Nullable CompositorAnimator mButtonOpacityAnimator;
 
     private float mLoadingSpinnerRotationDegrees;
 
@@ -269,38 +306,26 @@ public class StripLayoutTab extends StripLayoutView {
                         /* clickSlopDp= */ 0f,
                         /* hasLongClickAction= */ true);
 
-        int iconColor =
-                incognito ? R.color.default_icon_color_light : R.color.default_icon_color_tint_list;
-        int iconColorInt = context.getColorStateList(iconColor).getDefaultColor();
-        mCloseButton.setTint(iconColorInt);
-        @ColorInt
-        int backgroundHoverTint =
-                ColorUtils.setAlphaComponentWithFloat(
-                        SemanticColorUtils.getDefaultTextColor(context),
-                        CLOSE_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY);
-        @ColorInt
-        int backgroundPeripheralPressedTint =
-                ColorUtils.setAlphaComponentWithFloat(
-                        SemanticColorUtils.getDefaultTextColor(context),
-                        CLOSE_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY);
+        @ColorRes int iconTintRes = R.color.default_icon_color_tint_list;
+        @ColorRes int bgHoverTintRes = R.color.tab_strip_button_bg_hover_tint;
+        @ColorRes
+        int bgPeripheralPressedTintRes = R.color.tab_strip_button_bg_peripheral_pressed_tint;
 
         if (incognito) {
-            backgroundHoverTint =
-                    ColorUtils.setAlphaComponentWithFloat(
-                            context.getColor(R.color.tab_strip_button_hover_bg_color),
-                            CLOSE_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY);
-            backgroundPeripheralPressedTint =
-                    ColorUtils.setAlphaComponentWithFloat(
-                            context.getColor(R.color.tab_strip_button_hover_bg_color),
-                            CLOSE_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY);
+            iconTintRes = R.color.default_icon_color_light;
+            bgHoverTintRes = R.color.tab_strip_button_bg_incognito_hover_tint;
+            bgPeripheralPressedTintRes =
+                    R.color.tab_strip_button_bg_incognito_peripheral_pressed_tint;
         }
 
-        // Only set color for hover bg.
+        // Only set color for hover and peripheral-pressed bg.
+        mCloseButton.setTint(context.getColor(iconTintRes));
         mCloseButton.setBackgroundTint(
                 Color.TRANSPARENT,
-                backgroundHoverTint,
+                mContext.getColor(bgHoverTintRes),
                 Color.TRANSPARENT,
-                backgroundPeripheralPressedTint);
+                mContext.getColor(bgPeripheralPressedTintRes));
+
         mCloseButtonSize = getCloseButtonSize();
         resetCloseRect();
     }
@@ -476,16 +501,86 @@ public class StripLayoutTab extends StripLayoutView {
     }
 
     /**
-     * Sets whether this tab is underlined.
+     * Sets whether this tab is underlined, with optional opacity and motion animations.
      *
      * @param isUnderlined whether this tab is underlined.
      */
     public void setIsUnderlined(boolean isUnderlined) {
+        if (mIsUnderlined == isUnderlined) return;
         mIsUnderlined = isUnderlined;
+
+        if (mUnderlineOpacityAnimator != null) {
+            mUnderlineOpacityAnimator.cancel();
+        }
+        if (mUnderlineShimmerAnimator != null) {
+            mUnderlineShimmerAnimator.cancel();
+        }
+
+        float targetOpacity = isUnderlined ? 1.0f : 0.0f;
+        if (!AccessibilityState.prefersReducedMotion()) {
+            // 1. Opacity Transition
+            int duration = isUnderlined ? ANIM_UNDERLINE_RAMP_UP_MS : ANIM_UNDERLINE_RAMP_DOWN_MS;
+            mUnderlineOpacityAnimator =
+                    CompositorAnimator.ofFloatProperty(
+                            mUpdateHost.getAnimationHandler(),
+                            this,
+                            UNDERLINE_OPACITY,
+                            mUnderlineOpacity,
+                            targetOpacity,
+                            duration);
+            mUnderlineOpacityAnimator.start();
+
+            // 2. Motion Transition
+            if (isUnderlined) {
+                if (mUnderlineShimmerAnimator == null) {
+                    mUnderlineShimmerAnimator =
+                            CompositorAnimator.ofFloatProperty(
+                                    mUpdateHost.getAnimationHandler(),
+                                    this,
+                                    UNDERLINE_SHIMMER_OFFSET,
+                                    0.0f,
+                                    1.0f,
+                                    ANIM_UNDERLINE_SHIMMER_CYCLE_MS);
+                }
+                mUnderlineShimmerAnimator.start();
+            }
+        } else {
+            mUnderlineOpacity = targetOpacity;
+            mUnderlineShimmerOffset = 0.0f;
+            mUpdateHost.requestUpdate();
+        }
+    }
+
+    /** Retriggers the underline animation cycle. */
+    public void resetUnderlineAnimationCycle() {
+        if (mIsUnderlined
+                && mUnderlineShimmerAnimator != null
+                && !AccessibilityState.prefersReducedMotion()) {
+            mUnderlineShimmerAnimator.cancel();
+            mUnderlineShimmerAnimator.start();
+        }
+    }
+
+    /**
+     * Returns the fraction (from 0.f to 1.f) of how opaque the Glic underline should be.
+     *
+     * @return The underline opacity.
+     */
+    public float getUnderlineOpacity() {
+        return mUnderlineOpacity;
+    }
+
+    /**
+     * Returns the shimmer offset (from 0.f to 1.f) of the Glic underline.
+     *
+     * @return The underline shimmer offset.
+     */
+    public float getUnderlineShimmerOffset() {
+        return mUnderlineShimmerOffset;
     }
 
     /** Gets whether this tab is underlined. */
-    public boolean isUnderlined() {
+    public boolean isUnderlinedForTesting() {
         return mIsUnderlined;
     }
 
@@ -1097,8 +1192,8 @@ public class StripLayoutTab extends StripLayoutView {
         if (shouldShow != mShowingCloseButton) {
             float opacity = shouldShow ? 1.0f : 0.0f;
             if (animate) {
-                if (mButtonOpacityAnimation != null) mButtonOpacityAnimation.end();
-                mButtonOpacityAnimation =
+                if (mButtonOpacityAnimator != null) mButtonOpacityAnimator.end();
+                mButtonOpacityAnimator =
                         CompositorAnimator.ofFloatProperty(
                                 mUpdateHost.getAnimationHandler(),
                                 mCloseButton,
@@ -1106,14 +1201,14 @@ public class StripLayoutTab extends StripLayoutView {
                                 mCloseButton.getOpacity(),
                                 opacity,
                                 ANIM_TAB_CLOSE_BUTTON_FADE_MS);
-                mButtonOpacityAnimation.addListener(
+                mButtonOpacityAnimator.addListener(
                         new AnimatorListenerAdapter() {
                             @Override
                             public void onAnimationEnd(Animator animation) {
-                                mButtonOpacityAnimation = null;
+                                mButtonOpacityAnimator = null;
                             }
                         });
-                mButtonOpacityAnimation.start();
+                mButtonOpacityAnimator.start();
             } else {
                 mCloseButton.setOpacity(opacity);
             }

@@ -18,36 +18,89 @@ AdsHandler::AdsHandler(content::WebContents* web_contents,
 
 AdsHandler::~AdsHandler() = default;
 
+void AdsHandler::PrimaryPageChanged(content::Page& page) {
+  previous_ad_frame_data_.clear();
+}
+
 protocol::Response AdsHandler::GetAdMetrics(
     std::unique_ptr<protocol::Ads::AdMetrics>* out_metrics) {
   auto* ads_observer = GetAdsPageLoadMetricsObserver();
-  if (!ads_observer) {
-    // For simplicity and consistent error handling, return zeroed metrics and a
-    // success status.
-    *out_metrics = protocol::Ads::AdMetrics::Create()
-                       .SetViewportAdDensityByArea(0)
-                       .SetAverageViewportAdDensityByArea(0)
-                       .SetViewportAdCount(0)
-                       .SetAverageViewportAdCount(0)
-                       .SetTotalAdCpuTime(0)
-                       .SetTotalAdNetworkBytes(0)
-                       .Build();
-    return protocol::Response::Success();
+
+  base::flat_map<
+      base::UnguessableToken,
+      page_load_metrics::AdsPageLoadMetricsObserver::AdFrameLiveStats>
+      new_ad_frame_data;
+
+  double viewport_ad_density_by_area = 0;
+  double average_viewport_ad_density_by_area = 0;
+  int viewport_ad_count = 0;
+  double average_viewport_ad_count = 0;
+  double total_ad_cpu_time = 0;
+  double total_ad_network_bytes = 0;
+
+  if (ads_observer) {
+    auto density_stats = ads_observer->GetAdDensityLiveStats();
+    viewport_ad_density_by_area = density_stats.viewport_ad_density_by_area;
+    average_viewport_ad_density_by_area =
+        density_stats.average_viewport_ad_density_by_area;
+    viewport_ad_count = density_stats.viewport_ad_count;
+    average_viewport_ad_count = density_stats.average_viewport_ad_count;
+    total_ad_cpu_time = ads_observer->GetTotalAdCpuTime().InMillisecondsF();
+    total_ad_network_bytes = ads_observer->GetTotalAdNetworkBytes();
+    new_ad_frame_data = ads_observer->GetAdFrameLiveStats();
   }
 
-  auto density_stats = ads_observer->GetLiveStats();
+  // Identify ad frames that have been added, updated, or removed since the
+  // previous metric collection.
+  auto update_ad_frames =
+      std::make_unique<protocol::Array<protocol::Ads::AdFrameData>>();
+  auto remove_ad_frames = std::make_unique<protocol::Array<protocol::String>>();
 
-  *out_metrics =
-      protocol::Ads::AdMetrics::Create()
-          .SetViewportAdDensityByArea(density_stats.viewport_ad_density_by_area)
-          .SetAverageViewportAdDensityByArea(
-              density_stats.average_viewport_ad_density_by_area)
-          .SetViewportAdCount(density_stats.viewport_ad_count)
-          .SetAverageViewportAdCount(density_stats.average_viewport_ad_count)
-          .SetTotalAdCpuTime(
-              ads_observer->GetTotalAdCpuTime().InMillisecondsF())
-          .SetTotalAdNetworkBytes(ads_observer->GetTotalAdNetworkBytes())
-          .Build();
+  for (const auto& [frame_id, frame] : new_ad_frame_data) {
+    auto it = previous_ad_frame_data_.find(frame_id);
+    if (it == previous_ad_frame_data_.end() ||
+        it->second.initial_origin != frame.initial_origin ||
+        it->second.network_bytes != frame.network_bytes ||
+        it->second.cpu_time != frame.cpu_time) {
+      auto protocol_frame = protocol::Ads::AdFrameData::Create()
+                                .SetFrameId(frame_id.ToString())
+                                .SetNetworkBytes(frame.network_bytes)
+                                .SetCpuTime(frame.cpu_time.InMillisecondsF())
+                                .Build();
+
+      // To minimize protocol payload size, `initial_origin` is only sent when
+      // it changes from the previous message for a given frame. Typically, this
+      // is sent only once per frame. We retain this check to handle potential
+      // edge cases (e.g., AdsPLMO might stop tracking a frame that subsequently
+      // navigates cross-origin before being re-added to the tracker).
+      if (it == previous_ad_frame_data_.end() ||
+          it->second.initial_origin != frame.initial_origin) {
+        protocol_frame->SetInitialOrigin(frame.initial_origin.Serialize());
+      }
+
+      update_ad_frames->emplace_back(std::move(protocol_frame));
+    }
+  }
+
+  for (const auto& [frame_id, frame] : previous_ad_frame_data_) {
+    if (!new_ad_frame_data.contains(frame_id)) {
+      remove_ad_frames->emplace_back(frame_id.ToString());
+    }
+  }
+
+  previous_ad_frame_data_ = std::move(new_ad_frame_data);
+
+  *out_metrics = protocol::Ads::AdMetrics::Create()
+                     .SetViewportAdDensityByArea(viewport_ad_density_by_area)
+                     .SetAverageViewportAdDensityByArea(
+                         average_viewport_ad_density_by_area)
+                     .SetViewportAdCount(viewport_ad_count)
+                     .SetAverageViewportAdCount(average_viewport_ad_count)
+                     .SetTotalAdCpuTime(total_ad_cpu_time)
+                     .SetTotalAdNetworkBytes(total_ad_network_bytes)
+                     .SetUpdateAdFrames(std::move(update_ad_frames))
+                     .SetRemoveAdFrames(std::move(remove_ad_frames))
+                     .Build();
 
   return protocol::Response::Success();
 }

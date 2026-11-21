@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
+#include "third_party/blink/renderer/core/css/css_alpha_color_value.h"
 #include "third_party/blink/renderer/core/css/css_color.h"
 #include "third_party/blink/renderer/core/css/css_color_channel_keywords.h"
 #include "third_party/blink/renderer/core/css/css_color_mix_value.h"
@@ -731,6 +732,49 @@ CSSValue* ColorFunctionParser::ConsumeFunctionalSyntaxColor(
         DynamicTo<CSSPrimitiveValue>(*unresolved_channels_[2]), channel_types_,
         DynamicTo<CSSPrimitiveValue>(unresolved_alpha_), alpha_channel_type_);
   }
+}
+
+CSSValue* ColorFunctionParser::ConsumeRelativeAlphaFunction(
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext& local_context,
+    const css_parsing_utils::ColorParserContext& color_parser_context) {
+  CSSParserLocalContext::FunctionLocalContext function_context(
+      CSSValueID::kAlpha, local_context);
+
+  CSSParserTokenStream::RestoringBlockGuard guard(stream);
+  stream.ConsumeWhitespace();
+
+  // "from" keyword is required.
+  if (!css_parsing_utils::ConsumeIdent<CSSValueID::kFrom>(stream)) {
+    return nullptr;
+  }
+
+  unresolved_origin_color_ = css_parsing_utils::ConsumeColor(
+      stream, context, local_context, color_parser_context);
+  if (!unresolved_origin_color_) {
+    return nullptr;
+  }
+
+  // Optional: / <alpha-value>
+  if (css_parsing_utils::ConsumeSlashIncludingWhitespace(stream)) {
+    // The allowed component keywords is `alpha`.
+    color_channel_map_ = {{CSSValueID::kAlpha, std::nullopt}};
+
+    if (!ConsumeAlpha(stream, context, local_context, color_parser_context)) {
+      return nullptr;
+    }
+  }
+
+  if (!stream.AtEnd()) {
+    return nullptr;
+  }
+
+  guard.Release();
+  stream.ConsumeWhitespace();
+
+  return MakeGarbageCollected<cssvalue::CSSAlphaColorValue>(
+      unresolved_origin_color_, unresolved_alpha_);
 }
 
 }  // namespace blink

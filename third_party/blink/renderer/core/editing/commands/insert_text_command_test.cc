@@ -235,7 +235,7 @@ TEST_F(InsertTextCommandTest, NoVisibleSelectionAfterDeletingSelection) {
     // stays at the <ruby> level instead of descending into <strike>.
     EXPECT_EQ(
         "<div contenteditable>"
-        "  <ruby>x|<strike><navi></navi>"
+        "  <ruby>x|<strike>    <navi></navi>"
         "    </strike></ruby>"
         "</div>",
         GetSelectionTextFromBody());

@@ -150,6 +150,7 @@ base::expected<std::vector<base::apple::ScopedCFTypeRef<CFDictionaryRef>>,
 FindUnexportableKeys(FindUnexportableKeysOptions options) {
   auto [access_group, application_tag_prefix, wrapped_key, lacontext] = options;
   NSMutableDictionary* query = [NSMutableDictionary dictionaryWithDictionary:@{
+    CFToNSPtrCast(kSecUseDataProtectionKeychain) : @YES,
     CFToNSPtrCast(kSecClass) : CFToNSPtrCast(kSecClassKey),
     CFToNSPtrCast(kSecAttrKeyType) :
         CFToNSPtrCast(kSecAttrKeyTypeECSECPrimeRandom),

@@ -201,11 +201,19 @@ void DevToolsAgent::BindReceiverForWorker(
   DCHECK(!associated_receiver_.is_bound());
 
   host_remote_.Bind(std::move(host_remote), std::move(task_runner));
-  host_remote_.set_disconnect_handler(
-      BindOnce(&DevToolsAgent::CleanupConnection, WrapWeakPersistent(this)));
+  // In some cases, such as unit tests and worklets the host_remote is null
+  // and therefore is unable to bind.  This causes set_disconnect_handler to
+  // fail, therefore we simply bypass it here.
+  if (host_remote_.is_bound()) {
+    host_remote_.set_disconnect_handler(
+        BindOnce(&DevToolsAgent::CleanupConnection, WrapWeakPersistent(this)));
 
-  io_agent_ = new IOAgent(io_task_runner_, inspector_task_runner_,
-                          MakeCrossThreadWeakHandle(this), std::move(receiver));
+    io_agent_ =
+        new IOAgent(io_task_runner_, inspector_task_runner_,
+                    MakeCrossThreadWeakHandle(this), std::move(receiver));
+  } else {
+    CleanupConnection();
+  }
 }
 
 void DevToolsAgent::BindReceiver(

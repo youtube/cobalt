@@ -32,12 +32,10 @@ void PrintLayerHierarchyImp(const Layer* layer,
                             int indent,
                             const gfx::Point& mouse_location,
                             bool print_invisible,
-                            std::ostringstream* out,
-                            DebugLayerChildCallback child_cb) {
+                            std::ostringstream* out) {
   if (!print_invisible && !layer->visible()) {
     return;
   }
-
   std::string indent_str(indent, ' ');
 
   gfx::Point transformed_mouse_location = layer->transform()
@@ -152,11 +150,9 @@ void PrintLayerHierarchyImp(const Layer* layer,
 
   *out << '\n';
 
-  std::vector<raw_ptr<ui::Layer, VectorExperimental>> children =
-      child_cb ? child_cb.Run(layer) : layer->children();
-  for (ui::Layer* child : children) {
+  for (ui::Layer* child : layer->children()) {
     PrintLayerHierarchyImp(child, indent + 3, mouse_location_in_layer,
-                           print_invisible, out, child_cb);
+                           print_invisible, out);
   }
 }
 
@@ -174,11 +170,9 @@ void PrintLayerHierarchy(const Layer* layer,
 void PrintLayerHierarchy(const Layer* layer,
                          const gfx::Point& mouse_location,
                          bool print_invisible,
-                         std::ostringstream* out,
-                         DebugLayerChildCallback child_cb) {
+                         std::ostringstream* out) {
   *out << "Layer hierarchy:\n";
-  PrintLayerHierarchyImp(layer, 0, mouse_location, print_invisible, out,
-                         child_cb);
+  PrintLayerHierarchyImp(layer, 0, mouse_location, print_invisible, out);
 }
 
 }  // namespace ui

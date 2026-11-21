@@ -26,7 +26,6 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/supervised_user/core/browser/family_link_settings_service.h"
 #include "components/supervised_user/core/browser/family_link_url_filter.h"
-#include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
 #include "components/supervised_user/core/browser/permission_request_creator_impl.h"
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
 #include "components/supervised_user/core/browser/supervised_user_service_observer.h"

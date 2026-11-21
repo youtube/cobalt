@@ -13,6 +13,7 @@
 #include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
@@ -67,10 +68,8 @@ namespace {
 
 using glic::test::internal::kGlicInstanceCoordinatorState;
 
-#if !BUILDFLAG(IS_WIN)
 constexpr base::FilePath::StringViewType kRecordingDirectoryPath =
     FILE_PATH_LITERAL("chrome/browser/glic/e2e_test/internal/wpr_recordings");
-#endif
 
 const char kGlicE2ETestModeSwitch[] = "glic-e2e-test-mode";
 const char kHostResolverRulesValue[] =
@@ -147,16 +146,10 @@ void GlicE2ETest::SetUp() {
   // for some requests in real_backend mode.
   if (test_mode_ == kRecord || test_mode_ == kReplay ||
       (test_mode_ == kRealBackend && use_wpr_for_real_backend_)) {
-#if BUILDFLAG(IS_WIN)
-    GTEST_SKIP()
-        << "(crbug.com/517199038) WPR tests are temporarily skipped on "
-           "Windows due to WPR process failure";
-#else
     web_page_replay_server_wrapper_ =
         std::make_unique<WebPageReplayServerWrapper>(
             test_mode_ == kReplay || test_mode_ == kRealBackend, 8080, 8081,
             kWprArguments);
-#endif
   }
 
   // Always disable animation for stability.
@@ -184,6 +177,12 @@ void GlicE2ETest::SetUpCommandLine(base::CommandLine* command_line) {
 
 void GlicE2ETest::PreRunTestOnMainThread() {
   LiveTest::PreRunTestOnMainThread();
+
+  active_instance_subscription_ =
+      instance_coordinator()
+          .AddActiveInstanceChangedCallbackAndNotifyImmediately(
+              base::BindRepeating(&GlicE2ETest::OnActiveInstanceChanged,
+                                  base::Unretained(this)));
 
   GURL glic_guest_url = glic::GetGuestURL();
   CHECK(glic_guest_url.is_valid())
@@ -268,7 +267,6 @@ void GlicE2ETest::TearDownOnMainThread() {
   LiveTest::TearDownOnMainThread();
 }
 
-
 ui::test::InteractiveTestApi::MultiStep
 GlicE2ETest::WaitForAndInstrumentGlic() {
   MultiStep steps(Steps(
@@ -290,7 +288,6 @@ GlicE2ETest::WaitForAndInstrumentGlic() {
 
 void GlicE2ETest::MaybeStartWebPageReplayForRecordingPath(
     const std::string recording_filename) {
-#if !BUILDFLAG(IS_WIN)
   if (test_mode_ == kRealBackend && !use_wpr_for_real_backend_) {
     return;
   }
@@ -307,7 +304,6 @@ void GlicE2ETest::MaybeStartWebPageReplayForRecordingPath(
   }
 
   ASSERT_TRUE(web_page_replay_server_wrapper()->Start(recording_path));
-#endif
 }
 
 GlicKeyedService* GlicE2ETest::glic_service() {
@@ -435,6 +431,52 @@ ui::ElementIdentifier GetOmniboxElementId() {
 }
 ui::ElementIdentifier GetGlicViewElementId() {
   return kGlicViewElementId;
+}
+
+void GlicE2ETest::OnActiveInstanceChanged(GlicInstance* new_instance) {
+  host_observation_.Reset();
+  if (new_instance) {
+    host_observation_.Observe(&new_instance->host());
+  }
+}
+
+void GlicE2ETest::WebUiStateChanged(glic::mojom::WebUiState state) {
+  if (expects_error_) {
+    return;
+  }
+  switch (state) {
+    // Errors that should cause an early bail.
+    case glic::mojom::WebUiState::kError:
+    case glic::mojom::WebUiState::kUnresponsive:
+    case glic::mojom::WebUiState::kGuestError:
+    case glic::mojom::WebUiState::kDisabledByAdmin:
+    case glic::mojom::WebUiState::kLocationMismatch:
+    case glic::mojom::WebUiState::kIneligibleAccount:
+    case glic::mojom::WebUiState::kOffline:
+    case glic::mojom::WebUiState::kUnavailable: {
+      ADD_FAILURE() << "Early bail: Glic WebUI entered error state: "
+                    << static_cast<int>(state);
+      base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(
+                         [](base::WeakPtr<GlicE2ETest> self) {
+                           if (self) {
+                             self->instance_coordinator().Shutdown();
+                           }
+                         },
+                         weak_ptr_factory_.GetWeakPtr()));
+      break;
+    }
+    // Valid states for Glic where no early bail is needed.
+    case glic::mojom::WebUiState::kUninitialized:
+    case glic::mojom::WebUiState::kBeginLoad:
+    case glic::mojom::WebUiState::kShowLoading:
+    case glic::mojom::WebUiState::kHoldLoading:
+    case glic::mojom::WebUiState::kFinishLoading:
+    case glic::mojom::WebUiState::kReady:
+    case glic::mojom::WebUiState::kWarmed:
+    case glic::mojom::WebUiState::kSignIn:
+      break;
+  }
 }
 
 }  // namespace glic::test

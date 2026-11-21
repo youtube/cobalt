@@ -301,7 +301,7 @@ IN_PROC_BROWSER_TEST_F(CommandsApiTest, Basic) {
 
   // Test that there are two browser actions in the toolbar.
   auto* toolbar_model = ToolbarActionsModel::Get(profile());
-  ASSERT_EQ(2, toolbar_model->action_ids().size());
+  ASSERT_EQ(2u, toolbar_model->action_ids().size());
 
   ASSERT_TRUE(NavigateToURL(
       GetActiveWebContents(),

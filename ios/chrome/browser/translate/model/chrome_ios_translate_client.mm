@@ -9,6 +9,7 @@
 
 #import "base/check_op.h"
 #import "base/feature_list.h"
+#import "base/functional/callback.h"
 #import "base/memory/ptr_util.h"
 #import "base/notreached.h"
 #import "components/infobars/core/infobar.h"
@@ -149,6 +150,11 @@ ChromeIOSTranslateClient::GetAcceptLanguagesService() {
 
 bool ChromeIOSTranslateClient::IsTranslatableURL(const GURL& url) {
   return TranslateServiceIOS::IsTranslatableURL(url);
+}
+
+void ChromeIOSTranslateClient::CheckIfPdfIsTranslatable(
+    base::OnceCallback<void(bool)> callback) {
+  std::move(callback).Run(false);
 }
 
 void ChromeIOSTranslateClient::DidStartNavigation(

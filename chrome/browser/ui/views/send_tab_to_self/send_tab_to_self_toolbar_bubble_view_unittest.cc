@@ -8,6 +8,7 @@
 
 #include "base/containers/span.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service_factory.h"
@@ -15,6 +16,7 @@
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #include "components/send_tab_to_self/features.h"
+#include "components/send_tab_to_self/metrics_util.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
@@ -134,6 +136,12 @@ TEST_F(SendTabToSelfToolbarBubbleViewTest, ButtonNavigatesToPage) {
   TabStripModel* tab_strip = browser()->tab_strip_model();
   ASSERT_EQ(1, tab_strip->count());
   EXPECT_EQ(url, tab_strip->GetActiveWebContents()->GetVisibleURL());
+
+  // Verify that the model was called with the correct GUID and entry point.
+  EXPECT_EQ(test_model()->last_activated_guid(), "guid");
+  EXPECT_EQ(test_model()->last_activated_entry_point(),
+            ShareActivatedEntryPoint::kDesktopToolbarBubble);
+  EXPECT_EQ(test_model()->activated_call_count(), 1);
 }
 
 TEST_F(SendTabToSelfToolbarBubbleViewTest, ButtonNavigatesWithScrollPosition) {

@@ -176,8 +176,7 @@ OptimizationGuideGlobalState::OptimizationGuideGlobalState(
   }
 
   auto model_broker_state = std::make_unique<ModelBrokerState>(
-      *g_browser_process->local_state(),
-      prediction_manager_.prediction_manager(),
+      *g_browser_process->local_state(), prediction_manager_.model_provider(),
       component_updater::CreateOptimizationGuideOnDeviceModelComponentDelegate(
           component_updater::OnDeviceModelType::kBaseModel),
       component_updater::CreateOptimizationGuideOnDeviceModelComponentDelegate(
@@ -212,8 +211,7 @@ ModelBrokerState* OptimizationGuideGlobalState::model_broker_state() {
 #if BUILDFLAG(IS_ANDROID)
 OptimizationGuideGlobalState::OptimizationGuideGlobalState() {
   on_device_capability_ = std::make_unique<ModelBrokerAndroid>(
-      *g_browser_process->local_state(),
-      prediction_manager_.prediction_manager());
+      *g_browser_process->local_state(), prediction_manager_.model_provider());
 }
 #else   // !BUILDFLAG(IS_ANDROID)
 OptimizationGuideGlobalState::OptimizationGuideGlobalState() {
@@ -264,7 +262,7 @@ OptimizationGuideGlobalState& OptimizationGuideGlobalFeature::Get() {
 
 OptimizationGuideModelProvider&
 OptimizationGuideGlobalFeature::GetModelProvider() {
-  return Get().prediction_manager();
+  return Get().model_provider();
 }
 
 }  // namespace optimization_guide

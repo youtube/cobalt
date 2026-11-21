@@ -1447,13 +1447,7 @@ void TapTabGroupTitle() {
 
 // Tests that the TabGrid is correctly updated when it was presenting a group
 // before being backgrounded while incognito reauth is enabled.
-// TODO(crbug.com/459852252): Test fails on iPad simulator.
-#if TARGET_IPHONE_SIMULATOR
-#define MAYBE_testIncognitoReauth DISABLED_testIncognitoReauth
-#else
-#define MAYBE_testIncognitoReauth testIncognitoReauth
-#endif
-- (void)MAYBE_testIncognitoReauth {
+- (void)testIncognitoReauth {
   [ChromeEarlGrey openNewIncognitoTab];
   [ChromeEarlGreyUI openTabGrid];
 
@@ -1463,7 +1457,7 @@ void TapTabGroupTitle() {
 
   [ChromeEarlGrey setBoolValue:YES
              forLocalStatePref:prefs::kIncognitoAuthenticationSetting];
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
 
   [[EarlGrey
       selectElementWithMatcher:chrome_test_util::TabGridNewIncognitoTabButton()]

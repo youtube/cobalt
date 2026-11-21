@@ -315,6 +315,9 @@ void PersonalContextResolverImpl::Query(std::u16string query,
   }
 
   personal_context::ContextMemoryRequestOptions options;
+  // TODO(crbug.com/525668259): Control this timeout via a Finch parameter once
+  // `PersonalContextResolver` is moved to the autofill component.
+  options.request_timeout = base::Seconds(30);
   personal_context_service_->FetchContext(
       personal_context::proto::CONTEXT_MEMORY_FEATURE_AT_MEMORY,
       request_metadata, options,

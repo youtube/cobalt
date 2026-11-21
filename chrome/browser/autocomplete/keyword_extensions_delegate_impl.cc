@@ -174,7 +174,7 @@ void KeywordExtensionsDelegateImpl::OnOmniboxSuggestionsReady(
   // unless the full keyword had been typed.
   int first_relevance = KeywordProvider::CalculateRelevance(
       input.type(), /*complete=*/true, /*support_replacement=*/true,
-      input.prefer_keyword(), input.allow_exact_keyword_match());
+      input.in_keyword_mode(), input.allow_exact_keyword_match());
 
   for (const ExtensionSuggestion& suggestion : suggestions) {
     // Because these matches are async, we should never let them become the

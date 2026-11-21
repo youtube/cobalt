@@ -4,11 +4,15 @@
 
 #include "services/network/public/cpp/connection_allowlist_parser.h"
 
+#include <string_view>
+
+#include "base/strings/string_util.h"
 #include "components/url_pattern/simple_url_pattern_matcher.h"
 #include "net/http/structured_headers.h"
 #include "services/network/public/cpp/connection_allowlist.h"
 #include "services/network/public/mojom/connection_allowlist.mojom-shared.h"
 #include "services/network/public/mojom/devtools_observer.mojom.h"
+#include "services/network/public/mojom/origin_or_wildcard_header_value.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -46,14 +50,40 @@ std::optional<std::string> ParsePattern(
   }
 }
 
-std::optional<ConnectionAllowlist> ParseHeader(const std::string& header_string,
-                                               const GURL& response_url) {
+}  // namespace
+
+ConnectionAllowlists ParseConnectionAllowlistsFromHeaders(
+    const net::HttpResponseHeaders& headers,
+    const GURL& response_url) {
+  ConnectionAllowlists result;
+
+  auto enforced_header = headers.GetNormalizedHeader("Connection-Allowlist");
+  if (enforced_header) {
+    result.enforced = ParseConnectionAllowlist(*enforced_header, response_url);
+  }
+
+  auto report_only_header =
+      headers.GetNormalizedHeader("Connection-Allowlist-Report-Only");
+  if (report_only_header) {
+    result.report_only =
+        ParseConnectionAllowlist(*report_only_header, response_url);
+  }
+
+  if (enforced_header || report_only_header) {
+    result.response_url = response_url;
+  }
+
+  return result;
+}
+
+std::optional<ConnectionAllowlist> ParseConnectionAllowlist(
+    const std::string& header_string,
+    std::optional<GURL> response_url) {
   if (header_string.empty()) {
     return std::nullopt;
   }
 
   ConnectionAllowlist parsed;
-  std::string serialized_origin = url::Origin::Create(response_url).Serialize();
 
   // Parse the header as a List.
   std::optional<net::structured_headers::List> list =
@@ -85,7 +115,15 @@ std::optional<ConnectionAllowlist> ParseHeader(const std::string& header_string,
       continue;
     }
     if (*value == kResponseOriginToken) {
-      parsed.allowlist.push_back(serialized_origin);
+      if (response_url) {
+        parsed.allowlist.push_back(
+            url::Origin::Create(*response_url).Serialize());
+      } else {
+        // Defer resolution: the origin to resolve against isn't known here
+        // (e.g. parsing an iframe attribute in the renderer). The browser
+        // resolves this against the response origin before enforcing.
+        parsed.match_response_origin = true;
+      }
     } else {
       parsed.allowlist.push_back(*value);
     }
@@ -116,29 +154,64 @@ std::optional<ConnectionAllowlist> ParseHeader(const std::string& header_string,
   return parsed;
 }
 
-}  // namespace
-
-ConnectionAllowlists ParseConnectionAllowlistsFromHeaders(
-    const net::HttpResponseHeaders& headers,
-    const GURL& response_url) {
-  ConnectionAllowlists result;
-
-  auto enforced_header = headers.GetNormalizedHeader("Connection-Allowlist");
-  if (enforced_header) {
-    result.enforced = ParseHeader(*enforced_header, response_url);
+mojom::OriginOrWildcardHeaderValuePtr ParseAllowConnectionAllowlistFromHeader(
+    const net::HttpResponseHeaders& headers) {
+  std::optional<std::string> allow_connection_allowlist_from =
+      headers.GetNormalizedHeader("Allow-Connection-Allowlist-From");
+  if (!allow_connection_allowlist_from) {
+    return nullptr;
   }
 
-  auto report_only_header =
-      headers.GetNormalizedHeader("Connection-Allowlist-Report-Only");
-  if (report_only_header) {
-    result.report_only = ParseHeader(*report_only_header, response_url);
+  std::string_view trimmed = base::TrimWhitespaceASCII(
+      *allow_connection_allowlist_from, base::TRIM_ALL);
+
+  if (trimmed == "*") {
+    return mojom::OriginOrWildcardHeaderValue::NewAllowStar(true);
   }
 
-  if (enforced_header || report_only_header) {
-    result.response_url = response_url;
+  // Require an exact origin serialization, not merely a parsable URL: a URL can
+  // carry a path, query, or userinfo that `url::Origin::Create` would silently
+  // drop (e.g. `https://user@embedder.example/path`). Round-tripping through
+  // the origin's serialization rejects anything that isn't already a bare
+  // origin.
+  url::Origin parsed_origin = url::Origin::Create(GURL(trimmed));
+  if (parsed_origin.Serialize() != trimmed) {
+    return mojom::OriginOrWildcardHeaderValue::NewErrorMessage(
+        "The 'Allow-Connection-Allowlist-From' header contains neither '*' nor "
+        "a valid origin.");
+  }
+  return mojom::OriginOrWildcardHeaderValue::NewOrigin(
+      std::move(parsed_origin));
+}
+
+bool AllowsBlanketEnforcementOfRequiredConnectionAllowlist(
+    const url::Origin& request_origin,
+    const GURL& response_url,
+    const mojom::OriginOrWildcardHeaderValue* allow_connection_allowlist_from) {
+  // Local schemes (about:, blob:, data:, filesystem:) inherit their embedder's
+  // policies and do not initiate network connections on their own, so it is
+  // always safe for the embedder to enforce its required allowlist on them.
+  // This matches Fetch's notion of a "local scheme" and deliberately excludes
+  // file:.
+  if (response_url.SchemeIsLocal()) {
+    return true;
   }
 
-  return result;
+  if (!allow_connection_allowlist_from) {
+    return false;
+  }
+
+  if (allow_connection_allowlist_from->is_allow_star()) {
+    return true;
+  }
+
+  if (allow_connection_allowlist_from->is_origin() &&
+      request_origin.IsSameOriginWith(
+          allow_connection_allowlist_from->get_origin())) {
+    return true;
+  }
+
+  return false;
 }
 
 void ReportConnectionAllowlistIssuesToDevtools(

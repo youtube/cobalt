@@ -141,6 +141,21 @@ enum class GeminiClientMode {
   kTranscribing,
 };
 
+// Reasons why the Gemini client is in the dormant mode.
+// This needs to stay in sync with GCRGeminiDormantReason.
+enum class GeminiDormantReason {
+  kUnknown = 0,
+  kInterruptedByExternalAudio,
+  kLowVolumeInBackground,
+  kLowVolumeInForeground,
+  kInactivityTimeout,
+  kLongInteractionTimeout,
+  kMovedToBackgroundWhenMicOff,
+  kUserStop,
+  kUserPause,
+  kServerPause,
+};
+
 // Enum representing the Gemini view mode.
 // This needs to stay in sync with GMNGeminiViewMode in the SDK.
 enum class GeminiViewMode {

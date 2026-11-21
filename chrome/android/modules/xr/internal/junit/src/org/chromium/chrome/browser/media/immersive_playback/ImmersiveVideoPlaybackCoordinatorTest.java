@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.media.immersive_playback;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -169,16 +170,16 @@ public class ImmersiveVideoPlaybackCoordinatorTest {
         verify(mSurfaceEntityHolder).setSurfacePixelDimensions(width, height);
     }
 
-    /** Tests that updateVideoLayout updates shape and stereo mode. */
+    /** Tests that onFormatSelected updates shape and stereo mode. */
     @Test
     @UiThreadTest
-    public void testUpdateVideoLayout() {
+    public void testVideoLayoutUpdates() {
         clearInvocations(mSurfaceMovableComponent);
         clearInvocations(mControlPanelMovableComponent);
         clearInvocations(mSurfaceEntityHolder);
 
         // Switch to HEMISPHERE and SIDE_BY_SIDE.
-        mCoordinator.updateVideoLayout(
+        mCoordinator.onFormatSelected(
                 ImmersiveStereoMode.SIDE_BY_SIDE, ImmersiveProjectionType.HEMISPHERE);
         ShadowLooper.idleMainLooper();
 
@@ -193,7 +194,7 @@ public class ImmersiveVideoPlaybackCoordinatorTest {
         clearInvocations(mSurfaceEntityHolder);
 
         // Switch to SPHERE and TOP_BOTTOM.
-        mCoordinator.updateVideoLayout(
+        mCoordinator.onFormatSelected(
                 ImmersiveStereoMode.TOP_BOTTOM, ImmersiveProjectionType.SPHERE);
         ShadowLooper.idleMainLooper();
 
@@ -207,7 +208,7 @@ public class ImmersiveVideoPlaybackCoordinatorTest {
         clearInvocations(mSurfaceEntityHolder);
 
         // Switch to QUAD and MONO (default state).
-        mCoordinator.updateVideoLayout(ImmersiveStereoMode.MONO, ImmersiveProjectionType.QUAD);
+        mCoordinator.onFormatSelected(ImmersiveStereoMode.MONO, ImmersiveProjectionType.QUAD);
         ShadowLooper.idleMainLooper();
 
         verify(mSurfaceEntityHolder).setSurfaceShape(XrSurfaceEntityShape.QUAD);
@@ -358,6 +359,35 @@ public class ImmersiveVideoPlaybackCoordinatorTest {
         verify(formatPanelHolder).dispose();
         verify(mControlPanelHolder).dispose();
         verify(mSurfaceEntityHolder).dispose();
+    }
+
+    /** Tests that recommended options are only populated when provided by native. */
+    @Test
+    @UiThreadTest
+    public void testRecommendedOptionOnlyProvidedByNative() {
+        var formatCoordinator = mCoordinator.getFormatCoordinatorForTesting();
+
+        // 1. User selects a format via UI.
+        mCoordinator.onFormatSelected(
+                ImmersiveStereoMode.SIDE_BY_SIDE, ImmersiveProjectionType.HEMISPHERE);
+        assertNull(formatCoordinator.getRecommendedStereoModeForTesting());
+        assertNull(formatCoordinator.getRecommendedProjectionTypeForTesting());
+
+        // 2. Native side sets immersive video options with isRecommended = false.
+        mCoordinator.setImmersiveVideoOptions(
+                ImmersiveStereoMode.TOP_BOTTOM, ImmersiveProjectionType.SPHERE, false);
+        assertNull(formatCoordinator.getRecommendedStereoModeForTesting());
+        assertNull(formatCoordinator.getRecommendedProjectionTypeForTesting());
+
+        // 3. Native side sets immersive video options with isRecommended = true.
+        mCoordinator.setImmersiveVideoOptions(
+                ImmersiveStereoMode.TOP_BOTTOM, ImmersiveProjectionType.SPHERE, true);
+        assertEquals(
+                ImmersiveStereoMode.TOP_BOTTOM,
+                (int) formatCoordinator.getRecommendedStereoModeForTesting());
+        assertEquals(
+                ImmersiveProjectionType.SPHERE,
+                (int) formatCoordinator.getRecommendedProjectionTypeForTesting());
     }
 
     /** Test subclass that allows injecting mocked dependencies by overriding protected methods. */

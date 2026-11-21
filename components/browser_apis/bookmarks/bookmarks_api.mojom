@@ -4,10 +4,27 @@
 
 module bookmarks_api.mojom;
 
+
 import "mojo/public/mojom/base/empty.mojom";
 import "mojo/public/mojom/base/error.mojom";
 import "mojo/public/mojom/base/uuid.mojom";
 import "url/mojom/url.mojom";
+
+// Represents a permanent folder type. The existence of a non-unknown value
+// means that this is a special permanent node managed by the system.
+enum PermanentFolderType {
+  kUnknown,
+  kBookmarkBar,
+  kOther,
+  kMobile,
+  kManaged,
+};
+
+// Represents the root node of the bookmarks hierarchy.
+struct RootNode {
+  mojo_base.mojom.Uuid id;
+  array<Folder> children;
+};
 
 // Represents a node in the bookmarks hierarchy.
 union BookmarkNode {
@@ -22,6 +39,9 @@ struct Url {
   string title;
   url.mojom.Url url;
   url.mojom.Url? favicon_url;
+  // True if the bookmark is synced to the account storage (i.e. it is not a
+  // local-only node).
+  bool is_synced;
 };
 
 // Represents a folder node.
@@ -30,10 +50,14 @@ struct Folder {
   mojo_base.mojom.Uuid? id;
   string title;
   array<BookmarkNode> children;
+  PermanentFolderType? permanent_folder_type;
+  // True if the folder is synced to the account storage (i.e. it is not a
+  // local-only node).
+  bool is_synced;
 };
 
 struct BookmarksSnapshot {
-  BookmarkNode root;
+  RootNode root;
   // Updates to bookmarks would be sent through this update stream. Clients may
   // subscribe to this stream to receive update events.
   // The interface is associated with the interface used to retrieve this
@@ -108,8 +132,8 @@ interface BookmarksService {
                    int32? index)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 
-  // Deletes a bookmark node.
-  // ID must not refer to a permanent node.
-  DeleteBookmarkNode(mojo_base.mojom.Uuid id)
+  // Deletes multiple bookmark nodes.
+  // IDs must not refer to permanent nodes.
+  DeleteBookmarkNodes(array<mojo_base.mojom.Uuid> ids)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 };

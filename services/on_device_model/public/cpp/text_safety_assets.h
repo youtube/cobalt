@@ -19,8 +19,7 @@ struct COMPONENT_EXPORT(ON_DEVICE_MODEL_CPP) TextSafetyAssetPaths {
   TextSafetyAssetPaths(const TextSafetyAssetPaths&);
   ~TextSafetyAssetPaths();
 
-  base::FilePath data;
-  base::FilePath sp_model;
+  base::FilePath model;
 };
 
 // A bundle of file paths to use for loading an adaptation.

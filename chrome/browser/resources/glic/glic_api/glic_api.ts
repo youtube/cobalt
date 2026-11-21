@@ -609,6 +609,14 @@ export declare interface GlicBrowserHost {
   createTab?(url: string, options: CreateTabOptions): Promise<TabData>;
 
   /**
+   * Activates an existing tab matching the exact url or the wildcard pattern in
+   * options (if provided) across browser windows, or creates a new tab if no
+   * matching tab is found.
+   */
+  activateTabWithUrl?
+      (exactUrl: string, options?: ActivateTabOptions): Promise<TabData>;
+
+  /**
    * Opens a tab with the glic settings page, optionally highlighting a specific
    * field in it. If an open tab already has the glic settings page loaded, it
    * is focused instead.
@@ -1095,6 +1103,12 @@ export declare interface GlicBrowserHost {
     (): Observable<SelectAutofillSuggestionsDialogRequest>;
 
   /**
+   * Returns an observable that emits when the browser wants the web client to
+   * show a Gmail OTP opt-in dialog.
+   */
+  selectGmailOtpOptInRequestHandler?(): Observable<GmailOtpOptInRequest>;
+
+  /**
    * Switches to a use a different instance that shows the conversation
    * represented by the provided id. If `info` is not provided, a new instance
    * will be created with an empty conversation. When a new conversation is
@@ -1248,6 +1262,20 @@ export declare interface CreateTabOptions {
   openInBackground?: boolean;
   /** The windowId of the window where the new tab should be created at. */
   windowId?: string;
+}
+
+/** Holds optional parameters for `GlicBrowserHost#activateTabWithUrl`. */
+export declare interface ActivateTabOptions {
+  /**
+   * Wildcard pattern (using '*' and '?') matched against tab URLs. If empty or
+   * undefined, wildcard matching is not performed.
+   */
+  pattern?: string;
+  /**
+   * The windowId of the window where the tab should be created if no matching
+   * tab is found.
+   */
+  fallbackWindowId?: string;
 }
 
 /** Holds optional parameters for `GlicBrowserHost#createActorTab`. */
@@ -2634,6 +2662,21 @@ export declare interface SelectAutofillSuggestionsDialogResponse {
    * `SelectAutofillSuggestionsDialogRequest`.
    */
   selectedSuggestions: FormFillingResponse[];
+}
+
+export declare interface GmailOtpOptInRequest {
+  // ID of the actor's task.
+  taskId: number;
+
+  // The WebClient must call this function to respond back to the browser when
+  // the dialog is closed.
+  onDialogClosed(response: GmailOtpOptInResponse): void;
+}
+
+export declare interface GmailOtpOptInResponse {
+  // True if the user clicked the opt-in button, false if they
+  // cancelled/closed it.
+  permissionGranted: boolean;
 }
 
 //

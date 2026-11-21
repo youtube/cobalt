@@ -855,8 +855,10 @@ public class CollaborationControllerDelegateImpl implements CollaborationControl
         if (mFeatureEngagementLock != null) {
             mFeatureEngagementLock.release();
         }
-        if (mExitCallback != 0) {
-            CollaborationControllerDelegateImplJni.get().deleteExitCallback(mExitCallback);
+        long tempCallback = mExitCallback;
+        mExitCallback = 0;
+        if (tempCallback != 0) {
+            CollaborationControllerDelegateImplJni.get().deleteExitCallback(tempCallback);
         }
     }
 
@@ -874,7 +876,9 @@ public class CollaborationControllerDelegateImpl implements CollaborationControl
         mThreadChecker.assertOnValidThread();
         long tempCallback = mExitCallback;
         mExitCallback = 0;
-        CollaborationControllerDelegateImplJni.get().runExitCallback(tempCallback);
+        if (tempCallback != 0) {
+            CollaborationControllerDelegateImplJni.get().runExitCallback(tempCallback);
+        }
     }
 
     @SuppressWarnings("NullAway")

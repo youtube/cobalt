@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8config.h"  // For V8_TARGET_OS_LINUX.
+
 #if V8_TARGET_OS_LINUX
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -50,7 +52,7 @@ void WasmMemoryMapDescriptor::Trace(cppgc::Visitor* visitor) const {
 v8::Local<v8::Object> WasmMemoryMapDescriptor::NewFromFileDescriptor(
     v8::Isolate* isolate, PlatformFileDescriptor fd, size_t size,
     v8::Local<v8::Object> wrapper, FdOwnership fd_ownership) {
-  CHECK(v8_flags.experimental_wasm_memory_control);
+  CHECK(v8_flags.wasm_memory_control);
   auto* cpp_descriptor = cppgc::MakeGarbageCollected<WasmMemoryMapDescriptor>(
       isolate->GetCppHeap()->GetAllocationHandle(), fd, size, fd_ownership);
 
@@ -71,8 +73,13 @@ v8::Local<v8::Object> WasmMemoryMapDescriptor::NewFromFileDescriptor(
 // static
 v8::MaybeLocal<v8::Object> WasmMemoryMapDescriptor::NewFromAnonymous(
     v8::Isolate* isolate, size_t length, v8::Local<v8::Object> wrapper) {
+<<<<<<< HEAD
+  CHECK(v8_flags.wasm_memory_control);
+#if V8_TARGET_OS_LINUX
+=======
   CHECK(v8_flags.experimental_wasm_memory_control);
 #if V8_TARGET_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
+>>>>>>> parent of d4d21cea468 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   int fd = memfd_create("wasm_memory_map_descriptor", MFD_CLOEXEC);
   if (fd == -1) return {};
   if (ftruncate(fd, length) == -1) {
@@ -89,7 +96,7 @@ v8::MaybeLocal<v8::Object> WasmMemoryMapDescriptor::NewFromAnonymous(
 size_t WasmMemoryMapDescriptor::Map(v8::Isolate* isolate,
                                     DirectHandle<WasmMemoryObject> memory,
                                     size_t offset) {
-  CHECK(v8_flags.experimental_wasm_memory_control);
+  CHECK(v8_flags.wasm_memory_control);
   if (!mapped_memory_.IsEmpty()) {
     isolate->ThrowError("WasmMemoryMapDescriptor::Map called more than once");
     return 0;
@@ -144,7 +151,7 @@ size_t WasmMemoryMapDescriptor::Map(v8::Isolate* isolate,
 }
 
 bool WasmMemoryMapDescriptor::Unmap(v8::Isolate* isolate) {
-  CHECK(v8_flags.experimental_wasm_memory_control);
+  CHECK(v8_flags.wasm_memory_control);
   DisallowGarbageCollection no_gc;
   if (mapped_memory_.IsEmpty()) return false;
 

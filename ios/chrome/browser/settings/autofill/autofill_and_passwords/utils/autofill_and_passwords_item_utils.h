@@ -44,8 +44,11 @@ TableViewDetailIconItem* TravelInfoItem(BOOL enabled);
 // Returns the autofill settings item.
 TableViewDetailIconItem* AutofillSettingsItem();
 
-// Returns the switch item for Enhanced Autofill. `target` is the target for the
-// switch action, `action` is the selector.
+// Returns the switch item for Enhanced Autofill.
+//   `itemType`: The type of the item.
+//   `enabled`: Whether the switch is initially on or off.
+//   `target`: The target for the action selector.
+//   `action`: The action selector when the switch state changes.
 TableViewSwitchItem* EnhancedAutofillSwitchItem(NSInteger itemType,
                                                 BOOL enabled,
                                                 id target,
@@ -72,5 +75,20 @@ TableViewDetailIconItem* EnhancedAutofillDataUsageItem(NSInteger itemType);
 // Returns the detail icon item for "Enterprise managed logging disabled".
 TableViewDetailIconItem* EnhancedAutofillEnterpriseManagedLoggingDisabledItem(
     NSInteger itemType);
+
+// Returns the switch item for Autofill AI User Verification.
+//   `itemType`: The type of the item.
+//   `enabled`: Whether the switch interaction is enabled.
+//   `on`: Whether the switch is initially on or off.
+//   `target`: The target for the action selector.
+//   `action`: The action selector when the switch state changes.
+TableViewSwitchItem* AutofillVerificationSwitchItem(NSInteger itemType,
+                                                    BOOL enabled,
+                                                    BOOL on,
+                                                    id target,
+                                                    SEL action);
+
+// Returns the footer item for the Autofill AI User Verification switch section.
+TableViewHeaderFooterItem* AutofillVerificationSwitchFooter(NSInteger itemType);
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_AUTOFILL_AUTOFILL_AND_PASSWORDS_UTILS_AUTOFILL_AND_PASSWORDS_ITEM_UTILS_H_

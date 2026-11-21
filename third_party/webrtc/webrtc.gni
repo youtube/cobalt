@@ -396,6 +396,10 @@ set_defaults("rtc_test") {
   suppressed_configs = []
 }
 
+set_defaults("rtc_cc_test") {
+  configs = rtc_add_configs
+}
+
 set_defaults("rtc_library") {
   configs = rtc_add_configs
   public_deps = rtc_common_public_deps  # no-presubmit-check TODO(webrtc:8603)
@@ -1332,7 +1336,6 @@ template("rtc_cc_test") {
     forward_variables_from(invoker,
                            "*",
                            [
-                             "configs",
                              "public_configs",
                              "suppressed_configs",
                              "deps",

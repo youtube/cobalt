@@ -78,6 +78,7 @@ Vous ne pourrez pas enregistrer de nouveaux favoris dans votre compte tant que v
 <translation id="2386292341327187942">Dans le champ Widgets de recherche, entrez Chromium</translation>
 <translation id="2389827884654658221">Accédez à Chromium plus rapidement à partir de l'écran d'accueil de votre iPad.</translation>
 <translation id="2426113998523353159">Votre organisation vous demande de vous connecter pour utiliser Chromium.</translation>
+<translation id="244367646885670394">Confirmez qu'il s'agit bien de vous pour enregistrer ce mot de passe et obtenir les données Chromium sur tous vos appareils</translation>
 <translation id="2450140762465183767">Vous pouvez maintenant utiliser Chromium chaque fois que vous touchez des liens dans des messages, des documents et des applications.</translation>
 <translation id="2459183986985456602">Ouvrez Mon dernier onglet dans Chromium.</translation>
 <translation id="2476409803017965813">Vous pouvez mettre à jour vos sélections à tout moment dans les paramètres Chromium.</translation>
@@ -108,6 +109,7 @@ Afin d'accéder à plus de paramètres utilisant des données pour améliorer vo
 <translation id="3054480780637153380">Ouvrez les paramètres Chromium dans iOS, puis touchez « Appli de navigation par défaut » et sélectionnez Chromium.</translation>
 <translation id="3115956258722352278">Faire de Chromium votre navigateur par défaut?</translation>
 <translation id="3180939591219927904">Activez « Verrouiller les onglets de navigation privée lorsque vous fermez Chromium »</translation>
+<translation id="327628223428512207">Entrez la phrase de passe pour enregistrer ce mot de passe et obtenir les données Chromium sur tous vos appareils</translation>
 <translation id="328933489847748230">{count,plural, =1{1 fenêtre de Chromium est maintenant affichée}one{{count} fenêtre de Chromium est maintenant affichée}other{{count} fenêtres de Chromium sont maintenant affichées}}</translation>
 <translation id="3344973607274501920">Chromium n'a pas pu vérifier vos mots de passe. Essayez de vérifier votre connexion Internet.</translation>
 <translation id="3366305173356742781">Données Chromium dans votre compte</translation>

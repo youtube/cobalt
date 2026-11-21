@@ -85,6 +85,7 @@ template("fuzzable_proto_library") {
                                "proto_out_dir",
                                "component_build_force_source_set",
                                "use_experimental_fuzzable_proto",
+                               "import_dirs",
                              ])
 
       testonly = true
@@ -94,13 +95,29 @@ template("fuzzable_proto_library") {
       if (defined(invoker.proto_in_dir)) {
         _src_relative_in_dir = rebase_path(invoker.proto_in_dir, "//")
       } else {
-        _src_relative_in_dir = rebase_path(".", "//")
+        # Use the directory of the first source to match proto_library and
+        # strip root_gen_dir prefix for generated files.
+        # E.g.: //foo/bar/foo.proto -> foo/bar
+        # E.g.: //out/Debug/gen/foo/bar/foo.proto -> foo/bar
+        _sources = invoker.sources
+        _first_source_dir = rebase_path(get_path_info(_sources[0], "dir"), "//")
+        _src_relative_in_dir =
+            string_replace(_first_source_dir, _rebased_root_gen_dir, "")
       }
       proto_in_dir = "$root_gen_dir/$_src_relative_in_dir"
       if (defined(invoker.proto_out_dir)) {
         proto_out_dir = invoker.proto_out_dir
       } else {
         proto_out_dir = _src_relative_in_dir
+      }
+
+      if (defined(invoker.import_dirs)) {
+        _import_dirs_abspaths = rebase_path(invoker.import_dirs, "//")
+        import_dirs = []
+        foreach(_abspath, _import_dirs_abspaths) {
+          _base_path = string_replace(_abspath, _rebased_root_gen_dir, "")
+          import_dirs += [ "$root_gen_dir/$_base_path" ]
+        }
       }
 
       if (defined(invoker.deps)) {
@@ -170,7 +187,11 @@ template("fuzzable_proto_library") {
                              [
                                "proto_library_deps",
                                "component_build_force_source_set",
+                               "visibility",
                              ])
+      if (defined(invoker.visibility)) {
+        visibility = invoker.visibility + [ ":${target_name}" ]
+      }
       component_build_force_source_set = true
 
       if (defined(invoker.proto_library_deps)) {
@@ -208,6 +229,9 @@ template("fuzzable_proto_library") {
     component(target_name) {
       if (defined(invoker.testonly)) {
         testonly = invoker.testonly
+      }
+      if (defined(invoker.visibility)) {
+        visibility = invoker.visibility
       }
       sources = [ "//third_party/libprotobuf-mutator/dummy.cc" ]
       public_deps = [

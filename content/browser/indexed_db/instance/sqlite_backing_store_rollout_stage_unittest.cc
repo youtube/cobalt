@@ -238,7 +238,8 @@ class SqliteBackingStoreRolloutStageTest
               database_callbacks.CreateInterfacePtrAndBind(), kDatabaseName,
               /*version=*/1,
               transaction_remote.BindNewEndpointAndPassReceiver(),
-              /*transaction_id=*/1, /*priority=*/0);
+              /*transaction_id=*/1, /*priority=*/0,
+              /*request_shared_connection=*/false);
           run_loop.Run();
           break;
         }

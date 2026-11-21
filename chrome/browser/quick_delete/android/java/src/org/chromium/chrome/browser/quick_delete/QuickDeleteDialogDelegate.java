@@ -124,6 +124,10 @@ class QuickDeleteDialogDelegate {
         Spinner quickDeleteSpinner = mQuickDeleteView.findViewById(R.id.quick_delete_spinner);
         updateSpinner(quickDeleteSpinner);
 
+        // Make the spinner row clickable to trigger the spinner
+        View spinnerRow = mQuickDeleteView.findViewById(R.id.quick_delete_spinner_row);
+        spinnerRow.setOnClickListener(view -> quickDeleteSpinner.performClick());
+
         // Update the "More options" button.
         ButtonCompat moreOptionsView =
                 mQuickDeleteView.findViewById(R.id.quick_delete_more_options);
@@ -157,8 +161,7 @@ class QuickDeleteDialogDelegate {
     private void updateSpinner(Spinner quickDeleteSpinner) {
         TimePeriodSpinnerOption[] options = getTimePeriodSpinnerOptions(mContext);
         ArrayAdapter<TimePeriodSpinnerOption> adapter =
-                new ArrayAdapter<>(
-                        mContext, android.R.layout.simple_spinner_dropdown_item, options) {
+                new ArrayAdapter<>(mContext, android.R.layout.simple_spinner_item, options) {
 
                     @Override
                     public View getView(
@@ -168,8 +171,16 @@ class QuickDeleteDialogDelegate {
                         return view;
                     }
                 };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
         quickDeleteSpinner.setAdapter(adapter);
+        // Disable focus/click on the spinner itself so the parent row handles accessibility.
+        // This must be done programmatically after setAdapter() because setAdapter() resets
+        // the focusability of the AdapterView based on whether it has items.
+        quickDeleteSpinner.setFocusable(false);
+        quickDeleteSpinner.setClickable(false);
+        quickDeleteSpinner.setLongClickable(false);
+
         quickDeleteSpinner.setOnItemSelectedListener(
                 new AdapterView.OnItemSelectedListener() {
                     @Override

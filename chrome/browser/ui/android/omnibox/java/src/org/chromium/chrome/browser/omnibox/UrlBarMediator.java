@@ -115,8 +115,9 @@ class UrlBarMediator implements UrlBarTextContextMenuDelegate {
 
     /* package */ void pushCurrentInputToModel() {
         if (!isInInputSession()) return;
-        var data =
-                UrlBarData.forUrlAndText(mCurrentInput.getPageUrl(), mCurrentInput.getUserText());
+        UrlBarDelegate delegate = mModel.get(UrlBarProperties.DELEGATE);
+        assert delegate != null;
+        UrlBarData data = delegate.getUrlBarDataForCurrentInput();
         setUrlBarData(data, ScrollType.SCROLL_TO_BEGINNING, mCurrentInput.getSelection());
     }
 
@@ -361,10 +362,9 @@ class UrlBarMediator implements UrlBarTextContextMenuDelegate {
         currentText = currentText.substring(minSel, maxSel);
 
         UrlBarDelegate delegate = mModel.get(UrlBarProperties.DELEGATE);
-        if (delegate != null) {
-            String replacement = delegate.getReplacementCutCopyText(currentText, selection);
-            if (replacement != null) return replacement;
-        }
+        assert delegate != null;
+        String replacement = delegate.getReplacementCutCopyText(currentText, selection);
+        if (replacement != null) return replacement;
 
         String formattedUrlLocation;
         String originalUrlLocation;

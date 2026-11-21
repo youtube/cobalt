@@ -26,9 +26,6 @@ template("content_shell_library") {
              "//content/shell:content_shell_app",
              "//content/shell:content_shell_lib",
            ]
-    if (enable_javaless_renderers) {
-      deps += [ "//content/app:javaless_renderer" ]
-    }
 
     sources = [ "shell_library_loader.cc" ]
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]

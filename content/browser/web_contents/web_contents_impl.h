@@ -136,6 +136,7 @@ class NativeTheme;
 }  // namespace ui
 
 namespace content {
+class BackForwardCacheImpl;
 class BeforeUnloadBlockingDelegate;  // content_browser_test_utils_internal.h
 class BrowserPluginEmbedder;
 class BrowserPluginGuest;
@@ -1316,6 +1317,7 @@ class CONTENT_EXPORT WebContentsImpl
   void NotifyNavigationListPruned(const PrunedDetails& pruned_details) override;
   void NotifyNavigationEntriesDeleted() override;
   bool ShouldPreserveAbortedURLs() override;
+  BackForwardCacheImpl& GetBackForwardCache() override;
   void NotifyNavigationStateChangedFromController(
       InvalidateTypes changed_flags) override;
 #if BUILDFLAG(IS_ANDROID)
@@ -2356,6 +2358,12 @@ class CONTENT_EXPORT WebContentsImpl
 
   // Contains information about the WebContents tree structure.
   WebContentsTreeNode node_;
+
+  // BackForwardCache:
+  //
+  // Stores frozen RenderFrameHost. Restores them on history navigation.
+  // See BackForwardCache class documentation.
+  std::unique_ptr<BackForwardCacheImpl> back_forward_cache_;
 
   // Primary FrameTree of this WebContents instance. This WebContents might have
   // additional FrameTrees for features like prerendering and fenced frames,

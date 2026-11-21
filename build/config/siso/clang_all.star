@@ -182,7 +182,7 @@ def __lld_link(ctx, cmd):
 
 def __thin_archive(ctx, cmd):
     # TODO: This handler can be used despite remote linking?
-    if not config.get(ctx, "remote-link"):
+    if not (config.get(ctx, "remote-link") or config.get(ctx, "default-remote")):
         return
     if "lld-link" in cmd.args[0]:
         if not "/llvmlibthin" in cmd.args:

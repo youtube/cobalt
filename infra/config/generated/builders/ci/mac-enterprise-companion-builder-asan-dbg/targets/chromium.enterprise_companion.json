@@ -4,7 +4,7 @@
       "chrome/enterprise_companion:all"
     ]
   },
-  "mac12-x64-enterprise-companion-tester-asan-dbg": {
+  "mac14-x64-enterprise-companion-tester-asan-dbg": {
     "gtest_tests": [
       {
         "merge": {
@@ -16,7 +16,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-12",
+            "os": "Mac-14",
             "pool": "chromium.tests.updater"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -34,7 +34,7 @@
         "swarming": {
           "dimensions": {
             "cpu": "x86-64",
-            "os": "Mac-12",
+            "os": "Mac-14",
             "pool": "chromium.tests.updater"
           },
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"

@@ -30,7 +30,6 @@ typedef NS_ENUM(NSInteger, EmptyThumbnailLayoutType);
 // The look of the cell.
 @property(nonatomic, assign) GridTheme theme;
 // Settable UI elements of the group cell.
-@property(nonatomic, copy) UIColor* groupColor;
 @property(nonatomic, copy) NSString* title;
 @property(nonatomic, assign) NSInteger tabsCount;
 // A color palette containing different tones for the UI.

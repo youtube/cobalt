@@ -34,6 +34,8 @@
 #include "third_party/blink/renderer/modules/mediastream/processed_local_audio_source.h"
 #include "third_party/blink/renderer/modules/webrtc/webrtc_audio_device_impl.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_source.h"
+#include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
+#include "third_party/blink/renderer/platform/mediastream/media_stream_component_impl.h"
 #include "third_party/blink/renderer/platform/testing/io_task_runner_testing_platform_support.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/webrtc/rtc_base/ref_counted_object.h"
@@ -168,24 +170,24 @@ class MediaStreamConstraintsUtilAudioTestBase : public SimTest {
   }
 
   AudioCaptureSettings SelectSettings(
-      bool is_reconfigurable = false,
+      bool is_full_reconfiguration_allowed = false,
       std::optional<AudioDeviceCaptureCapabilities> capabilities =
           std::nullopt) {
     MediaConstraints constraints = constraint_factory_.CreateMediaConstraints();
     if (capabilities) {
       return SelectSettingsAudioCapture(
-          *capabilities, constraints, GetMediaStreamType(), is_reconfigurable);
+          *capabilities, constraints, GetMediaStreamType(), is_full_reconfiguration_allowed);
     } else {
       return SelectSettingsAudioCapture(
-          capabilities_, constraints, GetMediaStreamType(), is_reconfigurable);
+          capabilities_, constraints, GetMediaStreamType(), is_full_reconfiguration_allowed);
     }
   }
 
   base::expected<Vector<blink::AudioCaptureSettings>, std::string>
-  SelectEligibleSettings(bool is_reconfigurable = false) {
+  SelectEligibleSettings(bool is_full_reconfiguration_allowed = false) {
     MediaConstraints constraints = constraint_factory_.CreateMediaConstraints();
     return SelectEligibleSettingsAudioCapture(
-        capabilities_, constraints, GetMediaStreamType(), is_reconfigurable);
+        capabilities_, constraints, GetMediaStreamType(), is_full_reconfiguration_allowed);
   }
 
   void CheckBoolDefaultsDeviceCapture(
@@ -1433,12 +1435,16 @@ TEST_P(MediaStreamConstraintsUtilAudioTest,
 #endif
 }
 
-#if BUILDFLAG(IS_CHROMEOS)
-// Voice Isolation is only supported on ChromeOS.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+// Voice Isolation is supported.
 TEST_P(MediaStreamConstraintsUtilAudioTest, VoiceIsolationControl) {
   if (!IsDeviceCapture()) {
     return;
   }
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(media::kWebRtcVoiceIsolationDenoiser);
+#endif
   constraint_factory_.Reset();
   constraint_factory_.basic().voice_isolation.SetExact(true);
   AudioCaptureSettings settings = SelectSettings(true, capabilities_);
@@ -1497,6 +1503,158 @@ TEST_P(MediaStreamConstraintsUtilAudioTest, VoiceIsolationControl) {
   EXPECT_EQ(
       settings.audio_processing_properties().voice_isolation,
       AudioProcessingProperties::VoiceIsolationType::kVoiceIsolationDisabled);
+}
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+class TestAudioSource : public blink::MediaStreamAudioSource {
+ public:
+  TestAudioSource()
+      : blink::MediaStreamAudioSource(
+            blink::scheduler::GetSingleThreadTaskRunnerForTesting(),
+            true /* is_local_source */) {}
+
+  std::optional<AudioProcessingProperties> GetAudioProcessingProperties()
+      const override {
+    return audio_properties_;
+  }
+  void SetAudioProcessingProperties(
+      const AudioProcessingProperties& properties) override {
+    audio_properties_ = properties;
+  }
+  void SetFormatForTesting(const media::AudioParameters& params) {
+    SetFormat(params);
+  }
+  bool IsApmProcessedSource() const override { return is_processed_; }
+  void SetIsApmProcessed(bool is_processed) { is_processed_ = is_processed; }
+
+ private:
+  std::optional<AudioProcessingProperties> audio_properties_;
+  bool is_processed_ = false;
+};
+
+TEST_P(MediaStreamConstraintsUtilAudioTest,
+       VoiceIsolationExactConstraintConflictChecking) {
+  if (!IsDeviceCapture()) {
+    return;
+  }
+
+#if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(media::kWebRtcVoiceIsolationDenoiser);
+#endif
+
+  // 1. Create a running source.
+  auto platform_source_unique = std::make_unique<TestAudioSource>();
+  TestAudioSource* platform_source = platform_source_unique.get();
+  platform_source->SetAudioProcessingProperties(AudioProcessingProperties());
+  platform_source->SetIsApmProcessed(true);
+  platform_source->SetFormatForTesting(
+      media::AudioParameters(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                             media::ChannelLayoutConfig::Stereo(),
+                             media::AudioParameters::kAudioCDSampleRate, 1000));
+
+  MediaStreamSource* source = MakeGarbageCollected<MediaStreamSource>(
+      "processed_source", MediaStreamSource::kTypeAudio,
+      "processed_source_name", false /* remote */,
+      std::move(platform_source_unique));
+
+  // 2. Create track 1 with voice isolation = true exact constraint, and
+  // connect to source.
+  auto platform_track1 =
+      std::make_unique<MediaStreamAudioTrack>(true /* is_local_track */);
+  platform_track1->SetVoiceIsolationExactConstraint(true);
+  MediaStreamComponent* component1 =
+      MakeGarbageCollected<MediaStreamComponentImpl>(
+          source->Id(), source, std::move(platform_track1));
+  EXPECT_TRUE(platform_source->ConnectToInitializedTrack(component1));
+
+  // 3. Create capabilities based on this active source.
+  AudioDeviceCaptureCapabilities capabilities = {
+      AudioDeviceCaptureCapability(platform_source)};
+
+  // 4. Try to select settings with voice isolation = false exact. This should
+  // FAIL because it conflicts with Track 1's "true" exact constraint.
+  constraint_factory_.Reset();
+  constraint_factory_.basic().device_id.SetExact(capabilities[0].DeviceID());
+  constraint_factory_.basic().echo_cancellation.SetExactBoolean(true);
+  constraint_factory_.basic().voice_isolation.SetExact(false);
+  AudioCaptureSettings settings = SelectSettings(true, capabilities);
+  EXPECT_FALSE(settings.HasValue());
+
+  // 5. Try to select settings with voice isolation = true exact. This should
+  // SUCCEED.
+  constraint_factory_.Reset();
+  constraint_factory_.basic().device_id.SetExact(capabilities[0].DeviceID());
+  constraint_factory_.basic().echo_cancellation.SetExactBoolean(true);
+  constraint_factory_.basic().voice_isolation.SetExact(true);
+  settings = SelectSettings(true, capabilities);
+  EXPECT_TRUE(settings.HasValue());
+  EXPECT_EQ(
+      settings.audio_processing_properties().voice_isolation,
+      AudioProcessingProperties::VoiceIsolationType::kVoiceIsolationEnabled);
+
+  // 6. Try to select settings without voice isolation constraint. This should
+  // SUCCEED and resolve to VoiceIsolationEnabled (matching the active track).
+  constraint_factory_.Reset();
+  constraint_factory_.basic().device_id.SetExact(capabilities[0].DeviceID());
+  constraint_factory_.basic().echo_cancellation.SetExactBoolean(true);
+  settings = SelectSettings(true, capabilities);
+  EXPECT_TRUE(settings.HasValue());
+  EXPECT_EQ(
+      settings.audio_processing_properties().voice_isolation,
+      AudioProcessingProperties::VoiceIsolationType::kVoiceIsolationEnabled);
+}
+
+TEST_P(MediaStreamConstraintsUtilAudioTest,
+       UnprocessedRequestWithActiveProcessedSource) {
+  // 1. Create a processed active source.
+  auto platform_source_unique = std::make_unique<TestAudioSource>();
+  TestAudioSource* platform_source = platform_source_unique.get();
+  platform_source->SetAudioProcessingProperties(AudioProcessingProperties());
+  platform_source->SetIsApmProcessed(true);
+  platform_source->SetFormatForTesting(
+      media::AudioParameters(media::AudioParameters::AUDIO_PCM_LOW_LATENCY,
+                             media::ChannelLayoutConfig::Stereo(),
+                             media::AudioParameters::kAudioCDSampleRate, 1000));
+
+  MediaStreamSource* source = MakeGarbageCollected<MediaStreamSource>(
+      "processed_source", MediaStreamSource::kTypeAudio,
+      "processed_source_name", false /* remote */,
+      std::move(platform_source_unique));
+
+  // Connect a track to make it active.
+  auto platform_track =
+      std::make_unique<MediaStreamAudioTrack>(true /* is_local_track */);
+  MediaStreamComponent* component =
+      MakeGarbageCollected<MediaStreamComponentImpl>(source->Id(), source,
+                                                     std::move(platform_track));
+  EXPECT_TRUE(platform_source->ConnectToInitializedTrack(component));
+
+  AudioDeviceCaptureCapabilities capabilities = {
+      AudioDeviceCaptureCapability(platform_source)};
+
+  // 2. Request unprocessed settings (echoCancellation = false) with
+  // is_full_reconfiguration_allowed = true (getUserMedia).
+  // This should SUCCEED because we can create a new unprocessed source.
+  constraint_factory_.Reset();
+  constraint_factory_.basic().device_id.SetExact(capabilities[0].DeviceID());
+  constraint_factory_.basic().echo_cancellation.SetExactBoolean(false);
+  constraint_factory_.basic().auto_gain_control.SetExact(false);
+  constraint_factory_.basic().noise_suppression.SetExact(false);
+
+  AudioCaptureSettings settings = SelectSettings(true, capabilities);
+  EXPECT_TRUE(settings.HasValue());
+  EXPECT_EQ(settings.audio_processing_properties().echo_cancellation_mode,
+            EchoCancellationMode::kDisabled);
+  EXPECT_FALSE(settings.audio_processing_properties().auto_gain_control);
+
+  // 3. Request unprocessed settings with is_full_reconfiguration_allowed = false
+  // (applyConstraints).
+  // This should FAIL because we cannot change the source type of the existing
+  // processed source to unprocessed.
+  settings = SelectSettings(false, capabilities);
+  EXPECT_FALSE(settings.HasValue());
 }
 #endif
 
@@ -1805,7 +1963,7 @@ TEST_P(MediaStreamConstraintsUtilAudioTest, UsedAndUnusedSources) {
     auto result = SelectSettingsAudioCapture(
         capabilities, constraint_factory_.CreateMediaConstraints(),
         GetMediaStreamType(),
-        /*is_reconfiguration_allowed=*/false);
+        /*is_full_reconfiguration_allowed=*/false);
     EXPECT_TRUE(result.HasValue());
     EXPECT_EQ(result.device_id(), kUnusedDeviceID.Utf8());
     EXPECT_EQ(result.audio_processing_properties().echo_cancellation_mode,
@@ -1818,7 +1976,7 @@ TEST_P(MediaStreamConstraintsUtilAudioTest, UsedAndUnusedSources) {
     auto result = SelectSettingsAudioCapture(
         capabilities, constraint_factory_.CreateMediaConstraints(),
         GetMediaStreamType(),
-        /*is_reconfiguration_allowed=*/false);
+        /*is_full_reconfiguration_allowed=*/false);
     EXPECT_TRUE(result.HasValue());
     EXPECT_EQ(result.device_id(), processed_source->device().id);
     EXPECT_EQ(result.audio_processing_properties().echo_cancellation_mode,

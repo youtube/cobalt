@@ -45,6 +45,7 @@
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map-inl.h"
+#include "src/objects/name-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
 #include "src/objects/slots-inl.h"
@@ -1732,6 +1733,8 @@ void V8HeapExplorer::ExtractStringReferences(HeapEntry* entry,
   AddIntEdge(entry, HeapGraphEdge::kInternal, "length", string->length());
   if (names_->NeedsTruncation(string->length())) {
     AddBoolEdge(entry, HeapGraphEdge::kInternal, "truncated", true);
+    AddIntEdge(entry, HeapGraphEdge::kInternal, "hash",
+               static_cast<int>(string->EnsureHash()));
   }
   if (!string->IsOneByteRepresentation()) {
     AddBoolEdge(entry, HeapGraphEdge::kInternal, "two_byte_representation",
@@ -2051,6 +2054,33 @@ void V8HeapExplorer::ExtractScriptReferences(HeapEntry* entry,
              static_cast<int>(script->type()));
   AddStringEdge(entry, HeapGraphEdge::kInternal, "script_type_name",
                 ToString(script->type()));
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "compilation_type",
+             static_cast<int>(script->compilation_type()));
+  AddStringEdge(entry, HeapGraphEdge::kInternal, "compilation_type_name",
+                ToString(script->compilation_type()));
+  AddIntEdge(entry, HeapGraphEdge::kInternal, "compilation_state",
+             static_cast<int>(script->compilation_state()));
+  AddStringEdge(entry, HeapGraphEdge::kInternal, "compilation_state_name",
+                ToString(script->compilation_state()));
+  AddBoolEdge(entry, HeapGraphEdge::kInternal, "is_repl_mode",
+              script->is_repl_mode());
+#if V8_ENABLE_WEBASSEMBLY
+  AddBoolEdge(entry, HeapGraphEdge::kInternal, "break_on_entry",
+              script->break_on_entry());
+#endif
+  AddBoolEdge(entry, HeapGraphEdge::kInternal, "produce_compile_hints",
+              script->produce_compile_hints());
+  AddBoolEdge(entry, HeapGraphEdge::kInternal, "deserialized",
+              script->deserialized());
+  v8::ScriptOriginOptions origin_options = script->origin_options();
+  AddBoolEdge(entry, HeapGraphEdge::kInternal, "origin_is_shared_cross_origin",
+              origin_options.IsSharedCrossOrigin());
+  AddBoolEdge(entry, HeapGraphEdge::kInternal, "origin_is_opaque",
+              origin_options.IsOpaque());
+  AddBoolEdge(entry, HeapGraphEdge::kInternal, "origin_is_wasm",
+              origin_options.IsWasm());
+  AddBoolEdge(entry, HeapGraphEdge::kInternal, "origin_is_module",
+              origin_options.IsModule());
   SetInternalReference(entry, "source", script->source(),
                        offsetof(Script, source_));
   SetInternalReference(entry, "name", script->name(), offsetof(Script, name_));

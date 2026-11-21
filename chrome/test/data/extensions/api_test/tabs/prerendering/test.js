@@ -62,13 +62,12 @@ async function testGetTitleByFrameId() {
 // Checks if manifest v2 doesn't support `documentId`.
 async function testGetTitleByDocumentId() {
   await setup();
+  // Verify `executeScript` throws when using `documentId` in manifest v2.
   chrome.test.assertThrows(
-      chrome.tabs.executeScript,
-      [
-        tabId,
-        {documentId: prerenderingDocumentId, code: 'document.title;'},
-        results => chrome.test.fail('should not succeed.'),
-      ],
+      chrome.tabs.executeScript.bind(
+          null, tabId,
+          {documentId: prerenderingDocumentId, code: 'document.title;'},
+          results => chrome.test.fail('should not succeed.')),
       'Error in invocation of tabs.executeScript(optional integer tabId, ' +
           'extensionTypes.InjectDetails details, optional function ' +
           'callback): Error at parameter \'details\': Unexpected property: \'' +

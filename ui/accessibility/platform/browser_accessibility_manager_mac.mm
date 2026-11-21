@@ -578,21 +578,33 @@ void BrowserAccessibilityManagerMac::OnNodeDataChanged(
   BrowserAccessibilityMac* node =
       static_cast<BrowserAccessibilityMac*>(GetFromID(new_node_data.id));
   CHECK(node);
+  BrowserAccessibilityCocoa* node_cocoa = node->GetNativeWrapper();
+
+  bool children_invalidated = false;
+
   if (old_node_data.GetIntListAttribute(
           ax::mojom::IntListAttribute::kIndirectChildIds) !=
       new_node_data.GetIntListAttribute(
           ax::mojom::IntListAttribute::kIndirectChildIds)) {
-    [node->GetNativeWrapper() childrenChanged];
+    [node_cocoa childrenChanged];
+    children_invalidated = true;
   }
   if (old_node_data.IsInvisible() != new_node_data.IsInvisible()) {
     // Visibility changes whether a native node is ignored via
     // isAccessibilityElement().
-    BrowserAccessibilityMac* node_mac =
-        static_cast<BrowserAccessibilityMac*>(node);
-    BrowserAccessibilityCocoa* node_cocoa = node_mac->GetNativeWrapper();
     if ([node_cocoa isAccessibilityElement]) {
       [node_cocoa childrenChanged];
+      children_invalidated = true;
     }
+  }
+
+  // AXEmptyGroup cache invalidation. -childrenChanged already covered the
+  // structural case; for attribute/state/role diffs, invalidate up the parent
+  // chain iff the node's own predicate verdict flips.
+  if (!children_invalidated &&
+      ui::HasNonEmptyGroupSemantics(old_node_data) !=
+          ui::HasNonEmptyGroupSemantics(new_node_data)) {
+    [node_cocoa invalidateEmptyGroupCacheUpwards];
   }
 }
 

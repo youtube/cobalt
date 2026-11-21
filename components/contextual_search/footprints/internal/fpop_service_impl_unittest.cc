@@ -121,7 +121,7 @@ TEST_F(FpopServiceImplTest, GetFacs_AuthError) {
           &callback_called, &result_success));
 
   identity_test_env_.WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
-      GoogleServiceAuthError(GoogleServiceAuthError::SERVICE_ERROR));
+      GoogleServiceAuthError::FromServiceError(""));
 
   EXPECT_EQ(test_url_loader_factory_.NumPending(), 0);
   EXPECT_TRUE(callback_called);

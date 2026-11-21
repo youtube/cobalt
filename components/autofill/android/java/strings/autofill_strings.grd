@@ -179,9 +179,6 @@
       <message name="IDS_AUTOFILL_LONG_PRESS_PASSKEY_OPTION" desc="The text of the fallback option triggering a passkey request when long-pressing on a Passkey-enabled text field.">
         Use a passkey
       </message>
-      <message name="IDS_AUTOFILL_AT_MEMORY_SEARCH_TILE_DETAILS" desc="The subtitle text shown on the interactive search tile when typing a query in the @memory bottom sheet." translateable="false">
-        Powered by Personal Intelligence with Gemini
-      </message>
     </messages>
   </release>
 </grit>

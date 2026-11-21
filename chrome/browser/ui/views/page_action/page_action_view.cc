@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/page_action/page_action_controller.h"
@@ -37,11 +38,13 @@ namespace page_actions {
 
 PageActionView::PageActionView(actions::ActionItem* action_item,
                                const PageActionViewParams& params,
+                               PageActionIconType type,
                                ui::ElementIdentifier element_identifier)
     : IconLabelBubbleView(gfx::FontList(), params.icon_label_bubble_delegate),
       action_item_(action_item->GetAsWeakPtr()),
       icon_size_(params.icon_size),
-      icon_insets_(params.icon_insets) {
+      icon_insets_(params.icon_insets),
+      type_(type) {
   CHECK(action_item_->GetActionId().has_value());
   SetUpForAnimation(base::Milliseconds(600));
 
@@ -131,6 +134,7 @@ void PageActionView::SetAnchoredMessageCollapseCallback(
 }
 
 void PageActionView::OnNewActiveController(PageActionController* controller) {
+  chip_shown_metric_recorded_ = false;
   observation_.Reset();
   action_item_controller_subscription_ = {};
   if (controller) {
@@ -452,6 +456,9 @@ void PageActionView::NotifyIsChipShowingChange() {
     return;
   }
   last_notified_is_chip_showing_ = is_chip_showing;
+  if (!is_chip_showing) {
+    chip_shown_metric_recorded_ = false;
+  }
   // Defer to avoid re-entrancy into PageActionModel::NotifyChange().
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
@@ -528,6 +535,39 @@ void PageActionView::AnchoredMessageCollapsed() {
 
 AnchoredMessageBubbleView* PageActionView::GetAnchoredMessageForTesting() {
   return anchored_message_;
+}
+
+void PageActionView::BeforeApplyLayout(const views::ProposedLayout& layout) {
+  if (!GetVisible() || !IsChipVisible() || chip_shown_metric_recorded_ ||
+      GetAnimationValue() != 1.0 || GetText().empty()) {
+    return;
+  }
+  int label_width = 0;
+  for (const auto& child_layout : layout.child_layouts) {
+    if (child_layout.child_view == label()) {
+      label_width = child_layout.bounds.width();
+      break;
+    }
+  }
+  MaybeRecordCollapsedMetrics(label_width);
+}
+
+void PageActionView::MaybeRecordCollapsedMetrics(int label_width) {
+  int preferred_width =
+      GetSizeForLabelWidth(label()->GetPreferredSize().width()).width();
+
+  base::UmaHistogramEnumeration(
+      "PageActionController.ChipCollapseAnalysisCount.ActionType", type_);
+
+  if (label_width == 0) {
+    base::UmaHistogramEnumeration(
+        "PageActionController.Chip.CollapsedDueToSpace.ActionType", type_);
+    base::UmaHistogramCounts1000(
+        "PageActionController.Chip.CollapsedDueToSpace.PreferredWidth",
+        preferred_width);
+  }
+
+  chip_shown_metric_recorded_ = true;
 }
 
 BEGIN_METADATA(PageActionView)

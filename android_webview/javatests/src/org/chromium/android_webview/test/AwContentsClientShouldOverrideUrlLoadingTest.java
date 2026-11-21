@@ -8,6 +8,7 @@ import static org.chromium.android_webview.test.AwActivityTestRule.SCALED_WAIT_T
 import static org.chromium.android_webview.test.AwActivityTestRule.WAIT_TIMEOUT_MS;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.os.Build;
 import android.util.Pair;
 
@@ -1382,6 +1383,48 @@ public class AwContentsClientShouldOverrideUrlLoadingTest extends AwParameterize
             mActivityTestRule.pollUiThread(
                     () -> mActivityTestRule.getActivity().getLastSentIntent() != null);
             Assert.assertNull(mActivityTestRule.getActivity().getLastSentIntent().getSelector());
+        } finally {
+            mActivityTestRule.getActivity().setIgnoreStartActivity(false);
+        }
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    public void testNullContentsClientIntentLaunchFlagsRemoved() throws Throwable {
+        try {
+            // The test will fire real intents through the test activity.
+            // Need to temporarily suppress startActivity otherwise there will be a
+            // handler selection window and the test can't dismiss that.
+            mActivityTestRule.getActivity().setIgnoreStartActivity(true);
+            final String testUrl =
+                    "intent://example.com/#Intent;scheme=http;launchFlags=0x10000003;end";
+            setupWithProvidedContentsClient(new TestDefaultContentsClient());
+            AwActivityTestRule.enableJavaScriptOnUiThread(mAwContents);
+            final String pageTitle = "Click Title";
+            final String htmlWithLink =
+                    "<html><title>"
+                            + pageTitle
+                            + "</title>"
+                            + "<body><a id='link' href='"
+                            + testUrl
+                            + "'>Click this!</a></body></html>";
+            final String urlWithLink =
+                    mWebServer.setResponse(
+                            "/html_with_link.html",
+                            htmlWithLink,
+                            CommonResources.getTextHtmlHeaders(true));
+
+            mActivityTestRule.loadUrlSync(
+                    mAwContents, mContentsClient.getOnPageFinishedHelper(), urlWithLink);
+            JSUtils.clickNodeWithUserGesture(mAwContents.getWebContents(), "link");
+            mActivityTestRule.pollUiThread(
+                    () -> mActivityTestRule.getActivity().getLastSentIntent() != null);
+            int flags = mActivityTestRule.getActivity().getLastSentIntent().getFlags();
+            Assert.assertEquals(0, flags & Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Assert.assertEquals(0, flags & Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            Assert.assertEquals(
+                    Intent.FLAG_ACTIVITY_NEW_TASK, flags & Intent.FLAG_ACTIVITY_NEW_TASK);
         } finally {
             mActivityTestRule.getActivity().setIgnoreStartActivity(false);
         }

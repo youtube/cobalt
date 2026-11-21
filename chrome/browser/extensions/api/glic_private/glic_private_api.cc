@@ -4,6 +4,9 @@
 
 #include "chrome/browser/extensions/api/glic_private/glic_private_api.h"
 
+#include <optional>
+
+#include "base/base64.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/metrics/histogram_functions.h"
@@ -64,6 +67,7 @@ std::string InvocationSourceToString(
 constexpr char kPromptId[] = "promptId";
 constexpr char kInvocationSource[] = "invocationSource";
 constexpr char kPrompt[] = "prompt";
+constexpr char kMetadata[] = "metadata";
 constexpr char kGlicApiInvokeSyntheticFieldTrialName[] =
     "GlicApiInvokeSyntheticFieldTrial";
 constexpr char kUniversalCartGroupName[] = "UniversalCart";
@@ -71,7 +75,22 @@ constexpr char kGlicServiceNotAvailable[] = "Glic service not available";
 
 using PromptCallback =
     base::OnceCallback<void(extensions::api::glic_private::ErrorCode,
-                            std::optional<std::string>)>;
+                            std::optional<std::string>,
+                            std::optional<std::vector<uint8_t>>)>;
+
+// Parse metadata from the response dictionary.
+std::optional<std::vector<uint8_t>> ParseMetadata(
+    const base::Value& response_dict) {
+  const std::string* b64_value = response_dict.GetDict().FindString(kMetadata);
+  if (!b64_value) {
+    return std::nullopt;
+  }
+  std::string raw_value_bytes;
+  if (!base::Base64Decode(*b64_value, &raw_value_bytes)) {
+    return std::nullopt;
+  }
+  return std::vector<uint8_t>(raw_value_bytes.begin(), raw_value_bytes.end());
+}
 
 // LINT.IfChange(GlicPrivateApiStatusCodeHistogramValue)
 enum class GlicPrivateApiStatusCodeHistogramValue {
@@ -184,7 +203,7 @@ api::glic_private::ProfileState CreateProfileState(
 
   state.actuation_allowed =
       base::FeatureList::IsEnabled(features::kGlicActor) && glic_service &&
-      glic_service->actor_policy_checker().CanActOnWeb();
+      glic_service->actor_policy_checker().GlicApiCanActOnWeb();
 
   state.user_enable_actuation_on_web =
       glic_service && glic_service->enabling().GetUserEnabledActuationOnWeb();
@@ -215,7 +234,8 @@ void OnEndpointFetcherResponse(
     std::unique_ptr<endpoint_fetcher::EndpointResponse> response) {
   if (response->error_type || response->http_status_code != 200) {
     std::move(callback).Run(
-        extensions::api::glic_private::ErrorCode::kHttpError, std::nullopt);
+        extensions::api::glic_private::ErrorCode::kHttpError, std::nullopt,
+        std::nullopt);
     return;
   }
 
@@ -223,7 +243,8 @@ void OnEndpointFetcherResponse(
       base::JSONReader::Read(response->response, 0);
   if (!value || !value->is_dict()) {
     std::move(callback).Run(
-        extensions::api::glic_private::ErrorCode::kParseError, std::nullopt);
+        extensions::api::glic_private::ErrorCode::kParseError, std::nullopt,
+        std::nullopt);
     return;
   }
 
@@ -237,7 +258,8 @@ void OnEndpointFetcherResponse(
   }
 
   std::move(callback).Run(result,
-                          prompt ? std::make_optional(*prompt) : std::nullopt);
+                          prompt ? std::make_optional(*prompt) : std::nullopt,
+                          ParseMetadata(value.value()));
 }
 
 void GetPromptFromId(Profile& profile,
@@ -490,7 +512,8 @@ ExtensionFunction::ResponseAction GlicPrivateInvokeFunction::Run() {
                          std::move(options), params->details.invocation_source,
                          in_new_tab, params->details.document_id,
                          extensions::api::glic_private::ErrorCode::kNone,
-                         /*prompt=*/std::nullopt));
+                         /*prompt=*/std::nullopt,
+                         /*serialized_metadata=*/std::nullopt));
       return RespondLater();
     } else {
       return RespondNow(GetPromptResponseValueAndLog(
@@ -519,7 +542,8 @@ void GlicPrivateInvokeFunction::OnPromptRetrieved(
     bool in_new_tab,
     const std::string& document_id,
     extensions::api::glic_private::ErrorCode result,
-    std::optional<std::string> prompt) {
+    std::optional<std::string> prompt,
+    std::optional<std::vector<uint8_t>> serialized_metadata) {
   if (!browser_context()) {
     return;
   }
@@ -531,6 +555,15 @@ void GlicPrivateInvokeFunction::OnPromptRetrieved(
 
   if (prompt && !prompt->empty()) {
     options.prompts.push_back(std::move(*prompt));
+  }
+
+  if (invocation_source ==
+      api::glic_private::InvocationSource::kUniversalCart) {
+    auto payload = glic::mojom::InvocationPayload::NewUniversalCart(
+        glic::mojom::UniversalCartPayload::New(
+            serialized_metadata ? std::move(*serialized_metadata)
+                                : std::vector<uint8_t>()));
+    options.source_or_payload = std::move(payload);
   }
 
   Profile* profile = Profile::FromBrowserContext(browser_context());

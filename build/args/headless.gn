@@ -48,3 +48,4 @@ v8_enable_lazy_source_positions = false
 use_glib = false
 use_gtk = false
 use_pangocairo = false
+use_mold = false

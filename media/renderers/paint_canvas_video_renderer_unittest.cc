@@ -1122,7 +1122,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
     destination_gl->TexImage2D(target, 0, GL_RGBA, expected_size.width(),
                                expected_size.height(), 0, GL_RGBA,
                                GL_UNSIGNED_BYTE, nullptr);
-    std::unique_ptr<gpu::RasterScopedAccess> destination_access =
+    base::OnceCallback<gpu::SyncToken()> sync_callback =
         destination_gl->CopySharedImageDirectlyToGLTexture(
             frame->visible_rect(), shared_image.get(),
             frame->acquire_sync_token(), media::IsOpaque(frame->format()),
@@ -1131,7 +1131,7 @@ class PaintCanvasVideoRendererWithGLTest : public testing::Test {
 
     media::PaintCanvasVideoRenderer::SynchronizeVideoFrameRead(
         std::move(frame), destination_gl,
-        destination_context_->ContextSupport(), std::move(destination_access));
+        destination_context_->ContextSupport(), std::move(sync_callback));
 
     base::HeapArray<uint8_t> pixels =
         ReadbackTexture(destination_gl, texture, expected_size);

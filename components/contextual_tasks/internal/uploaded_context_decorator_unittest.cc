@@ -62,7 +62,8 @@ TEST_F(UploadedContextDecoratorTest, Construction) {
 TEST_F(UploadedContextDecoratorTest, DecorateWithContextualSearchData) {
   // Set up the Contextual Search service and a mock controller.
   contextual_search::ContextualSearchService service(
-      nullptr, nullptr, nullptr, nullptr, version_info::Channel::UNKNOWN, "");
+      nullptr, nullptr, nullptr, nullptr, version_info::Channel::UNKNOWN, "",
+      /*tab_validator=*/nullptr);
   auto mock_controller = std::make_unique<
       contextual_search::MockContextualSearchContextController>();
   auto* mock_controller_ptr = mock_controller.get();
@@ -146,7 +147,8 @@ TEST_F(UploadedContextDecoratorTest, DecorateWithNullSessionHandle) {
 TEST_F(UploadedContextDecoratorTest, DecorateWithNoContextTokens) {
   // Set up a session handle with no context tokens.
   contextual_search::ContextualSearchService service(
-      nullptr, nullptr, nullptr, nullptr, version_info::Channel::UNKNOWN, "");
+      nullptr, nullptr, nullptr, nullptr, version_info::Channel::UNKNOWN, "",
+      /*tab_validator=*/nullptr);
   auto mock_controller = std::make_unique<
       contextual_search::MockContextualSearchContextController>();
   auto session_handle =
@@ -181,7 +183,8 @@ TEST_F(UploadedContextDecoratorTest, DecorateWithNoContextTokens) {
 TEST_F(UploadedContextDecoratorTest, DecorateWithIncompleteData) {
   // Set up the service and session handle.
   contextual_search::ContextualSearchService service(
-      nullptr, nullptr, nullptr, nullptr, version_info::Channel::UNKNOWN, "");
+      nullptr, nullptr, nullptr, nullptr, version_info::Channel::UNKNOWN, "",
+      /*tab_validator=*/nullptr);
   auto mock_controller = std::make_unique<
       contextual_search::MockContextualSearchContextController>();
   auto* mock_controller_ptr = mock_controller.get();

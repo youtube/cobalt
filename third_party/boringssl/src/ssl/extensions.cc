@@ -1030,8 +1030,16 @@ static bool ext_sigalgs_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
   CBB contents, sigalgs_cbb;
   if (!CBB_add_u16(out_compressible, TLSEXT_TYPE_signature_algorithms) ||
       !CBB_add_u16_length_prefixed(out_compressible, &contents) ||
-      !CBB_add_u16_length_prefixed(&contents, &sigalgs_cbb) ||
-      !tls12_add_verify_sigalgs(hs, &sigalgs_cbb) ||
+      !CBB_add_u16_length_prefixed(&contents, &sigalgs_cbb)) {
+        return false;
+  }
+  // Add a fake signature algorithm. See RFC 8701.
+  if (hs->ssl->ctx->grease_sigalgs_enabled &&
+      !CBB_add_u16(&sigalgs_cbb,
+                   ssl_get_grease_value(hs, ssl_grease_signature_algorithm))) {
+    return false;
+  }
+  if (!tls12_add_verify_sigalgs(hs, &sigalgs_cbb) ||
       !CBB_flush(out_compressible)) {
     return false;
   }
@@ -5003,22 +5011,24 @@ enum ssl_ticket_aead_result_t ssl_process_ticket(
 
   Array<uint8_t> plaintext;
   enum ssl_ticket_aead_result_t result;
-  SSL_HANDSHAKE_HINTS *const hints = hs->hints.get();
-  if (is_psk && hints && !hs->hints_requested &&
-      !hints->decrypted_psk.empty()) {
-    result = plaintext.CopyFrom(hints->decrypted_psk) ? ssl_ticket_aead_success
-                                                      : ssl_ticket_aead_error;
-  } else if (is_psk && hints && !hs->hints_requested && hints->ignore_psk) {
+  if (is_psk && hs->provided_hints != nullptr &&
+      !hs->provided_hints->decrypted_psk.empty()) {
+    result = plaintext.CopyFrom(hs->provided_hints->decrypted_psk)
+                 ? ssl_ticket_aead_success
+                 : ssl_ticket_aead_error;
+  } else if (is_psk && hs->provided_hints != nullptr &&
+             hs->provided_hints->ignore_psk) {
     result = ssl_ticket_aead_ignore_ticket;
-  } else if (!is_psk && hints && !hs->hints_requested &&
-             !hints->decrypted_ticket.empty()) {
-    if (plaintext.CopyFrom(hints->decrypted_ticket)) {
+  } else if (!is_psk && hs->provided_hints != nullptr &&
+             !hs->provided_hints->decrypted_ticket.empty()) {
+    if (plaintext.CopyFrom(hs->provided_hints->decrypted_ticket)) {
       result = ssl_ticket_aead_success;
-      *out_renew_ticket = hints->renew_ticket;
+      *out_renew_ticket = hs->provided_hints->renew_ticket;
     } else {
       result = ssl_ticket_aead_error;
     }
-  } else if (!is_psk && hints && !hs->hints_requested && hints->ignore_ticket) {
+  } else if (!is_psk && hs->provided_hints != nullptr &&
+             hs->provided_hints->ignore_ticket) {
     result = ssl_ticket_aead_ignore_ticket;
   } else if (ssl->session_ctx->ticket_aead_method != nullptr) {
     result = ssl_decrypt_ticket_with_method(hs, &plaintext, out_renew_ticket,
@@ -5038,23 +5048,23 @@ enum ssl_ticket_aead_result_t ssl_process_ticket(
     }
   }
 
-  if (hints && hs->hints_requested) {
+  if (hs->pending_hints != nullptr) {
     if (result == ssl_ticket_aead_ignore_ticket) {
       if (is_psk) {
-        hints->ignore_psk = true;
+        hs->pending_hints->ignore_psk = true;
       } else {
-        hints->ignore_ticket = true;
+        hs->pending_hints->ignore_ticket = true;
       }
     } else if (result == ssl_ticket_aead_success) {
       if (is_psk) {
-        if (!hints->decrypted_psk.CopyFrom(plaintext)) {
+        if (!hs->pending_hints->decrypted_psk.CopyFrom(plaintext)) {
           return ssl_ticket_aead_error;
         }
       } else {
-        if (!hints->decrypted_ticket.CopyFrom(plaintext)) {
+        if (!hs->pending_hints->decrypted_ticket.CopyFrom(plaintext)) {
           return ssl_ticket_aead_error;
         }
-        hints->renew_ticket = *out_renew_ticket;
+        hs->pending_hints->renew_ticket = *out_renew_ticket;
       }
     }
   }

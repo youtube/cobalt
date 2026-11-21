@@ -4315,6 +4315,7 @@ EXPORTS
     ?SubtractSize@?$Storage@UPayload@status_internal@absl@@$00V?$allocator@UPayload@status_internal@absl@@@__Cr@std@@@inlined_vector_internal@absl@@QEAAX_K@Z
     ?Summarize@str_format_internal@absl@@YA?AV?$basic_string@DU?$char_traits@D@__Cr@std@@V?$allocator@D@23@@__Cr@std@@VUntypedFormatSpecImpl@12@V?$Span@$$CBVFormatArgImpl@str_format_internal@absl@@@2@@Z
     ?SupportsArmCRC32PMULL@base_internal@absl@@YA_NXZ
+    ?SupportsBmi2@base_internal@absl@@YA_NXZ
     ?SuppressSigabortTrace@log_internal@absl@@YA_NXZ
     ?Symbolize@absl@@YA_NPEBXPEADH@Z
     ?TagToAllocatedSize@cord_internal@absl@@YA_KE@Z

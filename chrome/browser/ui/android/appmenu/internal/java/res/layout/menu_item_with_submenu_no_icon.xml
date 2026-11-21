@@ -22,8 +22,10 @@ found in the LICENSE file.
         android:layout_width="0dp"
         android:layout_weight="1"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:singleLine="true"
+        android:gravity="center_vertical|start"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textAlignment="viewStart"
         android:minHeight="?attr/listItemHeight"
         android:duplicateParentState="true" />
 

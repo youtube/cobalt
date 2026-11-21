@@ -33,6 +33,9 @@
 /// Gracefully dismisses the coordinator before completing the cleanup.
 - (void)stopAnimatedWithCompletion:(ProceduralBlock)completion;
 
+// Hides the menu managed by this composebox instance.
+- (void)hideComposeboxMenu;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_COMPOSEBOX_COORDINATOR_COMPOSEBOX_COORDINATOR_H_

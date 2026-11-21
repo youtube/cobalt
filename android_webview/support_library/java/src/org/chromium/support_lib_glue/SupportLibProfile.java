@@ -435,6 +435,14 @@ public class SupportLibProfile implements ProfileBoundaryInterface {
     }
 
     @Override
+    public void enqueuePreconnect(String url) {
+        recordApiCall(ApiCall.ENQUEUE_PRECONNECT);
+        try (TraceEvent event = TraceEvent.scoped("WebView.APICall.AndroidX.ENQUEUE_PRECONNECT")) {
+            mProfileImpl.enqueuePreconnect(url);
+        }
+    }
+
+    @Override
     public void addQuicHints(Set<String> origins) {
         recordApiCall(ApiCall.ADD_QUIC_HINTS);
         try (TraceEvent event = TraceEvent.scoped("WebView.APICall.AndroidX.ADD_QUIC_HINTS")) {

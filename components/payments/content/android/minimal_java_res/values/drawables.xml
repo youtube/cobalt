@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<resources>
+    <!-- Keep product-specific resource names as aliases while sharing the
+         identical Google Pay vector payload. -->
+    <drawable name="googlepay_pill">@drawable/google_pay</drawable>
+    <drawable name="googlepay_pill_with_gradient">@drawable/google_pay</drawable>
+    <drawable name="googlewallet">@drawable/google_pay</drawable>
+</resources>

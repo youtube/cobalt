@@ -59,7 +59,7 @@ from build import (AddCMakeToPath, AddZlibToPath, CheckoutGitRepo, CopyFile,
                    DownloadDebianSysroot, GetLibXml2Dirs, GitCherryPick,
                    GitRevert, LLVM_DIR, IsGitAncestorToHead,
                    LLVM_BUILD_TOOLS_DIR, RunCommand,
-                   DEFAULT_MACOSX_DEPLOYMENT_TARGET)
+                   DEFAULT_MACOSX_DEPLOYMENT_TARGET, GetLatestCommit)
 from update import (CHROMIUM_DIR, DownloadAndUnpack, EnsureDirExists,
                     GetDefaultHostOs, RmTree, ReadStampFile, WriteStampFile,
                     UpdatePackage, STAMP_FILENAME as LLVM_STAMP_FILENAME,
@@ -563,9 +563,7 @@ def GetLatestRustCommit():
         'https://chromium.googlesource.com/external/' +
         'github.com/rust-lang/rust/+/refs/heads/main?format=JSON'  # nocheck
     )
-    main = json.loads(
-        urllib.request.urlopen(url).read().decode("utf-8").replace(")]}'", ""))
-    return main['commit']
+    return GetLatestCommit(url)
 
 
 def RustTargetTriple():

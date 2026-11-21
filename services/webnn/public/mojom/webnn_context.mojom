@@ -8,6 +8,7 @@ import "gpu/ipc/common/mailbox.mojom";
 import "gpu/ipc/common/sync_token.mojom";
 import "mojo/public/mojom/base/big_buffer.mojom";
 import "services/webnn/public/mojom/features.mojom";
+import "services/webnn/public/mojom/webnn_compiler_context.mojom";
 import "services/webnn/public/mojom/webnn_tensor.mojom";
 import "services/webnn/public/mojom/webnn_error.mojom";
 import "services/webnn/public/mojom/webnn_graph_builder.mojom";
@@ -70,4 +71,11 @@ interface WebNNContext {
   // operations on the context pipe are guaranteed to be processed before the
   // graph is destroyed.
   DestroyGraph(blink.mojom.WebNNGraphToken graph_handle);
+
+  // Requests a new CompilerContext from the Compiler process. The renderer
+  // creates the pipe, binds the remote immediately, and sends the
+  // receiver here. On failure, the pipe disconnects (triggering the
+  // renderer's disconnect handler).
+  RequestCompilerContext(
+      pending_receiver<WebNNCompilerContext> compiler_context_receiver);
 };

@@ -17,11 +17,13 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -324,10 +326,11 @@ TEST_P(SessionStorageImplTest, StartupShutdownSave) {
   std::vector<blink::mojom::KeyValuePtr> data = test::GetAllSync(area_n1.get());
   EXPECT_EQ(0ul, data.size());
 
-  // Put some data.
+  // Put some data. Use a large, incompressible value so the populated database
+  // size exceeds 1 KB.
   EXPECT_TRUE(
       test::PutSync(area_n1.get(), StringViewToUint8Vector("key1"),
-                    StringViewToUint8Vector("value1"), std::nullopt,
+                    base::RandBytesAsVector(4096), std::nullopt,
                     test::MakeStorageAreaSource(GURL(), kTestSourceToken)));
 
   // Verify data is there.
@@ -382,14 +385,18 @@ TEST_P(SessionStorageImplTest, StartupShutdownSave) {
   // times: initial open, after first shutdown, and after second shutdown.
   histograms.ExpectUniqueSample("Storage.SessionStorage.OpenDatabase.OnDisk",
                                 /*sample=*/0, 3);
+  // DB size telemetry fires once per Open.
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+  histograms.ExpectTotalCount("Storage.SessionStorage.DatabaseOnDiskSizeKB", 3);
+  // The recorded size must be non-zero. This guards the SQLite path, whose
+  // single database file would otherwise measure zero if treated as a
+  // directory.
+  EXPECT_GT(
+      histograms.GetTotalSum("Storage.SessionStorage.DatabaseOnDiskSizeKB"), 0);
   // ReadAllMetadata is called once per database open.
   histograms.ExpectUniqueSample("Storage.SessionStorage.ReadAllMetadata.OnDisk",
                                 /*sample=*/0, 3);
-  // Each BindStorageArea triggers an async PutMetadata on the DB thread.
-  // Wait for those to complete before asserting histogram counts.
-  WaitForDatabaseTasks();
-  histograms.ExpectUniqueSample("Storage.SessionStorage.PutMetadata.OnDisk",
-                                /*sample=*/0, 2);
+
   // Only the GetAllSync after the first restart reads from disk; the others
   // operate on in-memory maps or empty namespaces.
   histograms.ExpectUniqueSample(
@@ -405,9 +412,9 @@ TEST_P(SessionStorageImplTest, StartupShutdownSave) {
   // ReadAllMetadata duration fires for each database open.
   histograms.ExpectTotalCount(
       "Storage.SessionStorage.Duration.ReadAllMetadata.OnDisk", 3);
-  // PutMetadata duration fires for each BindStorageArea.
+  // Only shallow map cloning uses `PutMetadata()`.
   histograms.ExpectTotalCount(
-      "Storage.SessionStorage.Duration.PutMetadata.OnDisk", 2);
+      "Storage.SessionStorage.Duration.PutMetadata.OnDisk", 0);
 
   ShutDownSessionStorage();
   ++expected_storage_areas_shutdown;
@@ -693,6 +700,10 @@ TEST_P(SessionStorageImplTest, Cloning) {
                                 /*sample=*/0, 1);
   histograms.ExpectTotalCount("Storage.SessionStorage.Duration.CloneMap.OnDisk",
                               1);
+  histograms.ExpectUniqueSample("Storage.SessionStorage.PutMetadata.OnDisk",
+                                /*sample=*/0, 1);
+  histograms.ExpectTotalCount(
+      "Storage.SessionStorage.Duration.PutMetadata.OnDisk", 1);
 }
 
 TEST_P(SessionStorageImplTest, ImmediateCloning) {
@@ -1324,6 +1335,14 @@ TEST_P(SessionStorageImplOnDiskSQLiteRolloutTest,
           ? "Storage.SessionStorage.OpenDatabase.OnDiskExperimental"
           : "Storage.SessionStorage.OpenDatabase.OnDisk",
       /*sample=*/0, /*expected_bucket_count=*/1);
+  // DB size telemetry fires once per Open, with the `.OnDiskExperimental`
+  // suffix on experimental rollout stages and unsuffixed otherwise.
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+  histograms.ExpectTotalCount(
+      IsExperimentalStage()
+          ? "Storage.SessionStorage.DatabaseOnDiskSizeKB.OnDiskExperimental"
+          : "Storage.SessionStorage.DatabaseOnDiskSizeKB",
+      1);
 }
 
 TEST_P(SessionStorageImplOnDiskSQLiteRolloutTest, PreExistingUntaggedLevelDb) {

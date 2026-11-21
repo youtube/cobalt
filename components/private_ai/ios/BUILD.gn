@@ -1,0 +1,41 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("ios") {
+  sources = [
+    "private_ai_network_driver_ios.h",
+    "private_ai_network_driver_ios.mm",
+    "private_ai_oak_session_driver_ios.h",
+    "private_ai_oak_session_driver_ios.mm",
+  ]
+
+  deps = [
+    "//base",
+    "//components/private_ai",
+    "//components/private_ai/oak_session_service",
+    "//ios/web/public/thread",
+    "//net",
+    "//services/network:network_service",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "private_ai_network_driver_ios_unittest.mm",
+    "private_ai_oak_session_driver_ios_unittest.mm",
+  ]
+  deps = [
+    ":ios",
+    "//base",
+    "//base/test:test_support",
+    "//ios/web/public/test",
+    "//net:test_support",
+    "//services/network/public/mojom",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

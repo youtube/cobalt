@@ -30,6 +30,25 @@ TEST(OrbSnifferTest, SniffForHTML) {
   EXPECT_EQ(SniffingResult::kYes,
             SniffForHTML(" <!-- this is comment -->\n<html><body>"));
 
+  // All whitespace characters listed by
+  // https://infra.spec.whatwg.org/#ascii-whitespace
+  // (regression test for https://crbug.com/527665262).
+  const std::array<std::pair<std::string_view, std::string_view>, 5>
+      kWhitespaceStrings{{
+          {"\u0009", "tab"},
+          {"\u000a", "lf"},
+          {"\u000c", "ff"},
+          {"\u000d", "cr"},
+          {"\u0020", "space"},
+      }};
+  for (const auto& kTestInput : kWhitespaceStrings) {
+    SCOPED_TRACE(testing::Message() << "Testing `" << kTestInput.second << "`");
+    std::string input;
+    input += kTestInput.first;
+    input += "<html>";
+    EXPECT_EQ(SniffingResult::kYes, SniffForHTML(input));
+  }
+
   // HTML comment, whitespace, more HTML comments, HTML tags.
   EXPECT_EQ(
       SniffingResult::kYes,
@@ -116,7 +135,7 @@ TEST(OrbSnifferTest, SniffForHTML) {
 
 TEST(OrbSnifferTest, SniffForXML) {
   std::string_view xml_data(
-      "   \t \r \n     <?xml version=\"1.0\"?>\n <catalog");
+      "   \t \r \n \f    <?xml version=\"1.0\"?>\n <catalog");
   std::string_view non_xml_data("        var name=window.location;\nadfadf");
   std::string_view empty_data("");
 
@@ -135,7 +154,7 @@ TEST(OrbSnifferTest, SniffForXML) {
 TEST(OrbSnifferTest, SniffForJSON) {
   std::string_view json_data("\t\t\r\n   { \"name\" : \"chrome\", ");
   std::string_view json_corrupt_after_first_key(
-      "\t\t\r\n   { \"name\" :^^^^!!@#\1\", ");
+      "\t\t\r\n\f   { \"name\" :^^^^!!@#\1\", ");
   std::string_view json_data2("{ \"key   \\\"  \"          \t\t\r\n:");
   std::string_view non_json_data0("\t\t\r\n   { name : \"chrome\", ");
   std::string_view non_json_data1("\t\t\r\n   foo({ \"name\" : \"chrome\", ");

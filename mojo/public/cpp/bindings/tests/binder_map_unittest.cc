@@ -292,6 +292,14 @@ TEST_F(BinderMapTest, CorrectSequence) {
   destroy_impl2_loop.Run();
 }
 
+// TODO(crbug.com/485920240) Disabled until M152 when the CHECK is enabled
+// in mojo/public/cpp/bindings/lib/binder_map_internal.h.
+TEST_F(BinderMapTest, DISABLED_TaskRunnerMustBeSet) {
+  mojo::BinderMap map;
+  EXPECT_DEATH_IF_SUPPORTED(
+      { map.Add<mojom::TestInterface1>(&Interface1Functor, nullptr); }, "");
+}
+
 }  // namespace binder_map_unittest
 }  // namespace test
 }  // namespace mojo

@@ -523,6 +523,9 @@ void PopulateGlobalClientInitialState(mojom::WebClientInitialState* state,
             gemini_enterprise_settings->app_id,
             gemini_enterprise_settings->location);
   }
+
+  state->enable_gmail_otp_opt_in = base::FeatureList::IsEnabled(
+      features::kGlicActorAutofillOneTimePassword);
 }
 
 }  // namespace glic

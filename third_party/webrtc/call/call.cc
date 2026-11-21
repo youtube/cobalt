@@ -44,6 +44,8 @@
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/timing/video_jitter_timing_factory.h"
+#include "api/video/timing/video_jitter_timing_interface.h"
 #include "api/video/video_stream_encoder_settings.h"
 #include "audio/audio_receive_stream.h"
 #include "audio/audio_send_stream.h"
@@ -147,6 +149,15 @@ std::unique_ptr<rtclog::StreamConfig> CreateRtcLogStreamConfig(
   auto rtclog_config = std::make_unique<rtclog::StreamConfig>();
   rtclog_config->remote_ssrc = config.rtp.remote_ssrc;
   return rtclog_config;
+}
+
+std::unique_ptr<VideoJitterTimingInterface> MaybeCreateVideoJitterTiming(
+    const Environment& env,
+    VideoJitterTimingFactory* video_timing_factory) {
+  if (video_timing_factory) {
+    return video_timing_factory->Create(env);
+  }
+  return nullptr;  // DefaultVideoJitterTiming will be used.
 }
 
 }  // namespace
@@ -1042,8 +1053,10 @@ webrtc::VideoReceiveStreamInterface* Call::CreateVideoReceiveStream(
   VideoReceiveStream2* receive_stream = new VideoReceiveStream2(
       env_, this, num_cpu_cores_, transport_send_->packet_router(),
       std::move(configuration), call_stats_.get(),
-      std::make_unique<VCMTiming>(&env_.clock(), env_.field_trials(),
-                                  render_delay),
+      std::make_unique<VCMTiming>(
+          &env_.clock(), env_.field_trials(), render_delay,
+          MaybeCreateVideoJitterTiming(env_,
+                                       config_.video_jitter_timing_factory)),
       &nack_periodic_processor_, decode_sync_.get());
   // TODO(bugs.webrtc.org/11993): Set this up asynchronously on the network
   // thread.

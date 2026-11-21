@@ -773,7 +773,7 @@ HttpCache::SetHttpNetworkTransactionFactoryForTesting(
 
 // static
 std::string_view HttpCache::GetResourceURLFromHttpCacheKey(
-    std::string_view key) {
+    const std::string_view key) {
   // The key format is:
   // credential_key/post_key/[isolation_key]url
 

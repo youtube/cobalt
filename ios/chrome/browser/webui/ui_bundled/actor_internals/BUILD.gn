@@ -20,6 +20,7 @@ source_set("actor_internals") {
     "//ios/chrome/browser/intelligence/actor/model",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/url:constants",
+    "//ios/chrome/browser/shared/ui/util",
     "//ios/web/public",
     "//ios/web/public/webui",
     "//mojo/public/cpp/bindings",

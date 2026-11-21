@@ -391,45 +391,8 @@ DataTypeSet SyncUserSettingsImpl::GetPreferredDataTypes() const {
   // though they're technically not registered.
   types.PutAll(ControlTypes());
 
-  static_assert(63 == GetNumDataTypes(),
-                "If adding a new sync data type, update the list below below if"
-                " you want to disable the new data type for local sync, aka"
-                " roaming profiles on Windows.");
   if (prefs_->IsLocalSyncEnabled()) {
-    types.Remove(ACCOUNT_SETTING);
-    types.Remove(APP_LIST);
-    // Note: AUTOFILL_WALLET_CREDENTIAL *is* supported - the user can still save
-    // CVVs for local credit cards.
-    types.Remove(AUTOFILL_VALUABLE);
-    types.Remove(AUTOFILL_VALUABLE_METADATA);
-    types.Remove(AUTOFILL_WALLET_DATA);
-    types.Remove(AUTOFILL_WALLET_METADATA);
-    types.Remove(AUTOFILL_WALLET_OFFER);
-    types.Remove(AUTOFILL_WALLET_USAGE);
-    types.Remove(COLLABORATION_GROUP);
-    types.Remove(CONTACT_INFO);
-    types.Remove(COOKIES);
-    types.Remove(HISTORY);
-    types.Remove(HISTORY_DELETE_DIRECTIVES);
-    types.Remove(INCOMING_PASSWORD_SHARING_INVITATION);
-    types.Remove(OUTGOING_PASSWORD_SHARING_INVITATION);
-    types.Remove(PLUS_ADDRESS);
-    types.Remove(PLUS_ADDRESS_SETTING);
-    types.Remove(SECURITY_EVENTS);
-    types.Remove(SEND_TAB_TO_SELF);
-    types.Remove(SHARED_COMMENT);
-    types.Remove(SHARED_TAB_GROUP_ACCOUNT_DATA);
-    types.Remove(SHARED_TAB_GROUP_DATA);
-    types.Remove(SHARING_MESSAGE);
-    types.Remove(USER_CONSENTS);
-    types.Remove(USER_EVENTS);
-    types.Remove(WORKSPACE_DESK);
-    types.Remove(AI_THREAD);
-    types.Remove(CONTEXTUAL_TASK);
-    types.Remove(SKILL);
-    types.Remove(GEMINI_THREAD);
-    types.Remove(THEMES_IOS);
-    types.Remove(THEMES_ANDROID);
+    types.RetainAll(LocalSyncSupportedTypes());
   }
   return types;
 }

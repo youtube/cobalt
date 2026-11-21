@@ -91,7 +91,7 @@ class ScreenTimeControllerTest : public MixinBasedInProcessBrowserTest {
 
   void SetupTaskRunnerWithTime(base::Time start_time) {
     task_runner_ = base::MakeRefCounted<base::TestMockTimeTaskRunner>(
-        start_time, base::TimeTicks::UnixEpoch());
+        start_time, base::TimeTicks());
   }
 
   void MockClockForActiveUser() {

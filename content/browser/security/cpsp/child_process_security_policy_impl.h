@@ -232,7 +232,9 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
                                const std::string& filesystem_id) override;
   bool HasWebUIBindings(int child_id) override;
   void GrantSendMidiMessage(int child_id) override;
+  void GrantSendMidiMessage_Cpp(int child_id);
   void GrantSendMidiSysExMessage(int child_id) override;
+  void GrantSendMidiSysExMessage_Cpp(int child_id);
   bool CanAccessDataForOrigin(int child_id, const url::Origin& origin) override;
   bool HostsOrigin(int child_id, const url::Origin& origin) override;
   void AddFutureIsolatedOrigins(
@@ -356,6 +358,11 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
       const IsolationContext& isolation_context,
       const url::Origin& origin,
       const OriginAgentClusterIsolationState& oac_isolation_state);
+  void AddOriginAgentClusterStateForBrowsingInstance_Cpp(
+      const BrowsingInstanceId& browsing_instance_id,
+      const url::Origin& origin,
+      const OriginAgentClusterIsolationState& oac_isolation_state,
+      bool is_oac_enabled_by_default);
 
   // Adds `origin` to the IsolatedOrigins list for only the BrowsingInstance of
   // `isolation_context`, without isolating all subdomains. For use when the
@@ -587,9 +594,11 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
 
   // Returns true if sending MIDI messages is allowed.
   bool CanSendMidiMessage(ChildProcessId child_id);
+  bool CanSendMidiMessage_Cpp(ChildProcessId child_id);
 
   // Returns true if sending system exclusive (SysEx) MIDI messages is allowed.
   bool CanSendMidiSysExMessage(ChildProcessId child_id);
+  bool CanSendMidiSysExMessage_Cpp(ChildProcessId child_id);
 
   // Remove all isolated origins associated with |browser_context| and clear any
   // pointers that may reference |browser_context|.  This is
@@ -660,7 +669,7 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
       BrowserContext* browser_context,
       const url::Origin& origin);
   bool HasOriginEverRequestedOriginAgentClusterValue_Cpp(
-      BrowserContext* browser_context,
+      const base::UnguessableToken& browser_context_id,
       const url::Origin& origin);
 
   // Records |origin| as having the default isolation state for the
@@ -676,6 +685,12 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   void RecordDefaultOriginAgentClusterOriginIfNew(
       const IsolationContext& isolation_context,
       const url::Origin& origin,
+      bool is_global_walk_or_frame_removal);
+  void RecordDefaultOriginAgentClusterOriginIfNew_Cpp(
+      const BrowsingInstanceId& browsing_instance_id,
+      const base::UnguessableToken& browser_context_id,
+      const url::Origin& origin,
+      const OriginAgentClusterIsolationState& oac_isolation_state,
       bool is_global_walk_or_frame_removal);
 
   // Add `origin` to the list of committed origins for the process identified by
@@ -711,7 +726,8 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
                                         bool url_is_for_precursor_origin);
 
   // Exposes LookupOriginAgentClusterState() for tests.
-  OriginAgentClusterIsolationState* LookupOriginAgentClusterStateForTesting(
+  std::optional<OriginAgentClusterIsolationState>
+  LookupOriginAgentClusterStateForTesting(
       const BrowsingInstanceId& browsing_instance_id,
       const url::Origin& origin);
 
@@ -749,6 +765,12 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   FRIEND_TEST_ALL_PREFIXES(ChildProcessSecurityPolicyTest, WildcardDefaultPort);
   FRIEND_TEST_ALL_PREFIXES(ChildProcessSecurityPolicyTest,
                            MatchesCommittedOrigin);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChildProcessSecurityPolicyTest,
+      AddOriginAgentClusterStateForBrowsingInstanceConsistency);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChildProcessSecurityPolicyTest,
+      RecordDefaultOriginAgentClusterOriginIfNewConsistency);
 
   class ProcessState;
 
@@ -1074,6 +1096,10 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
   void EraseV8OptimizationState(const BrowsingInstanceId& browsing_instance_id);
   void EraseV8OptimizationState_Cpp(
       const BrowsingInstanceId& browsing_instance_id);
+  void EraseOriginAgentClusterState(
+      const BrowsingInstanceId& browsing_instance_id);
+  void EraseOriginAgentClusterState_Cpp(
+      const BrowsingInstanceId& browsing_instance_id);
 
   // Creates the value to place in the "killed_process_origin_lock" crash key
   // based on the contents of |process_state|.
@@ -1137,7 +1163,12 @@ class CONTENT_EXPORT ChildProcessSecurityPolicyImpl
 
   // Utility function to simplify lookups for OriginAgentClusterIsolationState
   // values by origin.
-  OriginAgentClusterIsolationState* LookupOriginAgentClusterState(
+  std::optional<OriginAgentClusterIsolationState> LookupOriginAgentClusterState(
+      const BrowsingInstanceId& browsing_instance_id,
+      const url::Origin& origin)
+      EXCLUSIVE_LOCKS_REQUIRED(origin_agent_cluster_lock_);
+  std::optional<OriginAgentClusterIsolationState>
+  LookupOriginAgentClusterState_Cpp(
       const BrowsingInstanceId& browsing_instance_id,
       const url::Origin& origin)
       EXCLUSIVE_LOCKS_REQUIRED(origin_agent_cluster_lock_);

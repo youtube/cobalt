@@ -18,10 +18,9 @@ namespace ash {
 //
 // Typical use consists of adding a number of files, then Get'ing the content.
 // Once the content is Get'ed, the accumulator is sealed, meaning no new files
-// may be added to the accumulator. To unseal the accumulator, call the Clear
-// method on it, which also removes all stored files.
+// may be added to the accumulator.
 //
-//   FilesAccumulator<RecentFilesComparator> acc(100);
+//   FileAccumulator acc(100);
 //   acc.Add(recent_file_1);
 //   ..
 //   acc.Add(recent_file_n);
@@ -31,7 +30,11 @@ class FileAccumulator {
   // Creates an accumulator with the given capacity. The capacity
   // limits the maximum number of files that can be added via the Add method.
   explicit FileAccumulator(size_t max_capacity);
-  FileAccumulator(FileAccumulator&& accumulator);
+
+  FileAccumulator(FileAccumulator&&) noexcept;
+  FileAccumulator& operator=(FileAccumulator&&) = delete;
+  FileAccumulator(const FileAccumulator&) = delete;
+  FileAccumulator& operator=(const FileAccumulator&) = delete;
 
   ~FileAccumulator();
 
@@ -45,10 +48,7 @@ class FileAccumulator {
   // simple vector. This method can be called multiple times.
   const std::vector<RecentFile>& Get();
 
-  // Clears the accumulator and unseals it.
-  void Clear();
-
-  // Returns the maximum number of recent files that are can be stored in this
+  // Returns the maximum number of recent files that can be stored in this
   // cache.
   size_t max_capacity() const { return max_capacity_; }
 

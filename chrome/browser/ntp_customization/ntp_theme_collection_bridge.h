@@ -15,15 +15,15 @@
 #include "components/themes/ntp_custom_background_service_observer.h"
 
 class NtpBackgroundService;
-class NtpCustomBackgroundService;
+class NtpAndroidCustomBackgroundService;
 
 using base::android::JavaRef;
 
 // The C++ counterpart to NtpThemeCollectionBridge.java. This class serves as a
 // bridge to the NTP theme services, handling theme collections and custom
 // backgrounds for the New Tab Page. It observes changes from
-// NtpBackgroundService and NtpCustomBackgroundService and communicates with the
-// Java layer.
+// NtpBackgroundService and NtpAndroidCustomBackgroundService and communicates
+// with the Java layer.
 class NtpThemeCollectionBridge : public NtpBackgroundServiceObserver,
                                  public NtpCustomBackgroundServiceObserver {
  public:
@@ -79,7 +79,7 @@ class NtpThemeCollectionBridge : public NtpBackgroundServiceObserver,
   void FetchNextThemeCollectionImage(JNIEnv* env);
 
   // Fetches the current custom background information (e.g., URL, collection
-  // ID) from the NtpCustomBackgroundService.
+  // ID) from the NtpAndroidCustomBackgroundService.
   base::android::ScopedJavaLocalRef<jobject> GetCustomBackgroundInfo(
       JNIEnv* env);
 
@@ -104,7 +104,7 @@ class NtpThemeCollectionBridge : public NtpBackgroundServiceObserver,
 
   raw_ptr<Profile> profile_;
   raw_ptr<NtpBackgroundService> ntp_background_service_;
-  raw_ptr<NtpCustomBackgroundService> ntp_custom_background_service_;
+  raw_ptr<NtpAndroidCustomBackgroundService> ntp_custom_background_service_;
   base::android::ScopedJavaGlobalRef<jobject>
       j_background_collections_callback_;
   base::android::ScopedJavaGlobalRef<jobject> j_background_images_callback_;

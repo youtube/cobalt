@@ -6,6 +6,7 @@
 
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/test/gmock_callback_support.h"
 #import "components/collaboration/public/pref_names.h"
 #import "components/data_sharing/public/data_sharing_service.h"
 #import "components/data_sharing/public/features.h"
@@ -91,15 +92,6 @@ tab_groups::SavedTabGroup CreateGroup(
   return saved_group;
 }
 
-// testing::InvokeArgument<N> does not work with base::OnceCallback. Use this
-// gmock action template to invoke base::OnceCallback. `k` is the k-th argument
-// and `T` is the callback's type.
-ACTION_TEMPLATE(InvokeCallbackArgument,
-                HAS_2_TEMPLATE_PARAMS(int, k, typename, T),
-                AND_1_VALUE_PARAMS(p0)) {
-  std::move(const_cast<T&>(std::get<k>(args))).Run(p0);
-}
-
 }  // namespace
 
 @implementation TabGroupAppInterface
@@ -181,12 +173,7 @@ ACTION_TEMPLATE(InvokeCallbackArgument,
       sharedDataPreview;
   ON_CALL(*mockPreviewProxy,
           GetSharedDataPreview(testing::_, testing::_, testing::_))
-      .WillByDefault(
-          InvokeCallbackArgument<
-              2,
-              base::OnceCallback<void(const data_sharing::DataSharingService::
-                                          SharedDataPreviewOrFailureOutcome&)>>(
-              outcome));
+      .WillByDefault(base::test::RunOnceCallback<2>(outcome));
 }
 
 + (void)addSharedTabToGroupAtIndex:(unsigned int)index {

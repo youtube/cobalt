@@ -144,6 +144,7 @@ try_.builder(
     mirrors = [
         "ci/Dawn Android arm64 DEPS Builder",
         "ci/Dawn Android arm64 DEPS Release (Pixel 6)",
+        "ci/Dawn Android arm64 DEPS Release (Pixel 10)",
     ],
     gn_args = "ci/Dawn Android arm64 DEPS Builder",
     pool = "luci.chromium.gpu.try",

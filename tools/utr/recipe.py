@@ -114,6 +114,7 @@ class LegacyRunner:
                no_rbe=False,
                no_siso=False,
                use_autoninja=False,
+               src_dir=None,
                **kwargs):
     """Constructor for LegacyRunner
 
@@ -136,6 +137,7 @@ class LegacyRunner:
       no_rbe: If True, disables RBE during compile.
       no_siso: If True, disabled Siso during compile and isolate.
       use_autoninja: If True, uses autoninja during compile.
+      src_dir: pathlib.Path to the source checkout directory.
       **kwargs: Additional args to passthrough to the recipe's input props.
     """
     self._recipes_py = recipes_py
@@ -143,6 +145,8 @@ class LegacyRunner:
     self._skip_prompts = skip_prompts
     self._console_printer = console.Console()
     assert self._recipes_py.exists()
+
+    src_dir = src_dir or _SRC_DIR
 
     # It's probably safe to assume chromium implies chromium-swarm and chrome
     # implies chrome-swarming. If it's not, cr-buildbucket.cfg attaches the
@@ -153,15 +157,15 @@ class LegacyRunner:
     # while other realms like "ci" likely aren't. "try" is generally where we
     # confine untested code, so it's the best fit for our results here.
     self._luci_realm = 'chrome:try'
-    if project == 'chromium':
+    if project in ('chromium', 'dawn'):
       self._swarming_server = 'chromium-swarm'
-      self._luci_realm = 'chromium:try'
+      self._luci_realm = f'{project}:try'
       self._utr_recipe = 'chromium/universal_test_runner'
 
     # Add UTR recipe props. Its schema is located at:
     # https://chromium.googlesource.com/chromium/tools/build/+/HEAD/recipes/recipes/chromium/universal_test_runner.proto
     input_props = builder_props.copy()
-    input_props['checkout_path'] = str(_SRC_DIR)
+    input_props['checkout_path'] = str(src_dir.absolute())
     input_props['test_names'] = tests
     input_props['$build/chromium_swarming'] = {'task_realm': self._luci_realm}
     input_props['build_dir'] = str(build_dir.absolute())

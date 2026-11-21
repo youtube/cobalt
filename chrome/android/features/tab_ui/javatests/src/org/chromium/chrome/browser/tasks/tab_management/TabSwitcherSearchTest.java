@@ -337,8 +337,6 @@ public class TabSwitcherSearchTest {
 
     @Test
     @MediumTest
-    @DisableIf.Device(
-            DeviceFormFactor.DESKTOP) // TODO(crbug.com/479863847): Test failing on Desktop bot
     public void testSearchActivityBackButton_Incognito() {
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();
         mPage.openNewIncognitoTabOrWindowFast()

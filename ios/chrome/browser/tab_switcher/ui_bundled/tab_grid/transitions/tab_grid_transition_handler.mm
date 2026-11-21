@@ -6,6 +6,7 @@
 
 #import "base/check.h"
 #import "base/ios/block_types.h"
+#import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/named_guide.h"
@@ -409,7 +410,8 @@ enum class TabGridTransitionType {
       bottomToolbarSnapshotView:_bottomToolbarSnapshotView
           shouldScaleTopToolbar:scaleTopToolbar
                       incognito:_incognito
-               topToolbarHidden:topToolbarHidden];
+               topToolbarHidden:topToolbarHidden
+                 commandHandler:_params->handler];
 }
 
 // Returns a snapshot of the portion of the view that is above the given rect.

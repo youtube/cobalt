@@ -562,10 +562,6 @@ bool ShouldUseTextSafetyClassifierModel() {
   return base::FeatureList::IsEnabled(kTextSafetyClassifier);
 }
 
-bool ShouldUseGeneralizedSafetyModel() {
-  return true;
-}
-
 double GetOnDeviceModelLanguageDetectionMinimumReliability() {
   static const base::FeatureParam<double>
       kOnDeviceModelLanguageDetectionMinimumReliability{
@@ -596,7 +592,7 @@ bool GetOnDeviceModelRetractRepeats() {
 int GetOnDeviceModelDefaultTopK() {
   static const base::FeatureParam<int> kTopK{
       &optimization_guide::features::kOptimizationGuideOnDeviceModel,
-      "on_device_model_topk", 3};
+      "on_device_model_topk", 64};
   return kTopK.Get();
 }
 
@@ -609,7 +605,7 @@ int GetOnDeviceModelMaxTopK() {
 
 double GetOnDeviceModelDefaultTemperature() {
   static const base::FeatureParam<double> kTemperature{
-      &kOptimizationGuideOnDeviceModel, "on_device_model_temperature", 0.8};
+      &kOptimizationGuideOnDeviceModel, "on_device_model_temperature", 1.0};
   return kTemperature.Get();
 }
 

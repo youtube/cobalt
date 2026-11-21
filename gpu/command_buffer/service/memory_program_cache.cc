@@ -278,9 +278,7 @@ MemoryProgramCache::MemoryProgramCache(
           "MemoryProgramCache",
           std::nullopt,  // TODO(crbug.com/489671163): Add traits.
           this,
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled),
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled),
       current_max_size_bytes_(max_cache_size_bytes) {}
 
 MemoryProgramCache::~MemoryProgramCache() = default;
@@ -456,7 +454,7 @@ void MemoryProgramCache::SaveLinkedProgram(
 
   store_.Put(
       program_sha,
-      new ProgramCacheValue(
+      base::MakeRefCounted<ProgramCacheValue>(
           format, std::move(binary), compress_program_binaries_, length,
           program_sha, a_sha, shader_a->attrib_map(), shader_a->uniform_map(),
           shader_a->varying_map(), shader_a->output_variable_list(),
@@ -554,7 +552,7 @@ void MemoryProgramCache::LoadProgram(const std::string& key,
   }
   store_.Put(
       SpanToArray(program_sha.value()),
-      new ProgramCacheValue(
+      base::MakeRefCounted<ProgramCacheValue>(
           proto->format(), std::move(binary),
           proto->has_program_is_compressed() && proto->program_is_compressed(),
           proto->program_decompressed_length(), program_sha.value(),

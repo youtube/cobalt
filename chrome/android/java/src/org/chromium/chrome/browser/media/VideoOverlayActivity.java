@@ -181,7 +181,8 @@ public abstract class VideoOverlayActivity extends AsyncInitializationActivity {
     public void setMediaPosition(long durationMs, long positionMs, double playbackRate) {}
 
     @CalledByNative
-    public void setImmersiveVideoOptions(int stereoMode, int projectionType) {}
+    public void setImmersiveVideoOptions(
+            int stereoMode, int projectionType, boolean isRecommended) {}
 
     protected void togglePlayPause(boolean toggleOn) {
         if (mNativeOverlayWindowAndroid != 0) {

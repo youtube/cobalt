@@ -7,7 +7,6 @@
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
-#include "third_party/blink/renderer/core/sanitizer/sanitizer_builtins.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_client.h"
 
 namespace blink {
@@ -36,8 +35,9 @@ SkeletonLoader& SkeletonLoader::Ensure(Document& document) {
 void SkeletonLoader::AddSkeletonPrefetchLink(KURL url) {
   auto result = skeletons_.insert(url, nullptr);
   if (result.is_new_entry) {
-    result.stored_value->value = MakeGarbageCollected<Skeleton>(*this);
-    result.stored_value->value->FetchSkeletonURL(url, GetDocument());
+    result.stored_value->value =
+        MakeGarbageCollected<Skeleton>(*this, GetDocument());
+    result.stored_value->value->FetchSkeletonURL(url);
   }
 }
 
@@ -48,7 +48,7 @@ void SkeletonLoader::NavigateTo(KURL url) {
     return;
   }
   current_skeleton_ = it->value.Get();
-  current_skeleton_->Render(url, GetDocument());
+  current_skeleton_->Render();
 }
 
 void SkeletonLoader::CancelNavigation() {
@@ -63,16 +63,8 @@ void SkeletonLoader::RestoringFromBFCache() {
 
 void SkeletonLoader::DocumentReady(Skeleton& skeleton) {
   if (&skeleton == current_skeleton_.Get()) {
-    UpdateSkeletonTree();
+    InsertSkeletonTree(skeleton.GetSkeletonDocument());
   }
-}
-
-void SkeletonLoader::UpdateSkeletonTree() {
-  Document& skeleton_document = current_skeleton_->GetDocument();
-  const Sanitizer* sanitizer = SanitizerBuiltins::GetBaseline();
-  sanitizer->SanitizeSafe(&skeleton_document);
-
-  InsertSkeletonTree(skeleton_document);
 }
 
 void SkeletonLoader::RemoveSkeletonTree() {

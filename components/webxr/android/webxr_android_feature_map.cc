@@ -28,6 +28,16 @@ static bool JNI_WebXrAndroidFeatureMap_IsHandTrackingEnabled(JNIEnv* env) {
 #endif
 }
 
+static bool JNI_WebXrAndroidFeatureMap_IsOpenXrAndroidSystemKeyboardEnabled(
+    JNIEnv* env) {
+#if BUILDFLAG(ENABLE_OPENXR)
+  return base::FeatureList::IsEnabled(
+      device::features::kOpenXrAndroidSystemKeyboard);
+#else
+  return false;
+#endif
+}
+
 }  // namespace webxr
 
 DEFINE_JNI(WebXrAndroidFeatureMap)

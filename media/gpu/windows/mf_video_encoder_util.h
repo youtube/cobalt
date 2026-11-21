@@ -173,6 +173,11 @@ gfx::Size GetMinResolution(VideoCodec codec, DriverVendor vendor);
 // Get the hash of the CLSID of the IMFActivate instance.
 size_t GetMFTGuidHash(IMFActivate* activate);
 
+// Returns whether Media Foundation D3D video processing should be used,
+// taking both feature flags and driver workarounds into account.
+bool IsMediaFoundationD3DVideoProcessingEnabled(
+    const gpu::GpuDriverBugWorkarounds& workarounds);
+
 }  // namespace media
 
 #endif  // MEDIA_GPU_WINDOWS_MF_VIDEO_ENCODER_UTIL_H_

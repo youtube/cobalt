@@ -306,7 +306,10 @@ void ExternalBeginFrameSourceMac::OnNeedsBeginFrames(bool needs_begin_frames) {
   } else {
     StopBeginFrame(/*force_stop=*/false);
 
-    if (vsync_display_id_update_deferred_) {
+    // |update_vsync_params_callback_| is set in RootCompositorFrameSinkImpl().
+    // A null update_vsync_params_callback_ indicates
+    // RootCompositorFrameSinkImpl is being destroyed.
+    if (vsync_display_id_update_deferred_ && update_vsync_params_callback_) {
       vsync_display_id_update_deferred_ = false;
       SetVSyncDisplayID(display_id_, /*force_update=*/true);
     }

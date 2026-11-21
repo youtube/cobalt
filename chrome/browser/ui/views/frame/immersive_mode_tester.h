@@ -11,8 +11,8 @@
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 

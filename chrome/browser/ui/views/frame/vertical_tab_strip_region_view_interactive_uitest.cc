@@ -10,7 +10,7 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
+#include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
 #include "chrome/browser/ui/views/test/vertical_tabs_interactive_test_mixin.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -65,7 +65,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewInteractiveUiTest,
   RunTestSequence(
       PressButton(kToolbarAppMenuButtonElementId),
       WithView(kTabStripElementId,
-               [](VerticalTabStripView* view) {
+               [](TabStripView* view) {
                  // Simulate the OnMouseEntered event which doesn't
                  // happen consistently in Kombucha.
                  ui::MouseEvent event(ui::EventType::kMouseEntered,

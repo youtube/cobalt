@@ -126,7 +126,7 @@ void StyledMarkupAccumulator::AppendTextWithInlineStyle(
     const String text_to_append =
         IsForMarkupSanitization()
             ? buffer.ToString()
-            : ConvertHTMLTextToInterchangeFormat(buffer.ToString(), text);
+            : ConvertHtmlTextToInterchangeFormat(buffer.ToString(), text);
     result_.Append(text_to_append);
   }
   if (inline_style)

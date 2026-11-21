@@ -166,7 +166,8 @@ void BrowserAccessibilityStateImplAuralinux::OnDiscoveredOrca(
     OnAssistiveTechFound(ui::AssistiveTech::kOrca);
     if (!screen_reader_mode_) {
       screen_reader_mode_ = CreateScopedModeForProcess(
-          ui::kAXModeComplete | ui::AXMode::kScreenReader);
+          ui::kAXModeComplete | ui::AXMode::kScreenReader |
+          ui::AXMode::kFromPlatform);
     }
   } else {
     base::debug::ClearCrashKeyString(ax_orca_crash_key);

@@ -219,8 +219,6 @@ void CoreExtensionsRendererAPIProvider::PopulateSourceMap(
       {"uncaught_exception_handler",
        IDR_EXTENSIONS_RENDERER_GENERATED_UNCAUGHT_EXCEPTION_HANDLER_JS},
       {"utils", IDR_EXTENSIONS_RENDERER_GENERATED_UTILS_JS},
-      {"webRequest",
-       IDR_EXTENSIONS_RENDERER_GENERATED_WEB_REQUEST_CUSTOM_BINDINGS_JS},
       {"webRequestEvent",
        IDR_EXTENSIONS_RENDERER_GENERATED_WEB_REQUEST_EVENT_JS},
 

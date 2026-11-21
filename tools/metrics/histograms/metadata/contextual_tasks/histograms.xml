@@ -96,6 +96,16 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="ContextualTasks.Composebox.UserAction.LensButtonClicked"
+    enum="Boolean" expires_after="2027-06-18">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when the user clicks the Lens button inside the contextual tasks
+    composebox. Always recorded as true.
+  </summary>
+</histogram>
+
 <histogram name="ContextualTasks.Context.CandidateTabHasEmbeddings"
     enum="Boolean" expires_after="2026-11-01">
   <owner>sophiechang@chromium.org</owner>
@@ -483,6 +493,49 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="ContextualTasks.SidePanel.UserAction.Close.AiModeLinkClick"
+    enum="Boolean" expires_after="2027-06-18">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when the user clicks the side panel close button, for sessions that
+    were entered due to a link click from AI mode. Always recorded as true.
+  </summary>
+</histogram>
+
+<histogram name="ContextualTasks.SidePanel.UserAction.Close.LensOverlay"
+    enum="Boolean" expires_after="2027-06-18">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when the user clicks the side panel close button, for sessions that
+    were entered via the Lens Overlay. Always recorded as true.
+  </summary>
+</histogram>
+
+<histogram name="ContextualTasks.SidePanel.UserAction.Close.Other"
+    enum="Boolean" expires_after="2027-06-18">
+  <owner>nguyenbryan@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when the user clicks the side panel close button, for sessions
+    where the entry point was not recorded as another histogram. Always recorded
+    as true.
+  </summary>
+</histogram>
+
+<histogram name="ContextualTasks.Tab.ClosedWithSidePanelOpenState"
+    enum="ContextualTasksTabCloseState" expires_after="2027-06-18">
+  <owner>nguyenbryan@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when a user closes a content tab that had an associated contextual
+    task and had the side panel open (either currently active, or logically open
+    before the tab was backgrounded). The value indicates whether the closed tab
+    was the active tab or a background tab.
+  </summary>
+</histogram>
+
 <histogram name="ContextualTasks.TabAffiliationCount" units="count"
     expires_after="2026-11-01">
   <owner>sophiechang@chromium.org</owner>
@@ -516,6 +569,18 @@ chromium-metrics-reviews@google.com.
         summary="The user changed tabs which resulted in staying on the
                  existing thread."/>
   </token>
+</histogram>
+
+<histogram
+    name="ContextualTasks.ToolbarCloseTabButton.UserAction.CloseTabAndExpandSidePanel"
+    enum="Boolean" expires_after="2027-06-18">
+  <owner>yuhengh@chromium.org</owner>
+  <owner>nguyenbryan@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <summary>
+    Recorded when the user interacts with the contextual tasks toolbar close tab
+    button. Always recorded as true.
+  </summary>
 </histogram>
 
 <histogram name="ContextualTasks.VoiceSearch.StateV2" enum="VoiceSearchState"

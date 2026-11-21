@@ -31,7 +31,7 @@ suite('<settings-guest-os-shared-paths>', () => {
     guestOsBrowserProxy = new TestGuestOsBrowserProxy();
     GuestOsBrowserProxyImpl.setInstanceForTesting(guestOsBrowserProxy);
     page = document.createElement('settings-guest-os-shared-paths');
-    page.guestOsType = 'pluginVm';
+    page.guestOsType = 'crostini';
     document.body.appendChild(page);
   });
 
@@ -40,7 +40,7 @@ suite('<settings-guest-os-shared-paths>', () => {
   });
 
   test('Remove', async () => {
-    await setPrefs({'path1': ['PvmDefault'], 'path2': ['PvmDefault']});
+    await setPrefs({'path1': ['termina'], 'path2': ['termina']});
     assertEquals(3, page.shadowRoot!.querySelectorAll('.settings-box').length);
     const rows = '.list-item:not([hidden])';
     assertEquals(2, page.shadowRoot!.querySelectorAll(rows).length);
@@ -57,10 +57,10 @@ suite('<settings-guest-os-shared-paths>', () => {
     {
       const [vmName, path] =
           await guestOsBrowserProxy.whenCalled('removeGuestOsSharedPath');
-      assertEquals('PvmDefault', vmName);
+      assertEquals('termina', vmName);
       assertEquals('path1', path);
     }
-    await setPrefs({'path2': ['PvmDefault']});
+    await setPrefs({'path2': ['termina']});
     assertEquals(1, page.shadowRoot!.querySelectorAll(rows).length);
     assertFalse(page.$.guestOsInstructionsRemove.hidden);
 
@@ -73,7 +73,7 @@ suite('<settings-guest-os-shared-paths>', () => {
     {
       const [vmName, path] =
           await guestOsBrowserProxy.whenCalled('removeGuestOsSharedPath');
-      assertEquals('PvmDefault', vmName);
+      assertEquals('termina', vmName);
       assertEquals('path2', path);
     }
     await setPrefs({'ignored': ['ignore']});
@@ -85,7 +85,7 @@ suite('<settings-guest-os-shared-paths>', () => {
   });
 
   test('RemoveFailedRetry', async () => {
-    await setPrefs({'path1': ['PvmDefault'], 'path2': ['PvmDefault']});
+    await setPrefs({'path1': ['termina'], 'path2': ['termina']});
 
     // Remove shared path fails.
     guestOsBrowserProxy.stubRemoveSharedPathResult(false);

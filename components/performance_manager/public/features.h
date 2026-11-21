@@ -255,6 +255,8 @@ BASE_DECLARE_FEATURE(kDisableTabDiscarding);
 // When disabled, falls back to legacy behavior.
 BASE_DECLARE_FEATURE(kUseLoadingStateToDetectBackgroundTitleOrFaviconUpdate);
 
+BASE_DECLARE_FEATURE(kGlicActuationPriorityVoter);
+
 }  // namespace performance_manager::features
 
 #endif  // COMPONENTS_PERFORMANCE_MANAGER_PUBLIC_FEATURES_H_

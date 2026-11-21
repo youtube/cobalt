@@ -110,7 +110,7 @@ pub fn decode_json(
         if json.starts_with(&UTF8_BOM) { &json[3..] } else { json },
         options.replace_invalid_characters,
         options.allow_newlines,
-        /*allow_control_chars_in_string=*/false,
+        /* allow_control_chars_in_string= */ false,
         options.allow_vert_tab,
         options.allow_x_escapes,
     ));

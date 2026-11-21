@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.autofill.personal_context;
 
 import static org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextProperties.ON_MANAGE_CONNECTED_APPS_CLICKED;
-import static org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextProperties.ON_MANAGE_SUGGESTIONS_CLICKED;
 import static org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextProperties.ON_PERSONAL_CONTEXT_TOGGLE_CHANGED;
 import static org.chromium.chrome.browser.autofill.personal_context.AutofillPersonalContextProperties.PERSONAL_CONTEXT_ENABLED;
 
@@ -42,15 +41,6 @@ class AutofillPersonalContextViewBinder {
                 pref.setOnPreferenceClickListener(
                         preference -> {
                             model.get(ON_MANAGE_CONNECTED_APPS_CLICKED).run();
-                            return true;
-                        });
-            }
-        } else if (key == ON_MANAGE_SUGGESTIONS_CLICKED) {
-            Preference pref = view.getAutofillPersonalContextManageSuggestions();
-            if (pref != null) {
-                pref.setOnPreferenceClickListener(
-                        preference -> {
-                            model.get(ON_MANAGE_SUGGESTIONS_CLICKED).run();
                             return true;
                         });
             }

@@ -306,7 +306,8 @@ GpuFeatureStatus GetGLFeatureStatus(const std::set<int>& blocklisted_features,
 GpuFeatureStatus GetSkiaGraphiteFeatureStatus(
     const std::set<int>& blocklisted_features,
     const GpuPreferences& gpu_preferences,
-    const base::CommandLine* command_line) {
+    const base::CommandLine* command_line,
+    const GPUInfo& gpu_info) {
   if (blocklisted_features.count(GPU_FEATURE_TYPE_SKIA_GRAPHITE)) {
     return kGpuFeatureStatusBlocklisted;
   }
@@ -341,7 +342,21 @@ GpuFeatureStatus GetSkiaGraphiteFeatureStatus(
     return kGpuFeatureStatusDisabled;
   }
 #if BUILDFLAG(SKIA_USE_DAWN)
-  if (features::IsSkiaGraphiteEnabled(command_line)) {
+  bool is_win_intel = false;
+#if BUILDFLAG(IS_WIN)
+  is_win_intel = (gpu_info.active_gpu().vendor_id == 0x8086);
+#endif
+
+  bool is_graphite_enabled = false;
+  if (is_win_intel &&
+      !command_line->HasSwitch(switches::kDisableSkiaGraphite) &&
+      !command_line->HasSwitch(switches::kEnableSkiaGraphite)) {
+    is_graphite_enabled = features::IsSkiaGraphiteWinIntelEnabled();
+  } else {
+    is_graphite_enabled = features::IsSkiaGraphiteEnabled(command_line);
+  }
+
+  if (is_graphite_enabled) {
     return kGpuFeatureStatusEnabled;
   }
 #endif  // BUILDFLAG(SKIA_USE_DAWN)
@@ -693,7 +708,7 @@ GpuFeatureInfo ComputeGpuFeatureInfo(const GPUInfo& gpu_info,
                              command_line);
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_SKIA_GRAPHITE] =
       GetSkiaGraphiteFeatureStatus(blocklisted_features, gpu_preferences,
-                                   command_line);
+                                   command_line, gpu_info);
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_WEBNN] =
       GetWebNNFeatureStatus(blocklisted_features);
   gpu_feature_info

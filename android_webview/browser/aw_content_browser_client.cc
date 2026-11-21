@@ -1262,11 +1262,13 @@ void AwContentBrowserClient::WillCreateURLLoaderFactory(
   }
 }
 
-uint32_t AwContentBrowserClient::GetWebSocketOptions(
-    content::RenderFrameHost* frame) {
+content::ContentBrowserClient::WebSocketOptions
+AwContentBrowserClient::GetWebSocketOptions(content::RenderFrameHost* frame) {
+  content::ContentBrowserClient::WebSocketOptions options_struct;
   uint32_t options = network::mojom::kWebSocketOptionNone;
   if (!frame) {
-    return options;
+    options_struct.options = options;
+    return options_struct;
   }
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(frame);
@@ -1283,7 +1285,9 @@ uint32_t AwContentBrowserClient::GetWebSocketOptions(
   } else if (!third_party_cookie_policy) {
     options |= network::mojom::kWebSocketOptionBlockThirdPartyCookies;
   }
-  return options;
+
+  options_struct.options = options;
+  return options_struct;
 }
 
 bool AwContentBrowserClient::WillCreateRestrictedCookieManager(

@@ -27,14 +27,6 @@
   UICollectionViewCellRegistration* _activitySummaryCellRegistration;
 }
 
-- (void)setGroupColor:(UIColor*)groupColor {
-  if ([_groupColor isEqual:groupColor]) {
-    return;
-  }
-  _groupColor = groupColor;
-  [self updateTabGroupHeader];
-}
-
 - (void)setTabGroupColorPalette:(TabGroupColorPalette*)tabGroupColorPalette {
   if (_tabGroupColorPalette == tabGroupColorPalette) {
     return;
@@ -178,11 +170,7 @@
   if (IsOpenEditGroupViewByTappingTitleEnabled()) {
     header.tabGroupHeaderDelegate = self.tabGroupHeaderDelegate;
   }
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    header.color = self.tabGroupColorPalette.commonColor;
-    return;
-  }
-  header.color = self.groupColor;
+  header.color = self.tabGroupColorPalette.commonColor;
 }
 
 // Configures the activity summary cell for a shared tab group.
@@ -299,10 +287,7 @@
              withItem:(TabSwitcherItem*)item
               atIndex:(NSUInteger)index {
   [super configureCell:cell withItem:item atIndex:index];
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    // Forward the palette to the cell.
-    cell.tabGroupColorPalette = self.tabGroupColorPalette;
-  }
+  cell.tabGroupColorPalette = self.tabGroupColorPalette;
 }
 
 @end

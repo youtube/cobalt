@@ -22,6 +22,9 @@ const char kContextualTasksSiteExclusions[] =
 const char kContextualTasksSmartTabSharingSettings[] =
     "contextual_tasks.smart_tab_sharing_settings";
 
+const char kContextualTasksSessionCountPostOnboarding[] =
+    "contextual_tasks.session_count_post_onboarding";
+
 void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(
       kContextualTasksSmartTabSharingSettings,

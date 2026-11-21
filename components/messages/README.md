@@ -41,7 +41,7 @@ appended in following files (you can refer to
 [this CL](https://chromium-review.googlesource.com/c/chromium/src/+/3139695) as an example):
 
 1. `components/messages/android/message_enums.h` [[1](https://chromium-review.googlesource.com/c/chromium/src/+/3139695/4/components/messages/android/message_enums.h#90)]
-2. MessageIdentifier in `tools/metrics/histograms/enums.xml` [[1](https://chromium-review.googlesource.com/c/chromium/src/+/3139695/4/tools/metrics/histograms/enums.xml#55511)]
+2. MessageIdentifier in `tools/metrics/histograms/metadata/android/enums.xml` [[1](https://chromium-review.googlesource.com/c/chromium/src/+/3139695/4/tools/metrics/histograms/enums.xml#55511)]
 3. MessageIdentifier in `tools/metrics/histograms/metadata/android/histograms.xml` [[1](https://chromium-review.googlesource.com/c/chromium/src/+/3139695/4/tools/metrics/histograms/metadata/android/histograms.xml#97)]
 4. MessageIdentifier string in `components/messages/android/java/src/org/chromium/components/messages/MessagesMetrics.java` [[1](https://chromium-review.googlesource.com/c/chromium/src/+/3139695/4/components/messages/android/internal/java/src/org/chromium/components/messages/MessagesMetrics.java#102)]
 
@@ -72,9 +72,10 @@ The rest are optional, but some of those are very commonly used:
    Clicking on the secondary icon does not guarantee that the message will be
    automatically dismissed. We recommend the feature code to manually dismiss
    the message when secondary action callback is triggered.
-    1. Note: there are changes in-flight to allow multiple menu items.
-       Documentation will be updated once that lands.
-4. ON_DISMISSED: the callback function triggered when the message UI is dismissed.
+4. SECONDARY_MENU_BUTTON_DELEGATE / SECONDARY_MENU_MAX_SIZE: these are used to
+   provide custom/multiple menu items on the secondary action button. If
+   SECONDARY_MENU_BUTTON_DELEGATE is set, it overrides SINGLE_BUTTON_MENU_TEXT.
+5. ON_DISMISSED: the callback function triggered when the message UI is dismissed.
    Dismiss means the message has been removed from the queue and will not be displayed again.
 
 You can refer to
@@ -89,6 +90,11 @@ Some other, less commonly used properties are:
   color and set TINT_NONE to disable the icon tint color.
 * DESCRIPTION_MAX_LINES: set max lines of the description. The default when this
   property isn't set is to show all the description texts, which may occupy too much screen space.
+* PRIMARY_WIDGET_APPEARANCE: controls the appearance of the primary widget
+  using values from the `PrimaryWidgetAppearance` enum. This allows showing
+  a spinning progress indicator instead of the primary button.
+* DISMISSAL_DURATION: sets a custom auto-dismissal timeout (in milliseconds) for
+  the message instead of the default ~10 seconds.
 
 
 ## Enqueue your message model
@@ -110,7 +116,7 @@ messages::MessageDispatcherBridge::Get() instead.
 ### Scope
 
 Message scope can also be seen as the life cycle of a message UI. It pre-defines
-when and where messages should be displayed and dismissed. There are 3 scopes in
+when and where messages should be displayed and dismissed. There are 4 scopes in
 total (components/messages/android/message_enums.h):
 
 1. **Navigation**: messages of navigation will be displayed only on the web page
@@ -138,6 +144,13 @@ total (components/messages/android/message_enums.h):
    scope is that messages of web_contents scope do not dismiss when the user
    navigates to another page; i.e. it is only dismissed when its associated
    tab is closed.
+4. **Origin**: messages of origin scope will be displayed on the page for which
+   they are enqueued. Like navigation scope, it will be hidden (not dismissed)
+   when the user switches to another tab and displayed again when the user
+   returns to the target tab. However, unlike navigation scope, it is NOT
+   dismissed when navigating to another page within the same origin (e.g. from
+   https://google.com/settings to https://google.com/about). It will be dismissed
+   if the user navigates to a page with a different origin or if the tab is closed.
 
 
 ### Priority

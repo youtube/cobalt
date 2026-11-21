@@ -32,6 +32,16 @@ class MEDIA_GPU_EXPORT D3D12VideoProcessorWrapper {
   // must not be null. Returns whether the wait was successful.
   virtual bool Wait(D3D12FenceAndValue fence_and_value);
 
+  // CPU-wait until any work this wrapper has previously submitted to its
+  // video process queue has completed on the GPU. Returns kOk when there is
+  // nothing to wait on (e.g. after a failed Init() or before any
+  // ProcessFrames() call). Used both internally before reusing the command
+  // allocator and externally when downstream code errors out after
+  // ProcessFrames() but before its own fence wait, so resources referenced by
+  // the in-flight command list are not released while the GPU is still using
+  // them.
+  virtual D3D11Status WaitForInFlightWork();
+
   // Processes the |input_texture| and writes the result to |output_texture|.
   // Returns {nullptr, 0} on failure, otherwise returns a valid fence and value.
   virtual D3D12FenceAndValue ProcessFrames(
@@ -45,6 +55,8 @@ class MEDIA_GPU_EXPORT D3D12VideoProcessorWrapper {
       const gfx::Rect& output_rectangle);
 
  private:
+  D3D11Status WaitForInFlightWorkImpl();
+
   ComD3D12Device device_;
   ComD3D12VideoDevice video_device_;
   D3D12_VIDEO_PROCESS_INPUT_STREAM_DESC input_stream_desc_{};

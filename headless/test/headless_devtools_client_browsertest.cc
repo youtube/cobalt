@@ -707,13 +707,13 @@ class DevtoolsInterceptionWithAuthProxyTest
   }
 
   void CustomizeHeadlessBrowserContext(
-      HeadlessBrowserContext::Builder& builder) override {
+      HeadlessBrowserContext::CreateParams& params) override {
     std::unique_ptr<net::ProxyConfig> proxy_config(new net::ProxyConfig);
     proxy_config->proxy_rules().ParseFromString(
         embedded_test_server()->host_port_pair().ToString());
     // TODO(crbug.com/40600992): Don't rely on proxying localhost.
     proxy_config->proxy_rules().bypass_rules.AddRulesToSubtractImplicit();
-    builder.SetProxyConfig(std::move(proxy_config));
+    params.proxy_config = std::move(proxy_config);
   }
 
  private:
@@ -740,8 +740,8 @@ class NavigatorLanguages : public HeadlessDevTooledBrowserTest {
   }
 
   void CustomizeHeadlessBrowserContext(
-      HeadlessBrowserContext::Builder& builder) override {
-    builder.SetAcceptLanguage("en-UK, DE, FR");
+      HeadlessBrowserContext::CreateParams& params) override {
+    params.accept_language = "en-UK, DE, FR";
   }
 };
 

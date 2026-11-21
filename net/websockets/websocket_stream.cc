@@ -489,7 +489,7 @@ void Delegate::OnAuthRequired(URLRequest* request,
                               const AuthChallengeInfo& auth_info) {
   std::optional<AuthCredentials> credentials;
   // This base::Unretained(this) relies on an assumption that |callback| can
-  // be called called during the opening handshake.
+  // be called during the opening handshake.
   int rv = owner_->connect_delegate()->OnAuthRequired(
       auth_info, request->response_headers(),
       request->GetResponseRemoteEndpoint(),

@@ -17,6 +17,7 @@
 #import "ios/chrome/common/credential_provider/constants.h"
 #import "ios/chrome/common/credential_provider/credential_provider_creation_notifier.h"
 #import "ios/chrome/common/credential_provider/credential_store.h"
+#import "ios/chrome/common/credential_provider/net_util.h"
 #import "ios/chrome/common/credential_provider/user_defaults_credential_store.h"
 #import "ios/chrome/credential_provider_extension/metrics_util.h"
 #import "ios/chrome/credential_provider_extension/password_spec_fetcher_buildflags.h"
@@ -52,7 +53,8 @@ using base::SysUTF16ToNSString;
   if (self) {
     _userDefaults = userDefaults;
     _serviceIdentifier = serviceIdentifier;
-    NSString* host = HostForServiceIdentifier(serviceIdentifier);
+    NSString* host =
+        credential_provider::HostForIdentifier(serviceIdentifier.identifier);
     _fetcher =
         [[PasswordSpecFetcher alloc] initWithHost:host
                                            APIKey:BUILDFLAG(GOOGLE_API_KEY)];
@@ -134,6 +136,7 @@ using base::SysUTF16ToNSString;
   NSString* identifier = [self currentIdentifier];
   NSURL* url = [NSURL URLWithString:identifier];
   NSString* recordIdentifier = RecordIdentifierForData(url, username);
+  NSString* serviceName = credential_provider::HostForIdentifier(identifier);
 
   // CPE does not have required //net deps to fetch eTLD+1. Leave it empty here,
   // the value will be overriden whenever the browser is foregrounded.
@@ -149,7 +152,7 @@ using base::SysUTF16ToNSString;
                                                rank:1
                                    recordIdentifier:recordIdentifier
                                   serviceIdentifier:identifier
-                                        serviceName:url.host ?: identifier
+                                        serviceName:serviceName
                            registryControlledDomain:registryControlledDomain
                                            username:username
                                                note:note

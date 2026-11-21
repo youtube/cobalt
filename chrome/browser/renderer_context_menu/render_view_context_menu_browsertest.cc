@@ -37,6 +37,10 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/context_hub/context_hub_service.h"
+#include "chrome/browser/context_hub/context_hub_service_factory.h"
+#include "chrome/browser/context_hub/features.h"
+#include "chrome/browser/context_hub/memory_bank/memory_bank.h"
 #include "chrome/browser/devtools/features.h"
 #include "chrome/browser/enterprise/data_controls/desktop_data_controls_dialog_test_helper.h"
 #include "chrome/browser/glic/public/features.h"
@@ -4288,6 +4292,51 @@ IN_PROC_BROWSER_TEST_F(ContextMenuSplitViewHorizontalDirectAccessBrowserTest,
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ContextMenuBrowserTestMenuSimplification,
+                         testing::Bool());
+
+class MemoryBanksContextMenuBrowserTest
+    : public ContextMenuBrowserTestMenuSimplification {
+ protected:
+  MemoryBanksContextMenuBrowserTest() {
+    memory_banks_feature_list_.InitWithFeatures(
+        {context_hub::features::kContextHub,
+         context_hub::features::kMemoryBanks},
+        {});
+  }
+
+ private:
+  base::test::ScopedFeatureList memory_banks_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(MemoryBanksContextMenuBrowserTest,
+                       SaveToMemoryBanksSelectedText) {
+  std::unique_ptr<TestRenderViewContextMenu> menu =
+      CreateContextMenuForTextInWebContents(u"Save me to memory banks!");
+
+  // Verify that the command is in the menu.
+  EXPECT_TRUE(menu->IsItemPresent(IDC_CONTENT_CONTEXT_SAVE_TO_MEMORY_BANKS));
+
+  auto* service = ContextHubServiceFactory::GetForProfile(
+      browser()->profile());
+  ASSERT_TRUE(service);
+
+  menu->ExecuteCommand(IDC_CONTENT_CONTEXT_SAVE_TO_MEMORY_BANKS, 0);
+
+  // Verify it was saved asynchronously.
+  base::RunLoop run_loop;
+  service->GetAllEntries(base::BindLambdaForTesting(
+      [&](std::vector<context_hub::MemoryBankEntry> entries) {
+        ASSERT_EQ(1u, entries.size());
+        EXPECT_EQ(context_hub::MemoryBankType::kTextSelection, entries[0].type);
+        EXPECT_EQ("Save me to memory banks!",
+                  entries[0].selected_text.value_or(""));
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         MemoryBanksContextMenuBrowserTest,
                          testing::Bool());
 
 }  // namespace

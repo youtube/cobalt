@@ -21,8 +21,10 @@ class FakeGeminiViewStateChangeHandlerTarget
     last_view_state_changed_ = view_state;
   }
   void OnProcessingStatusChanged(
-      ios::provider::GeminiClientMode processing_status) override {
+      ios::provider::GeminiClientMode processing_status,
+      ios::provider::GeminiDormantReason dormant_reason) override {
     last_processing_status_changed_ = processing_status;
+    last_dormant_reason_changed_ = dormant_reason;
   }
   void SetLastShownViewState(
       ios::provider::GeminiViewState view_state) override {
@@ -36,6 +38,8 @@ class FakeGeminiViewStateChangeHandlerTarget
   std::optional<ios::provider::GeminiViewState> last_view_state_changed_;
   std::optional<ios::provider::GeminiClientMode>
       last_processing_status_changed_;
+  std::optional<ios::provider::GeminiDormantReason>
+      last_dormant_reason_changed_;
   std::optional<ios::provider::GeminiViewState> last_shown_view_state_;
   bool collapse_floaty_called_ = false;
   bool live_button_tapped_called_ = false;
@@ -82,6 +86,23 @@ TEST_F(GeminiViewStateChangeHandlerTest, TestDidUpdateProcessingStatus) {
                  conversationID:@"conversation_id"];
   EXPECT_THAT(target_.last_processing_status_changed_,
               testing::Optional(ios::provider::GeminiClientMode::kListening));
+  EXPECT_THAT(target_.last_dormant_reason_changed_,
+              testing::Optional(ios::provider::GeminiDormantReason::kUnknown));
+}
+
+// Tests that the handler correctly notifies the target when processing status
+// changes with a dormant reason.
+TEST_F(GeminiViewStateChangeHandlerTest,
+       TestDidUpdateProcessingStatusWithDormantReason) {
+  [handler_
+      didUpdateProcessingStatus:ios::provider::GeminiClientMode::kDormant
+                  dormantReason:ios::provider::GeminiDormantReason::kUserStop
+                      sessionID:@"session_id"
+                 conversationID:@"conversation_id"];
+  EXPECT_THAT(target_.last_processing_status_changed_,
+              testing::Optional(ios::provider::GeminiClientMode::kDormant));
+  EXPECT_THAT(target_.last_dormant_reason_changed_,
+              testing::Optional(ios::provider::GeminiDormantReason::kUserStop));
 }
 
 // Tests that the handler requests collapsing the floaty when requested to

@@ -26,6 +26,7 @@
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_web_state_utils.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
@@ -175,22 +176,25 @@
   if (!webState) {
     return;
   }
-  [self updateConsumerNavigationButtons:webState animated:animated];
+  [self.consumer setCanGoBack:self.navigationBrowserAgent->CanGoBack(webState)];
+  [self.consumer
+      setCanGoForward:self.navigationBrowserAgent->CanGoForward(webState)
+             animated:animated];
 
   const GURL visibleURL = webState->GetVisibleURL();
   [self.consumer setShareEnabled:!visibleURL.is_empty()];
 
-  BOOL isNtp = IsUrlNtp(visibleURL);
+  BOOL isNtp = IsVisibleURLNewTabPage(webState);
   BOOL isStartSurface = NO;
   if (isNtp) {
     NewTabPageTabHelper* NTPHelper =
         NewTabPageTabHelper::FromWebState(webState);
     isStartSurface = NTPHelper && NTPHelper->ShouldShowStartSurface();
   }
-  [self.consumer setNTPVisible:isNtp isStartSurface:isStartSurface];
-
-  [self.consumer setIsLoading:webState->IsLoading()];
-  [self.consumer setLoadingProgress:webState->GetLoadingProgress()];
+  [self.consumer setNTPVisible:isNtp
+                isStartSurface:isStartSurface
+                     isLoading:webState->IsLoading()
+               loadingProgress:webState->GetLoadingProgress()];
 
   [self.consumer
             setMenu:[_buttonMenuFactory
@@ -380,7 +384,7 @@
 }
 
 - (void)webStateDidStartLoading:(web::WebState*)webState {
-  [self updateConsumerWithWebState:webState animated:NO];
+  [self updateConsumerWithWebState:webState animated:YES];
 }
 
 - (void)webStateDidStopLoading:(web::WebState*)webState {
@@ -539,35 +543,6 @@
         .keyboardVisible;
   }
   return NO;
-}
-
-// Updates the consumer navigation arrows (forward, back) states for the given
-// `webState`.
-- (void)updateConsumerNavigationButtons:(web::WebState*)webState
-                               animated:(BOOL)animated {
-  if (!webState) {
-    return;
-  }
-  const GURL lastCommittedURL = webState->GetLastCommittedURL();
-  BOOL isLastCommittedUrlNtp =
-      IsUrlNtp(lastCommittedURL) || lastCommittedURL.is_empty();
-  BOOL isToolbarTransitioningToVisible =
-      isLastCommittedUrlNtp && !IsUrlNtp(webState->GetVisibleURL());
-
-  BOOL canGoForward = self.navigationBrowserAgent->CanGoForward(webState);
-  if (isToolbarTransitioningToVisible) {
-    // Navigation buttons will be preloaded before the toolbar appears.
-    animated = NO;
-    if (webState->GetNavigationManager()->GetPendingItemIndex() == -1) {
-      // The Web State is mid-navigation from the NTP to a webpage. Prevents the
-      // forward button from appearing during the navigation if it will not be
-      // present after the navigation.
-      canGoForward = NO;
-    }
-  }
-
-  [self.consumer setCanGoBack:self.navigationBrowserAgent->CanGoBack(webState)];
-  [self.consumer setCanGoForward:canGoForward animated:animated];
 }
 
 // Updates the consumer tab state.

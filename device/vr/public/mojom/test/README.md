@@ -9,10 +9,11 @@ those values are ultimately typemapped. The test documentation can be found in
 ## ... But why is it in product code?
 
 While on Android the "WebXR Device" specific code (e.g. the code responsible for
-talking to the runtime) runs in the browser process, on Windows, it has to run
-as a utility process. In order to setup the test hooks in the OpenXR runtime on
-this process, we thus have to plumb them into parts of the product code, and
-along the mojom pipes therein to get a connection to the device process.
+talking to the runtime) runs in-process within the browser process (to minimize
+resource overhead), on Windows, it runs in a sandboxed utility process (the
+`isolated_xr_device` service) for security. In order to setup the test hooks in the
+OpenXR runtime on Windows, we thus have to plumb them into parts of the product
+code, and along the mojom pipes therein to get a connection to the utility process.
 
 That being said, we expect that *only* the mojom interface(s) will need to be
 included in product code (and even then, a forward declaration *should* be

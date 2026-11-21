@@ -23,8 +23,7 @@ namespace password_manager {
 class PasswordStoreInterface;
 
 // Helps to choose a compromised credential bubble after a password was saved.
-class PostSaveCompromisedHelper
-    : public password_manager::PasswordStoreConsumer {
+class PostSaveCompromisedHelper : public PasswordStoreConsumer {
  public:
   enum class BubbleType {
     // No follow-up bubble should be shown.

@@ -156,6 +156,7 @@ void ActorLoginDelegateImpl::AttemptLogin(
     bool should_store_permission,
     base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
     base::TimeTicks attempt_login_tool_start_time,
+    FrameFillingStartedCallback frame_filling_started_cb,
     LoginStatusResultOrErrorReply done_callback,
     base::WeakPtr<ActionSequenceDelegate> action_sequence_delegate) {
   CHECK(done_callback);
@@ -239,6 +240,7 @@ void ActorLoginDelegateImpl::AttemptLogin(
             return client ? client->IsTaskInFocus() : false;
           },
           actor_login_delegate_client_->AsWeakPtr()),
+      std::move(frame_filling_started_cb),
       base::BindPostTaskToCurrentDefault(
           base::BindOnce(&ActorLoginDelegateImpl::OnAttemptLoginCompleted,
                          weak_ptr_factory_.GetWeakPtr())));

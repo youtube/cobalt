@@ -1627,12 +1627,15 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.ProvisionalAnswer"
-    enum="PeerConnectionProvisionalAnswer" expires_after="2024-06-30">
-  <owner>hta@chromium.org</owner>
+    enum="PeerConnectionProvisionalAnswer" expires_after="2026-12-30">
+  <owner>danilchap@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Whether provisional answers are used. Recorded during the first DTLS
     connection establishment.
+
+    Warning: The histogram was expired from 2024-06-30 to 2026-06-24. Data may
+    be missing.
   </summary>
 </histogram>
 

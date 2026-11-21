@@ -22,6 +22,8 @@ component("animation") {
     "animation_export.h",
     "animation_runner.cc",
     "animation_runner.h",
+    "infinite_animation.cc",
+    "infinite_animation.h",
     "linear_animation.cc",
     "linear_animation.h",
     "multi_animation.cc",

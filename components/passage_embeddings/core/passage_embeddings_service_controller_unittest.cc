@@ -165,6 +165,7 @@ class PassageEmbeddingsServiceControllerTest : public testing::Test {
                                &embedder_metadata_future_);
 
     EXPECT_FALSE(embedder_metadata_future()->IsReady());
+    EXPECT_FALSE(service_controller_->IsModelAvailable());
   }
 
   void TearDown() override {
@@ -199,6 +200,7 @@ class PassageEmbeddingsServiceControllerTest : public testing::Test {
 TEST_F(PassageEmbeddingsServiceControllerTest, MAYBE_ReceivesValidModelInfo) {
   EXPECT_TRUE(service_controller_->MaybeUpdateModelInfo(
       *GetBuilderWithValidModelInfo().Build()));
+  EXPECT_TRUE(service_controller_->IsModelAvailable());
   auto metadata = embedder_metadata_future()->Take();
   EXPECT_TRUE(metadata.IsValid());
   EXPECT_EQ(metadata.model_version, kEmbeddingsModelVersion);

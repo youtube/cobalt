@@ -11,7 +11,9 @@
 #include "base/memory/stack_allocated.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_item.h"
 #include "third_party/blink/renderer/core/layout/inline/inline_node.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/code_point_iterator.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_buffer.h"
 
 namespace blink {
 
@@ -34,6 +36,44 @@ inline EastAsianSpacingType ResolveConditional(EastAsianSpacingType& type,
                     : EastAsianSpacingType::kOther;
 }
 
+// Returns a copy of `text` where characters belonging to ruby annotations are
+// replaced with a combining mark. The autospace loop skips Gc=Mark characters,
+// so masked ruby annotation text is excluded from spacing decisions.
+constexpr UChar kRubyAnnotationMaskCharacter =
+    0x0300;  // COMBINING GRAVE ACCENT
+
+String MaskRubyAnnotations(const String& text,
+                           base::span<Member<InlineItem>> items) {
+  StringBuffer<UChar> buffer(text.length());
+  text.CopyTo(buffer.Span(), 0);
+  unsigned ruby_text_nesting_level = 0;
+  for (const Member<InlineItem>& item : items) {
+    const bool is_ruby_annotation =
+        ruby_text_nesting_level ||
+        item->Type() == InlineItem::kOpenRubyColumn ||
+        item->Type() == InlineItem::kCloseRubyColumn ||
+        item->Type() == InlineItem::kRubyLinePlaceholder;
+    if (is_ruby_annotation) {
+      for (unsigned i = item->StartOffset(); i < item->EndOffset(); ++i) {
+        buffer[i] = kRubyAnnotationMaskCharacter;
+      }
+    }
+    if (item->Type() == InlineItem::kOpenTag ||
+        item->Type() == InlineItem::kCloseTag) {
+      const LayoutObject* object = item->GetLayoutObject();
+      if (object && object->IsInlineRubyText()) {
+        if (item->Type() == InlineItem::kOpenTag) {
+          ++ruby_text_nesting_level;
+        } else {
+          DCHECK_GT(ruby_text_nesting_level, 0u);
+          --ruby_text_nesting_level;
+        }
+      }
+    }
+  }
+  return String::Adopt(buffer);
+}
+
 //
 // This class keeps track of the `InlineItem` in sync with the text offset, in
 // order to apply the East Asian Spacing as defined by the [UTR#59].
@@ -53,14 +93,27 @@ class SpacingApplier {
 
   SpacingApplier(wtf_size_t offset,
                  InlineItemList items,
-                 TextAutoSpace::Callback* callback)
-      : item_iter_(items.begin()),
+                 TextAutoSpace::Callback* callback,
+                 bool ignore_ruby_annotation)
+      : ignore_ruby_annotation_(ignore_ruby_annotation),
+        item_iter_(items.begin()),
         item_end_(items.end()),
         callback_for_testing_(callback) {
     item_ = *item_iter_;
     DidChangeItem();
-    while (offset > item_end_offset_) {
-      AdvanceItem();
+    if (ignore_ruby_annotation_) {
+      // Skip zero-length items (e.g. ruby column markers) and stop on the text
+      // item that owns `offset`.
+      while ((offset > item_end_offset_ || !item_->Length() ||
+              (offset == item_end_offset_ &&
+               item_->Type() != InlineItem::kText)) &&
+             item_iter_ + 1 != item_end_) {
+        AdvanceItem();
+      }
+    } else {
+      while (offset > item_end_offset_) {
+        AdvanceItem();
+      }
     }
     if (!is_disabled_ && !IsOffsetDisabled(offset)) {
       InsertSpaceBefore(offset);
@@ -140,7 +193,17 @@ class SpacingApplier {
 
   void DidChangeItem() {
     item_end_offset_ = item_->EndOffset();
+    if (ignore_ruby_annotation_ &&
+        (item_->Type() == InlineItem::kOpenRubyColumn ||
+         item_->Type() == InlineItem::kCloseRubyColumn ||
+         item_->Type() == InlineItem::kRubyLinePlaceholder)) [[unlikely]] {
+      is_disabled_ = false;
+      return;
+    }
     if (!item_->Length()) [[unlikely]] {
+      if (ignore_ruby_annotation_) {
+        is_disabled_ = false;
+      }
       return;
     }
     if (!item_->GetLayoutObject()) [[unlikely]] {
@@ -165,6 +228,7 @@ class SpacingApplier {
   bool is_disabled_ = false;
   bool is_disabled_by_style_ = false;
   bool is_last_disabled_ = false;
+  const bool ignore_ruby_annotation_ = false;
   InlineItem* item_ = nullptr;
   const ComputedStyle* style_ = nullptr;
   InlineItemList::iterator item_iter_;
@@ -186,7 +250,15 @@ void TextAutoSpace::Apply(const InlineNode& node, InlineItemsData& data) {
   std::optional<SpacingApplier> applier_opt;
   std::optional<bool> is_chinese;
 
-  const CodePointIterator::Utf16 char_begin{text.Span16()};
+  // Use `MutableData()->HasRuby()` rather than `node.HasRuby()`: the latter
+  // calls `Data()` which DCHECKs that inlines are not dirty, but this runs
+  // during `ShapeText()` while inlines are still being prepared.
+  const bool ignore_ruby_annotation =
+      RuntimeEnabledFeatures::TextAutoSpaceIgnoreRubyAnnotationEnabled() &&
+      node.MutableData()->HasRuby();
+  const String iter_text =
+      ignore_ruby_annotation ? MaskRubyAnnotations(text, data.items) : text;
+  const CodePointIterator::Utf16 char_begin{iter_text.Span16()};
   const auto char_end = char_begin.EndForThis();
   for (auto char_iter = char_begin; char_iter != char_end;) {
     const UChar32 ch = *char_iter;
@@ -210,7 +282,8 @@ void TextAutoSpace::Apply(const InlineNode& node, InlineItemsData& data) {
       if (needs_space) [[unlikely]] {
         const wtf_size_t offset = char_iter.DistanceByCodeUnits(char_begin);
         if (!applier_opt) {
-          applier_opt.emplace(offset, data.items, callback_for_testing_);
+          applier_opt.emplace(offset, data.items, callback_for_testing_,
+                              ignore_ruby_annotation);
         } else {
           applier_opt->InsertSpaceBefore(offset);
         }

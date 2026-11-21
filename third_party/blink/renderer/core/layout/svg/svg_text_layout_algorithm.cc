@@ -365,10 +365,9 @@ void SvgTextLayoutAlgorithm::ResolveTextLength(
       visual_indexes.push_back(k);
     }
     if (inline_node_.IsBidiEnabled()) {
-      std::sort(visual_indexes.begin(), visual_indexes.end(),
-                [&](wtf_size_t a, wtf_size_t b) {
-                  return result_[a].item_index < result_[b].item_index;
-                });
+      std::ranges::sort(visual_indexes, [&](wtf_size_t a, wtf_size_t b) {
+        return result_[a].item_index < result_[b].item_index;
+      });
     }
 
     for (wtf_size_t k : visual_indexes) {
@@ -414,13 +413,11 @@ void SvgTextLayoutAlgorithm::ResolveTextLength(
 
   // Remove resolved_descendant_node_starts entries for descendant nodes,
   // and register an entry for this node.
-  auto new_end =
-      std::remove_if(resolved_descendant_node_starts.begin(),
-                     resolved_descendant_node_starts.end(),
-                     [i, j_plus_1](const auto& start_index) {
-                       return i <= start_index && start_index < j_plus_1;
-                     });
-  resolved_descendant_node_starts.erase(new_end,
+  auto removed = std::ranges::remove_if(
+      resolved_descendant_node_starts, [i, j_plus_1](const auto& start_index) {
+        return i <= start_index && start_index < j_plus_1;
+      });
+  resolved_descendant_node_starts.erase(removed.begin(),
                                         resolved_descendant_node_starts.end());
   resolved_descendant_node_starts.push_back(i);
 }

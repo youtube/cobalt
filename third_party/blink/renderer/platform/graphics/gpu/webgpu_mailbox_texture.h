@@ -30,6 +30,9 @@ class WebGPUTextureAlphaClearer;
 class PLATFORM_EXPORT WebGPUMailboxTexture
     : public RefCounted<WebGPUMailboxTexture> {
  public:
+  using FinishedAccessCallback = base::OnceCallback<gpu::SyncToken(
+      std::unique_ptr<gpu::WebGPUTextureScopedAccess>)>;
+
   static scoped_refptr<WebGPUMailboxTexture> FromStaticBitmapImage(
       scoped_refptr<DawnControlClientHolder> dawn_control_client,
       const wgpu::Device& device,
@@ -56,8 +59,7 @@ class PLATFORM_EXPORT WebGPUMailboxTexture
       gpu::webgpu::MailboxFlags mailbox_flags =
           gpu::webgpu::WEBGPU_MAILBOX_NONE,
       wgpu::TextureUsage additional_internal_usage = wgpu::TextureUsage::None,
-      base::OnceCallback<void(const gpu::SyncToken&)> finished_access_callback =
-          {});
+      FinishedAccessCallback finished_access_callback = {});
 
   static scoped_refptr<WebGPUMailboxTexture> FromVideoFrame(
       scoped_refptr<DawnControlClientHolder> dawn_control_client,
@@ -75,10 +77,6 @@ class PLATFORM_EXPORT WebGPUMailboxTexture
   // if the mailbox texture is not going to be accessed further.
   gpu::SyncToken Dissociate();
 
-  // Sets a SyncToken which gates recycling of the associated recyclable canvas
-  // resource. A recyclable canvas resource must be set to use this method.
-  void SetCompletionSyncToken(const gpu::SyncToken& token);
-
   ~WebGPUMailboxTexture();
 
   const wgpu::Texture& GetTexture();
@@ -92,8 +90,7 @@ class PLATFORM_EXPORT WebGPUMailboxTexture
       const gpu::SyncToken& sync_token,
       gpu::webgpu::MailboxFlags mailbox_flags,
       wgpu::TextureUsage additional_internal_usage,
-      base::OnceCallback<void(const gpu::SyncToken&)> finished_access_callback,
-      std::unique_ptr<RecyclableCanvasResource> recyclable_canvas_resource);
+      FinishedAccessCallback finished_access_callback);
 
   base::WeakPtr<WebGPUMailboxTexture> AsWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
@@ -103,8 +100,7 @@ class PLATFORM_EXPORT WebGPUMailboxTexture
   wgpu::Device device_;
   scoped_refptr<gpu::ClientSharedImage> shared_image_;
   std::unique_ptr<gpu::WebGPUTextureScopedAccess> scoped_access_;
-  base::OnceCallback<void(const gpu::SyncToken&)> finished_access_callback_;
-  std::unique_ptr<RecyclableCanvasResource> recyclable_canvas_resource_;
+  FinishedAccessCallback finished_access_callback_;
   scoped_refptr<WebGPUTextureAlphaClearer> alpha_clearer_;
   base::WeakPtrFactory<WebGPUMailboxTexture> weak_ptr_factory_{this};
 };

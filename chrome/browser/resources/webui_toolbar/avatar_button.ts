@@ -5,8 +5,10 @@
 import '//resources/cr_elements/cr_button/cr_button.js';
 import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/icons.html.js';
+import '/shared/icon_from_table.js';
 
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AvatarControlState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 import {AvatarToolbarButtonState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
@@ -37,9 +39,17 @@ export class AvatarButtonElement extends AvatarButtonElementBase {
     };
   }
 
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    if (changedProperties.has('hasHelpBubble')) {
+      BrowserProxyImpl.getInstance()
+          .toolbarUIHandler.setAvatarButtonIphPromoShowing(this.hasHelpBubble);
+    }
+  }
+
   protected accessor state: AvatarControlState = {
     state: AvatarToolbarButtonState.kNormal,
-    iconUrl: '',
+    icon: {handleId: 0n},
     text: '',
     tooltip: '',
     accessibilityName: '',
@@ -54,6 +64,22 @@ export class AvatarButtonElement extends AvatarButtonElementBase {
   protected shouldPaintBorder(): boolean {
     return !!this.state.text &&
         this.state.state === AvatarToolbarButtonState.kGuestSession;
+  }
+
+  protected getButtonClass_(): string {
+    if (!this.state.text) {
+      return '';
+    }
+    switch (this.state.state) {
+      case AvatarToolbarButtonState.kSyncError:
+        return 'highlight-sync-error';
+      case AvatarToolbarButtonState.kGuestSession:
+        return 'highlight-guest';
+      case AvatarToolbarButtonState.kIncognitoProfile:
+        return 'highlight-incognito';
+      default:
+        return 'highlight-default';
+    }
   }
 
   protected onClick_(_: Event) {

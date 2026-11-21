@@ -129,10 +129,10 @@ rtc_library("test_video_capturer") {
   ]
   deps = [
     "../api:scoped_refptr",
+    "../api/video:video_adapter",
+    "../api/video:video_broadcaster",
     "../api/video:video_frame",
     "../api/video:video_rtp_headers",
-    "../media:video_adapter",
-    "../media:video_broadcaster",
     "../rtc_base:macromagic",
     "../rtc_base/synchronization:mutex",
   ]

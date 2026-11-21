@@ -131,13 +131,61 @@ TEST_F(GnomeDesktopResizerTest, GetCurrentResolution) {
           .IsEmpty());
 }
 
-TEST_F(GnomeDesktopResizerTest, GetSupportedResolutions) {
-  // We currently just return back the preferred resolution, even if Gnome may
-  // not actually support it.
-  ScreenResolution preferred_resolution{{999, 999}, GetDpiForScale(1.5)};
-  ASSERT_EQ(
-      resizer_.GetSupportedResolutions(preferred_resolution, kMeta0ScreenId),
-      std::list<ScreenResolution>{preferred_resolution});
+TEST_F(GnomeDesktopResizerTest, GetSupportedResolutions_NoTweakingNeeded) {
+  // Scale 1.5 (3/2). N=3.
+  // Preferred: 900x900 (multiples of 3).
+  // Logical: 600x600, area 360000 (supported).
+  ScreenResolution preferred{{900, 900}, GetDpiForScale(1.5)};
+  std::list<ScreenResolution> expected = {preferred};
+  EXPECT_EQ(resizer_.GetSupportedResolutions(preferred, kMeta0ScreenId),
+            expected);
+}
+
+TEST_F(GnomeDesktopResizerTest, GetSupportedResolutions_TweakingNeeded) {
+  // Scale 1.5 (3/2). N=3.
+  // Preferred: 902x901.
+  // Tweaked: 900x900.
+  // Logical: 600x600, area 360000 (supported).
+  ScreenResolution preferred{{902, 901}, GetDpiForScale(1.5)};
+  ScreenResolution expected{{900, 900}, GetDpiForScale(1.5)};
+  std::list<ScreenResolution> expected_list = {expected};
+  EXPECT_EQ(resizer_.GetSupportedResolutions(preferred, kMeta0ScreenId),
+            expected_list);
+}
+
+TEST_F(GnomeDesktopResizerTest,
+       GetSupportedResolutions_FallbackToSmallerScale) {
+  // Scale 2.0 (2/1). N=2.
+  // Preferred: 1000x1000.
+  // 2.0x -> 1000x1000 -> logical 500x500 -> area 250000 (too small).
+  // 1.75x (7/4) -> 994x994 -> logical 568x568 -> area 322624 (too small).
+  // 1.666...x (5/3) -> 1000x1000 -> logical 600x600 -> area 360000
+  // (supported!). Expected DPI for 5/3 is 160.
+  ScreenResolution preferred{{1000, 1000}, GetDpiForScale(2.0)};
+  ScreenResolution expected{{1000, 1000}, GetDpiForScale(5.0 / 3.0)};
+  std::list<ScreenResolution> expected_list = {expected};
+  EXPECT_EQ(resizer_.GetSupportedResolutions(preferred, kMeta0ScreenId),
+            expected_list);
+}
+
+TEST_F(GnomeDesktopResizerTest, GetSupportedResolutions_FallbackToOne) {
+  // Scale 1.5.
+  // Preferred: 700x700.
+  // All scales > 1.0 will result in area < 360000.
+  // Should fallback to 1.0x (DPI 96).
+  ScreenResolution preferred{{700, 700}, GetDpiForScale(1.5)};
+  ScreenResolution expected{{700, 700}, GetDpiForScale(1.0)};
+  std::list<ScreenResolution> expected_list = {expected};
+  EXPECT_EQ(resizer_.GetSupportedResolutions(preferred, kMeta0ScreenId),
+            expected_list);
+}
+
+TEST_F(GnomeDesktopResizerTest, GetSupportedResolutions_InvalidDimensions) {
+  // Zero dimensions should be returned unchanged.
+  ScreenResolution preferred_zero{{0, 0}, GetDpiForScale(1.5)};
+  std::list<ScreenResolution> expected_zero = {preferred_zero};
+  EXPECT_EQ(resizer_.GetSupportedResolutions(preferred_zero, kMeta0ScreenId),
+            expected_zero);
 }
 
 TEST_F(

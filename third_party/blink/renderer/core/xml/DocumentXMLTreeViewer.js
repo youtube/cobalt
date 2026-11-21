@@ -6,28 +6,45 @@
 
 var tree;
 var headerSpan;
+var sourceXML;
+var sourceXMLIsHiddenContainer;
+var xmlViewerRoot;
 
-function prepareWebKitXMLViewer()
+function prepareWebKitXMLViewer(root)
 {
-  var html = createHTMLElement('html');
-  var head = createHTMLElement('head');
-  html.appendChild(head);
-  var style = createHTMLElement('style');
-  style.id = 'xml-viewer-style';
-  head.appendChild(style);
-  var body = createHTMLElement('body');
-  html.appendChild(body);
-  var sourceXML = createHTMLElement('div');
-  sourceXML.id = 'webkit-xml-viewer-source-xml';
-  body.appendChild(sourceXML);
+  var body;
+  var style;
+  if (root) {
+    style = createHTMLElement('style');
+    style.id = 'xml-viewer-style';
+    root.appendChild(style);
+    body = root;
+    xmlViewerRoot = root;
+    sourceXML = document;
+    sourceXMLIsHiddenContainer = false;
+  } else {
+    var html = createHTMLElement('html');
+    var head = createHTMLElement('head');
+    html.appendChild(head);
+    style = createHTMLElement('style');
+    style.id = 'xml-viewer-style';
+    head.appendChild(style);
+    body = createHTMLElement('body');
+    xmlViewerRoot = document;
+    html.appendChild(body);
+    sourceXML = createHTMLElement('div');
+    sourceXML.id = 'webkit-xml-viewer-source-xml';
+    body.appendChild(sourceXML);
+    sourceXMLIsHiddenContainer = true;
 
-  var child;
-  while (child = document.firstChild) {
-    document.removeChild(child);
-    if (child.nodeType != Node.DOCUMENT_TYPE_NODE)
-      sourceXML.appendChild(child);
+    var child;
+    while (child = document.firstChild) {
+      document.removeChild(child);
+      if (child.nodeType != Node.DOCUMENT_TYPE_NODE)
+        sourceXML.appendChild(child);
+    }
+    document.appendChild(html);
   }
-  document.appendChild(html);
 
   var header = createHTMLElement('div');
   body.appendChild(header);
@@ -47,8 +64,8 @@ function prepareWebKitXMLViewer()
 
 function sourceXMLLoaded()
 {
-  var sourceXML = document.getElementById('webkit-xml-viewer-source-xml');
-  if (!sourceXML)
+  if (sourceXMLIsHiddenContainer &&
+      !document.getElementById('webkit-xml-viewer-source-xml'))
     return;  // Stop if some XML tree extension is already processing this
              // document
 
@@ -280,12 +297,21 @@ function createAttribute(attributeNode)
   return attribute;
 }
 
-function toggleFunction(sectionId) {
+function directChildWithClass(element, className)
+{
+  for (var child = element.firstElementChild; child; child = child.nextElementSibling) {
+    if (child.classList.contains(className))
+      return child;
+  }
+  return null;
+}
+
+function toggleFunction(section) {
   return function() {
-    var foldedContent = document.querySelector('#' + sectionId + ' > .folded');
-    var openedContent = document.querySelector('#' + sectionId + ' > .opened');
-    var folderButton =
-        document.querySelector('#' + sectionId + ' > .line > .folder-button');
+    var foldedContent = directChildWithClass(section, 'folded');
+    var openedContent = directChildWithClass(section, 'opened');
+    var startLine = directChildWithClass(section, 'line');
+    var folderButton = startLine ? startLine.querySelector('.folder-button') : null;
 
     if (foldedContent) {
       if (foldedContent.className.includes('hidden'))
@@ -312,13 +338,13 @@ function toggleFunction(sectionId) {
 
 function initButtons()
 {
-  var sections = document.querySelectorAll('.folder');
+  var sections = xmlViewerRoot.querySelectorAll('.folder');
   for (var i = 0; i < sections.length; i++) {
     var sectionId = 'folder' + i;
     sections[i].id = sectionId;
 
     var folderButton = sections[i].querySelector('.folder-button');
-    folderButton.onclick = toggleFunction(sectionId);
+    folderButton.onclick = toggleFunction(sections[i]);
     folderButton.onmousedown = handleButtonMouseDown;
   }
 }
@@ -329,4 +355,3 @@ function handleButtonMouseDown(e)
    e.preventDefault();
 }
 
-prepareWebKitXMLViewer();

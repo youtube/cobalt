@@ -23,6 +23,13 @@ namespace webrtc {
 // NOTE: This class is still under development and may change without notice.
 class VideoJitterTimingInterface {
  public:
+  struct FrameInfo {
+    uint32_t rtp_timestamp = 0;
+    Timestamp time = Timestamp::PlusInfinity();
+    bool last_spatial_layer = false;
+    bool was_retransmitted = false;
+  };
+
   struct TemporalUnitInfo {
     uint32_t rtp_timestamp = 0;
     DataSize size = DataSize::Zero();
@@ -39,13 +46,8 @@ class VideoJitterTimingInterface {
   // Resets the model to its initial state.
   virtual void Reset() = 0;
 
-  // Updates the model with the timestamp of a complete frame.
-  virtual void OnCompleteFrame(uint32_t rtp_timestamp,
-                               Timestamp receive_time) = 0;
-
-  // Returns the estimated local clock time for a given RTP timestamp (or
-  // nullopt if not available).
-  virtual std::optional<Timestamp> LocalTime(uint32_t rtp_timestamp) const = 0;
+  // Updates the model with information of a complete frame.
+  virtual void OnCompleteFrame(const FrameInfo& info) = 0;
 
   // Updates the model with information of a decodable temporal unit.
   // Returns the estimated jitter delay (or nullopt if not available).
@@ -54,6 +56,10 @@ class VideoJitterTimingInterface {
 
   // Updates the model with network information.
   virtual void OnNetworkUpdate(const NetworkInfo& info) = 0;
+
+  // Returns the estimated local clock time for a given RTP timestamp (or
+  // nullopt if not available).
+  virtual std::optional<Timestamp> LocalTime(uint32_t rtp_timestamp) const = 0;
 };
 
 }  // namespace webrtc

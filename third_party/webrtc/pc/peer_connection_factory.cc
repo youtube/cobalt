@@ -109,6 +109,8 @@ PeerConnectionFactory::PeerConnectionFactory(
       injected_network_controller_factory_(
           std::move(dependencies->network_controller_factory)),
       neteq_factory_(std::move(dependencies->neteq_factory)),
+      video_jitter_timing_factory_(
+          std::move(dependencies->video_jitter_timing_factory)),
       decode_metronome_(std::move(dependencies->decode_metronome)),
       encode_metronome_(std::move(dependencies->encode_metronome)) {}
 
@@ -396,6 +398,7 @@ std::unique_ptr<Call> PeerConnectionFactory::CreateCall_s(
   call_config.network_state_predictor_factory =
       network_state_predictor_factory_.get();
   call_config.neteq_factory = neteq_factory_.get();
+  call_config.video_jitter_timing_factory = video_jitter_timing_factory_.get();
 
   if (field_trials().IsEnabled("WebRTC-Bwe-InjectedCongestionController")) {
     RTC_LOG(LS_INFO) << "Using pcf injected network controller factory";

@@ -396,7 +396,7 @@ IN_PROC_BROWSER_TEST_P(SkillsPageScreenshotInteractiveUITest,
   skill->set_description("Look for some socks");
   skill->set_icon("🧦");
   skill->set_prompt("Look for some socks");
-  skill->set_image_url("https://example.com/image.png");
+  skill->set_image_url("https://gstatic.com/image.png");
 
   skills::proto::Skill* skill2 = skills_list.add_skills();
   skill2->set_id("345");
@@ -447,7 +447,7 @@ IN_PROC_BROWSER_TEST_P(SkillsPageScreenshotInteractiveUITest,
   skill->set_description("Look for some socks");
   skill->set_icon("🧦");
   skill->set_prompt("Look for some socks");
-  skill->set_image_url("https://example.com/image.png");
+  skill->set_image_url("https://gstatic.com/image.png");
 
   skills::proto::Skill* skill2 = skills_list.add_skills();
   skill2->set_id("345");

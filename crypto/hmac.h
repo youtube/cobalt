@@ -32,6 +32,8 @@ namespace hmac {
 // generic over hash kinds, you should use the convenience interfaces that are
 // named after a specific kind, since they allow compile-time error checking of
 // the hmac size.
+// Deprecated: don't use SHA-1. Consult a CRYPTO_OWNERS member before adding
+// new uses. See https://crbug.com/527094641.
 CRYPTO_EXPORT std::array<uint8_t, crypto::hash::kSha1Size> SignSha1(
     base::span<const uint8_t> key,
     base::span<const uint8_t> data);
@@ -44,6 +46,8 @@ CRYPTO_EXPORT std::array<uint8_t, crypto::hash::kSha512Size> SignSha512(
     base::span<const uint8_t> key,
     base::span<const uint8_t> data);
 
+// Deprecated: don't use SHA-1. Consult a CRYPTO_OWNERS member before adding
+// new uses. See https://crbug.com/527094641.
 [[nodiscard]] CRYPTO_EXPORT bool VerifySha1(
     base::span<const uint8_t> key,
     base::span<const uint8_t> data,

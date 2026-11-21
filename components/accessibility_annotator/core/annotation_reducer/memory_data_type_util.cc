@@ -196,6 +196,7 @@ bool IsFullMemoryDataType(MemoryDataType memory_data_type) {
     case MemoryDataType::kShipmentCarrierName:
     case MemoryDataType::kShipmentCarrierDomain:
     case MemoryDataType::kShipmentEstimatedDeliveryDate:
+    case MemoryDataType::kShipmentShippedDate:
     case MemoryDataType::kNationalIdCardName:
     case MemoryDataType::kNationalIdCardCountry:
     case MemoryDataType::kNationalIdCardNumber:
@@ -463,9 +464,8 @@ AttributeResult GetShipmentAttributeResult(const Shipment& shipment,
                     MemoryDataType::kShipmentCarrierDomain, map,
                     &shipment_full);
 
-  AddAttributeValue(shipment.estimated_delivery_date,
-                    MemoryDataType::kShipmentEstimatedDeliveryDate, map,
-                    &shipment_full);
+  AddAttributeValue(shipment.shipped_date, MemoryDataType::kShipmentShippedDate,
+                    map, &shipment_full);
 
   if (!shipment_full.empty()) {
     map[MemoryDataType::kShipmentFull] = std::move(shipment_full);
@@ -555,6 +555,7 @@ EntityTypeEnumSet GetEntityTypesForMemoryDataType(
     case MemoryDataType::kShipmentCarrierName:
     case MemoryDataType::kShipmentCarrierDomain:
     case MemoryDataType::kShipmentEstimatedDeliveryDate:
+    case MemoryDataType::kShipmentShippedDate:
       return {EntityType::kShipment};
     case MemoryDataType::kNationalIdCardFull:
     case MemoryDataType::kNationalIdCardName:

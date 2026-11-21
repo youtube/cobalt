@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/context_hub/context_hub_page_handler.h"
 #include "chrome/common/webui_url_constants.h"
@@ -16,13 +17,26 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/webui/webui_util.h"
 
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/webui/favicon_source.h"  // nogncheck
+#include "components/favicon_base/favicon_url_parser.h"
+#include "content/public/browser/url_data_source.h"
+#endif
+
 ContextHubUI::ContextHubUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui) {
+  Profile* profile = Profile::FromWebUI(web_ui);
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
-      Profile::FromWebUI(web_ui), chrome::kChromeUIContextHubHost);
+      profile, chrome::kChromeUIContextHubHost);
 
   webui::SetupWebUIDataSource(source, kContextHubResources,
                               IDR_CONTEXT_HUB_CONTEXT_HUB_HTML);
+
+#if !BUILDFLAG(IS_ANDROID)
+  content::URLDataSource::Add(
+      profile, std::make_unique<FaviconSource>(
+                   profile, chrome::FaviconUrlFormat::kFavicon2));
+#endif
 }
 
 ContextHubUI::~ContextHubUI() = default;

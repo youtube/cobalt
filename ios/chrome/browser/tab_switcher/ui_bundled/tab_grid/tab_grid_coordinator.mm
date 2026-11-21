@@ -51,6 +51,7 @@
 #import "ios/chrome/browser/intelligence/page_action_menu/coordinator/page_action_menu_coordinator.h"
 #import "ios/chrome/browser/main/ui/browser_layout_view_controller.h"
 #import "ios/chrome/browser/menu/ui_bundled/tab_context_menu_delegate.h"
+#import "ios/chrome/browser/metrics/model/activity_reporter.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/reading_list/model/reading_list_browser_agent.h"
 #import "ios/chrome/browser/saved_tab_groups/model/ios_tab_group_sync_util.h"
@@ -284,6 +285,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   // The view controller for the Tab Grid, defined manually so that the type can
   // be specified.
   TabGridViewController* _viewController;
+  ActivityReporterWithIncognito* _activityReporter;
 }
 
 @dynamic baseViewController;
@@ -295,6 +297,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
                               inactiveBrowser:(Browser*)inactiveBrowser
                              incognitoBrowser:(Browser*)incognitoBrowser {
   if ((self = [super init])) {
+    _activityReporter = [[ActivityReporterWithIncognito alloc]
+        initWithDomain:ActivityReportDomainTabgrid];
     CHECK(inactiveBrowser->IsInactive());
     CHECK(!regularBrowser->IsInactive());
     _dispatcher = [[CommandDispatcher alloc] init];
@@ -411,6 +415,8 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   }
   SceneState* sceneState = self.regularBrowser->GetSceneState();
   sceneState.tabGridState.tabGridVisible = YES;
+  [_activityReporter
+      reportActiveWithIncognito:(page == TabGridPageIncognitoTabs)];
 
   BOOL animated = !self.animationsDisabledForTesting;
 
@@ -537,6 +543,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   SceneState* sceneState = self.regularBrowser->GetSceneState();
   BOOL wasTabGridVisible = sceneState.tabGridState.tabGridVisible;
   sceneState.tabGridState.tabGridVisible = NO;
+  [_activityReporter reportInactive];
 
   __weak TabGridCoordinator* weakSelf = self;
 
@@ -754,7 +761,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 
   auto params = std::make_unique<TabGridTransitionHandlerInitParams>(
       direction, self.browserLayoutViewController, _viewController,
-      parentViewController, appContentView);
+      parentViewController, appContentView, self);
 
   if (animationEnabled) {
     // Use reduced animation on TabGroup panel to avoid weird animation where
@@ -1154,6 +1161,7 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
 - (void)stop {
   SceneState* sceneState = self.regularBrowser->GetSceneState();
   [sceneState removeObserver:self];
+  [_activityReporter reportInactive];
 
   // The TabGridViewController may still message its scene and gemini commands
   // handler after this coordinator has stopped; make this action a no-op by
@@ -1414,6 +1422,16 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
       HandlerForProtocol(browser->GetCommandDispatcher(),
                          BrowserCoordinatorCommands);
   [browserCoordinatorCommandsHandler closeCurrentTab];
+}
+
+- (void)tabGridViewController:(TabGridViewController*)tabGridViewController
+         didChangeCurrentPage:(TabGridPage)currentPage {
+  SceneState* sceneState = self.regularBrowser->GetSceneState();
+  if (!sceneState.tabGridState.tabGridVisible) {
+    return;
+  }
+  [_activityReporter
+      reportActiveWithIncognito:(currentPage == TabGridPageIncognitoTabs)];
 }
 
 #pragma mark - InactiveTabsCoordinatorDelegate
@@ -1896,6 +1914,18 @@ bool FindNavigatorShouldBePresentedInBrowser(Browser* browser) {
   self.pageActionMenuCoordinator.pageActionMenuHandler = HandlerForProtocol(
       self.regularBrowser->GetCommandDispatcher(), PageActionMenuCommands);
   [self.pageActionMenuCoordinator start];
+}
+
+- (void)activateGridContainerConstraints {
+  [_viewController.incognitoGridContainerViewController activateConstraints];
+  [_viewController.incognitoGridContainerViewController activateConstraints];
+  [_viewController.tabGroupsGridContainerViewController activateConstraints];
+}
+
+- (void)deactivateGridContainerConstraints {
+  [_viewController.incognitoGridContainerViewController deactivateConstraints];
+  [_viewController.incognitoGridContainerViewController deactivateConstraints];
+  [_viewController.tabGroupsGridContainerViewController deactivateConstraints];
 }
 
 #pragma mark - TabGroupPositioner

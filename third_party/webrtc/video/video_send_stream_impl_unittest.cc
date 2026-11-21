@@ -36,11 +36,13 @@
 #include "api/units/timestamp.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_frame_type.h"
 #include "api/video/video_layers_allocation.h"
 #include "api/video_codecs/spatial_layer.h"
 #include "api/video_codecs/video_encoder.h"
 #include "call/bitrate_allocator.h"
 #include "call/rtp_config.h"
+#include "call/rtp_transport_controller_send_interface.h"
 #include "call/rtp_video_sender_interface.h"
 #include "call/test/mock_bitrate_allocator.h"
 #include "call/test/mock_rtp_transport_controller_send.h"
@@ -1505,6 +1507,76 @@ TEST_F(VideoSendStreamImplTest, TestElasticityForScreenshare) {
   vss_impl->Start();
   EXPECT_CALL(bitrate_allocator_, RemoveObserver(vss_impl.get()));
   vss_impl->Stop();
+}
+
+TEST_F(VideoSendStreamImplTest, GenerateKeyFrameWithMismatchedRids) {
+  // Multiple RIDs available for simulcast.
+  config_.rtp.rids = {"a", "b", "c"};
+  // Single encoder config (no simulcast, or potentially SVC).
+  auto vss_impl = CreateVideoSendStreamImpl(
+      TestVideoEncoderConfig(VideoEncoderConfig::ContentType::kRealtimeVideo));
+  vss_impl->Start();
+  // Generating a keyframe on a RID that is not available should be a noop.
+  vss_impl->GenerateKeyFrame({"c"});
+  vss_impl->Stop();
+}
+
+TEST_F(VideoSendStreamImplTest, GeneratesKeyframePerStreamWhenFeatureEnabled) {
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-Video-PerSsrcKeyframes/Enabled/");
+
+  // Set up 2 SSRC/layers.
+  config_.rtp.ssrcs.clear();
+  config_.rtp.ssrcs.push_back(1111);
+  config_.rtp.ssrcs.push_back(2222);
+
+  RtpSenderObservers observers;
+  EXPECT_CALL(transport_controller_, CreateRtpVideoSender)
+      .WillOnce(::testing::DoAll(::testing::SaveArg<5>(&observers),
+                                 ::testing::Return(&rtp_video_sender_)));
+
+  VideoEncoderConfig encoder_config = TestVideoEncoderConfig();
+  encoder_config.simulcast_layers.push_back(VideoStream());  // total 2 layers
+  auto video_send_stream =
+      CreateVideoSendStreamImpl(std::move(encoder_config), &field_trials);
+
+  ASSERT_NE(observers.intra_frame_callback, nullptr);
+
+  // Trigger intra frame request on the first SSRC.
+  std::vector<VideoFrameType> expected_layers = {
+      VideoFrameType::kVideoFrameKey, VideoFrameType::kVideoFrameDelta};
+  EXPECT_CALL(*video_stream_encoder_, SendKeyFrame(expected_layers)).Times(1);
+
+  observers.intra_frame_callback->OnReceivedIntraFrameRequest(1111);
+}
+
+TEST_F(VideoSendStreamImplTest,
+       GeneratesKeyframesOnAllStreamsWhenFeatureDisabled) {
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-Video-PerSsrcKeyframes/Disabled/");
+
+  // Set up 2 SSRC/layers.
+  config_.rtp.ssrcs.clear();
+  config_.rtp.ssrcs.push_back(1111);
+  config_.rtp.ssrcs.push_back(2222);
+
+  RtpSenderObservers observers;
+  EXPECT_CALL(transport_controller_, CreateRtpVideoSender)
+      .WillOnce(::testing::DoAll(::testing::SaveArg<5>(&observers),
+                                 ::testing::Return(&rtp_video_sender_)));
+
+  VideoEncoderConfig encoder_config = TestVideoEncoderConfig();
+  encoder_config.simulcast_layers.push_back(VideoStream());  // total 2 layers
+  auto video_send_stream =
+      CreateVideoSendStreamImpl(std::move(encoder_config), &field_trials);
+
+  ASSERT_NE(observers.intra_frame_callback, nullptr);
+
+  // Trigger intra frame request on the first SSRC.
+  EXPECT_CALL(*video_stream_encoder_, SendKeyFrame(::testing::IsEmpty()))
+      .Times(1);
+
+  observers.intra_frame_callback->OnReceivedIntraFrameRequest(1111);
 }
 
 }  // namespace internal

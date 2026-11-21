@@ -73,14 +73,14 @@ GpuFence::FenceStatus GpuFence::GetStatusChangeTime(int fd,
     return FenceStatus::kInvalid;
   }
 
-  // Not signalled yet.
-  if (info->status != 1) {
-    return FenceStatus::kNotSignaled;
-  }
-
   if (info->status < 0) {
     LOG(ERROR) << "sync_(file|fence)_info status error for fd : " << fd;
     return FenceStatus::kInvalid;
+  }
+
+  // Not signalled yet.
+  if (info->status != 1) {
+    return FenceStatus::kNotSignaled;
   }
 
   uint64_t timestamp_ns = 0u;

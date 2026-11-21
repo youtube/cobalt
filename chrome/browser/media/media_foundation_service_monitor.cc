@@ -290,8 +290,8 @@ bool MediaFoundationServiceMonitor::IsHardwareSecureDecryptionAllowedForSite(
   // multiple sites report different result. However, only the first visited
   // site will record UMA until the browser session restarts.
   if (!allow_per_site_uma_logged) {
-    base::UmaHistogramBoolean(
-        "Media.EME.Widevine.HardwareSecure.AllowedForSite", result);
+    base::UmaHistogramBoolean("Media.EME.HardwareSecure.AllowedForSite",
+                              result);
     allow_per_site_uma_logged = true;
   }
 

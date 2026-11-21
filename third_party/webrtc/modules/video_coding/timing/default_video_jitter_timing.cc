@@ -15,9 +15,9 @@
 
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
-#include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/timing/video_jitter_timing_interface.h"
 #include "modules/video_coding/timing/inter_frame_delay_variation_calculator.h"
 #include "modules/video_coding/timing/jitter_estimator.h"
 #include "modules/video_coding/timing/timestamp_extrapolator.h"
@@ -33,43 +33,45 @@ DefaultVideoJitterTiming::DefaultVideoJitterTiming(
     const FieldTrialsView& field_trials)
     : clock_(clock),
       ts_extrapolator_(clock_->CurrentTime(), field_trials),
-      jitter_estimator_(clock_, field_trials) {}
+      jitter_estimator_(clock_, field_trials),
+      update_on_every_frame_(
+          field_trials.IsDisabled("WebRTC-IncomingTimestampOnMarkerBitOnly")) {}
+
+DefaultVideoJitterTiming::~DefaultVideoJitterTiming() = default;
 
 void DefaultVideoJitterTiming::Reset() {
   ts_extrapolator_.Reset(clock_->CurrentTime());
   jitter_estimator_.Reset();
 }
 
-void DefaultVideoJitterTiming::OnCompleteTemporalUnit(uint32_t rtp_timestamp,
-                                                      Timestamp receive_time) {
-  ts_extrapolator_.Update(receive_time, rtp_timestamp);
+void DefaultVideoJitterTiming::OnCompleteFrame(const FrameInfo& info) {
+  if (!info.was_retransmitted &&
+      (update_on_every_frame_ || info.last_spatial_layer)) {
+    ts_extrapolator_.Update(info.time, info.rtp_timestamp);
+  }
 }
 
-std::optional<Timestamp> DefaultVideoJitterTiming::ExtrapolateLocalTime(
+std::optional<Timestamp> DefaultVideoJitterTiming::LocalTime(
     uint32_t rtp_timestamp) const {
   return ts_extrapolator_.ExtrapolateLocalTime(rtp_timestamp);
 }
 
 std::optional<TimeDelta> DefaultVideoJitterTiming::OnDecodableTemporalUnit(
-    uint32_t rtp_timestamp,
-    DataSize superframe_size,
-    Timestamp max_receive_time,
-    bool was_retransmitted) {
-  if (was_retransmitted) {
+    const TemporalUnitInfo& info) {
+  if (info.was_retransmitted) {
     jitter_estimator_.FrameNacked();
     return std::nullopt;
   }
   std::optional<TimeDelta> inter_frame_delay_variation =
-      ifdv_calculator_.Calculate(rtp_timestamp, max_receive_time);
+      ifdv_calculator_.Calculate(info.rtp_timestamp, info.time);
   if (inter_frame_delay_variation) {
-    jitter_estimator_.UpdateEstimate(*inter_frame_delay_variation,
-                                     superframe_size);
+    jitter_estimator_.UpdateEstimate(*inter_frame_delay_variation, info.size);
   }
   return jitter_estimator_.GetEstimate();
 }
 
-void DefaultVideoJitterTiming::UpdateRtt(TimeDelta rtt) {
-  jitter_estimator_.UpdateRtt(rtt);
+void DefaultVideoJitterTiming::OnNetworkUpdate(const NetworkInfo& info) {
+  jitter_estimator_.UpdateRtt(info.rtt);
 }
 
 }  // namespace webrtc

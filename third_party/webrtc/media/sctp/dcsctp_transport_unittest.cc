@@ -10,14 +10,19 @@
 
 #include "media/sctp/dcsctp_transport.h"
 
+#include <cstdint>
 #include <memory>
+#include <optional>
+#include <span>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "api/environment/environment.h"
 #include "api/priority.h"
 #include "api/rtc_error.h"
 #include "api/transport/data_channel_transport_interface.h"
+#include "api/transport/ecn_marking.h"
 #include "net/dcsctp/public/dcsctp_message.h"
 #include "net/dcsctp/public/dcsctp_options.h"
 #include "net/dcsctp/public/dcsctp_socket.h"
@@ -26,6 +31,8 @@
 #include "net/dcsctp/public/types.h"
 #include "p2p/dtls/fake_dtls_transport.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/network/received_packet.h"
+#include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
 #include "test/create_test_environment.h"
@@ -36,6 +43,7 @@
 using ::testing::_;
 using ::testing::ByMove;
 using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::NiceMock;
@@ -70,6 +78,19 @@ class MockDataChannelSink : public DataChannelSink {
 
 static_assert(!std::is_abstract_v<MockDataChannelSink>);
 
+// Exposes NotifyPacketReceived() to simulate a decrypted SCTP packet.
+class PacketInjectableFakeDtlsTransport : public FakeDtlsTransport {
+ public:
+  using FakeDtlsTransport::FakeDtlsTransport;
+
+  void InjectDecryptedPacket(std::span<const uint8_t> payload) {
+    NotifyPacketReceived(ReceivedIpPacket(payload, SocketAddress(),
+                                          /*arrival_time=*/std::nullopt,
+                                          EcnMarking::kNotEct,
+                                          ReceivedIpPacket::kDtlsDecrypted));
+  }
+};
+
 class Peer {
  public:
   Peer()
@@ -94,7 +115,7 @@ class Peer {
 
   SimulatedClock simulated_clock_;
   Environment env_;
-  FakeDtlsTransport fake_dtls_transport_;
+  PacketInjectableFakeDtlsTransport fake_dtls_transport_;
   dcsctp::MockDcSctpSocket* socket_;
   std::unique_ptr<DcSctpTransport> sctp_transport_;
   NiceMock<MockDataChannelSink> sink_;
@@ -320,5 +341,44 @@ TEST(DcSctpTransportTest, DropMessageWithUnknownPpid) {
   static_cast<dcsctp::DcSctpSocketCallbacks*>(peer_a.sctp_transport_.get())
       ->OnMessageReceived(
           dcsctp::DcSctpMessage(dcsctp::StreamID(1), dcsctp::PPID(1337), {0}));
+}
+
+// A SNAP packet received after the socket is created but before it connects
+// must be buffered and replayed on connect, not delivered to the closed socket.
+TEST(DcSctpTransportTest, BuffersPacketReceivedBeforeSnapConnect) {
+  test::RunLoop main_thread;
+  Peer peer_a;
+
+  const std::vector<uint8_t> kLocalInit = {1, 2, 3};
+  const std::vector<uint8_t> kRemoteInit = {4, 5, 6};
+  const std::vector<uint8_t> kEarlyPacket = {7, 8, 9, 10};
+
+  dcsctp::SocketState socket_state = dcsctp::SocketState::kClosed;
+  EXPECT_CALL(*peer_a.socket_, state)
+      .WillRepeatedly(ReturnPointee(&socket_state));
+
+  // The early packet must reach the socket only after it has connected.
+  {
+    InSequence seq;
+    EXPECT_CALL(*peer_a.socket_, ConnectWithConnectionToken)
+        .WillOnce([&](std::span<const uint8_t>, std::span<const uint8_t>) {
+          socket_state = dcsctp::SocketState::kConnected;
+          return true;
+        });
+    EXPECT_CALL(*peer_a.socket_, ReceivePacket(ElementsAreArray(kEarlyPacket)));
+  }
+
+  // Not writable yet: the socket is created but stays closed (not connected).
+  peer_a.sctp_transport_->Start({.local_port = 5000,
+                                 .remote_port = 5000,
+                                 .max_message_size = 256 * 1024,
+                                 .local_init = kLocalInit,
+                                 .remote_init = kRemoteInit});
+
+  // Arrives before connect: must be buffered.
+  peer_a.fake_dtls_transport_.InjectDecryptedPacket(kEarlyPacket);
+
+  // Becoming writable connects the socket and replays the buffered packet.
+  peer_a.fake_dtls_transport_.SetWritable(true);
 }
 }  // namespace webrtc

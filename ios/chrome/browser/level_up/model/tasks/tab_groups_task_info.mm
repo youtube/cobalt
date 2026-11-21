@@ -35,6 +35,9 @@ class TabGroupsTaskInfo : public TaskInfo {
   std::string GetTriggerUserAction() const override {
     return "MobileTabGroupUserCreatedNewGroup";
   }
+  std::string GetCompletionSnackbarMessage() const override {
+    return l10n_util::GetStringUTF8(IDS_IOS_LEVEL_UP_TASK_COMPLETED_TAB_GROUPS);
+  }
   TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::BindRepeating(^(CommandDispatcher* dispatcher) {
       id<SceneCommands> handler = HandlerForProtocol(dispatcher, SceneCommands);

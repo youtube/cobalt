@@ -218,4 +218,19 @@ std::ostream& operator<<(std::ostream& out,
   return out;
 }
 
+std::ostream& operator<<(std::ostream& out,
+                         const AgentClusterKey::OACStatus& status) {
+  switch (status) {
+    case AgentClusterKey::OACStatus::kOriginKeyedByHeader:
+      return out << "kOriginKeyedByHeader";
+    case AgentClusterKey::OACStatus::kSiteKeyedByHeader:
+      return out << "kSiteKeyedByHeader";
+    case AgentClusterKey::OACStatus::kOriginKeyedByDefault:
+      return out << "kOriginKeyedByDefault";
+    case AgentClusterKey::OACStatus::kSiteKeyedByDefault:
+      return out << "kSiteKeyedByDefault";
+  }
+  NOTREACHED();
+}
+
 }  // namespace content

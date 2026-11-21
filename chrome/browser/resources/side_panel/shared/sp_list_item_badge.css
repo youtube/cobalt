@@ -29,7 +29,7 @@
   font-weight: 400;
 }
 
-::slotted(iron-icon) {
+::slotted([icon]) {
   color: inherit;
   height: 12px;
   width: 12px;

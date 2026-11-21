@@ -208,6 +208,17 @@ public class ContextualTasksBridge implements ChromeAndroidTaskFeature {
         return ContextualTasksBridgeJni.get().isContextualTasksUrl(url);
     }
 
+    /**
+     * Returns whether the Contextual Tasks side panel is open for the given tab.
+     *
+     * @param tab The tab to check.
+     * @return True if the panel is open.
+     */
+    public static boolean isPanelOpen(@Nullable Tab tab) {
+        if (tab == null || tab.getWebContents() == null) return false;
+        return ContextualTasksBridgeJni.get().isPanelOpen(tab.getWebContents());
+    }
+
     @NativeMethods
     public interface Natives {
         long init(
@@ -226,5 +237,7 @@ public class ContextualTasksBridge implements ChromeAndroidTaskFeature {
         String getTaskIdForTab(@JniType("content::WebContents*") WebContents webContents);
 
         boolean isContextualTasksUrl(@JniType("GURL") GURL url);
+
+        boolean isPanelOpen(@JniType("content::WebContents*") WebContents webContents);
     }
 }

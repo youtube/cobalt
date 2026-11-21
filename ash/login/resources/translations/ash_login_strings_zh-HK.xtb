@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">您也可以嘗試<ph name="GUEST_SIGNIN_LINK_START" />以訪客身分瀏覽<ph name="GUEST_SIGNIN_LINK_END" />，藉此修正網絡問題。</translation>
 <translation id="1201402288615127009">下一個</translation>
 <translation id="1222835797152767346">設定 PIN 可簡化登入程序</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />偵錯功能<ph name="END_H3" />
+          <ph name="BR" />
+          你可在 ChromeOS 裝置上啟用偵錯功能，以在裝置上安裝及測試自訂程式碼。這項功能可讓你：<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />移除 rootfs 驗證，以修改 OS 檔案
+            <ph name="LIST_ITEM" />透過標準測試密鑰啟用 SSH 對裝置的存取權，以使用<ph name="BEGIN_CODE" />「cros flash」<ph name="END_CODE" />之類的工具存取裝置
+            <ph name="LIST_ITEM" />啟用 USB 開機功能，以透過 USB 磁碟安裝 OS 映像
+            <ph name="LIST_ITEM" />同時將開發人員和系統 Root 登入密碼設定為一組自訂值，以手動透過 SSH 連線存取裝置
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          該功能啟用後，即使你對企業受管理的裝置執行回復原廠設定或清除其中的資料，大部分偵錯功能仍會維持啟用狀態。如要徹底停用所有偵錯功能，請完成 ChromeOS 復原程序 (https://support.google.com/chromebook/answer/1080595)。
+          <ph name="BR" />
+          <ph name="BR" />
+          如需進一步瞭解偵錯功能，請參閱：<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />注意：<ph name="END_BOLD" />系統會在程序中途重新啟動。</translation>
 <translation id="1347625331607114917">驗證 Android 手機上的 QR 碼</translation>
 <translation id="1347975661240122359">在電量達到 <ph name="BATTERY_LEVEL" />% 後便會開始更新。</translation>
 <translation id="1375938286942050085">設定完成！下一步只需裝置即可玩遊戲</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">正在下載應用程式</translation>
 <translation id="5045550434625856497">密碼不正確</translation>
 <translation id="5062930723426326933">無法登入，請重新連線至互聯網，然後再試一次。</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />與 Gemini 對話，開始使用 Google AI 寫作、計劃、學習及執行其他工作。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />設定完成後，在畫面底部的捷徑列上選取 Gemini 應用程式，即可開始使用 Gemini。<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">請將 <ph name="DEVICE_TYPE" /> 接駁電源。</translation>
 <translation id="5147516217412920887">按照手機上的指示輸入驗證碼</translation>
 <translation id="5160857336552977725">登入您的 <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />偵錯功能<ph name="END_H3" />
+          <ph name="BR" />
+          你可在 ChromeOS Flex 裝置上啟用偵錯功能，以在裝置上安裝及測試自訂程式碼。這項功能可讓你：<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />移除 rootfs 驗證，以修改 OS 檔案
+            <ph name="LIST_ITEM" />透過標準測試密鑰啟用 SSH 對裝置的存取權，以使用<ph name="BEGIN_CODE" />「cros flash」<ph name="END_CODE" />之類的工具存取裝置
+            <ph name="LIST_ITEM" />啟用 USB 開機功能，以透過 USB 磁碟安裝 OS 映像
+            <ph name="LIST_ITEM" />同時將開發人員和系統 Root 登入密碼設定為一組自訂值，以手動透過 SSH 連線存取裝置
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          該功能啟用後，即使你對企業受管理的裝置執行回復原廠設定或清除其中的資料，大部分偵錯功能仍會維持啟用狀態。如要徹底停用所有偵錯功能，請完成 ChromeOS 復原程序 (https://support.google.com/chromebook/answer/1080595)。
+          <ph name="BR" />
+          <ph name="BR" />
+          如需進一步瞭解偵錯功能，請參閱：<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />注意：<ph name="END_BOLD" />系統會在程序中途重新啟動。</translation>
 <translation id="523505283826916779">協助工具設定</translation>
 <translation id="5240931875940563122">透過 Android 手機登入</translation>
 <translation id="5255859108402770436">重新登入</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">您即將啟用 Chrome OS 偵錯功能；啟用後，系統會設定 sshd 協助程式，並啟用 USB 磁碟開機功能。</translation>
 <translation id="6965382102122355670">確定</translation>
 <translation id="6981982820502123353">協助工具</translation>
+<translation id="6984652455487792101">如果你使用 Proxy 伺服器，請檢查你的 Proxy 設定或與網絡管理員聯絡，確認 Proxy 伺服器是否運作正常。如果你認為不需要使用 Proxy 伺服器，請調整你的 <ph name="LINK_START" />Proxy 設定<ph name="LINK_END" />。</translation>
 <translation id="6996245928508281884">請開啟手機的藍牙和 Wi-Fi</translation>
 <translation id="7077829361966535409">無法使用目前的 Proxy 設定載入登入頁面。請<ph name="GAIA_RELOAD_LINK_START" />重新登入<ph name="GAIA_RELOAD_LINK_END" />或使用其他<ph name="PROXY_SETTINGS_LINK_START" />Proxy 設定<ph name="PROXY_SETTINGS_LINK_END" />。</translation>
 <translation id="7114054701490058191">密碼不符</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">確認密碼</translation>
 <translation id="7352651011704765696">發生問題</translation>
 <translation id="7476454130948140105">電量過低，無法更新 (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />在註冊裝置前，你需要清除 TPM，<ph name="DEVICE_OS" /> 才能取得裝置的擁有權。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />你亦可完全關閉 TPM 裝置。系統仍會透過軟件加密功能安全儲存你的資料，但會停用硬件支援憑證等特定安全功能。<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />如要變更 TPM 設定，請重新啟動並進入系統的 BIOS/UEFI 設定。操作步驟根據裝置型號而有所不同。如需更多資料，請在重新啟動前使用其他裝置開啟 <ph name="DEVICE_OS" /> 文件：g.co/flex/TPMHelp。<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">在這部 <ph name="IDS_SHORT_PRODUCT_NAME" /> 裝置上啟用偵錯功能</translation>
 <translation id="7553242001898162573">輸入您的密碼</translation>
 <translation id="7556242789364317684">很抱歉，<ph name="SHORT_PRODUCT_NAME" /> 無法復原您的設定。如要修正錯誤，<ph name="SHORT_PRODUCT_NAME" /> 必須透過 Powerwash 重設您的裝置。</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">從 Android 手機傳輸 Google 帳戶資料</translation>
 <translation id="8524841856047224176">為視像電話等場合個人化攝錄機背景</translation>
 <translation id="8569673829373920831">進一步了解 <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">按照手機上的指示掃瞄二維碼。請確保手機的藍牙功能已開啟。
+        <ph name="BR" />
+        <ph name="BR" />
+        向附近的裝置顯示為「<ph name="QUICK_START_DEVICE_DISPLAY_NAME" />」…</translation>
 <translation id="8655972064210167941">系統無法驗證您的密碼，導致登入失敗。請與您的管理員聯絡或再試一次。</translation>
 <translation id="8674903726754070732">抱歉，您的電腦是由格式錯誤的硬件 ID 所設定。這導致 Chrome OS 無法使用最新的安全性修正程式進行更新，您的電腦也可能<ph name="BEGIN_BOLD" />容易被惡意攻擊<ph name="END_BOLD" />。</translation>
 <translation id="8695139659682234808">設定完成後新增家長監控設定</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">無法以目前的 Proxy 設定啟動更新檢查，請調整<ph name="PROXY_SETTINGS_LINK_START" />Proxy 設定<ph name="PROXY_SETTINGS_LINK_END" />。</translation>
 <translation id="885746075120788020">使用 Google 帳戶登入後，就能將已儲存的偏好設定和活動同步至任何 Chrome OS 裝置。您可在「設定」中選擇要同步處理的資料。</translation>
 <translation id="8875221558267407626">撮要內容、簡化複雜用語或提問</translation>
+<translation id="8913163265790894442">使用手機輕鬆設定 <ph name="DEVICE_TYPE" />。你可新增 Wi-Fi 和 Google 帳戶，無需手動輸入密碼。
+        <ph name="BR" />
+        <ph name="BR" />
+        顯示為 <ph name="DEVICE_TYPE" /></translation>
 <translation id="8946359700442089734">這部 <ph name="IDS_SHORT_PRODUCT_NAME" /> 裝置未完全啟用偵錯功能。</translation>
 <translation id="8965037249707889821">輸入舊密碼</translation>
 <translation id="8975396729541388937">在收到的電郵中按一下連結，即可隨時取消訂閱。</translation>
 <translation id="9033765790910064284">仍要繼續</translation>
 <translation id="903480517321259405">重新輸入 PIN</translation>
 <translation id="9076523132036239772">抱歉，系統無法驗證您的電郵或密碼，請先連線至網絡。</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" /><ph name="DEVICE_TYPE" /> 專用。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />生成式 AI 是實驗版功能，仍在初期開發階段，目前僅供部分使用者使用。<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">使用手機輕鬆設定 <ph name="DEVICE_TYPE" />。你可新增 Google 帳戶，無需手動輸入密碼。
+        <ph name="BR" />
+        <ph name="BR" />
+        顯示為 <ph name="DEVICE_TYPE" /></translation>
 </translationbundle>

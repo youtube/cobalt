@@ -16,7 +16,6 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
 #include "ui/base/buildflags.h"
-#include "ui/views/bubble/bubble_dialog_model_host.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/test/ax_event_counter.h"
 #include "ui/views/view.h"

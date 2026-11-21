@@ -1,0 +1,107 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//extensions/buildflags/buildflags.gni")
+
+assert(enable_extensions,
+       "Cannot depend on extensions because enable_extensions=false.")
+
+source_set("passwords_private") {
+  sources = [
+    "password_access_auth_timeout_handler.cc",
+    "password_access_auth_timeout_handler.h",
+    "password_check_delegate.cc",
+    "password_check_delegate.h",
+    "passwords_private_api.cc",
+    "passwords_private_api.h",
+    "passwords_private_delegate.h",
+    "passwords_private_delegate_factory.cc",
+    "passwords_private_delegate_factory.h",
+    "passwords_private_delegate_impl.cc",
+    "passwords_private_delegate_impl.h",
+    "passwords_private_event_router.h",
+    "passwords_private_event_router_factory.cc",
+    "passwords_private_event_router_factory.h",
+    "passwords_private_event_router_impl.cc",
+    "passwords_private_event_router_impl.h",
+    "passwords_private_utils.cc",
+    "passwords_private_utils.h",
+  ]
+
+  if (is_chromeos) {
+    sources += [
+      "passwords_private_utils_chromeos.cc",
+      "passwords_private_utils_chromeos.h",
+    ]
+  }
+
+  deps = [
+    "//base",
+    "//chrome/app:branded_strings",
+    "//chrome/app:generated_resources",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:primitives",
+    "//chrome/browser/affiliations",
+    "//chrome/browser/device_reauth",
+    "//chrome/browser/extensions",
+    "//chrome/browser/password_manager",
+    "//chrome/browser/password_manager/factories",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
+    "//chrome/browser/sync",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/hats",
+    "//chrome/browser/ui/passwords/settings",
+    "//chrome/browser/ui/user_education",
+    "//chrome/browser/ui/web_applications",
+    "//chrome/browser/web_applications",
+    "//chrome/browser/webauthn",
+    "//chrome/common/extensions/api",
+    "//components/device_reauth",
+    "//components/keyed_service/core",
+    "//components/password_manager/core/browser",
+    "//components/password_manager/core/browser/export",
+    "//components/password_manager/core/browser/features:password_features",
+    "//components/password_manager/core/browser/form_parsing",
+    "//components/password_manager/core/browser/import:importer",
+    "//components/password_manager/core/browser/leak_detection",
+    "//components/password_manager/core/browser/sharing",
+    "//components/sync/service",
+    "//components/user_prefs",
+    "//content/public/browser",
+    "//extensions/browser",
+  ]
+
+  if (is_chromeos) {
+    deps += [
+      "//chrome/browser/ash/login/quick_unlock",
+      "//chrome/browser/ash/profiles",
+      "//chromeos/ash/components/login/auth",
+      "//components/user_manager",
+    ]
+  }
+}
+
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "mock_passwords_private_delegate.cc",
+    "mock_passwords_private_delegate.h",
+    "mock_passwords_private_event_router.cc",
+    "mock_passwords_private_event_router.h",
+    "test_passwords_private_delegate.cc",
+    "test_passwords_private_delegate.h",
+  ]
+  deps = [
+    ":passwords_private",
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//chrome/common/extensions/api",
+    "//components/password_manager/core/browser",
+    "//content/public/browser",
+    "//testing/gmock",
+    "//ui/base",
+    "//url",
+  ]
+}

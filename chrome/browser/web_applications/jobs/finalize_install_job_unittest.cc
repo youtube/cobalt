@@ -21,11 +21,11 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
+#include "chrome/browser/web_applications/model/isolation_data.h"
 #include "chrome/browser/web_applications/model/migration_behavior.h"
 #include "chrome/browser/web_applications/model/migration_source.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
@@ -495,8 +495,7 @@ TEST_P(FinalizeInstallJobTestIwaUpdateManifest, IsolationDataSetInWebAppDB) {
                           : webapps::WebappInstallSource::IWA_EXTERNAL_POLICY;
   FinalizeJobOptions options(install_source);
 
-  auto integrity_block_data =
-      IsolatedWebAppIntegrityBlockData(test::CreateSignatures());
+  auto integrity_block_data = IntegrityBlockData(test::CreateSignatures());
   options.iwa_options =
       FinalizeJobOptions::IwaOptions(location, integrity_block_data);
 

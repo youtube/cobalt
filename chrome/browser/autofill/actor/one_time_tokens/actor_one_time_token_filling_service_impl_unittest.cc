@@ -17,6 +17,7 @@
 #include "base/time/time.h"
 #include "base/types/expected.h"
 #include "chrome/browser/autofill/actor/actor_test_utils.h"
+#include "chrome/browser/autofill/actor/one_time_tokens/actor_login_context.h"
 #include "chrome/browser/autofill/one_time_token_service_factory.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -311,6 +312,40 @@ TEST_F(ActorOneTimeTokenFillingServiceImplTest, FillOtp_NoOtpFieldsInForm) {
                     future.GetCallback());
 
   EXPECT_TRUE(future.Get());
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, OnPasswordFillingStarted) {
+  url::Origin test_origin = url::Origin::Create(GURL("https://example.com"));
+  std::vector<int> target_global_frame_ids = {123, 456};
+
+  service().OnPasswordFillingStarted(tab().GetHandle(), test_origin,
+                                     /*should_use_strong_matching=*/true,
+                                     target_global_frame_ids);
+
+  std::optional<ActorLoginContext> context = service().ConsumeLoginContext();
+  ASSERT_TRUE(context.has_value());
+  EXPECT_EQ(context->origin, test_origin);
+  EXPECT_TRUE(context->should_use_strong_matching);
+  EXPECT_EQ(context->navigations_per_frame.size(), 3u);
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, ConsumeLoginContext) {
+  url::Origin test_origin = url::Origin::Create(GURL("https://example.com"));
+  service().OnPasswordFillingStarted(tab().GetHandle(), test_origin,
+                                     /*should_use_strong_matching=*/true,
+                                     /*global_frame_ids=*/{123});
+
+  EXPECT_TRUE(service().ConsumeLoginContext().has_value());
+  EXPECT_FALSE(service().ConsumeLoginContext().has_value());
+}
+
+TEST_F(ActorOneTimeTokenFillingServiceImplTest, AbortLoginTracking) {
+  url::Origin test_origin = url::Origin::Create(GURL("https://example.com"));
+  service().OnPasswordFillingStarted(tab().GetHandle(), test_origin,
+                                     /*should_use_strong_matching=*/false,
+                                     /*global_frame_ids=*/{});
+  service().AbortLoginTracking();
+  EXPECT_FALSE(service().ConsumeLoginContext().has_value());
 }
 
 }  // namespace

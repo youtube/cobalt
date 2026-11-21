@@ -1,0 +1,20 @@
+description: Verify the experimental-code-coverage-installer skill correctly verifies the workspace setup.
+owner: aadarshb@
+prompts:
+  - "{{query}}"
+providers:
+  - id: python:../../../testing/gemini_provider.py
+    config:
+      timeoutSeconds: 300
+      extensions: []
+      skills:
+        - experimental-code-coverage-installer
+tests:
+  - vars:
+      query: "Verify that all code coverage related dependencies and code repositories are checked out on disk using the experimental-code-coverage-installer skill."
+    assert:
+      - type: contains
+        value: "successfully verified and initialized"
+    metadata:
+      pass_k_threshold: 1
+      runs_per_test: 3

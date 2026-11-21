@@ -170,6 +170,7 @@
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/browser/renderer_host/text_input_manager.h"
+#include "content/browser/renderer_host/unbounded_surface_window.h"
 #include "content/browser/renderer_host/view_transition_opt_in_state.h"
 #include "content/browser/sandboxed_opaque_origin_creator.h"
 #include "content/browser/scoped_active_url.h"
@@ -1192,7 +1193,7 @@ bool IsDocumentLoadedWithoutUrlLoaderClient(
          // Initial WebUI navigations loads the body internally within the
          // renderer process, so there is no need to create and send
          // URLLoaderClient from the browser process.
-         navigation_request->IsInitialWebUISyncNavigation();
+         navigation_request->IsInitialWebUINavigation();
 }
 
 std::vector<GURL> GetTargetUrlsOfBoostRenderProcessForLoading() {
@@ -2633,8 +2634,7 @@ RenderFrameHostImpl::RenderFrameHostImpl(
           /*consumer_name=*/"RenderFrameHostImpl",
           /*traits=*/std::nullopt,  // TODO(crbug.com/489671163): Fill traits.
           this,
-          base::MemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::MemoryConsumerRegistration::CheckRegistryExists::kDisabled) {
+          base::MemoryConsumerRegistration::CheckUnregister::kDisabled) {
   TRACE_EVENT("navigation", "RenderFrameHostImpl::RenderFrameHostImpl",
               perfetto::Flow::FromPointer(this));
   base::trace_event::TraceSessionObserverList::AddObserver(this);
@@ -2769,22 +2769,18 @@ RenderFrameHostImpl::RenderFrameHostImpl(
 
   SiteInstanceGroupId sig_id = site_instance_->group()->GetId();
   bool rfh_in_bfcache =
-      frame_tree->controller()
-          .GetBackForwardCache()
+      GetBackForwardCache()
           .IsRenderFrameHostWithSIGInBackForwardCacheForDebugging(sig_id);
   bool rfph_in_bfcache =
-      frame_tree->controller()
-          .GetBackForwardCache()
+      GetBackForwardCache()
           .IsRenderFrameProxyHostWithSIGInBackForwardCacheForDebugging(sig_id);
   bool rvh_in_bfcache =
-      frame_tree->controller()
-          .GetBackForwardCache()
+      GetBackForwardCache()
           .IsRenderViewHostWithMapIdInBackForwardCacheForDebugging(
               *render_view_host_);
   bool related_site_instance_in_bfcache =
-      frame_tree->controller()
-          .GetBackForwardCache()
-          .IsRelatedSiteInstanceInBackForwardCacheForDebugging(*site_instance_);
+      GetBackForwardCache().IsRelatedSiteInstanceInBackForwardCacheForDebugging(
+          *site_instance_);
   if (rfh_in_bfcache || rfph_in_bfcache || rvh_in_bfcache ||
       related_site_instance_in_bfcache) {
     SCOPED_CRASH_KEY_BOOL("rvh-double", "rfh_in_bfcache", rfh_in_bfcache);
@@ -5102,7 +5098,8 @@ void RenderFrameHostImpl::SetCrossOriginOpenerPolicyReporter(
 }
 
 bool RenderFrameHostImpl::IsCredentialless() const {
-  return policy_container_host_->policies().is_credentialless;
+  return policy_container_host_ &&
+         policy_container_host_->policies().is_credentialless;
 }
 
 bool RenderFrameHostImpl::IsLastCrossDocumentNavigationStartedByUser() const {
@@ -7555,7 +7552,9 @@ float RenderFrameHostImpl::GetPageScaleFactor() const {
 }
 
 void RenderFrameHostImpl::ScaleFactorChanged(float scale) {
-  CHECK(!GetParent());
+  // TODO(526685428): CHECK-exclusion: Convert to a CHECK once we are confident
+  // it won't be triggered.
+  DCHECK(!GetParent());
   page_scale_factor_ = scale;
   delegate_->OnPageScaleFactorChanged(GetPage());
 }
@@ -9659,12 +9658,15 @@ void RenderFrameHostImpl::UpdateUserActivationState(
 }
 
 void RenderFrameHostImpl::DidConsumeHistoryUserActivation() {
-  // owner_ may be null for IsPendingDeletion() or IsInBackForwardCache(), in
-  // which case the history user activation is managed by a different active
-  // RenderFrameHost.
-  if (owner_) {
-    owner_->DidConsumeHistoryUserActivation();
+  // This IPC is only sent from an active document, but might be received after
+  // the transition to the backforward cache or after entering pending
+  // deletion. It must be ignored as it would affect the state of the primary
+  // page instead of the old one.
+  if (lifecycle_state() != LifecycleStateImpl::kActive) {
+    return;
   }
+  CHECK(owner_);  // See `owner_` invariants about `lifecycle_state_`.
+  owner_->DidConsumeHistoryUserActivation();
 }
 
 void RenderFrameHostImpl::HadStickyUserActivationBeforeNavigationChanged(
@@ -10483,9 +10485,16 @@ void RenderFrameHostImpl::CreateNewWindow(
 
   // The non-owning pointer |new_frame_tree| is valid in this stack frame at
   // least until the call to ShowCreatedWindow() below.
+  base::WeakPtr<RenderFrameHostImpl> weak_self = GetWeakPtr();
   FrameTree* new_frame_tree =
       delegate_->CreateNewWindow(this, *params, is_new_browsing_instance,
                                  was_consumed, cloned_namespace.get());
+  if (!weak_self) {
+    // This RFH may be deleted after CreateNewWindow() due to a nested message
+    // loop (e.g. showing the new window closes the window hosting `this`). See
+    // crbug.com/527676561.
+    return;
+  }
 
   transient_allow_popup_.Deactivate();
 
@@ -11358,6 +11367,13 @@ void RenderFrameHostImpl::RequestUnboundedSurface(
     return;
   }
   if (auto* root_view = GetUnboundedSurfaceRootView()) {
+    // If an unbounded surface is already active, synchronously destroy it
+    // first to enforce that only one is active per window.
+    if (root_view->HasActiveUnboundedSurface()) {
+      root_view->DestroyUnboundedSurface(
+          root_view->GetUnboundedSurfaceWindow()->GetWeakPtr());
+    }
+    CHECK(!root_view->HasActiveUnboundedSurface());
     root_view->CreateUnboundedSurface(std::move(host), std::move(client),
                                       bounds);
   }
@@ -14867,6 +14883,11 @@ void RenderFrameHostImpl::CreateWebTransportConnector(
 
 void RenderFrameHostImpl::CreateNotificationService(
     mojo::PendingReceiver<blink::mojom::NotificationService> receiver) {
+  if (GetSiteInstance()->GetSiteInfo().is_pdf()) {
+    mojo::ReportBadMessage(
+        "PDF renderers may not bind blink.mojom.NotificationService");
+    return;
+  }
   GetProcess()->CreateNotificationService(
       GetGlobalId(),
       RenderProcessHost::NotificationServiceCreatorType::kDocument,
@@ -15223,6 +15244,17 @@ void RenderFrameHostImpl::CreatePermissionService(
 void RenderFrameHostImpl::GetWebAuthenticationService(
     mojo::PendingReceiver<blink::mojom::Authenticator> receiver) {
   if (!IsActive()) {
+    return;
+  }
+
+  // PDF renderer processes are not permitted to access password/passkey-class
+  // data for any origin (see
+  // ChildProcessSecurityPolicyImpl::IsAccessAllowedForPdfProcess). Refuse to
+  // bind blink.mojom.Authenticator for them, mirroring the gate already present
+  // for blink.mojom.PasswordManagerDriver.
+  if (GetProcess()->IsPdf()) {
+    bad_message::ReceivedBadMessage(
+        GetProcess(), bad_message::RFH_AUTHENTICATOR_PDF_PROCESS_BLOCKED);
     return;
   }
 
@@ -18620,10 +18652,7 @@ void RenderFrameHostImpl::
 }
 
 BackForwardCacheImpl& RenderFrameHostImpl::GetBackForwardCache() {
-  return GetOutermostMainFrame()
-      ->frame_tree()
-      ->controller()
-      .GetBackForwardCache();
+  return delegate_->GetBackForwardCache();
 }
 
 FrameTreeNode* RenderFrameHostImpl::GetFrameTreeNodeForUnload() {
@@ -18784,11 +18813,14 @@ void RenderFrameHostImpl::LogCannotCommitOriginCrashKeys(
 
 void RenderFrameHostImpl::EnableMojoJsBindings(
     content::mojom::ExtraMojoJsFeaturesPtr features) {
-  // This method should only be called on RenderFrameHost which is for a WebUI.
-  CHECK_NE(WebUI::kNoWebUI,
-           WebUIControllerFactoryRegistry::GetInstance()->GetWebUIType(
-               GetSiteInstance()->GetBrowserContext(),
-               site_instance_->GetSiteInfo().site_url()));
+  // This method should only be called on RenderFrameHost which is for a WebUI
+  // or custom URLs allowlisted by the embedder.
+  CHECK(WebUIControllerFactoryRegistry::GetInstance()->GetWebUIType(
+            GetSiteInstance()->GetBrowserContext(),
+            site_instance_->GetSiteInfo().site_url()) != WebUI::kNoWebUI ||
+        GetContentClient()->browser()->ShouldAllowMojoJsBindingsForSite(
+            GetSiteInstance()->GetBrowserContext(),
+            site_instance_->GetSiteInfo().site_url()));
 
   GetFrameBindingsControl()->EnableMojoJsBindings(std::move(features));
 }
@@ -20116,10 +20148,61 @@ RenderFrameHostImpl::GetCrossOriginEmbedderPolicy() const {
   return cross_origin_embedder_policy();
 }
 
+const network::ConnectionAllowlists&
+RenderFrameHostImpl::GetConnectionAllowlists() const {
+  CHECK(HasPolicyContainerHost());
+  return policy_container_host_->connection_allowlists();
+}
+
 void RenderFrameHostImpl::GetBoundInterfacesForTesting(
     std::vector<std::string>& out) {
   broker_holder_->broker().GetBinderMapInterfacesForTesting(  // IN-TEST
       out);
+}
+
+std::optional<base::flat_map<blink::mojom::PermissionName,
+                             blink::mojom::PermissionStatus>>
+RenderFrameHostImpl::GetCachedPermissionStatuses() {
+  using blink::PermissionType;
+  using blink::mojom::PermissionName;
+  static constexpr auto kPermissions =
+      std::to_array<std::pair<PermissionName, PermissionType>>(
+          {{PermissionName::VIDEO_CAPTURE, PermissionType::VIDEO_CAPTURE},
+           {PermissionName::AUDIO_CAPTURE, PermissionType::AUDIO_CAPTURE},
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+           // `WEB_APP_INSTALLATION` is only registered for desktop platforms
+           // via `WebsiteSettingsRegistry::DESKTOP`.
+           {PermissionName::WEB_APP_INSTALLATION,
+            PermissionType::WEB_APP_INSTALLATION},
+#endif
+           {PermissionName::GEOLOCATION, PermissionType::GEOLOCATION}});
+
+  base::flat_map<PermissionName, PermissionStatus> permission_map;
+  for (const auto& permission : kPermissions) {
+    PermissionStatus status = GetCombinedPermissionStatus(permission.second);
+    // Default value is ASK, we don't need add the permission status in this
+    // case.
+    if (status != PermissionStatus::ASK) {
+      permission_map.emplace(permission.first, status);
+    }
+  }
+
+  return permission_map;
+}
+
+blink::mojom::PermissionStatus RenderFrameHostImpl::GetCombinedPermissionStatus(
+    blink::PermissionType permission_type) {
+  auto descriptor = content::PermissionDescriptorUtil::
+      CreatePermissionDescriptorForPermissionType(permission_type);
+  if (PermissionUtil::IsDevicePermission(descriptor)) {
+    return GetBrowserContext()
+        ->GetPermissionController()
+        ->GetCombinedPermissionAndDeviceStatus(descriptor, this);
+  }
+  return GetBrowserContext()
+      ->GetPermissionController()
+      ->GetPermissionResultForCurrentDocument(descriptor, this)
+      .status;
 }
 
 media::PictureInPictureEventsInfo::AutoPipReasonCallback

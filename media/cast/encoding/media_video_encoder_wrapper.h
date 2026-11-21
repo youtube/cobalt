@@ -46,7 +46,7 @@ class MediaVideoEncoderWrapper final : public media::cast::VideoEncoder {
   bool EncodeVideoFrame(scoped_refptr<VideoFrame> video_frame,
                         base::TimeTicks reference_time,
                         FrameEncodedCallback frame_encoded_callback) final;
-  void SetBitRate(int new_bit_rate) final;
+  void SetBitRate(uint32_t new_bit_rate) final;
   void GenerateKeyFrame() final;
 
   // media::VideoEncoder callbacks.

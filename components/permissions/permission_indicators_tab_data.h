@@ -16,8 +16,8 @@ enum class RequestTypeForUma;
 
 class PermissionIndicatorsTabData : public content::WebContentsObserver {
  public:
-  // LHS indicators type. Currently only camera and mic are supported.
-  enum class IndicatorsType { kMediaStream };
+  // LHS indicators type. Currently camera, mic and sensors are supported.
+  enum class IndicatorsType { kMediaStream, kSensors };
 
   explicit PermissionIndicatorsTabData(content::WebContents* web_contents);
 

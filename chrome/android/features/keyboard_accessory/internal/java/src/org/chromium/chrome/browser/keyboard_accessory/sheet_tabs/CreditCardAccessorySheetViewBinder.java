@@ -218,6 +218,6 @@ class CreditCardAccessorySheetViewBinder {
                         : resourceProvider.getBnplIssuerDrawableId(
                                 /* issuerId= */ origin, /* isLinked= */ true);
         }
-        return R.drawable.infobar_autofill_cc;
+        return R.drawable.ic_autofill_cc;
     }
 }

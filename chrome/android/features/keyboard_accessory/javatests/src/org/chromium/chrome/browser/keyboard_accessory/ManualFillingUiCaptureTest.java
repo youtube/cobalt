@@ -11,7 +11,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
 import static org.chromium.base.test.util.ScalableTimeout.scaleTimeout;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.scrollToLastElement;
-import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.selectTabAtPosition;
+import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.selectTabWithDescription;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.whenDisplayed;
 
 import androidx.test.filters.MediumTest;
@@ -82,7 +82,8 @@ public class ManualFillingUiCaptureTest {
                         scrollTo(isAssignableFrom(KeyboardAccessoryButtonGroupView.class)),
                         actionOnItem(
                                 isAssignableFrom(KeyboardAccessoryButtonGroupView.class),
-                                selectTabAtPosition(0)));
+                                selectTabWithDescription(
+                                        R.string.password_accessory_sheet_toggle)));
 
         waitForSuggestionsInSheet();
         waitForUnrelatedChromeUi();
@@ -114,7 +115,8 @@ public class ManualFillingUiCaptureTest {
                         scrollTo(isAssignableFrom(KeyboardAccessoryButtonGroupView.class)),
                         actionOnItem(
                                 isAssignableFrom(KeyboardAccessoryButtonGroupView.class),
-                                selectTabAtPosition(0)));
+                                selectTabWithDescription(
+                                        R.string.password_accessory_sheet_toggle)));
 
         waitForSuggestionsInSheet();
         waitForUnrelatedChromeUi();

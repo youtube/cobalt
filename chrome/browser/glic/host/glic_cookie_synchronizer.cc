@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/feature.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -35,6 +36,7 @@
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "net/cookies/cookie_util.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
+#include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -61,17 +63,27 @@ class GlicCookieSynchronizer::ClearCookiesTask {
   ClearCookiesTask(content::StoragePartition* storage_partition,
                    base::OnceClosure callback)
       : callback_(std::move(callback)) {
-    network::mojom::CookieManager* cookie_manager =
-        storage_partition->GetCookieManagerForBrowserProcess();
+    if (base::FeatureList::IsEnabled(
+            features::kGlicClearDeviceBoundSessionsOnFirstSync)) {
+      storage_partition->ClearData(
+          (content::StoragePartition::REMOVE_DATA_MASK_COOKIES |
+           content::StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS),
+          blink::StorageKey(), base::Time(), base::Time::Max(),
+          base::BindOnce(&ClearCookiesTask::DeleteDone,
+                         weak_ptr_factory_.GetWeakPtr()));
+    } else {
+      network::mojom::CookieManager* cookie_manager =
+          storage_partition->GetCookieManagerForBrowserProcess();
 
-    cookie_manager->DeleteCookies(
-        network::mojom::CookieDeletionFilter::New(),
-        base::BindOnce(&ClearCookiesTask::DeleteDone,
-                       weak_ptr_factory_.GetWeakPtr()));
+      cookie_manager->DeleteCookies(
+          network::mojom::CookieDeletionFilter::New(),
+          base::IgnoreArgs<uint32_t>(base::BindOnce(
+              &ClearCookiesTask::DeleteDone, weak_ptr_factory_.GetWeakPtr())));
+    }
   }
 
  private:
-  void DeleteDone(uint32_t num_deleted) { std::move(callback_).Run(); }
+  void DeleteDone() { std::move(callback_).Run(); }
 
   base::OnceClosure callback_;
   base::WeakPtrFactory<ClearCookiesTask> weak_ptr_factory_{this};

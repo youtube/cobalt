@@ -488,6 +488,7 @@ class CORE_EXPORT LocalFrameView final
   void SetIsVisuallyNonEmpty() { is_visually_non_empty_ = true; }
   void EnableAutoSizeMode(const gfx::Size& min_size, const gfx::Size& max_size);
   void DisableAutoSizeMode();
+  bool IsBeingAutoSized() const { return is_being_auto_sized_; }
 
   void ForceLayoutForPagination(float maximum_shrink_factor);
 
@@ -798,6 +799,14 @@ class CORE_EXPORT LocalFrameView final
   // necessary. Returns null if no aggregator is needed, such as for SVG images.
   LocalFrameUkmAggregator* GetUkmAggregator();
   void ResetUkmAggregatorForTesting();
+
+  // Checks whether paint holding should be released without FCP.
+  // If the page has been painted and the document has finished parsing,
+  // but FCP hasn't fired (i.e., the page has no text or images), stops
+  // deferred commits so the page doesn't wait for the full paint holding
+  // timeout. Called from both the First Paint and FinishedParsing paths
+  // to handle either ordering.
+  void MaybeStopDeferringCommitsWithoutContentfulPaint();
 
   // Report the First Contentful Paint signal to the LocalFrameView.
   // This causes Deferred Commits to be restarted and tells the UKM
@@ -1209,6 +1218,8 @@ class CORE_EXPORT LocalFrameView final
   gfx::Size layout_size_;
   std::optional<gfx::Size> layout_size_for_natural_size_;
   bool layout_size_fixed_to_frame_size_;
+
+  bool is_being_auto_sized_ = false;
 
   bool needs_update_geometries_;
 

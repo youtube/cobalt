@@ -671,7 +671,12 @@ void ViewTransition::ProcessCurrentState() {
             DCHECK(transition_state_callback_);
             CHECK(capture_rects_received_)
                 << "Capture rects must arrive before snapshot serialization!";
-            ResumeRendering();
+            if (!RuntimeEnabledFeatures::
+                    SkipViewTransitionSnapshotResumeRenderingEnabled()) {
+              // TODO(crbug.com/502616235): Remove killswitch after verifying
+              // stability.
+              ResumeRendering();
+            }
 
             ViewTransitionState view_transition_state =
                 style_tracker_->GetViewTransitionState();

@@ -1049,7 +1049,7 @@ class ChunkDemuxerTest : public ::testing::Test {
   }
 
   DemuxerStream* GetStream(DemuxerStream::Type type) {
-    std::vector<DemuxerStream*> streams = demuxer_->GetAllStreams();
+    std::vector<raw_ptr<DemuxerStream>> streams = demuxer_->GetAllStreams();
     for (media::DemuxerStream* stream : streams) {
       if (stream->type() == type)
         return stream;

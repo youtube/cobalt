@@ -291,7 +291,8 @@ class CORE_EXPORT ExecutionContext : public Supplementable<ExecutionContext>,
   // Returns a referrer to be used in the "Determine request's Referrer"
   // algorithm defined in the Referrer Policy spec.
   // https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
-  virtual String OutgoingReferrer() const;
+  String OutgoingReferrer() const;
+  virtual KURL OutgoingReferrerUrl() const;
 
   // Parses a referrer policy directive using either Header or Meta rules and
   // sets the context to use that policy. If the supplied policy is invalid,

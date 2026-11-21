@@ -93,7 +93,7 @@ BrowsingTopicsServiceFactory::BuildServiceInstanceForBrowserContext(
           profile);
   auto* opt_guide_service =
       global_state_holder
-          ? &global_state_holder->GetGlobalState().prediction_manager()
+          ? &global_state_holder->GetGlobalState().model_provider()
           : nullptr;
   if (!opt_guide_service) {
     return nullptr;

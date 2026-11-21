@@ -15,7 +15,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/ash/extensions/external_cache_impl.h"
-#include "chrome/browser/browser_process.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -46,10 +45,16 @@ base::DictValue FilterOnKeys(const base::DictValue& dict,
 }  // namespace
 
 DeviceLocalAccountExternalCache::DeviceLocalAccountExternalCache(
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
     ExtensionListCallback loader,
     const std::string& user_id,
     const base::FilePath& cache_dir)
-    : user_id_(user_id), cache_dir_(cache_dir), loader_(loader) {}
+    : shared_url_loader_factory_(std::move(shared_url_loader_factory)),
+      user_id_(user_id),
+      cache_dir_(cache_dir),
+      loader_(loader) {
+  CHECK(shared_url_loader_factory_);
+}
 
 DeviceLocalAccountExternalCache::~DeviceLocalAccountExternalCache() = default;
 
@@ -57,10 +62,8 @@ void DeviceLocalAccountExternalCache::StartCache(
     const scoped_refptr<base::SequencedTaskRunner>& cache_task_runner) {
   DCHECK(!external_cache_);
 
-  scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory =
-      g_browser_process->shared_url_loader_factory();
   external_cache_ = std::make_unique<ExternalCacheImpl>(
-      cache_dir_, std::move(shared_url_loader_factory), cache_task_runner,
+      cache_dir_, shared_url_loader_factory_, cache_task_runner,
       /*delegate=*/this,
       /*always_check_updates=*/true,
       /*wait_for_cache_initialization=*/false,

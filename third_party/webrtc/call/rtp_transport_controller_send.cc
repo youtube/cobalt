@@ -336,6 +336,7 @@ void RtpTransportControllerSend::OnNetworkRouteChanged(
     return;
   }
 
+  transport_overhead_bytes_per_packet_ = network_route.packet_overhead;
   // Check whether the network route has changed on each transport.
   auto result = network_routes_.insert(
       // Explicit conversion of transport_name to std::string here is necessary
@@ -352,7 +353,6 @@ void RtpTransportControllerSend::OnNetworkRouteChanged(
     }
   }
   if (inserted) {
-    transport_overhead_bytes_per_packet_ = network_route.packet_overhead;
     // No need to reset BWE if this is the first time the network connects.
     return;
   }
@@ -371,7 +371,6 @@ void RtpTransportControllerSend::OnNetworkRouteChanged(
   bool is_controller_supporting_ecn = rfc_8888_feedback_negotiated_ &&
                                       controller_ &&
                                       controller_->SupportsEcnAdaptation();
-
   if (!restart_bwe && !is_controller_supporting_ecn) {
     // Nothing changed - no need to notify the controller.
     return;
@@ -388,7 +387,6 @@ void RtpTransportControllerSend::OnNetworkRouteChanged(
 
   env_.event_log().Log(std::make_unique<RtcEventRouteChange>(
       network_route.connected, network_route.packet_overhead));
-  transport_overhead_bytes_per_packet_ = network_route.packet_overhead;
   transport_feedback_adapter_.SetNetworkRoute(network_route);
 
   // Reset the congested state.

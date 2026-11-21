@@ -1,7 +1,7 @@
 Name: Android Explicit Synchronization
 URL: http://source.android.com
 Description: libsync helper library.
-Version: d29ac04dc81e6b072c091c5b1342a282765ea250
+Version: 074e053f159602aa7558cfb2ae2f3c67878d90e0
 Update Mechanism: Manual
 Security Critical: yes
 Shipped: yes
@@ -12,6 +12,6 @@ Modifications:
 - Added strlcpy.c
 
 To import a new snapshot of libsync:
-- Checkout the latest version: git checkout d29ac04dc81e6b072c091c5b1342a282765ea250
+- Checkout the latest version: git checkout 074e053f159602aa7558cfb2ae2f3c67878d90e0
 - Change the DEPS entry to the newly checked out commit.
 - Update this README to reflect the new version.

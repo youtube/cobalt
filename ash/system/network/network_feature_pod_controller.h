@@ -8,7 +8,6 @@
 #include <string>
 
 #include "ash/constants/quick_settings_catalogs.h"
-#include "ash/system/network/network_feature_pod_button.h"
 #include "ash/system/network/network_feature_tile.h"
 #include "ash/system/network/network_icon_animation_observer.h"
 #include "ash/system/network/tray_network_state_observer.h"
@@ -27,7 +26,6 @@ class UnifiedSystemTrayController;
 class ASH_EXPORT NetworkFeaturePodController
     : public network_icon::AnimationObserver,
       public FeaturePodControllerBase,
-      public NetworkFeaturePodButton::Delegate,
       public NetworkFeatureTile::Delegate,
       public TrayNetworkStateObserver {
  public:
@@ -47,9 +45,6 @@ class ASH_EXPORT NetworkFeaturePodController
  private:
   // network_icon::AnimationObserver:
   void NetworkIconChanged() override;
-
-  // NetworkFeaturePodButton::Delegate:
-  void OnFeaturePodButtonThemeChanged() override;
 
   // NetworkFeatureTile::Delegate:
   void OnFeatureTileThemeChanged() override;

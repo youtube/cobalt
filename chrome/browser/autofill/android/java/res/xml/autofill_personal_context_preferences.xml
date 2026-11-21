@@ -24,12 +24,4 @@ found in the LICENSE file.
         android:summary="@string/personal_context_autofill_settings_manage_connected_apps_summary_android"
         android:widgetLayout="@layout/preference_widget_open_in_new" />
 
-    <org.chromium.components.browser_ui.settings.ChromeBasePreference
-        android:id="@+id/autofill_personal_context_manage_suggestions"
-        android:key="autofill_personal_context_manage_suggestions"
-        android:order="2"
-        android:title="@string/personal_context_autofill_settings_manage_suggestions_title_android"
-        android:summary="@string/personal_context_autofill_settings_manage_suggestions_summary_android"
-        android:widgetLayout="@layout/preference_widget_open_in_new" />
-
 </PreferenceScreen>

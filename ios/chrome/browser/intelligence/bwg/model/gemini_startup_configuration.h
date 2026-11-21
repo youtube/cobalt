@@ -25,6 +25,10 @@ class AuthenticationService;
 // because it has additional eligibility checks.
 @property(nonatomic, assign) BOOL imageRemixEnabled;
 
+// Whether Gemini Live is enabled. This is not equivalent to a feature flag
+// because it has additional eligibility checks.
+@property(nonatomic, assign) BOOL geminiLiveEnabled;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_BWG_MODEL_GEMINI_STARTUP_CONFIGURATION_H_

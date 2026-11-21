@@ -305,15 +305,15 @@ class BrowserBookmarkBarTest : public BrowserWithTestWindowTest {
 
  protected:
   BookmarkBar::State window_bookmark_bar_state() const {
-    return static_cast<BookmarkBarStateTestBrowserWindow*>(browser()->window())
+    return static_cast<BookmarkBarStateTestBrowserWindow*>(window())
         ->bookmark_bar_state();
   }
 
   // BrowserWithTestWindowTest:
   void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
-    static_cast<BookmarkBarStateTestBrowserWindow*>(browser()->window())
-        ->set_browser(browser());
+    static_cast<BookmarkBarStateTestBrowserWindow*>(window())->set_browser(
+        browser());
   }
 
   std::unique_ptr<BrowserWindow> CreateBrowserWindow() override {

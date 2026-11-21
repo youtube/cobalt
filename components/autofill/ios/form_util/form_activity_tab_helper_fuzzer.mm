@@ -62,11 +62,13 @@ DEFINE_PROTO_FUZZER(const web::ScriptMessageProto& proto_js_message) {
   // creating |Env|. This is because if the |frameID| in |ScriptMessage| is
   // invalid, the fuzzed API will return early and skip most of the interesting
   // logic.
-  if (script_message->body() && script_message->body()->is_dict()) {
+  if (script_message->legacy_body() &&
+      script_message->legacy_body()->is_dict()) {
     // Insert the |frameID| at 98% probability. We still want to check how API
     // behaves at an invalid |frameID|.
     if (base::RandDouble() < 0.98) {
-      script_message->body()->GetDict().Set("frameID", env.main_frame_id_);
+      script_message->legacy_body()->GetDict().Set("frameID",
+                                                   env.main_frame_id_);
     }
   }
 

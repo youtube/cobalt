@@ -11,7 +11,7 @@ function readBlob(blob, callback) {
   reader.onerror = function() {
     callback(null);
   };
-  reader.onloadend = function() {
+  reader.onload = function() {
     callback(reader.result);
   };
   reader.readAsText(blob);
@@ -21,8 +21,10 @@ function readBlob(blob, callback) {
 // invocation throws an exception.
 function wrapPrintCallback(callback, returnValue) {
   callback(returnValue);
+  // Verify `callback` throws when called more than once.
   chrome.test.assertThrows(
-      callback, ['OK'], 'Event callback must not be called more than once.');
+      callback.bind(null, /* result */ 'OK'),
+      'Event callback must not be called more than once.');
 }
 
 chrome.test.sendMessage('loaded', function(test) {
@@ -42,13 +44,15 @@ chrome.test.sendMessage('loaded', function(test) {
         case 'IGNORE_CALLBACK':
           break;
         case 'ASYNC_RESPONSE':
-          setTimeout(callback.bind(null, 'OK'), 0);
+          setTimeout(callback.bind(null, /* result */ 'OK'), 0);
           break;
         case 'INVALID_VALUE':
           const expectedError =
               `Error at parameter 'result': Value must be one of ` +
               'FAILED, INVALID_DATA, INVALID_TICKET, OK.';
-          chrome.test.assertThrows(callback, ['XXX'], expectedError);
+          // Verify `callback` throws when passed an invalid result value.
+          chrome.test.assertThrows(
+              callback.bind(null, /* result */ 'XXX'), expectedError);
           break;
         case 'FAILED':
         case 'INVALID_TICKET':

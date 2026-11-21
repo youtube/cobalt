@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cinttypes>
 #include <cstdint>
@@ -95,7 +96,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-generator-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/module-inl.h"
@@ -1378,9 +1379,12 @@ void CaptureAsyncStackTrace(Isolate* isolate, DirectHandle<JSPromise> promise,
       DirectHandle<JSFunction> function(
           Cast<JSFunction>(reaction->fulfill_handler()), isolate);
       DirectHandle<Context> context(function->context(), isolate);
-      promise = direct_handle(
-          Cast<JSPromise>(context->GetNoCell(PromiseBuiltins::kPromiseSlot)),
-          isolate);
+      Tagged<Object> promise_or_undefined =
+          context->GetNoCell(PromiseBuiltins::kPromiseIfNotResolvedSlot);
+      if (!TryCast(direct_handle(promise_or_undefined, isolate), &promise)) {
+        DCHECK(IsUndefined(promise_or_undefined));
+        return;
+      }
     } else {
       // We have some generic promise chain here, so try to
       // continue with the chained promise on the reaction
@@ -3338,10 +3342,16 @@ class StackFrameSummaryIterator {
 
  private:
   void InitSummaries() {
-    if (!done() && frame()->is_javascript()) {
+    while (!done() && frame()->is_javascript()) {
       summaries_ = JavaScriptFrame::cast(frame())->Summarize();
+      if (summaries_.size() == 0) {
+        // We may have encountered a Builtin::kWasmMethodWrapper. Skip it.
+        stack_iterator_.Advance();
+        continue;
+      }
       DCHECK_GT(summaries_.size(), 0);
       index_ = summaries_.size() - 1;
+      break;
     }
   }
   StackFrameIterator stack_iterator_;
@@ -4306,7 +4316,7 @@ bool Isolate::IsWasmCustomDescriptorsEnabled(
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
     if (callback(api_context)) return true;
   }
-  return v8_flags.experimental_wasm_custom_descriptors;
+  return v8_flags.wasm_custom_descriptors;
 #else
   return false;
 #endif
@@ -4790,8 +4800,6 @@ Isolate::Isolate(IsolateGroup* isolate_group)
     i::trap_handler::SetLandingPad(landing_pad);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-  MicrotaskQueue::SetUpDefaultMicrotaskQueue(this);
 }
 
 void Isolate::CheckIsolateLayout() {
@@ -4979,6 +4987,19 @@ void Isolate::PrintAndClearRegExpSubjectStrings() {
   trace_regexp_exec_subject_hash_to_index_.clear();
 }
 #endif  // V8_ENABLE_REGEXP_DIAGNOSTICS
+
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+void Isolate::CompactMicrotaskQueues() {
+  microtask_queues_.erase(
+      std::remove_if(microtask_queues_.begin(), microtask_queues_.end(),
+                     [](const auto& weak_ptr) { return !weak_ptr; }),
+      microtask_queues_.end());
+}
+void Isolate::RegisterMicrotaskQueue(MicrotaskQueue* queue) {
+  CompactMicrotaskQueues();
+  microtask_queues_.push_back(queue);
+}
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
@@ -5359,11 +5380,20 @@ Isolate::~Isolate() {
 
   DCHECK_NULL(builtins_effects_analyzer_);
 
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+  // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
+  CompactMicrotaskQueues();
+  if (DEBUG_BOOL && default_microtask_queue_) {
+    DCHECK_EQ(microtask_queues_.size(), 1);
+  }
+  default_microtask_queue_ = nullptr;
+#else
   // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
   DCHECK_IMPLIES(default_microtask_queue_,
                  default_microtask_queue_ == default_microtask_queue_->next());
   delete default_microtask_queue_;
   default_microtask_queue_ = nullptr;
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
   // isolate_group_ released in caller, to ensure that all member destructors
   // run before potentially unmapping the isolate's VirtualMemoryArea.
@@ -6202,6 +6232,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // Set up the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   heap_.SetUp(main_thread_local_heap());
+  MicrotaskQueue::SetUpDefaultMicrotaskQueue(this);
   InitializeIsShortBuiltinCallsEnabled();
   if (!create_heap_objects) {
     // Must be done before deserializing RO space, since RO space may contain

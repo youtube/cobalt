@@ -131,6 +131,10 @@ const OGB_IFRAME_ORIGIN = 'chrome-untrusted://new-tab-page';
 const MSAL_IFRAME_ORIGIN = 'chrome-untrusted://ntp-microsoft-auth';
 const VOICE_QUERY_LENGTH_LIMIT = 120;
 const VOICE_IDLE_TIMEOUT_MS = 8000;
+const COMPOSEBOX_INERT_ALLOWLIST = [
+  '#logo',
+  '#searchboxContainer',
+];
 
 export const CUSTOMIZE_CHROME_BUTTON_ELEMENT_ID =
     'CustomizeButtonsHandler::kCustomizeChromeButtonElementId';
@@ -491,6 +495,8 @@ export class AppElement extends AppElementBase {
   protected contextMenuAnimationLimitingEnabled_: boolean =
       loadTimeData.getBoolean('contextMenuAnimationLimitingEnabled');
   protected accessor searchboxCallbackRouter_: SearchboxPageCallbackRouter;
+
+  private voiceSearchActivatedByKeyboard_: boolean = false;
   private accessor selectedCustomizeDialogPage_: string|null = null;
   private accessor middleSlotPromoLoaded_: boolean = false;
   private accessor modulesLoadedStatus_: ModuleLoadStatus =
@@ -828,12 +834,8 @@ export class AppElement extends AppElementBase {
       this.onPromoAndModulesLoadedChange_();
     }
 
-    if (changedPrivateProperties.has('showComposebox_') &&
-        this.showComposebox_) {
-      const composeboxDialog =
-          this.shadowRoot.querySelector<HTMLDialogElement>('#composeboxDialog');
-      assert(composeboxDialog);
-      composeboxDialog.showModal();
+    if (changedPrivateProperties.has('showComposebox_')) {
+      this.onShowComposeboxChange_();
     }
 
     if (changedPrivateProperties.has('oneGoogleBarLoaded_') ||
@@ -863,6 +865,7 @@ export class AppElement extends AppElementBase {
             this.shadowRoot.querySelector<ComposeboxVoiceSearchElement>(
                 '#voiceSearch');
         assert(voiceSearch);
+        voiceSearch.activatedByKeyboard = this.voiceSearchActivatedByKeyboard_;
         voiceSearch.start();
       }
     }
@@ -1020,11 +1023,19 @@ export class AppElement extends AppElementBase {
 
   protected onOpenVoiceSearch_() {
     this.showVoiceSearchOverlay_ = true;
-    recordVoiceAction(VoiceAction.ACTIVATE);
+    this.voiceSearchActivatedByKeyboard_ = false;
+    // When the experiment is enabled, voice search metrics are logged directly
+    // by the shared component instead of NTP to prevent duplicate emissions.
+    if (!this.voiceSearchCoherenceAnySearchboxExperimentEnabled_) {
+      recordVoiceAction(VoiceAction.ACTIVATE);
+    }
   }
 
   protected onComposeVoiceSearchAction_(
       e: CustomEvent<{value: ComposeVoiceSearchAction}>) {
+    if (this.voiceSearchCoherenceAnySearchboxExperimentEnabled_) {
+      return;
+    }
     switch (e.detail.value) {
       case ComposeVoiceSearchAction.ACTIVATE:
         recordVoiceAction(VoiceAction.ACTIVATE);
@@ -1135,28 +1146,28 @@ export class AppElement extends AppElementBase {
       dialog.close();
     }
     this.onVoiceSearchOverlayClose();
-    this.$.searchbox.pageHandler().submitQuery(
-        e.detail,
-        /* button= */ 0,
-        /* altKey= */ false,
-        /* ctrlKey= */ false,
-        /* metaKey= */ false,
-        /* shiftKey= */ false,
-        /* isVoiceSearch= */ true,
-    );
+
+    const searchParams = new URLSearchParams();
+    searchParams.append('q', e.detail);
+    searchParams.append('gs_ivs', '1');
+    searchParams.append('sourceid', 'chrome');
+    const queryUrl =
+        new URL('/search', loadTimeData.getString('googleBaseUrl'));
+    queryUrl.search = searchParams.toString();
+    WindowProxy.getInstance().navigate(queryUrl.href);
   }
 
   protected onVoiceSearchRecordingStopped_(e: CustomEvent<string>) {
     const query = e.detail;
+    const dialog = this.shadowRoot.querySelector<HTMLDialogElement>(
+        '#voiceSearchDialog');
+    if (dialog) {
+      dialog.close();
+    }
+    this.onVoiceSearchOverlayClose();
+
     if (query && query.trim().length > 0) {
-      this.onVoiceSearchFinalResult_(e);
-    } else {
-      const dialog = this.shadowRoot.querySelector<HTMLDialogElement>(
-          '#voiceSearchDialog');
-      if (dialog) {
-        dialog.close();
-      }
-      this.onVoiceSearchOverlayClose();
+      this.$.searchbox.setInputText(query);
     }
   }
   /**
@@ -1164,6 +1175,9 @@ export class AppElement extends AppElementBase {
    * voice search.
    */
   private onWindowKeydown_(e: KeyboardEvent) {
+    if (!this.isConnected) {
+      return;
+    }
     let ctrlKeyPressed = e.ctrlKey;
     // <if expr="is_macosx">
     ctrlKeyPressed = ctrlKeyPressed || e.metaKey;
@@ -1179,7 +1193,10 @@ export class AppElement extends AppElementBase {
     }
     if (ctrlKeyPressed && e.code === 'Period' && e.shiftKey) {
       this.showVoiceSearchOverlay_ = true;
-      recordVoiceAction(VoiceAction.ACTIVATE_KEYBOARD);
+      this.voiceSearchActivatedByKeyboard_ = true;
+      if (!this.voiceSearchCoherenceAnySearchboxExperimentEnabled_) {
+        recordVoiceAction(VoiceAction.ACTIVATE_KEYBOARD);
+      }
     }
   }
 
@@ -1717,6 +1734,27 @@ export class AppElement extends AppElementBase {
     this.undoToastCallback_ = null;
     this.undoToastMessage_ = null;
     this.processPendingUndoToasts_();
+  }
+
+  private onShowComposeboxChange_() {
+    if (this.showComposebox_) {
+      const composeboxDialog =
+          this.shadowRoot.querySelector<HTMLDialogElement>('#composeboxDialog');
+      assert(composeboxDialog);
+      composeboxDialog.show();
+    }
+
+    const notSelector =
+        COMPOSEBOX_INERT_ALLOWLIST.map(s => `:not(${s})`).join('');
+    const blockedElements = this.shadowRoot.querySelectorAll<HTMLElement>(
+        `#content > ${notSelector}`);
+    blockedElements.forEach(element => {
+      if (this.showComposebox_) {
+        element.setAttribute('inert', '');
+      } else {
+        element.removeAttribute('inert');
+      }
+    });
   }
 }
 

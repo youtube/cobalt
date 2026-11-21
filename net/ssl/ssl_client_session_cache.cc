@@ -65,9 +65,7 @@ SSLClientSessionCache::SSLClientSessionCache(const Config& config)
           "SSLClientSessionCache",
           kSSLClientSessionCacheTraits,
           this,
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled) {}
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled) {}
 
 SSLClientSessionCache::~SSLClientSessionCache() {
   Flush();

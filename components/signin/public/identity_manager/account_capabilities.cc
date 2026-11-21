@@ -11,6 +11,7 @@
 
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
+#include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
@@ -50,6 +51,24 @@ AccountCapabilities::GetSupportedAccountCapabilityNames() {
     cache = GetSupportedAccountCapabilityNamesInternal();
   }
   return *cache;
+}
+
+// static
+std::string AccountCapabilities::GetCapabilityDisplayName(
+    std::string_view name) {
+  std::string label = std::string(name);
+#define ACCOUNT_CAPABILITY(cpp_label, java_label, value) \
+  if (name == value) {                                   \
+    return #cpp_label;                                   \
+  }
+#define ACCOUNT_CAPABILITY_F(cpp_label, java_label, value, feature) \
+  if (name == value) {                                              \
+    return #cpp_label;                                              \
+  }
+#include "components/signin/internal/identity_manager/account_capabilities_list.h"
+#undef ACCOUNT_CAPABILITY
+#undef ACCOUNT_CAPABILITY_F
+  NOTREACHED() << "Unknown capability: " << name;
 }
 
 // static
@@ -95,11 +114,25 @@ bool AccountCapabilities::AreAllCapabilitiesKnown() const {
 
 signin::Tribool AccountCapabilities::GetCapabilityByName(
     std::string_view name) const {
+  if (auto it = capabilities_overrides_.find(name);
+      it != capabilities_overrides_.end()) {
+    return it->second;
+  }
+  return GetFetchedCapabilityByName(name);
+}
+
+signin::Tribool AccountCapabilities::GetFetchedCapabilityByName(
+    std::string_view name) const {
   const auto iterator = capabilities_map_.find(name);
   if (iterator == capabilities_map_.end()) {
     return signin::Tribool::kUnknown;
   }
   return iterator->second ? signin::Tribool::kTrue : signin::Tribool::kFalse;
+}
+
+const base::flat_map<std::string, signin::Tribool>&
+AccountCapabilities::GetCapabilityOverrides() const {
+  return capabilities_overrides_;
 }
 
 // clang-format off
@@ -304,8 +337,8 @@ bool AccountCapabilities::UpdateWith(const AccountCapabilities& other) {
   bool modified = false;
 
   for (std::string_view name : GetSupportedAccountCapabilityNames()) {
-    signin::Tribool other_capability = other.GetCapabilityByName(name);
-    signin::Tribool current_capability = GetCapabilityByName(name);
+    signin::Tribool other_capability = other.GetFetchedCapabilityByName(name);
+    signin::Tribool current_capability = GetFetchedCapabilityByName(name);
     if (other_capability != signin::Tribool::kUnknown &&
         other_capability != current_capability) {
       capabilities_map_[std::string(name)] =
@@ -314,16 +347,35 @@ bool AccountCapabilities::UpdateWith(const AccountCapabilities& other) {
     }
   }
 
+  for (const auto& [name, value] : other.capabilities_overrides_) {
+    auto iterator = capabilities_overrides_.find(name);
+    if (iterator == capabilities_overrides_.end() ||
+        iterator->second != value) {
+      capabilities_overrides_[name] = value;
+      modified = true;
+    }
+  }
+
   return modified;
+}
+
+void AccountCapabilities::SetCapabilityOverride(
+    std::string_view name,
+    std::optional<signin::Tribool> value) {
+  if (value.has_value()) {
+    capabilities_overrides_[std::string(name)] = *value;
+  } else {
+    capabilities_overrides_.erase(std::string(name));
+  }
 }
 
 bool AccountCapabilities::operator==(const AccountCapabilities& other) const {
   for (std::string_view name : GetSupportedAccountCapabilityNames()) {
-    if (GetCapabilityByName(name) != other.GetCapabilityByName(name)) {
+    if (GetFetchedCapabilityByName(name) != other.GetFetchedCapabilityByName(name)) {
       return false;
     }
   }
-  return true;
+  return capabilities_overrides_ == other.capabilities_overrides_;
 }
 
 #if BUILDFLAG(IS_ANDROID)

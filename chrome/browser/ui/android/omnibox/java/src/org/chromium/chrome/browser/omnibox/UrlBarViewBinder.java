@@ -17,7 +17,6 @@ import androidx.constraintlayout.widget.ConstraintLayout.LayoutParams;
 
 import com.google.android.material.color.MaterialColors;
 
-import org.chromium.base.Callback;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.UrlBarProperties.AutocompleteText;
@@ -56,15 +55,7 @@ class UrlBarViewBinder {
         } else if (UrlBarProperties.DELEGATE.equals(propertyKey)) {
             view.setDelegate(model.get(UrlBarProperties.DELEGATE));
         } else if (UrlBarProperties.FOCUS_CHANGE_CALLBACK.equals(propertyKey)) {
-            final Callback<Boolean> focusChangeCallback =
-                    model.get(UrlBarProperties.FOCUS_CHANGE_CALLBACK);
-            view.setOnFocusChangeListener(
-                    (v, focused) -> {
-                        if (focused) view.setIgnoreTextChangesForAutocomplete(false);
-                        if (focusChangeCallback != null) {
-                            focusChangeCallback.onResult(focused);
-                        }
-                    });
+            view.setFocusChangeCallback(model.get(UrlBarProperties.FOCUS_CHANGE_CALLBACK));
         } else if (UrlBarProperties.TEXT_CONTEXT_MENU_DELEGATE.equals(propertyKey)) {
             view.setTextContextMenuDelegate(model.get(UrlBarProperties.TEXT_CONTEXT_MENU_DELEGATE));
         } else if (UrlBarProperties.MANAGE_SEARCH_ENGINES_CALLBACK.equals(propertyKey)) {

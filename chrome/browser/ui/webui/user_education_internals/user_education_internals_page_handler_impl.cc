@@ -429,6 +429,13 @@ UserEducationInternalsPageHandlerImpl::UserEducationInternalsPageHandlerImpl(
 UserEducationInternalsPageHandlerImpl::
     ~UserEducationInternalsPageHandlerImpl() = default;
 
+void UserEducationInternalsPageHandlerImpl::IsFeatureEngagementInitialized(
+    IsFeatureEngagementInitializedCallback callback) {
+  auto* const tracker =
+      feature_engagement::TrackerFactory::GetForBrowserContext(profile_);
+  std::move(callback).Run(tracker && tracker->IsInitialized());
+}
+
 void UserEducationInternalsPageHandlerImpl::GetTutorials(
     GetTutorialsCallback callback) {
   auto* const tutorial_service = GetTutorialService(profile_);

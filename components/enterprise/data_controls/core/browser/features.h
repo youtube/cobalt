@@ -18,9 +18,6 @@ BASE_DECLARE_FEATURE(kEnableClipboardDataControlsAndroid);
 // Controls enabling Data Controls rules for downloads.
 BASE_DECLARE_FEATURE(kEnableDownloadDataControls);
 
-// Controls enabling Data Controls rules for drag and drop.
-BASE_DECLARE_FEATURE(kDataControlsDragEnforcement);
-
 // Controls enabling Data Controls rules for "Search with" context menu item.
 BASE_DECLARE_FEATURE(kDataControlsSearchWith);
 

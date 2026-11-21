@@ -137,4 +137,9 @@ const base::FeatureParam<bool> kShouldShowCueInSplitView(
     "ContextualCueingV2ShouldShowCueInSplitView",
     false);
 
+const base::FeatureParam<bool> kEnablePrivateInsightsLogging(
+    &kContextualCueingV2,
+    "ContextualCueingV2EnablePrivateInsightsLogging",
+    false);
+
 }  // namespace contextual_cueing

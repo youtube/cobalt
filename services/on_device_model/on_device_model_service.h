@@ -18,7 +18,6 @@
 #include "services/on_device_model/backend.h"
 #include "services/on_device_model/ml/chrome_ml.h"
 #include "services/on_device_model/ml/gpu_blocklist.h"
-#include "services/on_device_model/ml/ts_model.h"
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 #include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
 

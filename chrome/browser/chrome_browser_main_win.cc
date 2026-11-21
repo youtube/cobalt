@@ -33,6 +33,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
@@ -81,10 +82,12 @@
 #include "chrome/browser/win/conflicts/enumerate_shell_extensions.h"
 #include "chrome/browser/win/conflicts/module_database.h"
 #include "chrome/browser/win/conflicts/module_event_sink_impl.h"
+#include "chrome/browser/win/isolated_browser_support.h"
 #include "chrome/browser/win/remove_app_compat_entries.h"
 #include "chrome/browser/win/util_win_service.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_constants.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_result_codes.h"
 #include "chrome/common/chrome_switches.h"
@@ -730,6 +733,40 @@ void ChromeBrowserMainPartsWin::PostBrowserStart() {
   base::ThreadPool::PostTask(
       FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
       base::BindOnce(&ReportParentProcessName));
+
+  content::GetUIThreadTaskRunner({base::TaskPriority::BEST_EFFORT})
+      ->PostTask(FROM_HERE, base::BindOnce([]() {
+                   std::string group_name;
+                   base::FieldTrial* trial = base::FeatureList::GetFieldTrial(
+                       features::kIsolatedProcess);
+                   if (trial) {
+                     group_name = trial->group_name();
+                   }
+
+                   const std::string old_group_name =
+                       g_browser_process->local_state()->GetString(
+                           prefs::kPreviousIsolationState);
+
+                   if (group_name == old_group_name) {
+                     return;
+                   }
+
+                   // If an enterprise administrator has set a Mandatory policy,
+                   // do not allow a field trial to override it.
+                   if (g_browser_process->local_state()->IsManagedPreference(
+                           prefs::kProcessIsolationEnabled)) {
+                     return;
+                   }
+
+                   g_browser_process->local_state()->SetString(
+                       prefs::kPreviousIsolationState, group_name);
+
+                   chrome::SetIsolationState(
+                       base::FeatureList::IsEnabled(features::kIsolatedProcess)
+                           ? chrome::IsolationState::kProcessIsolation
+                           : chrome::IsolationState::kIsolationDisabled,
+                       g_browser_process->local_state(), base::DoNothing());
+                 }));
 
   base::ImportantFileWriterCleaner::GetInstance().Start();
 }

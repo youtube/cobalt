@@ -18,12 +18,24 @@ PageContextEligibility::PageContextEligibility(
     : api_(api) {}
 PageContextEligibility::~PageContextEligibility() = default;
 
+namespace {
+PageContextEligibility* g_page_context_eligibility_for_testing = nullptr;
+}  // namespace
+
 // static
 DISABLE_CFI_DLSYM
 PageContextEligibility* PageContextEligibility::Get() {
+  if (g_page_context_eligibility_for_testing) {
+    return g_page_context_eligibility_for_testing;
+  }
   static base::NoDestructor<std::unique_ptr<PageContextEligibility>>
       page_context_eligibility{Create()};
   return page_context_eligibility->get();
+}
+
+// static
+void PageContextEligibility::SetForTesting(PageContextEligibility* api_holder) {
+  g_page_context_eligibility_for_testing = api_holder;
 }
 
 // static
@@ -87,6 +99,33 @@ bool IsPageContextEligible(
 
   return api_holder->api().IsPageContextEligible(host, path,
                                                  std::move(frame_metadata));
+}
+
+DISABLE_CFI_DLSYM
+bool IsPageContextEligibleWithAccount(
+    const std::string& host,
+    const std::string& path,
+    const std::string& account,
+    const std::vector<optimization_guide::FrameMetadata>& frame_metadata,
+    const PageContextEligibility* api_holder) {
+  if (!api_holder) {
+    return true;
+  }
+
+  return api_holder->api().IsPageContextEligibleWithAccount(host, path, account,
+                                                            frame_metadata);
+}
+
+PageEligibilityResult CheckPageEligibility(
+    const std::vector<optimization_guide::FrameUrl>& frames,
+    const PageContextEligibility* api_holder) {
+  if (!api_holder) {
+    return PageEligibilityResult{
+        .status = PageEligibility::kEligible,
+        .meta_tag_names_affecting_eligibility = {.data = nullptr, .size = 0}};
+  }
+
+  return api_holder->api().CheckPageEligibility(frames);
 }
 
 }  // namespace optimization_guide

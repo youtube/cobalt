@@ -205,7 +205,7 @@ bool GPUTracer::BeginDecoding() {
       for (size_t i = 0; i < markers_[n].size(); i++) {
         began_device_traces_ |= is_gpu_device_tracing_enabled();
         TraceMarker& trace_marker = markers_[n][i];
-        trace_marker.trace_ = new GPUTrace(
+        trace_marker.trace_ = base::MakeRefCounted<GPUTrace>(
             outputter_, gpu_timing_client_.get(),
             static_cast<GpuTracerSource>(n), trace_marker.category_,
             trace_marker.name_, is_gpu_service_tracing_enabled(),
@@ -255,7 +255,7 @@ bool GPUTracer::Begin(const std::string& category, const std::string& name,
   // Create trace
   if (IsTracing()) {
     began_device_traces_ |= is_gpu_device_tracing_enabled();
-    scoped_refptr<GPUTrace> trace = new GPUTrace(
+    auto trace = base::MakeRefCounted<GPUTrace>(
         outputter_, gpu_timing_client_.get(), source, category, name,
         is_gpu_service_tracing_enabled(), is_gpu_device_tracing_enabled());
     trace->Start();

@@ -30,14 +30,6 @@ enum class KeychainMigrationResult {
   kMaxValue = kFailure,
 };
 
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class KeychainMigrationUserStatus {
-  kNoItems = 0,
-  kMigrated = 1,
-  kPendingMigration = 2,
-  kMaxValue = kPendingMigration,
-};
 #endif  // BUILDFLAG(IS_IOS)
 
 }  // namespace
@@ -123,65 +115,7 @@ bool MigrateKeychainItemAccessibilityIfNeeded(CFDictionaryRef attributes,
   return false;
 }
 
-void RecordKeychainMigrationStatus(std::string_view access_group) {
-  if (!base::FeatureList::IsEnabled(
-          crypto::features::kMigrateIOSKeychainAccessibility)) {
-    return;
-  }
 
-  // Query for any generic password item that has the old accessibility.
-  NSMutableDictionary* query = [NSMutableDictionary dictionaryWithDictionary:@{
-    base::apple::CFToNSPtrCast(kSecClass) :
-        base::apple::CFToNSPtrCast(kSecClassGenericPassword),
-    base::apple::CFToNSPtrCast(kSecAttrAccessible) :
-        base::apple::CFToNSPtrCast(kSecAttrAccessibleWhenUnlocked),
-    base::apple::CFToNSPtrCast(kSecMatchLimit) :
-        base::apple::CFToNSPtrCast(kSecMatchLimitOne),
-  }];
-
-  if (!access_group.empty()) {
-    query[base::apple::CFToNSPtrCast(kSecAttrAccessGroup)] =
-        base::SysUTF8ToNSString(access_group);
-  }
-
-  OSStatus status = KeychainV2::GetInstance().ItemCopyMatching(
-      base::apple::NSToCFPtrCast(query), nullptr);
-
-  if (status == errSecSuccess) {
-    // Found at least one item that needs migration.
-    base::UmaHistogramEnumeration(
-        "Security.iOS.KeychainMigration.UserStatus",
-        KeychainMigrationUserStatus::kPendingMigration);
-    return;
-  }
-
-  if (status == errSecItemNotFound) {
-    // No items found with the old accessibility.
-    // Check if there are ANY items at all to distinguish between "Migrated" and
-    // "No Items".
-    NSMutableDictionary* all_items_query =
-        [NSMutableDictionary dictionaryWithDictionary:@{
-          base::apple::CFToNSPtrCast(kSecClass) :
-              base::apple::CFToNSPtrCast(kSecClassGenericPassword),
-          base::apple::CFToNSPtrCast(kSecMatchLimit) :
-              base::apple::CFToNSPtrCast(kSecMatchLimitOne),
-        }];
-    if (!access_group.empty()) {
-      all_items_query[base::apple::CFToNSPtrCast(kSecAttrAccessGroup)] =
-          base::SysUTF8ToNSString(access_group);
-    }
-
-    OSStatus all_status = KeychainV2::GetInstance().ItemCopyMatching(
-        base::apple::NSToCFPtrCast(all_items_query), nullptr);
-    if (all_status == errSecSuccess) {
-      base::UmaHistogramEnumeration("Security.iOS.KeychainMigration.UserStatus",
-                                    KeychainMigrationUserStatus::kMigrated);
-    } else {
-      base::UmaHistogramEnumeration("Security.iOS.KeychainMigration.UserStatus",
-                                    KeychainMigrationUserStatus::kNoItems);
-    }
-  }
-}
 
 base::apple::ScopedCFTypeRef<CFDictionaryRef>
 GenerateGenericPasswordUpdateQuery(std::string_view account_name) {

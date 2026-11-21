@@ -27,8 +27,6 @@ bool IsDeviceCompatible() {
 #if defined(ARCH_CPU_X86_FAMILY)
   // Check if the CPU has the required instruction set to run the Screen AI
   // library.
-  // TODO(crbug.com/381256355): Update when ScreenAI library is compatible with
-  // older CPUs.
   static const bool device_compatible = base::CPU().has_sse42();
 #elif BUILDFLAG(IS_LINUX)
   // On Linux, the library is only built for X86 CPUs.

@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">このネットワーク エラーを解決するには、<ph name="GUEST_SIGNIN_LINK_START" />ゲストとしてブラウジング<ph name="GUEST_SIGNIN_LINK_END" />もお試しください。</translation>
 <translation id="1201402288615127009">次へ</translation>
 <translation id="1222835797152767346">PIN を設定して簡単にログイン</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />デバッグ機能<ph name="END_H3" />
+          <ph name="BR" />
+          ChromeOS デバイスでは、カスタムコードをインストールしてテストする目的でデバッグ機能を有効にできます。デバッグ機能を使用すると、次のことができます。<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs の確認を無効化し、OS のファイルに変更を加えられるようにする。
+            <ph name="LIST_ITEM" />標準のテストキーを使ってデバイスへの SSH アクセスを有効化し、<ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> のようなツールでデバイスにアクセスできるようにする。
+            <ph name="LIST_ITEM" />USB からの起動を有効化し、USB ドライブから OS イメージをインストールできるようにする。
+            <ph name="LIST_ITEM" />dev およびシステム ルート ログイン パスワードの両方をカスタム値に設定し、手動でデバイスに SSH 接続できるようにする。
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          デバッグ機能をいったん有効にすると、企業の管理対象デバイスでは Powerwash やデータ消去を実行した後でも、ほとんどのデバッグ機能は有効なままになります。すべてのデバッグ機能を完全に無効にするには、ChromeOS の復元処理を実行します（https://support.google.com/chromebook/answer/1080595 をご覧ください）。
+          <ph name="BR" />
+          <ph name="BR" />
+          デバッグ機能について詳しくは、以下をご覧ください。<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />注:<ph name="END_BOLD" /> このプロセス中にシステムが再起動されます。</translation>
 <translation id="1347625331607114917">Android スマートフォンでコードを確認する</translation>
 <translation id="1347975661240122359">更新は、<ph name="BATTERY_LEVEL" />% まで充電されたときに開始されます。</translation>
 <translation id="1375938286942050085">セットアップは完了です。デバイスでゲームをお楽しみください</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">アプリをダウンロード中</translation>
 <translation id="5045550434625856497">パスワードが正しくありません</translation>
 <translation id="5062930723426326933">ログインできませんでした。インターネットに接続してもう一度お試しください。</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Gemini と話しながら、文章作成、計画、学習など、Google AI を活用したさまざまな作業を行うことができます。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />セットアップが完了したら、画面下部のシェルフで Gemini アプリを選択してご利用を開始できます。<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011"><ph name="DEVICE_TYPE" /> を電源に接続してください。</translation>
 <translation id="5147516217412920887">スマートフォンに表示される手順に沿ってコードを確認します</translation>
 <translation id="5160857336552977725"><ph name="DEVICE_TYPE" /> にログインしてください</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />デバッグ機能<ph name="END_H3" />
+          <ph name="BR" />
+          ChromeOS Flex デバイスでは、カスタムコードをインストールしてテストする目的でデバッグ機能を有効にできます。デバッグ機能を使用すると、次のことができます。<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs の確認を無効化し、OS のファイルに変更を加えられるようにする。
+            <ph name="LIST_ITEM" />標準のテストキーを使ってデバイスへの SSH アクセスを有効化し、<ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> のようなツールでデバイスにアクセスできるようにする。
+            <ph name="LIST_ITEM" />USB からの起動を有効化し、USB ドライブから OS イメージをインストールできるようにする。
+            <ph name="LIST_ITEM" />dev およびシステム ルート ログイン パスワードの両方をカスタム値に設定し、手動でデバイスに SSH 接続できるようにする。
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          デバッグ機能をいったん有効にすると、企業の管理対象デバイスでは Powerwash やデータ消去を実行した後でも、ほとんどのデバッグ機能は有効なままになります。すべてのデバッグ機能を完全に無効にするには、ChromeOS の復元処理を実行します（https://support.google.com/chromebook/answer/1080595 をご覧ください）。
+          <ph name="BR" />
+          <ph name="BR" />
+          デバッグ機能について詳しくは、以下をご覧ください。<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />注:<ph name="END_BOLD" /> このプロセス中にシステムが再起動されます。</translation>
 <translation id="523505283826916779">ユーザー補助機能の設定</translation>
 <translation id="5240931875940563122">Android スマートフォンでログイン</translation>
 <translation id="5255859108402770436">もう一度ログインする</translation>
@@ -193,6 +231,9 @@
 <translation id="6955698182324067397">ChromeOS のデバッグ機能を有効にしています。この機能を有効にすると、sshd デーモンが設定され、USB デバイスからの起動が可能になります。</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">ユーザー補助機能</translation>
+<translation id="6984652455487792101">プロキシ サーバーを使用している場合は、プロキシの設定を確認するか、
+        ネットワーク管理者にプロキシ サーバーが正常に動作しているかどうかを
+        確認してください。プロキシ サーバーを使用していない場合は、<ph name="LINK_START" />プロキシ設定<ph name="LINK_END" />を編集してください。</translation>
 <translation id="6996245928508281884">スマートフォンの Bluetooth と Wi-Fi をオンにする</translation>
 <translation id="7077829361966535409">現在のプロキシ設定を使用してログイン ページを読み込むことができませんでした。<ph name="GAIA_RELOAD_LINK_START" />もう一度ログイン<ph name="GAIA_RELOAD_LINK_END" />してみるか、別の<ph name="PROXY_SETTINGS_LINK_START" />プロキシ設定<ph name="PROXY_SETTINGS_LINK_END" />を使用してみてください。</translation>
 <translation id="7114054701490058191">パスワードが一致しません</translation>
@@ -205,6 +246,9 @@
 <translation id="7345706641791090287">パスワードを再入力</translation>
 <translation id="7352651011704765696">問題が発生しました</translation>
 <translation id="7476454130948140105">更新するには電池残量が少なすぎます（<ph name="BATTERY_PERCENT" />%）</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />登録する前に、<ph name="DEVICE_OS" /> がデバイスのオーナー権限を取得できるよう TPM を消去する必要があります。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />デバイスの TPM を完全にオフにすることもできます。データは、ソフトウェアによる暗号化で引き続き安全に保存されますが、ハードウェア式証明書など、特定のセキュリティ機能は無効になります。<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />TPM の設定を変更するには、再起動してシステム BIOS / UEFI の設定に入ってください。手順はデバイスモデルに応じて異なります。詳しくは、再起動する前に別のデバイスで <ph name="DEVICE_OS" /> のドキュメントをご確認ください: g.co/flex/TPMHelp<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">この <ph name="IDS_SHORT_PRODUCT_NAME" /> デバイスでデバッグ機能を有効にします</translation>
 <translation id="7553242001898162573">パスワードを入力してください</translation>
 <translation id="7556242789364317684"><ph name="SHORT_PRODUCT_NAME" /> ではユーザーの設定を回復することができません。エラーを修正するには、<ph name="SHORT_PRODUCT_NAME" /> が Powerwash でデバイスをリセットする必要があります。</translation>
@@ -251,6 +295,10 @@
 <translation id="8452105022015742247">Android スマートフォンから Google アカウント情報を転送しています</translation>
 <translation id="8524841856047224176">ビデオ通話などのカメラの背景をカスタマイズできます</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" /> の詳細</translation>
+<translation id="8628232294964836490">スマートフォンの指示に沿って QR コードをスキャンします。スマートフォンの Bluetooth がオンになっていることをご確認ください。
+        <ph name="BR" />
+        <ph name="BR" />
+        付近のデバイスに「<ph name="QUICK_START_DEVICE_DISPLAY_NAME" />」として表示されます...</translation>
 <translation id="8655972064210167941">パスワードを確認できなかったためログインできませんでした。管理者に問い合わせるか、もう一度お試しください。</translation>
 <translation id="8674903726754070732">パソコンに設定されているハードウェア ID の形式が正しくありません。このため、ChromeOS に最新のセキュリティ修正を適用することができません。ご使用のパソコンは、<ph name="BEGIN_BOLD" />悪意のある攻撃を受けやすくなる可能性があります<ph name="END_BOLD" />。</translation>
 <translation id="8695139659682234808">セットアップ後に保護者による使用制限を設定できます</translation>
@@ -264,10 +312,20 @@
 <translation id="8830796635868321089">現在のプロキシ設定を使用してアップデートをチェックできませんでした。<ph name="PROXY_SETTINGS_LINK_START" />プロキシ設定<ph name="PROXY_SETTINGS_LINK_END" />を調整してください。</translation>
 <translation id="885746075120788020">保存した設定とアクティビティは、Google アカウントでログインする他の ChromeOS デバイスで使用できるようになります。同期する項目は [設定] で選択できます。</translation>
 <translation id="8875221558267407626">コンテンツを要約したり、複雑な表現をわかりやすくしたり、質問したりできます</translation>
+<translation id="8913163265790894442">スマートフォンで <ph name="DEVICE_TYPE" /> を簡単に設定できます。パスワードを手動で入力しなくても、Wi-Fi や Google アカウントを追加できます。
+        <ph name="BR" />
+        <ph name="BR" />
+        「<ph name="DEVICE_TYPE" />」として表示されます...</translation>
 <translation id="8946359700442089734">この <ph name="IDS_SHORT_PRODUCT_NAME" /> デバイスでデバッグ機能が完全に有効になっていませんでした。</translation>
 <translation id="8965037249707889821">古いパスワードを入力</translation>
 <translation id="8975396729541388937">配信登録は、このメールのリンクをクリックして、いつでも解除できます。</translation>
 <translation id="9033765790910064284">続行</translation>
 <translation id="903480517321259405">もう一度 PIN を入力してください</translation>
 <translation id="9076523132036239772">メール アドレスまたはパスワードを確認できませんでした。まずネットワークに接続してください。</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" /><ph name="DEVICE_TYPE" /> 限定です。<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />生成 AI は試験運用版で開発の初期段階のため、現時点では利用が制限されています。<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">スマートフォンで <ph name="DEVICE_TYPE" /> を簡単に設定できます。パスワードを手動で入力しなくても、Google アカウントを追加できます。
+        <ph name="BR" />
+        <ph name="BR" />
+        「<ph name="DEVICE_TYPE" />」として表示されます...</translation>
 </translationbundle>

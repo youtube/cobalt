@@ -23,6 +23,10 @@
 // The WebStateList observed by this mediator.
 @property(nonatomic, readonly) WebStateList* webStateList;
 
+// Whether the last selected suggestion successfully completed user
+// verification.
+@property(nonatomic, readonly) BOOL didCompleteUserVerification;
+
 // Performs the actual suggestion selection after reauthentication (if required)
 // has succeeded.
 - (void)selectSuggestion:(FormSuggestion*)suggestion

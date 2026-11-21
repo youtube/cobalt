@@ -740,7 +740,8 @@ void BucketContext::Open(
     mojo::PendingAssociatedReceiver<blink::mojom::IDBTransaction>
         transaction_receiver,
     int64_t transaction_id,
-    int scheduling_priority) {
+    int scheduling_priority,
+    bool request_shared_connection) {
   base::ElapsedTimer timer;
   TRACE_EVENT0("IndexedDB", "BucketContext::Open");
   auto scoper = ScopedHandlingRequest();
@@ -785,6 +786,8 @@ void BucketContext::Open(
       transaction_id, version, std::move(transaction_receiver));
   connection->data_loss_info = data_loss_info;
   connection->scheduling_priority = scheduling_priority;
+  connection->request_shared_connection = request_shared_connection;
+
   ReceiverContext& client = receivers_.current_context();
   // `Connection` only needs an opaque token to uniquely identify the
   // document or worker that owns the other side of the connection.

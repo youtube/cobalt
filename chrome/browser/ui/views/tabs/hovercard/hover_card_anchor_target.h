@@ -57,7 +57,7 @@ class View;
 // HoverCardAnchorTarget is a base class for views that display a
 // TabHoverCardBubbleView on hover. It supplies the necessary data for
 // anchoring and rendering, and can be implemented by views such as Tab
-// and VerticalTabView.
+// and TabView.
 class HoverCardAnchorTarget {
  public:
   using CardData = std::variant<std::monostate, TabCardData, GroupCardData>;

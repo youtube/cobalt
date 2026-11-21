@@ -198,6 +198,7 @@ public class LocationBarMediatorTest {
     @Mock private StatusCoordinator mStatusCoordinator;
     @Mock private OmniboxPrerender.Natives mPrerenderJni;
     @Mock private TextView mView;
+    @Mock private View mTabView;
     @Mock private KeyEvent mKeyEvent;
     @Mock private BackKeyBehaviorDelegate mOverrideBackKeyBehaviorDelegate;
     @Mock private WindowAndroid mWindowAndroid;
@@ -236,7 +237,6 @@ public class LocationBarMediatorTest {
     @Captor private ArgumentCaptor<TabObserver> mTabObserverCaptor;
     @Captor private ArgumentCaptor<Callback<Boolean>> mOnInteractionCompletedCallbackCaptor;
     private Callback<Boolean> mOnInteractionCompletedCallback;
-
     private Context mContext;
     private SettableNonNullObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
     private final SettableMonotonicObservableSupplier<Profile> mProfileSupplier =
@@ -254,10 +254,14 @@ public class LocationBarMediatorTest {
                     ObservableSuppliers.createNonNull(FuseboxLayoutMode.TOOLBAR);
     private final SettableNonNullObservableSupplier<Boolean> mActivationChipVisibilitySupplier =
             ObservableSuppliers.createNonNull(false);
+    private final SettableNonNullObservableSupplier<Boolean> mHasAttachmentsSupplier =
+            ObservableSuppliers.createNonNull(false);
     private final UserDataHost mTabUserDataHost = new UserDataHost();
     private final FuseboxSessionState mSessionState = new FuseboxSessionState();
     private final SettableNullableObservableSupplier<GURL> mExactMatchUrlSupplier =
             ObservableSuppliers.createNullable();
+    private final SettableNonNullObservableSupplier<Boolean> mScrimVisibilitySupplier =
+            ObservableSuppliers.createNonNull(false);
 
     // Members capturing final state of the LocationBarLayout elements.
     private boolean mNavigateButtonIsVisible;
@@ -292,6 +296,8 @@ public class LocationBarMediatorTest {
                 .when(mLocationBarDataProvider)
                 .getPrimaryColor();
         lenient().doReturn(mTab).when(mLocationBarDataProvider).getTab();
+        lenient().doReturn(true).when(mLocationBarDataProvider).hasTab();
+        lenient().doReturn(mTabView).when(mTab).getView();
         lenient()
                 .doReturn(PageClassification.OTHER_VALUE)
                 .when(mLocationBarDataProvider)
@@ -332,6 +338,7 @@ public class LocationBarMediatorTest {
                 .setNavigateButtonVisibility(anyBoolean());
 
         doReturn(mFuseboxStateSupplier).when(mFuseboxCoordinator).getFuseboxStateSupplier();
+        doReturn(mHasAttachmentsSupplier).when(mFuseboxCoordinator).getHasAttachmentsSupplier();
         doReturn(mFuseboxLayoutModeSupplier)
                 .when(mFuseboxCoordinator)
                 .getFuseboxLayoutModeSupplier();
@@ -347,6 +354,7 @@ public class LocationBarMediatorTest {
                 .doReturn(mAppBannerManager)
                 .when(mAppBannerManagerJni)
                 .getJavaBannerManagerForWebContents(mWebContents);
+        doReturn(mScrimVisibilitySupplier).when(mScrimHandler).getScrimVisibilitySupplier();
         mMediator =
                 new LocationBarMediator(
                         mContext,
@@ -376,6 +384,7 @@ public class LocationBarMediatorTest {
         verify(mFuseboxCoordinator)
                 .setOnInteractionCompletedCallback(mOnInteractionCompletedCallbackCaptor.capture());
         mOnInteractionCompletedCallback = mOnInteractionCompletedCallbackCaptor.getValue();
+        lenient().doReturn(true).when(mScrimHandler).isScrimShown();
 
         mMediator.setCoordinators(mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         mMediator.setAddToHomescreenCoordinatorForTesting(mAddToHomescreenCoordinator);
@@ -678,6 +687,30 @@ public class LocationBarMediatorTest {
     }
 
     @Test
+    public void testSuspendInput_clearsExactMatchUrlSupplier() {
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+
+        AutocompleteInput input = new AutocompleteInput();
+        input.setUserText("text");
+        input.setRequestType(AutocompleteRequestType.SEARCH);
+        mMediator.beginInput(input);
+
+        AutocompleteMatch defaultMatch =
+                AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.URL_WHAT_YOU_TYPED)
+                        .setDisplayText("text")
+                        .setIsSearch(false)
+                        .setAllowedToBeDefaultMatch(true)
+                        .setUrl(JUnitTestGURLs.RED_1)
+                        .build();
+        mMediator.onSuggestionsChanged(defaultMatch, true);
+        assertNotNull(mMediator.getExactMatchUrlSupplier().get());
+
+        mMediator.suspendInput();
+        assertNull(mMediator.getExactMatchUrlSupplier().get());
+    }
+
+    @Test
     public void testOnUrlTextChanged_updatesShouldAutocomplete() {
         mMediator.onFinishNativeInitialization();
         mProfileSupplier.set(mProfile);
@@ -834,11 +867,9 @@ public class LocationBarMediatorTest {
     public void testLoadUrl_clearsFocus() {
         mMediator.onFinishNativeInitialization();
         mProfileSupplier.set(mProfile);
-        doReturn(mTab).when(mLocationBarDataProvider).getTab();
-        doReturn(true).when(mLocationBarDataProvider).hasTab();
-        doReturn(mView).when(mTab).getView();
 
         mMediator.onUrlFocusChange(true);
+        mScrimVisibilitySupplier.set(true);
         assertTrue(mMediator.isUrlBarFocused());
 
         mMediator.loadUrl(
@@ -848,7 +879,10 @@ public class LocationBarMediatorTest {
 
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
-        verify(mView).requestFocus();
+        // Simulate scrim dismissal to restore focus to the tab.
+        mScrimVisibilitySupplier.set(false);
+
+        verify(mTabView).requestFocus();
         verify(mAutocompleteCoordinator).endInput();
         verify(mUrlCoordinator).endInput();
     }
@@ -1254,6 +1288,63 @@ public class LocationBarMediatorTest {
     }
 
     @Test
+    public void testEscapePress_restoresFocusToTabAfterScrimDismissed() {
+        AutocompleteInput input = new AutocompleteInput();
+        doReturn(false).when(mAutocompleteCoordinator).isServingSuggestions();
+        mMediator.beginInput(input);
+        mScrimVisibilitySupplier.set(true);
+
+        // Press Escape (simulates 3rd press b/c serving suggestions is false and text is the same
+        // as initial text).
+        assertTrue(mMediator.handleEscPress());
+
+        // Focus should NOT be restored yet (waiting for scrim hide).
+        verify(mTabView, never()).requestFocus();
+
+        // Simulate scrim dismissal.
+        mScrimVisibilitySupplier.set(false);
+
+        // Focus should now be restored to the tab view.
+        verify(mTabView, times(1)).requestFocus();
+    }
+
+    @Test
+    public void testEscapePress_scrimShownAgain_cancelsFocusRestoration() {
+        AutocompleteInput input = new AutocompleteInput();
+        doReturn(false).when(mAutocompleteCoordinator).isServingSuggestions();
+        mMediator.beginInput(input);
+
+        // Press Escape (simulates 3rd press b/c serving suggestions is false and text is the same
+        // as initial text).
+        assertTrue(mMediator.handleEscPress());
+
+        // Simulate scrim shown again (user re-interaction).
+        mScrimVisibilitySupplier.set(true);
+
+        // Simulate scrim dismissal (animation finally completes).
+        mScrimVisibilitySupplier.set(false);
+
+        // Focus should NOT be restored because it was canceled by the show event.
+        verify(mTabView, never()).requestFocus();
+    }
+
+    @Test
+    public void testEscapePress_scrimNotShown_focusesImmediately() {
+        doReturn(false).when(mScrimHandler).isScrimShown();
+
+        AutocompleteInput input = new AutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.STANDBY);
+        doReturn(false).when(mAutocompleteCoordinator).isServingSuggestions();
+        mMediator.beginInput(input);
+
+        // Press Escape (simulates 3rd press).
+        assertTrue(mMediator.handleEscPress());
+
+        // Focus should be restored immediately because no scrim is showing.
+        verify(mTabView, times(1)).requestFocus();
+    }
+
+    @Test
     @SuppressWarnings("DirectInvocationOnMock")
     public void testOnKey_right() {
         doReturn(KeyEvent.KEYCODE_DPAD_RIGHT).when(mKeyEvent).getKeyCode();
@@ -1458,6 +1549,19 @@ public class LocationBarMediatorTest {
         verify(mAutocompleteCoordinator).beginInput(captor.capture());
         verify(mUrlCoordinator).beginInput(captor.getValue().getAutocompleteInput());
         assertEquals("pastedText", captor.getValue().getAutocompleteInput().getUserText());
+    }
+
+    @Test
+    public void testBeginInput_initializationOrder() {
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+
+        mMediator.beginInput(new AutocompleteInput());
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        InOrder inOrder = inOrder(mUrlCoordinator, mAutocompleteCoordinator);
+        inOrder.verify(mUrlCoordinator).beginInput(any());
+        inOrder.verify(mAutocompleteCoordinator).beginInput(any());
     }
 
     @Test
@@ -2278,9 +2382,22 @@ public class LocationBarMediatorTest {
         mMediator.onUrlFocusChange(true);
         mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
         doReturn("").when(mUrlCoordinator).getTextWithAutocomplete();
+        mHasAttachmentsSupplier.set(false);
 
         mMediator.updateButtonVisibility();
         assertFalse(mNavigateButtonIsVisible);
+    }
+
+    @Test
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
+    public void testNavigateButton_showsWhenExpandedAndFocusedWithoutTextButWithAttachments() {
+        mMediator.onUrlFocusChange(true);
+        mFuseboxStateSupplier.set(FuseboxState.EXPANDED);
+        doReturn("").when(mUrlCoordinator).getTextWithAutocomplete();
+        mHasAttachmentsSupplier.set(true);
+
+        mMediator.updateButtonVisibility();
+        assertTrue(mNavigateButtonIsVisible);
     }
 
     @Test
@@ -2351,13 +2468,6 @@ public class LocationBarMediatorTest {
         mMediator.onInstallabilityUpdated(mAppBannerManager);
         verify(mLocationBarLayout).setInstallButtonVisibility(false);
         verify(mLocationBarEmbedder).onWidthConsumerVisibilityChanged();
-    }
-
-    @Test
-    public void testHintZeroSuggestRefresh_nullTab() {
-        doReturn(null).when(mLocationBarDataProvider).getTab();
-        mMediator.hintZeroSuggestRefresh();
-        verify(mAutocompleteCoordinator).prefetchZeroSuggestResults(null);
     }
 
     @Test
@@ -2968,6 +3078,7 @@ public class LocationBarMediatorTest {
         mMediator.onFinishNativeInitialization();
         mProfileSupplier.set(mProfile);
         mMediator.beginInput(new AutocompleteInput());
+        verify(mScrimHandler).setVisibility(true);
         clearInvocations(mScrimHandler);
 
         // Show scrim in all contexts if there are any suggestions to show.
@@ -3240,5 +3351,21 @@ public class LocationBarMediatorTest {
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         verify(mLocationBarLayout).setIsInStandby(false);
+    }
+
+    @Test
+    public void onUrlFocusChange_keyboardForward_entersStandbyNoPopover() {
+        OmniboxCapabilities.setIsDesktopPlatformForTesting(true);
+        mMediator.onUrlFocusChange(new UrlBarFocusChangeInfo(true, View.FOCUS_FORWARD));
+
+        verify(mLocationBarLayout, atLeastOnce()).setIsInStandby(true);
+        verify(mUrlCoordinator, never()).startReparenting();
+    }
+
+    @Test
+    public void onUrlFocusChange_programmaticFocus_keepsExistingPath() {
+        mMediator.onUrlFocusChange(new UrlBarFocusChangeInfo(true, View.FOCUS_DOWN));
+
+        verify(mLocationBarLayout, never()).setIsInStandby(true);
     }
 }

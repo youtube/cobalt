@@ -230,11 +230,7 @@ interface AccountManager {
   [MinVersion = 1]
   AddObserver@1() => (pending_receiver<AccountManagerObserver> receiver);
 
-  // Returns the list of accounts in AccountManager. Can be invoked before the
-  // initialization is completed (in this case the callback will be invoked
-  // after the initialization is done).
-  [MinVersion = 2]
-  GetAccounts@2() => (array<Account> accounts);
+  // GetAccounts@2 was removed.
 
   // Launches account addition dialog and returns `result` with the added
   // account.

@@ -232,10 +232,6 @@ void NetworkFeaturePodController::PropagateThemeChanged() {
   UpdateTileStateIfExists();
 }
 
-void NetworkFeaturePodController::OnFeaturePodButtonThemeChanged() {
-  PropagateThemeChanged();
-}
-
 void NetworkFeaturePodController::OnFeatureTileThemeChanged() {
   PropagateThemeChanged();
 }

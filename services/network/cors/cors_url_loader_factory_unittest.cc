@@ -8,6 +8,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -25,6 +26,7 @@
 #include "services/network/network_context.h"
 #include "services/network/network_service.h"
 #include "services/network/prefetch_matching_url_loader_factory.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
@@ -149,6 +151,14 @@ class CorsURLLoaderFactoryTest : public testing::Test {
     return test_cors_loader_clients_;
   }
 
+  void FlushFactoryForTesting() {
+    cors_url_loader_factory_remote_.FlushForTesting();
+  }
+
+  bool IsFactoryConnected() const {
+    return cors_url_loader_factory_remote_.is_connected();
+  }
+
  private:
   // Test environment.
   base::test::TaskEnvironment task_environment_;
@@ -252,6 +262,24 @@ TEST_F(CorsURLLoaderFactoryTest, DisallowedLoadFlagToUntrustedLoader) {
   mojo::test::BadMessageObserver bad_message_observer;
   CreateLoaderAndStart(request);
   EXPECT_EQ("CorsURLLoaderFactory: Untrusted caller using restricted load flag",
+            bad_message_observer.WaitForBadMessage());
+}
+
+TEST_F(CorsURLLoaderFactoryTest, DocumentDestinationRequiresNavigateMode) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      features::kRestrictFrameDestinationsToNavigate);
+
+  ResourceRequest request;
+  request.mode = mojom::RequestMode::kNoCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.method = net::HttpRequestHeaders::kGetMethod;
+  request.url = test_server()->GetURL("/echoall");
+  request.destination = mojom::RequestDestination::kDocument;
+  request.request_initiator = url::Origin::Create(request.url);
+  mojo::test::BadMessageObserver bad_message_observer;
+  CreateLoaderAndStart(request);
+  EXPECT_EQ("CorsURLLoaderFactory: frame destination requires kNavigate mode",
             bad_message_observer.WaitForBadMessage());
 }
 
@@ -511,6 +539,47 @@ TEST_F(NetworkBoundCorsURLLoaderFactoryTest, CorsPreflightRequestAreAllowed) {
                     "supported only on "
                     "Android, see URLRequestContextBuilder::BindToNetwork";
   }
+}
+
+TEST_F(CorsURLLoaderFactoryTest, ForbiddenSecHeader_NoDump) {
+  ResourceRequest request;
+  request.mode = mojom::RequestMode::kCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.method = net::HttpRequestHeaders::kGetMethod;
+  request.url = test_server()->GetURL("/echoall");
+  request.request_initiator = url::Origin::Create(request.url);
+  request.headers.SetHeader("Sec-Invalid", "value");
+
+  CreateLoaderAndStart(request);
+
+  test_cors_loader_clients().back()->RunUntilComplete();
+  EXPECT_EQ(net::ERR_INVALID_ARGUMENT,
+            test_cors_loader_clients().back()->completion_status().error_code);
+
+  FlushFactoryForTesting();
+  EXPECT_TRUE(IsFactoryConnected());
+}
+
+TEST_F(CorsURLLoaderFactoryTest, ForbiddenSecHeader_Dump) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      network::features::kRestrictForbiddenSecurityHeaders,
+      {{network::features::kRestrictForbiddenSecurityHeadersDump.name,
+        "true"}});
+
+  ResourceRequest request;
+  request.mode = mojom::RequestMode::kCors;
+  request.credentials_mode = mojom::CredentialsMode::kOmit;
+  request.method = net::HttpRequestHeaders::kGetMethod;
+  request.url = test_server()->GetURL("/echoall");
+  request.request_initiator = url::Origin::Create(request.url);
+  request.headers.SetHeader("Sec-Invalid", "value");
+
+  mojo::test::BadMessageObserver bad_message_observer;
+  CreateLoaderAndStart(request);
+
+  EXPECT_EQ("CorsURLLoaderFactory: Forbidden Sec- header from renderer",
+            bad_message_observer.WaitForBadMessage());
 }
 
 class TrustedURLLoaderFactoryTest : public CorsURLLoaderFactoryTest {

@@ -116,6 +116,7 @@
 #include "chrome/browser/ui/webui/new_tab_page_third_party/new_tab_page_third_party_ui.h"
 #include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
 #endif  // BUILDFLAG(ENABLE_WEBUI_NTP)
+#include "chrome/browser/ui/webui/omnibox_everywhere/omnibox_everywhere_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_ui.h"  // nogncheck
@@ -372,6 +373,7 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<NewTabPageThirdPartyUIConfig>());
 #endif  // BUILDFLAG(ENABLE_WEBUI_NTP)
   map.AddWebUIConfig(std::make_unique<NewTabUIConfig>());
+  map.AddWebUIConfig(std::make_unique<OmniboxEverywhereUIConfig>());
   map.AddWebUIConfig(std::make_unique<OmniboxPopupUIConfig>());
 #if !BUILDFLAG(IS_COBALT)
   map.AddWebUIConfig(

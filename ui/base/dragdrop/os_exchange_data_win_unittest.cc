@@ -17,6 +17,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
@@ -24,6 +25,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/run_until.h"
 #include "base/test/task_environment.h"
+#include "base/threading/thread.h"
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_hglobal.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -38,6 +40,16 @@
 namespace ui {
 
 namespace {
+
+// Creates a dummy `STGMEDIUM` containing 4 bytes of data ("AAAA").
+STGMEDIUM CreateHGlobalMedium() {
+  STGMEDIUM stgm = {};
+  stgm.tymed = TYMED_HGLOBAL;
+  stgm.hGlobal = GlobalAlloc(GPTR, 4);
+  base::win::ScopedHGlobal<std::array<char, 4>*> lock(stgm.hGlobal);
+  *lock.data() = {'A', 'A', 'A', 'A'};
+  return stgm;
+}
 
 const std::vector<DWORD> kStorageMediaTypesForVirtualFiles = {
     TYMED_ISTORAGE,
@@ -540,6 +552,64 @@ TEST_F(OSExchangeDataWinTest, VirtualFiles) {
         EXPECT_FALSE(std::ranges::search(read_contents.value(),
                                          kTestFilenamesAndContents[i].second)
                          .empty());
+      }
+    }
+  }
+}
+
+TEST_F(OSExchangeDataWinTest, VirtualFilesWithLeadingDirectoryEntry) {
+  // A descriptor whose first entry is a directory (as produced by dropping a
+  // folder out of a Windows ZIP "compressed folder"). The directory has no
+  // content stream and must be skipped without shifting the file entries that
+  // follow.
+  const std::vector<std::pair<base::FilePath, base::span<const uint8_t>>>
+      kTestFilenamesAndContents = {
+          {base::FilePath(FILE_PATH_LITERAL("folder")),
+           base::span<const uint8_t>()},
+          {base::FilePath(FILE_PATH_LITERAL("first.txt")),
+           base::byte_span_from_cstring("contents of first")},
+          {base::FilePath(FILE_PATH_LITERAL("second.txt")),
+           base::byte_span_from_cstring("contents of second")},
+      };
+  const std::vector<size_t> kDirectoryIndices = {0};
+
+  // Only the non-directory entries should be surfaced as files.
+  const std::vector<std::pair<base::FilePath, base::span<const uint8_t>>>
+      kExpectedFiles = {kTestFilenamesAndContents[1],
+                        kTestFilenamesAndContents[2]};
+
+  for (const auto& tymed : kStorageMediaTypesForVirtualFiles) {
+    OSExchangeData data;
+    static_cast<OSExchangeDataProviderWin*>(&data.provider())
+        ->SetVirtualFileContentsWithDirectoriesForTesting(
+            kTestFilenamesAndContents, kDirectoryIndices, tymed);
+
+    OSExchangeData copy(data.provider().Clone());
+    std::optional<std::vector<FileInfo>> file_infos =
+        copy.GetVirtualFilenames();
+    ASSERT_TRUE(file_infos.has_value());
+    EXPECT_EQ(kExpectedFiles.size(), file_infos.value().size());
+
+    auto callback =
+        base::BindOnce(&OSExchangeDataWinTest::OnGotVirtualFilesAsTempFiles,
+                       base::Unretained(this));
+    OnGotVirtualFilesAsTempFilesCalledChecker checker(this);
+    copy.GetVirtualFilesAsTempFiles(std::move(callback));
+    task_environment_.RunUntilIdle();
+
+    ASSERT_EQ(kExpectedFiles.size(), retrieved_virtual_files_.size());
+    for (size_t i = 0; i < retrieved_virtual_files_.size(); i++) {
+      EXPECT_EQ(kExpectedFiles[i].first,
+                retrieved_virtual_files_[i].display_name);
+      std::optional<std::vector<uint8_t>> read_contents =
+          base::ReadFileToBytes(retrieved_virtual_files_[i].path);
+      ASSERT_TRUE(read_contents.has_value());
+      if (tymed != TYMED_ISTORAGE) {
+        EXPECT_EQ(kExpectedFiles[i].second, read_contents.value());
+      } else {
+        EXPECT_FALSE(
+            std::ranges::search(read_contents.value(), kExpectedFiles[i].second)
+                .empty());
       }
     }
   }
@@ -1176,6 +1246,310 @@ TEST_F(OSExchangeDataWinTest, SetDataNoRelease) {
   // Reference count should be the same as before if |data_object| is
   // destroyed.
   EXPECT_EQ(stream.GetRefCount(), 0u);
+}
+
+// Verifies that calling `DataObjectImpl::SetData` with a `FORMATETC` containing
+// a target device (`ptd`) correctly performs a deep copy of the variable-length
+// `DVTARGETDEVICE` structure. This prevents Use-After-Free of the COM-stub
+// owned `ptd` pointer, and Out-of-Bounds heap read when the data object's
+// formats are later cloned and marshalled back to the caller.
+TEST_F(OSExchangeDataWinTest, SetDataTargetDeviceUAFAndOOB) {
+  base::win::ScopedCOMInitializer com_initializer;
+
+  // Create the data provider on the main thread and marshal the `IDataObject`
+  // pointer into a stream so it can be unmarshalled and accessed by a
+  // background thread.
+  OSExchangeDataProviderWin data_provider;
+  IDataObject* data_object = data_provider.data_object();
+
+  IStream* stream = nullptr;
+  ASSERT_EQ(CoMarshalInterThreadInterfaceInStream(IID_IDataObject, data_object,
+                                                  &stream),
+            S_OK);
+
+  base::RunLoop run_loop;
+
+  // Run a background thread representing the cross-process COM client.
+  base::Thread background_thread("UAFBackgroundThread");
+  background_thread.Start();
+
+  background_thread.task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](uintptr_t stream_ptr_val, base::OnceClosure quit_closure) {
+            base::ScopedClosureRunner quit_runner(std::move(quit_closure));
+            {
+              base::win::ScopedCOMInitializer com_initializer;
+
+              // Unmarshal the data object proxy.
+              IStream* stream_ptr = reinterpret_cast<IStream*>(stream_ptr_val);
+              Microsoft::WRL::ComPtr<IDataObject> proxy;
+              ASSERT_EQ(CoGetInterfaceAndReleaseStream(stream_ptr,
+                                                       IID_PPV_ARGS(&proxy)),
+                        S_OK);
+
+              // Call `SetData` with a `FORMATETC` containing a target device.
+              const DWORD kTdSize = sizeof(DVTARGETDEVICE);
+              base::win::ScopedCoMem<DVTARGETDEVICE> dv;
+              dv.Reset(static_cast<DVTARGETDEVICE*>(CoTaskMemAlloc(kTdSize)));
+              ASSERT_NE(dv.get(), nullptr);
+
+              dv->tdSize = kTdSize;
+              dv->tdDriverNameOffset = 0;
+              dv->tdDeviceNameOffset = 0;
+              dv->tdPortNameOffset = 0;
+              dv->tdExtDevmodeOffset = 0;
+              dv->tdData[0] = 0;
+
+              FORMATETC fe =
+                  ClipboardFormatType(RegisterClipboardFormatW(L"ChromePtdPoC"),
+                                      -1, TYMED_HGLOBAL)
+                      .ToFormatEtc();
+              fe.ptd = dv.get();
+
+              STGMEDIUM stgm = CreateHGlobalMedium();
+              // `DataObjectImpl` takes ownership of `stgm.hGlobal` when calling
+              // `SetData` with `fRelease=TRUE`.
+              ASSERT_EQ(proxy->SetData(&fe, &stgm, TRUE), S_OK);
+
+              // Free the local target device buffer by resetting the
+              // `ScopedCoMem`. The COM stub on the main thread will also free
+              // its temporary buffer when `SetData` returns.
+              dv.Reset(nullptr);
+
+              // Call `EnumFormatEtc` and retrieve the cloned format. If Chrome
+              // shallow-copied `ptd`, it will read a dangling pointer,
+              // corrupting the `tdSize` value. During marshalling of `Next()`,
+              // COM will crash attempting to read an invalid `tdSize` out of
+              // bounds of the 16-byte header, causing `next_hr` to return
+              // `RPC_E_SERVERFAULT`. If Chrome correctly performs a deep copy
+              // of `ptd` during `SetData` and clones it with the correct size,
+              // `Next()` will succeed and return the duplicated `ptd`.
+              Microsoft::WRL::ComPtr<IEnumFORMATETC> enum_fmt;
+              ASSERT_EQ(proxy->EnumFormatEtc(DATADIR_GET, &enum_fmt), S_OK);
+              FORMATETC out_fe = {};
+              ULONG fetched = 0;
+              EXPECT_EQ(enum_fmt->Next(1, &out_fe, &fetched), S_OK);
+              EXPECT_EQ(fetched, 1ul);
+
+              base::win::ScopedCoMem<DVTARGETDEVICE> out_ptd;
+              out_ptd.Reset(out_fe.ptd);
+              ASSERT_NE(out_ptd.get(), nullptr);
+              EXPECT_EQ(out_ptd->tdSize, kTdSize);
+            }
+          },
+          reinterpret_cast<uintptr_t>(stream), run_loop.QuitClosure()));
+
+  run_loop.Run();
+}
+
+// Verifies that calling `DataObjectImpl::SetData` with a `FORMATETC` containing
+// a `null` target device (`ptd`) is handled safely.
+TEST_F(OSExchangeDataWinTest, SetDataTargetDeviceNull) {
+  base::win::ScopedCOMInitializer com_initializer;
+
+  OSExchangeDataProviderWin data_provider;
+  IDataObject* data_object = data_provider.data_object();
+
+  IStream* stream = nullptr;
+  ASSERT_EQ(CoMarshalInterThreadInterfaceInStream(IID_IDataObject, data_object,
+                                                  &stream),
+            S_OK);
+
+  base::RunLoop run_loop;
+
+  base::Thread background_thread("BackgroundThread");
+  background_thread.Start();
+
+  background_thread.task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](uintptr_t stream_ptr_val, base::OnceClosure quit_closure) {
+            base::ScopedClosureRunner quit_runner(std::move(quit_closure));
+            {
+              base::win::ScopedCOMInitializer com_initializer;
+
+              IStream* stream_ptr = reinterpret_cast<IStream*>(stream_ptr_val);
+              Microsoft::WRL::ComPtr<IDataObject> proxy;
+              ASSERT_EQ(CoGetInterfaceAndReleaseStream(stream_ptr,
+                                                       IID_PPV_ARGS(&proxy)),
+                        S_OK);
+
+              FORMATETC fe = ClipboardFormatType(
+                                 RegisterClipboardFormatW(L"ChromePtdNull"), -1,
+                                 TYMED_HGLOBAL)
+                                 .ToFormatEtc();
+              fe.ptd = nullptr;
+
+              STGMEDIUM stgm = CreateHGlobalMedium();
+              // `DataObjectImpl` takes ownership of `stgm.hGlobal` when calling
+              // `SetData` with `fRelease=TRUE`.
+              ASSERT_EQ(proxy->SetData(&fe, &stgm, TRUE), S_OK);
+
+              Microsoft::WRL::ComPtr<IEnumFORMATETC> enum_fmt;
+              ASSERT_EQ(proxy->EnumFormatEtc(DATADIR_GET, &enum_fmt), S_OK);
+              FORMATETC out_fe = {};
+              ULONG fetched = 0;
+              EXPECT_EQ(enum_fmt->Next(1, &out_fe, &fetched), S_OK);
+              EXPECT_EQ(fetched, 1ul);
+              EXPECT_EQ(out_fe.ptd, nullptr);
+            }
+          },
+          reinterpret_cast<uintptr_t>(stream), run_loop.QuitClosure()));
+
+  run_loop.Run();
+}
+
+// Verifies that calling `DataObjectImpl::SetData` directly (in-process) with a
+// `FORMATETC` containing a target device of an abnormally small `tdSize`
+// (smaller than `sizeof(DVTARGETDEVICE)`) is handled safely without
+// out-of-bounds access.
+TEST_F(OSExchangeDataWinTest, SetDataTargetDeviceSmallSize) {
+  OSExchangeDataProviderWin data_provider;
+  IDataObject* data_object = data_provider.data_object();
+
+  // Call `SetData` directly on the main thread with a target device size of
+  // only 4 bytes (enough for `tdSize` itself, but smaller than
+  // `sizeof(DVTARGETDEVICE)`).
+  const DWORD kTdSize = 4;
+  base::win::ScopedCoMem<DVTARGETDEVICE> dv;
+  dv.Reset(static_cast<DVTARGETDEVICE*>(CoTaskMemAlloc(kTdSize)));
+  ASSERT_NE(dv.get(), nullptr);
+  dv->tdSize = kTdSize;
+
+  FORMATETC fe =
+      ClipboardFormatType(RegisterClipboardFormatW(L"ChromePtdSmall"), -1,
+                          TYMED_HGLOBAL)
+          .ToFormatEtc();
+  fe.ptd = dv.get();
+
+  STGMEDIUM stgm = CreateHGlobalMedium();
+  // `DataObjectImpl` takes ownership of `stgm.hGlobal` when calling `SetData`
+  // with `fRelease=TRUE`.
+  ASSERT_EQ(data_object->SetData(&fe, &stgm, TRUE), S_OK);
+  dv.Reset(nullptr);
+
+  Microsoft::WRL::ComPtr<IEnumFORMATETC> enum_fmt;
+  ASSERT_EQ(data_object->EnumFormatEtc(DATADIR_GET, &enum_fmt), S_OK);
+  FORMATETC out_fe = {};
+  ULONG fetched = 0;
+  EXPECT_EQ(enum_fmt->Next(1, &out_fe, &fetched), S_OK);
+  EXPECT_EQ(fetched, 1ul);
+
+  EXPECT_EQ(out_fe.ptd, nullptr);
+}
+
+TEST_F(OSExchangeDataWinTest, ScopedTargetDeviceLifecycle) {
+  ScopedTargetDevice empty;
+  EXPECT_EQ(empty.get(), nullptr);
+
+  const DWORD kTdSize = 64;
+  base::win::ScopedCoMem<DVTARGETDEVICE> raw;
+  raw.Reset(static_cast<DVTARGETDEVICE*>(CoTaskMemAlloc(kTdSize)));
+  ASSERT_NE(raw.get(), nullptr);
+  raw->tdSize = kTdSize;
+  raw->tdDriverNameOffset = 0;
+  raw->tdDeviceNameOffset = 0;
+  raw->tdPortNameOffset = 0;
+  raw->tdExtDevmodeOffset = 0;
+
+  ScopedTargetDevice device(raw.get());
+  EXPECT_NE(device.get(), nullptr);
+  EXPECT_NE(device.get(), raw.get());
+  EXPECT_EQ(device.get()->tdSize, kTdSize);
+
+  ScopedTargetDevice copy(device);
+  EXPECT_NE(copy.get(), nullptr);
+  EXPECT_NE(copy.get(), device.get());
+  EXPECT_EQ(copy.get()->tdSize, kTdSize);
+
+  DVTARGETDEVICE* copy_raw = copy.get();
+  ScopedTargetDevice moved(std::move(copy));
+  EXPECT_EQ(copy.get(), nullptr);
+  EXPECT_EQ(moved.get(), copy_raw);
+
+  ScopedTargetDevice assigned;
+  assigned = device;
+  EXPECT_NE(assigned.get(), nullptr);
+  EXPECT_NE(assigned.get(), device.get());
+  EXPECT_EQ(assigned.get()->tdSize, kTdSize);
+
+  ScopedTargetDevice moved_assigned;
+  DVTARGETDEVICE* moved_raw = moved.get();
+  moved_assigned = std::move(moved);
+  EXPECT_EQ(moved.get(), nullptr);
+  EXPECT_EQ(moved_assigned.get(), moved_raw);
+
+  base::win::ScopedCoMem<DVTARGETDEVICE> released;
+  released.Reset(moved_assigned.release());
+  EXPECT_EQ(moved_assigned.get(), nullptr);
+  EXPECT_EQ(released.get(), moved_raw);
+
+  // Test rejection of abnormally small target devices.
+  {
+    const DWORD kSmallTdSize = sizeof(DVTARGETDEVICE) - 1;
+    base::win::ScopedCoMem<DVTARGETDEVICE> small_raw;
+    small_raw.Reset(static_cast<DVTARGETDEVICE*>(CoTaskMemAlloc(kSmallTdSize)));
+    ASSERT_NE(small_raw.get(), nullptr);
+    small_raw->tdSize = kSmallTdSize;
+
+    ScopedTargetDevice small_device(small_raw.get());
+    EXPECT_EQ(small_device.get(), nullptr);
+  }
+}
+
+TEST_F(OSExchangeDataWinTest, ScopedFormatEtcLifecycle) {
+  ScopedFormatEtc empty;
+  EXPECT_EQ(empty.format_etc.ptd, nullptr);
+
+  const DWORD kTdSize = 64;
+  base::win::ScopedCoMem<DVTARGETDEVICE> raw_td;
+  raw_td.Reset(static_cast<DVTARGETDEVICE*>(CoTaskMemAlloc(kTdSize)));
+  ASSERT_NE(raw_td.get(), nullptr);
+  raw_td->tdSize = kTdSize;
+  raw_td->tdDriverNameOffset = 0;
+  raw_td->tdDeviceNameOffset = 0;
+  raw_td->tdPortNameOffset = 0;
+  raw_td->tdExtDevmodeOffset = 0;
+
+  FORMATETC raw_fe = {};
+  raw_fe.cfFormat = CF_TEXT;
+  raw_fe.dwAspect = DVASPECT_CONTENT;
+  raw_fe.lindex = -1;
+  raw_fe.tymed = TYMED_HGLOBAL;
+  raw_fe.ptd = raw_td.get();
+
+  ScopedFormatEtc format(raw_fe);
+  EXPECT_EQ(format->cfFormat, CF_TEXT);
+  EXPECT_NE(format.format_etc.ptd, nullptr);
+  EXPECT_NE(format.format_etc.ptd, raw_td.get());
+  EXPECT_EQ(format.format_etc.ptd, format.target_device.get());
+
+  ScopedFormatEtc copy(format);
+  EXPECT_EQ(copy->cfFormat, CF_TEXT);
+  EXPECT_NE(copy.format_etc.ptd, nullptr);
+  EXPECT_NE(copy.format_etc.ptd, format.format_etc.ptd);
+  EXPECT_EQ(copy.format_etc.ptd, copy.target_device.get());
+
+  DVTARGETDEVICE* copy_td_raw = copy.target_device.get();
+  ScopedFormatEtc moved(std::move(copy));
+  EXPECT_EQ(copy.format_etc.ptd, nullptr);
+  EXPECT_EQ(moved.format_etc.ptd, copy_td_raw);
+  EXPECT_EQ(moved.format_etc.ptd, moved.target_device.get());
+
+  ScopedFormatEtc assigned;
+  assigned = format;
+  EXPECT_EQ(assigned->cfFormat, CF_TEXT);
+  EXPECT_NE(assigned.format_etc.ptd, nullptr);
+  EXPECT_NE(assigned.format_etc.ptd, format.format_etc.ptd);
+  EXPECT_EQ(assigned.format_etc.ptd, assigned.target_device.get());
+
+  ScopedFormatEtc moved_assigned;
+  DVTARGETDEVICE* moved_td_raw = moved.target_device.get();
+  moved_assigned = std::move(moved);
+  EXPECT_EQ(moved.format_etc.ptd, nullptr);
+  EXPECT_EQ(moved_assigned.format_etc.ptd, moved_td_raw);
+  EXPECT_EQ(moved_assigned.format_etc.ptd, moved_assigned.target_device.get());
 }
 
 }  // namespace ui

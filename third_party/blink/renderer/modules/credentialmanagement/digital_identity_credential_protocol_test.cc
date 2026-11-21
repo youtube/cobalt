@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/webid/digital_identity_request.mojom.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
@@ -20,6 +21,7 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_digital_credential_request_options.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/credential.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/digital_credential.h"
@@ -176,6 +178,8 @@ TEST_F(DigitalIdentityCredentialProtocolTest, DiscoverProtocolUseCounters) {
         MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<Credential>>>(
             script_state);
 
+    GetFrame().NotifyUserActivation(
+        mojom::blink::UserActivationNotificationType::kTest);
     DiscoverDigitalIdentityCredentialFromExternalSource(
         resolver, *CreateOptionsWithProtocol(script_state, test_case.protocol));
 
@@ -209,6 +213,8 @@ TEST_F(DigitalIdentityCredentialProtocolTest, CreateProtocolUseCounters) {
         MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<Credential>>>(
             script_state);
 
+    GetFrame().NotifyUserActivation(
+        mojom::blink::UserActivationNotificationType::kTest);
     CreateDigitalIdentityCredentialInExternalSource(
         resolver,
         *CreateCreateOptionsWithProtocol(script_state, test_case.protocol));
@@ -251,6 +257,8 @@ TEST_F(DigitalIdentityCredentialProtocolTest,
     requests.push_back(request);
   }
 
+  GetFrame().NotifyUserActivation(
+      mojom::blink::UserActivationNotificationType::kTest);
   DiscoverDigitalIdentityCredentialFromExternalSource(
       resolver, *CreateGetOptionsWithRequests(requests));
 
@@ -273,6 +281,8 @@ TEST_F(DigitalIdentityCredentialProtocolTest,
       MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<Credential>>>(
           script_state);
 
+  GetFrame().NotifyUserActivation(
+      mojom::blink::UserActivationNotificationType::kTest);
   DiscoverDigitalIdentityCredentialFromExternalSource(
       resolver, *CreateOptionsWithProtocol(script_state, "unknown-protocol"));
 
@@ -294,6 +304,8 @@ TEST_F(DigitalIdentityCredentialProtocolTest,
       MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<Credential>>>(
           script_state);
 
+  GetFrame().NotifyUserActivation(
+      mojom::blink::UserActivationNotificationType::kTest);
   CreateDigitalIdentityCredentialInExternalSource(
       resolver,
       *CreateCreateOptionsWithProtocol(script_state, "unknown-protocol"));
@@ -314,6 +326,8 @@ class DigitalIdentityCredentialProtocolFilterTest
         MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<Credential>>>(
             script_state);
 
+    GetFrame().NotifyUserActivation(
+        mojom::blink::UserActivationNotificationType::kTest);
     DiscoverDigitalIdentityCredentialFromExternalSource(
         resolver, *CreateOptionsWithProtocol(script_state, protocol));
 
@@ -333,6 +347,8 @@ class DigitalIdentityCredentialProtocolFilterTest
         MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<Credential>>>(
             script_state);
 
+    GetFrame().NotifyUserActivation(
+        mojom::blink::UserActivationNotificationType::kTest);
     CreateDigitalIdentityCredentialInExternalSource(
         resolver, *CreateCreateOptionsWithProtocol(script_state, protocol));
 

@@ -196,9 +196,11 @@ std::string NetLog::TickCountToString(const base::TimeTicks& time) {
 
 // static
 std::string NetLog::TimeToString(base::Time time) {
-  // Convert the base::Time to its (approximate) equivalent in base::TimeTicks.
+  // Convert the base::Time to its (approximate) equivalent in base::TimeTicks
+  // by anchoring both clocks to the current instant. This keeps the serialized
+  // value on the same timeline as the TimeTicks-based event timestamps.
   base::TimeTicks time_ticks =
-      base::TimeTicks::UnixEpoch() + (time - base::Time::UnixEpoch());
+      base::TimeTicks::Now() - (base::Time::Now() - time);
   return TickCountToString(time_ticks);
 }
 

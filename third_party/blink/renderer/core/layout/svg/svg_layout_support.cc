@@ -24,6 +24,8 @@
 
 #include "third_party/blink/renderer/core/layout/svg/svg_layout_support.h"
 
+#include <algorithm>
+
 #include "third_party/blink/renderer/core/layout/geometry/transform_state.h"
 #include "third_party/blink/renderer/core/layout/hit_test_location.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_inline_text.h"
@@ -35,6 +37,7 @@
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/svg/svg_length_functions.h"
+#include "third_party/blink/renderer/core/svg/svg_zoom_migration.h"
 #include "third_party/blink/renderer/platform/geometry/infinite_int_rect.h"
 #include "third_party/blink/renderer/platform/geometry/stroke_data.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
@@ -258,7 +261,8 @@ gfx::RectF SVGLayoutSupport::ExtendTextBBoxWithStroke(
     // TODO(fs): This approximation doesn't appear to be conservative enough
     // since while text (usually?) won't have caps it could have joins and thus
     // miters.
-    bounds.Outset(ValueForLength(style.StrokeWidth(), viewport_resolver));
+    bounds.Outset(ValueForLength(style.StrokeWidth(), viewport_resolver,
+                                 style.EffectiveZoom()));
   }
   return bounds;
 }
@@ -295,8 +299,8 @@ void SVGLayoutSupport::ApplyStrokeStyleToStrokeData(StrokeData& stroke_data,
   DCHECK(object.GetNode()->IsSVGElement());
 
   const SVGViewportResolver viewport_resolver(object);
-  stroke_data.SetThickness(
-      ValueForLength(style.StrokeWidth(), viewport_resolver));
+  stroke_data.SetThickness(ValueForLength(
+      style.StrokeWidth(), viewport_resolver, style.EffectiveZoom()));
   stroke_data.SetLineCap(style.CapStyle());
   stroke_data.SetLineJoin(style.JoinStyle());
   stroke_data.SetMiterLimit(style.StrokeMiterLimit());
@@ -419,8 +423,7 @@ static SearchCandidate SearchTreeForFindClosestLayoutSVGText(
   if (closest_text.layout_object && candidates.empty())
     return closest_text;
 
-  std::stable_sort(candidates.begin(), candidates.end(),
-                   CompareCandidateDistance);
+  std::ranges::stable_sort(candidates, CompareCandidateDistance);
 
   // Find the closest LayoutSVGText in the sub-trees in |candidates|.
   // If a LayoutSVGText is found that is strictly closer than any previous

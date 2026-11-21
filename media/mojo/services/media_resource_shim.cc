@@ -28,9 +28,9 @@ MediaResourceShim::MediaResourceShim(
 
 MediaResourceShim::~MediaResourceShim() = default;
 
-std::vector<DemuxerStream*> MediaResourceShim::GetAllStreams() {
+std::vector<raw_ptr<DemuxerStream>> MediaResourceShim::GetAllStreams() {
   DCHECK(!demuxer_ready_cb_);
-  std::vector<DemuxerStream*> result;
+  std::vector<raw_ptr<DemuxerStream>> result;
   for (auto& stream : streams_) {
     result.push_back(stream.get());
   }

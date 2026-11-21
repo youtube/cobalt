@@ -8,7 +8,6 @@
 
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
-#include "build/branding_buildflags.h"
 #include "chrome/browser/search_engines/template_url_service_factory_test_util.h"
 #include "chrome/browser/ui/lens/lens_search_feature_flag_utils.h"
 #include "chrome/test/base/testing_profile.h"
@@ -39,8 +38,6 @@ class GoogleLensStepEligibilityCheckerTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile profile_;
 };
-
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 TEST_F(GoogleLensStepEligibilityCheckerTest, EligibleWhenAllConditionsMet) {
   GoogleLensStepEligibilityChecker checker;
@@ -79,14 +76,3 @@ TEST_F(GoogleLensStepEligibilityCheckerTest,
   checker.CheckEligibility(*profile(), future.GetCallback());
   EXPECT_FALSE(future.Get());
 }
-
-#else
-
-TEST_F(GoogleLensStepEligibilityCheckerTest, IneligibleOnChromium) {
-  GoogleLensStepEligibilityChecker checker;
-  base::test::TestFuture<bool> future;
-  checker.CheckEligibility(*profile(), future.GetCallback());
-  EXPECT_FALSE(future.Get());
-}
-
-#endif

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #import "base/functional/bind.h"
+#import "base/strings/strcat.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "components/send_tab_to_self/features.h"
@@ -21,6 +22,7 @@
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
+#import "ios/chrome/test/earl_grey/test_switches.h"
 #import "ios/chrome/test/scoped_eg_synchronization_disabler.h"
 #import "ios/testing/earl_grey/app_launch_manager.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
@@ -894,6 +896,72 @@ ElementSelector* UsernameElement() {
       assertWithMatcher:grey_notNil()];
 
   // Tap the newly opened tab (index 1) to view it.
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridCellAtIndex(1)]
+      performAction:grey_tap()];
+
+  // Enter the Tab Grid again.
+  [ChromeEarlGreyUI openTabGrid];
+
+  // Verify that the label is now gone.
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(grey_accessibilityLabel(labelText),
+                                          grey_sufficientlyVisible(), nil)]
+      assertWithMatcher:grey_nil()];
+}
+
+// Tests that the tab card activity label is correctly persisted and restored
+// across app relaunch, and is dismissed once the tab is viewed.
+- (void)testTabCardLabelPersistsAcrossRelaunch {
+  [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
+  [ChromeEarlGrey addFakeSyncServerDeviceInfo:kTargetDeviceName
+                         lastUpdatedTimestamp:base::Time::Now()];
+
+  // Load a starting page.
+  [ChromeEarlGrey loadURL:GURL("about:blank")];
+
+  NSUInteger initialTabCount = [ChromeEarlGrey mainTabCount];
+
+  // Receive a shared tab.
+  [ChromeEarlGrey addFakeSyncServerSendTabToSelfEntryWithURL:kExampleURL
+                                                       title:@"AutoOpen Page"
+                                                  deviceName:@"remote_device"
+                                            targetDeviceGUID:@""];
+  [ChromeEarlGrey triggerSyncCycleForType:syncer::SEND_TAB_TO_SELF];
+
+  // Wait for the background tab to open.
+  [ChromeEarlGrey waitForMainTabCount:initialTabCount + 1];
+
+  // Enter the Tab Grid.
+  [ChromeEarlGreyUI openTabGrid];
+
+  // Verify that the activity label "From remote_device" is visible.
+  NSString* labelText = l10n_util::GetNSStringF(
+      IDS_SEND_TAB_TO_SELF_INFOBAR_AUTO_OPEN_SUBTITLE, u"remote_device");
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(grey_accessibilityLabel(labelText),
+                                          grey_sufficientlyVisible(), nil)]
+      assertWithMatcher:grey_notNil()];
+
+  // Relaunch the app with the fake identity.
+  AppLaunchConfiguration config = [self appConfigurationForTestCase];
+  config.relaunch_policy = ForceRelaunchByCleanShutdown;
+  FakeSystemIdentity* identity = [FakeSystemIdentity fakeIdentity1];
+  config.additional_args.push_back(base::StrCat({
+    "-", test_switches::kAddFakeIdentitiesAtStartup, "=",
+        [FakeSystemIdentity encodeIdentitiesToBase64:@[ identity ]]
+  }));
+  [[AppLaunchManager sharedManager] ensureAppLaunchedWithConfiguration:config];
+
+  // Enter the Tab Grid.
+  [ChromeEarlGreyUI openTabGrid];
+
+  // Verify that the label is still visible after restart.
+  [[EarlGrey
+      selectElementWithMatcher:grey_allOf(grey_accessibilityLabel(labelText),
+                                          grey_sufficientlyVisible(), nil)]
+      assertWithMatcher:grey_notNil()];
+
+  // Tap the tab (index 1) to view it.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridCellAtIndex(1)]
       performAction:grey_tap()];
 

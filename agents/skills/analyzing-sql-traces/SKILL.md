@@ -36,7 +36,10 @@ To prevent triggering unnecessary user permission/access grant prompts:
   `out/e2e_nla_run_{parent_session_id}/analysis/` (where `{parent_session_id}`
   is passed by the Orchestrator).
   - Raw data / comparison reports:
-    `out/e2e_nla_run_{parent_session_id}/analysis/raw_trace_data.txt` (Mode A)
+    `out/e2e_nla_run_{parent_session_id}/analysis/raw_trace_data.txt` (Mode A,
+    Text flamegraph)
+    `out/e2e_nla_run_{parent_session_id}/analysis/raw_trace_report.md` (Mode A,
+    Markdown report)
     `out/e2e_nla_run_{parent_session_id}/analysis/comparison_report.md` (Mode B,
     Markdown report)
     `out/e2e_nla_run_{parent_session_id}/analysis/comparison_flamegraph.txt`
@@ -63,7 +66,7 @@ ______________________________________________________________________
 
 #### Mode A: Single-Group Analysis (Only Treatment Traces Provided)
 
-Run the trace analyzer to produce an aggregated text flamegraph:
+First, run the trace analyzer to produce an aggregated text flamegraph:
 
 ```bash
 vpython3 agents/skills/analyzing-sql-traces/scripts/trace_analyzer.py \
@@ -74,8 +77,21 @@ vpython3 agents/skills/analyzing-sql-traces/scripts/trace_analyzer.py \
   --output out/e2e_nla_run_{parent_session_id}/analysis/raw_trace_data.txt
 ```
 
+Second, run the trace analyzer to produce a markdown report with cumulative
+redundancy analysis:
+
+```bash
+vpython3 agents/skills/analyzing-sql-traces/scripts/trace_analyzer.py \
+  --traces {path/to/treatment_trace_*.pb} \
+  --target "{focus_slice_or_metric}" \
+  --mode {descendants|window} \
+  --format markdown \
+  --output out/e2e_nla_run_{parent_session_id}/analysis/raw_trace_report.md
+```
+
 Read the generated
-`out/e2e_nla_run_{parent_session_id}/analysis/raw_trace_data.txt` using
+`out/e2e_nla_run_{parent_session_id}/analysis/raw_trace_data.txt` and
+`out/e2e_nla_run_{parent_session_id}/analysis/raw_trace_report.md` using
 `view_file`.
 
 #### Mode B: Comparative Analysis (Both Control and Treatment Traces Provided)
@@ -124,6 +140,13 @@ flags to refine slice selection when multiple events share the same name:
   analyze only a specific call out of multiple occurrences, filter by its
   arguments (e.g.
   `--arg-key "task.posted_from.file_name" --arg-value "content/browser/browser_main_loop.cc"`).
+  *Note:* The `--arg-value` parameter supports SQL `LIKE` operator syntax (e.g.
+  `%google.com/search%` to perform prefix or wildcard substring matches).
+- **Parent Bounding Target (`--boundary-target <name>`)**: Restricts the target
+  slice search to only those occurrences that fall chronologically within the
+  execution time windows of a specified parent/boundary event (descendants mode
+  only). Use with `--boundary-arg-key <key>` and `--boundary-arg-value <value>`
+  to target specific parent navigation/workflow windows.
 
 ______________________________________________________________________
 

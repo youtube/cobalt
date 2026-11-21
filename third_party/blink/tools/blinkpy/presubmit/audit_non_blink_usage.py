@@ -1715,6 +1715,7 @@ _CONFIG = [
         ],
         'allowed': [
             'color_utils::GetContrastRatio',
+            'color_utils::GetRelativeLuminance4f',
         ],
     },
     {
@@ -2302,11 +2303,12 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/renderer/platform/bindings/parkable_string_manager.cc',
             'third_party/blink/renderer/platform/bindings/parkable_string_manager.h',
         ],
         'allowed': [
             # ParkableStringManager is not garbage-collected, so is safe to use the base version.
-            'base::AsyncMemoryPressureListenerRegistration',
+            'base::AsyncMemoryConsumerRegistration',
         ],
     },
     {
@@ -2937,6 +2939,9 @@ _CONFIG = [
             'blink_mojom::.+',
             'webnn::.+',
             'gpu::SharedImageInterface',
+            'gpu::SHARED_IMAGE_USAGE_WEBGPU_READ',
+            'gpu::SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER',
+            'gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE',
             'viz::SinglePlaneFormat',
         ]
     },

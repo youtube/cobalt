@@ -12,6 +12,7 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ui.autofill.data.AuthenticatorOption;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.ui.base.WindowAndroid;
@@ -25,7 +26,7 @@ import java.util.List;
 @JNINamespace("autofill")
 @NullMarked
 public class AuthenticatorSelectionDialogBridge implements AuthenticatorSelectionDialog.Listener {
-    private final long mNativeCardUnmaskAuthenticationSelectionDialogView;
+    private long mNativeCardUnmaskAuthenticationSelectionDialogView;
     private final AuthenticatorSelectionDialog mAuthenticatorSelectionDialog;
 
     public AuthenticatorSelectionDialogBridge(
@@ -129,6 +130,7 @@ public class AuthenticatorSelectionDialogBridge implements AuthenticatorSelectio
      */
     @Override
     public void onOptionSelected(String authenticatorOptionIdentifier) {
+        if (mNativeCardUnmaskAuthenticationSelectionDialogView == 0) return;
         AuthenticatorSelectionDialogBridgeJni.get()
                 .onOptionSelected(
                         mNativeCardUnmaskAuthenticationSelectionDialogView,
@@ -138,8 +140,13 @@ public class AuthenticatorSelectionDialogBridge implements AuthenticatorSelectio
     /** Notify that the dialog was dismissed. */
     @Override
     public void onDialogDismissed() {
+        if (mNativeCardUnmaskAuthenticationSelectionDialogView == 0) return;
         AuthenticatorSelectionDialogBridgeJni.get()
                 .onDismissed(mNativeCardUnmaskAuthenticationSelectionDialogView);
+        if (ChromeFeatureList.isEnabled(
+                ChromeFeatureList.RESET_NATIVE_POINTER_IN_CREDIT_CARD_AUTH_DIALOG)) {
+            mNativeCardUnmaskAuthenticationSelectionDialogView = 0;
+        }
     }
 
     @NativeMethods

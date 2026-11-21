@@ -88,6 +88,8 @@ class PermissionDashboardController : public PermissionChipInterface::Observer {
                               bool reload_prompt);
   void OnIndicatorsChipButtonPressed();
   std::u16string GetIndicatorTitle(ContentSettingImageModel* model);
+  std::u16string GetSensorsIndicatorTitle(ContentSettingImageModel* model);
+  std::u16string GetMediaStreamIndicatorTitle(ContentSettingImageModel* model);
 
   // The implementation of `LocationBar` owns this.
   raw_ptr<LocationBar> location_bar_ = nullptr;
@@ -97,7 +99,7 @@ class PermissionDashboardController : public PermissionChipInterface::Observer {
   raw_ptr<ContentSettingImageViewDelegate> content_setting_image_delegate_ =
       nullptr;
   raw_ptr<PermissionDashboardInterface> permission_dashboard_ = nullptr;
-  // Currently only Camera and Mic are supported.
+  // Currently Camera, Mic and Sensors are supported.
   raw_ptr<ContentSettingImageModel> content_setting_image_model_ = nullptr;
   std::unique_ptr<ChipController> request_chip_controller_;
   // A timer used to collapse indicators after a delay.

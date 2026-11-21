@@ -62,6 +62,8 @@ reviewer.
   <int value="15" label="GetDetailsForCreatePaymentInstrument request failed"/>
   <int value="16" label="User is ineligible per Payments backend"/>
   <int value="17" label="Action token is not available"/>
+  <int value="18" label="User logged out"/>
+  <int value="19" label="API client not available"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/facilitated_payments/core/metrics/facilitated_payments_metrics.h:AccountLinkingFlowExitedReason) -->

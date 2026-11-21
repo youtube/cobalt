@@ -5,6 +5,7 @@
 #include "mojo/public/rust/bindings/test/cpp/cxx_shim.h"
 
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -56,6 +57,8 @@ void CreatePlusSevenMathServiceAndRemote(
       remote.PassPipe());
 }
 
+extern "C" void rust_on_cpp_associated_disconnect(int32_t handler_type);
+
 class AssociatedSenderImpl : public AssociatedSender {
  public:
   AssociatedSenderImpl() = default;
@@ -63,6 +66,8 @@ class AssociatedSenderImpl : public AssociatedSender {
 
   void SendRemote(mojo::PendingAssociatedRemote<MathService> remote) override {
     mojo::AssociatedRemote<MathService> math_remote(std::move(remote));
+    math_remote.set_disconnect_handler(
+        base::BindOnce(&rust_on_cpp_associated_disconnect, 1));
     math_remote->Add(
         1, 2, base::BindOnce([](uint32_t result) { EXPECT_EQ(result, 3u); }));
     active_remotes_.push_back(std::move(math_remote));
@@ -70,16 +75,20 @@ class AssociatedSenderImpl : public AssociatedSender {
 
   void SendReceiver(
       mojo::PendingAssociatedReceiver<MathService> receiver) override {
-    active_services_.push_back(
-        std::make_unique<PlusSevenMathService>(std::move(receiver)));
+    auto service = std::make_unique<PlusSevenMathService>(std::move(receiver));
+    service->set_disconnect_handler(
+        base::BindOnce(&rust_on_cpp_associated_disconnect, 2));
+    active_services_.push_back(std::move(service));
   }
 
   void RequestRemote(RequestRemoteCallback callback) override {
     mojo::PendingAssociatedRemote<MathService> remote;
     mojo::PendingAssociatedReceiver<MathService> receiver =
         remote.InitWithNewEndpointAndPassReceiver();
-    active_services_.push_back(
-        std::make_unique<PlusSevenMathService>(std::move(receiver)));
+    auto service = std::make_unique<PlusSevenMathService>(std::move(receiver));
+    service->set_disconnect_handler(
+        base::BindOnce(&rust_on_cpp_associated_disconnect, 3));
+    active_services_.push_back(std::move(service));
     std::move(callback).Run(std::move(remote));
   }
 
@@ -92,6 +101,8 @@ class AssociatedSenderImpl : public AssociatedSender {
     std::move(callback).Run(std::move(receiver));
 
     mojo::AssociatedRemote<MathService> math_remote(std::move(remote));
+    math_remote.set_disconnect_handler(
+        base::BindOnce(&rust_on_cpp_associated_disconnect, 4));
     math_remote->Add(20, 30, base::BindOnce([](uint32_t result) {
                        EXPECT_EQ(result, 50u);
                      }));
@@ -99,9 +110,13 @@ class AssociatedSenderImpl : public AssociatedSender {
     active_remotes_.push_back(std::move(math_remote));
   }
 
+  void ClearActiveEndpoints() override {
+    active_remotes_.clear();
+    active_services_.clear();
+  }
+
  private:
   std::vector<mojo::AssociatedRemote<MathService>> active_remotes_;
-  std::vector<mojo::PendingAssociatedRemote<MathService>> pending_remotes_;
   std::vector<std::unique_ptr<PlusSevenMathService>> active_services_;
 };
 

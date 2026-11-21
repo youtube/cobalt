@@ -6,6 +6,7 @@
 
 #include "base/files/file_util.h"
 #include "base/functional/function_ref.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
@@ -115,6 +116,7 @@ class FormControlsBrowserTest : public ContentBrowserTest {
       golden_filepath = golden_filepath_platform;
     }
 
+    LOG(INFO) << "Loading golden file: " << golden_filepath;
     ASSERT_TRUE(
         NavigateToURL(shell()->web_contents(),
                       GURL("data:text/html,<!DOCTYPE html>" + body_html)));

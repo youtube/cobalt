@@ -56,7 +56,9 @@ class FrameDecodeTimingTest : public ::testing::Test {
         clock_(Timestamp::Millis(1000)),
         timing_(&clock_, field_trials_, /*render_delay=*/TimeDelta::Zero()),
         frame_decode_scheduler_(&clock_, &timing_, field_trials_) {
-    timing_.OnCompleteTemporalUnit(kNextRtp, clock_.CurrentTime());
+    timing_.OnCompleteFrame({.rtp_timestamp = kNextRtp,
+                             .time = clock_.CurrentTime(),
+                             .last_spatial_layer = true});
   }
 
  protected:

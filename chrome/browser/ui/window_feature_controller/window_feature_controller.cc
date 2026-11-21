@@ -54,6 +54,10 @@ bool WindowFeatureController::CanSupportWindowFeature(
   return SupportsWindowFeatureImpl(feature, /*check_can_support=*/true);
 }
 
+bool WindowFeatureController::IsTrustedSource() const {
+  return is_trusted_source_;
+}
+
 #if BUILDFLAG(IS_MAC)
 bool WindowFeatureController::UsesImmersiveFullscreenMode() const {
   const bool is_pwa = app_controller_ != nullptr;

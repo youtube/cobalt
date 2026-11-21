@@ -223,24 +223,87 @@ content::WebContents* WebAppLaunchProcess::Run() {
     is_file_handling = false;
   }
 
-  NavigateResult navigate_result =
-      MaybeNavigateBrowser(launch_url, share_target);
+  BrowserWindowInterface* browser = MaybeFindBrowserForLaunch();
+  bool is_new_browser = false;
+  if (browser) {
+    browser->GetWindow()->Activate();
+  } else {
+    browser = CreateBrowserForLaunch();
+    is_new_browser = true;
+  }
+  browser->GetWindow()->Show();
 
-  content::WebContents* web_contents = navigate_result.web_contents;
-  if (!navigate_result.did_navigate) {
-    CHECK(web_contents);
-    webapps::LaunchParams launch_params;
-    launch_params.set_started_new_navigation(false);
-    launch_params.set_app_id(web_app_->app_id());
-    launch_params.set_target_url(launch_url);
-    launch_params.set_paths(is_file_handling ? params_->launch_files
-                                             : std::vector<base::FilePath>());
-    WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
-        web_contents, std::move(launch_params), params_->container,
-        params_->launch_source);
+  webapps::LaunchParams launch_params;
+  launch_params.set_app_id(web_app_->app_id());
+  launch_params.set_target_url(launch_url);
+  launch_params.set_paths(is_file_handling ? params_->launch_files
+                                           : std::vector<base::FilePath>());
+
+  WindowOpenDisposition navigation_disposition =
+      GetNavigationDisposition(is_new_browser);
+  content::WebContents* existing_tab =
+      browser->GetFeatures().tab_strip_model()->GetActiveWebContents();
+  bool open_in_new_window =
+      !existing_tab ||
+      navigation_disposition != WindowOpenDisposition::CURRENT_TAB;
+  // In the case of prevent-close, we do not navigate but instead focus the
+  // existing window.
+  bool app_wants_focus_existing_without_navigation =
+     GetLaunchHandler().NeverNavigateExistingClients() ||
+     registrar_->IsPreventCloseEnabled(params_->app_id);
+  if (!open_in_new_window && app_wants_focus_existing_without_navigation) {
+    auto* tab_helper = WebAppTabHelper::FromWebContents(existing_tab);
+    if (tab_helper->pending_launch_app_id() == params_->app_id) {
+      // This WebContents is already handling a launch for this app. It may
+      // currently be out of scope but the in progress app launch will put it
+      // back in scope. The new app launch params are added on here, so that
+      // it can be tied to the current navigation.
+      if (auto holder = tab_helper->pending_launch_params_holder()) {
+        holder->SetLaunchParams(std::move(launch_params));
+      }
+      return existing_tab;
+    }
+
+    if (registrar_->IsUrlInAppExtendedScope(existing_tab->GetLastCommittedURL(),
+                                            params_->app_id)) {
+      // If the web contents is currently navigating then interrupt it. The
+      // current page is now being used for this app launch.
+      existing_tab->Stop();
+      launch_params.set_started_new_navigation(false);
+      WebAppLaunchNavigationHandleUserData::DispatchLaunchParams(
+          existing_tab, std::move(launch_params), params_->container,
+          params_->launch_source);
+      return existing_tab;
+    }
   }
 
-  return web_contents;
+  const GURL& url_to_navigate =
+      AppBrowserController::IsIsolatedWebApp(browser) &&
+              launch_url.SchemeIsHTTPOrHTTPS() && open_in_new_window
+          ? AppBrowserController::From(browser)->GetAppStartUrl()
+          : launch_url;
+
+  NavigateParams nav_params =
+      share_target
+          ? NavigateParamsForShareTarget(
+                browser, *share_target, *params_->intent, params_->launch_files)
+          : NavigateParams(browser, url_to_navigate,
+                           ui::PAGE_TRANSITION_AUTO_BOOKMARK);
+  nav_params.disposition = navigation_disposition;
+  if (!open_in_new_window) {
+    nav_params.referrer = content::Referrer::SanitizeForRequest(
+        launch_url,
+        content::Referrer(existing_tab->GetURL(),
+                          network::mojom::ReferrerPolicy::kDefault));
+  }
+
+  if (!nav_params.web_app_navigation_data) {
+    nav_params.web_app_navigation_data.emplace();
+  }
+
+  nav_params.web_app_navigation_data->SetLaunchParams(std::move(launch_params));
+  nav_params.web_app_navigation_data->SetLaunchSource(params_->launch_source);
+  return NavigateWebAppUsingParams(nav_params);
 }
 
 const apps::ShareTarget* WebAppLaunchProcess::MaybeGetShareTarget() const {
@@ -375,91 +438,6 @@ Browser* WebAppLaunchProcess::CreateBrowserForLaunch() {
   browser_params.restore_id = params_->restore_id;
 #endif
   return CreateWebAppWindowMaybeWithHomeTab(params_->app_id, browser_params);
-}
-
-WebAppLaunchProcess::NavigateResult WebAppLaunchProcess::MaybeNavigateBrowser(
-    const GURL& launch_url,
-    const apps::ShareTarget* share_target) {
-  BrowserWindowInterface* browser = MaybeFindBrowserForLaunch();
-  bool is_new_browser = false;
-  if (browser) {
-    browser->GetWindow()->Activate();
-  } else {
-    browser = CreateBrowserForLaunch();
-    is_new_browser = true;
-  }
-  browser->GetWindow()->Show();
-
-  WindowOpenDisposition navigation_disposition =
-      GetNavigationDisposition(is_new_browser);
-  content::WebContents* existing_tab =
-      browser->GetFeatures().tab_strip_model()->GetActiveWebContents();
-  bool open_in_new_window =
-      !existing_tab ||
-      navigation_disposition != WindowOpenDisposition::CURRENT_TAB;
-  // In the case of prevent-close, we do not navigate but instead focus the
-  // existing window.
-  if (!open_in_new_window &&
-      (GetLaunchHandler().NeverNavigateExistingClients() ||
-       registrar_->IsPreventCloseEnabled(params_->app_id))) {
-    auto* tab_helper = WebAppTabHelper::FromWebContents(existing_tab);
-    if (tab_helper->pending_launch_app_id() == params_->app_id) {
-      // This WebContents is already handling a launch for this app. It may
-      // currently be out of scope but the in progress app launch will put it
-      // back in scope. The new app launch params are added on here, so that
-      // it can be tied to the current navigation.
-      if (auto holder = tab_helper->pending_launch_params_holder()) {
-        webapps::LaunchParams launch_params;
-        launch_params.set_app_id(web_app_->app_id());
-        launch_params.set_target_url(launch_url);
-        launch_params.set_paths(params_->launch_files);
-        holder->SetLaunchParams(std::move(launch_params));
-      }
-      return {.web_contents = existing_tab, .did_navigate = false};
-    }
-
-    if (registrar_->IsUrlInAppExtendedScope(existing_tab->GetLastCommittedURL(),
-                                            params_->app_id)) {
-      // If the web contents is currently navigating then interrupt it. The
-      // current page is now being used for this app launch.
-      existing_tab->Stop();
-      return {.web_contents = existing_tab, .did_navigate = false};
-    }
-  }
-
-  const GURL& url_to_navigate =
-      AppBrowserController::IsIsolatedWebApp(browser) &&
-              launch_url.SchemeIsHTTPOrHTTPS() && open_in_new_window
-          ? AppBrowserController::From(browser)->GetAppStartUrl()
-          : launch_url;
-
-  NavigateParams nav_params =
-      share_target
-          ? NavigateParamsForShareTarget(
-                browser, *share_target, *params_->intent, params_->launch_files)
-          : NavigateParams(browser, url_to_navigate,
-                           ui::PAGE_TRANSITION_AUTO_BOOKMARK);
-  nav_params.disposition = navigation_disposition;
-  if (!open_in_new_window) {
-    nav_params.referrer = content::Referrer::SanitizeForRequest(
-        launch_url,
-        content::Referrer(existing_tab->GetURL(),
-                          network::mojom::ReferrerPolicy::kDefault));
-  }
-
-  if (!nav_params.web_app_navigation_data) {
-    nav_params.web_app_navigation_data.emplace();
-  }
-
-  webapps::LaunchParams launch_params;
-  launch_params.set_app_id(web_app_->app_id());
-  launch_params.set_target_url(launch_url);
-  launch_params.set_paths(params_->launch_files);
-  nav_params.web_app_navigation_data->SetLaunchParams(std::move(launch_params));
-  nav_params.web_app_navigation_data->SetLaunchSource(params_->launch_source);
-
-  return {.web_contents = NavigateWebAppUsingParams(nav_params),
-          .did_navigate = true};
 }
 
 }  // namespace web_app

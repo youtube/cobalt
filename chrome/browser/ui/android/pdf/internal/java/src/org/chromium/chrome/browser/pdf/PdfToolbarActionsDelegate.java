@@ -55,9 +55,16 @@ public interface PdfToolbarActionsDelegate {
     /** Triggers printing for the PDF document. */
     void print();
 
-    /** Rotates the PDF document. */
-    void rotate();
+
 
     /** Shows the document properties dialog. */
     void showDocumentProperties();
+
+    /**
+     * Called when the visibility of the page navigation and edit button changes.
+     *
+     * @param visible Whether the page navigation and edit button are visible.
+     */
+    void onPageNavAndEditVisibilityChanged(boolean visible);
 }
+

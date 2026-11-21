@@ -125,7 +125,7 @@ class MojoRendererTest : public ::testing::Test {
     video_stream_->set_video_decoder_config(
         is_encrypted ? TestVideoConfig::NormalEncrypted()
                      : TestVideoConfig::Normal());
-    std::vector<DemuxerStream*> streams;
+    std::vector<raw_ptr<DemuxerStream>> streams;
     streams_.push_back(audio_stream_.get());
     EXPECT_CALL(demuxer_, GetAllStreams()).WillRepeatedly(Return(streams_));
   }
@@ -213,10 +213,10 @@ class MojoRendererTest : public ::testing::Test {
   mojo::Remote<mojom::ContentDecryptionModule> cdm_remote_;
 
   // Client side mock demuxer and demuxer streams.
-  StrictMock<MockDemuxer> demuxer_;
   std::unique_ptr<StrictMock<MockDemuxerStream>> audio_stream_;
   std::unique_ptr<StrictMock<MockDemuxerStream>> video_stream_;
-  std::vector<DemuxerStream*> streams_;
+  std::vector<raw_ptr<DemuxerStream>> streams_;
+  StrictMock<MockDemuxer> demuxer_;
 
   // Service side bindings (declaration order is critical).
   MojoCdmServiceContext mojo_cdm_service_context_;

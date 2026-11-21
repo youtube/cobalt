@@ -120,6 +120,9 @@ class MockNavigationHandle : public NavigationHandle {
     return handle->IsPrerenderedPageActivation() ||
            handle->IsServedFromBackForwardCache();
   }
+  bool IsBlockedByConnectionAllowlist() const override {
+    return is_blocked_by_connection_allowlist_;
+  }
   MOCK_CONST_METHOD0(IsNavigatingFromInitialEmptyDocument, bool());
   RenderFrameHost* GetParentFrame() override {
     return render_frame_host_ ? render_frame_host_->GetParent() : nullptr;
@@ -277,7 +280,6 @@ class MockNavigationHandle : public NavigationHandle {
               GetNavigationDiscardReason,
               ());
   MOCK_METHOD(bool, NeedsUrlLoader, ());
-  MOCK_METHOD(bool, IsInitialWebUISyncNavigation, ());
   MOCK_METHOD(bool, IsInitialWebUINavigation, ());
 
 #if BUILDFLAG(IS_ANDROID)
@@ -369,6 +371,9 @@ class MockNavigationHandle : public NavigationHandle {
   }
   void set_has_committed(bool has_committed) { has_committed_ = has_committed; }
   void set_is_error_page(bool is_error_page) { is_error_page_ = is_error_page; }
+  void set_is_blocked_by_connection_allowlist(bool value) {
+    is_blocked_by_connection_allowlist_ = value;
+  }
   void set_request_headers(const net::HttpRequestHeaders& request_headers) {
     request_headers_ = request_headers;
   }
@@ -434,6 +439,7 @@ class MockNavigationHandle : public NavigationHandle {
   std::vector<GURL> redirect_chain_;
   bool has_committed_ = false;
   bool is_error_page_ = false;
+  bool is_blocked_by_connection_allowlist_ = false;
   net::HttpRequestHeaders request_headers_;
   scoped_refptr<net::HttpResponseHeaders> response_headers_;
   std::optional<net::SSLInfo> ssl_info_;

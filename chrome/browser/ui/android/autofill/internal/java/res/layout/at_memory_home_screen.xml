@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<org.chromium.chrome.browser.ui.autofill.AtMemoryHomeView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <include
+        android:id="@+id/search_query_input_container"
+        layout="@layout/at_memory_search_bar" />
+
+    <!-- Notice component -->
+    <LinearLayout
+        android:id="@+id/notice_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/at_memory_suggestions_bg"
+        android:backgroundTint="@macro/default_card_bg_color"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginEnd="16dp">
+
+            <TextView
+                android:id="@+id/notice_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/at_memory_notice_title"
+                android:textAppearance=
+                    "@style/TextAppearance.TextMediumThick.Primary" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:id="@+id/notice_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/at_memory_notice_text"
+                    android:textAppearance=
+                        "@style/TextAppearance.TextSmall.Secondary" />
+
+                <TextView
+                    android:id="@+id/notice_manage_settings_link"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/at_memory_notice_manage_settings_link"
+                    android:textAppearance=
+                        "@style/TextAppearance.TextSmall.Accent1"
+                    android:background=
+                        "?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/notice_ok_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:text="@string/at_memory_notice_ok_button"
+            android:textAppearance=
+                "@style/TextAppearance.TextMediumThick.Accent1"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/suggestions_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/at_memory_suggestions_margin_top"
+            android:background="@drawable/at_memory_suggestions_bg"
+            android:clipToOutline="true"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/at_memory_bottom_sheet_suggestion_item"/>
+    </FrameLayout>
+
+</org.chromium.chrome.browser.ui.autofill.AtMemoryHomeView>

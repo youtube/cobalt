@@ -12,10 +12,13 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/omnibox/browser/actions/contextual_search_action.h"
+#include "components/omnibox/browser/actions/cross_device_tab_action.h"
+#include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
 #include "components/omnibox/browser/autocomplete_provider.h"
 #include "components/omnibox/browser/autocomplete_result.h"
+#include "components/omnibox/browser/cross_device_tab_provider.h"
 #include "components/omnibox/browser/fake_autocomplete_provider.h"
 #include "components/omnibox/browser/match_compare.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
@@ -58,7 +61,7 @@ class OmniboxMetricsProviderTest : public testing::Test {
         /*selection=*/OmniboxPopupSelection(selected_index),
         /*disposition=*/WindowOpenDisposition::CURRENT_TAB,
         /*is_paste_and_go=*/false,
-        /*tab_id=*/SessionID::NewUnique(),
+        /*tab_id=*/SessionID::FromSerializedValue(1),
         /*current_page_classification=*/
         metrics::OmniboxEventProto_PageClassification_NTP_REALBOX,
         /*elapsed_time_since_user_first_modified_omnibox=*/base::TimeDelta(),
@@ -973,6 +976,198 @@ TEST_F(OmniboxMetricsProviderTest, RecordMetrics_ToolAndModelModes) {
         "Omnibox.NonTrivialSuggestions.Precision.ByToolType.ImageGen.ByModel."
         "GeminiPro",
         0);
+  }
+}
+
+TEST_F(OmniboxMetricsProviderTest, RecordMetrics_CrossDeviceTab) {
+  class FakeCrossDeviceTabProvider : public CrossDeviceTabProvider {
+   public:
+    FakeCrossDeviceTabProvider() : CrossDeviceTabProvider(nullptr) {}
+    void Start(const AutocompleteInput& input, bool minimal_changes) override {}
+
+   protected:
+    ~FakeCrossDeviceTabProvider() override = default;
+  };
+
+  scoped_refptr<FakeCrossDeviceTabProvider> cross_device_provider =
+      base::MakeRefCounted<FakeCrossDeviceTabProvider>();
+
+  base::Time tab_last_active_time = base::Time::Now() - base::Minutes(2);
+
+  auto BuildCrossDeviceMatch = [&](bool with_action) {
+    AutocompleteMatch match(cross_device_provider.get(), /*relevance=*/100,
+                            /*deletable=*/false,
+                            AutocompleteMatchType::CROSS_DEVICE_TAB);
+    if (with_action) {
+      match.actions.push_back(
+          base::MakeRefCounted<CrossDeviceTabAction>(tab_last_active_time));
+    }
+    return match;
+  };
+
+  // Case 1: Match is shown and clicked.
+  {
+    base::HistogramTester histogram_tester;
+    AutocompleteResult result;
+    result.AppendMatches({BuildCrossDeviceMatch(/*with_action=*/true)});
+
+    SessionData session;
+    session.zero_prefix_suggestions_shown_in_session = true;
+    session.zero_prefix_url_suggestions_shown_in_session = true;
+
+    OmniboxLog log = BuildOmniboxLog(result, /*selected_index=*/0,
+                                     /*session_data=*/session);
+    log.selection.state = OmniboxPopupSelection::NORMAL;
+    log.elapsed_time_since_user_focused_omnibox = base::Seconds(3);
+    log.ukm_source_id = ukm::NoURLSourceId();
+
+    RecordMetrics(log);
+
+    // Verify Time metrics.
+    histogram_tester.ExpectUniqueSample(
+        "Omnibox.CrossDeviceTab.Match.FocusToOpenTime",
+        base::Seconds(3).InMilliseconds(), 1);
+    histogram_tester.ExpectUniqueSample("Omnibox.CrossDeviceTab.Match.ClickAge",
+                                        base::Minutes(2).InMilliseconds(), 1);
+    histogram_tester.ExpectUniqueSample("Omnibox.CrossDeviceTab.Match.ShowAge",
+                                        base::Minutes(2).InMilliseconds(), 1);
+  }
+
+  // Case 2: Match shown but NOT clicked (another match clicked).
+  {
+    base::HistogramTester histogram_tester;
+    AutocompleteResult result;
+    result.AppendMatches(
+        {BuildCrossDeviceMatch(/*with_action=*/true),
+         BuildMatch(AutocompleteMatch::Type::URL_WHAT_YOU_TYPED)});
+
+    SessionData session;
+    session.zero_prefix_suggestions_shown_in_session = true;
+    session.zero_prefix_url_suggestions_shown_in_session = true;
+
+    // Select the second match (index 1), which is NOT cross device.
+    OmniboxLog log = BuildOmniboxLog(result, /*selected_index=*/1,
+                                     /*session_data=*/session);
+    log.selection.state = OmniboxPopupSelection::NORMAL;
+    log.elapsed_time_since_user_focused_omnibox = base::Seconds(3);
+    log.ukm_source_id = ukm::NoURLSourceId();
+
+    RecordMetrics(log);
+
+    // Verify NO focus/age metrics for cross device tab (since it wasn't
+    // clicked).
+    histogram_tester.ExpectTotalCount(
+        "Omnibox.CrossDeviceTab.Match.FocusToOpenTime", 0);
+    histogram_tester.ExpectTotalCount("Omnibox.CrossDeviceTab.Match.ClickAge",
+                                      0);
+    histogram_tester.ExpectUniqueSample("Omnibox.CrossDeviceTab.Match.ShowAge",
+                                        base::Minutes(2).InMilliseconds(), 1);
+  }
+
+  // Case 3: Action clicked.
+  {
+    base::HistogramTester histogram_tester;
+    AutocompleteResult result;
+    result.AppendMatches({BuildCrossDeviceMatch(/*with_action=*/true)});
+
+    SessionData session;
+    session.zero_prefix_suggestions_shown_in_session = true;
+    session.zero_prefix_url_suggestions_shown_in_session = true;
+
+    OmniboxLog log = BuildOmniboxLog(result, /*selected_index=*/0,
+                                     /*session_data=*/session);
+    // Select the action on match 0.
+    log.selection.state = OmniboxPopupSelection::FOCUSED_BUTTON_ACTION;
+    log.selection.action_index = 0;
+    log.elapsed_time_since_user_focused_omnibox = base::Seconds(5);
+    log.ukm_source_id = ukm::NoURLSourceId();
+
+    RecordMetrics(log);
+
+    // Verify Action Time metrics.
+    histogram_tester.ExpectUniqueSample(
+        "Omnibox.CrossDeviceTab.Action.FocusToOpenTime",
+        base::Seconds(5).InMilliseconds(), 1);
+    histogram_tester.ExpectUniqueSample(
+        "Omnibox.CrossDeviceTab.Action.ClickAge",
+        base::Minutes(2).InMilliseconds(), 1);
+    histogram_tester.ExpectUniqueSample("Omnibox.CrossDeviceTab.Match.ShowAge",
+                                        base::Minutes(2).InMilliseconds(), 1);
+  }
+
+  // Case 4: Match clicked, with multiple actions (dummy action at index 0,
+  // CrossDeviceTabAction at index 1).
+  {
+    base::HistogramTester histogram_tester;
+    AutocompleteResult result;
+    // Build match with multiple actions.
+    AutocompleteMatch match = BuildCrossDeviceMatch(/*with_action=*/true);
+    // Prepend a dummy action.
+    match.actions.insert(
+        match.actions.begin(),
+        base::MakeRefCounted<OmniboxAction>(OmniboxAction::LabelStrings(),
+                                            GURL("chrome://settings")));
+    result.AppendMatches({match});
+
+    SessionData session;
+    session.zero_prefix_suggestions_shown_in_session = true;
+    session.zero_prefix_url_suggestions_shown_in_session = true;
+
+    OmniboxLog log = BuildOmniboxLog(result, /*selected_index=*/0,
+                                     /*session_data=*/session);
+    log.selection.state = OmniboxPopupSelection::NORMAL;
+    log.elapsed_time_since_user_focused_omnibox = base::Seconds(3);
+    log.ukm_source_id = ukm::NoURLSourceId();
+
+    RecordMetrics(log);
+
+    // Verify Time metrics.
+    histogram_tester.ExpectUniqueSample(
+        "Omnibox.CrossDeviceTab.Match.FocusToOpenTime",
+        base::Seconds(3).InMilliseconds(), 1);
+    // ClickAge and ShowAge should still be logged correctly, finding the action
+    // at index 1.
+    histogram_tester.ExpectUniqueSample("Omnibox.CrossDeviceTab.Match.ClickAge",
+                                        base::Minutes(2).InMilliseconds(), 1);
+    histogram_tester.ExpectUniqueSample("Omnibox.CrossDeviceTab.Match.ShowAge",
+                                        base::Minutes(2).InMilliseconds(), 1);
+  }
+
+  // Case 5: Action clicked, with multiple actions (dummy action at index 0,
+  // CrossDeviceTabAction at index 1).
+  {
+    base::HistogramTester histogram_tester;
+    AutocompleteResult result;
+    AutocompleteMatch match = BuildCrossDeviceMatch(/*with_action=*/true);
+    match.actions.insert(
+        match.actions.begin(),
+        base::MakeRefCounted<OmniboxAction>(OmniboxAction::LabelStrings(),
+                                            GURL("chrome://settings")));
+    result.AppendMatches({match});
+
+    SessionData session;
+    session.zero_prefix_suggestions_shown_in_session = true;
+    session.zero_prefix_url_suggestions_shown_in_session = true;
+
+    OmniboxLog log = BuildOmniboxLog(result, /*selected_index=*/0,
+                                     /*session_data=*/session);
+    // Select the action at index 1 (the CrossDeviceTabAction).
+    log.selection.state = OmniboxPopupSelection::FOCUSED_BUTTON_ACTION;
+    log.selection.action_index = 1;
+    log.elapsed_time_since_user_focused_omnibox = base::Seconds(5);
+    log.ukm_source_id = ukm::NoURLSourceId();
+
+    RecordMetrics(log);
+
+    // Verify Action Time metrics (should find the action at index 1).
+    histogram_tester.ExpectUniqueSample(
+        "Omnibox.CrossDeviceTab.Action.FocusToOpenTime",
+        base::Seconds(5).InMilliseconds(), 1);
+    histogram_tester.ExpectUniqueSample(
+        "Omnibox.CrossDeviceTab.Action.ClickAge",
+        base::Minutes(2).InMilliseconds(), 1);
+    histogram_tester.ExpectUniqueSample("Omnibox.CrossDeviceTab.Match.ShowAge",
+                                        base::Minutes(2).InMilliseconds(), 1);
   }
 }
 

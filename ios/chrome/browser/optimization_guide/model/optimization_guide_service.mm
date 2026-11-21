@@ -62,7 +62,9 @@ OptimizationGuideService::OptimizationGuideService(
     PrefService* pref_service,
     BrowserList* browser_list,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    signin::IdentityManager* identity_manager)
+    signin::IdentityManager* identity_manager,
+    std::unique_ptr<optimization_guide::ModelExecutionManager::Delegate>
+        delegate)
     : pref_service_(pref_service), off_the_record_(off_the_record) {
   DCHECK(optimization_guide::features::IsOptimizationHintsEnabled());
 
@@ -116,9 +118,10 @@ OptimizationGuideService::OptimizationGuideService(
               url_loader_factory, GetApplicationContext()->GetLocalState(),
               model_execution_features_controller_->GetWeakPtr());
     }
+
     model_execution_manager_ =
         std::make_unique<optimization_guide::ModelExecutionManager>(
-            url_loader_factory, identity_manager, /*delegate=*/nullptr,
+            url_loader_factory, identity_manager, std::move(delegate),
             optimization_guide_logger_.get(),
             model_quality_logs_uploader_service_
                 ? model_quality_logs_uploader_service_->GetWeakPtr()

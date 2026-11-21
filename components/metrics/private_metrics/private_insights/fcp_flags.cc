@@ -36,6 +36,12 @@ bool FcpFlags::drop_out_based_data_availability() const {
   return true;
 }
 
+// This flag is tied to whether AttestationTransparencyVerifier
+// is used in `fcp_simple_task_environment.cc`.
+bool FcpFlags::enable_attestation_transparency_verifier() const {
+  return kFcpUseAttestationTransparencyVerifier.Get();
+}
+
 int64_t FcpFlags::condition_polling_period_millis() const {
   return kFcpConditionPollingPeriod.Get().InMilliseconds();
 }

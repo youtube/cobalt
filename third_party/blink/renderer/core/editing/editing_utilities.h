@@ -160,21 +160,23 @@ inline bool CanHaveChildrenForEditing(const Node* node) {
 bool IsAtomicNode(const Node*);
 bool IsAtomicNodeInFlatTree(const Node*);
 CORE_EXPORT bool IsEnclosingBlock(const Node*);
-CORE_EXPORT bool IsTabHTMLSpanElement(const Node*);
-bool IsTabHTMLSpanElementTextNode(const Node*);
-bool IsMailHTMLBlockquoteElement(const Node*);
+// Returns true if the specified node is an HTMLSpanElement and its first child
+// is a Text, contains a TAB character, and the style has white-space:pre.
+CORE_EXPORT bool IsTabSpanElement(const Node*);
+bool IsTabSpanElementTextNode(const Node*);
+bool IsMailHtmlBlockquoteElement(const Node*);
 // Returns true if the specified node is visible <table>. We don't want to add
 // invalid nodes to <table> elements.
 bool IsDisplayInsideTable(const Node*);
 bool IsTableCell(const Node*);
 bool IsTablePartElement(const Node*);
-bool IsHTMLListElement(const Node*);
+bool IsHtmlListElement(const Node*);
 bool IsListItem(const Node*);
 bool IsListItemTag(const Node*);
 bool IsListElementTag(const Node*);
-bool IsPresentationalHTMLElement(const Node*);
+bool IsPresentationalHtmlElement(const Node*);
 CORE_EXPORT bool IsRenderedAsNonInlineTableImageOrHR(const Node*);
-bool IsNonTableCellHTMLBlockElement(const Node*);
+bool IsNonTableCellHtmlBlockElement(const Node*);
 bool IsBlockFlowElement(const Node&);
 bool IsInPasswordField(const Position&);
 CORE_EXPORT TextDirection DirectionOfEnclosingBlockOf(const Position&);

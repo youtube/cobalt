@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Voit myös kokeilla korjata verkkovirheen <ph name="GUEST_SIGNIN_LINK_START" />vierasselauksen<ph name="GUEST_SIGNIN_LINK_END" /> avulla.</translation>
 <translation id="1201402288615127009">Seuraava</translation>
 <translation id="1222835797152767346">Helpota sisäänkirjautumista valitsemalla PIN-koodi</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Virheenkorjausominaisuudet<ph name="END_H3" />
+          <ph name="BR" />
+          Voit ottaa virheenkorjausominaisuudet käyttöön, jos haluat asentaa ja testata muokattua koodia ChromeOS-laitteella. Tällöin voit<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />poistaa rootfs-varmennuksen, jotta voit muokata OS:n tiedostoja
+            <ph name="LIST_ITEM" />sallia SSH-pääsyn laitteelle vakiotestiavaimilla, jotta voit käyttää laitetta <ph name="BEGIN_CODE" />cros flashin<ph name="END_CODE" /> kaltaisilla työkaluilla
+            <ph name="LIST_ITEM" />ottaa käyttöön USB:ltä käynnistyksen, jotta voit asentaa käyttöjärjestelmän näköistiedoston USB-muistista
+            <ph name="LIST_ITEM" />asettaa sekä kehittäjän että järjestelmän pääkäyttäjän kirjautumissalasanaksi muokatun arvon, jotta voit käyttää SSH:ta laitteessa manuaalisesti.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Kun virheenkorjausominaisuudet ovat käytössä, suurin osa niistä jää käyttöön myös powerwashin tai datan pyyhkimisen jälkeen yrityksen hallinnoimalla laitteella. Jos haluat poistaa kaikki virheenkorjausominaisuudet käytöstä, palauta ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Lisätietoa virheenkorjausominaisuuksista:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Huom.<ph name="END_BOLD" /> Järjestelmä käynnistyy uudelleen prosessin aikana.</translation>
 <translation id="1347625331607114917">Vahvista koodi Android-puhelimella</translation>
 <translation id="1347975661240122359">Päivitys alkaa, kun akun lataustaso on <ph name="BATTERY_LEVEL" /> %.</translation>
 <translation id="1375938286942050085">Käyttöönotto on valmis. Valmistele laite pelaamista varten</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Sovelluksia ladataan</translation>
 <translation id="5045550434625856497">Väärä salasana</translation>
 <translation id="5062930723426326933">Kirjautuminen epäonnistui. Muodosta verkkoyhteys ja yritä uudelleen.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Keskustele Geminin kanssa ja aloita esimerkiksi kirjoittaminen, suunnittelu ja oppiminen Googlen tekoälyn avulla.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Aloita Geminin käyttäminen käyttöönoton jälkeen valitsemalla Gemini-sovellus näytön alareunasta.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Liitä <ph name="DEVICE_TYPE" /> virtalähteeseen.</translation>
 <translation id="5147516217412920887">Vahvista koodi seuraamalla puhelimen ohjeita</translation>
 <translation id="5160857336552977725">Kirjaudu sisään <ph name="DEVICE_TYPE" />-laitteeseesi.</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Virheenkorjausominaisuudet<ph name="END_H3" />
+          <ph name="BR" />
+          Voit ottaa virheenkorjausominaisuudet käyttöön, jos haluat asentaa ja testata muokattua koodia ChromeOS Flex -laitteella. Tällöin voit<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />poistaa rootfs-varmennuksen, jotta voit muokata OS:n tiedostoja
+            <ph name="LIST_ITEM" />sallia SSH-pääsyn laitteelle vakiotestiavaimilla, jotta voit käyttää laitetta <ph name="BEGIN_CODE" />cros flashin<ph name="END_CODE" /> kaltaisilla työkaluilla
+            <ph name="LIST_ITEM" />ottaa käyttöön USB:ltä käynnistyksen, jotta voit asentaa käyttöjärjestelmän näköistiedoston USB-muistista
+            <ph name="LIST_ITEM" />asettaa sekä kehittäjän että järjestelmän pääkäyttäjän kirjautumissalasanaksi muokatun arvon, jotta voit käyttää SSH:ta laitteessa manuaalisesti.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Kun virheenkorjausominaisuudet ovat käytössä, suurin osa niistä jää käyttöön myös powerwashin tai datan pyyhkimisen jälkeen yrityksen hallinnoimalla laitteella. Jos haluat poistaa kaikki virheenkorjausominaisuudet käytöstä, palauta ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Lisätietoa virheenkorjausominaisuuksista:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Huom.<ph name="END_BOLD" /> Järjestelmä käynnistyy uudelleen prosessin aikana.</translation>
 <translation id="523505283826916779">Saavutettavuusasetukset</translation>
 <translation id="5240931875940563122">Kirjaudu Android-puhelimella</translation>
 <translation id="5255859108402770436">Kirjaudu uudelleen sisään</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Olet ottamassa käyttöön Chrome-käyttöjärjestelmän virheenkorjausominaisuudet, jotka määrittävät sshd daemon -toiminnon ja ottavat käyttöön USB-muistitikulta käynnistyksen.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Saavutettavuus</translation>
+<translation id="6984652455487792101">Jos käytät välityspalvelinta, tarkista välityspalvelimen asetukset tai
+        ota yhteyttä verkon järjestelmänvalvojaan ja varmista,
+        että välityspalvelin toimii. Jos et usko tarvitsevasi
+        välityspalvelinta, muokkaa <ph name="LINK_START" />välityspalvelimen asetuksia<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Laita puhelimen Bluetooth ja Wi-Fi päälle</translation>
 <translation id="7077829361966535409">Kirjautumissivun lataaminen epäonnistui nykyisillä välityspalvelimen asetuksilla. <ph name="GAIA_RELOAD_LINK_START" />Kirjaudu sisään uudelleen<ph name="GAIA_RELOAD_LINK_END" /> tai muokkaa <ph name="PROXY_SETTINGS_LINK_START" />välityspalvelimen asetuksia<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Salasanat eivät täsmää</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Vahvista salasanasi</translation>
 <translation id="7352651011704765696">Tapahtui jokin virhe</translation>
 <translation id="7476454130948140105">Akun varaus ei riitä päivittämiseen (<ph name="BATTERY_PERCENT" /> %).</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Ennen rekisteröitymistä sinun on tyhjennettävä TPM, jotta <ph name="DEVICE_OS" /> voi aloittaa laitteen omistajana.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Voit myös laittaa TPM-laitteen kokonaan pois päältä. Datasi tallennetaan turvallisesti ohjelmistosalauksella, mutta jotkin turvaominaisuudet, esim. laitteiston tukemat varmenteet, poistetaan käytöstä.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Voit muuttaa TPM-asetuksiasi käynnistämällä laitteen uudestaan ja lisäämällä järjestelmän BIOS/UEFI-asetukset. Ohjeet riippuvat laitteen mallista. Jos haluat lisätietoja, avaa dokumentaatio (<ph name="DEVICE_OS" />) eri laitteella ennen uudelleenkäynnistystä: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Ota virheenkorjausominaisuudet käyttöön tällä <ph name="IDS_SHORT_PRODUCT_NAME" />-laitteella..</translation>
 <translation id="7553242001898162573">Lisää salasana</translation>
 <translation id="7556242789364317684">Valitettavasti <ph name="SHORT_PRODUCT_NAME" /> ei voi palauttaa asetuksiasi. Jos haluat korjata tämän virheen, kohteen <ph name="SHORT_PRODUCT_NAME" /> on nollattava laitteesi Powerwashilla.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Google-tilitietoja siirretään Android-puhelimesta</translation>
 <translation id="8524841856047224176">Personoi kameran taustoja esimerkiksi videopuheluja varten</translation>
 <translation id="8569673829373920831">Lisätietoa: <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Skannaa QR-koodi seuraamalla puhelimen ohjeita. Varmista, että puhelimen Bluetooth on päällä.
+        <ph name="BR" />
+        <ph name="BR" />
+        Näkyy lähellä oleville laitteille nimellä <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">Sisäänkirjautuminen epäonnistui, koska salasanasi vahvistaminen epäonnistui. Ota yhteyttä järjestelmänvalvojaan tai yritä uudelleen.</translation>
 <translation id="8674903726754070732">Tietokoneesi on valitettavasti määritetty virheellisellä laitteistotunnuksella. Tämän takia Chrome-käyttöjärjestelmä ei voi asentaa uusimpia tietoturvapäivityksiä ja tietokoneesi <ph name="BEGIN_BOLD" />voi altistua hyökkäyksille<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Lisää lapsilukko käyttöönoton jälkeen</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Päivitystarkistus epäonnistui nykyisillä välityspalvelinasetuksilla. Muuta <ph name="PROXY_SETTINGS_LINK_START" />välityspalvelinasetuksia<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Tallentamasi asetukset ja toiminta ovat valmiina millä tahansa Chrome-käyttöjärjestelmän laitteella, kun kirjaudut sisään Google-tilillesi. Voit valita synkronoitavan sisällön asetuksissa.</translation>
 <translation id="8875221558267407626">Tee yhteenveto sisällöstä, yksinkertaista monimutkaista kieltä tai kysy kysymyksiä</translation>
+<translation id="8913163265790894442">Ota <ph name="DEVICE_TYPE" /> helposti käyttöön puhelimella. Voit lisätä Wi-Fi-yhteyden ja Google-tilin ilman salasanojen manuaalista lisäämistä.
+        <ph name="BR" />
+        <ph name="BR" />
+        Näkyvillä nimellä <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">Virheenkorjausominaisuudet eivät olleet täysin käytössä tällä <ph name="IDS_SHORT_PRODUCT_NAME" />-laitteella.</translation>
 <translation id="8965037249707889821">Syötä vanha salasana</translation>
 <translation id="8975396729541388937">Voit perua tilauksen milloin tahansa klikkaamalla linkkiä, joka löytyy saamistasi sähköposteista.</translation>
 <translation id="9033765790910064284">Jatka silti</translation>
 <translation id="903480517321259405">Kirjoita PIN-koodi uudelleen</translation>
 <translation id="9076523132036239772">Sähköpostiosoitettasi tai salasanaasi ei voi vahvistaa. Muodosta ensin verkkoyhteys.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Saatavilla vain näillä laitteilla: <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generatiivinen tekoäly on kokeellinen ja kehitysvaiheessa. Sen saatavuus on tällä hetkellä rajoitettua.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Ota <ph name="DEVICE_TYPE" /> helposti käyttöön puhelimella. Voit lisätä Google-tilin ilman salasanan manuaalista lisäämistä.
+        <ph name="BR" />
+        <ph name="BR" />
+        Näkyvillä nimellä <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

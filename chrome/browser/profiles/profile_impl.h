@@ -229,7 +229,7 @@ class ProfileImpl : public Profile {
   void UpdateNameInStorage();
   void UpdateAvatarInStorage();
   void UpdateIsEphemeralInStorage();
-
+  void UpdateAiSubscriptionTierInStorage();
   // Called after a profile is initialized, to record 'one per profile creation'
   // metrics relating to user prefs.
   void RecordPrefValuesAfterProfileInitialization();

@@ -118,6 +118,7 @@
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/test_management_policy.h"
 #include "google_apis/gaia/gaia_id.h"
+#include "net/base/features.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/strings/ascii.h"
@@ -4565,6 +4566,45 @@ IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorOpenUrlsInNextProfileCreatedTest,
   ASSERT_TRUE(ProfilePicker::GetOpenCommandLineUrlsInNextProfileOpened());
   ASSERT_TRUE(ProfilePicker::IsOpen());
   ASSERT_EQ(0u, GlobalBrowserCollection::GetInstance()->GetSize());
+}
+
+class StartupBrowserCreatorTestRootStoreFlagTest : public InProcessBrowserTest {
+ public:
+  StartupBrowserCreatorTestRootStoreFlagTest() {
+    scoped_feature_list_.InitAndEnableFeature(net::features::kTestRootStore);
+  }
+
+ protected:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InProcessBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(switches::kNoStartupWindow);
+    command_line->AppendSwitch(switches::kKeepAliveForTest);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(StartupBrowserCreatorTestRootStoreFlagTest,
+                       CheckInfobarIsShown) {
+  base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+  Profile* profile = ProfileManager::GetLastUsedProfileIfLoaded();
+
+  ui_test_utils::BrowserCreatedObserver browser_created_observer;
+  StartupBrowserCreatorImpl launch(base::FilePath(), command_line,
+                                   chrome::startup::IsFirstRun::kNo);
+  launch.Launch(profile, chrome::startup::IsProcessStartup::kNo,
+                /*restore_tabbed_browser=*/true);
+  Browser* new_browser = browser_created_observer.Wait();
+  ASSERT_TRUE(new_browser);
+  ui_test_utils::WaitUntilBrowserBecomeActive(new_browser);
+
+  infobars::ContentInfoBarManager* infobar_manager =
+      infobars::ContentInfoBarManager::FromWebContents(
+          new_browser->tab_strip_model()->GetWebContentsAt(0));
+  ASSERT_TRUE(infobar_manager);
+  EXPECT_TRUE(HasInfoBar(
+      infobar_manager, infobars::InfoBarDelegate::BAD_FLAGS_INFOBAR_DELEGATE));
 }
 
 #endif  // !BUILDFLAG(IS_CHROMEOS)

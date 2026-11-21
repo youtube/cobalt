@@ -58,6 +58,26 @@ import("//build/compiled_action.gni")
 template("flatbuffer") {
   assert(defined(invoker.sources), "Need sources for flatbuffers_library")
 
+  # Helper config and group to automatically collect and propagate all direct
+  # and indirect .fbs schema files as Ninja inputs for the flatc action.
+  # Since flatc dynamically reads included schema files, all dependent .fbs
+  # files must be tracked in inputs to ensure correct remote execution on RBE.
+  _flatc_sources_config = "${target_name}_flatc_sources"
+  config(_flatc_sources_config) {
+    inputs = invoker.sources
+  }
+
+  _flatc_gen_group = "${target_name}_flatc_gen"
+  group(_flatc_gen_group) {
+    public_configs = [ ":${_flatc_sources_config}" ]
+    if (defined(invoker.public_deps)) {
+      public_deps = []
+      foreach(dep, invoker.public_deps) {
+        public_deps += [ "${dep}_flatc_gen" ]
+      }
+    }
+  }
+
   action_name = "${target_name}_gen"
   source_set_name = target_name
   compiled_action_foreach(action_name) {
@@ -66,7 +86,7 @@ template("flatbuffer") {
     tool = "//third_party/flatbuffers:flatc"
 
     sources = invoker.sources
-    deps = []
+    deps = [ ":${_flatc_gen_group}" ]
 
     if (defined(invoker.flatc_out_dir)) {
       outputs = [ "$target_gen_dir/" + invoker.flatc_out_dir +

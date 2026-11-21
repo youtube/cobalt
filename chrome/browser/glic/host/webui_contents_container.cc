@@ -12,6 +12,7 @@
 #include "chrome/browser/glic/host/glic_ui.h"
 #include "chrome/browser/glic/host/guest_util.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/glic_actuation_tracker.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/widget/glic_view.h"
@@ -19,6 +20,7 @@
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -184,6 +186,53 @@ void WebUIContentsContainerImpl::SetVisibility(content::Visibility visibility) {
 
 content::WebContents* WebUIContentsContainerImpl::web_contents() const {
   return web_contents_.get();
+}
+
+void WebUIContentsContainerImpl::OnActuatingChanged(bool actuating) {
+  if (!actuating) {
+    // Cleanup the capturers even if the webcontents are gone.
+    webui_capture_runner_.RunAndReset();
+    guest_capture_runner_.RunAndReset();
+  }
+  if (!web_contents_) {
+    return;
+  }
+  auto* guest = GetGlicGuestWebContents(web_contents_.get());
+  if (!guest) {
+    return;
+  }
+  is_actuating_ = actuating;
+  if (actuating && !webui_capture_runner_) {
+    webui_capture_runner_ = web_contents_->IncrementCapturerCount(
+        gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/true,
+        /*is_activity=*/true);
+    guest_capture_runner_ = guest->IncrementCapturerCount(
+        gfx::Size(), /*stay_hidden=*/true, /*stay_awake=*/true,
+        /*is_activity=*/true);
+  }
+
+  UpdateActuationTracker();
+}
+
+void WebUIContentsContainerImpl::OnTaskTabsVisibilityChanged(
+    bool has_visible_tab) {
+  is_actuating_on_visible_tab_ = has_visible_tab;
+  UpdateActuationTracker();
+}
+
+void WebUIContentsContainerImpl::UpdateActuationTracker() {
+  auto* guest = GetGlicGuestWebContents(web_contents_.get());
+  CHECK(guest);
+  GlicActuationState state = GlicActuationState::kNone;
+  if (is_actuating_) {
+    state = is_actuating_on_visible_tab_
+                ? GlicActuationState::kActuatingOnVisibleTab
+                : GlicActuationState::kActuatingOnBackgroundTab;
+  }
+  glic::GlicActuationTracker::GetInstance()->NotifyActuatingChanged(
+      web_contents_.get(), state);
+  glic::GlicActuationTracker::GetInstance()->NotifyActuatingChanged(guest,
+                                                                    state);
 }
 
 }  // namespace glic

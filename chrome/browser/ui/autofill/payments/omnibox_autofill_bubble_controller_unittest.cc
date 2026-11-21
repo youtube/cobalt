@@ -1,0 +1,114 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/ui/autofill/payments/omnibox_autofill_bubble_controller.h"
+
+#include <memory>
+#include <vector>
+
+#include "base/functional/callback_helpers.h"
+#include "chrome/browser/autofill/personal_data_manager_factory.h"
+#include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
+#include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/tabs/public/mock_tab_interface.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/unowned_user_data/unowned_user_data_host.h"
+
+namespace autofill {
+
+namespace {
+
+std::unique_ptr<KeyedService> BuildTestPersonalDataManager(
+    content::BrowserContext* context) {
+  auto personal_data_manager = std::make_unique<TestPersonalDataManager>();
+  personal_data_manager->test_payments_data_manager()
+      .SetAutofillPaymentMethodsEnabled(true);
+  return personal_data_manager;
+}
+
+class OmniboxAutofillBubbleControllerTest
+    : public ChromeRenderViewHostTestHarness {
+ public:
+  OmniboxAutofillBubbleControllerTest() = default;
+  ~OmniboxAutofillBubbleControllerTest() override = default;
+
+  TestingProfile::TestingFactories GetTestingFactories() const override {
+    return {TestingProfile::TestingFactory{
+        PersonalDataManagerFactory::GetInstance(),
+        base::BindRepeating(&BuildTestPersonalDataManager)}};
+  }
+
+  void SetUp() override {
+    ChromeRenderViewHostTestHarness::SetUp();
+    NavigateAndCommit(GURL("about:blank"));
+
+    ON_CALL(mock_tab_interface_, GetBrowserWindowInterface())
+        .WillByDefault(testing::Return(nullptr));
+    ON_CALL(mock_tab_interface_, GetUnownedUserDataHost())
+        .WillByDefault(testing::ReturnRef(tab_unowned_user_data_host_));
+
+    controller_ = std::make_unique<OmniboxAutofillBubbleController>(
+        mock_tab_interface_, web_contents());
+  }
+
+  void TearDown() override {
+    controller_.reset();
+    ChromeRenderViewHostTestHarness::TearDown();
+  }
+
+  TestPersonalDataManager* personal_data_manager() {
+    return static_cast<TestPersonalDataManager*>(
+        PersonalDataManagerFactory::GetForBrowserContext(profile()));
+  }
+
+ protected:
+  tabs::MockTabInterface mock_tab_interface_;
+  ui::UnownedUserDataHost tab_unowned_user_data_host_;
+  std::unique_ptr<OmniboxAutofillBubbleController> controller_;
+};
+
+// `ShouldShowGooglePayLogo()` returns `false` for local cards.
+TEST_F(OmniboxAutofillBubbleControllerTest, ShouldShowGooglePayLogo_LocalCard) {
+  std::string guid = "local_card_guid";
+  CreditCard local_card = test::GetCreditCard();
+  local_card.set_guid(guid);
+  personal_data_manager()->test_payments_data_manager().AddCreditCard(
+      local_card);
+
+  std::vector<Suggestion> suggestions = {
+      Suggestion(u"Card", SuggestionType::kCreditCardEntry)};
+  suggestions[0].payload = Suggestion::Guid(guid);
+
+  controller_->Initialize(suggestions, base::DoNothing(), base::DoNothing(),
+                          base::DoNothing());
+
+  EXPECT_FALSE(controller_->ShouldShowGooglePayLogo());
+}
+
+// `ShouldShowGooglePayLogo()` returns `true` for server cards.
+TEST_F(OmniboxAutofillBubbleControllerTest,
+       ShouldShowGooglePayLogo_ServerCard) {
+  std::string guid = "server_card_guid";
+  CreditCard server_card = test::GetMaskedServerCard();
+  server_card.set_guid(guid);
+  personal_data_manager()->test_payments_data_manager().AddCreditCard(
+      server_card);
+
+  std::vector<Suggestion> suggestions = {
+      Suggestion(u"Card", SuggestionType::kCreditCardEntry)};
+  suggestions[0].payload = Suggestion::Guid(guid);
+
+  controller_->Initialize(suggestions, base::DoNothing(), base::DoNothing(),
+                          base::DoNothing());
+
+  EXPECT_TRUE(controller_->ShouldShowGooglePayLogo());
+}
+
+}  // namespace
+
+}  // namespace autofill

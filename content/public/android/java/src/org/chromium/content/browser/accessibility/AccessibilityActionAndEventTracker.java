@@ -127,6 +127,13 @@ public class AccessibilityActionAndEventTracker {
         mTestComplete = false;
     }
 
+    /** Add a custom comment or annotation to the tracked events list. */
+    public void addComment(String comment) {
+        if (!mTestComplete) {
+            mEvents.add(comment);
+        }
+    }
+
     /** Helper method to signal the end of a given unit test. */
     public void signalEndOfTest() {
         mTestComplete = true;
@@ -378,8 +385,8 @@ public class AccessibilityActionAndEventTracker {
         if (info == null) {
             return null;
         }
-        StringBuilder sb = new StringBuilder();
 
+        StringBuilder sb = new StringBuilder();
         String nodeDescription = toStringOrNull(info.getText());
         if (nodeDescription == null) nodeDescription = toStringOrNull(info.getContentDescription());
         if (nodeDescription == null) nodeDescription = toStringOrNull(info.getHintText());

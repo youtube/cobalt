@@ -16,6 +16,8 @@
 #include "build/branding_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/defaults.h"
+#include "chrome/browser/download/download_core_service.h"
+#include "chrome/browser/download/download_core_service_factory.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager.h"
@@ -307,6 +309,12 @@ void DownloadsUI::CreatePageHandler(
     mojo::PendingReceiver<downloads::mojom::PageHandler> receiver) {
   DCHECK(page);
   Profile* profile = Profile::FromWebUI(web_ui());
+  // Make sure download history is initialized.
+  DownloadCoreService* service =
+      DownloadCoreServiceFactory::GetForBrowserContext(profile);
+  if (service) {
+    service->InitializeHistory();
+  }
   DownloadManager* dlm = profile->GetDownloadManager();
 
   page_handler_ = std::make_unique<DownloadsDOMHandler>(

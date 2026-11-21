@@ -44,11 +44,7 @@ const CGFloat kCountBorderWidth = 24;
     ]];
 
     [self registerViewForTraitChanges];
-    if (IsNTPBackgroundCustomizationEnabled()) {
-      [self applyBackgroundTheme];
-    } else {
-      self.imageBackgroundView.tintColor = [UIColor colorNamed:kBlueHaloColor];
-    }
+    [self applyBackgroundTheme];
   }
   return self;
 }
@@ -153,11 +149,9 @@ const CGFloat kCountBorderWidth = 24;
 - (void)registerViewForTraitChanges {
   [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
                      withAction:@selector(updateTitleLabelFontOnTraitChange)];
-  if (IsNTPBackgroundCustomizationEnabled()) {
-    [self registerForTraitChanges:
-              @[ NewTabPageTrait.class, NewTabPageImageBackgroundTrait.class ]
-                       withAction:@selector(applyBackgroundTheme)];
-  }
+  [self registerForTraitChanges:
+            @[ NewTabPageTrait.class, NewTabPageImageBackgroundTrait.class ]
+                     withAction:@selector(applyBackgroundTheme)];
 }
 
 // Update the `titleLabel` font when the device's content size changes.

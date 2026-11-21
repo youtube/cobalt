@@ -11,15 +11,15 @@ namespace glic {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
-// LINT.IfChange(TieredRolloutEnablementStatus)
-enum class GlicTieredRolloutEnablementStatus {
-  kAllProfilesEnabled = 0,
-  kSomeProfilesEnabled = 1,
-  kNoProfilesEnabled = 2,
+// LINT.IfChange(GlicProfilesAllSomeNone)
+enum class GlicProfilesAllSomeNone {
+  kAll = 0,
+  kSome = 1,
+  kNone = 2,
 
-  kMaxValue = kNoProfilesEnabled,
+  kMaxValue = kNone,
 };
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:TieredRolloutEnablementStatus)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicProfilesAllSomeNone)
 
 class GlicMetricsProvider : public metrics::MetricsProvider {
  public:

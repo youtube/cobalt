@@ -424,6 +424,26 @@ public class AutocompleteInputUnitTest {
     }
 
     @Test
+    public void setUserText_observerTriggersWithCorrectAutocompleteState() {
+        mInput.setInitialUserText("a");
+        mInput.setUserText("a");
+        mInput.setAutocompleteState(AutocompleteState.STANDBY);
+
+        boolean[] observerCalled = new boolean[1];
+        mInput.getUserTextSupplier()
+                .addSyncObserver(
+                        text -> {
+                            // if (text.equals("ab")) {
+                            assertEquals(AutocompleteState.ENABLED, mInput.getAutocompleteState());
+                            observerCalled[0] = true;
+                            // }
+                        });
+
+        mInput.setUserText("ab");
+        assertTrue(observerCalled[0]);
+    }
+
+    @Test
     public void setUserText_transitionsFromStandbyNoFocusToEnabled() {
         mInput.setInitialUserText("initial");
         mInput.setUserText("initial");

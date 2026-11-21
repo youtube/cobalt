@@ -8,6 +8,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/thread_annotations.h"
@@ -167,6 +168,7 @@ class GeolocationHeaderFencedFrameBrowserTest
 
 // Test that the X-Geo header is correctly appended for allowed searches.
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, AppendsXGeoHeader) {
+  base::HistogramTester histogram_tester;
   device::ScopedGeolocationOverrider overrider(
       /*latitude=*/12.34, /*longitude=*/56.78);
 
@@ -227,10 +229,13 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, AppendsXGeoHeader) {
   EXPECT_TRUE(geo_icon_visible)
       << "Geolocation usage indicator icon should be visible in the Omnibox.";
 #endif
+  histogram_tester.ExpectUniqueSample("Omnibox.Search.XGeoHeaderAttached", true,
+                                      1);
 }
 
 // Test that the X-Geo header is NOT appended in Incognito mode.
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, NoHeaderInIncognito) {
+  base::HistogramTester histogram_tester;
   device::ScopedGeolocationOverrider overrider(
       /*latitude=*/12.34, /*longitude=*/56.78);
 
@@ -254,12 +259,14 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, NoHeaderInIncognito) {
 
   EXPECT_TRUE(GetXGeoHeader().empty())
       << "X-Geo header should not be present in Incognito.";
+  histogram_tester.ExpectTotalCount("Omnibox.Search.XGeoHeaderAttached", 0);
 }
 
 // Test that the X-Geo header is NOT appended when geolocation permission is
 // denied.
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest,
                        NoHeaderWithoutPermission) {
+  base::HistogramTester histogram_tester;
   device::ScopedGeolocationOverrider overrider(
       /*latitude=*/12.34, /*longitude=*/56.78);
 
@@ -300,11 +307,14 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest,
 
   EXPECT_TRUE(GetXGeoHeader().empty())
       << "X-Geo header should not be present when permission is denied.";
+  histogram_tester.ExpectUniqueSample("Omnibox.Search.XGeoHeaderAttached",
+                                      false, 1);
 }
 
 // Test that the X-Geo header is NOT appended for navigations to non-search
 // URLs.
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, NoHeaderForNonDse) {
+  base::HistogramTester histogram_tester;
   device::ScopedGeolocationOverrider overrider(
       /*latitude=*/12.34, /*longitude=*/56.78);
 
@@ -342,11 +352,13 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, NoHeaderForNonDse) {
 
   EXPECT_TRUE(GetXGeoHeader().empty())
       << "X-Geo header should not be present for non-search navigations.";
+  histogram_tester.ExpectTotalCount("Omnibox.Search.XGeoHeaderAttached", 0);
 }
 
 // Test that the X-Geo header is removed when redirecting from a search URL to a
 // non-search URL.
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, RedirectToNonDse) {
+  base::HistogramTester histogram_tester;
   device::ScopedGeolocationOverrider overrider(
       /*latitude=*/12.34, /*longitude=*/56.78);
 
@@ -384,11 +396,14 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, RedirectToNonDse) {
 
   EXPECT_TRUE(GetXGeoHeader().empty())
       << "X-Geo header should be removed when redirecting to a non-search URL.";
+  histogram_tester.ExpectUniqueSample("Omnibox.Search.XGeoHeaderAttached", true,
+                                      1);
 }
 
 // Test that the X-Geo header is retained when redirecting from a search URL to
 // another search URL.
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, RedirectToSameOrigin) {
+  base::HistogramTester histogram_tester;
   device::ScopedGeolocationOverrider overrider(
       /*latitude=*/12.34, /*longitude=*/56.78);
 
@@ -428,6 +443,8 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest, RedirectToSameOrigin) {
   EXPECT_FALSE(GetXGeoHeader().empty())
       << "X-Geo header should be kept when redirecting to a DSE URL.";
   EXPECT_TRUE(GetXGeoHeader().starts_with("w "));
+  histogram_tester.ExpectBucketCount("Omnibox.Search.XGeoHeaderAttached", true,
+                                     2);
 }
 
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderFencedFrameBrowserTest,
@@ -496,6 +513,7 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderFencedFrameBrowserTest,
 
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest,
                        RedirectToCrossOriginNonDse) {
+  base::HistogramTester histogram_tester;
   device::ScopedGeolocationOverrider overrider(
       /*latitude=*/12.34, /*longitude=*/56.78);
 
@@ -547,6 +565,8 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderBrowserTest,
               ->GetPrimaryMainFrame());
   ASSERT_TRUE(pscs);
   EXPECT_FALSE(pscs->IsContentAllowed(ContentSettingsType::GEOLOCATION));
+  histogram_tester.ExpectUniqueSample("Omnibox.Search.XGeoHeaderAttached", true,
+                                      1);
 }
 
 class GeolocationHeaderDisabledBrowserTest : public InProcessBrowserTest {
@@ -593,13 +613,14 @@ class GeolocationHeaderDisabledBrowserTest : public InProcessBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(GeolocationHeaderDisabledBrowserTest,
                        NoHeaderWhenFeatureDisabled) {
+  base::HistogramTester histogram_tester;
   device::ScopedGeolocationOverrider overrider(
       /*latitude=*/12.34, /*longitude=*/56.78);
 
   Profile* profile = browser()->profile();
   GeolocationHeaderService* geo_service =
       GeolocationHeaderServiceFactory::GetForProfile(profile);
-  EXPECT_FALSE(geo_service);
+  ASSERT_TRUE(geo_service);
 
   GURL search_url = test_server_.GetURL("/search?q=test");
 
@@ -623,6 +644,8 @@ IN_PROC_BROWSER_TEST_F(GeolocationHeaderDisabledBrowserTest,
   }
   EXPECT_TRUE(captured_header.empty())
       << "X-Geo header should not be present when feature is disabled.";
+
+  histogram_tester.ExpectTotalCount("Omnibox.Search.XGeoHeaderAttached", 0);
 
   content_settings::PageSpecificContentSettings* pscs =
       content_settings::PageSpecificContentSettings::GetForFrame(

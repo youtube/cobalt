@@ -4,7 +4,8 @@
       "mac",
       "win",
       "linux",
-      "android"
+      "android",
+      "chromeos"
     ],
     "simple_policy_pref_mapping_test": {
       "pref_name": "client_certificates.provision_for_user.value",

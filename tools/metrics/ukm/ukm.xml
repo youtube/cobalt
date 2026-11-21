@@ -495,6 +495,60 @@ be describing additional metrics about the same event.
   </metric>
 </event>
 
+<event name="Accessibility.ReadAnything.DistillationQuality">
+  <owner>alfredohiguera@google.com</owner>
+  <summary>
+    Records content quality metrics for a page, including text similarity
+    (RougeL), structural integrity, and formatting preservation. This event is
+    recorded when the distillation of a page is completed.
+  </summary>
+  <metric name="FormatScore">
+    <summary>
+      Evaluates the preservation of formatting elements (bold, italic,
+      blockquotes, and code) in the distilled HTML compared to the accessibility
+      tree. Value is a percentage (0-100).
+    </summary>
+  </metric>
+  <metric name="LinkDensityRatio">
+    <summary>
+      The ratio of link density in the distilled HTML compared to the link
+      density in the original accessibility tree. Value is a percentage (0-100).
+    </summary>
+  </metric>
+  <metric name="RougeLF1">
+    <summary>
+      The ROUGE-L F1 score of the distilled text compared to the original text
+      extracted from the AXTree, measuring sequence overlap of words. Value is a
+      percentage (0-100).
+    </summary>
+  </metric>
+  <metric name="RougeLF2">
+    <summary>
+      The ROUGE-L F2 score of the distilled text compared to the original text
+      extracted from the AXTree. Value is a percentage (0-100).
+    </summary>
+  </metric>
+  <metric name="RougeLPrecision">
+    <summary>
+      The ROUGE-L precision score of the distilled text compared to the original
+      text extracted from the AXTree. Value is a percentage (0-100).
+    </summary>
+  </metric>
+  <metric name="RougeLRecall">
+    <summary>
+      The ROUGE-L recall score of the distilled text compared to the original
+      text extracted from the AXTree. Value is a percentage (0-100).
+    </summary>
+  </metric>
+  <metric name="StructScore">
+    <summary>
+      Evaluates the preservation of structural elements (headings and lists) in
+      the distilled HTML compared to the accessibility tree. Value is a
+      percentage (0-100).
+    </summary>
+  </metric>
+</event>
+
 <event name="Accessibility.ReadAnything.EmptyState">
   <owner>abigailbklein@google.com</owner>
   <summary>
@@ -710,7 +764,7 @@ be describing additional metrics about the same event.
       request.
     </summary>
   </metric>
-  <metric name="FederatedLoginResult">
+  <metric name="FederatedLoginResult" enum="ActorLoginFederatedLoginResult">
     <summary>
       An enum with the final result from a federated actor login request.
     </summary>
@@ -25194,6 +25248,12 @@ be describing additional metrics about the same event.
       Allocation limit on golbal consumed memory used before the current full
       garbage collection cycle. This is rounded down to the nearest exponential
       bucket (with a bucket ratio of 1.3).
+    </summary>
+  </metric>
+  <metric name="GrowingMode" enum="HeapGrowingMode">
+    <summary>
+      Heap Growing Mode at the start of the current cycle, that affects heap
+      limits computation.
     </summary>
   </metric>
   <metric name="IsInputHandling" enum="Boolean">

@@ -30,6 +30,7 @@ import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ApplicationStatus;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.TimeUtils;
 import org.chromium.build.annotations.NullMarked;
@@ -342,7 +343,7 @@ public class NtpCustomizationMediator implements TemplateUrlServiceObserver {
         List<Integer> content = new ArrayList<>();
         content.add(MVT);
 
-        if (!NtpCustomizationUtils.isNtpSimplificationEnabledOnDesktop()) {
+        if (!DeviceInfo.isDesktop()) {
             content.add(NTP_CARDS);
         }
         assumeNonNull(mProfile);

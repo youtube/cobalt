@@ -11,9 +11,11 @@
 
 #import "ios/chrome/browser/assistant/ui/assistant_container_animatable.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_presentation_context.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 
 @protocol AssistantContainerDelegate;
 enum class AssistantContainerDetent : NSInteger;
+@class LayoutGuideCenter;
 @class LayoutState;
 
 // View Controller for the Assistant Container.
@@ -26,8 +28,12 @@ enum class AssistantContainerDetent : NSInteger;
 // The presentation context of the container.
 @property(nonatomic, assign) AssistantPresentationContext presentationContext;
 
-// The view to anchor to. If nil, falls back to the bottom of the parent view.
-@property(nonatomic, weak) UIView* anchorView;
+// The layout guide name to anchor to. If nil, falls back to the bottom of the
+// parent view.
+@property(nonatomic, copy) GuideName* guideName;
+
+// The layout guide center used to resolve the guide name.
+@property(nonatomic, weak) LayoutGuideCenter* layoutGuideCenter;
 
 // The height to use for the minimized detent. Defaults to
 // kAssistantContainerMinimizedDetentHeight.
@@ -48,6 +54,9 @@ enum class AssistantContainerDetent : NSInteger;
 - (void)animateToDetent:(AssistantContainerDetent)detent
                duration:(NSTimeInterval)duration
                   curve:(UIViewAnimationCurve)curve;
+
+// Lays out the container anchored to the active toolbar within the parent view.
+- (void)layoutInParentView:(UIView*)parentView;
 
 // Animates the layout state cutout radius alongside sheet transitions.
 // `presented` indicates whether the transition is a presentation or a

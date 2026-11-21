@@ -4,6 +4,7 @@
 #
 # Fuzzing Infrastructure Tests
 
+import("//build/config/features.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
@@ -33,6 +34,7 @@ test("fuzzing_unittests") {
   ]
   data_deps = []
   data = []
+  defines = []
 
   if (use_fuzzing_engine) {
     sources += [
@@ -54,6 +56,14 @@ test("fuzzing_unittests") {
       "//testing/libfuzzer/fuzzers:string_compare_fuzzer",
       "//testing/libfuzzer/fuzzers:string_compare_proto_fuzzer",
     ]
+
+    # TODO(crbug.com/526667982): Fix when Mac Arm64 builds are fixed.
+    # The fuzzer depends on //content/public/browser, which is not supported in
+    # builds where use_blink is false (such as standard iOS/Catalyst).
+    if (!(is_mac && current_cpu == "arm64") && use_blink) {
+      data_deps += [ "//testing/libfuzzer/fuzzers:lpm_empty_fuzzer" ]
+      defines += [ "BUILD_LPM_EMPTY_FUZZER" ]
+    }
 
     data += [
       "data/check",

@@ -13,6 +13,10 @@
 #import "components/optimization_guide/core/optimization_guide_features.h"
 #import "ios/chrome/browser/optimization_guide/model/ios_chrome_hints_manager.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
+#import "ios/chrome/browser/optimization_guide/model/ios_model_execution_manager_delegate.h"
+#import "ios/chrome/browser/private_ai/model/private_ai_service_factory.h"
+#endif
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
 #import "ios/chrome/browser/shared/model/paths/paths.h"
@@ -43,12 +47,23 @@ std::unique_ptr<KeyedService> BuildOptimizationGuideService(
     hint_store = original_ogs->GetHintsManager()->hint_store();
   }
 
+  std::unique_ptr<optimization_guide::ModelExecutionManager::Delegate>
+      delegate = nullptr;
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
+  if (!profile->IsOffTheRecord()) {
+    private_ai::PrivateAiService* private_ai_service =
+        PrivateAiServiceFactory::GetForProfile(profile);
+    delegate =
+        std::make_unique<IOSModelExecutionManagerDelegate>(private_ai_service);
+  }
+#endif
+
   auto service = std::make_unique<OptimizationGuideService>(
       proto_db_provider, profile_path, profile->IsOffTheRecord(),
       GetApplicationContext()->GetApplicationLocaleStorage()->Get(), hint_store,
       profile->GetPrefs(), BrowserListFactory::GetForProfile(profile),
       GetApplicationContext()->GetSharedURLLoaderFactory(),
-      IdentityManagerFactory::GetForProfile(profile));
+      IdentityManagerFactory::GetForProfile(profile), std::move(delegate));
 
   service->DoFinalInit(
       BackgroundDownloadServiceFactory::GetForProfile(profile));
@@ -91,6 +106,9 @@ OptimizationGuideServiceFactory::OptimizationGuideServiceFactory()
   DependsOn(BackgroundDownloadServiceFactory::GetInstance());
   DependsOn(BrowserListFactory::GetInstance());
   DependsOn(IdentityManagerFactory::GetInstance());
+#if BUILDFLAG(BUILD_WITH_MODEL_EXECUTION)
+  DependsOn(PrivateAiServiceFactory::GetInstance());
+#endif
 }
 
 OptimizationGuideServiceFactory::~OptimizationGuideServiceFactory() = default;

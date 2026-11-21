@@ -6,6 +6,7 @@
 
 #import <UIKit/UIKit.h>
 
+#import "ios/chrome/browser/shared/public/commands/tab_grid_commands.h"
 #import "ios/chrome/browser/shared/ui/elements/top_aligned_image_view.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_constants.h"
@@ -157,6 +158,8 @@
   };
 
   // The main animation's completion block.
+  __weak __typeof(id<TabGridCommands>) weakHandler =
+      _animationParameters.handler;
   void (^mainCompletion)(BOOL) = ^(BOOL finished) {
     // Reset the active grid view.
     CGRect oldAnimationFrame = activeGridView.frame;
@@ -175,6 +178,8 @@
     [topToolbarBackground removeFromSuperview];
     [bottomToolbarBackground removeFromSuperview];
     [contentImageView removeFromSuperview];
+
+    [weakHandler activateGridContainerConstraints];
 
     if (completion) {
       completion();
@@ -223,6 +228,7 @@
                             completion:nil];
 
   // Perform the main animation.
+  [weakHandler deactivateGridContainerConstraints];
   [UIView animateWithDuration:kTabToGridAnimationDuration
                         delay:0
        usingSpringWithDamping:kTabToGridAnimationDamping

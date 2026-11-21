@@ -19,6 +19,7 @@
 #include "build/chromeos_buildflags.h"
 #include "cc/base/completion_event.h"
 #include "cc/base/devtools_instrumentation.h"
+#include "cc/base/features.h"
 #include "cc/benchmarks/benchmark_instrumentation.h"
 #include "cc/input/browser_controls_offset_manager.h"
 #include "cc/input/browser_controls_offset_tag_modifications.h"
@@ -842,7 +843,10 @@ void SingleThreadProxy::CompositeImmediatelyForTest(
     // Note: We do not want to prevent SetNeedsAnimate from requesting
     // a commit here.
     commit_requested_ = true;
-    StopDeferringCommits();
+    if (base::FeatureList::IsEnabled(
+            features::kStopDeferringCommitsInCompositeForTest)) {
+      StopDeferringCommits();
+    }
     layer_tree_host_->RecordStartOfFrameMetrics();
     DoBeginMainFrame(begin_frame_args);
     commit_requested_ = false;

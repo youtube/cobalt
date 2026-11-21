@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Kuchagua Mahali pa Kuweka Sehemu ya Anwani</translation>
 <translation id="1347468774581902829">Dhibiti shughuli</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Zima mipangilio ya kupokea taarifa kuhusu hatua</translation>
 <translation id="1355337783640312381">Ili ubadilishe akaunti, gusa aikoni ya akaunti yako</translation>
 <translation id="135806768612505061">Vichupo Vyote</translation>
 <translation id="1358106883354237005">Akaunti Inayosimamiwa</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">Nimeelewa</translation>
 <translation id="3080525922482950719">Unaweza kuhifadhi kurasa ili uzisome baadaye au nje ya mtandao</translation>
 <translation id="3081338492074632642">Hakikisha kwamba nenosiri unalohifadhi linalingana na nenosiri lako kwenye <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">Washa mipangilio ya kupokea taarifa kuhusu hatua</translation>
 <translation id="3087734570205094154">Chini</translation>
 <translation id="309710370695886264">Una nenosiri 1 lililotumiwa kwingine. Lirekebishe sasa ili udumishe usalama.</translation>
 <translation id="3099402981545350675">Hatua hii hufuta anwani ulizohifadhi kwenye kifaa hiki. Pia, huondoa maelezo uliyochagua kwenye Chrome, lakini haifuti maelezo haya katika Akaunti yako ya Google.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Tayarisha kikundi chako kipya cha vichupo kwa kukipatia jina pamoja na rangi</translation>
 <translation id="345348365500626747">Anwani imepatikana</translation>
 <translation id="3459644598174926977">Anzisha tukio Mubashara na Gemini ili uulize kuhusu ukurasa, ujadili ili kuchangia mawazo na uendeleze mazungumzo.</translation>
+<translation id="3462768334899086950">Hii inamaanisha kuwa utapoteza vichupo vya sasa na faili yako ambayo haijahifadhiwa</translation>
 <translation id="3464194322481586217">Imeshindwa kufuatilia bei.</translation>
 <translation id="3469117812148449995">Chaguo za kuhifadhi nenosiri</translation>
 <translation id="3472469028191701821">Hufunguka katika kichupo kipya</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">Maoni kuhusu bidhaa</translation>
 <translation id="3921585859122905677">Nafasi ya Sehemu ya Anwani</translation>
 <translation id="3922185497376658606">Pakia mapema kurasa za wavuti</translation>
-<translation id="3922395466317605522">Kubadilisha Menyu Upendavyo</translation>
 <translation id="3926703470020109118">Imeacha Kupakua</translation>
 <translation id="3929457972718048006">Anwani</translation>
 <translation id="3931215329146376310">{count,plural, =1{Nenosiri jipya la tovuti hii}other{Manenosiri mapya ya tovuti hii}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">Gusa "Tumia Nenosiri" ili uingie katika akaunti kwa usalama.</translation>
 <translation id="4328843285884395590">Hifadhi Yangu</translation>
 <translation id="4331177082088332784">Unaweza kudhibiti hili kwenye BEGIN_LINK Mipangilio ya Maudhui END_LINK</translation>
+<translation id="4331712008356052424">Ili utume kiungo hiki, ingia katika akaunti kwenye kifaa chako kingine ukitumia <ph name="USER_EMAIL" /></translation>
 <translation id="4334428914252001502">Hujasoma makala 1.</translation>
 <translation id="4338258232580025606">Imeshindwa kuingia katika akaunti</translation>
 <translation id="4338650699862464074">Hutuma URL za kurasa unazotembelea kwa Google.</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">Gusa na ushikilie ili ubandike tovuti unazopenda</translation>
 <translation id="5338512273860059533">Inaingia katika akaunti.</translation>
 <translation id="5343472494710226394">Habari, michezo na maudhui kulingana na mapendeleo yako.</translation>
+<translation id="5351613737248079168">Ni sharti uingie katika akaunti ili utumie programu ya Level Up</translation>
 <translation id="5352128922772839949">Hifadhi faili</translation>
 <translation id="5355191726083956201">Umewasha Kipengele cha Ulinzi Ulioboreshwa</translation>
 <translation id="536067926684072644">Onyesha Alamisho</translation>
@@ -1471,6 +1475,7 @@ Lazima Handoff iwashwe pia katika sehemu ya Jumla ya Mipangilio, na lazima vifaa
 <translation id="6040143037577758943">Funga</translation>
 <translation id="6042308850641462728">Zaidi</translation>
 <translation id="6045460247888249350">Weka jina</translation>
+<translation id="6050237559175440178">Thibitisha kuwa ni wewe ili utumie na uhifadhi maelezo yako kwenye vifaa vyako vyote</translation>
 <translation id="6052269326659653305">Tumia akaunti nyingine</translation>
 <translation id="605721222689873409">MK</translation>
 <translation id="6059830886158432458">Dhibiti hadithi na shughuli zako hapa</translation>
@@ -1690,7 +1695,6 @@ Lazima Handoff iwashwe pia katika sehemu ya Jumla ya Mipangilio, na lazima vifaa
 <translation id="6674917187596384849">Unaweza kubadilisha akaunti kwa urahisi</translation>
 <translation id="6676349090816247042">Chaguo za kuingia katika akaunti.</translation>
 <translation id="667999046851023355">Hati</translation>
-<translation id="6680416467695217368">Badilisha Menyu Upendavyo</translation>
 <translation id="6681791404926413601">{count,plural, =1{Kuna chaguo {count} la njia ya kulipa juu ya kibodi yako.}other{Kuna chaguo {count} za njia za kulipa juu ya kibodi yako.}}</translation>
 <translation id="6682680306647339111">Kikumbusho kimeondolewa</translation>
 <translation id="6684262542644248484">Ingia katika akaunti ya wavuti</translation>
@@ -1846,6 +1850,7 @@ Ili uendelee kwenye kompyuta yako, badilisha utumie <ph name="OTHER_EMAIL" />. U
 <translation id="722339453342442311">Angalia sasa</translation>
 <translation id="7227235818314667565">Dhibiti Ufikiaji</translation>
 <translation id="7233006041370588369">Chagua nenosiri la kujaza.</translation>
+<translation id="723874023660911012">Tumia Wasifu Mwingine</translation>
 <translation id="7241135764990439166">Hali ya faraghani haipatikani</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />Historia ya mambo uliyotafuta<ph name="END_LINK" /> na <ph name="BEGIN_LINK" />aina nyingine za shughuli<ph name="END_LINK" /> zinaweza kuhifadhiwa kwenye Akaunti yako ya Google.</translation>
 <translation id="7253951228444156601">Inakagua manenosiri…</translation>
@@ -2072,6 +2077,7 @@ Ili uendelee kwenye kompyuta yako, badilisha utumie <ph name="OTHER_EMAIL" />. U
 <translation id="7996239959906074962">Weka mipangilio…</translation>
 <translation id="800361585186029508">Hufungua URL zilizowekwa katika Google Chrome.</translation>
 <translation id="8005666035647241369">Kwenye Kidhibiti cha Manenosiri cha Google katika kifaa hiki</translation>
+<translation id="8007106936382123905">{count,plural, =1{Umekamilisha jukumu 1}other{Umekamilisha majukumu #}}</translation>
 <translation id="8010488806779226127">Gundua vipengele vinavyoweza kukusaidia kufanya shughuli zaidi unapovinjari</translation>
 <translation id="8011489434346330032">Kikaguzi cha Wavuti</translation>
 <translation id="8014007212279733632">Thibitisha kuwa ni wewe ili ujaze taarifa nyeti kiotomatiki</translation>
@@ -2155,6 +2161,7 @@ Ili uendelee kwenye kompyuta yako, badilisha utumie <ph name="OTHER_EMAIL" />. U
 <translation id="826614135184049678">Uliondolewa kwenye akaunti yako, <ph name="USER_NAME" />, ikiwa ni sehemu ya kuweka upya mipangilio ya iPad yako. Ili uingie tena katika akaunti, bofya "Endelea" hapa chini.</translation>
 <translation id="8270320981823560179">Hifadhi</translation>
 <translation id="8273982424131314219">Utajaza maelezo katika <ph name="URL" /></translation>
+<translation id="8274795744553482834">Unakaribia kubadilisha wasifu</translation>
 <translation id="8275068909952022340">Zaidi…</translation>
 <translation id="8280797717392145626">Umepokea viungo</translation>
 <translation id="8281781826761538115">Chaguomsingi - <ph name="DEFAULT_LOCALE" /></translation>
@@ -2234,6 +2241,7 @@ Ili uendelee kwenye kompyuta yako, badilisha utumie <ph name="OTHER_EMAIL" />. U
 <translation id="8534481786647257214">Chapisho la Google+ limekamilika.</translation>
 <translation id="8535368836838588657">Fichua nenosiri</translation>
 <translation id="8540426897269305488">Ingia katika akaunti ukitumia <ph name="CELL_ACCESSIBILITY_LABEL" /></translation>
+<translation id="8542331710562073430">Hitilafu fulani imetokea. Gusa kitufe cha Live ili ujaribu kutumia Live tena.</translation>
 <translation id="8545276357312221485">Kukagua mipangilio chaguomsingi ya kivinjari chako</translation>
 <translation id="854938212724803178">Una nenosiri 1 lililoathiriwa. Lirekebishe sasa ili udumishe usalama.</translation>
 <translation id="8551311254462607218">Kwenye sehemu ya anwani, gusa aikoni ya kamera ya Lenzi ya Google</translation>

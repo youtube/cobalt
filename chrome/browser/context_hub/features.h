@@ -16,6 +16,9 @@ BASE_DECLARE_FEATURE(kContextHub);
 // The feature flag for the Auto Todos feature in Context Hub.
 BASE_DECLARE_FEATURE(kAutoTodos);
 
+// Overrides the timeout of the Context Memory Service FetchContext call.
+BASE_DECLARE_FEATURE_PARAM(int, kAutoTodosTimeoutSeconds);
+
 // The feature flag for the Memory Banks feature in Context Hub.
 BASE_DECLARE_FEATURE(kMemoryBanks);
 

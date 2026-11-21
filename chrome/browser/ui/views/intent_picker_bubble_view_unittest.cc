@@ -551,13 +551,8 @@ TEST_P(IntentPickerBubbleViewLayoutTest, DoubleClickToAccept) {
 INSTANTIATE_TEST_SUITE_P(
     All,
     IntentPickerBubbleViewLayoutTest,
-#if BUILDFLAG(IS_CHROMEOS)
-    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
     testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
-                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-        ,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
     apps::test::LinkCapturingVersionToString);
 
 class IntentPickerBubbleViewGridLayoutTest
@@ -645,13 +640,6 @@ TEST_P(IntentPickerBubbleViewGridLayoutTest, MAYBE_OpenWithReturnKey) {
 INSTANTIATE_TEST_SUITE_P(
     ,
     IntentPickerBubbleViewGridLayoutTest,
-#if BUILDFLAG(IS_CHROMEOS)
-    // TODO(crbug.com/370548596): Verify if this still fails on ChromeOS with
-    // V2.
-    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
     testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
-                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-        ,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
     apps::test::LinkCapturingVersionToString);

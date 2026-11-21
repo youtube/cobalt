@@ -62,6 +62,8 @@
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/welcome_back/coordinator/welcome_back_display_handler.h"
 #import "ios/chrome/browser/welcome_back/model/features.h"
@@ -180,6 +182,10 @@
 - (void)stop {
   self.mediator = nil;
   [self dismissViewControllers];
+  _displayHandlerPromos.clear();
+  _viewProviderPromos.clear();
+  _banneredViewProviderPromos.clear();
+  _alertProviderPromos.clear();
 }
 
 // Display a promo if one is available.
@@ -638,9 +644,15 @@
 }
 
 - (void)registerStandardPromoAlertProviderPromos {
+  ProfileIOS* profile = self.profile;
   // Post-restore sign-in promo handler.
   _alertProviderPromos[promos_manager::Promo::PostRestoreSignInAlert] =
-      [[PostRestoreSignInProvider alloc] initForBrowser:self.browser];
+      [[PostRestoreSignInProvider alloc]
+            initWithSyncService:SyncServiceFactory::GetForProfile(profile)
+          authenticationService:AuthenticationServiceFactory::GetForProfile(
+                                    profile)
+                identityManager:IdentityManagerFactory::GetForProfile(profile)
+                    prefService:profile->GetPrefs()];
 
   PostRestoreDefaultBrowserPromoProvider* postRestoreProvider =
       [[PostRestoreDefaultBrowserPromoProvider alloc] init];

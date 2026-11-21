@@ -58,6 +58,7 @@ namespace autofill {
 class BubbleManager;
 class OmniboxAutofillBubbleController;
 class OmniboxAutofillPageActionController;
+class PaymentsChurnedUsersBubbleController;
 }  // namespace autofill
 
 namespace actor {
@@ -535,6 +536,11 @@ class TabFeatures {
   // "Autofill payment" chip is clicked.
   std::unique_ptr<autofill::OmniboxAutofillBubbleController>
       omnibox_autofill_bubble_controller_;
+
+  // Responsible for managing the bubble that prompts a user to turn on payments
+  // autofill if they have turned it off.
+  std::unique_ptr<autofill::PaymentsChurnedUsersBubbleController>
+      payments_churned_users_bubble_controller_;
 
   std::unique_ptr<AskBeforeHttpDialogController>
       ask_before_http_dialog_controller_;

@@ -11,7 +11,7 @@ import static androidx.test.espresso.action.ViewActions.pressKey;
 import static androidx.test.espresso.action.ViewActions.replaceText;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
-import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
+import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isFocused;
 import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
@@ -32,7 +32,6 @@ import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.ListView;
 
 import androidx.test.espresso.ViewAssertion;
@@ -57,7 +56,7 @@ import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.Features;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -65,13 +64,16 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.TabModel;
+import org.chromium.chrome.browser.tasks.tab_management.TabGroupColorPickerContainer;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tab_groups.TabGroupsFeatureMap;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.base.DeviceInput;
 import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
 import org.chromium.ui.modaldialog.ModalDialogManager;
@@ -80,14 +82,14 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 // TODO(crbug.com/419289558): Re-enable color surface feature flags
-@Features.DisableFeatures({
+@DisableFeatures({
     ChromeFeatureList.ANDROID_SURFACE_COLOR_UPDATE,
     ChromeFeatureList.GRID_TAB_SWITCHER_SURFACE_COLOR_UPDATE,
     ChromeFeatureList.ANDROID_THEME_MODULE,
+    TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS,
 })
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
-@DisableIf.Device(DeviceFormFactor.DESKTOP) // crbug.com/511288697
 public class TabStripGroupContextMenuTest {
     @Rule
     public AutoResetCtaTransitTestRule mActivityTestRule =
@@ -391,14 +393,7 @@ public class TabStripGroupContextMenuTest {
 
         // Select the blue color.
         String blueColor = mActivityTestRule.getActivity().getString(R.string.tab_group_color_blue);
-        String notSelectedStringBlue =
-                mActivityTestRule
-                        .getActivity()
-                        .getString(
-                                R.string
-                                        .accessibility_tab_group_color_picker_color_item_not_selected_description,
-                                blueColor);
-        onView(withContentDescription(notSelectedStringBlue)).perform(click());
+        onView(withContentDescription(blueColor)).perform(click());
 
         // Verify the blue color is selected.
         color = ThreadUtils.runOnUiThreadBlocking(() -> tabModel.getTabGroupColor(mTabGroupId));
@@ -417,6 +412,7 @@ public class TabStripGroupContextMenuTest {
     @Test
     @SmallTest
     @Feature("KeyboardA11y")
+    @DisableIf.Device(DeviceFormFactor.DESKTOP)
     public void testKeyboardFocusAndActivation() {
         // Prepare standard state and show menu.
         prepareStandardState();
@@ -429,32 +425,54 @@ public class TabStripGroupContextMenuTest {
         onView(withId(R.id.tab_group_title)).perform(pressKey(KeyEvent.KEYCODE_DPAD_DOWN));
 
         // One of the color picker circles should be focused in the first row.
-        onView(allOf(isDescendantOfA(withId(R.id.color_picker_first_row)), isFocused()))
+        onView(isFocused())
                 .check(
-                        matchesWithMessage(
-                                isDisplayed(),
-                                "One of the color picker circles in the first row should be"
-                                        + " focused."));
+                        (view, noViewFoundException) -> {
+                            View parent = (View) view.getParent();
+                            assertTrue(parent instanceof TabGroupColorPickerContainer);
+                            TabGroupColorPickerContainer container =
+                                    (TabGroupColorPickerContainer) parent;
+                            float firstY = container.getChildAt(0).getY();
+                            assertEquals(
+                                    "Focused view should be in first row",
+                                    firstY,
+                                    view.getY(),
+                                    0.1);
+                        });
 
         // Check if there's a second row of colors and navigate accordingly.
         final boolean[] hasSecondRow = new boolean[1];
-        onView(withId(R.id.color_picker_second_row))
+        onView(isAssignableFrom(TabGroupColorPickerContainer.class))
                 .check(
                         (view, noViewFoundException) -> {
-                            if (view instanceof ViewGroup group) {
-                                hasSecondRow[0] = group.getChildCount() > 0;
+                            if (view instanceof TabGroupColorPickerContainer container) {
+                                if (container.getChildCount() > 0) {
+                                    float firstY = container.getChildAt(0).getY();
+                                    for (int i = 1; i < container.getChildCount(); i++) {
+                                        if (container.getChildAt(i).getY() > firstY) {
+                                            hasSecondRow[0] = true;
+                                            break;
+                                        }
+                                    }
+                                }
                             }
                         });
 
         if (hasSecondRow[0]) {
             // Hit down arrow to move from the first row to the second row of the color picker.
             onView(isFocused()).perform(pressKey(KeyEvent.KEYCODE_DPAD_DOWN));
-            onView(allOf(isDescendantOfA(withId(R.id.color_picker_second_row)), isFocused()))
+            onView(isFocused())
                     .check(
-                            matchesWithMessage(
-                                    isDisplayed(),
-                                    "One of the color picker circles in the second row should be"
-                                            + " focused."));
+                            (view, noViewFoundException) -> {
+                                View parent = (View) view.getParent();
+                                assertTrue(parent instanceof TabGroupColorPickerContainer);
+                                TabGroupColorPickerContainer container =
+                                        (TabGroupColorPickerContainer) parent;
+                                float firstY = container.getChildAt(0).getY();
+                                assertTrue(
+                                        "Focused view should be in second row (Y > firstY)",
+                                        view.getY() > firstY);
+                            });
         }
 
         // Hit down arrow to move from the color picker to the action menu list.
@@ -668,12 +686,14 @@ public class TabStripGroupContextMenuTest {
         onView(withId(R.id.tab_group_title)).perform(click());
 
         // Verify keyboard is displayed.
-        CriteriaHelper.pollUiThread(
-                () ->
-                        delegate.isKeyboardShowing(
-                                mActivityTestRule
-                                        .getActivity()
-                                        .getCompositorViewHolderForTesting()));
+        if (!DeviceInput.supportsKeyboard(mPage.getActivity())) {
+            CriteriaHelper.pollUiThread(
+                    () ->
+                            delegate.isKeyboardShowing(
+                                    mActivityTestRule
+                                            .getActivity()
+                                            .getCompositorViewHolderForTesting()));
+        }
 
         // Enter new title in text box and press "enter" to dismiss keyboard to update group title.
         onView(withId(R.id.tab_group_title))

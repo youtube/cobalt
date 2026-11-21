@@ -37,7 +37,7 @@ bool UsingCustomTheme(const ThemeService& theme_service) {
 }
 
 const ui::ColorProvider* GetColorProviderFor(Browser* browser) {
-  return browser->window()->GetColorProvider();
+  return BrowserWindow::FromBrowser(browser)->GetColorProvider();
 }
 
 class ThemeServiceBrowserTest : public extensions::ExtensionBrowserTest {

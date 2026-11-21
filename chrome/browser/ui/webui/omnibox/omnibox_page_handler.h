@@ -62,7 +62,7 @@ class OmniboxPageHandler : public AutocompleteController::Observer,
                          int32_t cursor_position,
                          bool zero_suggest,
                          bool prevent_inline_autocomplete,
-                         bool prefer_keyword,
+                         bool in_keyword_mode,
                          const std::string& current_url,
                          int32_t page_classification) override;
   void GetMlModelVersion(GetMlModelVersionCallback callback) override;

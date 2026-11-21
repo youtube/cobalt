@@ -19,6 +19,11 @@
 
 #indicator-chip {
   position: relative;
-  /* Keep indicator chip above request chip so the shadow masks it */
+  /* Keep indicator chip above request chip */
+  z-index: 2;
+}
+
+#request-chip {
+  position: relative;
   z-index: 1;
 }

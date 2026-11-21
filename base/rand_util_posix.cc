@@ -28,9 +28,9 @@
     !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "third_party/lss/linux_syscall_support.h"
 #elif BUILDFLAG(IS_MAC)
-// TODO(crbug.com/40641285): Waiting for this header to appear in the iOS SDK.
-// (See below.)
 #include <sys/random.h>
+#elif BUILDFLAG(IS_IOS)
+#include <CommonCrypto/CommonRandom.h>
 #endif
 
 namespace base {
@@ -134,9 +134,11 @@ void RandBytesInternal(span<uint8_t> output, bool avoid_allocation) {
     return;
   }
 #elif BUILDFLAG(IS_MAC)
-  // TODO(crbug.com/40641285): Enable this on iOS too, when sys/random.h arrives
-  // in its SDK.
   if (getentropy(output.data(), output.size()) == 0) {
+    return;
+  }
+#elif BUILDFLAG(IS_IOS)
+  if (CCRandomGenerateBytes(output.data(), output.size()) == kCCSuccess) {
     return;
   }
 #endif

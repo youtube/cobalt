@@ -111,14 +111,6 @@ export class SettingsSyncAccountControlElement extends
 
       // This property should be set by the parent only and should not change
       // after the element is created.
-      hideButtons: {
-        type: Boolean,
-        value: false,
-        reflectToAttribute: true,
-      },
-
-      // This property should be set by the parent only and should not change
-      // after the element is created.
       hideBanner: {
         type: Boolean,
         value: false,
@@ -150,6 +142,14 @@ export class SettingsSyncAccountControlElement extends
             'syncStatus.signedInState)',
         observer: 'maybeRecordSigninPendingOffered_',
       },
+
+      shouldShowSignInPromo_: {
+        type: Boolean,
+        value: false,
+        computed: 'computeShouldShowSignInPromo_(syncStatus,' +
+            'syncStatus.signedInState, promoType_)',
+        observer: 'maybeRecordSignInOffered_',
+      },
       // </if>
 
       subLabel_: {
@@ -160,8 +160,7 @@ export class SettingsSyncAccountControlElement extends
 
       showSetupButtons_: {
         type: Boolean,
-        computed: 'computeShowSetupButtons_(' +
-            'hideButtons, syncStatus.firstSetupInProgress)',
+        computed: 'computeShowSetupButtons_(syncStatus.firstSetupInProgress)',
       },
 
       // Reflected as `promo-type_` to be used in the CSS styling with
@@ -191,7 +190,6 @@ export class SettingsSyncAccountControlElement extends
   declare private profileAvatarURL_: string;
   declare private shownAccount_: StoredAccount|null;
   declare embeddedInSubpage: boolean;
-  declare hideButtons: boolean;
   declare hideBanner: boolean;
   declare accessPoint: ChromeSigninAccessPoint;
   declare private shouldShowAvatarRow_: boolean;
@@ -200,6 +198,8 @@ export class SettingsSyncAccountControlElement extends
   // <if expr="not is_chromeos">
   declare private shouldShowSigninPausedButtons_: boolean;
   private signinPausedImpressionRecorded_: boolean = false;
+  declare private shouldShowSignInPromo_: boolean;
+  private signinOfferedImpressionRecorded_: boolean = false;
   // </if>
   private syncBrowserProxy_: SyncBrowserProxy =
       SyncBrowserProxyImpl.getInstance();
@@ -228,6 +228,7 @@ export class SettingsSyncAccountControlElement extends
   override currentRouteChanged(_newRoute: Route, _oldRoute?: Route): void {
     // <if expr="not is_chromeos">
     this.maybeRecordSigninPendingOffered_();
+    this.maybeRecordSignInOffered_();
     // </if>
   }
 
@@ -294,12 +295,6 @@ export class SettingsSyncAccountControlElement extends
   // trimmed using ellipsis for potentially long texts, whereas fixed
   // information needs to be fully displayed regardless of the length.
   private shouldHideSubtitleWithAccountInfoText_() {
-    if (this.hideButtons) {
-      // When buttons are hidden, only show basic account information. Avoid
-      // showing the full subtitle because it references the buttons.
-      return false;
-    }
-
     if (this.syncStatus.signedInState === SignedInState.SIGNED_IN_PAUSED) {
       return true;
     }
@@ -439,10 +434,6 @@ export class SettingsSyncAccountControlElement extends
    * Determines if the signout button should be hidden.
    */
   private shouldHideSignoutButton_(): boolean {
-    if (this.hideButtons) {
-      return true;
-    }
-
     if (this.syncStatus.domain) {
       return true;
     }
@@ -463,7 +454,7 @@ export class SettingsSyncAccountControlElement extends
    * either a first setup flow or chrome sign-in being disabled.
    */
   private shouldDisableSyncButton_(): boolean {
-    if (this.hideButtons || this.prefs === undefined) {
+    if (this.prefs === undefined) {
       return this.computeShowSetupButtons_();
     }
     return !this.syncStatus || !!this.syncStatus.firstSetupInProgress ||
@@ -521,14 +512,13 @@ export class SettingsSyncAccountControlElement extends
     }
 
 
-    return this.hideButtons ||
-        (!!this.syncStatus &&
-         (this.isSyncing_() ||
-          this.syncStatus.signedInState === SignedInState.SIGNED_IN_PAUSED));
+    return !!this.syncStatus &&
+        (this.isSyncing_() ||
+         this.syncStatus.signedInState === SignedInState.SIGNED_IN_PAUSED);
   }
 
   private shouldShowTurnOffButton_(): boolean {
-    if (this.hideButtons || this.showSetupButtons_) {
+    if (this.showSetupButtons_) {
       return false;
     }
 
@@ -555,7 +545,7 @@ export class SettingsSyncAccountControlElement extends
   // </if>
 
   private shouldShowErrorActionButton_(): boolean {
-    if (this.hideButtons || this.showSetupButtons_) {
+    if (this.showSetupButtons_) {
       return false;
     }
 
@@ -584,15 +574,11 @@ export class SettingsSyncAccountControlElement extends
 
   private shouldShowAccountAwareSigninButton_(): boolean {
     // Only show the button when user is in sync paused state
-    return !this.hideButtons &&
-        this.syncStatus.signedInState === SignedInState.WEB_ONLY_SIGNED_IN;
+    return this.syncStatus.signedInState === SignedInState.WEB_ONLY_SIGNED_IN;
   }
 
 
   private shouldAllowAccountSwitch_(): boolean {
-    if (this.hideButtons) {
-      return false;
-    }
 
     if (this.syncStatus.domain) {
       return false;
@@ -785,8 +771,7 @@ export class SettingsSyncAccountControlElement extends
   }
 
   private computeShowSetupButtons_(): boolean {
-    return !this.hideButtons && !!this.syncStatus &&
-        !!this.syncStatus.firstSetupInProgress;
+    return !!this.syncStatus && !!this.syncStatus.firstSetupInProgress;
   }
 
   // <if expr="not is_chromeos">
@@ -802,8 +787,44 @@ export class SettingsSyncAccountControlElement extends
   }
 
   private computeShouldShowSigninPausedButtons_() {
-    return !this.hideButtons && !!this.syncStatus &&
+    return !!this.syncStatus &&
         this.syncStatus.signedInState === SignedInState.SIGNED_IN_PAUSED;
+  }
+
+  private computeShouldShowSignInPromo_() {
+    if (!this.syncStatus) {
+      return false;
+    }
+    const state = this.syncStatus.signedInState;
+    return state === SignedInState.SIGNED_OUT ||
+        state === SignedInState.WEB_ONLY_SIGNED_IN;
+  }
+
+  private maybeRecordSignInOffered_() {
+    if (!this.shouldShowSignInPromo_) {
+      return;
+    }
+
+    // Only record if we are currently on a page that could have an account
+    // control in promo state.
+    const currentRoute = Router.getInstance().getCurrentRoute();
+    if (![routes.BASIC, routes.PEOPLE, routes.YOUR_SAVED_INFO].includes(
+            currentRoute)) {
+      return;
+    }
+
+    // Only record for account controls that are visible.
+    if (this.embeddedInSubpage) {
+      return;
+    }
+
+    // Don't record twice.
+    if (this.signinOfferedImpressionRecorded_) {
+      return;
+    }
+
+    this.syncBrowserProxy_.recordSigninOffered(this.accessPoint);
+    this.signinOfferedImpressionRecorded_ = true;
   }
 
   private maybeRecordSigninPendingOffered_() {

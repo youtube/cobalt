@@ -30,6 +30,9 @@ BASE_DECLARE_FEATURE_PARAM(bool, kSplitViewHorizontalDirectAccess);
 // Whether or not a split view should restore together.
 BASE_DECLARE_FEATURE(kSplitViewTabRestore);
 
+// Enables CJK word boundary detection in Tab Search.
+BASE_DECLARE_FEATURE(kTabSearchCjkWordBoundary);
+
 // This feature will be used for the LE rollout of Vertical Tabs. It will have
 // an earlier min version than kVerticalTabsLaunch.
 BASE_DECLARE_FEATURE(kVerticalTabs);
@@ -87,12 +90,7 @@ BASE_DECLARE_FEATURE_PARAM(
     base::TimeDelta,
     kVerticalTabsExpandOnHoverVelocityHeuristicEdgeDelay);
 
-BASE_DECLARE_FEATURE(kTabSelectionByPointer);
-
 BASE_DECLARE_FEATURE(kBackToOpener);
-
-BASE_DECLARE_FEATURE(kHorizontalTabStripComboButton);
-BASE_DECLARE_FEATURE_PARAM(bool, kHorizontalTabStripComboButtonShowStartOnly);
 
 BASE_DECLARE_FEATURE(kTabStripUnification);
 

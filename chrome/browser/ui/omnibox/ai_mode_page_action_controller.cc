@@ -15,11 +15,12 @@
 #include "chrome/browser/bitmap_fetcher/bitmap_fetcher_service_factory.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engines/ai_mode_button_service_factory.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
-#include "chrome/browser/ui/omnibox/ai_mode_button_service_factory.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
@@ -31,8 +32,6 @@
 #include "components/favicon/core/favicon_service.h"
 #include "components/favicon_base/favicon_types.h"
 #include "components/keyed_service/core/service_access_type.h"
-#include "components/omnibox/browser/ai_mode_button_config.h"
-#include "components/omnibox/browser/ai_mode_button_service.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -42,6 +41,8 @@
 #include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/omnibox/common/omnibox_features.h"
+#include "components/search_engines/ai_mode_button_config.h"
+#include "components/search_engines/ai_mode_button_service.h"
 #include "components/search_engines/search_engine_type.h"
 #include "components/tabs/public/tab_interface.h"
 #include "skia/ext/image_operations.h"
@@ -150,8 +151,9 @@ AiModePageActionController* AiModePageActionController::From(
 void AiModePageActionController::OpenAiMode(
     OmniboxController& omnibox_controller,
     bool via_keyboard) {
-  omnibox_controller.edit_model()->OpenAiMode(via_keyboard,
-                                              /*via_context_menu=*/false);
+  omnibox_controller.edit_model()->OpenAiMode(
+      via_keyboard ? OmniboxEditModel::AimActivation::kKeyboard
+                   : OmniboxEditModel::AimActivation::kClickOrGesture);
 }
 
 // static
@@ -169,23 +171,19 @@ void AiModePageActionController::NotifyOmniboxTriggeredFeatureService(
 bool AiModePageActionController::ShouldShowPageAction(
     Profile* profile,
     LocationBarView& location_bar_view) {
-  auto* service = AiModeButtonServiceFactory::GetForProfile(profile);
-  if (!service) {
-    return false;
-  }
-  auto* config = service->GetCurrentConfig();
-  if (!config || !config->IsValid()) {
-    return false;
-  }
-
   if (!profile->GetPrefs()->GetBoolean(omnibox::kShowAiModeOmniboxButton)) {
     return false;
   }
 
   const auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(profile);
-  if (!OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(
-          aim_eligibility_service)) {
+  auto* ai_mode_button_service =
+      AiModeButtonServiceFactory::GetForProfile(profile);
+  const auto* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(profile);
+  if (!OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(aim_eligibility_service,
+                                                        ai_mode_button_service,
+                                                        template_url_service)) {
     return false;
   }
 

@@ -44,20 +44,23 @@ RTCSessionDescriptionRequestImpl* RTCSessionDescriptionRequestImpl::Create(
     ExecutionContext* context,
     RTCPeerConnection* requester,
     V8RTCSessionDescriptionCallback* success_callback,
-    V8RTCPeerConnectionErrorCallback* error_callback) {
+    V8RTCPeerConnectionErrorCallback* error_callback,
+    bool is_offer) {
   return MakeGarbageCollected<RTCSessionDescriptionRequestImpl>(
-      context, requester, success_callback, error_callback);
+      context, requester, success_callback, error_callback, is_offer);
 }
 
 RTCSessionDescriptionRequestImpl::RTCSessionDescriptionRequestImpl(
     ExecutionContext* context,
     RTCPeerConnection* requester,
     V8RTCSessionDescriptionCallback* success_callback,
-    V8RTCPeerConnectionErrorCallback* error_callback)
+    V8RTCPeerConnectionErrorCallback* error_callback,
+    bool is_offer)
     : ExecutionContextLifecycleObserver(context),
       success_callback_(success_callback),
       error_callback_(error_callback),
-      requester_(requester) {
+      requester_(requester),
+      is_offer_(is_offer) {
   DCHECK(requester_);
 }
 
@@ -86,6 +89,10 @@ void RTCSessionDescriptionRequestImpl::RequestFailed(
     const webrtc::RTCError& error) {
   bool should_fire_callback =
       requester_ ? requester_->ShouldFireDefaultCallbacks() : false;
+  if (requester_) {
+    is_offer_ ? requester_->NoteCreateOfferFailed()
+              : requester_->NoteCreateAnswerFailed();
+  }
   if (should_fire_callback && error_callback_) {
     error_callback_->InvokeAndReportException(
         nullptr, CreateDOMExceptionFromRTCError(error));

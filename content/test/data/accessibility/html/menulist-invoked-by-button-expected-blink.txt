@@ -1,7 +1,7 @@
 rootWebArea
 ++genericContainer ignored
 ++++genericContainer
-++++++popUpButton name='Open Menu' nameFrom=contents
+++++++popUpButton expanded name='Open Menu' nameFrom=contents haspopup=menu
 ++++++++staticText name='Open Menu' nameFrom=contents
 ++++++++++inlineTextBox name='Open Menu' nameFrom=contents
 ++++++menu name='Open Menu' nameFrom=relatedElement ispopup=auto

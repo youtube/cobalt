@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/rand_util.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
@@ -38,6 +39,7 @@
 #include "chrome/browser/glic/service/glic_instance_impl.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_coordinator_metrics.h"
 #include "chrome/browser/glic/service/metrics/glic_instance_metrics.h"
+#include "chrome/browser/glic/service/metrics/glic_invoke_metrics.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
@@ -121,6 +123,8 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
                                     weak_ptr_factory_.GetWeakPtr()));
   hotkey_manager_ =
       std::make_unique<InstanceIndependentHotkeyManager>(this, profile_);
+  onboarding_tracker_ =
+      std::make_unique<GlicOnboardingTracker>(profile_, enabling);
   metrics_.StartPeriodicMemoryMetricsRecording();
 }
 
@@ -175,6 +179,18 @@ void GlicInstanceCoordinatorImpl::OnInstanceVisibilityChanged(
     ComputeContentAccessIndicator();
   }
   metrics_.OnInstanceVisibilityChanged();
+}
+
+void GlicInstanceCoordinatorImpl::OnInvoked() {
+  if (onboarding_tracker_) {
+    onboarding_tracker_->OnInvoke();
+  }
+}
+
+void GlicInstanceCoordinatorImpl::OnUserInputSubmitted() {
+  if (onboarding_tracker_) {
+    onboarding_tracker_->OnPrompt();
+  }
 }
 
 void GlicInstanceCoordinatorImpl::OnPrimaryAccountChanged(
@@ -446,6 +462,17 @@ base::WeakPtr<GlicInstance> GlicInstanceCoordinatorImpl::InvokeInternal(
     std::optional<InvokeWithAutoSubmitPasskey> auto_submit_passkey,
     GlicInvokeOptions options,
     GlicInvokeWithAutoSubmitOptions auto_submit_options) {
+  if (!GlicEnabling::IsEnabledForProfile(profile_)) {
+    RecordInvokeError(options.GetInvocationSource(),
+                      GlicInvokeError::kProfileNotEnabled);
+    if (options.on_error) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE, base::BindOnce(std::move(options.on_error),
+                                    GlicInvokeError::kProfileNotEnabled));
+    }
+    return nullptr;
+  }
+
   if (const auto* tab_handle =
           std::get_if<tabs::TabHandle>(&options.target.surface)) {
     if (tab_handle->raw_value() == tabs::TabHandle::NullValue) {

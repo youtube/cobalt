@@ -422,6 +422,12 @@ class IdentityManager : public KeyedService,
   [[nodiscard]] std::vector<AccountInfo> GetAccountsOnDevice();
 #endif
 
+  // Overrides the value of the given account capability for the account.
+  // Passing `std::nullopt` clears the override.
+  void SetCapabilityOverride(const CoreAccountId& account_id,
+                             std::string_view capability_name,
+                             std::optional<Tribool> override_value);
+
   // Observer interface for classes that want to monitor status of various
   // requests. Mostly useful in tests and debugging contexts (e.g., WebUI).
   class DiagnosticsObserver {

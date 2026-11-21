@@ -54,9 +54,14 @@ class AutocompleteControllerMetrics {
   // is done, will also log suggestion finalization metrics; otherwise, future
   // calls to `OnProviderUpdate()`, `OnStop()`, or `OnStart()` will log
   // suggestion finalization metrics.
-  void OnNotifyChanged(
-      std::vector<AutocompleteResult::MatchDedupComparator> last_result,
-      std::vector<AutocompleteResult::MatchDedupComparator> new_result);
+  //
+  // `new_result` is passed as an AutocompleteResult rather than its dedup
+  // comparators vector because logging finalization metrics (e.g. inline
+  // location suggestion metrics) requires inspecting match details (like
+  // subtypes and headers) that are not part of the dedup comparators.
+  void OnNotifyChanged(std::vector<AutocompleteResult::MatchDedupComparator>
+                           last_result_comparators,
+                       const AutocompleteResult& new_result);
 
   // Called when `AutocompleteController::OnProviderUpdate()` is called. If the
   // provider is done, will log how long it took; otherwise, future calls to
@@ -79,7 +84,7 @@ class AutocompleteControllerMetrics {
   // 'Omnibox.AsyncAutocompletionTime.[Done|LastChange|LastDefaultChange]'.
   // Additionally logs either '*.Completed' or '*.Interrupted' for each of the
   // 3 depending on whether the controller completed or was interrupted.
-  void LogSuggestionFinalizationMetrics();
+  void LogSuggestionFinalizationMetrics(const AutocompleteResult& result);
 
   // Logs 'Omnibox.AsyncAutocompletionTime.Provider.<provider name>'.
   // Additionally logs either '*.Completed' or '*.Interrupted' depending
@@ -93,6 +98,11 @@ class AutocompleteControllerMetrics {
   // Logs 'Omnibox.MatchStability.MatchChangeInAnyPosition'. Additionally logs
   // '*.CrossInput' or '*.Async' depending on `controller_.in_start()`.
   void LogSuggestionChangeInAnyPositionMetrics(bool changed) const;
+
+#if !BUILDFLAG(IS_IOS)
+  void LogInlineLocationSuggestionMetrics(
+      const AutocompleteResult& result) const;
+#endif
 
   const raw_ref<const AutocompleteController> controller_;
 

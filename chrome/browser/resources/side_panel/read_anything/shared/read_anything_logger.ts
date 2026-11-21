@@ -28,6 +28,16 @@ export enum LinkStatus {
   TOO_MANY_MATCHES = 'TooManyMatches',
 }
 
+export enum PageType {
+  PDF = 'PDF',
+  WEB_PAGE = 'WebPage',
+}
+
+export enum ViewMode {
+  FULL_PAGE = 'FullPage',
+  SIDE_PANEL = 'SidePanel',
+}
+
 // Handles the business logic for logging.
 export class ReadAnythingLogger {
   private metrics: MetricsBrowserProxy = MetricsBrowserProxyImpl.getInstance();
@@ -185,7 +195,28 @@ export class ReadAnythingLogger {
   logSpeechPlaySession(startTime: number, voice: SpeechSynthesisVoice|null) {
     this.logVoiceTypeUsedForReading_(voice);
     this.logLanguageUsedForReading_(voice?.lang);
-    this.metrics.recordSpeechPlaybackLength(Date.now() - startTime);
+
+    const playbackTime = Date.now() - startTime;
+    this.metrics.recordSpeechPlaybackLengthLegacy(playbackTime);
+    if (!chrome.readingMode.isImmersiveEnabled) {
+      return;
+    }
+
+    const activePresentationState = chrome.readingMode.activePresentationState;
+    const isImmersiveState = activePresentationState ===
+        chrome.readingMode.inImmersiveOverlayPresentationState;
+    if (!isImmersiveState &&
+        activePresentationState !==
+            chrome.readingMode.inSidePanelPresentationState) {
+      return;
+    }
+
+    const pageType =
+        chrome.readingMode.isPdf ? PageType.PDF : PageType.WEB_PAGE;
+    const viewMode =
+        isImmersiveState ? ViewMode.FULL_PAGE : ViewMode.SIDE_PANEL;
+    const umaName = `${UmaName.SPEECH_PLAYBACK}.${pageType}In${viewMode}`;
+    this.metrics.recordSpeechPlaybackLength(umaName, playbackTime);
   }
 
   logSpeechControlClick(control: SpeechControls) {
@@ -221,6 +252,9 @@ export class ReadAnythingLogger {
 
     this.logOverallStructureMetrics_(headerCounts, paragraphs.length);
     this.logTopTwoHeaderMetrics_(headerCounts);
+    if (chrome.readingMode.isPdf) {
+      this.logPdfDistilledPageStructure_(headerCounts, paragraphs.length);
+    }
   }
 
   private logOverallStructureMetrics_(
@@ -289,6 +323,27 @@ export class ReadAnythingLogger {
           (presentHeaders[0]!.count / presentHeaders[1]!.count) * 100);
       this.metrics.recordCount(
           UmaName.TOP_TWO_HEADING_RATIO, topTwoHeadingRatio);
+    }
+  }
+
+  private logPdfDistilledPageStructure_(
+      headerCounts: Array<{tag: string, count: number}>,
+      paragraphCount: number) {
+    for (const header of headerCounts) {
+      const headingLevel = header.tag.toUpperCase();
+      this.metrics.recordCount(
+          `Accessibility.ReadAnything.Pdf.Headings.${headingLevel}`,
+          header.count);
+    }
+    this.metrics.recordCount(UmaName.PDF_NUMBER_PARAGRAPHS, paragraphCount);
+
+    if (paragraphCount > 0) {
+      const totalHeaderCount =
+          headerCounts.reduce((sum, item) => sum + item.count, 0);
+      const headingToParagraphRatio =
+          Math.round((totalHeaderCount / paragraphCount) * 100);
+      this.metrics.recordCount(
+          UmaName.PDF_HEADING_TO_PARAGRAPH_RATIO, headingToParagraphRatio);
     }
   }
 

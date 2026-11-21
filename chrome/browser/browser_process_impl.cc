@@ -488,11 +488,25 @@ void BrowserProcessImpl::Init() {
       base::BindRepeating(&metrics::ApplyMetricsReportingPolicy));
 
 #if BUILDFLAG(IS_WIN)
-  // Pref state is taken from the trusted process isolation state during browser
-  // startup, and reset during each startup. This ensures that even if the pref
-  // has been modified on disk, it cannot be used to force a transition from
-  // isolated to un-isolated.
-  local_state()->ClearPref(prefs::kProcessIsolationEnabled);
+  // If the user pref on disk differs from the actual trusted state, it means
+  // either the registry was modified out-of-band, or the untrusted JSON was
+  // tampered with. In either case, the user pref is untrusted. Clear it to
+  // prevent an attacker from bypassing the trusted state when there is no
+  // policy.
+  const base::Value* user_value =
+      local_state()->GetUserPrefValue(prefs::kProcessIsolationEnabled);
+  if (user_value &&
+      user_value->GetIfBool().value_or(false) != chrome::IsIsolationEnabled()) {
+    local_state()->ClearPref(prefs::kProcessIsolationEnabled);
+  }
+
+  // After potentially clearing the untrusted user value, if the effective value
+  // of the pref (which now comes from policies, or a trusted user value, or
+  // default) differs from the actual state, queue a state update.
+  if (local_state()->GetBoolean(prefs::kProcessIsolationEnabled) !=
+      chrome::IsIsolationEnabled()) {
+    UpdateProcessIsolationState();
+  }
   pref_change_registrar_.Add(
       prefs::kProcessIsolationEnabled,
       base::BindRepeating(&BrowserProcessImpl::UpdateProcessIsolationState,

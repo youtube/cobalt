@@ -53,6 +53,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -64,7 +65,6 @@
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/app_menu_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller_chromeos.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_tester.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -759,12 +759,12 @@ IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest,
   ASSERT_TRUE(WaitForFocus(true, web_app_menu_button_));
 }
 
-// Tests the app icon and title are not shown.
-IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, IconShownAndTitleNotShown) {
+// Tests the app icon is not shown but the title is shown.
+IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, IconNotShownButTitleShown) {
   SetUpWebApp();
   auto* browser_view = BrowserView::GetBrowserViewForBrowser(app_browser_);
   EXPECT_FALSE(browser_view->ShouldShowWindowIcon());
-  EXPECT_FALSE(browser_view->ShouldShowWindowTitle());
+  EXPECT_TRUE(browser_view->ShouldShowWindowTitle());
 }
 
 // Tests that the custom tab bar is focusable from the keyboard.
@@ -837,7 +837,7 @@ IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest,
   EXPECT_FALSE(GetPaintingAsActive());
 }
 
-IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, PopupHasNoToolbar) {
+IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, PopupHasToolbar) {
   SetUpWebApp();
 
   Browser* popup_browser;
@@ -855,8 +855,8 @@ IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, PopupHasNoToolbar) {
 
   BrowserView* browser_view =
       BrowserView::GetBrowserViewForBrowser(popup_browser);
-  EXPECT_FALSE(browser_view->web_app_frame_toolbar_for_testing() &&
-               browser_view->web_app_frame_toolbar_for_testing()->GetVisible());
+  EXPECT_TRUE(browser_view->web_app_frame_toolbar_for_testing() &&
+              browser_view->web_app_frame_toolbar_for_testing()->GetVisible());
 }
 
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
@@ -1827,6 +1827,64 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshAvatarTest,
   window_manager->ShowWindowForUser(window, kPrimaryAccountId);
   EXPECT_FALSE(BrowserFrameViewChromeOS::ShouldShowAvatarForTesting(window));
   EXPECT_FALSE(test_api.GetProfileIndicatorIcon());
+}
+
+// Regression test for b/527095091.
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshAvatarTest,
+                       ProfileIconPositionUpdatesAppTitle) {
+  LogIn(kPrimaryAccountId);
+  Profile* primary_user_profile = Profile::FromBrowserContext(
+      ash::BrowserContextHelper::Get()->GetBrowserContextByAccountId(
+          kPrimaryAccountId));
+
+  const auto app_id = web_app::test::InstallDummyWebApp(
+      primary_user_profile, "test_browser_app", GURL("https://test.org"));
+  Browser* app_browser =
+      web_app::LaunchWebAppBrowser(primary_user_profile, app_id);
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForBrowser(app_browser);
+  BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
+  BrowserFrameViewChromeOSTestApi test_api(frame_view);
+  aura::Window* window = app_browser->GetWindow()->GetNativeWindow();
+
+  // Force initial layout.
+  browser_view->GetWidget()->LayoutRootViewIfNecessary();
+
+  // The app title and toolbar are drawn by the WebAppFrameToolbarView.
+  ASSERT_TRUE(browser_view->web_app_frame_toolbar_for_testing());
+  const int title_x_without_icon =
+      browser_view->web_app_frame_toolbar_for_testing()->x();
+
+  // Log in with the secondary user.
+  LogIn(kSecondaryAccountId);
+
+  // Move back to the primary user's desktop.
+  SessionControllerClientImpl::Get()->SwitchActiveUser(kPrimaryAccountId);
+
+  // Teleport the window to secondary user's desktop. This adds the avatar icon.
+  auto* window_manager = ash::Shell::Get()->multi_user_window_manager();
+  browser_view->Activate();
+  window_manager->ShowWindowForUser(window, kSecondaryAccountId);
+  auto* icon = test_api.GetProfileIndicatorIcon();
+  ASSERT_TRUE(icon);
+
+  // Force layout to apply the teleportation changes.
+  browser_view->GetWidget()->LayoutRootViewIfNecessary();
+  const int title_x_with_icon =
+      browser_view->web_app_frame_toolbar_for_testing()->x();
+
+  // The title should be pushed to the right by the icon.
+  EXPECT_GT(title_x_with_icon, title_x_without_icon);
+
+  // Teleport back to remove the icon.
+  window_manager->ShowWindowForUser(window, kPrimaryAccountId);
+  browser_view->Activate();
+  EXPECT_FALSE(test_api.GetProfileIndicatorIcon());
+
+  // Force layout again.
+  browser_view->GetWidget()->LayoutRootViewIfNecessary();
+  EXPECT_EQ(title_x_without_icon,
+            browser_view->web_app_frame_toolbar_for_testing()->x());
 }
 
 using BrowserFrameViewAshTest = BrowserFrameViewChromeOSTest;

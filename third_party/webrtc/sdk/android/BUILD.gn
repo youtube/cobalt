@@ -738,6 +738,7 @@ if (current_os == "linux" || is_android) {
       "../../api/task_queue",
       "../../api/task_queue:pending_task_safety_flag",
       "../../api/units:data_rate",
+      "../../api/video:adapted_video_track_source",
       "../../api/video:encoded_image",
       "../../api/video:render_resolution",
       "../../api/video:video_bitrate_allocation",

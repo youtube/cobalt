@@ -90,9 +90,9 @@ std::u16string AttributeType::GetNameForI18n() const {
     case AttributeTypeName::kShipmentDeliveryZipCode:
       return l10n_util::GetStringUTF16(
           IDS_AUTOFILL_AI_SHIPMENT_DELIVERY_ZIP_CODE_ATTRIBUTE_NAME);
-    case AttributeTypeName::kShipmentEstimatedDeliveryDate:
+    case AttributeTypeName::kShipmentShippedDate:
       return l10n_util::GetStringUTF16(
-          IDS_AUTOFILL_AI_SHIPMENT_ESTIMATED_DELIVERY_DATE_ATTRIBUTE_NAME);
+          IDS_AUTOFILL_AI_SHIPMENT_SHIPPED_DATE_ATTRIBUTE_NAME);
     case AttributeTypeName::kShipmentOrderIds:
       return l10n_util::GetStringUTF16(
           IDS_AUTOFILL_AI_SHIPMENT_ORDER_IDS_ATTRIBUTE_NAME);

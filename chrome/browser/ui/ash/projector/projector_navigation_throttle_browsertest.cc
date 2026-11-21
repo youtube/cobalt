@@ -210,7 +210,8 @@ INSTANTIATE_TEST_SUITE_P(
     ProjectorNavigationCapturingParameterizedTest,
     ::testing::Combine(
         /*link_capturing_feature_version=*/::testing::Values(
-            LinkCapturingFeatureVersion::kV2DefaultOff),
+            LinkCapturingFeatureVersion::kV2DefaultOff,
+            LinkCapturingFeatureVersion::kV2DefaultOn),
         /*navigate_from_link=*/
         testing::Values(ProjectorAppNavigationType::kFromOmnibox,
                         ProjectorAppNavigationType::kTargetSelfLink,
@@ -339,7 +340,8 @@ IN_PROC_BROWSER_TEST_P(ProjectorNavigationThrottleRedirectionParameterized,
 INSTANTIATE_TEST_SUITE_P(
     ,
     ProjectorNavigationThrottleRedirectionParameterized,
-    ::testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff),
+    ::testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff,
+                      LinkCapturingFeatureVersion::kV2DefaultOn),
     [](const testing::TestParamInfo<LinkCapturingFeatureVersion>& info) {
       return apps::test::ToString(info.param);
     });

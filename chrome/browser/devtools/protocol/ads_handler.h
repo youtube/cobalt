@@ -5,12 +5,11 @@
 #ifndef CHROME_BROWSER_DEVTOOLS_PROTOCOL_ADS_HANDLER_H_
 #define CHROME_BROWSER_DEVTOOLS_PROTOCOL_ADS_HANDLER_H_
 
+#include "base/containers/flat_map.h"
+#include "base/unguessable_token.h"
 #include "chrome/browser/devtools/protocol/ads.h"
+#include "components/page_load_metrics/browser/observers/ad_metrics/ads_page_load_metrics_observer.h"
 #include "content/public/browser/web_contents_observer.h"
-
-namespace page_load_metrics {
-class AdsPageLoadMetricsObserver;
-}
 
 // Implements the "Ads" DevTools protocol domain.
 //
@@ -28,12 +27,21 @@ class AdsHandler : public protocol::Ads::Backend,
   AdsHandler& operator=(const AdsHandler&) = delete;
 
  private:
+  // content::WebContentsObserver:
+  void PrimaryPageChanged(content::Page& page) override;
+
   // protocol::Ads::Backend:
   protocol::Response GetAdMetrics(
       std::unique_ptr<protocol::Ads::AdMetrics>* out_metrics) override;
 
   page_load_metrics::AdsPageLoadMetricsObserver*
   GetAdsPageLoadMetricsObserver();
+
+  // Maps the DevTools frame token to the last sent AdFrameLiveStats.
+  base::flat_map<
+      base::UnguessableToken,
+      page_load_metrics::AdsPageLoadMetricsObserver::AdFrameLiveStats>
+      previous_ad_frame_data_;
 };
 
 #endif  // CHROME_BROWSER_DEVTOOLS_PROTOCOL_ADS_HANDLER_H_

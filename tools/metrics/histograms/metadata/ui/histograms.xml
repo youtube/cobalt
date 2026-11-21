@@ -148,6 +148,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".LensSidePanelUntrusted"/>
   <variant name=".MakoUntrusted"/>
   <variant name=".NewTabFooter"/>
+  <variant name=".OmniboxEverywhere"/>
   <variant name=".OmniboxPopup"/>
   <variant name=".PerformanceSidePanel"/>
   <variant name=".PersonalContextNotice"/>

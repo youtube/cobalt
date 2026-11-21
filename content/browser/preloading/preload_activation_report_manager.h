@@ -12,16 +12,21 @@
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
 #include "content/common/content_export.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
 namespace net {
 struct RedirectInfo;
+class HttpResponseHeaders;
 }  // namespace net
 
 namespace network {
 class SimpleURLLoader;
+namespace mojom {
+class URLResponseHead;
+}  // namespace mojom
 }  // namespace network
 
 namespace content {
@@ -57,14 +62,29 @@ class CONTENT_EXPORT PreloadActivationReportManager
   }
 
  private:
-  using UrlLoaderList = std::list<std::unique_ptr<network::SimpleURLLoader>>;
+  struct LoaderInfo {
+    LoaderInfo();
+    ~LoaderInfo();
+    LoaderInfo(const LoaderInfo&) = delete;
+    LoaderInfo& operator=(const LoaderInfo&) = delete;
+    LoaderInfo(LoaderInfo&&);
+    LoaderInfo& operator=(LoaderInfo&&);
+
+    std::unique_ptr<network::SimpleURLLoader> loader;
+    std::string devtools_request_id;
+    FrameTreeNodeId frame_tree_node_id;
+  };
+  using UrlLoaderList = std::list<LoaderInfo>;
 
   PreloadActivationReportManager();
 
   void OnRedirect(UrlLoaderList::iterator it,
                   const url::Origin& original_origin,
-                  const net::RedirectInfo& redirect_info);
-  void OnComplete(UrlLoaderList::iterator it);
+                  const GURL& url_before_redirect,
+                  const net::RedirectInfo& redirect_info,
+                  const network::mojom::URLResponseHead& response_head);
+  void OnComplete(UrlLoaderList::iterator it,
+                  scoped_refptr<net::HttpResponseHeaders> headers);
   void RemoveLoader(UrlLoaderList::iterator it);
 
   UrlLoaderList loaders_;

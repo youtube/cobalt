@@ -7,6 +7,8 @@
 
 #import <WebKit/WebKit.h>
 
+#import <map>
+
 #import "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"

@@ -4,26 +4,29 @@
 
 package org.chromium.ui.accessibility.testservice;
 
-import org.chromium.ui.accessibility.testservice.WaitForEventParams;
+import android.os.Bundle;
+import org.chromium.ui.accessibility.testservice.NodeMatcher;
+import org.chromium.ui.accessibility.testservice.WaitForParams;
 
 interface IAccessibilityTestHelperService {
     /**
-     * Waits for an accessibility event matching the given query parameters.
-     * Returns true if the event is received within the timeout, false otherwise.
+     * Waits for an accessibility event/node matching the given query parameters.
+     * Returns true if the condition is met within the timeout, false otherwise.
      *
-     * @param params The event query parameters.
+     * @param params The wait parameters.
      */
-    boolean waitForEvent(in WaitForEventParams params);
+    boolean waitFor(in WaitForParams params);
 
     /**
-     * Finds a node matching the criteria and performs the given action on it.
+     * Finds a node matching the matcher and performs the given action on it.
      *
-     * @param className The class name to match.
-     * @param text The text to match.
+     * @param matcher The node matching criteria.
      * @param action The action to perform (e.g., AccessibilityNodeInfo.ACTION_HOVER_ENTER).
+     * @param arguments The arguments bundle, which can be null.
      * @return true if the action was performed successfully.
      */
-    boolean performActionOnNode(String className, String text, int action);
+    boolean performActionOnNode(
+            in NodeMatcher matcher, int action, in @nullable Bundle arguments);
 
     /**
      * Dumps the accessibility tree to a String.

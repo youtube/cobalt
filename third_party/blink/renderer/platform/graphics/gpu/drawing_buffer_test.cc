@@ -35,6 +35,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/viz/common/resources/release_callback.h"
 #include "components/viz/common/resources/transferable_resource.h"
@@ -43,6 +44,7 @@
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/sync_token.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/drawing_buffer_test_helpers.h"
@@ -383,14 +385,7 @@ TEST_F(
   // Produce a resource. The created resource should be an overlay candidate.
   EXPECT_TRUE(drawing_buffer_->PrepareTransferableResource(&resource,
                                                            &release_callback));
-#if BUILDFLAG(IS_WIN)
-  // Note: On Windows, DrawingBuffer does not query UseOverlaysForWebGL() at
-  // all but adds SCANOUT only via directly querying whether swapchain-backed
-  // SIs are supported when low-latency is enabled.
-  EXPECT_FALSE(resource.GetIsOverlayCandidate());
-#else
   EXPECT_TRUE(resource.GetIsOverlayCandidate());
-#endif
 
   drawing_buffer_->BeginDestruction();
 }
@@ -626,8 +621,8 @@ TEST_F(DrawingBufferTest, packedDepthStencilSupported) {
         std::move(provider), context_info, nullptr, gfx::Size(10, 10),
         premultiplied_alpha, want_alpha_channel, want_depth_buffer,
         want_stencil_buffer, want_antialiasing, desynchronized, preserve,
-        Platform::kWebGL1ContextType, /*is_offscreen_canvas=*/false,
-        PredefinedColorSpace::kSRGB, gl::GpuPreference::kHighPerformance);
+        Platform::kWebGL1ContextType, PredefinedColorSpace::kSRGB,
+        gl::GpuPreference::kHighPerformance);
 
     // When we request a depth or a stencil buffer, we will get both.
     EXPECT_EQ(cases[i].request_depth || cases[i].request_stencil,
@@ -709,8 +704,8 @@ TEST_F(DrawingBufferTest,
       nullptr, context_info, nullptr, too_big_size, false, false, false, false,
       false,
       /*desynchronized=*/false, DrawingBuffer::kDiscard,
-      Platform::kWebGL1ContextType, /*is_offscreen_canvas=*/false,
-      PredefinedColorSpace::kSRGB, gl::GpuPreference::kHighPerformance);
+      Platform::kWebGL1ContextType, PredefinedColorSpace::kSRGB,
+      gl::GpuPreference::kHighPerformance);
   EXPECT_EQ(too_big_drawing_buffer, nullptr);
   drawing_buffer_->BeginDestruction();
 }
@@ -760,6 +755,141 @@ TEST_F(
   drawing_buffer->BeginDestruction();
   drawing_buffer_->BeginDestruction();
   testing::Mock::VerifyAndClearExpectations(gl_);
+}
+
+class DrawingBufferDiscardBackBufferTest : public testing::Test {
+ protected:
+  void SetupDrawingBuffer(bool enable_feature,
+                          DrawingBuffer::PreserveDrawingBuffer preserve_mode) {
+    if (enable_feature) {
+      feature_list_.InitAndEnableFeature(
+          blink::features::kWebGLDiscardBackBuffer);
+    } else {
+      feature_list_.InitAndDisableFeature(
+          blink::features::kWebGLDiscardBackBuffer);
+    }
+
+    test_context_provider_ = viz::TestContextProvider::CreateRaster();
+    InitializeSharedGpuContext(test_context_provider_.get());
+
+    gfx::Size initial_size(kInitialWidth, kInitialHeight);
+    auto gl = std::make_unique<testing::NiceMock<GLES2InterfaceForTests>>();
+    auto provider =
+        std::make_unique<WebGraphicsContext3DProviderForTests>(std::move(gl));
+    GLES2InterfaceForTests* gl_ptr =
+        static_cast<GLES2InterfaceForTests*>(provider->ContextGL());
+    Platform::WebGLContextInfo context_info;
+    context_info.using_gpu_compositing = true;
+    drawing_buffer_ = DrawingBufferForTests::Create(
+        std::move(provider),
+        /*shared_image_interface_provider_for_sw=*/nullptr, context_info,
+        gl_ptr, initial_size, preserve_mode, kDisableMultisampling);
+    ASSERT_NE(drawing_buffer_, nullptr);
+
+    // Present once to clear contents_changed_ and perform initial allocation.
+    viz::TransferableResource resource;
+    drawing_buffer_->PrepareTransferableResource(&resource, &release_callback_);
+  }
+
+  void TearDown() override {
+    if (release_callback_) {
+      std::move(release_callback_)
+          .Run(gpu::SyncToken(), false /* lostResource */);
+    }
+    if (drawing_buffer_) {
+      drawing_buffer_->BeginDestruction();
+    }
+    SharedGpuContext::Reset();
+  }
+
+  // Before the task environment because it does not support getting destructed
+  // concurrently to baes::Feature accesses.
+  base::test::ScopedFeatureList feature_list_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  ScopedTestingPlatformSupport<GpuCompositingTestPlatform> platform_;
+  scoped_refptr<viz::TestContextProvider> test_context_provider_;
+  scoped_refptr<DrawingBufferForTests> drawing_buffer_;
+  viz::ReleaseCallback release_callback_;
+};
+
+TEST_F(DrawingBufferDiscardBackBufferTest, Disabled) {
+  SetupDrawingBuffer(/*enable_feature=*/false, DrawingBuffer::kDiscard);
+
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+  drawing_buffer_->SetIsInHiddenPage(true);
+  // Should not discard back buffer when the feature is disabled.
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+}
+
+TEST_F(DrawingBufferDiscardBackBufferTest, Enabled) {
+  SetupDrawingBuffer(/*enable_feature=*/true, DrawingBuffer::kDiscard);
+
+  drawing_buffer_->SetIsInHiddenPage(false);
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+  drawing_buffer_->SetIsInHiddenPage(true);
+  EXPECT_FALSE(drawing_buffer_->HasBackColorBufferForTesting());
+  drawing_buffer_->SetIsInHiddenPage(false);
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+}
+
+// Back buffer contains unpresented content (contents_changed_ is true).
+TEST_F(DrawingBufferDiscardBackBufferTest,
+       FeatureEnabledNoDiscardWithUnpresentedContent) {
+  SetupDrawingBuffer(/*enable_feature=*/true, DrawingBuffer::kDiscard);
+
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+  drawing_buffer_->MarkContentsChanged();
+  drawing_buffer_->SetIsInHiddenPage(true);
+  // Should not discard back buffer because it has unpresented contents.
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+}
+
+TEST_F(DrawingBufferDiscardBackBufferTest, FeatureEnabledPreserveNoDiscard) {
+  SetupDrawingBuffer(/*enable_feature=*/true, DrawingBuffer::kPreserve);
+
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+  drawing_buffer_->SetIsInHiddenPage(true);
+  // Should not discard back buffer when preserveDrawingBuffer is kPreserve.
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+}
+
+TEST_F(DrawingBufferDiscardBackBufferTest, BackgroundDrawReallocation) {
+  SetupDrawingBuffer(/*enable_feature=*/true, DrawingBuffer::kDiscard);
+
+  drawing_buffer_->SetIsInHiddenPage(false);
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+
+  drawing_buffer_->SetIsInHiddenPage(true);
+  EXPECT_FALSE(drawing_buffer_->HasBackColorBufferForTesting());
+
+  // All draw calls are preceded with a buffer clear, which calls
+  // EnsureBackColorBuffer(). Simulate the clear call.
+  drawing_buffer_->EnsureBackColorBuffer();
+  // Draw calls then call MarkContentsChanged(). Ordering is enforced with a
+  // CHECK().
+  drawing_buffer_->MarkContentsChanged();
+
+  // The back buffer should be successfully recreated to support drawing in the
+  // background.
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+}
+
+TEST_F(DrawingBufferDiscardBackBufferTest, BackgroundBindReallocation) {
+  SetupDrawingBuffer(/*enable_feature=*/true, DrawingBuffer::kDiscard);
+
+  drawing_buffer_->SetIsInHiddenPage(false);
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
+
+  drawing_buffer_->SetIsInHiddenPage(true);
+  EXPECT_FALSE(drawing_buffer_->HasBackColorBufferForTesting());
+
+  // Calling Bind() simulates binding the default framebuffer in the background.
+  drawing_buffer_->Bind(GL_FRAMEBUFFER);
+
+  // The back buffer should be successfully recreated to support BindFramebuffer
+  // fallbacks.
+  EXPECT_TRUE(drawing_buffer_->HasBackColorBufferForTesting());
 }
 
 }  // namespace blink

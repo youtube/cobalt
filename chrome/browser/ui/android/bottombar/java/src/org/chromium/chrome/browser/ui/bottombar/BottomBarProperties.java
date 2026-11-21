@@ -18,8 +18,10 @@ public class BottomBarProperties {
             new WritableBooleanPropertyKey();
     public static final WritableBooleanPropertyKey IS_HOME_BUTTON_VISIBLE =
             new WritableBooleanPropertyKey();
-    public static final WritableBooleanPropertyKey IS_GLIC_BUTTON_VISIBLE =
+    public static final WritableBooleanPropertyKey IS_EXTRA_BUTTON_VISIBLE =
             new WritableBooleanPropertyKey();
+    public static final WritableIntPropertyKey EXTRA_BUTTON_ACTION_ID =
+            new WritableIntPropertyKey();
     public static final WritableBooleanPropertyKey IS_NEW_TAB_BUTTON_VISIBLE =
             new WritableBooleanPropertyKey();
     public static final WritableBooleanPropertyKey IS_TAB_SWITCHER_BUTTON_VISIBLE =
@@ -33,7 +35,8 @@ public class BottomBarProperties {
                 COLOR_SCHEME,
                 IS_NEW_TAB_BACKGROUND_VISIBLE,
                 IS_HOME_BUTTON_VISIBLE,
-                IS_GLIC_BUTTON_VISIBLE,
+                IS_EXTRA_BUTTON_VISIBLE,
+                EXTRA_BUTTON_ACTION_ID,
                 IS_NEW_TAB_BUTTON_VISIBLE,
                 IS_TAB_SWITCHER_BUTTON_VISIBLE,
                 IS_APP_MENU_BUTTON_VISIBLE,

@@ -25,5 +25,13 @@ If you're a Googler, you can alternatively email
 
 ## Well-lit paths
 
-* [Skia Autoroller](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/managing-third-party/skia-autoroller.md)
-* [Crowbar Workflow](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/managing-third-party/crowbar-workflow.md)
+### [Skia Autoroller](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/managing-third-party/skia-autoroller.md)
+
+Recommended for dependencies that are imported as Git submodules, and can be
+used without modifying the dependency's source code. You can add BUILD.gn rules
+and tests alongside your dependency.
+
+### [Crowbar Workflow](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/managing-third-party/crowbar-workflow.md)
+
+Recommended for checked-in code (e.g. a subset of files), or if you need to
+patch upstream source code.

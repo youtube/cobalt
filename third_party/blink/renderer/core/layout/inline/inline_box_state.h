@@ -405,7 +405,15 @@ struct CORE_EXPORT LogicalRubyColumn
 
   Member<LogicalLineItems> annotation_items;
 
+  // Height of ruby annotations in this column, accumulated recursively from
+  // nested columns before line layout. Represents the height of the annotations
+  // themselves.
   FontHeight annotation_metrics;
+
+  // Exact margin of ruby annotations measured from the baseline after line
+  // layout. Represents the physical bounding box height of the annotations
+  // including line alignment shifts. Used for text-emphasis mark layout.
+  FontHeight layout_annotation_metrics;
 
   // `ruby-position` property value.
   RubyPosition ruby_position = RubyPosition::kOver;

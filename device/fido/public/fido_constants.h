@@ -394,6 +394,13 @@ inline constexpr uint8_t kP1CheckOnly = 0x07;
 inline constexpr uint8_t kP1IndividualAttestation = 0x80;
 inline constexpr size_t kMaxKeyHandleLength = 255;
 
+inline constexpr size_t kCableEphemeralIdSize = 16;
+
+using CableEidArray = std::array<uint8_t, kCableEphemeralIdSize>;
+// CableAuthenticatorIdentityKey is a P-256 public value used to authenticate a
+// paired phone.
+using CableAuthenticatorIdentityKey = std::array<uint8_t, kP256X962Length>;
+
 // kCableWebSocketProtocol is the name of the WebSocket subprotocol used by
 // caBLEv2. See https://tools.ietf.org/html/rfc6455#section-1.9.
 inline constexpr char kCableWebSocketProtocol[] = "fido.cable";

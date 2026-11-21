@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">Positie van adresbalk kiezen</translation>
 <translation id="1347468774581902829">Activiteit beheren</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">Voortgangsupdates uitzetten</translation>
 <translation id="1355337783640312381">Tik op je accounticoon om tussen accounts te wisselen</translation>
 <translation id="135806768612505061">Alle tabbladen</translation>
 <translation id="1358106883354237005">Beheerd account</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">OK</translation>
 <translation id="3080525922482950719">Je kunt pagina's opslaan en later of offline lezen</translation>
 <translation id="3081338492074632642">Zorg ervoor dat het wachtwoord dat je opslaat, overeenkomt met je wachtwoord voor <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">Voortgangsupdates aanzetten</translation>
 <translation id="3087734570205094154">Onderaan</translation>
 <translation id="309710370695886264">Je hebt 1 hergebruikt wachtwoord. Los dit nu op om beveiligd te blijven.</translation>
 <translation id="3099402981545350675">Hiermee worden adressen verwijderd die zijn opgeslagen op dit apparaat. Ook worden geselecteerde gegevens uit Chrome verwijderd, maar deze gegevens worden niet uit je Google-account verwijderd.</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">Maak een nieuwe tabbladgroep door deze een naam en kleur te geven</translation>
 <translation id="345348365500626747">Adres gevonden</translation>
 <translation id="3459644598174926977">Ga Live met Gemini om vragen te stellen over een pagina, hardop te brainstormen en een gesprek te voeren.</translation>
+<translation id="3462768334899086950">Dit betekent dat je je niet-opgeslagen bestand en huidige tabbladen kwijtraakt</translation>
 <translation id="3464194322481586217">Kan de prijs niet volgen.</translation>
 <translation id="3469117812148449995">Opties om een wachtwoord op te slaan</translation>
 <translation id="3472469028191701821">Opent in nieuw tabblad</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">Productreviews</translation>
 <translation id="3921585859122905677">Positie van adresbalk</translation>
 <translation id="3922185497376658606">Webpagina's vooraf laden</translation>
-<translation id="3922395466317605522">Menu aanpassen</translation>
 <translation id="3926703470020109118">Download geannuleerd</translation>
 <translation id="3929457972718048006">Adressen</translation>
 <translation id="3931215329146376310">{count,plural, =1{Nieuw wachtwoord voor deze site}other{Nieuwe wachtwoorden voor deze site}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">Tik op Wachtwoord gebruiken om beveiligd in te loggen.</translation>
 <translation id="4328843285884395590">Mijn Drive</translation>
 <translation id="4331177082088332784">Je kunt dit beheren via de BEGIN_LINK contentinstellingen END_LINK</translation>
+<translation id="4331712008356052424">Als je deze link wilt sturen, log je op je andere apparaat in met <ph name="USER_EMAIL" /></translation>
 <translation id="4334428914252001502">1 ongelezen artikel.</translation>
 <translation id="4338258232580025606">Inloggen lukt niet</translation>
 <translation id="4338650699862464074">Verzendt de URL's van pagina's die je bezoekt naar Google.</translation>
@@ -1269,6 +1272,7 @@
 <translation id="5336910966955551309">Houd je vinger op je favoriete sites om ze vast te zetten</translation>
 <translation id="5338512273860059533">Inloggen wordt uitgevoerd.</translation>
 <translation id="5343472494710226394">Nieuws, sport en content op basis van je interesses.</translation>
+<translation id="5351613737248079168">Je moet ingelogd zijn om Level Up te gebruiken</translation>
 <translation id="5352128922772839949">Bestand opslaan</translation>
 <translation id="5355191726083956201">Geoptimaliseerde beveiliging staat aan</translation>
 <translation id="536067926684072644">Bookmarks tonen</translation>
@@ -1471,6 +1475,7 @@ Handoff moet ook aanstaan in het gedeelte Algemeen van Instellingen en je appara
 <translation id="6040143037577758943">Sluiten</translation>
 <translation id="6042308850641462728">Meer</translation>
 <translation id="6045460247888249350">Titel toevoegen</translation>
+<translation id="6050237559175440178">Laat verifiëren dat jij het bent om je informatie op al je apparaten te gebruiken en op te slaan</translation>
 <translation id="6052269326659653305">Van profiel wisselen</translation>
 <translation id="605721222689873409">JJ</translation>
 <translation id="6059830886158432458">Beheer hier je artikelen en activiteiten</translation>
@@ -1690,7 +1695,6 @@ Handoff moet ook aanstaan in het gedeelte Algemeen van Instellingen en je appara
 <translation id="6674917187596384849">Je kunt makkelijk wisselen tussen accounts</translation>
 <translation id="6676349090816247042">Inlogopties.</translation>
 <translation id="667999046851023355">Document</translation>
-<translation id="6680416467695217368">Menu aanpassen</translation>
 <translation id="6681791404926413601">{count,plural, =1{{count} optie voor betaalmethode beschikbaar boven je toetsenbord.}other{{count} opties voor betaalmethoden beschikbaar boven je toetsenbord.}}</translation>
 <translation id="6682680306647339111">Herinnering verwijderd</translation>
 <translation id="6684262542644248484">Log in bij een website</translation>
@@ -1846,6 +1850,7 @@ Wissel naar <ph name="OTHER_EMAIL" /> om door te gaan vanaf je computer. Je krij
 <translation id="722339453342442311">Nu checken</translation>
 <translation id="7227235818314667565">Delen beheren</translation>
 <translation id="7233006041370588369">Selecteer een wachtwoord om in te vullen.</translation>
+<translation id="723874023660911012">Van profiel wisselen</translation>
 <translation id="7241135764990439166">Incognitomodus is niet beschikbaar</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />Zoekgeschiedenis<ph name="END_LINK" /> en <ph name="BEGIN_LINK" />andere vormen van activiteit<ph name="END_LINK" /> kunnen worden opgeslagen in je Google-account.</translation>
 <translation id="7253951228444156601">Wachtwoorden checken…</translation>
@@ -2072,6 +2077,7 @@ Wissel naar <ph name="OTHER_EMAIL" /> om door te gaan vanaf je computer. Je krij
 <translation id="7996239959906074962">Instellen…</translation>
 <translation id="800361585186029508">Hiermee worden de ingevoerde URL's geopend in Google Chrome.</translation>
 <translation id="8005666035647241369">In Google Wachtwoordmanager op dit apparaat</translation>
+<translation id="8007106936382123905">{count,plural, =1{1 afgeronde taak}other{# afgeronde taken}}</translation>
 <translation id="8010488806779226127">Ontdek functies waarmee je meer kunt doen terwijl je browst</translation>
 <translation id="8011489434346330032">Webcontrole</translation>
 <translation id="8014007212279733632">Laten verifiëren dat jij het bent om gevoelige informatie automatisch in te vullen</translation>
@@ -2155,6 +2161,7 @@ Wissel naar <ph name="OTHER_EMAIL" /> om door te gaan vanaf je computer. Je krij
 <translation id="826614135184049678">Je bent uitgelogd van je account <ph name="USER_NAME" /> omdat je iPad wordt gereset. Tik hieronder op Doorgaan om weer in te loggen.</translation>
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">Je vult informatie in op <ph name="URL" /></translation>
+<translation id="8274795744553482834">Je staat op het punt van profiel te wisselen</translation>
 <translation id="8275068909952022340">Meer…</translation>
 <translation id="8280797717392145626">Links ontvangen</translation>
 <translation id="8281781826761538115">Standaard - <ph name="DEFAULT_LOCALE" /></translation>

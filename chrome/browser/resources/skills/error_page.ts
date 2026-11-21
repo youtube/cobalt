@@ -19,6 +19,7 @@ export enum ErrorType {
   GLIC_NOT_ENABLED = 'glic-not-enabled',
   SKILLS_DISABLED = 'skills-disabled',
   NO_SEARCH_RESULTS = 'no-search-results',
+  REMOTE_AUTHORITY_UNREACHABLE = 'remote-authority-unreachable',
 }
 
 export class ErrorPageElement extends CrLitElement {
@@ -73,6 +74,7 @@ export class ErrorPageElement extends CrLitElement {
     switch (this.errorType) {
       case ErrorType.GLIC_NOT_ENABLED:
       case ErrorType.SKILLS_DISABLED:
+      case ErrorType.REMOTE_AUTHORITY_UNREACHABLE:
         return loadTimeData.getString('errorPageTitle');
       case ErrorType.NO_SEARCH_RESULTS:
         return loadTimeData.getString('noSearchResultsTitle');
@@ -89,6 +91,8 @@ export class ErrorPageElement extends CrLitElement {
         return loadTimeData.getString('disabledErrorPageDescription');
       case ErrorType.NO_SEARCH_RESULTS:
         return loadTimeData.getString('noSearchResultsDescription');
+      case ErrorType.REMOTE_AUTHORITY_UNREACHABLE:
+        return loadTimeData.getString('remoteAuthorityUnreachableDescription');
       default:
         assertNotReached();
     }

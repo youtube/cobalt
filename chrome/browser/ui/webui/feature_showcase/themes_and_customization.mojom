@@ -1,0 +1,26 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module feature_showcase.mojom;
+
+// Browser-side handler for requests from the Themes and Customization step.
+interface ThemesAndCustomizationPageHandler {
+  // Takes a snapshot of the current theme so that it can be reverted if the
+  // user chooses not to accept the changes.
+  SnapshotTheme();
+
+  // Called when the user confirms their theme selection.
+  AcceptTheme();
+
+  // Called when the user clicks the "No thanks" and reverts the theme.
+  RevertTheme();
+};
+
+// Used by the WebUI to bootstrap WebUI->Browser communication for
+// Themes and Customization.
+interface ThemesAndCustomizationPageHandlerFactory {
+  // The WebUI calls this method when the page is first initialized.
+  CreateThemesAndCustomizationPageHandler(
+      pending_receiver<ThemesAndCustomizationPageHandler> handler);
+};

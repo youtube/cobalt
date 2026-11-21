@@ -53,7 +53,6 @@ CGFloat const kAvatarImageDimension = 30.0;
   self.title = NSLocalizedString(
       @"IDS_IOS_ACCOUNTS_TITLE_SHARE_EXTENSION",
       @"The title of the item representing a signed out user.");
-  ;
   self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc]
       initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                            target:self

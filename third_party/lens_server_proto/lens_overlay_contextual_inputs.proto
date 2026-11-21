@@ -37,7 +37,7 @@ enum LensOverlayContextualInputUploadType {
 message LensOverlayContextualInputs {
   repeated LensOverlayContextualInput inputs = 1;
 
-  // Next ID: 4
+  // Next ID: 5
   message LensOverlayContextualInput {
     LensOverlayRequestId request_id = 1;
 
@@ -45,5 +45,8 @@ message LensOverlayContextualInputs {
 
     // The upload type associated with the contextual input.
     LensOverlayContextualInputUploadType upload_type = 3;
+
+    // Optional. The drive id of the file.
+    string drive_id = 4;
   }
 }

@@ -97,6 +97,11 @@ BASE_FEATURE_PARAM(std::string,
                    kDefaultBrowserVisualGuideUrlParam,
                    &kDefaultBrowserSetterSelection,
                    chrome::kChromeUIDefaultBrowserVisualGuidedSetterURL);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kFindSettingsTimeout,
+                   &kDefaultBrowserSetterSelection,
+                   base::Seconds(5));
 #endif
 
 }  // namespace default_browser

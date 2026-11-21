@@ -296,4 +296,8 @@ source_set("unit_tests") {
     deps +=
         [ "//components/enterprise/network_header_injection/core:unit_tests" ]
   }
+
+  if (enterprise_proxy) {
+    deps += [ "//components/enterprise/net/core:unit_tests" ]
+  }
 }

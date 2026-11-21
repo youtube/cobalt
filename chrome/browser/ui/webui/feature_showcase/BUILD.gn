@@ -13,6 +13,7 @@ mojom("mojo_bindings") {
     "feature_showcase.mojom",
     "google_lens.mojom",
     "password_manager.mojom",
+    "themes_and_customization.mojom",
   ]
   webui_module_path = "/"
 }
@@ -29,6 +30,8 @@ source_set("feature_showcase") {
     "google_lens_handler.h",
     "password_manager_handler.cc",
     "password_manager_handler.h",
+    "themes_and_customization_handler.cc",
+    "themes_and_customization_handler.h",
   ]
 
   public_deps = [
@@ -49,6 +52,9 @@ source_set("feature_showcase") {
     "//chrome/browser/ui/actions:actions_headers",
     "//chrome/browser/ui/lens",
     "//chrome/browser/ui/toolbar/pinned_toolbar",
+    "//chrome/browser/ui/webui:theme_source",
+    "//chrome/browser/ui/webui/cr_components/customize_color_scheme_mode",
+    "//chrome/browser/ui/webui/cr_components/theme_color_picker:impl",
     "//chrome/browser/ui/webui/intro",
     "//chrome/common:constants",
     "//components/lens",

@@ -720,6 +720,7 @@ MUST_BE_MISSING_INCLUDE_FILES = [
 # DO NOT ADD TO THIS LIST without first confirming with lawyers that the
 # licenses are okay to add.
 ALLOWED_LICENSES = [
+    'BSD (2 clause) LGPL (v2.1 or later)',
     'BSD (3 clause) LGPL (v2.1 or later)',
     'BSL (v1) LGPL (v2.1 or later)',
     'ISC GENERATED FILE',

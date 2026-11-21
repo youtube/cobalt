@@ -527,7 +527,7 @@ RTCError MergeCodecsLegacy(const CodecList& reference_codecs,
         }
         sb << matching_codec->id;
       }
-      red_codec.params[kCodecParamNotInNameValueFormat] = sb.Release();
+      red_codec.SetParam(kCodecParamNotInNameValueFormat, sb.Release());
       RTCErrorOr<PayloadType> suggestion = pt_suggester.SuggestPayloadType(
           mid, red_codec, pick_from_top_of_range);
       if (!suggestion.ok()) {
@@ -603,7 +603,8 @@ CodecList MatchCodecPreference(
               // For RED, do not insert the codec again if it was already
               // inserted. audio/red for opus gets enabled by having RED before
               // the primary codec.
-              auto fmtp = codec.params.find(kCodecParamNotInNameValueFormat);
+              auto fmtp = codec.params.find(
+                  std::string(kCodecParamNotInNameValueFormat));
               if (fmtp != codec.params.end()) {
                 std::vector<absl::string_view> redundant_payloads =
                     split(fmtp->second, '/');
@@ -693,8 +694,8 @@ void NegotiateVideoCodecLevelsForOffer(
 
           if (it != supported_h265_profiles.end() &&
               filtered_ptl->level != it->second) {
-            filtered_codec.params[kH265FmtpLevelId] =
-                H265LevelToString(it->second);
+            filtered_codec.SetParam(kH265FmtpLevelId,
+                                    H265LevelToString(it->second));
           }
         }
       }
@@ -724,14 +725,15 @@ RTCError NegotiateCodecs(const CodecList& local_codecs,
       negotiated.IntersectFeedbackParams(*theirs);
       if (negotiated.GetResiliencyType() == Codec::ResiliencyType::kRtx) {
         // We support parsing the declarative rtx-time parameter.
-        const auto rtx_time_it = theirs->params.find(kCodecParamRtxTime);
+        const auto rtx_time_it =
+            theirs->params.find(std::string(kCodecParamRtxTime));
         if (rtx_time_it != theirs->params.end()) {
           negotiated.SetParam(kCodecParamRtxTime, rtx_time_it->second);
         }
       } else if (negotiated.GetResiliencyType() ==
                  Codec::ResiliencyType::kRed) {
         const auto red_it =
-            theirs->params.find(kCodecParamNotInNameValueFormat);
+            theirs->params.find(std::string(kCodecParamNotInNameValueFormat));
         if (red_it != theirs->params.end()) {
           negotiated.SetParam(kCodecParamNotInNameValueFormat, red_it->second);
         }

@@ -430,4 +430,6 @@ bool HandleNewTabURLReverseRewrite(GURL* url,
 
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+const void* const kIsNTPProcessKey = &kIsNTPProcessKey;
+
 }  // namespace search

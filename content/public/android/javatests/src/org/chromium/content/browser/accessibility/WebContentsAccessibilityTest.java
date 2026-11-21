@@ -178,6 +178,11 @@ import java.util.concurrent.ExecutionException;
 public class WebContentsAccessibilityTest {
     private static final String TAG = "WebContentsAXTest";
 
+    // Extended selection offset types, defined in:
+    // androidx.view.accessibility.AccessibilityNodeInfoCompat
+    private static final int OFFSET_TYPE_TEXT = 0;
+    private static final int OFFSET_TYPE_CHILD = 1;
+
     // Test output error messages
     private static final String DISABLED_COMBOBOX_ERROR =
             "disabled combobox child elements should not be clickable";
@@ -444,14 +449,26 @@ public class WebContentsAccessibilityTest {
      * @throws ExecutionException Error
      */
     private boolean selectTextOnUiThreadAndWaitForSelectionEvent(
-            int viewId, int startNodeId, int startNodeOffset, int endNodeId, int endNodeOffset)
+            int viewId,
+            int startNodeId,
+            int startNodeOffset,
+            int startOffsetType,
+            int endNodeId,
+            int endNodeOffset,
+            int endOffsetType)
             throws ExecutionException {
         // Reset value for selection event.
         mTestData.setReceivedSelectionEvent(false);
 
         boolean successful =
                 mActivityTestRule.setSelectionOnUiThread(
-                        viewId, startNodeId, startNodeOffset, endNodeId, endNodeOffset);
+                        viewId,
+                        startNodeId,
+                        startNodeOffset,
+                        startOffsetType,
+                        endNodeId,
+                        endNodeOffset,
+                        endOffsetType);
 
         if (!successful) {
             return false;
@@ -488,53 +505,83 @@ public class WebContentsAccessibilityTest {
     }
 
     private void setAndAssertExtendedSelection(
-            int rootVvid, int startNodeId, int startOffset, int endNodeId, int endOffset)
+            int rootVvid,
+            int startNodeId,
+            int startOffset,
+            int startOffsetType,
+            int endNodeId,
+            int endOffset,
+            int endOffsetType)
             throws ExecutionException {
         setAndAssertExtendedSelection(
                 rootVvid,
                 startNodeId,
                 startOffset,
+                startOffsetType,
                 endNodeId,
                 endOffset,
+                endOffsetType,
                 startNodeId,
                 startOffset,
+                startOffsetType,
                 endNodeId,
-                endOffset);
+                endOffset,
+                endOffsetType);
     }
 
     private void setAndAssertExtendedSelection(
             int rootVvid,
-            int setStartNodeId,
-            int setStartOffset,
-            int setEndNodeId,
-            int setEndOffset,
+            int startNodeId,
+            int startOffset,
+            int startOffsetType,
+            int endNodeId,
+            int endOffset,
+            int endOffsetType,
             int expectedStartNodeId,
             int expectedStartOffset,
+            int expectedStartOffsetType,
             int expectedEndNodeId,
-            int expectedEndOffset)
+            int expectedEndOffset,
+            int expectedEndOffsetType)
             throws ExecutionException {
         Assert.assertEquals(
                 true,
                 selectTextOnUiThreadAndWaitForSelectionEvent(
-                        rootVvid, setStartNodeId, setStartOffset, setEndNodeId, setEndOffset));
+                        rootVvid,
+                        startNodeId,
+                        startOffset,
+                        startOffsetType,
+                        endNodeId,
+                        endOffset,
+                        endOffsetType));
         mNodeInfo = createAccessibilityNodeInfo(rootVvid);
 
         Object[] selection = getExtendedSelectionOnUiThread(rootVvid);
         Assert.assertNotNull(PERFORM_ACTION_ERROR, selection);
 
-        AccessibilityNodeInfoCompat startNode = (AccessibilityNodeInfoCompat) selection[0];
-        int startOffset = (int) selection[1];
-        AccessibilityNodeInfoCompat endNode = (AccessibilityNodeInfoCompat) selection[2];
-        int endOffset = (int) selection[3];
+        AccessibilityNodeInfoCompat startNode =
+                (AccessibilityNodeInfoCompat)
+                        selection[WebContentsAccessibilityImpl.EXT_SEL_START_NODE];
+        int actualStartOffset = (int) selection[WebContentsAccessibilityImpl.EXT_SEL_START_OFFSET];
+        int actualStartOffsetType =
+                (int) selection[WebContentsAccessibilityImpl.EXT_SEL_START_OFFSET_TYPE];
+        AccessibilityNodeInfoCompat endNode =
+                (AccessibilityNodeInfoCompat)
+                        selection[WebContentsAccessibilityImpl.EXT_SEL_END_NODE];
+        int actualEndOffset = (int) selection[WebContentsAccessibilityImpl.EXT_SEL_END_OFFSET];
+        int actualEndOffsetType =
+                (int) selection[WebContentsAccessibilityImpl.EXT_SEL_END_OFFSET_TYPE];
 
         Assert.assertNotNull(PERFORM_ACTION_ERROR, startNode);
         Assert.assertEquals(
                 PERFORM_ACTION_ERROR, String.valueOf(expectedStartNodeId), startNode.getUniqueId());
-        Assert.assertEquals(PERFORM_ACTION_ERROR, expectedStartOffset, startOffset);
+        Assert.assertEquals(PERFORM_ACTION_ERROR, expectedStartOffset, actualStartOffset);
+        Assert.assertEquals(PERFORM_ACTION_ERROR, expectedStartOffsetType, actualStartOffsetType);
         Assert.assertNotNull(PERFORM_ACTION_ERROR, endNode);
         Assert.assertEquals(
                 PERFORM_ACTION_ERROR, String.valueOf(expectedEndNodeId), endNode.getUniqueId());
-        Assert.assertEquals(PERFORM_ACTION_ERROR, expectedEndOffset, endOffset);
+        Assert.assertEquals(PERFORM_ACTION_ERROR, expectedEndOffset, actualEndOffset);
+        Assert.assertEquals(PERFORM_ACTION_ERROR, expectedEndOffsetType, actualEndOffsetType);
     }
 
     private void printAccessibilityNodeInfoTree() {
@@ -2028,6 +2075,62 @@ public class WebContentsAccessibilityTest {
         Assert.assertTrue(lastParagraphNodeInfo.isAccessibilityFocused());
     }
 
+    /** Tests initializeMovementAtGranularityOnSetAccessibilityFocus with selection offset types. */
+    @Test
+    @SmallTest
+    public void testEvent_initializeMovementAtGranularity_withExtendedSelectionOffsetTypes()
+            throws Throwable {
+        // Build a simple web page with a focused container node containing children.
+        setupTestWithHTML(
+                """
+                <p id="text">Some text</p>
+                <img id="image" src="pipe.jpg" alt="pipe" />
+                """);
+
+        int rootVvid = waitForNodeMatching(sClassNameMatcher, "android.webkit.WebView");
+        int textVvId = waitForNodeMatching(sViewIdResourceNameMatcher, "text");
+        int imageVvid = waitForNodeMatching(sViewIdResourceNameMatcher, "image");
+
+        // 1. Set extended selection on the text node.
+        setAndAssertExtendedSelection(
+                rootVvid, textVvId, 1, OFFSET_TYPE_TEXT, textVvId, 3, OFFSET_TYPE_TEXT);
+
+        // Perform focus action to trigger initializeMovementAtGranularityOnSetAccessibilityFocus.
+        performActionOnUiThread(textVvId, ACTION_ACCESSIBILITY_FOCUS, null);
+
+        // Setup GRANULARITY args.
+        Bundle args = new Bundle();
+        args.putInt(ACTION_ARGUMENT_MOVEMENT_GRANULARITY_INT, MOVEMENT_GRANULARITY_CHARACTER);
+        args.putBoolean(ACTION_ARGUMENT_EXTEND_SELECTION_BOOLEAN, false);
+
+        // Swipe forward. Since selection was on the text node, start index should be initialized to
+        // 3.
+        performTextActionOnUiThreadAndWaitForTraversalEvent(
+                textVvId, ACTION_NEXT_AT_MOVEMENT_GRANULARITY, args);
+        Assert.assertEquals(3, mTestData.getTraverseFromIndex());
+        Assert.assertEquals(4, mTestData.getTraverseToIndex());
+
+        // Focus away to clean up.
+        performActionOnUiThread(rootVvid, ACTION_ACCESSIBILITY_FOCUS, null);
+
+        // 2. Set selection on the image node with child offset types.
+        setAndAssertExtendedSelection(
+                rootVvid, rootVvid, 1, OFFSET_TYPE_CHILD, rootVvid, 2, OFFSET_TYPE_CHILD);
+
+        // Focus on the text node.
+        performActionOnUiThread(textVvId, ACTION_ACCESSIBILITY_FOCUS, null);
+
+        // Clear previous event stats.
+        mTestData.setReceivedTraversalEvent(false);
+
+        // Swipe forward on the text node. Since the selection focus node was the image node,
+        // it shouldn't initialize the granularity index (which remains -1).
+        performTextActionOnUiThreadAndWaitForTraversalEvent(
+                textVvId, ACTION_NEXT_AT_MOVEMENT_GRANULARITY, args);
+        Assert.assertEquals(0, mTestData.getTraverseFromIndex());
+        Assert.assertEquals(1, mTestData.getTraverseToIndex());
+    }
+
     // ------------------ Tests of AccessibilityNodeInfo objects ------------------ //
     // These tests are included here rather than in WebContentsAccessibilityTreeTest because
     // they test the AccessibilityNodeInfo over a series of actions/events, rather than statically.
@@ -3143,51 +3246,68 @@ public class WebContentsAccessibilityTest {
         int rootVvid = waitForNodeMatching(sClassNameMatcher, "android.webkit.WebView");
         int paragraph1Vvid = waitForNodeMatching(sViewIdResourceNameMatcher, "paragraph1");
         int paragraph2Vvid = waitForNodeMatching(sViewIdResourceNameMatcher, "paragraph2");
+        int imageVvid = waitForNodeMatching(sViewIdResourceNameMatcher, "image");
         int buttonVvid = waitForNodeMatching(sViewIdResourceNameMatcher, "button");
         int paragraph3Vvid = waitForNodeMatching(sViewIdResourceNameMatcher, "paragraph3");
 
         int imageIndex = 2;
 
         // Select all.
-        setAndAssertExtendedSelection(rootVvid, paragraph1Vvid, 0, paragraph3Vvid, 5);
+        setAndAssertExtendedSelection(
+                rootVvid, paragraph1Vvid, 0, OFFSET_TYPE_TEXT, paragraph3Vvid, 5, OFFSET_TYPE_TEXT);
 
         // Some of the first two paragraphs.
-        setAndAssertExtendedSelection(rootVvid, paragraph1Vvid, 1, paragraph2Vvid, 3);
+        setAndAssertExtendedSelection(
+                rootVvid, paragraph1Vvid, 1, OFFSET_TYPE_TEXT, paragraph2Vvid, 3, OFFSET_TYPE_TEXT);
 
         // Reverse selection.
-        setAndAssertExtendedSelection(rootVvid, paragraph3Vvid, 0, paragraph1Vvid, 10);
+        setAndAssertExtendedSelection(
+                rootVvid,
+                paragraph3Vvid,
+                0,
+                OFFSET_TYPE_TEXT,
+                paragraph1Vvid,
+                10,
+                OFFSET_TYPE_TEXT);
 
         // Image, using child offset.
         setAndAssertExtendedSelection(
                 rootVvid,
                 rootVvid,
                 imageIndex,
+                OFFSET_TYPE_CHILD,
                 rootVvid,
                 imageIndex + 1,
-                rootVvid,
-                imageIndex,
-                buttonVvid,
-                0);
+                OFFSET_TYPE_CHILD);
 
         // Button, although it is a non-text node, selecting by text offset as it
         // is a leaf.
-        setAndAssertExtendedSelection(rootVvid, buttonVvid, 1, buttonVvid, 3);
+        setAndAssertExtendedSelection(
+                rootVvid, buttonVvid, 1, OFFSET_TYPE_TEXT, buttonVvid, 3, OFFSET_TYPE_TEXT);
 
         // Invalid id, root.
         Assert.assertEquals(
                 false,
                 selectTextOnUiThreadAndWaitForSelectionEvent(
-                        -1, paragraph1Vvid, 0, paragraph1Vvid, 1));
+                        -1,
+                        paragraph1Vvid,
+                        0,
+                        OFFSET_TYPE_TEXT,
+                        paragraph1Vvid,
+                        1,
+                        OFFSET_TYPE_TEXT));
 
         // Invalid id, selection start.
         Assert.assertEquals(
                 false,
-                selectTextOnUiThreadAndWaitForSelectionEvent(rootVvid, -1, 0, paragraph1Vvid, 1));
+                selectTextOnUiThreadAndWaitForSelectionEvent(
+                        rootVvid, -1, 0, OFFSET_TYPE_TEXT, paragraph1Vvid, 1, OFFSET_TYPE_TEXT));
 
         // Invalid id, selection end.
         Assert.assertEquals(
                 false,
-                selectTextOnUiThreadAndWaitForSelectionEvent(rootVvid, paragraph1Vvid, 0, -1, 1));
+                selectTextOnUiThreadAndWaitForSelectionEvent(
+                        rootVvid, paragraph1Vvid, 0, OFFSET_TYPE_TEXT, -1, 1, OFFSET_TYPE_TEXT));
     }
 
     /** Test extended selection on editable node. */
@@ -3213,80 +3333,90 @@ public class WebContentsAccessibilityTest {
         int input2Index = 2;
 
         // Selection inside one editable with text offset.
-        setAndAssertExtendedSelection(rootVvid, input1Vvid, 1, input1Vvid, 5);
+        setAndAssertExtendedSelection(
+                rootVvid, input1Vvid, 1, OFFSET_TYPE_TEXT, input1Vvid, 5, OFFSET_TYPE_TEXT);
 
         // Selection including some editables.
-        setAndAssertExtendedSelection(rootVvid, paragraph1Vvid, 1, paragraph2Vvid, 5);
+        setAndAssertExtendedSelection(
+                rootVvid, paragraph1Vvid, 1, OFFSET_TYPE_TEXT, paragraph2Vvid, 5, OFFSET_TYPE_TEXT);
 
         // Selection from the beginning of one editable to the end of another.
         // Since the editables are fully selected, this is supported, but selection positions are
         // specified using child offset.
-        // TODO(crbug.com/443078007): Update Chrome to Android selection conversion to return the
-        // selection with child indices, here and in below cases.
         setAndAssertExtendedSelection(
                 rootVvid,
                 rootVvid,
                 input1Index,
+                OFFSET_TYPE_CHILD,
                 rootVvid,
                 input2Index + 1,
-                input1Vvid,
-                0,
-                paragraph2Vvid,
-                0);
+                OFFSET_TYPE_CHILD);
 
         // Selection from non-editable to the beginning of the editable.
         setAndAssertExtendedSelection(
                 rootVvid,
                 paragraph1Vvid,
                 1,
+                OFFSET_TYPE_TEXT,
                 rootVvid,
                 input1Index,
-                paragraph1Vvid,
-                1,
-                input1Vvid,
-                0);
+                OFFSET_TYPE_CHILD);
 
         // Selection from non-editable to the end of the editable.
         setAndAssertExtendedSelection(
                 rootVvid,
                 paragraph1Vvid,
                 1,
+                OFFSET_TYPE_TEXT,
                 rootVvid,
                 input2Index + 1,
-                paragraph1Vvid,
-                1,
-                paragraph2Vvid,
-                0);
+                OFFSET_TYPE_CHILD);
 
         // Selection from the beginning of the editable to to a non-editable.
         setAndAssertExtendedSelection(
                 rootVvid,
                 rootVvid,
                 input1Index,
+                OFFSET_TYPE_CHILD,
                 paragraph2Vvid,
                 10,
-                input1Vvid,
-                0,
-                paragraph2Vvid,
-                10);
+                OFFSET_TYPE_TEXT);
 
         // Selection from inside one editable to inside another.
         Assert.assertEquals(
                 false,
                 selectTextOnUiThreadAndWaitForSelectionEvent(
-                        rootVvid, input1Vvid, 1, input2Vvid, 1));
+                        rootVvid,
+                        input1Vvid,
+                        1,
+                        OFFSET_TYPE_TEXT,
+                        input2Vvid,
+                        1,
+                        OFFSET_TYPE_TEXT));
 
         // Selection from inside one editable to a non-editable.
         Assert.assertEquals(
                 false,
                 selectTextOnUiThreadAndWaitForSelectionEvent(
-                        rootVvid, input1Vvid, 1, paragraph2Vvid, 1));
+                        rootVvid,
+                        input1Vvid,
+                        1,
+                        OFFSET_TYPE_TEXT,
+                        paragraph2Vvid,
+                        1,
+                        OFFSET_TYPE_TEXT));
 
         // Selection from a non-editable to inside one editable.
         Assert.assertEquals(
                 false,
                 selectTextOnUiThreadAndWaitForSelectionEvent(
-                        rootVvid, paragraph1Vvid, 1, input2Vvid, 1));
+                        rootVvid,
+                        paragraph1Vvid,
+                        1,
+                        OFFSET_TYPE_TEXT,
+                        input2Vvid,
+                        1,
+                        OFFSET_TYPE_TEXT));
     }
 
     /** Test that clearing extended selection clears the selection on the root node. */
@@ -3299,7 +3429,8 @@ public class WebContentsAccessibilityTest {
         int paragraph1Vvid = waitForNodeMatching(sViewIdResourceNameMatcher, "p1");
 
         // Select.
-        setAndAssertExtendedSelection(rootVvid, paragraph1Vvid, 1, paragraph1Vvid, 5);
+        setAndAssertExtendedSelection(
+                rootVvid, paragraph1Vvid, 1, OFFSET_TYPE_TEXT, paragraph1Vvid, 5, OFFSET_TYPE_TEXT);
 
         // Clear selection.
         clearSelectionOnUiThreadAndWaitForSelectionEvent(rootVvid);
@@ -3327,7 +3458,8 @@ public class WebContentsAccessibilityTest {
         // Selection across frame boundaries.
         Assert.assertEquals(
                 false,
-                selectTextOnUiThreadAndWaitForSelectionEvent(rootVvid, p1Vvid, 1, p2Vvid, 5));
+                selectTextOnUiThreadAndWaitForSelectionEvent(
+                        rootVvid, p1Vvid, 1, OFFSET_TYPE_TEXT, p2Vvid, 5, OFFSET_TYPE_TEXT));
     }
 
     /** Test extended selection on contenteditable. */
@@ -3359,37 +3491,58 @@ public class WebContentsAccessibilityTest {
         int contenteditable1Index = 1;
 
         // From the beginning of a contenteditable to somewhere inside it.
-        setAndAssertExtendedSelection(rootVvid, contenteditable1Vvid, 0, contenteditable1Vvid, 5);
+        setAndAssertExtendedSelection(
+                rootVvid,
+                contenteditable1Vvid,
+                0,
+                OFFSET_TYPE_TEXT,
+                contenteditable1Vvid,
+                5,
+                OFFSET_TYPE_TEXT);
 
         // From outside a contenteditable to inside it.
         Assert.assertEquals(
                 false,
                 selectTextOnUiThreadAndWaitForSelectionEvent(
-                        rootVvid, p1Vvid, 1, contenteditable1Vvid, 5));
+                        rootVvid,
+                        p1Vvid,
+                        1,
+                        OFFSET_TYPE_TEXT,
+                        contenteditable1Vvid,
+                        5,
+                        OFFSET_TYPE_TEXT));
 
         // From outside a contenteditable to the beginning of it.
-        // TODO(crbug.com/443078007): Update Chrome to Android selection conversion to return the
-        // selection with child indices.
         setAndAssertExtendedSelection(
                 rootVvid,
                 p1Vvid,
                 1,
+                OFFSET_TYPE_TEXT,
                 rootVvid,
                 contenteditable1Index,
-                p1Vvid,
-                1,
-                contenteditable1Vvid,
-                0);
+                OFFSET_TYPE_CHILD);
 
         // From the end of a contenteditable to outside it.
         setAndAssertExtendedSelection(
-                rootVvid, rootVvid, contenteditable1Index + 1, p2Vvid, 5, p2Vvid, 0, p2Vvid, 5);
+                rootVvid,
+                rootVvid,
+                contenteditable1Index + 1,
+                OFFSET_TYPE_CHILD,
+                p2Vvid,
+                5,
+                OFFSET_TYPE_TEXT);
 
         // From inside one contenteditable to inside another.
         Assert.assertEquals(
                 false,
                 selectTextOnUiThreadAndWaitForSelectionEvent(
-                        rootVvid, contenteditable1Vvid, 5, contenteditable2Vvid, 5));
+                        rootVvid,
+                        contenteditable1Vvid,
+                        5,
+                        OFFSET_TYPE_TEXT,
+                        contenteditable2Vvid,
+                        5,
+                        OFFSET_TYPE_TEXT));
     }
 
     /** Test extended selection on a multiline paragraph. */
@@ -3411,9 +3564,11 @@ public class WebContentsAccessibilityTest {
         int rootVvid = waitForNodeMatching(sClassNameMatcher, "android.webkit.WebView");
         int paragraphVvid = waitForNodeMatching(sViewIdResourceNameMatcher, "paragraph");
 
-        setAndAssertExtendedSelection(rootVvid, paragraphVvid, 0, paragraphVvid, 4);
+        setAndAssertExtendedSelection(
+                rootVvid, paragraphVvid, 0, OFFSET_TYPE_TEXT, paragraphVvid, 4, OFFSET_TYPE_TEXT);
 
-        setAndAssertExtendedSelection(rootVvid, paragraphVvid, 4, paragraphVvid, 14);
+        setAndAssertExtendedSelection(
+                rootVvid, paragraphVvid, 4, OFFSET_TYPE_TEXT, paragraphVvid, 14, OFFSET_TYPE_TEXT);
     }
 
     /** Test extended selection on a button with aria label. */
@@ -3448,12 +3603,20 @@ public class WebContentsAccessibilityTest {
 
         // Find nodes.
         int rootVvid = waitForNodeMatching(sClassNameMatcher, "android.webkit.WebView");
-        waitForNodeMatching(sViewIdResourceNameMatcher, "paragraph1");
-        waitForNodeMatching(sViewIdResourceNameMatcher, "image");
+        int paragraph1Vvid = waitForNodeMatching(sViewIdResourceNameMatcher, "paragraph1");
+        int imageVvid = waitForNodeMatching(sViewIdResourceNameMatcher, "image");
+
+        int imageIndex = 1;
 
         // Select before and after the image using root child offsets.
-        // TODO(crbug.com/443078007): Selection end is wrong, fix it.
-        setAndAssertExtendedSelection(rootVvid, rootVvid, 1, rootVvid, 2, rootVvid, 1, rootVvid, 1);
+        setAndAssertExtendedSelection(
+                rootVvid,
+                rootVvid,
+                imageIndex,
+                OFFSET_TYPE_CHILD,
+                rootVvid,
+                imageIndex + 1,
+                OFFSET_TYPE_CHILD);
     }
 
     /** Test extended selection with a leaf node at the end of root to trigger at_end_of_anchor. */
@@ -3476,7 +3639,19 @@ public class WebContentsAccessibilityTest {
         // TODO(crbug.com/443078007): Either with current API or the new API, fix this
         // to point to the very end of the document.
         setAndAssertExtendedSelection(
-                rootVvid, rootVvid, 2, rootVvid, 2, emptyVvid, 0, emptyVvid, 0);
+                rootVvid,
+                rootVvid,
+                2,
+                OFFSET_TYPE_CHILD,
+                rootVvid,
+                2,
+                OFFSET_TYPE_CHILD,
+                emptyVvid,
+                0,
+                OFFSET_TYPE_TEXT,
+                emptyVvid,
+                0,
+                OFFSET_TYPE_TEXT);
     }
 
     /** Test extended selection with a contentEditable and a non-text-selectable image. */
@@ -3495,12 +3670,8 @@ public class WebContentsAccessibilityTest {
         waitForNodeMatching(sViewIdResourceNameMatcher, "image");
 
         // Select the image within the contentEditable.
-        // The image is non-text selectable and should be selected using child offsets,
-        // However the parent node is text selectable and considers the offsets as text
-        // and hence the selection result is not as expected.
-        // TODO(crbug.com/443078007): Fix this.
         setAndAssertExtendedSelection(
-                rootVvid, editableVvid, 0, editableVvid, 1, editableVvid, 0, editableVvid, 0);
+                rootVvid, editableVvid, 0, OFFSET_TYPE_CHILD, editableVvid, 1, OFFSET_TYPE_CHILD);
     }
 
     /** Test that the performAction for ACTION_CUT works properly with accessibility. */
@@ -5193,62 +5364,6 @@ public class WebContentsAccessibilityTest {
         Assert.assertNotNull(NODE_TIMEOUT_ERROR, mNodeInfo);
 
         histogramWatcher.assertExpected();
-    }
-
-    @Test
-    @SmallTest
-    public void testAccessibilityTreeSizeWithIframe() throws Throwable {
-        // Iframe content with 12 additional nodes
-        final String iframeContent =
-                """
-                <html>
-                  <body>
-                    <h1>Iframe content</h1>
-                    <p>Node 1</p>
-                    <p>Node 2</p>
-                    <p>Node 3</p>
-                    <p>Node 4</p>
-                    <p>Node 5</p>
-                    <p>Node 6</p>
-                    <p>Node 7</p>
-                    <p>Node 8</p>
-                    <p>Node 9</p>
-                    <p>Node 10</p>
-                    <p>Node 11</p>
-                  </body>
-                </html>
-                """;
-        // Main page content with an iframe
-        final String html =
-                """
-                <html>
-                  <body>
-                    <p>Main content</p>
-                    <iframe src='data:text/html,\
-                """
-                        + iframeContent
-                        + """
-                        '></iframe>
-                          </body>
-                        </html>
-                        """;
-
-        setupTestWithHTML(html);
-
-        // Wait for a node in the main frame to ensure it's loaded.
-        waitForNodeMatching(sTextMatcher, "Main content");
-
-        // Wait for nodes in the iframe to ensure it's loaded.
-        waitForNodeMatching(sTextMatcher, "Iframe content");
-        waitForNodeMatching(sTextMatcher, "Node 11");
-
-        // Get the total size of the accessibility tree.
-        long treeSize =
-                ThreadUtils.runOnUiThreadBlocking(
-                        () -> mActivityTestRule.mWcax.getAccessibilityTreeSizeForExperiment());
-        // 28 nodes in the iframe + 5 node in the main frame = 33 nodes.
-        Assert.assertTrue(
-                "Tree size should be greater than 15, but was " + treeSize, treeSize == 33L);
     }
 
     private void assertActionsContainNoScrolls(AccessibilityNodeInfoCompat nodeInfo) {

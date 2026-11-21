@@ -58,7 +58,6 @@ SqlSharedCacheIndexDatabase::SqlSharedCacheIndexDatabase(
 #if BUILDFLAG(IS_WIN)
               .set_exclusive_database_file_lock(true)
 #endif  // IS_WIN
-              .set_preload(true)
               .set_wal_mode(true),
           sql::Database::Tag("SharedCacheIndex")) {
 }

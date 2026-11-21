@@ -19,6 +19,9 @@ if (!use_system_libsync) {
       "src",
       "src/include",
     ]
+    if (!is_android) {
+      defines = [ "__INTRODUCED_IN(x)=" ]
+    }
   }
 
   config("libsync_private_config") {

@@ -201,6 +201,13 @@ IN_PROC_BROWSER_TEST_F(LensOverlayTest,
       "runMochaSuite('SelectionOverlay InvocationSourceContextMenuImage')");
 }
 
+IN_PROC_BROWSER_TEST_F(LensOverlayTest,
+                       SelectionOverlayLineSelectionToggleShortcuts) {
+  RunOverlayTest(
+      "lens/overlay/selection_overlay_test.js",
+      "runMochaSuite('SelectionOverlay LineSelectionToggleShortcuts')");
+}
+
 IN_PROC_BROWSER_TEST_F(LensOverlayTest, SelectionOverlaySimplifiedSelection) {
   RunOverlayTest("lens/overlay/selection_overlay_test.js",
                  "runMochaSuite('SelectionOverlay SimplifiedSelection')");

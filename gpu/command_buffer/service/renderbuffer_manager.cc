@@ -278,8 +278,8 @@ void RenderbufferManager::SetCleared(Renderbuffer* renderbuffer,
 
 void RenderbufferManager::CreateRenderbuffer(
     GLuint client_id, GLuint service_id) {
-  scoped_refptr<Renderbuffer> renderbuffer(
-      new Renderbuffer(this, client_id, service_id));
+  auto renderbuffer =
+      base::MakeRefCounted<Renderbuffer>(this, client_id, service_id);
   std::pair<RenderbufferMap::iterator, bool> result =
       renderbuffers_.insert(std::make_pair(client_id, renderbuffer));
   DCHECK(result.second);

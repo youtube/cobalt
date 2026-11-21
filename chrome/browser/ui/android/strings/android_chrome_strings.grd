@@ -2912,6 +2912,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_CONTEXTMENU_OPEN_IN_NEW_TAB" desc="Context sensitive menu item to open the selected link in a new tab. [CHAR_LIMIT=30]">
         Open in new tab
       </message>
+      <message name="IDS_CONTEXTMENU_OPEN_IN_READING_MODE" desc="Context sensitive menu item to open the current page in reading mode. [CHAR_LIMIT=30]">
+        Open in reading mode
+      </message>
       <message name="IDS_CONTEXTMENU_OPEN_IN_NEW_TAB_GROUP" desc="Context sensitive menu item to open the selected link in a new tab in a new group. [CHAR_LIMIT=30]">
         Open in new tab in group
       </message>
@@ -4929,9 +4932,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_PDF_DOWNLOAD" desc="Menu option to download the PDF document.">
         Download
       </message>
-      <message name="IDS_PDF_ROTATE" desc="Menu option to rotate the PDF document.">
-        Rotate
-      </message>
       <message name="IDS_PDF_FIT_HEIGHT" desc="Menu option to fit the PDF page height to the screen.">
         Fit to height
       </message>
@@ -5014,6 +5014,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_ACCESSIBILITY_TOOLBAR_BTN_HOME" desc="Content description for the home button.">
         Open the home page
+      </message>
+      <message name="IDS_ACCESSIBILITY_BOTTOM_BAR_AI_MODE_BUTTON" desc="Content description for the AI search button in the bottom bar.">
+        Ask AI Mode
       </message>
       <message name="IDS_ACCESSIBILITY_BTN_REFRESH" desc="Content description for the refresh page button.">
         Reload this page
@@ -5505,15 +5508,13 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         To restore a new window, reduce the total number of active windows to <ph name="MAX_WINDOW_COUNT_MINUS_ONE">%1$d</ph> or fewer. Inactive windows are deleted after 6 months.
       </message>
       <message name="IDS_CRASH_RECOVERY_DIALOG_TITLE" desc="Title of the crash recovery dialog that prompts the user to restore windows that were active during a crash.">
-        Restore all windows?
+        Restore windows?
       </message>
       <message name="IDS_CRASH_RECOVERY_DIALOG_MESSAGE" desc="Message on the crash recovery dialog that prompts the user to restore windows that were active during a crash.">
         Chrome didn’t shut down correctly and can try to restore your lost windows and tabs. Some windows may be minimized when restored.
       </message>
-      <message name="IDS_CRASH_RECOVERY_DIALOG_POSITIVE_BUTTON_TEXT" desc="Positive button text on the crash recovery dialog. [ICU Syntax]">
-        {NUM_WINDOWS, plural,
-          =1 {Restore 1 window}
-          other {Restore # windows}}
+      <message name="IDS_CRASH_RECOVERY_DIALOG_POSITIVE_BUTTON_TEXT" desc="Positive button text on the crash recovery dialog.">
+        Restore windows
       </message>
       <message name="IDS_TAB_DROPPED_DIFFERENT_MODEL" desc="Toast that appears when a tab is dropped into tab strip with a different profile (regular v.s. incognito).">
         You can find all open tabs in the tab switcher
@@ -6015,6 +6016,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
       <!-- In-Product Help strings -->
+      <message name="IDS_IPH_ANDROID_VERTICAL_TABS_PROMO_TOUCH" desc="The in-product-help promotion message to try Vertical Tabs, displayed to touch users.">
+        Touch and hold to show tabs vertically
+      </message>
+      <message name="IDS_IPH_ANDROID_VERTICAL_TABS_PROMO_MOUSE" desc="The in-product-help promotion message to try Vertical Tabs, displayed to users with a mouse.">
+        Right click here to show tabs vertically
+      </message>
       <message name="IDS_IPH_GLIC_PROMO_TEXT" desc="The in-product-help promotion message to try Glic.">
         Try Gemini in Chrome to get answers, key takeaways and more
       </message>
@@ -6065,11 +6072,20 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_IPH_ANDROID_BOTTOM_BAR_NEW_TAB" desc="The in-product-help message for the New Tab button in the bottom bar.">
         Open a new tab
       </message>
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_AIM" desc="The in-product-help message for the AI Mode button in the bottom bar.">
+        Search with AI Mode
+      </message>
       <message name="IDS_IPH_ANDROID_BOTTOM_BAR_DIALOG_TITLE" desc="Title for the in-product help dialog introducing Gemini in the bottom bar.">
         Introducing Gemini in Chrome
       </message>
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_AIM_DIALOG_TITLE" desc="Title for the in-product help dialog introducing AI Mode in the bottom bar.">
+        Introducing AI Mode in Chrome
+      </message>
       <message name="IDS_IPH_ANDROID_BOTTOM_BAR_DIALOG_DESCRIPTION" desc="Description for the bottom bar Gemini introduction dialog.">
         Some tools have moved to give you easy access to Gemini while you browse
+      </message>
+      <message name="IDS_IPH_ANDROID_BOTTOM_BAR_AIM_DIALOG_DESCRIPTION" desc="Description for the bottom bar AI Mode introduction dialog.">
+        Some tools have moved to help you search with AI Mode
       </message>
       <message name="IDS_IPH_ANDROID_BOTTOM_BAR_TRIGGER_IPH" desc="Text on the button that triggers the in-product-help sequence.">
         Show me
@@ -7763,13 +7779,16 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Standard
       </message>
       <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_STEREO_3D" desc="Option for stereoscopic 3D projection in the immersive playback confirmation dialog." translateable="false">
-        Stereoscopic (3D)
+        Stereoscopic
       </message>
-      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_VR180" desc="Option for VR 180 projection in the immersive playback confirmation dialog." translateable="false">
-        VR 180
+      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_VR180_3D" desc="Option for VR 180 projection in the immersive playback confirmation dialog." translateable="false">
+        180° stereoscopic
       </message>
       <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_VR360" desc="Option for VR 360 projection in the immersive playback confirmation dialog." translateable="false">
-        VR 360
+        360°
+      </message>
+      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_RECOMMENDED" desc="Option for recommended custom projection in the immersive playback confirmation dialog." translateable="false">
+        Recommended
       </message>
       <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OK" desc="Text for the positive button in the format selection dialog." translateable="false">
         OK

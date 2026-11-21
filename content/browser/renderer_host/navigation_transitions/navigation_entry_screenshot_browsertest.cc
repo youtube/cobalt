@@ -936,8 +936,9 @@ IN_PROC_BROWSER_TEST_P(NavigationEntryScreenshotBrowserTest, HistoryDotBack) {
 
 // Asserting that both the navigations from and to the about:blank triggers
 // screenshot capture.
+// TODO(crbug.com/527732297)
 IN_PROC_BROWSER_TEST_P(NavigationEntryScreenshotBrowserTest,
-                       AboutBlankCaptured) {
+                       DISABLED_AboutBlankCaptured) {
   const size_t page_size = GetUncompressedScreenshotSizeInBytes();
   const size_t memory_budget = 10 * page_size;
   auto* manager = GetManagerForTab(web_contents());

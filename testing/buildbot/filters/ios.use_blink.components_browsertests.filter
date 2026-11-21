@@ -42,6 +42,7 @@
 -SurfaceEmbedBrowserTest.Crash
 -SurfaceEmbedBrowserTest.CrashEarly
 -SurfaceEmbedBrowserTest.CrashThenReattach
+-SurfaceEmbedBrowserTest.CrashThenReload
 -SurfaceEmbedBrowserTest.CrossProcessNavigationPixelTest
 -SurfaceEmbedBrowserTest.DisplayNonePropagates
 -SurfaceEmbedBrowserTest.EmbedMultipleTagsCreatesMultiplePlugins
@@ -50,6 +51,7 @@
 -SurfaceEmbedBrowserTest.EmbedTagInvalidContentId
 -SurfaceEmbedBrowserTest.EmbedTagRemovedDestroysHost
 -SurfaceEmbedBrowserTest.FocusByClick
+-SurfaceEmbedBrowserTest.HtmlPopupOnSurfaceEmbeddedPage
 -SurfaceEmbedBrowserTest.ResizeEmbedPixelTest
 -SurfaceEmbedBrowserTest.VisibilityHiddenPropagates
 -SurfaceEmbedBrowserTest.VisualPropertiesSync

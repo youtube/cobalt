@@ -233,19 +233,22 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
           case H264NALU::kAUD:
             if (order_state > kAUDAllowed) {
               DVLOG(1) << "Unexpected AUD in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
             }
-            order_state = kBeforeFirstVCL;
+            if (order_state < kBeforeFirstVCL) {
+              order_state = kBeforeFirstVCL;
+            }
             break;
 
           case H264NALU::kSEIMessage: {
             if (order_state > kBeforeFirstVCL) {
               DVLOG(1) << "Unexpected NALU type " << nalu.nal_unit_type
                        << " in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
             }
-
-            order_state = kBeforeFirstVCL;
+            if (order_state < kBeforeFirstVCL) {
+              order_state = kBeforeFirstVCL;
+            }
 
             if (base::FeatureList::IsEnabled(kParseSEIRecoveryPoints)) {
               H264SEI sei;
@@ -282,33 +285,39 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
             if (order_state > kBeforeFirstVCL) {
               DVLOG(1) << "Unexpected NALU type " << nalu.nal_unit_type
                        << " in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
             }
-            order_state = kBeforeFirstVCL;
+            if (order_state < kBeforeFirstVCL) {
+              order_state = kBeforeFirstVCL;
+            }
             break;
 
           case H264NALU::kPPS:
             if (order_state > kBeforeFirstVCL) {
               DVLOG(1) << "Unexpected PPS in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
+            }
+            if (order_state < kBeforeFirstVCL) {
+              order_state = kBeforeFirstVCL;
             }
             has_pps = true;
-            order_state = kBeforeFirstVCL;
             break;
 
           case H264NALU::kSPS:
             if (order_state > kBeforeFirstVCL) {
               DVLOG(1) << "Unexpected SPS in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
+            }
+            if (order_state < kBeforeFirstVCL) {
+              order_state = kBeforeFirstVCL;
             }
             has_sps = true;
-            order_state = kBeforeFirstVCL;
             break;
 
           case H264NALU::kSPSExt:
             if (last_nalu_type != H264NALU::kSPS) {
               DVLOG(1) << "SPS extension does not follow an SPS.";
-              return result;
+              had_unexpected_nalu = true;
             }
             break;
 
@@ -319,36 +328,42 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
           case H264NALU::kIDRSlice:
             if (order_state > kAfterFirstVCL) {
               DVLOG(1) << "Unexpected VCL in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
             }
             if (!result.is_keyframe.has_value()) {
               result.is_keyframe = nalu.nal_unit_type == H264NALU::kIDRSlice &&
                                    (allow_bare_idr || (has_sps && has_pps));
             }
-            order_state = kAfterFirstVCL;
+            if (order_state < kAfterFirstVCL) {
+              order_state = kAfterFirstVCL;
+            }
             break;
 
           case H264NALU::kCodedSliceAux:
             if (order_state != kAfterFirstVCL) {
               DVLOG(1) << "Unexpected extension in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
             }
             break;
 
           case H264NALU::kEOSeq:
             if (order_state != kAfterFirstVCL) {
               DVLOG(1) << "Unexpected EOSeq in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
             }
-            order_state = kEOStreamAllowed;
+            if (order_state < kEOStreamAllowed) {
+              order_state = kEOStreamAllowed;
+            }
             break;
 
           case H264NALU::kEOStream:
             if (order_state < kAfterFirstVCL) {
               DVLOG(1) << "Unexpected EOStream in order_state " << order_state;
-              return result;
+              had_unexpected_nalu = true;
             }
-            order_state = kNoMoreDataAllowed;
+            if (order_state < kNoMoreDataAllowed) {
+              order_state = kNoMoreDataAllowed;
+            }
             break;
 
           case H264NALU::kFiller:
@@ -380,11 +395,11 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
     }
   }
 
-  if (order_state < kAfterFirstVCL)
+  if (!result.is_keyframe.has_value()) {
     return result;
+  }
 
   result.is_conformant = !had_unexpected_nalu;
-  DCHECK(result.is_keyframe.has_value());
   return result;
 }
 

@@ -30,10 +30,11 @@
                   icon: '/icon.png',
                   data: new Array(1024 * 1024 * 2).join('.'), // 2 million dots
               });
-          }).then(unreached_fulfillment(test))
-            .catch(function() {
-                test.done();
-            });
+          }).then(test.unreached_func('showNotification() is expected to reject.'))
+            .catch(test.step_func_done(function(error) {
+                assert_equals(error.name, 'TypeError', 'Rejected error must be a TypeError');
+                assert_equals(error.message, "Failed to execute 'showNotification' on 'ServiceWorkerRegistration': The notification data exceeds the maximum allowed size.", 'Expected error message');
+            }));
 
       }, 'ServiceWorkerRegistration.showNotification() fails on too much data.');
     </script>

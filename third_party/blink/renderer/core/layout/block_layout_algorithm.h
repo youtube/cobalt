@@ -162,6 +162,7 @@ class CORE_EXPORT BlockLayoutAlgorithm
 
   MinMaxSizesResult ComputeMinMaxSizes(const MinMaxSizesFloatInput&);
   const LayoutResult* Layout();
+  LayoutUnit ComputeInitialBlockStartAnnotationSpace() const;
 
  private:
   NOINLINE const LayoutResult* HandleNonsuccessfulLayoutResult(

@@ -18,7 +18,10 @@ IOSContextualSearchService::IOSContextualSearchService(
                                                  template_url_service,
                                                  variations_client,
                                                  channel,
-                                                 locale) {}
+                                                 locale,
+                                                 /*tab_validator=*/nullptr) {
+  // TODO(crbug.com/514803722): Implement and pass TabValidator for iOS.
+}
 
 IOSContextualSearchService::~IOSContextualSearchService() = default;
 

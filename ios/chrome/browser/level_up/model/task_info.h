@@ -38,6 +38,9 @@ class TaskInfo {
   // The user action string that triggers completion of this task.
   virtual std::string GetTriggerUserAction() const = 0;
 
+  // The localized completion snackbar message.
+  virtual std::string GetCompletionSnackbarMessage() const = 0;
+
   // Callback to navigate the user to the task's entry point using the
   // dispatcher.
   using NavigationAction =

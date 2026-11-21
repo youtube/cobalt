@@ -257,13 +257,11 @@ void ChromeBrowserMainExtraPartsPerformanceManager::CreatePoliciesAndDecorators(
                        performance_manager::policies::FrameThrottlingPolicy>());
   }
 
-#if !BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(
           performance_manager::features::kPMProcessPriorityPolicy)) {
     graph->PassToGraph(std::make_unique<
                        performance_manager::policies::ProcessPriorityPolicy>());
   }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
   graph->PassToGraph(

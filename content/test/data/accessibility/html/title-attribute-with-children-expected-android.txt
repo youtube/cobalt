@@ -1,0 +1,4 @@
+android.webkit.WebView focusable focused
+++android.view.View focusable interesting name='AC/DC'
+++++android.widget.TextView interesting name='Westinghouse championed AC current'
+++++android.widget.TextView interesting name='Edison championed DC current'

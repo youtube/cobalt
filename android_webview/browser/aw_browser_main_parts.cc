@@ -54,6 +54,8 @@
 #include "components/metrics/android_metrics_helper.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
 #include "components/metrics/metrics_service.h"
+#include "components/performance_manager/embedder/graph_features.h"
+#include "components/performance_manager/embedder/performance_manager_lifetime.h"
 #include "components/services/heap_profiling/public/cpp/settings.h"
 #include "components/tracing/common/background_tracing_utils.h"
 #include "components/user_prefs/user_prefs.h"
@@ -444,6 +446,11 @@ void AwBrowserMainParts::PostCreateThreads() {
   heap_profiling::Mode mode = heap_profiling::GetModeForStartup();
   if (mode != heap_profiling::Mode::kNone)
     heap_profiling::Supervisor::GetInstance()->Start(base::NullCallback());
+
+  // TODO(crbug.com/524981399): Enable standard graph features.
+  performance_manager_lifetime_ =
+      std::make_unique<performance_manager::PerformanceManagerLifetime>(
+          performance_manager::GraphFeatures::WithNone(), base::DoNothing());
 
   tracing::SetupSystemTracingFromFieldTrial();
   tracing::SetupBackgroundTracingFromCommandLine();

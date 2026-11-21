@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_DICTATION_SESSION_UI_DELEGATE_H_
 #define CHROME_BROWSER_DICTATION_SESSION_UI_DELEGATE_H_
 
+#include "base/callback_list.h"
+#include "base/functional/callback.h"
 #include "chrome/browser/dictation/session_state.h"
 
 namespace dictation {
@@ -22,6 +24,12 @@ class SessionUiDelegate {
 
   // Returns the current state of the dictation session.
   virtual SessionState GetState() const = 0;
+
+  using SessionStateChangedCallback =
+      base::RepeatingCallback<void(SessionState)>;
+  // Registers a callback to be notified of session state changes.
+  virtual base::CallbackListSubscription AddSessionStateChangedCallback(
+      SessionStateChangedCallback callback) = 0;
 };
 
 }  // namespace dictation

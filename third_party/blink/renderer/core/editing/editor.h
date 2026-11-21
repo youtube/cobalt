@@ -63,7 +63,7 @@ class SelectionForUndoStep;
 enum class DeleteDirection;
 enum class DeleteMode { kSimple, kSmart };
 enum class InsertMode { kSimple, kSmart };
-enum class DragSourceType { kHTMLSource, kPlainTextSource };
+enum class DragSourceType { kHtmlSource, kPlainTextSource };
 enum class EditorParagraphSeparator { kIsDiv, kIsP };
 enum class EditorCommandSource { kMenuOrKeyBinding, kDom };
 

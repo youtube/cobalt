@@ -74,27 +74,25 @@ PageNodeImpl::PageNodeImpl(base::WeakPtr<content::WebContents> web_contents,
                            const perfetto::NamedTrack& tracing_track)
     : web_contents_(std::move(web_contents)),
       page_token_(page_token),
-      tracing_track_(tracing_track),
-      loading_track_("Loading", 0, tracing_track_),
-      frames_track_("Frames", 0, tracing_track_),
+      frames_track_("Frames", 0, tracing_track),
       visibility_change_time_(visibility_change_time),
       main_frame_url_(visible_url),
       browser_context_id_(browser_context_id),
       is_focused_(false,
-                  perfetto::NamedTrack("IsFocused", 0, tracing_track_),
+                  perfetto::StateTrack("IsFocused", 0, tracing_track),
                   YesNoStateToString),
       is_visible_(initial_properties.Has(PagePropertyFlag::kIsVisible),
-                  perfetto::NamedTrack("Visibility", 0, tracing_track_),
+                  perfetto::StateTrack("Visibility", 0, tracing_track),
                   PageNodeVisibilityToString),
       is_audible_(initial_properties.Has(PagePropertyFlag::kIsAudible),
-                  perfetto::NamedTrack("IsAudible", 0, tracing_track_),
+                  perfetto::StateTrack("IsAudible", 0, tracing_track),
                   YesNoStateToString),
       has_picture_in_picture_(
           initial_properties.Has(PagePropertyFlag::kHasPictureInPicture)),
       is_off_the_record_(
           initial_properties.Has(PagePropertyFlag::kIsOffTheRecord)),
       loading_state_(LoadingState::kLoadingNotStarted,
-                     loading_track_,
+                     perfetto::StateTrack("LoadingState", 0, tracing_track),
                      PageNodeLoadingStateToString) {
   // The `PageNodeImpl` creation hook is before the `WebContents`' visible or
   // committed url can be set, so the initial main frame URL is always empty.
@@ -663,7 +661,7 @@ void PageNodeImpl::EmitMainFrameUrlChangedEvent(
     const GURL& url,
     std::optional<int64_t> navigation_id) const {
   TRACE_EVENT_INSTANT("performance_manager.graph", "MainFrameUrlChanged",
-                      loading_track_, [&](perfetto::EventContext& ctx) {
+                      frames_track_, [&](perfetto::EventContext& ctx) {
                         perfetto::protos::pbzero::PageLoad* page_load =
                             ctx.event<ChromeTrackEvent>()->set_page_load();
                         page_load->set_url(url.possibly_invalid_spec());

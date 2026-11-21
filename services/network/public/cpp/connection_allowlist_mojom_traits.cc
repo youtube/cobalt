@@ -44,13 +44,15 @@ bool StructTraits<network::mojom::ConnectionAllowlistDataView,
          network::ConnectionAllowlist* out) {
   if (!data.ReadAllowlist(&out->allowlist) ||
       !data.ReadReportingEndpoint(&out->reporting_endpoint) ||
-      !data.ReadIssues(&out->issues)) {
+      !data.ReadIssues(&out->issues) ||
+      !data.ReadSerializedValue(&out->serialized_value)) {
     return false;
   }
 
   out->redirect_behavior =
       MojomToNativeRedirectBehavior(data.redirect_behavior());
   out->webrtc_behavior = MojomToNativeWebRtcBehavior(data.webrtc_behavior());
+  out->match_response_origin = data.match_response_origin();
 
   return true;
 }

@@ -19,7 +19,7 @@ static_library("performance") {
     "//ash/public/cpp",
     "//base",
     "//chrome/browser/ash/arc/session",
-    "//chrome/browser/ash/profiles",
+    "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/dbus/concierge",
     "//chromeos/ash/experiences/arc",
     "//chromeos/dbus/power",

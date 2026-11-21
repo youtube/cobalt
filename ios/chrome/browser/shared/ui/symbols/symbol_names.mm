@@ -85,6 +85,8 @@ NSString* const kPlusCircleFillSymbol = @"plus_circle_fill";
 NSString* const kPDFFillSymbol = @"pdf_fill";
 NSString* const kLineThreeSparkSymbol = @"line_three_spark";
 NSString* const kDocumentBadgeSpark = @"document_badge_spark";
+NSString* const kBagSparkSymbol = @"bag_spark";
+NSString* const kTruckBoxSparkSymbol = @"truck_box_spark";
 NSString* const kDeepSearchSymbol = @"deep_search";
 
 // Use custom symbol for camera because the default video icon in iOS should
@@ -154,6 +156,8 @@ NSString* const kSuitcaseSymbol = @"suitcase";
 NSString* const kCarSymbol = @"car";
 NSString* const kCreditCardSymbol = @"creditcard";
 NSString* const kWalletBifoldSymbol = @"wallet.bifold";
+NSString* const kBagSymbol = @"bag";
+NSString* const kTruckBoxSymbol = @"truck.box";
 NSString* const kMicrophoneFillSymbol = @"mic.fill";
 NSString* const kMicrophoneSymbol = @"mic";
 NSString* const kMagnifyingglassSymbol = @"magnifyingglass";

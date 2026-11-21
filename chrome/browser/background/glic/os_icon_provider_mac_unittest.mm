@@ -10,6 +10,7 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/features.h"
 #include "components/prefs/testing_pref_service.h"
+#include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -63,6 +64,9 @@ class OSIconProviderMacUnitTest : public testing::Test {
   }
 
  protected:
+  content::BrowserTaskEnvironment task_environment_{
+      base::test::TaskEnvironment::MainThreadType::UI};
+
   void CreateOSIconProviderMac(std::unique_ptr<TestingDelegate> delegate) {
     delegate_ = delegate.get();
     os_icon_provider_mac_ = std::make_unique<OSIconProviderMac>(

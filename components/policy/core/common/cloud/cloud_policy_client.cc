@@ -41,6 +41,7 @@
 #include "google_apis/gaia/gaia_urls.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+#include "ui/base/device_form_factor.h"
 
 namespace em = enterprise_management;
 
@@ -794,6 +795,8 @@ em::PolicyFetchRequest* CloudPolicyClient::AddPolicyFetchRequest(
   }
 
   fetch_request->set_verification_key_hash(kPolicyVerificationKeyHash);
+
+  fetch_request->mutable_device_info()->set_form_factor(GetFormFactor());
 
   // These fields are included only in requests for chrome policy.
   if (IsChromePolicy(type_to_fetch.policy_type())) {
@@ -2115,11 +2118,29 @@ void CloudPolicyClient::CreateDeviceRegisterRequest(
   if (!params.oidc_state.empty()) {
     request->set_oidc_profile_enrollment_state(params.oidc_state);
   }
+  request->mutable_device_info()->set_form_factor(GetFormFactor());
 }
 
 void CloudPolicyClient::CreateUniqueRequestJob(
     std::unique_ptr<RegistrationJobConfiguration> config) {
   unique_request_job_ = service_->CreateJob(std::move(config));
+}
+
+em::FormFactor GetFormFactor() {
+  switch (ui::GetDeviceFormFactor()) {
+    case ui::DEVICE_FORM_FACTOR_DESKTOP:
+      return em::FORM_FACTOR_DESKTOP;
+    case ui::DEVICE_FORM_FACTOR_PHONE:
+      return em::FORM_FACTOR_PHONE;
+    case ui::DEVICE_FORM_FACTOR_TABLET:
+      return em::FORM_FACTOR_TABLET;
+    case ui::DEVICE_FORM_FACTOR_TV:
+      return em::FORM_FACTOR_TV;
+    case ui::DEVICE_FORM_FACTOR_AUTOMOTIVE:
+      return em::FORM_FACTOR_AUTOMOTIVE;
+    default:
+      return em::FORM_FACTOR_UNSPECIFIED;
+  }
 }
 
 }  // namespace policy

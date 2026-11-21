@@ -203,19 +203,20 @@ bool IsCBORMessage(span<uint8_t> msg) {
            msg[2] == kInitialByteFor32BitLengthByteString));
 }
 
-Status CheckCBORMessage(span<uint8_t> msg) {
+StatusOr<size_t> CheckCBORMessage(span<uint8_t> msg) {
+  using Ret = StatusOr<size_t>;
   if (msg.empty())
-    return Status(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0);
+    return Ret(Status(Error::CBOR_UNEXPECTED_EOF_IN_ENVELOPE, 0));
   if (msg[0] != kInitialByteForEnvelope)
-    return Status(Error::CBOR_INVALID_START_BYTE, 0);
+    return Ret(Status(Error::CBOR_INVALID_START_BYTE, 0));
   StatusOr<EnvelopeHeader> status_or_header = EnvelopeHeader::Parse(msg);
   if (!status_or_header.ok())
-    return status_or_header.status();
+    return Ret(status_or_header.status());
   const size_t pos = (*status_or_header).header_size();
   assert(pos < msg.size());  // EnvelopeParser would not allow empty envelope.
   if (msg[pos] != EncodeIndefiniteLengthMapStart())
-    return Status(Error::CBOR_MAP_START_EXPECTED, pos);
-  return Status();
+    return Ret(Status(Error::CBOR_MAP_START_EXPECTED, pos));
+  return Ret((*status_or_header).outer_size());
 }
 
 // =============================================================================

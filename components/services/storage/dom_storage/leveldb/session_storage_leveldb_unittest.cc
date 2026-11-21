@@ -99,6 +99,23 @@ void CloneMapAndVerifyResults(
            source_entries),
       session_storage_leveldb.ReadMapKeyValues(source_map_locator.Clone()));
   EXPECT_EQ(source_entries, expected_entries);
+
+  // Verify `SessionStorageLevelDB::CloneMap()` updated the metadata for
+  // `target_map_locator`.
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata metadata,
+                       session_storage_leveldb.ReadAllMetadata());
+
+  // Find `target_map_locator` in `metadata`.
+  std::optional<DomStorageDatabase::MapLocator> actual_target_map_locator;
+  for (const DomStorageDatabase::MapMetadata& map_metadata :
+       metadata.map_metadata) {
+    if (map_metadata.map_locator.map_id() == target_map_locator.map_id()) {
+      actual_target_map_locator = map_metadata.map_locator.Clone();
+      break;
+    }
+  }
+  ASSERT_TRUE(actual_target_map_locator.has_value());
+  ExpectEqualsMapLocator(*actual_target_map_locator, target_map_locator);
 }
 
 }  // namespace
@@ -235,50 +252,7 @@ TEST_F(SessionStorageLevelDBTest, ReadAllMapMetadataWithEmptyDB) {
   ASSERT_TRUE(metadata.has_value());
 
   // The next map ID must start at zero.
-  ASSERT_TRUE(metadata->next_map_id.has_value());
-  EXPECT_EQ(*metadata->next_map_id, 0);
   EXPECT_EQ(metadata->map_metadata.size(), 0u);
-}
-
-TEST_F(SessionStorageLevelDBTest, ReadAllMapMetadataWithNextMapId) {
-  std::unique_ptr<SessionStorageLevelDB> session_storage_leveldb;
-  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&session_storage_leveldb));
-
-  ASSERT_NO_FATAL_FAILURE(WriteEntries(*session_storage_leveldb,
-                                       {
-                                           {
-                                               ToBytes(kNextMapIdKey),
-                                               /*value=*/ToBytes("576847"),
-                                           },
-                                       }));
-
-  StatusOr<DomStorageDatabase::Metadata> metadata =
-      session_storage_leveldb->ReadAllMetadata();
-  ASSERT_TRUE(metadata.has_value());
-
-  ASSERT_TRUE(metadata->next_map_id.has_value());
-  EXPECT_EQ(*metadata->next_map_id, 576847);
-
-  EXPECT_EQ(metadata->map_metadata.size(), 0u);
-}
-
-TEST_F(SessionStorageLevelDBTest, ReadAllMapMetadataWithNextMapIdInvalid) {
-  std::unique_ptr<SessionStorageLevelDB> session_storage_leveldb;
-  ASSERT_NO_FATAL_FAILURE(OpenInMemory(&session_storage_leveldb));
-
-  ASSERT_NO_FATAL_FAILURE(WriteEntries(
-      *session_storage_leveldb, {
-                                    {
-                                        ToBytes(kNextMapIdKey),
-                                        /*value=*/ToBytes("not_a_number"),
-                                    },
-                                }));
-
-  StatusOr<DomStorageDatabase::Metadata> metadata =
-      session_storage_leveldb->ReadAllMetadata();
-
-  ASSERT_FALSE(metadata.has_value());
-  EXPECT_TRUE(metadata.error().IsCorruption());
 }
 
 TEST_F(SessionStorageLevelDBTest, ReadAllMapMetadata) {
@@ -298,10 +272,6 @@ TEST_F(SessionStorageLevelDBTest, ReadAllMapMetadata) {
       session_storage_leveldb->ReadAllMetadata();
 
   ASSERT_TRUE(metadata.has_value());
-
-  ASSERT_TRUE(metadata->next_map_id.has_value());
-  EXPECT_EQ(*metadata->next_map_id, 0);
-
   const DomStorageDatabase::MapMetadata kExpectedMapMetadata[] = {
       {
           .map_locator{kFakeSessionId, kFakeUrlStorageKey, /*map_id=*/5343},
@@ -362,10 +332,6 @@ TEST_F(SessionStorageLevelDBTest, ReadAllMapMetadataWithMultipleEntries) {
       session_storage_leveldb->ReadAllMetadata();
 
   ASSERT_TRUE(metadata.has_value());
-
-  ASSERT_TRUE(metadata->next_map_id.has_value());
-  EXPECT_EQ(*metadata->next_map_id, 0);
-
   DomStorageDatabase::MapMetadata expected_map_metadata[] = {
       {
           .map_locator{kOtherFakeSessionId, kFakeUrlStorageKey,
@@ -391,13 +357,10 @@ TEST_F(SessionStorageLevelDBTest, CreateMapMetadataKey) {
 }
 
 TEST_F(SessionStorageLevelDBTest, PutMetadata) {
-  constexpr int64_t kNextMapId = kFakeMapId + 1;
-
   std::unique_ptr<SessionStorageLevelDB> session_storage_leveldb;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&session_storage_leveldb));
 
   DomStorageDatabase::Metadata metadata;
-  metadata.next_map_id = kNextMapId;
   metadata.map_metadata.push_back(
       {.map_locator{kFakeSessionId, kFakeUrlStorageKey, kFakeMapId}});
 
@@ -408,30 +371,22 @@ TEST_F(SessionStorageLevelDBTest, PutMetadata) {
   ASSERT_OK_AND_ASSIGN(
       std::vector<DomStorageDatabase::KeyValuePair> all_entries,
       session_storage_leveldb->GetLevelDBForTesting().GetPrefixed({}));
-  ASSERT_EQ(all_entries.size(), 3u);
+  ASSERT_EQ(all_entries.size(), 2u);
 
   EXPECT_EQ(all_entries[0].key,
             CreateMapMetadataKey(kFakeSessionId, kFakeUrlStorageKey));
   EXPECT_EQ(all_entries[0].value,
             base::as_byte_span(base::NumberToString(1565)));
 
-  EXPECT_EQ(all_entries[1].key, ToBytes(kNextMapIdKey));
-  EXPECT_EQ(all_entries[1].value,
-            base::as_byte_span(base::NumberToString(kNextMapId)));
-
-  VerifyDatabaseVersionEntry(all_entries[2]);
+  VerifyDatabaseVersionEntry(all_entries[1]);
 }
 
 TEST_F(SessionStorageLevelDBTest, PutMetadataWithMultipleMaps) {
-  constexpr int64_t kNextMapId = kOtherFakeMapId + 2;
-
   std::unique_ptr<SessionStorageLevelDB> session_storage_leveldb;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&session_storage_leveldb));
 
   // Update the metadata for 3 different maps.
   DomStorageDatabase::Metadata metadata;
-  metadata.next_map_id = kNextMapId;
-
   metadata.map_metadata.push_back(
       {.map_locator{kFakeSessionId, kFakeUrlStorageKey, kFakeMapId}});
 
@@ -452,7 +407,7 @@ TEST_F(SessionStorageLevelDBTest, PutMetadataWithMultipleMaps) {
     ASSERT_OK_AND_ASSIGN(
         std::vector<DomStorageDatabase::KeyValuePair> all_entries,
         session_storage_leveldb->GetLevelDBForTesting().GetPrefixed({}));
-    ASSERT_EQ(all_entries.size(), 5u);
+    ASSERT_EQ(all_entries.size(), 4u);
 
     EXPECT_EQ(
         all_entries[0].key,
@@ -470,11 +425,7 @@ TEST_F(SessionStorageLevelDBTest, PutMetadataWithMultipleMaps) {
     EXPECT_EQ(all_entries[2].value,
               base::as_byte_span(base::NumberToString(kOtherFakeMapId)));
 
-    EXPECT_EQ(all_entries[3].key, ToBytes(kNextMapIdKey));
-    EXPECT_EQ(all_entries[3].value,
-              base::as_byte_span(base::NumberToString(kNextMapId)));
-
-    VerifyDatabaseVersionEntry(all_entries[4]);
+    VerifyDatabaseVersionEntry(all_entries[3]);
 
     // Adding empty metadata must not modify the database.
     status = session_storage_leveldb->PutMetadata(/*metadata=*/{});
@@ -482,8 +433,6 @@ TEST_F(SessionStorageLevelDBTest, PutMetadataWithMultipleMaps) {
 }
 
 TEST_F(SessionStorageLevelDBTest, PutMetadataWithMultipleSessions) {
-  constexpr int64_t kNextMapId = kFakeMapId + 1;
-
   std::unique_ptr<SessionStorageLevelDB> session_storage_leveldb;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&session_storage_leveldb));
 
@@ -497,7 +446,6 @@ TEST_F(SessionStorageLevelDBTest, PutMetadataWithMultipleSessions) {
 
   // Write `expected_map_metadata` to the database.
   DomStorageDatabase::Metadata write_metadata;
-  write_metadata.next_map_id = kNextMapId;
   write_metadata.map_metadata = CloneMapMetadataVector(expected_map_metadata);
   DbStatus status =
       session_storage_leveldb->PutMetadata(std::move(write_metadata));
@@ -507,7 +455,6 @@ TEST_F(SessionStorageLevelDBTest, PutMetadataWithMultipleSessions) {
   // `expected_map_metadata`.
   ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata read_metadata,
                        session_storage_leveldb->ReadAllMetadata());
-  EXPECT_EQ(read_metadata.next_map_id, kNextMapId);
   ExpectEqualsMapMetadataSpan(read_metadata.map_metadata,
                               expected_map_metadata);
 }
@@ -1342,14 +1289,25 @@ TEST_F(SessionStorageLevelDBTest, UpdateMaps) {
   std::unique_ptr<SessionStorageLevelDB> session_storage_leveldb;
   ASSERT_NO_FATAL_FAILURE(OpenInMemory(&session_storage_leveldb));
 
-  DomStorageDatabase::MapLocator map1_locator{kFakeSessionId,
-                                              kFakeUrlStorageKey, kFakeMapId};
+  const DomStorageDatabase::MapMetadata kExpectedMapMetadata[] = {
+      {
+          .map_locator{kFakeSessionId, kFakeUrlStorageKey, kFakeMapId},
+      },
+      {
+          .map_locator{kFakeSessionId, kOtherFakeUrlStorageKey,
+                       kOtherFakeMapId},
+      },
+  };
 
-  DomStorageDatabase::MapLocator map2_locator{
-      kFakeSessionId, kFakeUrlStorageKey, kOtherFakeMapId};
+  ASSERT_NO_FATAL_FAILURE(TestUpdateMaps(*session_storage_leveldb,
+                                         kExpectedMapMetadata[0].map_locator,
+                                         kExpectedMapMetadata[1].map_locator));
 
-  ASSERT_NO_FATAL_FAILURE(
-      TestUpdateMaps(*session_storage_leveldb, map1_locator, map2_locator));
+  // `SessionStorageLevelDB::UpdateMaps()` must write metadata for each map
+  // updated.
+  ASSERT_OK_AND_ASSIGN(DomStorageDatabase::Metadata metadata,
+                       session_storage_leveldb->ReadAllMetadata());
+  ExpectEqualsMapMetadataSpan(metadata.map_metadata, kExpectedMapMetadata);
 }
 
 }  // namespace storage

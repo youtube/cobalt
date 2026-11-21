@@ -17,11 +17,7 @@ class PrefService;
 - (instancetype)initWithPrefService:(PrefService*)prefService
                         layoutState:(LayoutState*)layoutState
     NS_DESIGNATED_INITIALIZER;
-
 - (instancetype)init NS_UNAVAILABLE;
-
-/// Whether the omnibox is in the bottom position.
-- (BOOL)isOmniboxInBottomPosition;
 
 /// Disconnects any observations and cleans up objects.
 - (void)disconnect;

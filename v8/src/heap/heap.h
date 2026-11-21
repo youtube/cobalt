@@ -722,7 +722,7 @@ class Heap final {
   // ===========================================================================
 
   void ConfigureHeap(const v8::ResourceConstraints& constraints,
-                     v8::CppHeap* cpp_heap);
+                     v8::CppHeap& cpp_heap);
   void ConfigureHeapDefault();
 
   // Prepares the heap, setting up for deserialization.
@@ -1480,10 +1480,7 @@ class Heap final {
       const uint64_t overshoot_margin) const;
 
   // Return the maximum size objects can be before having to allocate them as
-  // large objects. This takes into account allocating in the code space for
-  // which the size of the allocatable space per V8 page may depend on the OS
-  // page size at runtime. You may use kMaxRegularHeapObjectSize as a constant
-  // instead if you know the allocation isn't in the code spaces.
+  // large objects.
   inline V8_EXPORT_PRIVATE int MaxRegularHeapObjectSize(
       AllocationType allocation);
 
@@ -2380,8 +2377,6 @@ class Heap final {
 
   bool deserialization_complete_ = false;
 
-  int max_regular_code_object_size_ = 0;
-
   bool inline_allocation_enabled_ = true;
 
   int pause_allocation_observers_depth_ = 0;
@@ -2564,8 +2559,7 @@ constexpr const char* ToString(Heap::HeapGrowingMode mode) {
 RIGHT_TRIMMABLE_ARRAY_LIST(DECL_RIGHT_TRIM)
 #undef DECL_RIGHT_TRIM
 
-struct HexAddressTag;
-using HexAddress = base::StrongAlias<HexAddressTag, Address>;
+using HexAddress = base::StrongAlias<struct HexAddressTag, Address>;
 
 using ByteSize = ::heap::base::ByteSize;
 

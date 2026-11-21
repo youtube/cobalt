@@ -970,6 +970,7 @@ source_set("unit_tests") {
     "//remoting/host/native_messaging",
     "//remoting/host/remote_open_url:test_support",
     "//remoting/host/remote_open_url:unit_tests",
+    "//remoting/host/security_key",
     "//remoting/host/security_key:unit_tests",
     "//remoting/host/setup:common",
     "//remoting/host/setup:start_host_common",

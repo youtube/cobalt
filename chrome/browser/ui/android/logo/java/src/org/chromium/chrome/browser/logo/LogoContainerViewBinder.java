@@ -40,6 +40,8 @@ class LogoContainerViewBinder
             logoContainerView.showSearchProviderInitialView();
         } else if (LogoProperties.LOGO == propertyKey) {
             logoContainerView.updateLogo(model.get(LogoProperties.LOGO));
+        } else if (LogoProperties.IS_NIGHT_MODE == propertyKey) {
+            logoContainerView.setNightMode(model.get(LogoProperties.IS_NIGHT_MODE));
         } else if (LogoProperties.DEFAULT_GOOGLE_LOGO_DRAWABLE == propertyKey) {
             logoContainerView.setDefaultGoogleLogoDrawable(
                     model.get(LogoProperties.DEFAULT_GOOGLE_LOGO_DRAWABLE));

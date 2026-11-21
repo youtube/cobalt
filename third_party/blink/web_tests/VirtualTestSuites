@@ -436,7 +436,7 @@
       "http/tests/inspector-protocol/issues/connection-allowlists"
     ],
     "exclusive_tests": "ALL",
-    "args": [ "--enable-features=ConnectionAllowlists,OverrideConnectionAllowlistOriginTrial" ],
+    "args": [ "--enable-features=ConnectionAllowlists:ConnectionAllowlistsEarlyHints/true,OverrideConnectionAllowlistOriginTrial" ],
     "expires": "Dec 1, 2026"
   },
   {
@@ -3307,7 +3307,6 @@
       "media/stable",
       "webexposed",
       "compositing/filters",
-      "external/wpt/soft-navigation-heuristics/smoke/tentative/lcp.html",
       "wpt_internal/performance-timeline/performance-user-timing-mark-feature-usage.html",
       "wpt_internal/wasm/custom_descriptors_feature.any.js",
       "wpt_internal/origin_trials/webmcp/webmcp-origin-trial-disabled.https.html",
@@ -5005,7 +5004,7 @@
     "expires": "Feb 1, 2027"
   },
   {
-    "prefix": "dom_storage_sqlite",
+    "prefix": "dom_storage_leveldb",
     "owners": [
       "evanstade@microsoft.com",
       "stevebe@microsoft.com",
@@ -5020,8 +5019,8 @@
       "external/wpt/webstorage",
       "storage/domstorage"
     ],
-    "args": ["--enable-features=DomStorageSqlite"],
-    "expires": "Aug 13, 2026"
+    "args": ["--enable-features=DomStorageSqliteNewDatabases:DomStorageSqliteNewDatabasesStage/UseLevelDbOnly"],
+    "expires": "Feb 1, 2027"
   },
   {
     "prefix": "durable-messages",

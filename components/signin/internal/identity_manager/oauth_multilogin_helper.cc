@@ -130,11 +130,6 @@ CreateStandardDeviceBoundSessionParamsFromRegistrationPayload(
         {.type = *type, .domain = from_spec.domain, .path = from_spec.path});
   }
 
-  SessionParams::Scope scope;
-  scope.include_site = registration_payload.scope.include_site;
-  scope.specifications = std::move(specifications);
-  scope.origin = registration_payload.scope.origin;
-
   std::vector<SessionParams::Credential> credentials;
   for (const RegisterBoundSessionPayload::Credential& from_credential :
        registration_payload.credentials) {
@@ -143,17 +138,25 @@ CreateStandardDeviceBoundSessionParamsFromRegistrationPayload(
                            .attributes = from_credential.attributes});
   }
 
-  return SessionParams(
-      registration_payload.session_id,
-      ComputeFetcherUrlForDeviceBoundSessionRegistrationPayload(
+  return SessionParams{
+      .session_id = registration_payload.session_id,
+      .fetcher_url = ComputeFetcherUrlForDeviceBoundSessionRegistrationPayload(
           domain, registration_payload.refresh_url),
-      registration_payload.refresh_url, std::move(scope),
-      std::move(credentials),
+      .refresh_url = registration_payload.refresh_url,
+      .scope =
+          {
+              .include_site = registration_payload.scope.include_site,
+              .specifications = std::move(specifications),
+              .origin = registration_payload.scope.origin,
+          },
+      .credentials = std::move(credentials),
       // Passing an arbitrary key in params as it will be
       // retrieved later from the wrapped key passed to
       // the `DeviceBoundSessionManager`.
-      unexportable_keys::UnexportableSigningKeyId(),
-      registration_payload.allowed_refresh_initiators);
+      .key_id = unexportable_keys::UnexportableSigningKeyId(),
+      .allowed_refresh_initiators =
+          registration_payload.allowed_refresh_initiators,
+  };
 }
 
 void RecordCreateBoundSessionsResult(

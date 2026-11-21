@@ -592,19 +592,24 @@ bool DisplayScheduler::ShouldDraw() const {
 
 bool DisplayScheduler::CanDrawForPreviousFrame(
     const BeginFrameId& begin_frame_id) const {
-  // TODO(crbug.com/515323102): Check if the FrameDeadlineDecider chosen
-  // deadline actually allows swapping still.
   if (!begin_frame_id.IsSequenceValid()) {
     return false;
   }
   if (inside_begin_frame_deadline_interval_) {
     return false;
   }
-  if (last_undrawn_begin_frame_args_ &&
-      begin_frame_id == last_undrawn_begin_frame_args_->frame_id) {
-    return true;
+  if (!last_undrawn_begin_frame_args_ ||
+      begin_frame_id != last_undrawn_begin_frame_args_->frame_id) {
+    return false;
   }
-  return false;
+  if (!last_undrawn_begin_frame_args_->possible_deadlines.has_value()) {
+    // The frame can't be drawn late if there are no late deadlines to choose
+    // from.
+    return false;
+  }
+  // TODO(crbug.com/515323102): Check if the FrameDeadlineDecider chosen
+  // deadline actually allows swapping still.
+  return true;
 }
 
 void DisplayScheduler::ForceImmediateSwapForPreviousFrame() {

@@ -23,20 +23,20 @@ TEST(ImmutableStringTest, DefaultConstructor) {
 
 TEST(ImmutableStringTest, ConstevalConstructorEmpty) {
   constexpr ImmutableString str =
-      ImmutableString(ImmutableString::ForceStackString(), "");
+      ImmutableString(ImmutableString::ForceStackString(), {""});
   EXPECT_EQ(str.AsString(), "");
 }
 
 TEST(ImmutableStringTest, ConstevalConstructorSmall) {
   constexpr ImmutableString str =
-      ImmutableString(ImmutableString::ForceStackString(), "hello");
+      ImmutableString(ImmutableString::ForceStackString(), {"hello"});
   EXPECT_EQ(str.AsString(), "hello");
 }
 
 TEST(ImmutableStringTest, ConstevalConstructorWithOtherConstant) {
   constexpr std::string_view kStr = "hello";
   constexpr ImmutableString str =
-      ImmutableString(ImmutableString::ForceStackString(), kStr);
+      ImmutableString(ImmutableString::ForceStackString(), {kStr});
   EXPECT_EQ(str.AsString(), "hello");
 }
 
@@ -64,7 +64,7 @@ TEST(ImmutableStringTest, JoinPartsLarge) {
 
 TEST(ImmutableStringTest, CopyAndMove) {
   constexpr ImmutableString str1 =
-      ImmutableString(ImmutableString::ForceStackString(), "test");
+      ImmutableString(ImmutableString::ForceStackString(), {"test"});
   ImmutableString str2(str1);
   EXPECT_EQ(str2.AsString(), "test");
 

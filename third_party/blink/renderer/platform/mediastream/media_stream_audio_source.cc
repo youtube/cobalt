@@ -278,6 +278,13 @@ size_t MediaStreamAudioSource::NumTracks() const {
   return static_cast<int>(audio_tracks.size());
 }
 
+Vector<MediaStreamAudioTrack*> MediaStreamAudioSource::GetTracks() const {
+  DCHECK(GetTaskRunner()->BelongsToCurrentThread());
+  Vector<MediaStreamAudioTrack*> audio_tracks;
+  deliverer_.GetConsumerList(&audio_tracks);
+  return audio_tracks;
+}
+
 void MediaStreamAudioSource::LogMessage(const std::string& message) {
   blink::WebRtcLogMessage(
       base::StringPrintf("MSAS::%s [this=0x%" PRIXPTR "]", message.c_str(),

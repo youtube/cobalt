@@ -69,6 +69,7 @@ float ValueForLength(const Length&,
                      SVGLengthMode = SVGLengthMode::kOther);
 float ValueForLength(const UnzoomedLength&,
                      const SVGViewportResolver&,
+                     float zoom,
                      SVGLengthMode = SVGLengthMode::kOther);
 
 gfx::Vector2dF VectorForLengthPair(const Length& x_length,

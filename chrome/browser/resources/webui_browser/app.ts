@@ -334,19 +334,7 @@ export class WebuiBrowserAppElement extends CrLitElement {
   protected onTabDragMousedown_(e: MouseEvent) {
     if (e.target instanceof TabStripElement) {
       this.$.tabstrip.dragMouseDown(e);
-      this.addEventListener('mouseup', this.onTabDragMouseUp_);
-      this.addEventListener('mousemove', this.onTabDragMouseMove_);
     }
-  }
-
-  protected onTabDragMouseUp_(_: MouseEvent) {
-    this.$.tabstrip.closeDragElement();
-    this.removeEventListener('mouseup', this.onTabDragMouseUp_);
-    this.removeEventListener('mousemove', this.onTabDragMouseMove_);
-  }
-
-  protected onTabDragMouseMove_(e: MouseEvent) {
-    this.$.tabstrip.elementDrag(e);
   }
 
   protected setFocusToLocationBar(isUserInitiated: boolean) {

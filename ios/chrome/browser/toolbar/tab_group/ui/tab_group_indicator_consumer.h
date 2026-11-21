@@ -15,9 +15,6 @@
 // TabGroupIndicator Consumer interface.
 @protocol TabGroupIndicatorConsumer <NSObject>
 
-// Sets the `groupTitle` and the `groupColor` to be displayed in the view.
-- (void)setTabGroupTitle:(NSString*)groupTitle groupColor:(UIColor*)groupColor;
-
 // Sets the `groupTitle` and the `tabGroupColorPalette` to be displayed in the
 // view.
 - (void)setTabGroupTitle:(NSString*)groupTitle

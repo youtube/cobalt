@@ -155,8 +155,7 @@ void CameraPanTiltZoomPermissionContext::OnContentSettingChanged(
                 kSafetyHubUnusedPermissionRevocationForAllSurfaces) &&
         camera_ptz_setting &&
         content_settings::CanBeAutoRevokedAsUnusedPermission(
-            ContentSettingsType::MEDIASTREAM_CAMERA,
-            content_settings::ContentSettingToValue(camera_ptz_setting))) {
+            ContentSettingsType::MEDIASTREAM_CAMERA, camera_ptz_setting)) {
       constraints.set_track_last_visit_for_autoexpiration(true);
     }
 

@@ -26,10 +26,6 @@ namespace content {
 // This class must be used on the UI thread.
 class CONTENT_EXPORT WebNNCompilerProcessHost {
  public:
-  using RequestCallback = base::OnceCallback<void(
-      mojo::PendingRemote<webnn::mojom::WebNNCompilerContext>,
-      mojo::PendingReceiver<webnn::mojom::WebNNModelLoader>)>;
-
   WebNNCompilerProcessHost();
 
   WebNNCompilerProcessHost(const WebNNCompilerProcessHost&) = delete;
@@ -39,13 +35,15 @@ class CONTENT_EXPORT WebNNCompilerProcessHost {
 
   // Requests a new CompilerContext for `target_device` from its Compiler
   // process. Each EP device has its own Compiler process, which is launched on
-  // demand if not already running. On failure, `callback` is run with a null
-  // remote and receiver.
+  // demand if not already running. On failure, the pipe endpoints are simply
+  // dropped (disconnecting the peer endpoints held by the GPU/Renderer).
   void RequestCompilerContext(
       webnn::mojom::CreateContextOptionsPtr context_options,
       const webnn::ContextProperties& context_properties,
       const webnn::EpDeviceInfo& target_device,
-      RequestCallback callback);
+      mojo::PendingReceiver<webnn::mojom::WebNNCompilerContext>
+          compiler_context_receiver,
+      mojo::PendingRemote<webnn::mojom::WebNNModelLoader> model_loader_remote);
 
  private:
   // Launches the WebNN Compiler utility process and returns its mojo remote.
@@ -55,7 +53,9 @@ class CONTENT_EXPORT WebNNCompilerProcessHost {
       webnn::mojom::CreateContextOptionsPtr context_options,
       const webnn::ContextProperties& context_properties,
       const webnn::EpDeviceInfo& target_device,
-      RequestCallback callback,
+      mojo::PendingReceiver<webnn::mojom::WebNNCompilerContext>
+          compiler_context_receiver,
+      mojo::PendingRemote<webnn::mojom::WebNNModelLoader> model_loader_remote,
       base::flat_map<std::string, webnn::mojom::EpPackageInfoPtr>
           ep_package_info_map);
 

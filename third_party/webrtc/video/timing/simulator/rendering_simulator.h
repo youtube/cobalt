@@ -12,8 +12,6 @@
 #define VIDEO_TIMING_SIMULATOR_RENDERING_SIMULATOR_H_
 
 #include <cstdint>
-#include <functional>
-#include <memory>
 #include <optional>
 #include <set>
 #include <span>
@@ -21,13 +19,12 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "api/environment/environment.h"
 #include "api/numerics/samples_stats_counter.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/timing/video_jitter_timing_factory.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
-#include "modules/video_coding/timing/timing.h"
 #include "rtc_base/checks.h"
 #include "video/timing/simulator/frame_base.h"
 #include "video/timing/simulator/results_base.h"
@@ -41,16 +38,9 @@ namespace webrtc::video_timing_simulator {
 class RenderingSimulator {
  public:
   struct Config {
-    using VideoTimingFactory =
-        std::function<std::unique_ptr<VCMTiming>(Environment, TimeDelta)>;
-
     std::string name = "";
     std::string field_trials_string = "";
-    VideoTimingFactory video_timing_factory = [](Environment env,
-                                                 TimeDelta render_delay) {
-      return std::make_unique<VCMTiming>(&env.clock(), env.field_trials(),
-                                         render_delay);
-    };
+    const VideoJitterTimingFactory* video_jitter_timing_factory = nullptr;
 
     // Whether or not to reset the stream state on newly logged streams with the
     // same SSRC.

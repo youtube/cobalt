@@ -409,7 +409,9 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                     mIsSafeModeEnabled
                             ? controller.queryActions(ctx, webViewPackageName)
                             : new HashSet<>();
-
+            for (String actionId : safeModeActions) {
+                SafeModeController.getInstance().enableAction(actionId);
+            }
             long startCachedFlagInit = SystemClock.uptimeMillis();
             try (StrictModeContext ignored = StrictModeContext.allowDiskWrites()) {
                 // Since N, getSharedPreferences creates the preference dir if it doesn't exist,
@@ -586,6 +588,18 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
                             dataDirectoryBasePath, cacheDirectoryBasePath, dataDirectorySuffix);
                 }
 
+                if (WebViewCachedFlags.get()
+                                .isCachedFeatureEnabled(
+                                        AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT)
+                        && WebViewCachedFlags.get()
+                                .isCachedFeatureEnabled(
+                                        AwFeatures
+                                                .WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT_THREAD_POOL)) {
+                    PostTask.postTask(
+                            TaskTraits.USER_VISIBLE,
+                            () -> mAwInit.runNonUiThreadCapableStartupTasks());
+                }
+
                 boolean enableSystemTracing =
                         WebViewCachedFlags.get()
                                 .isCachedFeatureEnabled(
@@ -666,7 +680,10 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
             }
 
             if (WebViewCachedFlags.get()
-                    .isCachedFeatureEnabled(AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT)) {
+                            .isCachedFeatureEnabled(AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT)
+                    && !WebViewCachedFlags.get()
+                            .isCachedFeatureEnabled(
+                                    AwFeatures.WEBVIEW_MOVE_WORK_TO_PROVIDER_INIT_THREAD_POOL)) {
                 mAwInit.runNonUiThreadCapableStartupTasks();
             }
 
@@ -968,17 +985,9 @@ public class WebViewChromiumFactoryProvider implements WebViewFactoryProvider {
             // anything in the support_lib_glue and support_lib_boundary packages (and their
             // subpackages).
             if (name.startsWith(SUPPORT_LIB_GLUE_AND_BOUNDARY_INTERFACE_PREFIX)) {
-                RecordHistogram.recordBooleanHistogram(
-                        "Android.WebView.FilteredClassLoader.FindClassReturnedAllowedClass", true);
                 return Class.forName(name, false, mDelegate);
             }
-
-            // TODO(b/507748195): We should be calling `throw new ClassNotFoundException(message);`
-            // here but we are currently measuring how often this exception would be thrown in the
-            // wild to decide whether it is safe to enforce this restriction.
-            RecordHistogram.recordBooleanHistogram(
-                    "Android.WebView.FilteredClassLoader.FindClassReturnedAllowedClass", false);
-            return Class.forName(name, false, mDelegate);
+            throw new ClassNotFoundException(message);
         }
     }
 

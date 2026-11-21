@@ -63,9 +63,8 @@ class NET_EXPORT_PRIVATE DnsTaskResultsManager {
 
   // Processes a query response represented by HostResolverInternalResults.
   // Expected be called when a DnsTransaction is completed.
-  void ProcessDnsTransactionResults(
-      DnsQueryType query_type,
-      std::set<const HostResolverInternalResult*> results);
+  void ProcessDnsTransactionResults(DnsQueryType query_type,
+                                    HostResolverDnsTask::ResultRefs results);
 
   // Returns the current service endpoints. The results could change over time.
   // Use the delegate's OnServiceEndpointsUpdated() to watch for updates.

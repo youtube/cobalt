@@ -55,6 +55,15 @@ constexpr STGMEDIUM kNullStorageMedium = {.tymed = TYMED_NULL,
 using VirtualFileResults =
     std::vector<std::pair<base::FilePath, base::FilePath>>;
 
+// A surviving (non-directory) virtual file: its unique display name plus the
+// original FILEGROUPDESCRIPTOR index, used as the CFSTR_FILECONTENTS lindex.
+// Skipping directory descriptors makes the filtered position diverge from the
+// descriptor index, so the index must be carried explicitly.
+struct VirtualFileNameWithIndex {
+  base::FilePath display_name;
+  LONG content_index;
+};
+
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 enum class AsyncVirtualFileExtractionError {
@@ -451,7 +460,7 @@ HGLOBAL CopyFileContentsToHGlobal(IDataObject* data_object, LONG index) {
 // on a worker thread.
 VirtualFileResults ExtractVirtualFiles(
     Microsoft::WRL::ComPtr<IStream> marshaled_data_object_stream,
-    const std::vector<base::FilePath>& display_names) {
+    const std::vector<VirtualFileNameWithIndex>& files) {
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
 
@@ -472,11 +481,14 @@ VirtualFileResults ExtractVirtualFiles(
     return {};
   }
 
+  std::vector<base::FilePath> display_names;
+  display_names.reserve(files.size());
   std::vector<HGLOBAL> memory_backed_contents;
-  memory_backed_contents.reserve(display_names.size());
-  for (size_t i = 0; i < display_names.size(); i++) {
+  memory_backed_contents.reserve(files.size());
+  for (const auto& file : files) {
+    display_names.push_back(file.display_name);
     memory_backed_contents.push_back(
-        CopyFileContentsToHGlobal(data_object.Get(), static_cast<LONG>(i)));
+        CopyFileContentsToHGlobal(data_object.Get(), file.content_index));
   }
 
   return WriteAllFileContentsToTempFiles(display_names, memory_backed_contents);
@@ -513,7 +525,7 @@ struct FileGroupDescriptorData<FILEGROUPDESCRIPTORA> {
 // Use template parameter of FILEGROUPDESCRIPTORW for retrieving Unicode data
 // and FILEGROUPDESCRIPTORA for ascii.
 template <typename FileGroupDescriptorType>
-std::optional<std::vector<base::FilePath>> GetVirtualFilenames(
+std::optional<std::vector<VirtualFileNameWithIndex>> GetVirtualFilenames(
     IDataObject* data_object) {
   STGMEDIUM medium;
 
@@ -522,7 +534,10 @@ std::optional<std::vector<base::FilePath>> GetVirtualFilenames(
     return std::nullopt;
   }
 
-  std::vector<base::FilePath> filenames;
+  std::vector<VirtualFileNameWithIndex> filenames;
+  // Display names already added, used only for uniquification (the
+  // case-insensitive de-dup must see the prior names, not the indices).
+  std::vector<base::FilePath> unique_names;
 
   {
     base::win::ScopedHGlobal<FileGroupDescriptorType*> descriptor(
@@ -563,15 +578,29 @@ std::optional<std::vector<base::FilePath>> GetVirtualFilenames(
                       << "' refers to a directory (not supported).";
         continue;
       }
-      base::FilePath display_name = GetUniqueVirtualFilename(
-          ConvertString(descriptor->fgd[i].cFileName), filenames, &uniquifier);
+      base::FilePath display_name =
+          GetUniqueVirtualFilename(ConvertString(descriptor->fgd[i].cFileName),
+                                   unique_names, &uniquifier);
 
-      filenames.push_back(display_name);
+      unique_names.push_back(display_name);
+      filenames.push_back({display_name, static_cast<LONG>(i)});
     }
   }
 
   ReleaseStgMedium(&medium);
   return filenames;
+}
+
+// Tries the Unicode (W) descriptor first, then the ASCII (A) descriptor,
+// preserving each surviving entry's original descriptor index.
+std::optional<std::vector<VirtualFileNameWithIndex>>
+GetVirtualFilenamesWithIndices(IDataObject* data_object) {
+  std::optional<std::vector<VirtualFileNameWithIndex>> filenames =
+      GetVirtualFilenames<FILEGROUPDESCRIPTORW>(data_object);
+  if (filenames) {
+    return filenames;
+  }
+  return GetVirtualFilenames<FILEGROUPDESCRIPTORA>(data_object);
 }
 
 template <typename FileGroupDescriptorType>
@@ -870,16 +899,18 @@ std::optional<std::vector<base::FilePath>> GetVirtualFilenames(
   // Nothing prevents the drag source app from using the CFSTR_FILEDESCRIPTORA
   // ANSI format (e.g., it could be that it doesn't support Unicode). So need to
   // check for both the ANSI and Unicode file group descriptors.
-
-  // Unicode.
-  std::optional<std::vector<base::FilePath>> filenames =
-      ui::GetVirtualFilenames<FILEGROUPDESCRIPTORW>(data_object);
-  if (filenames) {
-    return filenames;
+  std::optional<std::vector<VirtualFileNameWithIndex>> filenames_with_indices =
+      GetVirtualFilenamesWithIndices(data_object);
+  if (!filenames_with_indices) {
+    return std::nullopt;
   }
 
-  // ASCII.
-  return ui::GetVirtualFilenames<FILEGROUPDESCRIPTORA>(data_object);
+  std::vector<base::FilePath> filenames;
+  filenames.reserve(filenames_with_indices->size());
+  for (const auto& entry : *filenames_with_indices) {
+    filenames.push_back(entry.display_name);
+  }
+  return filenames;
 }
 
 // Checks if the data object supports async operations via
@@ -926,11 +957,11 @@ Microsoft::WRL::ComPtr<IStream> MarshalDataObjectToStream(
 void PostVirtualFileExtractionTask(
     Microsoft::WRL::ComPtr<IStream> marshaled_stream,
     Microsoft::WRL::ComPtr<IDataObjectAsyncCapability> async_capability,
-    const std::vector<base::FilePath>& display_names,
+    const std::vector<VirtualFileNameWithIndex>& files,
     base::OnceCallback<void(const VirtualFileResults&)> callback) {
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
-      base::BindOnce(&ExtractVirtualFiles, marshaled_stream, display_names),
+      base::BindOnce(&ExtractVirtualFiles, marshaled_stream, files),
       base::BindOnce(
           [](Microsoft::WRL::ComPtr<IDataObjectAsyncCapability> async_cap,
              base::OnceCallback<void(const VirtualFileResults&)> cb,
@@ -948,10 +979,18 @@ void PostVirtualFileExtractionTask(
 void GetVirtualFilesAsTempFiles(
     IDataObject* data_object,
     base::OnceCallback<void(const VirtualFileResults&)> callback) {
-  // Retrieve the display names of the virtual files.
-  std::optional<std::vector<base::FilePath>> display_names =
-      GetVirtualFilenames(data_object);
-  if (!display_names) {
+  // Favor real files on the file system over virtual files; bail out if this
+  // data object should not surface virtual files.
+  if (!HasVirtualFilenames(data_object)) {
+    std::move(callback).Run({});
+    return;
+  }
+
+  // Retrieve the display names of the virtual files along with their original
+  // descriptor indices.
+  std::optional<std::vector<VirtualFileNameWithIndex>> files =
+      GetVirtualFilenamesWithIndices(data_object);
+  if (!files) {
     std::move(callback).Run({});
     return;
   }
@@ -962,8 +1001,8 @@ void GetVirtualFilesAsTempFiles(
 
     if (auto marshaled_stream = MarshalDataObjectToStream(data_object)) {
       PostVirtualFileExtractionTask(std::move(marshaled_stream),
-                                    std::move(async_capability),
-                                    display_names.value(), std::move(callback));
+                                    std::move(async_capability), files.value(),
+                                    std::move(callback));
       return;
     }
 
@@ -971,17 +1010,23 @@ void GetVirtualFilesAsTempFiles(
     async_capability->EndOperation(E_FAIL, nullptr, DROPEFFECT_NONE);
   }
 
-  // Fallback: async not supported or marshal failed.
-  // Copy file contents to global memory on the UI thread.
+  // Fallback: async not supported or marshal failed. Copy file contents to
+  // global memory on the UI thread, using each entry's original descriptor
+  // index as the CFSTR_FILECONTENTS lindex.
+  std::vector<base::FilePath> display_names;
+  display_names.reserve(files->size());
   std::vector<HGLOBAL> memory_backed_contents;
-  for (size_t i = 0; i < display_names.value().size(); i++) {
-    memory_backed_contents.push_back(CopyFileContentsToHGlobal(data_object, i));
+  memory_backed_contents.reserve(files->size());
+  for (const auto& file : *files) {
+    display_names.push_back(file.display_name);
+    memory_backed_contents.push_back(
+        CopyFileContentsToHGlobal(data_object, file.content_index));
   }
 
   // Write the temp files on a worker thread.
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
-      base::BindOnce(&WriteAllFileContentsToTempFiles, display_names.value(),
+      base::BindOnce(&WriteAllFileContentsToTempFiles, display_names,
                      memory_backed_contents),
       std::move(callback));  // callback on the UI thread
 }

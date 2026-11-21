@@ -1590,16 +1590,6 @@ std::ostream& operator<<(
   UNREACHABLE();
 }
 
-std::ostream& operator<<(
-    std::ostream& os,
-    TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind) {
-  switch (kind) {
-    case TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32:
-      return os << "Int32";
-  }
-  UNREACHABLE();
-}
-
 std::ostream& operator<<(std::ostream& os, NewArrayOp::Kind kind) {
   switch (kind) {
     case NewArrayOp::Kind::kDouble:
@@ -2228,7 +2218,8 @@ void StructSetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ", " << write_barrier << ']';
+  os << ", " << write_barrier << ", "
+     << (kind == Kind::kInitialize ? "initialize" : "assign") << ']';
 }
 
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
@@ -2250,7 +2241,8 @@ void ArraySetOp::PrintOptions(std::ostream& os) const {
   } else {
     os << "non-atomic";
   }
-  os << ", " << write_barrier << ']';
+  os << ", " << write_barrier << ", "
+     << (kind == Kind::kInitialize ? "initialize" : "assign") << ']';
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY

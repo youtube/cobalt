@@ -17,6 +17,7 @@
 #include "chrome/browser/glic/service/metrics/glic_instance_helper_metrics.h"
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
 #include "chrome/browser/glic/test_support/glic_histogram_tester.h"
+#include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
@@ -119,6 +120,21 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithEmptyConversationId) {
   coordinator().Invoke(std::move(options));
 
   EXPECT_EQ(error_future.Get(), GlicInvokeError::kInvalidConversationId);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
+                       InvokeFailsWhenProfileNotEnabled) {
+  ScopedGlicCapability scoped_glic_capability(GetProfile(), false);
+
+  base::test::TestFuture<GlicInvokeError> error_future;
+  GlicInvokeOptions options(mojom::InvocationSource::kOsButton);
+  options.on_error = error_future.GetCallback();
+  options.target.surface = DefaultSurface{
+      GetTabListInterface()->GetActiveTab()->GetBrowserWindowInterface()};
+
+  coordinator().Invoke(std::move(options));
+
+  EXPECT_EQ(error_future.Get(), GlicInvokeError::kProfileNotEnabled);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithInvalidInstanceId) {
@@ -398,8 +414,7 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeTimeoutBehaviors) {
   EXPECT_GE(elapsed_timer.Elapsed(), base::Milliseconds(50));
 }
 
-IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
-                       InvokeFailsOnInstanceDestruction) {
+IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeFailsOnTabClosed) {
   // Add a new tab so we don't close the browser when we close the active tab.
   CreateAndActivateTab(GURL("about:blank"));
 
@@ -420,9 +435,31 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
   // bound to.
   tab1->Close();
 
-  // The error should be either kInstanceDestroyed or kTabClosed, depending on
-  // the order of destruction. The user expects it to cause instance deletion.
+  // The error should be kTabClosed.
   EXPECT_EQ(error_future.Get(), GlicInvokeError::kTabClosed);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest,
+                       InvokeFailsOnInstanceDestruction) {
+  tabs::TabInterface* tab1 = GetTabListInterface()->GetActiveTab();
+
+  ASSERT_OK(OpenGlicForActiveTab());
+
+  base::test::TestFuture<GlicInvokeError> error_future;
+  GlicInvokeOptions options(glic::Target(*tab1),
+                            mojom::InvocationSource::kOsButton);
+  options.on_error = error_future.GetCallback();
+
+  coordinator().Invoke(std::move(options));
+
+  // Destroy the instance while Invoke is in progress.
+  auto* instance = coordinator().GetInstanceForTab(tab1);
+  ASSERT_TRUE(instance);
+  coordinator().RemoveInstance(instance->id());
+
+  // Since Glic was destroyed without the tab closing, the invocation should
+  // fail with kInstanceDestroyed.
+  EXPECT_EQ(error_future.Get(), GlicInvokeError::kInstanceDestroyed);
 }
 
 class GlicInvokeNonConnectingBrowserTest : public GlicInvokeBrowserTest {
@@ -675,6 +712,31 @@ IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithContextNoSourceFrame) {
   EXPECT_EQ(error_future.Get(),
             GlicInvokeError::kAdditionalContextNoSourceFrame);
   EXPECT_FALSE(GetInstanceForTab(tab));
+}
+class GlicInvokeBrowserTestWithoutActor : public GlicInvokeBrowserTest {
+ public:
+  GlicInvokeBrowserTestWithoutActor() {
+    scoped_feature_list_.InitAndDisableFeature(::features::kGlicActor);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTestWithoutActor,
+                       InvokeWithInvalidConfiguration) {
+  base::test::TestFuture<GlicInvokeError> error_future;
+  GlicInvokeOptions options(mojom::InvocationSource::kOsButton);
+  options.target.surface = DefaultSurface{
+      GetTabListInterface()->GetActiveTab()->GetBrowserWindowInterface()};
+  // Invoking with an actuating feature mode when ActorKeyedService is not
+  // enabled will result in kInvalidConfiguration.
+  options.feature_mode = mojom::FeatureMode::kActuation;
+  options.on_error = error_future.GetCallback();
+
+  coordinator().Invoke(std::move(options));
+
+  EXPECT_EQ(error_future.Get(), GlicInvokeError::kInvalidConfiguration);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInvokeBrowserTest, InvokeWithInvalidContextData) {

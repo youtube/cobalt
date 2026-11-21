@@ -22,6 +22,7 @@
 #include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/message_loop/message_pump_wakeup_counter.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/task_features.h"
@@ -327,6 +328,10 @@ void MessagePumpForUI::WaitForWork(Delegate::NextWorkInfo next_work_info) {
       wakeup_state_ = WakeupState::kNative;
     } else {
       wakeup_state_ = WakeupState::kInactive;
+    }
+
+    if (wakeup_state_ != WakeupState::kInactive) {
+      MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
     }
 
     if (wakeup_state_ == WakeupState::kApplicationTask) {
@@ -889,6 +894,13 @@ bool MessagePumpForIO::WaitForIOCompletion(DWORD timeout) {
   if (!GetIOItem(timeout, &item)) {
     return false;
   }
+
+  // Record a non-spurious wakeup, even if it is 'internal'. This thread can
+  // wake up because another thread calls PostTask(), which calls
+  // ScheduleWork(). This in turn makes the ProcessInternalIOItem() below treat
+  // the the notification as 'internal' and return early. The posted task is
+  // then taken from the queue in DoRunLoop().
+  MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
 
   if (ProcessInternalIOItem(item)) {
     return true;

@@ -28,7 +28,7 @@ class StripTabUnderlineManager::UiDelegateImpl
   }
 
   void ResetAnimationCycle() override {
-    // No-op for Android as animation is not supported yet.
+    manager_->ResetAnimationCycle(tab_id_);
   }
 
   void StartRampingDown() override {
@@ -102,6 +102,11 @@ void StripTabUnderlineManager::SetUnderlineState(int tab_id,
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_StripTabUnderlineManager_setUnderlineState(env, java_obj_, tab_id,
                                                   is_underlined);
+}
+
+void StripTabUnderlineManager::ResetAnimationCycle(int tab_id) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_StripTabUnderlineManager_resetAnimationCycle(env, java_obj_, tab_id);
 }
 
 static int64_t JNI_StripTabUnderlineManager_Init(

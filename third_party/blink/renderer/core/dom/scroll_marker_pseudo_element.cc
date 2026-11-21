@@ -280,6 +280,11 @@ void ScrollMarkerPseudoElement::Dispose() {
   PseudoElement::Dispose();
 }
 
+void ScrollMarkerPseudoElement::RemovedFrom(ContainerNode& insertion_point) {
+  SetScrollMarkerGroup(nullptr);
+  PseudoElement::RemovedFrom(insertion_point);
+}
+
 void ScrollMarkerPseudoElement::Trace(Visitor* v) const {
   v->Trace(scroll_marker_group_);
   PseudoElement::Trace(v);

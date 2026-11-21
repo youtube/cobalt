@@ -86,11 +86,6 @@ class TabAndroid : public tabs::TabInterface,
   static TabAndroid* GetNativeTab(JNIEnv* env,
                                   const base::android::JavaRef<jobject>& obj);
 
-  // Returns the a vector of native TabAndroid stored in the Java Tab array
-  // represented by |obj_array|.
-  static std::vector<raw_ptr<TabAndroid, VectorExperimental>> GetAllNativeTabs(
-      JNIEnv* env,
-      const base::android::ScopedJavaLocalRef<jobjectArray>& obj_array);
 
   // Function to attach helpers to the `web_contents`.
   static void AttachTabHelpers(content::WebContents* web_contents);
@@ -219,7 +214,8 @@ class TabAndroid : public tabs::TabInterface,
 
   // Properly releases the WebContents from both native and Java sides. Should
   // be called only when the tab has been removed from the tab model.
-  std::unique_ptr<content::WebContents> TakeWebContentsAndDestroyTab(
+  static std::unique_ptr<content::WebContents> TakeWebContentsAndDestroyTab(
+      TabAndroid* tab,
       base::PassKey<TabModelJniBridge>);
 
   bool IsPhysicalBackingSizeEmpty(
@@ -229,7 +225,7 @@ class TabAndroid : public tabs::TabInterface,
       int32_t width,
       int32_t height);
   void SetActiveNavigationEntryTitleForUrl(const std::string& jurl,
-                                           const std::u16string& jtitle);
+                                           std::u16string jtitle);
   void LoadOriginalImage();
   void OnShow();
   void NotifyPinnedStateChanged(bool is_pinned);

@@ -293,8 +293,6 @@ if (!is_android) {
 source_set("test_support") {
   testonly = true
 
-  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
   # These helpers are used by tests on all platforms, including Android.
   sources = [
     "password_change_delegate_mock.cc",
@@ -340,12 +338,12 @@ if (!is_android) {
   source_set("test_support_ui") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
     sources = [
       "password_manager_test_base.cc",
       "password_manager_test_base.h",
     ]
+
+    public_deps = [ "//chrome/browser/ssl:cert_verifier_test_support" ]
 
     deps = [
       ":test_support",
@@ -395,6 +393,8 @@ if (!is_android) {
 source_set("unit_tests") {
   testonly = true
 
+  # chrome_webauthn_credentials_delegate_unittest.cc has file-scope statics of
+  # non-trivial-destructor types, which -Wexit-time-destructors rejects.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
   sources = [
@@ -521,7 +521,6 @@ if (!is_android) {
   source_set("browser_tests") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [
@@ -610,7 +609,6 @@ if (!is_android) {
   source_set("interactive_ui_tests") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = []
@@ -683,7 +681,6 @@ if (!is_android) {
   source_set("captured_sites_interactive_tests") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [ "password_manager_captured_sites_interactive_uitest.cc" ]

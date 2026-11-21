@@ -21,7 +21,6 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/property-descriptor.h"
-#include "src/objects/torque-defined-classes.h"
 #include "src/sandbox/trusted-pointer-scope.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
@@ -1007,8 +1006,7 @@ MaybeDirectHandle<WasmInstanceObject> InstantiateToInstanceObject(
   MaybeDirectHandle<WasmInstanceObject> instance_object = builder.Build();
   if (!instance_object.is_null()) {
     Managed<NativeModule>::Ptr native_module = module_object->native_module();
-    if (v8_flags.experimental_wasm_pgo_to_file &&
-        native_module->ShouldPgoDataBeWritten() &&
+    if (v8_flags.wasm_pgo_to_file && native_module->ShouldPgoDataBeWritten() &&
         native_module->module()->num_declared_functions > 0) {
       WriteOutPGOTask::Schedule(std::move(native_module).as_shared_ptr());
     }

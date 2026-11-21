@@ -11,6 +11,7 @@
 #import "base/test/task_environment.h"
 #import "base/test/test_future.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/enterprise/data_controls/model/data_controls_pasteboard_manager_observer.h"
 #import "ios/chrome/browser/enterprise/data_controls/model/data_controls_test_utils.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
@@ -33,6 +34,17 @@ namespace {
 const char kSourceURL[] = "https://chromium.org";
 const char kPasteboardString[] = "test";
 const char kNewPasteboardString[] = "new content";
+
+class TestObserver : public DataControlsPasteboardManagerObserver {
+ public:
+  void OnPasteboardContentChanged() override { future_.SetValue(true); }
+  bool Notified() { return future_.IsReady(); }
+
+  bool Wait() { return future_.Take(); }
+
+ private:
+  base::test::TestFuture<bool> future_;
+};
 
 }  // namespace
 
@@ -280,6 +292,52 @@ TEST_F(
 
   // The original string should be in the pasteboard.
   EXPECT_TRUE(WaitForStringInPasteboard(@(kPasteboardString)));
+}
+
+// Tests that observers are notified when the pasteboard changes.
+TEST_F(DataControlsPasteboardManagerTest, ObserverNotified) {
+  TestObserver observer;
+  manager_->AddObserver(&observer);
+
+  // Test that it should not receive a notification if not pasteboard content
+  // change.
+  EXPECT_FALSE(observer.Notified());
+
+  // Simulate a pasteboard change.
+  UIPasteboard.generalPasteboard.string = @(kPasteboardString);
+
+  // Simulate observer will receive a notification.
+  EXPECT_TRUE(observer.Wait());
+
+  // Simulat when a tab is destory, it is no longer observing.
+  manager_->RemoveObserver(&observer);
+
+  // Simulate another pasteboard change.
+  UIPasteboard.generalPasteboard.string = @(kNewPasteboardString);
+
+  // The observer should not be notified since it was removed.
+  EXPECT_FALSE(observer.Notified());
+}
+
+// Tests that multiple observers are all notified.
+TEST_F(DataControlsPasteboardManagerTest, MultipleObserversNotified) {
+  TestObserver observer1;
+  TestObserver observer2;
+  manager_->AddObserver(&observer1);
+  manager_->AddObserver(&observer2);
+
+  EXPECT_FALSE(observer1.Notified());
+  EXPECT_FALSE(observer2.Notified());
+
+  // Simulate a pasteboard change.
+  UIPasteboard.generalPasteboard.string = @(kPasteboardString);
+
+  // Wait for both observers to be notified.
+  EXPECT_TRUE(observer1.Wait());
+  EXPECT_TRUE(observer2.Wait());
+
+  manager_->RemoveObserver(&observer1);
+  manager_->RemoveObserver(&observer2);
 }
 
 }  // namespace data_controls

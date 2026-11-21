@@ -13,7 +13,6 @@
 #include "base/barrier_closure.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
-#include "base/i18n/time_formatting.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
@@ -22,10 +21,7 @@
 #include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/file_suggest/file_suggest_util.h"
 #include "chromeos/ash/components/drivefs/drivefs_host.h"
-#include "chromeos/ash/components/drivefs/drivefs_util.h"
 #include "components/drive/file_errors.h"
-#include "components/prefs/pref_service.h"
-#include "mojo/public/cpp/bindings/callback_helpers.h"
 
 namespace ash {
 namespace {

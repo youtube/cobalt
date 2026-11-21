@@ -34,7 +34,6 @@
 #include "chrome/browser/ash/policy/remote_commands/user_commands_factory_ash.h"
 #include "chrome/browser/ash/policy/reporting/arc_app_install_event_log_uploader.h"
 #include "chrome/browser/ash/policy/skyvault/local_files_cleanup.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/enterprise/reporting/report_scheduler_desktop.h"
 #include "chrome/browser/enterprise/reporting/reporting_delegate_factory_desktop.h"
 #include "chrome/browser/invalidation/profile_invalidation_provider_factory.h"
@@ -278,9 +277,8 @@ void UserCloudPolicyManagerAsh::OnAccessTokenAvailable(
   access_token_ = access_token;
 
   if (!wildcard_username_.empty()) {
-    // TODO(crbug.com/404133022): Avoid using g_browser_process.
-    wildcard_login_checker_ = std::make_unique<WildcardLoginChecker>(
-        g_browser_process->shared_url_loader_factory());
+    wildcard_login_checker_ =
+        std::make_unique<WildcardLoginChecker>(shared_url_loader_factory_);
     // Safe to set a callback with an unretained pointer because the
     // WildcardLoginChecker is owned by this object and won't invoke the
     // callback after we destroy it.
@@ -504,6 +502,11 @@ void UserCloudPolicyManagerAsh::OnUserProfileLoaded(
 void UserCloudPolicyManagerAsh::OnStoreLoaded(
     CloudPolicyStore* cloud_policy_store) {
   CloudPolicyManager::OnStoreLoaded(cloud_policy_store);
+
+  if (cloud_policy_store == extension_install_store()) {
+    // Extension Install policies do not affect affiliation.
+    return;
+  }
 
   em::PolicyData const* const policy_data = cloud_policy_store->policy();
 

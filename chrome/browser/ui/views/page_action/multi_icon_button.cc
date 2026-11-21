@@ -30,6 +30,7 @@
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/skia_conversions.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
@@ -134,7 +135,6 @@ MultiIconButton::MultiIconButton(PressedCallback callback)
       ->set_cross_axis_alignment(views::BoxLayout::CrossAxisAlignment::kCenter);
   SetBorder(nullptr);
   SetInstallFocusRingOnFocus(true);
-  SetAccessibleName(u"Show details");
   SetFocusBehavior(FocusBehavior::ALWAYS);
   ConfigureInkDrop(this,
                    std::make_unique<views::RoundRectHighlightPathGenerator>(
@@ -227,6 +227,9 @@ void MultiIconButton::Update(
 
   content_container_ = AddChildView(std::move(container));
   content_container_->SetCanProcessEventsWithinSubtree(false);
+
+  // Hide the decorative internal icons and "+N" label from screen readers.
+  content_container_->GetViewAccessibility().SetIsIgnored(true);
 }
 
 BEGIN_METADATA(MultiIconButton)

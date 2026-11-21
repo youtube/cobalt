@@ -93,20 +93,22 @@ const std::vector<base::test::FeatureRef>& GetStandardFeatures() {
 
 net::device_bound_sessions::SessionParams CreateTestSessionParams() {
   GURL url("https://google.com/");
-  net::device_bound_sessions::SessionParams::Scope scope;
-  scope.include_site = true;
-  scope.origin = url::Origin::Create(url).Serialize();
-  net::device_bound_sessions::SessionParams params(
-      /*id=*/"sidts_session", url,
-      /*refresh_url=*/"/RotateBoundCookies", std::move(scope),
-      /*creds=*/
-      {net::device_bound_sessions::SessionParams::Credential{
+  return {
+      .session_id = "sidts_session",
+      .fetcher_url = url,
+      .refresh_url = "/RotateBoundCookies",
+      .scope =
+          {
+              .include_site = true,
+              .origin = url::Origin::Create(url).Serialize(),
+          },
+      .credentials = {{
           .name = "__Secure-1PSIDTS",
           .attributes = "Secure; HttpOnly; Domain=.google.com; "
-                        "Path=/; SameSite=None"}},
-      unexportable_keys::UnexportableSigningKeyId(),
-      /*allowed_refresh_initiators=*/{"*"});
-  return params;
+                        "Path=/; SameSite=None",
+      }},
+      .allowed_refresh_initiators = {"*"},
+  };
 }
 
 class DeviceBoundSessionAccessObserver

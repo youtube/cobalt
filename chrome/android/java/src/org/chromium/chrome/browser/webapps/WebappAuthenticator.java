@@ -12,6 +12,8 @@ import org.chromium.base.Log;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -86,11 +88,26 @@ public class WebappAuthenticator {
         if (mac == null) {
             return null;
         }
-        mac.update(ApiCompatibilityUtils.getBytesUtf8(url));
-        if (encodedIcon != null) {
-            mac.update(ApiCompatibilityUtils.getBytesUtf8(encodedIcon));
+        if (encodedIcon == null) {
+            mac.update(ApiCompatibilityUtils.getBytesUtf8(url));
+            return mac.doFinal();
         }
-        return mac.doFinal();
+        try {
+            ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+            DataOutputStream dataStream = new DataOutputStream(byteStream);
+            byte[] urlBytes = ApiCompatibilityUtils.getBytesUtf8(url);
+            dataStream.writeInt(urlBytes.length);
+            dataStream.write(urlBytes);
+            byte[] iconBytes = ApiCompatibilityUtils.getBytesUtf8(encodedIcon);
+            dataStream.writeInt(iconBytes.length);
+            dataStream.write(iconBytes);
+            dataStream.flush();
+            mac.update(byteStream.toByteArray());
+            return mac.doFinal();
+        } catch (IOException e) {
+            Log.w(TAG, "Error serializing MAC data", e);
+            return null;
+        }
     }
 
     /**

@@ -106,9 +106,9 @@ rtc_library("default_video_jitter_timing") {
     ":timestamp_extrapolator",
     "../../../api:field_trials_view",
     "../../../api/environment",
-    "../../../api/units:data_size",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
+    "../../../api/video/timing:video_jitter_timing_interface",
     "../../../system_wrappers",
   ]
 }
@@ -128,6 +128,7 @@ rtc_library("timing_module") {
     "../../../api/units:timestamp",
     "../../../api/video:video_frame",
     "../../../api/video:video_rtp_headers",
+    "../../../api/video/timing:video_jitter_timing_interface",
     "../../../rtc_base:checks",
     "../../../rtc_base:logging",
     "../../../rtc_base:macromagic",
@@ -164,6 +165,7 @@ rtc_library("timing_unittests") {
     "../../../api/units:frequency",
     "../../../api/units:time_delta",
     "../../../api/units:timestamp",
+    "../../../api/video/timing:video_jitter_timing_interface",
     "../../../rtc_base:histogram_percentile_counter",
     "../../../system_wrappers",
     "../../../system_wrappers:metrics",

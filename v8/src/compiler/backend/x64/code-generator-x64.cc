@@ -3721,7 +3721,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ AllocateStackSpace(stack_decrement - kSystemPointerSize);
           __ pushq(i.InputOperand(1));
         } else {
-          DCHECK(input->IsSimd128StackSlot());
+          // Simd256 stack slots can be used as Simd128 since the lower
+          // 128 bits are at the base address, analogous to register aliasing.
+          DCHECK(input->CanBeSimd128StackSlot());
           DCHECK_GE(stack_decrement, kSimd128Size);
           // TODO(bbudge) Use Movaps when slots are aligned.
           __ Movups(kScratchDoubleReg, i.InputOperand(1));
@@ -8238,7 +8240,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ j(above_equal, &done, Label::kNear);
       }
 
-      if (v8_flags.experimental_wasm_growable_stacks) {
+      if (v8_flags.wasm_growable_stacks) {
         RegList regs_to_save;
         regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
         regs_to_save.set(
@@ -8366,7 +8368,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (call_descriptor->IsAnyWasmFunctionCall() &&
-      v8_flags.experimental_wasm_growable_stacks) {
+      v8_flags.wasm_growable_stacks) {
     __ cmpq(
         MemOperand(rbp, TypedFrameConstants::kFrameTypeOffset),
         Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));

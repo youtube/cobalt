@@ -233,7 +233,7 @@ void PrintCompositeClient::CompositePage(
 
 void PrintCompositeClient::PrepareToCompositeDocument(
     int document_cookie,
-    content::RenderFrameHost* render_frame_host,
+    content::RenderFrameHost& render_frame_host,
     mojom::PrintCompositor::PrepareToCompositeDocumentCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(!GetIsDocumentConcurrentlyComposited(document_cookie));
@@ -269,7 +269,7 @@ void PrintCompositeClient::FinishDocumentComposition(
 
 void PrintCompositeClient::CompositeDocument(
     int document_cookie,
-    content::RenderFrameHost* render_frame_host,
+    content::RenderFrameHost& render_frame_host,
     const mojom::DidPrintContentParams& content,
     const ui::AXTreeUpdate& accessibility_tree,
     mojom::GenerateDocumentOutline generate_document_outline,
@@ -300,8 +300,8 @@ void PrintCompositeClient::CompositeDocument(
   // is destructed. Mojo won't call its callback in that case so it is safe to
   // use unretained |this| pointer here.
   compositor->CompositeDocument(
-      GenerateFrameGuid(render_frame_host), std::move(region),
-      ConvertContentInfoMap(render_frame_host, content.subframe_content_info),
+      GenerateFrameGuid(&render_frame_host), std::move(region),
+      ConvertContentInfoMap(&render_frame_host, content.subframe_content_info),
       base::BindOnce(&PrintCompositeClient::OnDidCompositeDocument,
                      base::Unretained(this), document_cookie,
                      std::move(callback)));
@@ -347,9 +347,7 @@ bool PrintCompositeClient::GetIsDocumentConcurrentlyComposited(
 
 mojom::PrintCompositor* PrintCompositeClient::CreateCompositeRequest(
     int cookie,
-    content::RenderFrameHost* initiator_frame) {
-  DCHECK(initiator_frame);
-
+    content::RenderFrameHost& initiator_frame) {
   if (document_cookie_ != 0) {
     DCHECK_NE(document_cookie_, cookie);
     RemoveCompositeRequest(document_cookie_);
@@ -357,7 +355,7 @@ mojom::PrintCompositor* PrintCompositeClient::CreateCompositeRequest(
   document_cookie_ = cookie;
 
   // Track which frame kicked off the composite request.
-  initiator_frame_ = initiator_frame;
+  initiator_frame_ = &initiator_frame;
 
   compositor_ = content::ServiceProcessHost::Launch<mojom::PrintCompositor>(
       content::ServiceProcessHost::Options()

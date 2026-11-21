@@ -22,7 +22,6 @@
 #include "base/strings/stringprintf.h"
 #include "chromeos/ash/components/dbus/patchpanel/patchpanel_client.h"
 #include "chromeos/ash/components/dbus/shill/shill_manager_client.h"
-#include "chromeos/ash/components/login/login_state/login_state.h"
 #include "chromeos/ash/components/network/client_cert_util.h"
 #include "chromeos/ash/components/network/device_state.h"
 #include "chromeos/ash/components/network/managed_network_configuration_handler.h"
@@ -45,6 +44,8 @@
 #include "components/device_event_log/device_event_log.h"
 #include "components/onc/onc_constants.h"
 #include "components/prefs/pref_service.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
 #include "components/user_manager/user_manager.h"
 #include "dbus/object_path.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
@@ -53,6 +54,14 @@
 namespace {
 
 constexpr int kGetNetworksListLimit = 100;
+
+std::string GetPrimaryUserHash() {
+  const AccountId& account_id =
+      session_manager::SessionManager::Get()->GetPrimarySession()->account_id();
+  return user_manager::UserManager::Get()
+      ->FindUser(account_id)
+      ->username_hash();
+}
 
 ash::NetworkStateHandler* GetStateHandler() {
   return ash::NetworkHandler::Get()->network_state_handler();
@@ -76,7 +85,7 @@ ash::NetworkProfileHandler* GetNetworkProfileHandler() {
 
 const ash::NetworkProfile* GetNetworkProfile() {
   return GetNetworkProfileHandler()->GetProfileForUserhash(
-      ash::LoginState::Get()->primary_user_hash());
+      GetPrimaryUserHash());
 }
 
 std::vector<const ash::NetworkState*> GetHostActiveNetworks() {
@@ -540,12 +549,11 @@ void ArcNetHostImpl::CreateNetworkWithEapTranslated(
                    std::move(ipconfig_dict));
   }
 
-  std::string user_id_hash = ash::LoginState::Get()->primary_user_hash();
   // TODO(crbug.com/40524549): Remove SplitOnceCallback() by updating
   // the callee interface.
   auto split_callback = base::SplitOnceCallback(std::move(callback));
   GetManagedConfigurationHandler()->CreateConfiguration(
-      user_id_hash, properties,
+      GetPrimaryUserHash(), properties,
       base::BindOnce(&ArcNetHostImpl::CreateNetworkSuccessCallback,
                      weak_factory_.GetWeakPtr(),
                      std::move(split_callback.first)),
@@ -819,11 +827,9 @@ base::DictValue ArcNetHostImpl::TranslateVpnConfigurationToOnc(
 
 void ArcNetHostImpl::AndroidVpnConnected(
     mojom::AndroidVpnConfigurationPtr cfg) {
-  std::string user_id_hash = ash::LoginState::Get()->primary_user_hash();
-
   // TODO(b/333809009): Skip ONC translation step.
   GetManagedConfigurationHandler()->CreateConfiguration(
-      user_id_hash, TranslateVpnConfigurationToOnc(*cfg),
+      GetPrimaryUserHash(), TranslateVpnConfigurationToOnc(*cfg),
       base::BindOnce(&ArcNetHostImpl::ConnectArcVpn,
                      weak_factory_.GetWeakPtr()),
       base::BindOnce(&ArcVpnErrorCallback, "connecting new ARC VPN"));

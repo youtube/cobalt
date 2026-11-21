@@ -166,7 +166,6 @@ source_set("unit_tests") {
     "async_check_tracker_unittest.cc",
     "client_report_util_unittest.cc",
     "client_side_detection_feature_cache_unittest.cc",
-    "client_side_phishing_model_unittest.cc",
     "credit_card_form_event_unittest.cc",
   ]
 
@@ -269,8 +268,6 @@ if (safe_browsing_mode != 0) {
     sources = [
       "client_side_detection_service.cc",
       "client_side_detection_service.h",
-      "client_side_phishing_model.cc",
-      "client_side_phishing_model.h",
     ]
 
     deps = [

@@ -415,7 +415,7 @@ public class ChipView extends LinearLayout {
         if (loadingViewObserver != null) {
             mLoadingView.addObserver(loadingViewObserver);
         }
-        mLoadingView.showLoadingUi();
+        mLoadingView.showLoadingUi(/* skipDelay= */ true);
     }
 
     /**

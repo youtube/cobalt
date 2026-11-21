@@ -72,7 +72,6 @@ BrandedNavigationItemTitleView* CreateGooglePhotosImageView(
   title_view.title = title;
   title_view.imageLogo = MakeSymbolMulticolor(CustomSymbolWithPointSize(
       brandedSymbolName, UIFont.labelFontSize * kLogoTitleFontMultiplier));
-  ;
   title_view.titleLogoSpacing = kTitleLogoSpacing;
   return title_view;
 }

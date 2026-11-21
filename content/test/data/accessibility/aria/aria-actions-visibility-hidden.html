@@ -1,0 +1,45 @@
+<!--
+@AURALINUX-ALLOW:actions*
+@AURALINUX-ALLOW:has-actions*
+@BLINK-ALLOW:actions*
+@BLINK-ALLOW:hasActions*
+@WIN-ALLOW:has-actions*
+@UIA-WIN-ALLOW:*hasactions=true*
+@MAC-ALLOW:AXCustomActionNamesForTesting
+-->
+
+<!-- Spec PR 1805 #aria-actions §6.8 has an Author SHOULD that targets
+     be visible when the host has DOM focus. Chromium drops invisible
+     targets from the serialized action list: visibility:hidden makes an
+     element unfocusable per HTML, and the target validation rejects
+     non-focusable elements. This test asserts that end-to-end. -->
+
+<!-- Case 1: visible target — expect the action to appear on the host. -->
+<div role="group" id="visible-host" aria-actions="visible-target">
+  Host with visible target
+</div>
+<button id="visible-target">Save</button>
+
+<!-- Case 2: visibility:hidden target — expect the action to be dropped;
+     the host still has aria-actions in markup but no valid targets. -->
+<div role="group" id="hidden-host" aria-actions="hidden-target">
+  Host with hidden target
+</div>
+<button id="hidden-target" style="visibility: hidden">Save hidden</button>
+
+<!-- Case 3: two targets, one visible and one hidden — expect only the
+     visible target's action to appear on the host. -->
+<div role="group" id="mixed-host" aria-actions="mixed-visible mixed-hidden">
+  Host with mixed targets
+</div>
+<button id="mixed-visible">Open</button>
+<button id="mixed-hidden" style="visibility: hidden">Open hidden</button>
+
+<!-- Case 4: target inherits visibility:hidden from an ancestor — expect
+     the action to be dropped, same as direct visibility:hidden. -->
+<div style="visibility: hidden">
+  <button id="ancestor-hidden-target">Save under hidden ancestor</button>
+</div>
+<div role="group" id="ancestor-hidden-host" aria-actions="ancestor-hidden-target">
+  Host with ancestor-hidden target
+</div>

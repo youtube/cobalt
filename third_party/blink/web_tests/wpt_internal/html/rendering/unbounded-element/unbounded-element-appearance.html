@@ -6,6 +6,7 @@
 <link rel="match" href="unbounded-element-appearance-ref.html">
 <script src="/resources/testdriver.js"></script>
 <script src="/resources/testdriver-vendor.js"></script>
+<script src="resources/unbounded-utils.js"></script>
 
 <style>
   #target {
@@ -33,14 +34,8 @@
 <div id="cover" popover></div>
 
 <script>
-(async () => {
-  await test_driver.bless("show unbounded");
-  try {
-    await target.showUnboundedElement();
-  } catch (e) {}
+unbounded_appearance_test(async () => {
+  await showUnboundedElement(target);
   cover.showPopover();
-  await new Promise(requestAnimationFrame);
-  await new Promise(requestAnimationFrame);
-  document.documentElement.classList.remove('reftest-wait');
-})();
+});
 </script>

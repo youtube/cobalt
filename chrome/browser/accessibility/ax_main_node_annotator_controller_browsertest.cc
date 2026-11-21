@@ -54,6 +54,8 @@ class AXMainNodeAnnotatorControllerBrowserTest : public InProcessBrowserTest {
   // InProcessBrowserTest overrides:
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
+    content::BrowserAccessibilityState::GetInstance()
+        ->SetActivationFromPlatformEnabled(true);
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_BROWSERTESTS)
     screen_ai::ScreenAIInstallState::GetInstance()->SetComponentFolder(

@@ -56,6 +56,25 @@ public class MediaNotificationInfo {
         /** Initializes the builder with the default values. */
         public Builder() {}
 
+        /** Initializes the builder with the values from another {@link MediaNotificationInfo}. */
+        public Builder(MediaNotificationInfo info) {
+            mMetadata = info.metadata;
+            mIsPaused = info.isPaused;
+            mOrigin = info.origin;
+            mInstanceId = info.instanceId;
+            mIsPrivate = info.isPrivate;
+            mNotificationSmallIcon = info.notificationSmallIcon;
+            mNotificationLargeIcon = info.notificationLargeIcon;
+            mDefaultNotificationLargeIcon = info.defaultNotificationLargeIcon;
+            mMediaSessionImage = info.mediaSessionImage;
+            mActions = info.mActions;
+            mId = info.id;
+            mContentIntent = info.contentIntent;
+            mListener = info.listener;
+            mMediaSessionActions = info.mediaSessionActions;
+            mMediaPosition = info.mediaPosition;
+        }
+
         public MediaNotificationInfo build() {
             assert mMetadata != null;
             assert mOrigin != null;

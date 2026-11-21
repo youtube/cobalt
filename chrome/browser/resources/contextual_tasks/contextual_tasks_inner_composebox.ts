@@ -26,7 +26,7 @@ import type {DragAndDropHost} from '//resources/cr_components/search/drag_drop_h
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
-import type {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
 import {getCss} from './contextual_tasks_inner_composebox.css.js';
@@ -202,6 +202,38 @@ export class
     super.willUpdate(changedProperties);
     if (changedProperties.has('inputPlaceholderOverride')) {
       this.updateInputPlaceholder();
+    }
+  }
+
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+    if (changedProperties.has('result') ||
+        changedProperties.has('showDropdown')) {
+      // Fires `show-suggestion-activity-link`; the wrapper owns the link UI.
+      this.shouldShowSuggestionActivityLink();
+    }
+  }
+
+  override onAutocompleteResultChanged(result: AutocompleteResult) {
+    // Reuse the mixin's dropdown/selection logic, but notify the wrapper via
+    // `result-changed` only for accepted results (mirrors cr-composebox).
+    const isValidResult =
+        !this.submitting && this.lastQueriedInput.trimStart() === result.input;
+    if (isValidResult && this.composeboxNoFlickerSuggestionsFix &&
+        this.showTypedSuggest &&
+        !this.haveReceivedSynchronousAutocompleteResponse) {
+      // First typed-suggest response can collapse the dropdown; carry over
+      // the prior non-verbatim matches.
+      if (this.result && this.result.matches.length > 0 &&
+          result.matches.length <= 1) {
+        result.matches.push(...this.result.matches.filter(
+            match => match.type !== 'search-what-you-typed'));
+      }
+      this.haveReceivedSynchronousAutocompleteResponse = true;
+    }
+    super.onAutocompleteResultChanged(result);
+    if (isValidResult) {
+      this.fire('result-changed', result);
     }
   }
 

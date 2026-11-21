@@ -524,10 +524,10 @@ void IsolatedWebAppPolicyManager::DoProcessPolicy(AllAppsLock& lock,
 
               auto installer = std::make_unique<IwaInstaller>(
                   action.options, IwaInstaller::InstallSourceType::kPolicy,
-                  profile_->GetURLLoaderFactory(),
+                  profile_,
                   *current_process_log_.EnsureDict("install_progress")
                        ->EnsureList(base::ToString(web_bundle_id)),
-                  provider_, std::move(callback));
+                  std::move(callback));
               install_tasks_.push(std::move(installer));
             },
         },

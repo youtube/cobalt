@@ -309,13 +309,16 @@ void ChildProcessLauncherHelper::LaunchOnLauncherThread() {
   }
 
   // Propagate the kWaitForDebugger switch to child process if the
-  // kWaitForDebuggerChildren is specified and matches the child process type.
+  // kWaitForDebuggerChildren is specified and matches the child process type
+  // or utility sub-type.
   const base::CommandLine& current_command_line =
       *base::CommandLine::ForCurrentProcess();
   if (current_command_line.HasSwitch(switches::kWaitForDebuggerChildren)) {
     std::string value = current_command_line.GetSwitchValueASCII(
         switches::kWaitForDebuggerChildren);
-    if (value.empty() || value == GetProcessType()) {
+    if (value.empty() || value == GetProcessType() ||
+        value ==
+            command_line()->GetSwitchValueASCII(switches::kUtilitySubType)) {
       command_line()->AppendSwitch(switches::kWaitForDebugger);
     }
   }

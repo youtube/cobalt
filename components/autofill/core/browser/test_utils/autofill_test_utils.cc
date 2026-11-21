@@ -70,6 +70,7 @@
 #include "components/prefs/testing_pref_store.h"
 #include "components/security_interstitials/core/pref_names.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "components/sync/protocol/autofill_specifics.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
@@ -150,6 +151,7 @@ std::unique_ptr<AutofillTestingPrefService> PrefServiceForTesting() {
   auto pref_service = std::make_unique<AutofillTestingPrefService>();
   user_prefs::PrefRegistrySyncable* registry = pref_service->registry();
   signin::IdentityManager::RegisterProfilePrefs(registry);
+  subscription_eligibility::prefs::RegisterProfilePrefs(registry);
   registry->RegisterBooleanPref(
       RandomizedEncoder::kUrlKeyedAnonymizedDataCollectionEnabled, false);
   registry->RegisterBooleanPref(::prefs::kMixedFormsWarningsEnabled, true);
@@ -1066,8 +1068,7 @@ void GenerateTestAutofillPopup(
   field.set_bounds(gfx::RectF(100.f, 100.f));
   autofill_external_delegate->OnQuery(
       form, field, /*caret_bounds=*/gfx::Rect(),
-      AutofillSuggestionTriggerSource::kFormControlElementClicked,
-      /*update_datalist=*/false);
+      AutofillSuggestionTriggerSource::kFormControlElementClicked);
 
   std::vector<Suggestion> suggestions;
   suggestions.emplace_back(u"Test suggestion",

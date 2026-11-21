@@ -73,10 +73,10 @@ source_set("lens") {
     "//chrome/browser/ui/contextual_search",
     "//chrome/browser/ui/desktop_to_mobile_promos:service",
     "//chrome/browser/ui/exclusive_access",
+    "//chrome/browser/ui/immersive:immersive_mode_controller",
     "//chrome/browser/ui/omnibox",
     "//chrome/browser/ui/side_panel",
     "//chrome/browser/ui/side_panel:side_panel_views_dependent",
-    "//chrome/browser/ui/views/frame:immersive_mode_controller",
     "//chrome/browser/ui/views/side_panel",
     "//chrome/browser/ui/webui/cr_components/searchbox",
     "//chrome/browser/ui/webui/searchbox",
@@ -291,6 +291,7 @@ source_set("browser_tests") {
     "//base/test:test_support",
     "//chrome/browser",
     "//chrome/browser/autocomplete:aim_eligibility_service",
+    "//chrome/browser/contextual_tasks:impl",
     "//chrome/browser/contextual_tasks:test_support",
     "//chrome/browser/contextual_tasks:ui",
     "//chrome/browser/lens/core/mojom:mojo_bindings",
@@ -362,7 +363,10 @@ source_set("interactive_ui_tests") {
   testonly = true
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
   sources = [
+    "contextual_tasks_lens_overlay_interactive_uitest.cc",
     "lens_overlay_controller_interactive_uitest.cc",
+    "lens_overlay_interactive_test_base.cc",
+    "lens_overlay_interactive_test_base.h",
     "lens_permission_bubble_controller_interactive_uitest.cc",
   ]
   deps = [

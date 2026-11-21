@@ -124,7 +124,7 @@ class ChromeOsWebAppExperimentsBrowserTest
   ChromeOsWebAppExperimentsBrowserTest() {
     std::vector<base::test::FeatureRefAndParams> enabled_features =
         apps::test::GetFeaturesToEnableLinkCapturingUX(
-            apps::test::LinkCapturingFeatureVersion::kV2DefaultOff);
+            apps::test::LinkCapturingFeatureVersion::kV2DefaultOn);
     enabled_features.emplace_back(chromeos::features::kUploadOfficeToCloud,
                                   base::FieldTrialParams());
     scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features, {});

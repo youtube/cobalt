@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/shared/model/prefs/browser_prefs.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
 #import "ios/web/public/test/fakes/fake_navigation_manager.h"
@@ -78,6 +79,9 @@ class TailoredSecurityTabHelperTest : public PlatformTest {
 
     TestProfileIOS::Builder test_profile_builder;
     test_profile_builder.SetPrefService(factory.CreateSyncable(registry.get()));
+    test_profile_builder.AddTestingFactory(
+        SyncServiceFactory::GetInstance(),
+        SyncServiceFactory::GetDefaultFactory());
     profile_ = std::move(test_profile_builder).Build();
     web_state_.SetBrowserState(profile_.get());
     // Needed to create InfoBarManager.

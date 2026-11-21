@@ -38,6 +38,7 @@ source_set("picture_in_picture") {
 
   deps = [
     "//chrome/app:generated_resources",
+    "//chrome/browser/content_settings",
     "//chrome/browser/media/webrtc",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile",
@@ -45,9 +46,11 @@ source_set("picture_in_picture") {
     "//chrome/browser/ui/content_settings",
     "//chrome/browser/ui/views/location_bar",
     "//chrome/browser/ui/views/page_info",
+    "//components/content_settings/browser",
     "//components/javascript_dialogs",
     "//components/omnibox/browser:location_bar",
     "//components/page_load_metrics/browser",
+    "//components/permissions",
     "//components/security_state/content",
     "//components/security_state/core",
     "//components/url_formatter",
@@ -65,6 +68,12 @@ source_set("picture_in_picture") {
       "//extensions/browser",
       "//extensions/common",
     ]
+  }
+
+  if (is_mac) {
+    public += [ "document_pip_native_widget_mac.h" ]
+    sources += [ "document_pip_native_widget_mac.mm" ]
+    deps += [ "//components/remote_cocoa/common:mojo" ]
   }
 }
 
@@ -89,6 +98,7 @@ source_set("unit_tests") {
     "//chrome/test:test_support",
     "//components/input",
     "//components/javascript_dialogs",
+    "//components/permissions",
     "//content/public/browser",
     "//content/test:test_support",
     "//testing/gtest",

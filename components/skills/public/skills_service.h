@@ -212,6 +212,9 @@ class SkillsService : public KeyedService {
   // Notify that a glic panel associated with the skills service is being
   // opened.
   virtual void NotifyPanelWillOpen() = 0;
+
+  // Checks if the image url of a skill is valid.
+  static bool IsValidSkillImageUrl(const GURL& gurl);
 };
 
 }  // namespace skills

@@ -7,8 +7,20 @@
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/browser/backend_promo/model/backend_promo_service.h"
 #import "ios/chrome/browser/backend_promo/model/backend_promo_service_factory.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 
 @implementation BackendPromoProfileAgent
+
+- (void)notifyServiceIfForegroundActive {
+  if (self.profileState.initStage < ProfileInitStage::kFinal) {
+    return;
+  }
+  BackendPromoService* service =
+      BackendPromoServiceFactory::GetForProfile(self.profileState.profile);
+  if (service) {
+    service->NotifyBackendAppForegroundActive();
+  }
+}
 
 #pragma mark - ProfileStateObserver
 
@@ -19,11 +31,21 @@
     return;
   }
 
-  // Initialize the BackendPromoService.
+  // Initialize early the BackendPromoService even if not foreground active yet.
   BackendPromoServiceFactory::GetForProfile(self.profileState.profile);
 
-  [profileState removeObserver:self];
-  [profileState removeAgent:self];
+  if (profileState.foregroundActiveScene) {
+    [self notifyServiceIfForegroundActive];
+  }
+}
+
+#pragma mark - SceneStateObserver
+
+- (void)sceneState:(SceneState*)sceneState
+    transitionedToActivationLevel:(SceneActivationLevel)level {
+  if (level == SceneActivationLevelForegroundActive) {
+    [self notifyServiceIfForegroundActive];
+  }
 }
 
 @end

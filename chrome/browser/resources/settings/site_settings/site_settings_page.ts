@@ -215,6 +215,16 @@ function getCategoryItemMap(): Map<ContentSettingsTypes, CategoryListItem> {
       disabledLabel: 'siteSettingsImagesBlocked',
     },
     {
+      route: routes.SITE_SETTINGS_INLINE_CUE_MENU,
+      id: Id.INLINE_CUE_MENU,
+      label: 'siteSettingsInlineCueMenu',
+      icon: 'settings20:text-analysis',
+      enabledLabel: 'siteSettingsInlineCueMenuAllowed',
+      disabledLabel: 'siteSettingsInlineCueMenuBlocked',
+      shouldShow: () =>
+          loadTimeData.getBoolean('enableInlineCueMenuContentSetting'),
+    },
+    {
       route: routes.SITE_SETTINGS_JAVASCRIPT,
       id: Id.JAVASCRIPT,
       label: 'siteSettingsJavascript',
@@ -572,6 +582,7 @@ export class SettingsSiteSettingsPageElement extends
               Id.JAVASCRIPT_OPTIMIZER,
               Id.AUTOMATIC_FULLSCREEN,
               Id.OFFER_WRITING_HELP,
+              Id.INLINE_CUE_MENU,
             ]),
           };
         },

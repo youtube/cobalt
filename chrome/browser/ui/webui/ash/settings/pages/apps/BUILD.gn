@@ -14,8 +14,6 @@ static_library("apps") {
     "app_parental_controls_handler.h",
     "apps_section.cc",
     "apps_section.h",
-    "plugin_vm_handler.cc",
-    "plugin_vm_handler.h",
   ]
 
   public_deps = [
@@ -38,7 +36,6 @@ static_library("apps") {
     "//chrome/browser/ash/arc",
     "//chrome/browser/ash/arc:arc_util",
     "//chrome/browser/ash/child_accounts/on_device_controls",
-    "//chrome/browser/ash/plugin_vm",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/ash/settings:resources",
     "//chrome/browser/ui/webui/ash/settings/pages/crostini",

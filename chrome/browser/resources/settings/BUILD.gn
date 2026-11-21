@@ -5,7 +5,6 @@
 import("//chrome/common/features.gni")
 import("//crypto/features.gni")
 import("//ui/webui/resources/tools/build_webui.gni")
-import("./settings.gni")
 
 assert(!is_android, "Android does not use these settings")
 
@@ -97,7 +96,6 @@ build_webui("build") {
     "controls/controlled_radio_button.ts",
     "controls/settings_checkbox.ts",
     "controls/settings_checkbox_list_entry.ts",
-    "controls/settings_dropdown_menu.ts",
     "controls/settings_radio_group.ts",
     "controls/settings_slider.ts",
     "controls/settings_toggle_button.ts",
@@ -166,9 +164,6 @@ build_webui("build") {
     "privacy_sandbox/privacy_sandbox_manage_topics_subpage.ts",
     "privacy_sandbox/privacy_sandbox_page.ts",
     "privacy_sandbox/privacy_sandbox_topics_subpage.ts",
-    "reset_page/reset_page.ts",
-    "reset_page/reset_profile_banner.ts",
-    "reset_page/reset_profile_dialog.ts",
     "safety_hub/extensions_module.ts",
     "safety_hub/notification_permissions_module.ts",
     "safety_hub/safety_hub_card.ts",
@@ -192,7 +187,6 @@ build_webui("build") {
     "settings_main/settings_main.ts",
     "settings_menu/settings_menu.ts",
     "settings_page/settings_section.ts",
-    "settings_page/settings_subpage.ts",
     "settings_ui/settings_ui.ts",
     "simple_confirmation_dialog.ts",
     "site_favicon.ts",
@@ -225,6 +219,7 @@ build_webui("build") {
     "site_settings/hid_devices_page.ts",
     "site_settings/idle_detection_page.ts",
     "site_settings/images_page.ts",
+    "site_settings/inline_cue_menu_page.ts",
     "site_settings/insecure_content_page.ts",
     "site_settings/javascript_page.ts",
     "site_settings/keyboard_lock_page.ts",
@@ -339,6 +334,8 @@ build_webui("build") {
     "base_mixin.ts",
     "clear_browsing_data_dialog/clear_browsing_data_browser_proxy.ts",
     "clear_browsing_data_dialog/clear_browsing_data_signin_util.ts",
+    "controls/settings_dropdown_menu.html.ts",
+    "controls/settings_dropdown_menu.ts",
     "downloads_page/downloads_browser_proxy.ts",
     "ensure_lazy_loaded.ts",
     "focus_config.ts",
@@ -364,6 +361,12 @@ build_webui("build") {
     "relaunch_mixin.ts",
     "relaunch_mixin_lit.ts",
     "reset_page/reset_browser_proxy.ts",
+    "reset_page/reset_page.html.ts",
+    "reset_page/reset_page.ts",
+    "reset_page/reset_profile_banner.html.ts",
+    "reset_page/reset_profile_banner.ts",
+    "reset_page/reset_profile_dialog.html.ts",
+    "reset_page/reset_profile_dialog.ts",
     "route.ts",
     "router.ts",
     "safety_hub/safety_hub_browser_proxy.ts",
@@ -374,6 +377,8 @@ build_webui("build") {
     "settings_main/settings_plugin.ts",
     "settings_page/searchable_view_container_mixin.ts",
     "settings_page/settings_view_mixin.ts",
+    "settings_page/settings_subpage.html.ts",
+    "settings_page/settings_subpage.ts",
     "site_settings/constants.ts",
     "site_settings/site_settings_browser_proxy.ts",
     "site_settings/site_settings_mixin.ts",
@@ -431,10 +436,14 @@ build_webui("build") {
     # subfolder files
     "about_page/about_page.css",
     "autofill_page/passwords_shared.css",
+    "controls/settings_dropdown_menu.css",
     "autofill_page/screen_reader_only.css",
     "autofill_page/your_saved_info_shared.css",
     "privacy_page/privacy_guide/privacy_guide_fragment_shared.css",
+    "reset_page/reset_profile_banner.css",
+    "reset_page/reset_profile_dialog.css",
     "search_page/search_engine_entry.css",
+    "settings_page/settings_subpage.css",
     "site_settings/clear_storage_dialog_shared.css",
     "site_settings/site_settings_shared.css",
   ]

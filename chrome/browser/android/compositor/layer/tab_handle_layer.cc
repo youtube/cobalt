@@ -6,6 +6,7 @@
 
 #include <math.h>
 
+#include <numbers>
 #include <vector>
 
 #include "cc/slim/layer.h"
@@ -81,7 +82,8 @@ void TabHandleLayer::SetProperties(
     float folio_foot_length,
     float width_to_hide_tab_title,
     float pinned_icon_offset_x,
-    bool is_underlined,
+    float underline_opacity,
+    float underline_shimmer_offset,
     SkColor underline_start_color,
     SkColor underline_end_color,
     int underline_width_threshold) {
@@ -387,10 +389,11 @@ void TabHandleLayer::SetProperties(
         gfx::PointF(overlay_x, overlay_y));
   }
 
-  if (is_underlined) {
+  if (underline_opacity > 0.f) {
     float underline_width = width - padding_left - padding_right;
 
     underline_start_layer_->SetIsDrawable(true);
+    underline_start_layer_->SetOpacity(underline_opacity);
     underline_start_layer_->SetBackgroundColor(
         SkColor4f::FromColor(underline_start_color));
     underline_start_layer_->SetBounds(gfx::Size(
@@ -406,6 +409,7 @@ void TabHandleLayer::SetProperties(
       underline_start_layer_->SetGradientMask(gfx::LinearGradient());
     } else {
       underline_end_layer_->SetIsDrawable(true);
+      underline_end_layer_->SetOpacity(underline_opacity);
       underline_end_layer_->SetBackgroundColor(
           SkColor4f::FromColor(underline_end_color));
       underline_end_layer_->SetBounds(gfx::Size(
@@ -416,9 +420,26 @@ void TabHandleLayer::SetProperties(
       underline_end_layer_->SetRoundedCorner(
           gfx::RoundedCornersF(tab_underline_corner_radius_));
 
+      // Use a 3-point gradient mask to create a moving wave/shimmer effect
+      // across the underline.
       gfx::LinearGradient gradient;
-      gradient.AddStep(0.f, 255);  // Opaque left (shows start_color: 50)
-      gradient.AddStep(1.f, 0);    // Transparent right (shows end_color: 70)
+      gradient.AddStep(
+          0.f, static_cast<uint8_t>(
+                   255 * (0.5f +
+                          0.5f * cos(std::numbers::pi_v<float> *
+                                     (0.f - 2.f * underline_shimmer_offset)))));
+      gradient.AddStep(
+          0.5f,
+          static_cast<uint8_t>(
+              255 *
+              (0.5f + 0.5f * cos(std::numbers::pi_v<float> *
+                                 (0.5f - 2.f * underline_shimmer_offset)))));
+      gradient.AddStep(
+          1.f, static_cast<uint8_t>(
+                   255 * (0.5f +
+                          0.5f * cos(std::numbers::pi_v<float> *
+                                     (1.f - 2.f * underline_shimmer_offset)))));
+      // TODO(crbug.com/509585777): Do we need to reverse this for RTL?
       gradient.set_angle(0);
       underline_start_layer_->SetGradientMask(gradient);
     }

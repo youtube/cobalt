@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {SelectFolderAction, StartSearchAction} from 'chrome://bookmarks/bookmarks.js';
+import type {BookmarksAppElement, SelectFolderAction, StartSearchAction} from 'chrome://bookmarks/bookmarks.js';
 import {BookmarksApiProxyImpl, BookmarksRouter, CrRouter, getDisplayedList, Store} from 'chrome://bookmarks/bookmarks.js';
 import {assertDeepEquals, assertEquals} from 'chrome://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -154,10 +154,19 @@ suite('<bookmarks-router-account-and-local>', function() {
 
 suite('URL preload', function() {
   let testBookmarksApiProxy: TestBookmarksApiProxy;
+  let app: BookmarksAppElement;
 
   setup(function() {
     testBookmarksApiProxy = new TestBookmarksApiProxy();
     BookmarksApiProxyImpl.setInstance(testBookmarksApiProxy);
+  });
+
+  teardown(function() {
+    // Teardown the element to ensure it is disconnected from the DOM, which
+    // removes event listeners from the active BookmarksApiProxy instance.
+    // This prevents the element from trying to remove listeners from a swapped
+    // proxy instance in subsequent test setups.
+    app.remove();
   });
 
   /**
@@ -190,7 +199,7 @@ suite('URL preload', function() {
           ]),
     ]);
 
-    const app = document.createElement('bookmarks-app');
+    app = document.createElement('bookmarks-app');
     document.body.appendChild(app);
     return microtasksFinished();
   }

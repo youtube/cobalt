@@ -37,6 +37,10 @@
 #import "third_party/ocmock/gtest_support.h"
 #import "url/gurl.h"
 
+namespace ios::provider {
+void SetMockProtectedUrl(bool is_protected);
+}
+
 @interface WebSelectionResponse (Testing)
 - (instancetype)initWithSelectedText:(NSString*)selectedText
                           sourceView:(UIView*)sourceView
@@ -102,6 +106,7 @@ class ExplainWithGeminiMediatorTest : public PlatformTest {
   }
 
   void TearDown() override {
+    ios::provider::SetMockProtectedUrl(false);
     mediator_ = nil;
     PlatformTest::TearDown();
   }
@@ -335,4 +340,39 @@ TEST_F(ExplainWithGeminiMediatorTest, AddItem_InvalidSelection) {
     EXPECT_TRUE(completionCalled);
     EXPECT_EQ(items.count, 0u);
   }
+}
+
+// Tests that `canPerformExplainWithGeminiInWebState` returns NO on a protected
+// URL (We need to ensure Explain With Gemini is not shown on protected URLs).
+TEST_F(ExplainWithGeminiMediatorTest, CanPerformExplain_ProtectedURL) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{kPageActionMenu, {}},
+       {kExplainGeminiEditMenu, {{"PositionForExplainGeminiEditMenu", "1"}}}},
+      {});
+
+  // Setup a valid eligible state on an unprotected URL.
+  fake_gemini_service_->SetIsEligible(true);
+
+  // Configure WebState to allow page context extraction.
+  auto frames_manager = std::make_unique<web::FakeWebFramesManager>();
+  auto main_frame = web::FakeWebFrame::CreateMainWebFrame();
+  frames_manager->AddWebFrame(std::move(main_frame));
+  web_state_->SetWebFramesManager(std::move(frames_manager));
+  web_state_->SetContentIsHTML(true);
+
+  id mockSceneHandler = OCMProtocolMock(@protocol(SceneCommands));
+  mediator_.sceneHandler = mockSceneHandler;
+
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+
+  // Ensure Explain With Gemini is available on unprotected URLs.
+  ios::provider::SetMockProtectedUrl(false);
+  EXPECT_TRUE(
+      [mediator_ canPerformExplainWithGeminiInWebState:web_state_.get()]);
+
+  // Ensure Explain With Gemini is not available on protected URLs.
+  ios::provider::SetMockProtectedUrl(true);
+  EXPECT_FALSE(
+      [mediator_ canPerformExplainWithGeminiInWebState:web_state_.get()]);
 }

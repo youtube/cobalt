@@ -254,18 +254,16 @@ GURL CredentialUIEntry::GetURL() const {
 
 std::optional<GURL> CredentialUIEntry::GetChangePasswordURL() const {
   GURL change_password_origin;
-  auto facetUri = password_manager::FacetURI::FromPotentiallyInvalidSpec(
-      GetFirstSignonRealm());
+  auto facetUri = FacetURI::FromPotentiallyInvalidSpec(GetFirstSignonRealm());
 
   if (facetUri.IsValidAndroidFacetURI()) {
     // Change url needs special handling for Android. Here we use
     // affiliation information instead of the origin.
     if (!GetAffiliatedWebRealm().empty()) {
-      return password_manager::CreateChangePasswordUrl(
-          GURL(GetAffiliatedWebRealm()));
+      return CreateChangePasswordUrl(GURL(GetAffiliatedWebRealm()));
     }
   } else if (GetURL().is_valid()) {
-    return password_manager::CreateChangePasswordUrl(GetURL());
+    return CreateChangePasswordUrl(GetURL());
   }
 
   return std::nullopt;

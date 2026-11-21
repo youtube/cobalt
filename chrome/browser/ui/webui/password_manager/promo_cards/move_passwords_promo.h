@@ -6,9 +6,12 @@
 #define CHROME_BROWSER_UI_WEBUI_PASSWORD_MANAGER_PROMO_CARDS_MOVE_PASSWORDS_PROMO_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/extensions/api/passwords_private/passwords_private_delegate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/password_manager/promo_card.h"
+
+namespace extensions {
+class PasswordsPrivateDelegate;
+}
 
 // Promo card to communicate that there are passwords saved only on this device.
 class MovePasswordsPromo : public password_manager::PasswordPromoCardBase {

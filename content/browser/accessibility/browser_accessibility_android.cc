@@ -511,12 +511,8 @@ bool BrowserAccessibilityAndroid::IsTableHeader() const {
 }
 
 bool BrowserAccessibilityAndroid::IsTextSelectable() const {
-  // This property tells Android if the node has selectable text, and is used as
-  // a heuristic to decide if extended selection should be communicated by text
-  // offset or child offset.
+  // This property tells Android if the node has selectable text, see:
   // https://developer.android.com/reference/android/view/accessibility/AccessibilityNodeInfo#isTextSelectable%28%29
-  // TODO(crbug.com/498376490): Update the above comment after Selection API
-  // with offset type is released.
   if (IsText() || IsAndroidTextView() || IsTextField()) {
     return true;
   }
@@ -875,7 +871,6 @@ bool BrowserAccessibilityAndroid::ComputeIsLeaf() const {
 
   // Focusable nodes with name from attribute should never drop children.
   if (HasState(ax::mojom::State::kFocusable) &&
-      HasIntAttribute(ax::mojom::IntAttribute::kNameFrom) &&
       GetNameFrom() == ax::mojom::NameFrom::kAttribute) {
     // We exclude menuItems and comboBoxMenuButtons to prevent double utterance.
     if (GetRole() != ax::mojom::Role::kMenuItem &&
@@ -893,23 +888,23 @@ bool BrowserAccessibilityAndroid::ComputeIsLeaf() const {
     return true;
   }
 
-  // Headings with text can drop their children (with exceptions).
-  std::u16string name = GetSubstringTextContentUTF16(1);
-  if (GetRole() == ax::mojom::Role::kHeading && !name.empty()) {
-    return IsLeafConsideringChildren();
-  }
-
-  // Focusable nodes with text can drop their children (with exceptions).
-  if (HasState(ax::mojom::State::kFocusable) && !name.empty()) {
-    return IsLeafConsideringChildren();
-  }
-
   // Nodes with only static text can drop their children, with the exception
   // that list markers have a different role and should not be dropped.
   if (HasOnlyTextChildren() && !HasListMarkerChild()) {
     return true;
   }
 
+  // Headings and focusable nodes can drop their children if the name comes from
+  // the node's contents in order to avoid announcing the contents twice. There
+  // are some exceptions where we want nodes to be navigatable despite the
+  // screen reader reading the contents twice such as a heading which contains a
+  // grid.
+  std::u16string name = GetSubstringTextContentUTF16(1);
+  if (!name.empty() && GetNameFrom() == ax::mojom::NameFrom::kContents &&
+      (HasState(ax::mojom::State::kFocusable) ||
+       GetRole() == ax::mojom::Role::kHeading)) {
+    return IsLeafConsideringChildren();
+  }
   return false;
 }
 
@@ -1262,7 +1257,16 @@ std::u16string BrowserAccessibilityAndroid::GetAndroidContentDescription()
     return name;
   }
 
-  return GetImageAnnotationText();
+  // A canvas annotation serves as the primary label for the canvas element
+  // if no developer-specified name (author intent) is present.
+  if (GetRole() == ax::mojom::Role::kCanvas) {
+    return GetCanvasAnnotationText();
+  }
+  if (ui::IsImage(GetRole())) {
+    return GetImageAnnotationText();
+  }
+
+  return u"";
 }
 
 std::u16string BrowserAccessibilityAndroid::GetAndroidSupplementalDescription()
@@ -1286,7 +1290,14 @@ std::u16string BrowserAccessibilityAndroid::GetAndroidSupplementalDescription()
   // as the name in GetAndroidContentDescription(), so we don't want it here as
   // well.
   if (!GetNameAsString16().empty()) {
-    return GetImageAnnotationText();
+    // If the canvas already has a developer name, expose the annotation
+    // as supplemental description.
+    if (GetRole() == ax::mojom::Role::kCanvas) {
+      return GetCanvasAnnotationText();
+    }
+    if (ui::IsImage(GetRole())) {
+      return GetImageAnnotationText();
+    }
   }
 
   return u"";
@@ -2785,8 +2796,11 @@ BrowserAccessibilityAndroid::ComputeAndroidNameTo() const {
       // For images, the generated annotation should map to contentDescription.
       if (ui::IsImage(GetRole()) && !GetImageAnnotationText().empty()) {
         name_to_cache_ = AndroidNameTo::kContentDescription;
+      } else if (GetRole() == ax::mojom::Role::kCanvas &&
+                 !GetCanvasAnnotationText().empty() &&
+                 GetNameAsString16().empty()) {
+        name_to_cache_ = AndroidNameTo::kContentDescription;
       } else {
-        // TODO(crbug.com/498093320): Add support for Canvas accessibility.
         name_to_cache_ = AndroidNameTo::kText;
       }
       break;
@@ -2820,6 +2834,13 @@ std::u16string BrowserAccessibilityAndroid::GetImageAnnotationText() const {
     case ax::mojom::ImageAnnotationStatus::kSilentlyEligibleForAnnotation:
       return std::u16string();
   }
+}
+
+std::u16string BrowserAccessibilityAndroid::GetCanvasAnnotationText() const {
+  if (GetRole() == ax::mojom::Role::kCanvas) {
+    return GetString16Attribute(ax::mojom::StringAttribute::kCanvasAnnotation);
+  }
+  return std::u16string();
 }
 
 std::u16string

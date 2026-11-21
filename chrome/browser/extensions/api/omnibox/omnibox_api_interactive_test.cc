@@ -779,9 +779,11 @@ IN_PROC_BROWSER_TEST_F(OmniboxApiTest, SetDefaultSuggestionFailures) {
                  content: 'content',
              };
              const expectedError = /Unexpected property: 'content'./;
+             // Verify `chrome.omnibox.setDefaultSuggestion` throws on invalid
+             // suggestion property.
              chrome.test.assertThrows(
-                 chrome.omnibox.setDefaultSuggestion,
-                 [invalidSuggestion],
+                 chrome.omnibox.setDefaultSuggestion.bind(
+                     null, invalidSuggestion),
                  expectedError);
              chrome.test.succeed();
            },

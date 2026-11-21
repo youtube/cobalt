@@ -21,16 +21,8 @@ class LineInfo;
 class LogicalLineContainer;
 class LogicalLineItems;
 class ShapeResult;
-class ShapeResultView;
-class UsedFont;
 struct InlineItemResult;
 struct LogicalRubyColumn;
-
-// Adjust over/under offsets for em height with alphabetic baseline.
-// This is used for emphasis marks.
-std::tuple<LayoutUnit, LayoutUnit> AdjustTextOverUnderOffsetsForEmphasis(
-    const ShapeResultView& shape_view,
-    const UsedFont& used_font);
 
 struct RubyItemIndexes {
   // Points a kOpenRubyColumn item.
@@ -132,6 +124,11 @@ void UpdateRubyColumnInlinePositions(
     LayoutUnit inline_size,
     HeapVector<Member<LogicalRubyColumn>>& column_list);
 
+// Update annotation_metrics of items of `line_box` which have text-emphasis.
+void SetTextEmphasisAnnotationMetrics(
+    const HeapVector<Member<LogicalRubyColumn>>& column_list,
+    LogicalLineItems& line_box);
+
 // This class calculates block positions of annotation lines on the base line.
 class CORE_EXPORT RubyBlockPositionCalculator {
   STACK_ALLOCATED();
@@ -170,6 +167,9 @@ class CORE_EXPORT RubyBlockPositionCalculator {
     void MaybeRecordBaseIndexes(const LogicalRubyColumn& logical_column);
     FontHeight UpdateMetrics();
     void MoveInBlockDirection(LayoutUnit offset);
+    void SetOffset(LayoutUnit offset) { offset_ = offset; }
+    LayoutUnit Offset() const { return offset_; }
+    FontHeight Metrics() const { return metrics_; }
     void AddLinesTo(LogicalLineContainer& line_container) const;
 
     const HeapVector<Member<LogicalRubyColumn>>& ColumnListForTesting() const {
@@ -187,6 +187,7 @@ class CORE_EXPORT RubyBlockPositionCalculator {
     Vector<wtf_size_t> base_index_list_;
 
     FontHeight metrics_ = FontHeight::Empty();
+    LayoutUnit offset_;
   };
 
   // Represents the maximum number of over/under annotations attached to the
@@ -220,6 +221,12 @@ class CORE_EXPORT RubyBlockPositionCalculator {
   // called after PlaceLines().
   RubyBlockPositionCalculator& AddLinesTo(LogicalLineContainer& line_container);
 
+  // Recalculates and updates `layout_annotation_metrics` for all columns in
+  // the `column_list` based on the finalized positions of annotation lines.
+  // This must be called after PlaceLines().
+  void UpdateColumnLayoutAnnotationMetrics(
+      const HeapVector<Member<LogicalRubyColumn>>& column_list) const;
+
   // Returns a metrics including all annotation lines. This must be called
   // after PlaceLines().
   FontHeight AnnotationMetrics() const;
@@ -234,6 +241,10 @@ class CORE_EXPORT RubyBlockPositionCalculator {
       const RubyLine& current_ruby_line,
       const HeapVector<Member<LogicalRubyColumn>>& column_list);
   RubyLine& EnsureRubyLine(const RubyLevel& level);
+  void UpdateColumnLayoutAnnotationMetrics(LogicalRubyColumn& column) const;
+  void AccumulateColumnOffsets(const LogicalRubyColumn& column,
+                               LayoutUnit& min_offset,
+                               LayoutUnit& max_offset) const;
 
   HeapVector<Member<RubyLine>, 2> ruby_lines_;
 

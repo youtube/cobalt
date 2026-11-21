@@ -14,6 +14,9 @@ export enum UmaName {
       'Accessibility.ReadAnything.DistilledPageStructure.NumberParagraphs',
   SPEECH_ERROR = 'Accessibility.ReadAnything.SpeechError',
   SPEECH_PLAYBACK = 'Accessibility.ReadAnything.SpeechPlaybackSession',
+  PDF_HEADING_TO_PARAGRAPH_RATIO =
+      'Accessibility.ReadAnything.Pdf.HeadingToParagraphRatio',
+  PDF_NUMBER_PARAGRAPHS = 'Accessibility.ReadAnything.Pdf.NumberParagraphs',
   SPEECH_SETTINGS_CHANGE =
       'Accessibility.ReadAnything.ReadAloud.SettingsChange',
   TEXT_SETTINGS_CHANGE = 'Accessibility.ReadAnything.SettingsChange',
@@ -153,7 +156,8 @@ export interface MetricsBrowserProxy {
   recordNewPage(): void;
   recordNewPageWithSpeech(): void;
   recordSpeechError(error: ReadAnythingSpeechError): void;
-  recordSpeechPlaybackLength(time: number): void;
+  recordSpeechPlaybackLength(umaName: string, time: number): void;
+  recordSpeechPlaybackLengthLegacy(time: number): void;
   recordSpeechSettingsChange(settingsChange: ReadAloudSettingsChange): void;
   recordSpeechStopSource(source: number): void;
   recordTextSettingsChange(settingsChange: ReadAnythingSettingsChange): void;
@@ -244,7 +248,11 @@ export class MetricsBrowserProxyImpl implements MetricsBrowserProxy {
     chrome.metricsPrivate.recordSmallCount(UmaName.VOICE_SPEED, index);
   }
 
-  recordSpeechPlaybackLength(time: number) {
+  recordSpeechPlaybackLength(umaName: string, time: number) {
+    chrome.metricsPrivate.recordLongTime(umaName, time);
+  }
+
+  recordSpeechPlaybackLengthLegacy(time: number) {
     chrome.metricsPrivate.recordLongTime(UmaName.SPEECH_PLAYBACK, time);
   }
 

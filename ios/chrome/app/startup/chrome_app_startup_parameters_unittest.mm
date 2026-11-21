@@ -836,4 +836,42 @@ TEST_F(AppStartupParametersTest, ExternalActionSchemeInvalidActionNoPath) {
                                      /*ACTION_INVALID*/ 0, 1);
 }
 
+// Tests that Google One deep links do not open the URL when the feature is
+// enabled.
+TEST_F(AppStartupParametersTest, GoogleOneDeepLink) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kSupportGoogleOneDeepLink);
+
+  NSURL* url = [NSURL URLWithString:@"https://one.google.com/deeplink"];
+  ChromeAppStartupParameters* params = [ChromeAppStartupParameters
+      startupParametersWithURL:url
+             sourceApplication:@"com.apple.mobilesafari"
+               applicationMode:ApplicationModeForTabOpening::UNDETERMINED
+          forceApplicationMode:NO];
+
+  ASSERT_TRUE(params);
+  EXPECT_TRUE([params externalURL].is_empty());
+  EXPECT_EQ("https://one.google.com/deeplink", [params completeURL].spec());
+  EXPECT_EQ(SHOW_GOOGLE_ONE_SCREEN, [params postOpeningAction]);
+}
+
+// Tests that Google One deep links open the URL normally when the feature is
+// disabled.
+TEST_F(AppStartupParametersTest, GoogleOneDeepLinkDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(kSupportGoogleOneDeepLink);
+
+  NSURL* url = [NSURL URLWithString:@"https://one.google.com/deeplink"];
+  ChromeAppStartupParameters* params = [ChromeAppStartupParameters
+      startupParametersWithURL:url
+             sourceApplication:@"com.apple.mobilesafari"
+               applicationMode:ApplicationModeForTabOpening::UNDETERMINED
+          forceApplicationMode:NO];
+
+  ASSERT_TRUE(params);
+  EXPECT_EQ("https://one.google.com/deeplink", [params externalURL].spec());
+  EXPECT_EQ("https://one.google.com/deeplink", [params completeURL].spec());
+  EXPECT_EQ(NO_ACTION, [params postOpeningAction]);
+}
+
 }  // namespace

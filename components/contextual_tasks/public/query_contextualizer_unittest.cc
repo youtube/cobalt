@@ -382,7 +382,7 @@ TEST_F(QueryContextualizerTest, Contextualize_ExtractsUrls) {
   // Expect GetPageContext call to NOT be called since the tab is not expired
   // and content hasn't changed. We mock GetFileInfoList to return the tab
   // so it's not updated.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -538,7 +538,7 @@ TEST_F(QueryContextualizerTest,
   // Expect GetPageContext call to NOT be called since the tab is not expired
   // and content hasn't changed. We mock GetFileInfoList to return the tab
   // so it's not updated.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -594,7 +594,7 @@ TEST_F(QueryContextualizerTest, Contextualize_RecontextualizeExpiredTab) {
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with expired status.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -686,7 +686,7 @@ TEST_F(QueryContextualizerTest, Contextualize_RecontextualizeContentChanged) {
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup context with uploaded status and some previous content.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -787,7 +787,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status and SAME content.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -895,7 +895,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status and some content.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -1005,7 +1005,7 @@ TEST_F(
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status and some content.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -1127,7 +1127,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status and some content.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -1237,7 +1237,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status, some content, and old screenshot.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -1360,7 +1360,7 @@ TEST_F(
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status, some content, and old screenshot.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -1575,7 +1575,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status and OLD bitmap.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -1680,7 +1680,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status and old content.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -1799,7 +1799,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with uploaded status and old content.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =
@@ -1918,7 +1918,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo list. First is superseded, second is active.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
 
   contextual_search::FileInfo file_info_superseded;
   file_info_superseded.tab_session_id = session_id;
@@ -2243,7 +2243,7 @@ TEST_F(QueryContextualizerTest,
                   callback) { std::move(callback).Run(std::move(context)); });
 
   // Setup FileInfo with expired status so it recontextualizes.
-  std::vector<const contextual_search::FileInfo*> file_info_list;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_info_list;
   contextual_search::FileInfo file_info;
   file_info.tab_session_id = session_id;
   file_info.upload_status =

@@ -3,7 +3,7 @@
   "direct": [
     {
       "build_file": "//bazel/external/dawn:BUILD.bazel",
-      "commit": "cbf8e7390fe1e11fa47571d5fb302ffd12db38e3",
+      "commit": "7807dcbdca245e462617c04d544706394db245ba",
       "name": "dawn",
       "remote": "https://dawn.googlesource.com/dawn.git"
     },
@@ -180,12 +180,12 @@
       "remote": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Cross"
     },
     {
-      "commit": "c63848ecf2200425511319fd8bf2c17b751e501e",
+      "commit": "daa093dd29aab8cbb6562b808370562f56e399fb",
       "name": "spirv_headers",
       "remote": "https://skia.googlesource.com/external/github.com/KhronosGroup/SPIRV-Headers.git"
     },
     {
-      "commit": "58fe144fdc8847b303be51d4f8fcc9e7da17056e",
+      "commit": "f25a3b067eed21f6ce43186942eec3c407cade02",
       "name": "spirv_tools",
       "remote": "https://skia.googlesource.com/external/github.com/KhronosGroup/SPIRV-Tools.git"
     },
@@ -197,7 +197,7 @@
     },
     {
       "build_file": "//bazel/external/vulkan_headers:BUILD.bazel",
-      "commit": "0307c70bfbf0646d56a604384b2a91525cefea15",
+      "commit": "d2d8ded679e53c9f27c0c7a18750e661745886eb",
       "name": "vulkan_headers",
       "remote": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Headers"
     },
@@ -209,7 +209,7 @@
     },
     {
       "build_file": "//bazel/external/vulkan_utility_libraries:BUILD.bazel",
-      "commit": "8183a0b86632bf1107553eab1e69d7b85d455477",
+      "commit": "ba450228e2ebb4059f8a7d4bb36610464e2f0741",
       "name": "vulkan_utility_libraries",
       "remote": "https://chromium.googlesource.com/external/github.com/KhronosGroup/Vulkan-Utility-Libraries"
     },
@@ -233,7 +233,7 @@
       "remote": "https://skia.googlesource.com/external/github.com/google/brotli.git"
     },
     {
-      "commit": "a09ceefd500400d44708586515203b7804b73760",
+      "commit": "d8e483edd8b44da1845874ee84b42489589bb90f",
       "name": "abseil_cpp",
       "remote": "https://chromium.googlesource.com/chromium/src/third_party/abseil-cpp"
     },

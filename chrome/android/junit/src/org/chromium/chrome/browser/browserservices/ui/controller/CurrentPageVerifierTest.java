@@ -35,7 +35,6 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.embedder_support.util.Origin;
 import org.chromium.content_public.browser.NavigationHandle;
-import org.chromium.content_public.browser.Page;
 import org.chromium.url.GURL;
 
 import java.util.Collections;
@@ -185,23 +184,7 @@ public class CurrentPageVerifierTest {
             tabObserver.onDidStartNavigationInPrimaryMainFrame(mTab, navigation);
         }
 
-        navigation.didFinish(
-                gurl,
-                /* isErrorPage= */ false,
-                /* hasCommitted= */ true,
-                /* isPrimaryMainFrameFragmentNavigation= */ false,
-                /* isDownload= */ false,
-                /* isValidSearchFormUrl= */ false,
-                /* transition= */ 0,
-                /* errorCode= */ 0,
-                /* errorDescription= */ "",
-                /* httpStatuscode= */ 200,
-                /* isExternalProtocol= */ false,
-                /* isPdf= */ false,
-                /* mimeType= */ "",
-                Page.createForTesting(),
-                /* isSameOrigin= */ true,
-                /* ignoredDuplicateNavigationCount= */ 0);
+        navigation.callDidFinishForTesting(gurl);
         for (CustomTabTabObserver tabObserver : mTabObserverCaptor.getAllValues()) {
             tabObserver.onDidFinishNavigationInPrimaryMainFrame(mTab, navigation);
         }

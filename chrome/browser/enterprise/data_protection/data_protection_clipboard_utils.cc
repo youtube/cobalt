@@ -735,6 +735,11 @@ void PasteFromGeminiIfAllowedByContentAnalysis(
             profile, GetSourceURL(destination), &dialog_data,
             enterprise_connectors::AnalysisConnector::BULK_DATA_ENTRY)) {
       dialog_data.text.push_back(std::move(data));
+      dialog_data.reason =
+          enterprise_connectors::ContentAnalysisRequest::CLIPBOARD_PASTE;
+      dialog_data.clipboard_source.set_context(
+          enterprise_connectors::ContentMetaData::CopiedTextSource::
+              GEMINI_IN_CHROME);
 
       enterprise_connectors::ContentAnalysisDelegate::CreateForWebContents(
           content::WebContents::FromRenderFrameHost(destination),
@@ -1012,11 +1017,6 @@ bool CanPopulateFindBarFromSelection(content::WebContents* web_contents) {
 
 bool IsDragAllowedByPolicy(const content::ClipboardEndpoint& source,
                            const content::DropData& drop_data) {
-  if (!base::FeatureList::IsEnabled(
-          data_controls::kDataControlsDragEnforcement)) {
-    return true;
-  }
-
   if (SkipDataControlOrContentAnalysisChecks(source)) {
     return true;
   }

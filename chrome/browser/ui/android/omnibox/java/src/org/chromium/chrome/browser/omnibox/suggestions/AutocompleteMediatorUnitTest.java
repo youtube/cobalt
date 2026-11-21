@@ -128,6 +128,7 @@ import java.util.function.Consumer;
 public class AutocompleteMediatorUnitTest {
     private static final int SUGGESTION_MIN_HEIGHT = 20;
     private static final int HEADER_MIN_HEIGHT = 15;
+    private static final long TEST_EVENT_TIME = 123L;
     private static final GURL PAGE_URL = new GURL("https://www.site.com/page.html");
     private static final String PAGE_TITLE = "Page Title";
     private static final String TABS_STARTER_PACK_KEYWORD = "@tabs";
@@ -1877,6 +1878,38 @@ public class AutocompleteMediatorUnitTest {
 
     @Test
     @SmallTest
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
+    public void loadTypedOmniboxText_emptyTextWithAttachments() {
+        FuseboxSessionState session = createEmptySession();
+        AutocompleteInput autocompleteInput = session.getAutocompleteInput();
+        autocompleteInput
+                .setUserText("")
+                .setPageClassification(
+                        PageClassification.INSTANT_NTP_WITH_OMNIBOX_AS_STARTING_FOCUS_VALUE)
+                .setRequestType(AutocompleteRequestType.AI_MODE);
+        when(mTextStateProvider.getTextWithAutocomplete()).thenReturn("");
+        SettableNonNullObservableSupplier<Boolean> hasAttachmentsSupplier =
+                ObservableSuppliers.createNonNull(true);
+        when(mFuseboxCoordinator.getHasAttachmentsSupplier()).thenReturn(hasAttachmentsSupplier);
+        doAnswer(
+                        invocation -> {
+                            Callback<GURL> callback = invocation.getArgument(2);
+                            callback.onResult(JUnitTestGURLs.BLUE_2);
+                            return null;
+                        })
+                .when(mComposeboxQueryControllerBridge)
+                .getAimUrl(any(), any(), any());
+
+        mMediator.beginInput(session);
+        mMediator.loadTypedOmniboxText(
+                TEST_EVENT_TIME, /* openInNewTab= */ false, /* openInNewWindow= */ false);
+
+        verify(mAutocompleteDelegate).loadUrl(mOmniboxLoadUrlParamsCaptor.capture());
+        assertEquals(mOmniboxLoadUrlParamsCaptor.getValue().url, JUnitTestGURLs.BLUE_2.getSpec());
+    }
+
+    @Test
+    @SmallTest
     public void loadTypedOmniboxText_imageGenerationUrl() {
         var session = createEmptySession();
         var autocompleteInput = session.getAutocompleteInput();
@@ -1912,7 +1945,7 @@ public class AutocompleteMediatorUnitTest {
         mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
 
         mMediator.loadTypedOmniboxText(
-                123L, /* openInNewTab= */ false, /* openInNewWindow= */ false);
+                TEST_EVENT_TIME, /* openInNewTab= */ false, /* openInNewWindow= */ false);
 
         verify(mAutocompleteDelegate).loadUrl(mOmniboxLoadUrlParamsCaptor.capture());
         assertEquals(mOmniboxLoadUrlParamsCaptor.getValue().url, url2.getSpec());

@@ -14,14 +14,20 @@
   align-self: center;
   /* Enable interpolation between 'max-content' and 0 */
   interpolate-size: allow-keywords;
+  --highlight-radius: calc(max(var(--toolbar-button-height),
+                               var(--toolbar-button-width, 0px)) / 2);
+  --label-side-spacing: round(down, calc(var(--highlight-radius) / 2), 1px);
 }
 
 #button {
-  border-radius: calc(max(var(--toolbar-button-height),
-                          var(--toolbar-button-width, 0px)) / 2);
+  border: none;
+  border-radius: var(--highlight-radius);
+  gap: 0;
   height: var(--toolbar-button-height);
+  line-height: var(--toolbar-button-line-height);
   margin: 0;
   min-width: var(--toolbar-button-height);
+  padding-block: 0;
   padding-inline-start: var(--toolbar-button-padding-left);
   padding-inline-end: var(--toolbar-button-padding-right);
 }
@@ -41,25 +47,53 @@
 }
 
 #icon {
+  --icon-size: var(--toolbar-button-icon-size);
   border-radius: 50%;
+  display: inline-block;
   height: var(--toolbar-button-icon-size);
-  object-fit: contain;
   width: var(--toolbar-button-icon-size);
 }
 
 #text {
   display: inline-block;
+  font-family: var(--toolbar-button-font-family);
+  font-size: var(--toolbar-button-font-size);
+  font-weight: var(--toolbar-button-font-weight);
+  line-height: var(--toolbar-button-line-height);
   margin-inline-start: var(--avatar-chip-icon-label-spacing);
+  padding-inline-end: var(--label-side-spacing);
   max-width: max-content;
   overflow: hidden;
   text-overflow: ellipsis;
+  transform: translateY(3px);
   transition: max-width 200ms ease-out, margin-inline-start 200ms ease-out,
-      opacity 200ms ease-out;
+      padding-inline-end 200ms ease-out, opacity 200ms ease-out;
   white-space: nowrap;
 }
 
 #text:not([visible]) {
   margin-inline-start: 0;
+  padding-inline-end: 0;
   max-width: 0;
   opacity: 0;
+}
+
+#button.highlight-default {
+  background-color: var(--color-avatar-button-highlight-default);
+  color: var(--color-avatar-button-highlight-default-foreground);
+}
+
+#button.highlight-sync-error {
+  background-color: var(--color-avatar-button-highlight-sync-error);
+  color: var(--color-avatar-button-highlight-sync-error-foreground);
+}
+
+#button.highlight-guest {
+  background-color: var(--color-avatar-button-highlight-guest);
+  color: var(--color-avatar-button-highlight-guest-foreground);
+}
+
+#button.highlight-incognito {
+  background-color: var(--color-avatar-button-highlight-incognito);
+  color: var(--color-avatar-button-highlight-incognito-foreground);
 }

@@ -306,6 +306,37 @@ IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
                                                       args, GetProfile()));
 }
 
+// Regression test: openInNewWindow must apply the same scheme deny-list as
+// openInNewTab so a compromised bookmarks WebUI renderer can't open a denied
+// scheme (e.g. devtools://, javascript:) as a top-level window.
+IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
+                       RunOpenInNewWindowFunctionRejectsDeniedScheme) {
+  const BookmarkNode* devtools_node =
+      model()->AddURL(model()->other_node(), 0, u"devtools",
+                      GURL("devtools://devtools/bundled/devtools_app.html"));
+  std::string devtools_id = base::NumberToString(devtools_node->id());
+
+  auto devtools_function =
+      base::MakeRefCounted<BookmarkManagerPrivateOpenInNewWindowFunction>();
+  EXPECT_EQ("Cannot navigate to a devtools:// page.",
+            api_test_utils::RunFunctionAndReturnError(
+                devtools_function.get(),
+                base::StringPrintf(R"([["%s"], false])", devtools_id.c_str()),
+                GetProfile()));
+
+  // javascript: URLs are likewise denied (a different PrepareURLForNavigation
+  // branch than devtools://).
+  const BookmarkNode* js_node = model()->AddURL(model()->other_node(), 0, u"js",
+                                                GURL("javascript:alert(1)"));
+  std::string js_id = base::NumberToString(js_node->id());
+
+  auto js_function =
+      base::MakeRefCounted<BookmarkManagerPrivateOpenInNewWindowFunction>();
+  EXPECT_FALSE(api_test_utils::RunFunction(
+      js_function.get(),
+      base::StringPrintf(R"([["%s"], false])", js_id.c_str()), GetProfile()));
+}
+
 // Mock SelectFileDialog to track ListenerDestroyed calls.
 class MockSelectFileDialog : public ui::SelectFileDialog {
  public:

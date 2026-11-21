@@ -30,7 +30,8 @@ declare_args() {
 
   if (use_fuzzing_engine && (is_linux || is_chromeos)) {
     # For fuzzing, just restrict to chromeos and linux.
-    use_cups = true
+    # 32-bit Linux fuzzer builds don't include libcups.so.2.
+    use_cups = target_cpu != "x86"
   } else {
     use_cups = (is_chromeos_device || (is_linux && !is_castos) || is_mac) &&
                !is_fuchsia

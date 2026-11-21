@@ -19,15 +19,12 @@ class AutofillPersonalContextProperties {
             new ReadableObjectPropertyKey<>("on_personal_context_toggle_changed");
     static final ReadableObjectPropertyKey<Runnable> ON_MANAGE_CONNECTED_APPS_CLICKED =
             new ReadableObjectPropertyKey<>("on_manage_connected_apps_clicked");
-    static final ReadableObjectPropertyKey<Runnable> ON_MANAGE_SUGGESTIONS_CLICKED =
-            new ReadableObjectPropertyKey<>("on_manage_suggestions_clicked");
 
     static final PropertyKey[] ALL_KEYS =
             new PropertyKey[] {
                 PERSONAL_CONTEXT_ENABLED,
                 ON_PERSONAL_CONTEXT_TOGGLE_CHANGED,
                 ON_MANAGE_CONNECTED_APPS_CLICKED,
-                ON_MANAGE_SUGGESTIONS_CLICKED,
             };
 
     private AutofillPersonalContextProperties() {}

@@ -119,10 +119,6 @@ class PageNodeImpl
     return page_token_;
   }
 
-  // Returns a Perfetto track that can record trace events for the page. This
-  // function can be called from any thread.
-  const perfetto::NamedTrack& tracing_track() const { return tracing_track_; }
-
   // Initializes the page type. The current type must be kUnknown.
   void SetType(PageType type);
 
@@ -273,8 +269,6 @@ class PageNodeImpl
   const content::WebContents::UniqueToken page_token_;
 
   // Perfetto track that can record trace events for the page.
-  const perfetto::NamedTrack tracing_track_;
-  const perfetto::NamedTrack loading_track_;
   const perfetto::NamedTrack frames_track_;
 
   // The main frame nodes of this page. There can be more than one main frame

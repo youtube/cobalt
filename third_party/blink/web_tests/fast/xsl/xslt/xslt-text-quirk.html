@@ -1,8 +1,6 @@
 <script>
-    if (window.testRunner) {
+    if (window.testRunner)
         testRunner.dumpAsText();
-        testRunner.dumpChildFrames();
-    }
 
     function log(message)
     {
@@ -10,10 +8,19 @@
         console.appendChild(document.createTextNode(message + "\n"));
     }
 
-    function dumpDOM(doc)
+    function dumpDOM(frame)
     {
-        log(doc.documentElement.innerHTML);
+        var doc = frame.contentDocument;
+        var root = doc.documentElement;
+        log(root.innerHTML);
+
+        var viewer = internals.shadowRoot(root);
+        log("XML viewer in iframe: " + !!viewer);
+        if (viewer) {
+            log("XML viewer shows source XML: " +
+                viewer.textContent.includes("SOURCE XML: <<<&тест&>>>"));
+        }
     }
 </script>
 <pre id="console"></pre>
-<iframe onload="dumpDOM(this.contentDocument)" src="resources/xslt-text.xml"></iframe>
+<iframe onload="dumpDOM(this)" src="resources/xslt-text.xml"></iframe>

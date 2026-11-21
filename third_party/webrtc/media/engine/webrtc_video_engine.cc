@@ -163,7 +163,8 @@ std::vector<SdpVideoFormat> GetDefaultSupportedFormats(
     // is microseconds.) This parameter MUST be present in the SDP, but
     // we never use the actual value anywhere in our code however.
     // TODO(brandtr): Consider honouring this value in the sender and receiver.
-    flexfec_format.parameters = {{kFlexfecFmtpRepairWindow, "10000000"}};
+    flexfec_format.parameters = {
+        {std::string(kFlexfecFmtpRepairWindow), "10000000"}};
     supported_formats.push_back(flexfec_format);
   }
   return supported_formats;
@@ -2734,6 +2735,9 @@ void WebRtcVideoSendChannel::WebRtcVideoSendStream::RecreateWebRtcStream() {
     // SVC is used instead of simulcast. Remove unnecessary SSRCs.
     if (config.rtp.ssrcs.size() > 1) {
       config.rtp.ssrcs.resize(1);
+      if (config.rtp.rids.size() > 1) {
+        config.rtp.rids.resize(1);
+      }
       if (config.rtp.rtx.ssrcs.size() > 1) {
         config.rtp.rtx.ssrcs.resize(1);
       }

@@ -1224,13 +1224,30 @@ bool ContentSettingSensorsImageModel::UpdateAndGetVisibility(
     return false;
   }
 
+  // If no requested sensor is available, hide the icon
+  if (!content_settings->is_any_requested_sensor_available()) {
+    return false;
+  }
+
+  // If allowed but no sensors are actively in use, hide the icon (only if we
+  // are tracking sensor usage, which is tied to the LHS flag).
+  if (allowed && !blocked &&
+      base::FeatureList::IsEnabled(
+          content_settings::features::kLeftHandSideSensorActivityIndicators) &&
+      content_settings->active_available_sensors() == 0) {
+    return false;
+  }
+
   HostContentSettingsMap* map = HostContentSettingsMapFactory::GetForProfile(
       Profile::FromBrowserContext(web_contents->GetBrowserContext()));
 
   // Do not show any indicator if sensors are allowed by default and they were
-  // not blocked in this page.
-  if (!blocked && map->GetDefaultContentSetting(content_type(), nullptr) ==
-                      CONTENT_SETTING_ALLOW) {
+  // not blocked in this page, unless the Stage 3 feature flag is enabled.
+  if (!blocked &&
+      map->GetDefaultContentSetting(content_type(), nullptr) ==
+          CONTENT_SETTING_ALLOW &&
+      !base::FeatureList::IsEnabled(
+          features::kSensorsAllowAskBlockPermissionModel)) {
     return false;
   }
 

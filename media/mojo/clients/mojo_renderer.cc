@@ -62,7 +62,8 @@ void MojoRenderer::Initialize(MediaResource* media_resource,
 
   // Create mojom::DemuxerStream for each demuxer stream and bind its lifetime
   // to the pipe.
-  std::vector<DemuxerStream*> streams = media_resource_->GetAllStreams();
+  std::vector<raw_ptr<DemuxerStream>> streams =
+      media_resource_->GetAllStreams();
   std::vector<mojo::PendingRemote<mojom::DemuxerStream>> stream_proxies;
 
   for (media::DemuxerStream* stream : streams) {

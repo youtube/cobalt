@@ -10,6 +10,7 @@
 #include <optional>
 #include <utility>
 
+#include "src/base/compiler-specific.h"
 #include "src/base/functional/function-ref.h"
 #include "src/base/logging.h"
 #include "src/base/memcopy.h"
@@ -1116,6 +1117,12 @@ class MaglevReducer {
                                           Function&& getValue);
   ReduceResult BuildLoadJSDataViewByteLength(ValueNode* js_data_view);
   ReduceResult BuildLoadJSDataViewDataPointer(ValueNode* js_data_view);
+  ReduceResult BuildLoadElements(
+      ValueNode* object, std::optional<ElementsKind> kind = std::nullopt);
+
+  ReduceResult BuildAssumeMapForElements(ValueNode* elements,
+                                         ElementsKind kind);
+
   MaybeReduceResult TryReduceStringLength(ValueNode* string);
 
   ReduceResult BuildCheckInstanceType(ValueNode* object, NodeType target_type,
@@ -1335,9 +1342,48 @@ class MaglevReducer {
   NodeType CheckTypes(ValueNode* node, std::initializer_list<NodeType> types) {
     return known_node_aspects().CheckTypes(broker(), node, types);
   }
-  bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+
+  V8_NODISCARD bool EnsureType(ValueNode* node, NodeType type,
+                               NodeType* old = nullptr) {
     return known_node_aspects().EnsureType(broker(), node, type, old);
   }
+
+  void RecordType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
+    // For Turbolev, we insert an AssumeType node when recording a previously
+    // not-known type so that the GraphOptimizer (and in particular the KNA
+    // processor) can also be aware of this type when non-eagerly reoptimizing
+    // the graph later.
+    if (const bool already_known = EnsureType(node, type, old);
+        already_known || !is_turbolev()) {
+      return;
+    }
+    if (const auto* virtual_object = node->TryCast<VirtualObject>()) {
+      if (!virtual_object->allocation()) {
+        return;
+      }
+      node = virtual_object->allocation();
+    }
+
+    switch (node->value_representation()) {
+      case ValueRepresentation::kTagged:
+        AddNewNodeNoInputConversion<AssumeTaggedType>({node}, type);
+        break;
+      case ValueRepresentation::kInt32:
+        AddNewNodeNoInputConversion<AssumeInt32Type>({node}, type);
+        break;
+      case ValueRepresentation::kUint32:
+        AddNewNodeNoInputConversion<AssumeUint32Type>({node}, type);
+        break;
+      case ValueRepresentation::kFloat64:
+        AddNewNodeNoInputConversion<AssumeFloat64Type>({node}, type);
+        break;
+      default:
+        // If you ever run into the UNREACHABLE below, you might need to add a
+        // new `Assume` operation.
+        UNREACHABLE();
+    }
+  }
+
   bool IsEmptyNodeType(NodeType type) {
     return v8::internal::maglev::IsEmptyNodeType(type);
   }

@@ -36,9 +36,14 @@ class AAudioInputDiscontinuityReporter {
     }
 
     const base::TimeDelta delta = capture_time - *last_capture_time_;
+    const base::TimeDelta discontinuity_size =
+        (delta - buffer_duration_).magnitude();
 
-    if ((delta - buffer_duration_).magnitude() > discontinuity_threshold_) {
+    if (discontinuity_size > discontinuity_threshold_) {
       discontinuity_count_++;
+      base::UmaHistogramTimes(
+          "Media.Audio.Android.AAudio.InputTimestampDiscontinuitySize",
+          discontinuity_size);
     }
 
     last_capture_time_ = capture_time;

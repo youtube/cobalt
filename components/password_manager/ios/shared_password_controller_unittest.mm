@@ -459,7 +459,7 @@ TEST_F(SharedPasswordControllerTest,
             &web_state_, main_frame_ptr);
     EXPECT_CALL(
         password_manager_,
-        ProcessAutofillPredictions(password_driver,
+        ProcessAutofillPredictions(::testing::Ref(*password_driver),
                                    ::testing::Property(&FormData::renderer_id,
                                                        main_form.renderer_id()),
                                    ::testing::SizeIs(1)));
@@ -470,7 +470,7 @@ TEST_F(SharedPasswordControllerTest,
             &web_state_, child_frame_ptr);
     EXPECT_CALL(password_manager_,
                 ProcessAutofillPredictions(
-                    password_driver,
+                    ::testing::Ref(*password_driver),
                     ::testing::Property(&FormData::renderer_id,
                                         child_form.renderer_id()),
                     ::testing::SizeIs(2)));

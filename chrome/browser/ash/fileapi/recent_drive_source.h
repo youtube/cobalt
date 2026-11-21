@@ -59,8 +59,10 @@ class RecentDriveSource : public RecentSource {
   // call_id parameter.
   struct CallContext {
     explicit CallContext(GetRecentFilesCallback callback);
-    // Move constructor necessary due to move-only callback type.
-    CallContext(CallContext&& callcontext);
+    CallContext(const CallContext&) = delete;
+    CallContext& operator=(const CallContext&) = delete;
+    CallContext(CallContext&&) = delete;
+    CallContext& operator=(CallContext&&) = delete;
     ~CallContext();
 
     // The callback on which the results are delivered.

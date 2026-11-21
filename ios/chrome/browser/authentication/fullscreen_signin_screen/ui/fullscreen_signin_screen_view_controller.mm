@@ -21,6 +21,7 @@
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_branded_strings.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
@@ -132,9 +133,7 @@ NSString* const kCollaborationSigninHeaderBackground =
       break;
     }
     case SigninScreenConsumerSigninStatusDisabled: {
-      UIUserInterfaceIdiom idiom =
-          [[UIDevice currentDevice] userInterfaceIdiom];
-      if (idiom == UIUserInterfaceIdiomPad) {
+      if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
         self.titleText =
             l10n_util::GetNSString(IDS_IOS_FIRST_RUN_WELCOME_SCREEN_TITLE_IPAD);
       } else {

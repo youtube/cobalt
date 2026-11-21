@@ -31,7 +31,6 @@ class RectF;
 
 namespace gpu {
 class ContextSupport;
-class RasterScopedAccess;
 struct Capabilities;
 
 namespace gles2 {
@@ -208,7 +207,7 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
       scoped_refptr<VideoFrame> video_frame,
       gpu::gles2::GLES2Interface* gl,
       gpu::ContextSupport* context_support,
-      std::unique_ptr<gpu::RasterScopedAccess> ri_access = nullptr);
+      base::OnceCallback<gpu::SyncToken()> sync_callback);
 
   // Copies VideoFrame contents to the `destination` shared image. if
   // `use_visible_rect` is set to true, only `VideoFrame::visible_rect()`

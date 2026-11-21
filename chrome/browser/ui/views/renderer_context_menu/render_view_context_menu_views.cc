@@ -328,7 +328,7 @@ bool RenderViewContextMenuViews::IsCommandIdChecked(int command_id) const {
 
 bool RenderViewContextMenuViews::IsCommandIdEnabled(int command_id) const {
   switch (command_id) {
-    case IDC_WRITING_DIRECTION_MENU:
+    case kWritingDirectionMenuId:
       return true;
     case IDC_WRITING_DIRECTION_DEFAULT:  // Provided to match OS defaults.
       return params_.writing_direction_default &
@@ -368,7 +368,7 @@ void RenderViewContextMenuViews::AppendPlatformEditableItems() {
       l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_WRITING_DIRECTION_RTL));
 
   menu_model_.AddSubMenu(
-      IDC_WRITING_DIRECTION_MENU,
+      kWritingDirectionMenuId,
       l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_WRITING_DIRECTION_MENU),
       &bidi_submenu_model_);
 }

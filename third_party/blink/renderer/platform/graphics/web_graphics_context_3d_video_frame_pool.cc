@@ -198,8 +198,7 @@ void CopyToGpuMemoryBuffer(
   // since we'll set the empty sync token on the video frame on GPU completion.
   // But if we ever refactor this code to have a "don't wait for GMB" mode, the
   // correct sync token on the video frame will be needed.
-  gpu::SyncToken completion_sync_token;
-  ri->GenUnverifiedSyncTokenCHROMIUM(completion_sync_token.GetData());
+  gpu::SyncToken completion_sync_token = copy_to_gmb_done_sync_token;
   media::SimpleSyncTokenClient simple_client(completion_sync_token);
   dst_frame->UpdateAcquireSyncToken(completion_sync_token);
   dst_frame->UpdateReleaseSyncToken(&simple_client);

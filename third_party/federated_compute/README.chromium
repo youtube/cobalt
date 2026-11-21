@@ -28,3 +28,9 @@ Local Modifications:
   fcp/secagg/shared/secagg_messages.proto
 
   Removed unused parts, which are incompatible with Chromium.
+
+- fcp/client/attestation/attestation_transparency_verifier.h
+- fcp/client/attestation/attestation_transparency_verifier.cc
+
+  Removed unused by Chromium record logger which introduces a large dependency
+  on verification record proto, and transitively, access policy proto.

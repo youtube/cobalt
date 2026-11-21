@@ -64,6 +64,8 @@ mojom::ParsedHeadersPtr PopulateParsedHeaders(
   if (base::FeatureList::IsEnabled(network::features::kConnectionAllowlists)) {
     parsed_headers->connection_allowlists =
         ParseConnectionAllowlistsFromHeaders(*headers, url);
+    parsed_headers->allow_connection_allowlist_from =
+        ParseAllowConnectionAllowlistFromHeader(*headers);
   }
 
   if (base::FeatureList::IsEnabled(network::features::kIntegrityPolicyScript)) {
@@ -172,14 +174,10 @@ mojom::ParsedHeadersPtr PopulateParsedHeaders(
   parsed_headers->allow_cross_origin_event_reporting =
       ParseAllowCrossOriginEventReportingFromHeader(*headers);
 
-  if (base::FeatureList::IsEnabled(
-          network::features::kDeclarativePerformanceObserver)) {
-    if (std::optional<std::string> performance_observer_header =
-            headers->GetNormalizedHeader("Performance-Observer")) {
-      parsed_headers->declarative_performance_observer_policy =
-          ParseDeclarativePerformanceObserverPolicy(
-              *performance_observer_header);
-    }
+  if (std::optional<std::string> performance_observer_header =
+          headers->GetNormalizedHeader("Performance-Observer")) {
+    parsed_headers->declarative_performance_observer_policy =
+        ParseDeclarativePerformanceObserverPolicy(*performance_observer_header);
   }
 
   if (std::optional<std::string> prefetch_activation_beacon =

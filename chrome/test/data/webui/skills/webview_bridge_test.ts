@@ -4,8 +4,9 @@
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {SkillsWebviewBridge} from 'chrome://skills/v2/skills_webview_bridge.js';
-import {SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE} from 'chrome://skills/v2/skills_webview_bridge_constants.js';
+import {HANDSHAKE_TIMEOUT_MS, SKILLS_HANDSHAKE_ACK, SKILLS_HANDSHAKE_TYPE, SKILLS_HOST_URL} from 'chrome://skills/v2/skills_webview_bridge_constants.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 
 import {createSkillsHostProxyOnLoad} from './api_boot.js';
 
@@ -67,7 +68,7 @@ suite('SkillsWebviewBridgeTest', () => {
   });
 
   test('HostInitiatesHandshakeAndReceivesAck', async () => {
-    bridge = new SkillsWebviewBridge(webview);
+    bridge = new SkillsWebviewBridge(webview, () => {});
 
     assertFalse(bridge.isConnected());
 
@@ -83,7 +84,7 @@ suite('SkillsWebviewBridgeTest', () => {
     // Trigger loadcommit to start handshake.
     const event = new CustomEvent('loadcommit');
     Object.defineProperty(event, 'isTopLevel', {value: true});
-    Object.defineProperty(event, 'url', {value: window.location.href});
+    Object.defineProperty(event, 'url', {value: SKILLS_HOST_URL});
     webview.dispatchEvent(event);
 
     // Verify ping was sent.
@@ -101,12 +102,13 @@ suite('SkillsWebviewBridgeTest', () => {
       window.addEventListener('message', handler);
     });
 
-    // Send matching ACK via real window.postMessage.
-    window.postMessage(
-        {
-          type: SKILLS_HANDSHAKE_ACK,
-        },
-        '*');
+    // Send matching ACK via mock MessageEvent to simulate correct origin.
+    const messageEvent = new MessageEvent('message', {
+      data: {type: SKILLS_HANDSHAKE_ACK},
+      origin: new URL(SKILLS_HOST_URL).origin,
+      source: window,
+    });
+    window.dispatchEvent(messageEvent);
 
     await ackPromise;
     assertTrue(bridge.isConnected());
@@ -128,5 +130,32 @@ suite('SkillsWebviewBridgeTest', () => {
     const ackMessage =
         postedMessages.find(m => m.type === SKILLS_HANDSHAKE_ACK);
     assertTrue(!!ackMessage);
+  });
+
+  test('HandshakeTimesOut', () => {
+    let errorCalled = false;
+    bridge = new SkillsWebviewBridge(webview, () => {
+      errorCalled = true;
+    });
+
+    const mockTimer = new MockTimer();
+    mockTimer.install();
+
+    // Trigger loadcommit to start handshake.
+    const event = new CustomEvent('loadcommit');
+    Object.defineProperty(event, 'isTopLevel', {value: true});
+    Object.defineProperty(event, 'url', {value: SKILLS_HOST_URL});
+    webview.dispatchEvent(event);
+
+    // The error callback should not be called immediately.
+    assertFalse(errorCalled);
+
+    // Fast-forward time to trigger handshake timeout.
+    mockTimer.tick(HANDSHAKE_TIMEOUT_MS);
+
+    assertTrue(errorCalled);
+    assertFalse(bridge.isConnected());
+
+    mockTimer.uninstall();
   });
 });

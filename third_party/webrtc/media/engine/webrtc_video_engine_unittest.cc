@@ -59,6 +59,7 @@
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_codec_type.h"
+#include "api/video/video_common.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame_buffer.h"
 #include "api/video/video_rotation.h"
@@ -98,7 +99,6 @@
 #include "media/base/rid_description.h"
 #include "media/base/stream_params.h"
 #include "media/base/test_utils.h"
-#include "media/base/video_common.h"
 #include "media/engine/fake_webrtc_call.h"
 #include "media/engine/fake_webrtc_video_engine.h"
 #include "modules/rtp_rtcp/include/report_block_data.h"
@@ -2623,7 +2623,7 @@ TEST_F(WebRtcVideoChannelBaseTest, TwoStreamsSendAndReceive) {
   // TODO(pbos): Set up the quality scaler so that both senders reliably start
   // at QVGA, then verify that instead.
   Codec codec = GetEngineCodec("VP8");
-  codec.params[kCodecParamStartBitrate] = "1000000";
+  codec.SetParam(kCodecParamStartBitrate, "1000000");
   TwoStreamsSendAndReceive(codec);
 }
 
@@ -2890,9 +2890,9 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
     auto& codecs = send_parameters_.codecs;
     codecs.clear();
     codecs.push_back(GetEngineCodec("VP8"));
-    codecs[0].params[kCodecParamMinBitrate] = min_bitrate_kbps;
-    codecs[0].params[kCodecParamStartBitrate] = start_bitrate_kbps;
-    codecs[0].params[kCodecParamMaxBitrate] = max_bitrate_kbps;
+    codecs[0].SetParam(kCodecParamMinBitrate, min_bitrate_kbps);
+    codecs[0].SetParam(kCodecParamStartBitrate, start_bitrate_kbps);
+    codecs[0].SetParam(kCodecParamMaxBitrate, max_bitrate_kbps);
     EXPECT_TRUE(send_channel_->SetSenderParameters(send_parameters_));
   }
 
@@ -4946,8 +4946,8 @@ TEST_F(WebRtcVideoChannelTest, SetSendCodecsCapsMinAndStartBitrate) {
 }
 
 TEST_F(WebRtcVideoChannelTest, SetSendCodecsRejectsMaxLessThanMinBitrate) {
-  send_parameters_.codecs[0].params[kCodecParamMinBitrate] = "300";
-  send_parameters_.codecs[0].params[kCodecParamMaxBitrate] = "200";
+  send_parameters_.codecs[0].SetParam(kCodecParamMinBitrate, "300");
+  send_parameters_.codecs[0].SetParam(kCodecParamMaxBitrate, "200");
   EXPECT_FALSE(send_channel_->SetSenderParameters(send_parameters_));
 }
 
@@ -4986,9 +4986,9 @@ TEST_F(WebRtcVideoChannelTest,
 // Test that when both the codec-specific bitrate params and max_bandwidth_bps
 // are present in the same send parameters, the settings are combined correctly.
 TEST_F(WebRtcVideoChannelTest, SetSendCodecsWithBitratesAndMaxSendBandwidth) {
-  send_parameters_.codecs[0].params[kCodecParamMinBitrate] = "100";
-  send_parameters_.codecs[0].params[kCodecParamStartBitrate] = "200";
-  send_parameters_.codecs[0].params[kCodecParamMaxBitrate] = "300";
+  send_parameters_.codecs[0].SetParam(kCodecParamMinBitrate, "100");
+  send_parameters_.codecs[0].SetParam(kCodecParamStartBitrate, "200");
+  send_parameters_.codecs[0].SetParam(kCodecParamMaxBitrate, "300");
   send_parameters_.max_bandwidth_bps = 400000;
   // We expect max_bandwidth_bps to take priority, if set.
   ExpectSetBitrateParameters(100000, 200000, 400000);
@@ -5001,13 +5001,13 @@ TEST_F(WebRtcVideoChannelTest, SetSendCodecsWithBitratesAndMaxSendBandwidth) {
   EXPECT_TRUE(send_channel_->SetSenderParameters(send_parameters_));
 
   // Now try again with the values flipped around.
-  send_parameters_.codecs[0].params[kCodecParamMaxBitrate] = "400";
+  send_parameters_.codecs[0].SetParam(kCodecParamMaxBitrate, "400");
   send_parameters_.max_bandwidth_bps = 300000;
   ExpectSetBitrateParameters(100000, 200000, 300000);
   EXPECT_TRUE(send_channel_->SetSenderParameters(send_parameters_));
 
   // If we change the codec max, max_bandwidth_bps should still apply.
-  send_parameters_.codecs[0].params[kCodecParamMaxBitrate] = "350";
+  send_parameters_.codecs[0].SetParam(kCodecParamMaxBitrate, "350");
   ExpectSetBitrateParameters(100000, 200000, 300000);
   EXPECT_TRUE(send_channel_->SetSenderParameters(send_parameters_));
 }
@@ -5053,9 +5053,9 @@ TEST_F(WebRtcVideoChannelTest, SetMaxSendBandwidthAndAddSendStream) {
 // appropriately.
 TEST_F(WebRtcVideoChannelTest,
        MaxBitratePrioritizesVideoSendParametersOverCodecMaxBitrate) {
-  send_parameters_.codecs[0].params[kCodecParamMinBitrate] = "100";
-  send_parameters_.codecs[0].params[kCodecParamStartBitrate] = "200";
-  send_parameters_.codecs[0].params[kCodecParamMaxBitrate] = "300";
+  send_parameters_.codecs[0].SetParam(kCodecParamMinBitrate, "100");
+  send_parameters_.codecs[0].SetParam(kCodecParamStartBitrate, "200");
+  send_parameters_.codecs[0].SetParam(kCodecParamMaxBitrate, "300");
   send_parameters_.max_bandwidth_bps = -1;
   AddSendStream();
   ExpectSetMaxBitrate(300000);
@@ -5082,9 +5082,9 @@ TEST_F(WebRtcVideoChannelTest,
 // appropriately.
 TEST_F(WebRtcVideoChannelTest,
        MaxBitratePrioritizesRtpParametersOverCodecMaxBitrate) {
-  send_parameters_.codecs[0].params[kCodecParamMinBitrate] = "100";
-  send_parameters_.codecs[0].params[kCodecParamStartBitrate] = "200";
-  send_parameters_.codecs[0].params[kCodecParamMaxBitrate] = "300";
+  send_parameters_.codecs[0].SetParam(kCodecParamMinBitrate, "100");
+  send_parameters_.codecs[0].SetParam(kCodecParamStartBitrate, "200");
+  send_parameters_.codecs[0].SetParam(kCodecParamMaxBitrate, "300");
   send_parameters_.max_bandwidth_bps = -1;
   AddSendStream();
   ExpectSetMaxBitrate(300000);
@@ -5194,14 +5194,16 @@ TEST_F(WebRtcVideoChannelTest, SetSendCodecsWithMaxQuantization) {
   static const char* kMaxQuantization = "21";
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP8"));
-  parameters.codecs[0].params[kCodecParamMaxQuantization] = kMaxQuantization;
+  parameters.codecs[0].SetParam(kCodecParamMaxQuantization, kMaxQuantization);
   EXPECT_TRUE(send_channel_->SetSenderParameters(parameters));
   EXPECT_EQ(atoi(kMaxQuantization),
             AddSendStream()->GetVideoStreams().back().max_qp);
 
   std::optional<Codec> codec = send_channel_->GetSendCodec();
   ASSERT_TRUE(codec);
-  EXPECT_EQ(kMaxQuantization, codec->params[kCodecParamMaxQuantization]);
+  std::string max_quantization;
+  EXPECT_TRUE(codec->GetParam(kCodecParamMaxQuantization, &max_quantization));
+  EXPECT_EQ(kMaxQuantization, max_quantization);
 }
 
 TEST_F(WebRtcVideoChannelTest, SetSendCodecsRejectBadPayloadTypes) {
@@ -9569,15 +9571,15 @@ TEST_F(WebRtcVideoChannelTest, DISABLED_GetRtpReceiveFmtpSprop) {
   ASSERT_EQ(2u, cfg.decoders.size());
   EXPECT_EQ(101, cfg.decoders[0].payload_type);
   EXPECT_EQ("H264", cfg.decoders[0].video_format.name);
-  const auto it0 =
-      cfg.decoders[0].video_format.parameters.find(kH264FmtpSpropParameterSets);
+  const auto it0 = cfg.decoders[0].video_format.parameters.find(
+      std::string(kH264FmtpSpropParameterSets));
   ASSERT_TRUE(it0 != cfg.decoders[0].video_format.parameters.end());
   EXPECT_EQ("uvw", it0->second);
 
   EXPECT_EQ(102, cfg.decoders[1].payload_type);
   EXPECT_EQ("H264", cfg.decoders[1].video_format.name);
-  const auto it1 =
-      cfg.decoders[1].video_format.parameters.find(kH264FmtpSpropParameterSets);
+  const auto it1 = cfg.decoders[1].video_format.parameters.find(
+      std::string(kH264FmtpSpropParameterSets));
   ASSERT_TRUE(it1 != cfg.decoders[1].video_format.parameters.end());
   EXPECT_EQ("xyz", it1->second);
 }

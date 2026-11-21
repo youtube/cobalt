@@ -19,17 +19,18 @@ void FederatedAuthRequestRequestTokenCallbackHelper::WaitForCallback() {
 }
 
 void FederatedAuthRequestRequestTokenCallbackHelper::ReceiverMethod(
-    blink::mojom::RequestTokenStatus status,
-    const std::optional<GURL>& selected_idp_config_url,
-    std::optional<base::Value> token,
-    blink::mojom::TokenErrorPtr error,
-    bool is_auto_selected) {
+    base::expected<blink::mojom::TokenRequestSuccessPtr,
+                   blink::mojom::TokenRequestFailurePtr> result) {
   CHECK(!was_called_);
-  status_ = status;
-  selected_idp_config_url_ = selected_idp_config_url;
-  token_ = std::move(token);
-  error_ = std::move(error);
-  is_auto_selected_ = is_auto_selected;
+  if (result.has_value()) {
+    status_ = blink::mojom::RequestTokenStatus::kSuccess;
+    selected_idp_config_url_ = result.value()->selected_idp_config_url;
+    token_ = std::move(result.value()->token);
+    is_auto_selected_ = result.value()->is_auto_selected;
+  } else {
+    status_ = result.error()->status;
+    error_ = std::move(result.error()->error);
+  }
   was_called_ = true;
   wait_for_callback_loop_.Quit();
 }

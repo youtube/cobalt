@@ -319,8 +319,13 @@ void AutocompleteResult::AppendMatches(const ACMatches& matches) {
         match.provider ? match.provider->GetName() : "None";
     debug_stream << ", Provider: " << provider_name;
 
-    DCHECK_EQ(AutocompleteMatch::SanitizeString(match.contents), match.contents)
-        << debug_stream.str();
+    // IPH matches intentionally append trailing whitespace to their `contents`
+    // in order to visually space it from their `iph_link_text`.
+    if (match.iph_type == IphType::kNone) {
+      DCHECK_EQ(AutocompleteMatch::SanitizeString(match.contents),
+                match.contents)
+          << debug_stream.str();
+    }
     DCHECK_EQ(AutocompleteMatch::SanitizeString(match.description),
               match.description)
         << debug_stream.str();
@@ -469,16 +474,20 @@ void AutocompleteResult::SortAndCull(
   // current input & platform are supported, delegate to the framework.
   if (is_zero_suggest) {
     PSections sections;
-    if constexpr (is_android_mobile) {
+    if (is_android_any && omnibox::IsAndroidHub(page_classification)) {
+      sections.push_back(
+          std::make_unique<AndroidHubZPSSection>(suggestion_groups_map_));
+    } else if (is_android_any &&
+               omnibox::IsAndroidWidget(page_classification)) {
+      sections.push_back(
+          std::make_unique<AndroidWebZpsSection>(suggestion_groups_map_));
+    } else if constexpr (is_android_mobile) {
       if (omnibox::IsNTPPage(page_classification)) {
         sections.push_back(std::make_unique<AndroidNTPZpsSection>(
             suggestion_groups_map_, mia_enabled));
       } else if (omnibox::IsSearchResultsPage(page_classification)) {
         sections.push_back(
             std::make_unique<AndroidSRPZpsSection>(suggestion_groups_map_));
-      } else if (omnibox::IsAndroidHub(page_classification)) {
-        sections.push_back(
-            std::make_unique<AndroidHubZPSSection>(suggestion_groups_map_));
       } else if (omnibox::IsComposebox(page_classification)) {
         auto composebox_suggestion_limit_config =
             omnibox_feature_configs::ComposeboxSuggestionLimit::Get();
@@ -714,6 +723,10 @@ void AutocompleteResult::SortAndCull(
     } else if (is_android_any && omnibox::IsComposebox(page_classification)) {
       sections.push_back(std::make_unique<AndroidComposeboxNonZPSSection>(
           suggestion_groups_map_));
+    } else if (is_android_any &&
+               omnibox::IsAndroidWidget(page_classification)) {
+      sections.push_back(std::make_unique<AndroidNonZPSSection>(
+          /* show_only_search_suggestions= */ false, suggestion_groups_map_));
     } else if (is_android_mobile) {
       bool show_only_search_suggestions =
           omnibox::IsCustomTab(page_classification);
@@ -1285,6 +1298,25 @@ size_t AutocompleteResult::CalculateNumMatchesPerUrlCount(
 void AutocompleteResult::Reset() {
   session_ = {};
   ClearMatches();
+}
+
+const std::vector<omnibox::metrics::ChromeSearchboxStats::ExperimentStatsV2>&
+AutocompleteResult::experiment_stats_v2s_in_session() const {
+  return session_.experiment_stats_v2s;
+}
+
+void AutocompleteResult::add_experiment_stat_v2_in_session(
+    const omnibox::metrics::ChromeSearchboxStats::ExperimentStatsV2& stat) {
+  auto it = std::find_if(
+      session_.experiment_stats_v2s.begin(),
+      session_.experiment_stats_v2s.end(),
+      [&stat](const omnibox::metrics::ChromeSearchboxStats::ExperimentStatsV2&
+                  existing) { return existing.type_int() == stat.type_int(); });
+  if (it == session_.experiment_stats_v2s.end()) {
+    session_.experiment_stats_v2s.push_back(stat);
+  } else {
+    *it = stat;
+  }
 }
 
 void AutocompleteResult::ClearMatches() {

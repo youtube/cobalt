@@ -7,9 +7,16 @@ if (chrome.dictationPrivate === undefined) {
   chrome.test.sendMessage('failed');
 } else {
   chrome.dictationPrivate.onStartStream.addListener(async (details) => {
-    const {streamId, pageContext, editableContent} = details;
+    const {streamId, context} = details;
+    const {annotatedPageContent, innerText, editableContent} = context;
     chrome.test.assertEq(123, streamId);
-    chrome.test.assertEq('Page context', pageContext);
+    chrome.test.assertTrue(annotatedPageContent instanceof ArrayBuffer);
+    const view = new Uint8Array(annotatedPageContent);
+    chrome.test.assertEq(3, view.length);
+    chrome.test.assertEq(1, view[0]);
+    chrome.test.assertEq(2, view[1]);
+    chrome.test.assertEq(3, view[2]);
+    chrome.test.assertEq('Foo Bar', innerText);
     chrome.test.assertEq('Existing content', editableContent);
 
     chrome.test.assertTrue(

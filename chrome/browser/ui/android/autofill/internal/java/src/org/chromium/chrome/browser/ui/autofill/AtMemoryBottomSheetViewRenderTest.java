@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.ui.autofill;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetCoordinator.ITEM_TYPE_ZERO_STATE;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSearchTileProperties.TILE_DETAILS;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSearchTileProperties.TILE_ICON;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSearchTileProperties.TILE_TITLE;
@@ -226,8 +227,7 @@ public class AtMemoryBottomSheetViewRenderTest {
                     PropertyModel searchTileModel =
                             createSearchTileModel(
                                     "flight",
-                                    mActivity.getString(
-                                            R.string.autofill_at_memory_search_tile_details),
+                                    "Powered by Personal Intelligence with Gemini",
                                     R.drawable.ic_spark_24dp);
                     modelList.add(
                             new ListItem(
@@ -257,6 +257,48 @@ public class AtMemoryBottomSheetViewRenderTest {
         mRenderTestRule.render(
                 mActivity.findViewById(android.R.id.content),
                 "at_memory_bottom_sheet_view_search_tile");
+    }
+
+    @Test
+    @Feature({"RenderTest"})
+    public void testAtMemoryBottomSheetView_zeroState() throws Exception {
+        ContextThemeWrapper themeWrapper =
+                new ContextThemeWrapper(mActivity, R.style.Theme_BrowserUI_DayNight);
+
+        runOnUiThreadBlocking(
+                () -> {
+                    mView = new AtMemoryBottomSheetView(themeWrapper);
+                    AtMemoryBottomSheetContent content =
+                            new AtMemoryBottomSheetContent(
+                                    mView.getContentView(), mBottomSheetController);
+
+                    ModelList modelList = new ModelList();
+                    modelList.add(new ListItem(ITEM_TYPE_ZERO_STATE, new PropertyModel()));
+
+                    SimpleRecyclerViewAdapter adapter = new SimpleRecyclerViewAdapter(modelList);
+                    adapter.registerType(
+                            ITEM_TYPE_ZERO_STATE,
+                            new LayoutViewBuilder<>(
+                                    R.layout.at_memory_bottom_sheet_zero_state_item),
+                            (m, v, k) -> {});
+                    mView.setRecyclerViewAdapter(adapter);
+                    mView.setShowSuggestionsBackground(false);
+
+                    mBottomSheetController.requestShowContent(content, false);
+                });
+
+        ViewUtils.waitForStableView(mView.getContentView());
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    RecyclerView recyclerView =
+                            mView.getContentView().findViewById(R.id.suggestions_view);
+                    if (recyclerView.getChildCount() <= 0) {
+                        throw new RuntimeException("No children in recycler view");
+                    }
+                });
+        mRenderTestRule.render(
+                mActivity.findViewById(android.R.id.content),
+                "at_memory_bottom_sheet_view_zero_state");
     }
 
     private static PropertyModel createSuggestionModel(

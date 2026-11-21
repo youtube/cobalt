@@ -37,19 +37,20 @@ constexpr base::TimeDelta kDefaultTimeout = base::Minutes(1);
 
 ShowOptions CreateShowOptions(
     const GlicInvokeHandler::ResolvedTarget& resolved_target,
-    mojom::InvocationSource invocation_source) {
+    const GlicInvokeOptions& options) {
   ShowOptions show_options = std::visit(
       absl::Overload{[&](const GlicInvokeHandler::TabSurface& tab_surface) {
                        return ShowOptions::ForSidePanel(
                            *tab_surface.tab, GlicPinTrigger::kInstanceCreation,
-                           invocation_source);
+                           options.GetInvocationSource());
                      },
                      [&](Floating) {
                        return ShowOptions::ForFloating(
                            /*source_tab=*/tabs::TabHandle::Null());
                      }},
       resolved_target);
-  show_options.invocation_source = invocation_source;
+  show_options.invocation_source = options.GetInvocationSource();
+  show_options.focus_on_show = options.focus_on_show;
   return show_options;
 }
 
@@ -232,8 +233,7 @@ void GlicInvokeHandler::Invoke() {
                        weak_ptr_factory_.GetWeakPtr())));
   }
 
-  ShowOptions show_options =
-      CreateShowOptions(resolved_target_, options_.GetInvocationSource());
+  ShowOptions show_options = CreateShowOptions(resolved_target_, options_);
 
   if (options_.fre_override != mojom::FreOverride::kUnspecified) {
     show_options.fre_override = options_.fre_override;

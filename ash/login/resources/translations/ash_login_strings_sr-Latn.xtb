@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Možete da pokušate i da <ph name="GUEST_SIGNIN_LINK_START" />pregledate kao gost<ph name="GUEST_SIGNIN_LINK_END" /> da biste ispravili ovu grešku na mreži.</translation>
 <translation id="1201402288615127009">Dalje</translation>
 <translation id="1222835797152767346">Podesite PIN da biste olakšali prijavljivanje</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Funkcije za otklanjanje grešaka<ph name="END_H3" />
+          <ph name="BR" />
+          Možete da omogućite funkcije za otklanjanje grešaka na ChromeOS uređaju da biste instalirali i testirali prilagođeni kôd na uređaju. To će vam omogućiti:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Da uklonite rootfs verifikaciju da biste mogli da menjate fajlove operativnog sistema
+            <ph name="LIST_ITEM" />Da omogućite SSH pristup uređaju pomoću standardnih probnih ključeva da biste mogli da koristite alatke kao što je <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> radi pristupa uređaju
+            <ph name="LIST_ITEM" />Da omogućite uključivanje sa USB-a da biste mogli da instalirate sliku operativnog sistema sa USB diska
+            <ph name="LIST_ITEM" />Da podešavate i programersku i sistemsku osnovnu lozinku za prijavljivanje na prilagođenu vrednost da biste mogli ručno da instalirate SSH na uređaj
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Kada ih omogućite, većina funkcija za otklanjanje grešaka će ostati omogućena čak i kada izvršite powerwash ili obrišete podatke na uređaju kojim upravlja preduzeće. Da biste u potpunosti onemogućili sve funkcije za otklanjanje grešaka, obavite proces oporavka ChromeOS-a (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Više informacija o funkcijama za otklanjanje grešaka potražite na:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Napomena<ph name="END_BOLD" />: Sistem će se restartovati tokom ovog procesa.</translation>
 <translation id="1347625331607114917">Verifikujte kôd na Android telefonu</translation>
 <translation id="1347975661240122359">Ažuriranje će početi kada nivo napunjenosti baterije bude <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Podešavanje je dovršeno. Sada pripremite uređaj za igranje igara</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Preuzimanje aplikacija</translation>
 <translation id="5045550434625856497">Neispravna lozinka</translation>
 <translation id="5062930723426326933">Prijavljivanje nije uspelo. Povežite se sa internetom i pokušajte ponovo.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Četujte sa Gemini-jem da biste počeli da pišete, planirate, učite i drugo uz Google veštačku inteligenciju.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Posle podešavanja počnite da koristite Gemini tako što ćete izabrati aplikaciju Gemini na polici u dnu ekrana.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Uključite <ph name="DEVICE_TYPE" /> u izvor napajanja.</translation>
 <translation id="5147516217412920887">Pratite uputstva na telefonu da biste verifikovali kôd</translation>
 <translation id="5160857336552977725">Prijavite se na <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Funkcije za otklanjanje grešaka<ph name="END_H3" />
+          <ph name="BR" />
+          Možete da omogućite funkcije za otklanjanje grešaka na ChromeOS Flex uređaju da biste instalirali i testirali prilagođeni kôd na uređaju. To će vam omogućiti:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Da uklonite rootfs verifikaciju da biste mogli da menjate fajlove operativnog sistema
+            <ph name="LIST_ITEM" />Da omogućite SSH pristup uređaju pomoću standardnih probnih ključeva da biste mogli da koristite alatke kao što je <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> radi pristupa uređaju
+            <ph name="LIST_ITEM" />Da omogućite uključivanje sa USB-a da biste mogli da instalirate sliku operativnog sistema sa USB diska
+            <ph name="LIST_ITEM" />Da podešavate i programersku i sistemsku osnovnu lozinku za prijavljivanje na prilagođenu vrednost da biste mogli ručno da instalirate SSH na uređaj
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Kada ih omogućite, većina funkcija za otklanjanje grešaka će ostati omogućena čak i kada izvršite powerwash ili obrišete podatke na uređaju kojim upravlja preduzeće. Da biste u potpunosti onemogućili sve funkcije za otklanjanje grešaka, obavite proces oporavka ChromeOS-a (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Više informacija o funkcijama za otklanjanje grešaka potražite na:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Napomena<ph name="END_BOLD" />: Sistem će se restartovati tokom ovog procesa.</translation>
 <translation id="523505283826916779">Podešavanja pristupačnosti</translation>
 <translation id="5240931875940563122">Prijavi me pomoću Android telefona</translation>
 <translation id="5255859108402770436">Prijavite se ponovo</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Omogućavate Chrome OS funkcije za otklanjanje grešaka koje će podesiti sshd daemon i omogućiti uključivanje sa USB diskova.</translation>
 <translation id="6965382102122355670">Potvrdi</translation>
 <translation id="6981982820502123353">Pristupačnost</translation>
+<translation id="6984652455487792101">Ako koristite proksi server, proverite podešavanja proksija ili
+        se obratite administratoru mreže da biste se uverili da proksi
+        server funkcioniše. Ako mislite da ne treba da koristite
+        proksi server, prilagodite <ph name="LINK_START" />podešavanja proksija<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Uključite Bluetooth i WiFi na telefonu</translation>
 <translation id="7077829361966535409">Učitavanje stranice za prijavljivanje pomoću aktuelnih podešavanja proksija nije uspelo. <ph name="GAIA_RELOAD_LINK_START" />Probajte ponovo da se prijavite<ph name="GAIA_RELOAD_LINK_END" /> ili koristite neka druga <ph name="PROXY_SETTINGS_LINK_START" />podešavanja proksija<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Lozinke se ne podudaraju</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Potvrdite lozinku</translation>
 <translation id="7352651011704765696">Došlo je do greške</translation>
 <translation id="7476454130948140105">Nivo napunjenosti baterije je prenizak za ažuriranje (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Pre nego što se registrujete, treba da obrišete TPM da bi <ph name="DEVICE_OS" /> mogao da preuzme vlasništvo nad uređajem.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Možete i u potpunosti da isključite TPM uređaj. Vaši podaci će se i dalje bezbedno čuvati pomoću softverskog šifrovanja, ali određene bezbednosne funkcije, poput hardverskih sertifikata, biće onemogućene.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Podešavanja TPM-a možete da promenite restartovanjem i unosom BIOS/UEFI podešavanja. Koraci se razlikuju u zavisnosti od modela uređaja. Da biste pronašli više informacija, otvorite dokumentaciju za <ph name="DEVICE_OS" /> na posebnom uređaju pre restartovanja: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Omogućavanje funkcija za otklanjanje grešaka na ovom <ph name="IDS_SHORT_PRODUCT_NAME" /> uređaju</translation>
 <translation id="7553242001898162573">Unesite lozinku</translation>
 <translation id="7556242789364317684">Nažalost, <ph name="SHORT_PRODUCT_NAME" /> ne može da povrati podešavanja. Da bi otklonio grešku, <ph name="SHORT_PRODUCT_NAME" /> mora da vrati uređaj na početna podešavanja pomoću Powerwash-a.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Prebacuju se informacije o Google nalogu sa Android telefona</translation>
 <translation id="8524841856047224176">Personalizujte pozadine kamere za video pozive i drugo</translation>
 <translation id="8569673829373920831">Više o aplikaciji <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Pratite uputstva na telefonu da biste skenirali QR kôd. Proverite da li je Bluetooth na telefonu uključen.
+        <ph name="BR" />
+        <ph name="BR" />
+        Vidljivo uređajima u blizini kao <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">Prijavljivanje nije uspelo jer nismo uspeli da verifikujemo lozinku. Kontaktirajte administratora ili pokušajte ponovo.</translation>
 <translation id="8674903726754070732">Nažalost, računar je konfigurisan pomoću pogrešno formatiranog ID-a hardvera. To sprečava da se Chrome OS ažurira najnovijim bezbednosnim ispravkama i računar <ph name="BEGIN_BOLD" />može da bude podložan zlonamernim napadima<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Dodajte roditeljski nadzor posle podešavanja</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Provera ažuriranja nije uspela pomoću aktuelnih podešavanja proksija. Prilagodite <ph name="PROXY_SETTINGS_LINK_START" />podešavanja proksija<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Sačuvana podešavanja i aktivnosti će biti spremni na bilo kom Chrome OS uređaju kada se prijavite pomoću Google naloga. Možete da odaberete šta ćete sinhronizovati u podešavanjima.</translation>
 <translation id="8875221558267407626">Rezimirajte sadržaj, pojednostavite složen jezik ili postavljajte pitanja</translation>
+<translation id="8913163265790894442">Lako podesite <ph name="DEVICE_TYPE" /> pomoću telefona. Možete da dodate WiFi i Google nalog bez ručnog unošenja lozinki.
+        <ph name="BR" />
+        <ph name="BR" />
+        Vidljivo kao <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Funkcije za otklanjanje grešaka nisu u potpunosti omogućene na ovom <ph name="IDS_SHORT_PRODUCT_NAME" /> uređaju.</translation>
 <translation id="8965037249707889821">Unesite staru lozinku</translation>
 <translation id="8975396729541388937">Opozovite prijavu u bilo kom trenutku tako što ćete kliknuti na link u imejlovima koje dobijate.</translation>
 <translation id="9033765790910064284">Ipak nastavi</translation>
 <translation id="903480517321259405">Ponovo unesite PIN</translation>
 <translation id="9076523132036239772">Žao nam je, nismo uspeli da verifikujemo imejl adresu ili lozinku. Prvo pokušajte da se povežete sa mrežom.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Ekskluzivno za <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generativni AI je eksperimentalan, u ranom razvoju i trenutno ima ograničenu dostupnost.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Lako podesite <ph name="DEVICE_TYPE" /> pomoću telefona. Možete da dodate Google nalog bez ručnog unošenja lozinke.
+        <ph name="BR" />
+        <ph name="BR" />
+        Vidljivo kao <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

@@ -100,8 +100,8 @@ class PermissionPromptBaseView : public views::BubbleDialogDelegateView,
   // Gets the permission prompt's top-level NativeWindow.
   gfx::NativeWindow GetNativeWindow();
 
-  bool record_browser_always_active_value() const {
-    return record_browser_always_active_value_;
+  bool record_host_always_active_value() const {
+    return record_host_always_active_value_;
   }
 
   permissions::RequestTypeForUma request_type() const { return request_type_; }
@@ -111,23 +111,23 @@ class PermissionPromptBaseView : public views::BubbleDialogDelegateView,
       std::vector<std::pair<size_t, size_t>> bolded_ranges);
 
  private:
-  void DidBecomeInactive(BrowserWindowInterface* browser_window_interface);
+  void HostPaintAsActiveChanged();
 
-  base::CallbackListSubscription browser_subscription_;
+  // True if this permission prompt is for a picture-in-picture window. This
+  // means it will be in an always-on-top window, and needs to be tracked by the
+  // PictureInPictureOcclusionTracker.
+  bool IsForPictureInPictureWindow() const;
+
+  base::CallbackListSubscription host_paint_as_active_subscription_;
 
   const UrlIdentity url_identity_;
 
   ScopedPictureInPictureOcclusionObservation occlusion_observation_{this};
   bool occluded_by_picture_in_picture_ = false;
 
-  // True if this permission prompt is for a picture-in-picture window. This
-  // means it will be in an always-on-top window, and needs to be tracked by the
-  // PictureInPictureOcclusionTracker.
-  const bool is_for_picture_in_picture_window_;
-
-  // Boolean value to track if the browser was always active while the prompt
-  // was displayed.
-  bool record_browser_always_active_value_ = true;
+  // Boolean value to track if the host was always active while the prompt was
+  // displayed.
+  bool record_host_always_active_value_ = true;
 
   // $ORIGIN in the title should be bolded, the ranges of the $ORIGINs are
   // gained while building the title string via `l10n_util::GetStringFUTF16()`.

@@ -17,8 +17,8 @@
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_view_views.h"
+#include "chrome/browser/ui/views/tabs/common/tab_strip_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_view.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/interaction/tracked_element_webcontents.h"
 #include "chrome/test/interaction/webcontents_interaction_test_util.h"
@@ -114,7 +114,7 @@ TabStripRegionView* GetTargetTabStripRegionView(
   // region.
   if (browser_region_view->Contains(view)) {
     if (views::IsViewClass<TabStrip>(view) ||
-        views::IsViewClass<VerticalTabStripView>(view)) {
+        views::IsViewClass<TabStripView>(view)) {
       return browser_region_view;
     }
   }

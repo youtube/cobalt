@@ -287,7 +287,7 @@ const std::string& GetProfileName() {
 }
 
 void InitializeLogging() {
-#if BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_APPLE)
   constexpr auto kLoggingDest = logging::LOG_TO_STDERR;
 #else
   constexpr auto kLoggingDest =

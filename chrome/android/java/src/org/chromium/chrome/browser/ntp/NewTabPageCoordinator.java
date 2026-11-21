@@ -23,6 +23,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
 import org.chromium.base.CallbackController;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.TraceEvent;
@@ -1144,8 +1145,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
             SetupListManager.getInstance().maybePrimeCompletionStatus(profile.getOriginalProfile());
         }
 
-        if (!NtpCustomizationUtils.isNtpSimplificationEnabledOnDesktop()
-                && mHomeModulesCoordinator == null) {
+        if (!DeviceInfo.isDesktop() && mHomeModulesCoordinator == null) {
             initializeHomeModulesImpl();
         }
         if (mHomeModulesCoordinator != null) {

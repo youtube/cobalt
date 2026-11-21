@@ -502,6 +502,10 @@ enum WebDXFeature {
   kFlexWrapBalance = 438,
   kTextFit = 439,
   kTextModules = 440,
+  kDRAFT_TemplateFor = 441,
+  kDRAFT_HTMLProcessingInstructions = 442,
+  kDRAFT_HTMLSetterMethods = 443,
+  kDRAFT_HTMLStreamMethods = 444,
 
   // Add new features immediately above this line. Don't change assigned
   // numbers of any item, and don't reuse removed slots.

@@ -607,7 +607,7 @@ BookmarkEditorView::CreateRootNode() {
       bookmarks::GetPermanentNodesForDisplay(bb_model_);
   if (!permanent_nodes.account_nodes.empty()) {
     auto add_nodes = [this](EditorNode* parent,
-                            std::vector<const BookmarkNode*> nodes) {
+                            std::vector<raw_ptr<const BookmarkNode>> nodes) {
       for (const BookmarkNode* node : nodes) {
         EditorNode* const new_b_node = parent->Add(std::make_unique<EditorNode>(
             node->GetTitle(),

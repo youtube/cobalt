@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_proxy.h"
 #include "third_party/blink/renderer/modules/credentialmanagement/credential_manager_type_converters.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 namespace blink {
@@ -91,11 +92,20 @@ void SetIdpSigninStatus(const blink::LocalFrameToken& local_frame_token,
       !local_frame->DomWindow()->GetFrame()) {
     return;
   }
-  auto* auth_request = CredentialManagerProxy::From(local_frame->DomWindow())
-                           ->FederatedAuthRequest();
-  auth_request->SetIdpSigninStatus(SecurityOrigin::CreateFromUrlOrigin(origin),
-                                   status, /*options=*/nullptr,
-                                   base::DoNothing());
+
+  if (RuntimeEnabledFeatures::FedCmMultipleRequestsEnabled(
+          local_frame->DomWindow())) {
+    auto* service = CredentialManagerProxy::From(local_frame->DomWindow())
+                        ->FederatedRequestService();
+    service->SetIdpSigninStatus(SecurityOrigin::CreateFromUrlOrigin(origin),
+                                status, /*options=*/nullptr, base::DoNothing());
+  } else {
+    auto* auth_request = CredentialManagerProxy::From(local_frame->DomWindow())
+                             ->FederatedAuthRequest();
+    auth_request->SetIdpSigninStatus(
+        SecurityOrigin::CreateFromUrlOrigin(origin), status,
+        /*options=*/nullptr, base::DoNothing());
+  }
 }
 
 }  // namespace blink

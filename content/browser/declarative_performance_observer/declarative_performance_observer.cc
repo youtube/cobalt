@@ -5,6 +5,8 @@
 #include "content/browser/declarative_performance_observer/declarative_performance_observer.h"
 
 #include "base/check.h"
+#include "content/browser/declarative_performance_observer/declarative_performance_observer_store.h"
+#include "content/browser/storage_partition_impl.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/navigation_handle_timing.h"
 #include "content/public/browser/render_frame_host.h"
@@ -12,6 +14,7 @@
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "net/base/load_timing_info.h"
+#include "net/base/net_errors.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 
 namespace content {
@@ -99,6 +102,26 @@ DeclarativePerformanceObserver::DeclarativePerformanceObserver(
     entry.Set("deliveryType", delivery_type);
 
     AddEntryToBuffer(std::move(entry));
+  }
+
+  // The storage partition associated with the RenderFrameHost is guaranteed to
+  // be a `StoragePartitionImpl` in production and in all standard test
+  // harnesses. We can safely downcast it here to retrieve the DPO store.
+  // Note that `storage_partition_for_testing_` is only injected
+  // post-construction, so the constructor always retrieves the store from the
+  // default partition.
+  auto* partition =
+      static_cast<StoragePartitionImpl*>(rfh->GetStoragePartition());
+  DeclarativePerformanceObserverStore* store =
+      partition ? partition->GetDeclarativePerformanceObserverStore() : nullptr;
+
+  if (store) {
+    url::Origin origin = url::Origin::Create(committed_url_);
+    store->SetEarlyFailurePolicy(origin, policy->capture_early_failures);
+    store->TakeEarlyFailureReports(
+        origin, base::BindOnce(
+                    &DeclarativePerformanceObserver::OnEarlyFailureReportsTaken,
+                    weak_factory_.GetWeakPtr()));
   }
 }
 
@@ -293,6 +316,100 @@ void DeclarativePerformanceObserver::DidObservePerformanceEntries(
       dict.Set("detail", std::move(entry->detail.value()));
     }
     AddEntryToBuffer(std::move(dict));
+  }
+}
+
+void DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
+    NavigationHandle* handle,
+    StoragePartition* partition,
+    int net_error) {
+  if (!handle || !partition) {
+    return;
+  }
+
+  url::Origin origin = url::Origin::Create(handle->GetURL());
+  auto* partition_impl = static_cast<StoragePartitionImpl*>(partition);
+
+  // Early failures are captured before a document commits or any observer can
+  // register on the page. We consult the persistent partition-scoped policy
+  // cache to check if the target origin previously opted into capture.
+  auto* store = partition_impl->GetDeclarativePerformanceObserverStore();
+  if (!store || !store->HasEarlyFailurePolicy(origin)) {
+    return;
+  }
+
+  base::TimeTicks now = base::TimeTicks::Now();
+  base::TimeTicks nav_start = handle->NavigationStart();
+  if (nav_start.is_null() || nav_start > now) {
+    nav_start = now;
+  }
+
+  const NavigationHandleTiming& timing = handle->GetNavigationHandleTiming();
+
+  base::DictValue entry;
+  entry.Set("name", origin.GetURL().spec());
+  entry.Set("entryType", "navigation");
+  entry.Set("startTime", 0.0);
+  entry.Set("duration", (now - nav_start).InMillisecondsF());
+  entry.Set("deliveryType", "");
+
+  entry.Set("responseStart", 0.0);
+  entry.Set("requestStart", 0.0);
+
+  if (!timing.first_request_domain_lookup_start_time.is_null() &&
+      timing.first_request_domain_lookup_start_time >= nav_start) {
+    entry.Set("domainLookupStart",
+              (timing.first_request_domain_lookup_start_time - nav_start)
+                  .InMillisecondsF());
+    base::TimeTicks dns_end = timing.first_request_domain_lookup_end_time;
+    if (dns_end.is_null() ||
+        dns_end < timing.first_request_domain_lookup_start_time) {
+      dns_end = now;
+    }
+    entry.Set("domainLookupEnd", (dns_end - nav_start).InMillisecondsF());
+  } else {
+    entry.Set("domainLookupStart", 0.0);
+    entry.Set("domainLookupEnd", 0.0);
+  }
+
+  if (!timing.first_request_connect_start_time.is_null() &&
+      timing.first_request_connect_start_time >= nav_start) {
+    entry.Set("connectStart",
+              (timing.first_request_connect_start_time - nav_start)
+                  .InMillisecondsF());
+    base::TimeTicks connect_end = timing.first_request_connect_end_time;
+    if (connect_end.is_null() ||
+        connect_end < timing.first_request_connect_start_time) {
+      connect_end = now;
+    }
+    entry.Set("connectEnd", (connect_end - nav_start).InMillisecondsF());
+  } else {
+    entry.Set("connectStart", 0.0);
+    entry.Set("connectEnd", 0.0);
+  }
+
+  if (!timing.first_request_ssl_start_time.is_null() &&
+      timing.first_request_ssl_start_time >= nav_start) {
+    entry.Set(
+        "secureConnectionStart",
+        (timing.first_request_ssl_start_time - nav_start).InMillisecondsF());
+  } else {
+    entry.Set("secureConnectionStart", 0.0);
+  }
+
+  entry.Set("activationStart", 0.0);
+
+  base::DictValue error_detail;
+  error_detail.Set("netError", net::ErrorToShortString(net_error));
+  entry.Set("error", std::move(error_detail));
+
+  store->StoreEarlyFailureReport(origin, std::move(entry));
+}
+
+void DeclarativePerformanceObserver::OnEarlyFailureReportsTaken(
+    base::ListValue reports) {
+  for (auto& val : reports) {
+    buffered_entries_.Append(std::move(val));
   }
 }
 

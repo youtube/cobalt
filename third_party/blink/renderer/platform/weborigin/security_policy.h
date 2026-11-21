@@ -61,6 +61,9 @@ class PLATFORM_EXPORT SecurityPolicy {
   static Referrer GenerateReferrer(network::mojom::ReferrerPolicy,
                                    const KURL&,
                                    const String& referrer);
+  static Referrer GenerateReferrer(network::mojom::ReferrerPolicy,
+                                   const KURL&,
+                                   const KURL& referrer_url);
 
   static void AddOriginAccessAllowListEntry(
       const SecurityOrigin& source_origin,

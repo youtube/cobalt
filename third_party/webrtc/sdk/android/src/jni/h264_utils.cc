@@ -22,8 +22,10 @@ static jboolean JNI_H264Utils_IsSameH264Profile(
     JNIEnv* env,
     const jni_zero::JavaRef<jobject>& params1,
     const jni_zero::JavaRef<jobject>& params2) {
-  return H264IsSameProfile(JavaToNativeStringMap(env, params1),
-                           JavaToNativeStringMap(env, params2));
+  auto p1 = JavaToNativeStringMap(env, params1);
+  auto p2 = JavaToNativeStringMap(env, params2);
+  return H264IsSameProfile(CodecParameterMap(p1.begin(), p1.end()),
+                           CodecParameterMap(p2.begin(), p2.end()));
 }
 
 }  // namespace jni

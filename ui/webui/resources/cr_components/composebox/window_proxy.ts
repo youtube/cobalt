@@ -7,6 +7,12 @@
  */
 let instance: WindowProxy|null = null;
 
+declare global {
+  interface Window {
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
 export class WindowProxy {
   static getInstance(): WindowProxy {
     return instance || (instance = new WindowProxy());
@@ -34,5 +40,9 @@ export class WindowProxy {
 
   hasWebkitSpeechRecognition(): boolean {
     return 'webkitSpeechRecognition' in window;
+  }
+
+  createSpeechRecognition(): SpeechRecognition {
+    return new window.webkitSpeechRecognition();
   }
 }

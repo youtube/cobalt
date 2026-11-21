@@ -12,6 +12,7 @@
 #include "components/autofill/core/browser/country_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 
+class GURL;
 class PrefService;
 
 namespace signin {
@@ -85,7 +86,9 @@ enum class AutofillAiAction {
   kAmbientAutofill,
   // Returns true if the entity type supports personal context data.
   kTypeSupportsAmbientAutofillData,
-  kMaxValue = kTypeSupportsAmbientAutofillData,
+  // Whether ambient autofill should be shown in settings.
+  kShowAmbientAutofillInSettings,
+  kMaxValue = kShowAmbientAutofillInSettings,
 };
 
 // Opt-in status for the AutofillAI feature.
@@ -188,12 +191,10 @@ bool SetAutofillAiOptInStatus(
         personal_context_enablement_state,
     AutofillAiOptInStatus opt_in_status);
 
-// Returns whether the user has ever explicitly opted in or out of Autofill AI.
-//
-// This is only intended to be used during migration from local to synced prefs.
-[[nodiscard]] bool HasSetLocalAutofillAiOptInStatus(
-    const PrefService* prefs,
-    const signin::IdentityManager* identity_manager);
+// Returns true if `entity_type` is blocked by enterprise policy on `url`.
+bool IsAutofillAiEntityTypeBlockedByPolicy(const AutofillClient& client,
+                                           const GURL& url,
+                                           EntityType entity_type);
 
 // Checks whether Autofill AI is disabled by enterprise policy.
 [[nodiscard]] bool IsAutofillAiDisabledByEnterprisePolicy(

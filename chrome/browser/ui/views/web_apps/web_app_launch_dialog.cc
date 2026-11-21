@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/web_apps/web_app_install_dialog_delegate.h"
 #include "chrome/browser/ui/web_applications/web_app_dialogs.h"
 #include "chrome/browser/web_applications/commands/launch_web_app_command.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
@@ -40,20 +41,7 @@ DEFINE_ELEMENT_IDENTIFIER_VALUE(kWebInstallLaunchDialogAppName);
 using WebAppBackgroundAppLaunchAcceptanceCallback =
     base::OnceCallback<void(bool accepted)>;
 
-namespace {
 
-constexpr int kMinBoundsForInstallDialog = 50;
-
-bool IsWidgetCurrentSizeSmallerThanPreferredSize(views::Widget* widget) {
-  const gfx::Size& current_size = widget->GetSize();
-  const gfx::Size& preferred_size =
-      widget->GetContentsView()->GetPreferredSize();
-  int min_width = preferred_size.width() - kMinBoundsForInstallDialog;
-  int min_height = preferred_size.height() - kMinBoundsForInstallDialog;
-  return current_size.width() < min_width || current_size.height() < min_height;
-}
-
-}  // namespace
 
 class WebAppLaunchDialogDelegate : public WebAppModalDialogDelegate {
  public:
@@ -97,7 +85,8 @@ class WebAppLaunchDialogDelegate : public WebAppModalDialogDelegate {
   // views::WidgetObserver:
   void OnWidgetBoundsChanged(views::Widget* widget,
                              const gfx::Rect& new_bounds) override {
-    if (IsWidgetCurrentSizeSmallerThanPreferredSize(widget)) {
+    if (IsWidgetCurrentSizeSmallerThanPreferredSize(widget,
+                                                    kLaunchMaxShrinkage)) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE,
           base::BindOnce(&WebAppLaunchDialogDelegate::CloseDialogAsIgnored,
@@ -182,7 +171,8 @@ void ShowWebInstallAppLaunchDialog(
   views::Widget* launch_dialog_widget =
       constrained_window::ShowWebModalDialogViews(dialog.release(),
                                                   web_contents);
-  if (IsWidgetCurrentSizeSmallerThanPreferredSize(launch_dialog_widget)) {
+  if (IsWidgetCurrentSizeSmallerThanPreferredSize(launch_dialog_widget,
+                                                  kLaunchMaxShrinkage)) {
     delegate_weak_ptr->CloseDialogAsIgnored();
     return;
   }

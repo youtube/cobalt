@@ -24,6 +24,7 @@ build_webui("build") {
     "a11y_page/captions_browser_proxy.ts",
     "appearance_page/fonts_browser_proxy.ts",
     "controls/cr_policy_pref_mixin.ts",
+    "controls/cr_policy_pref_mixin_lit.ts",
     "controls/pref_control_mixin.ts",
     "controls/settings_boolean_control_mixin.ts",
     "extension_control_browser_proxy.ts",

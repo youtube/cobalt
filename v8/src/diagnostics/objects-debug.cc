@@ -41,6 +41,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-disposable-stack.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -81,8 +82,8 @@
 #endif  // V8_INTL_SUPPORT
 #include "src/objects/hole.h"
 #include "src/objects/js-raw-json-inl.h"
-#include "src/objects/js-shared-array-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-shared-array.h"
+#include "src/objects/js-struct.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
 #endif  // V8_TEMPORAL_SUPPORT
@@ -101,7 +102,6 @@
 #include "src/objects/swiss-name-dictionary-inl.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/template-objects-inl.h"
-#include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/regexp/regexp.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
@@ -812,7 +812,7 @@ void Map::MapVerify(Isolate* isolate) {
     }
     // For the time being, installing prototypes requires the "js interop" flag,
     // not just "custom descriptors".
-    CHECK_IMPLIES(!IsNull(prototype()), v8_flags.experimental_wasm_js_interop);
+    CHECK_IMPLIES(!IsNull(prototype()), v8_flags.wasm_js_interop);
   }
 #endif
 

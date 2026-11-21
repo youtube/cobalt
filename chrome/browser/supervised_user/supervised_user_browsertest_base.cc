@@ -29,7 +29,6 @@
 #include "components/supervised_user/core/browser/device_parental_controls.h"
 #include "components/supervised_user/core/browser/device_parental_controls_url_filter.h"
 #include "components/supervised_user/core/browser/family_link_url_filter.h"
-#include "components/supervised_user/core/browser/kids_chrome_management_url_checker_client.h"
 #include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filtering_service.h"
 #include "components/supervised_user/test_support/supervised_user_url_filter_test_utils.h"

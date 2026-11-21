@@ -109,6 +109,8 @@ import org.chromium.components.browser_ui.widget.animation.CancelAwareAnimatorLi
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.ui.accessibility.KeyboardFocusUtil;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.base.ViewUtils;
@@ -3550,35 +3552,43 @@ public class ToolbarPhone extends ToolbarLayout
     @SuppressWarnings("NullAway")
     protected void updateOptionalButton(@Nullable ButtonData buttonData) {
         mButtonData = buttonData;
-        // The toolbar button is migrated to the location bar on phones when not on the NTP.
-        if (ToolbarVariationUtils.isToolbarUiRefactorEnabled(getContext())
-                && !isNtpVisualState(mVisualState)) {
-            if (mLocationBar != null) {
-                mLocationBar.updateOptionalButton(buttonData);
-            }
-            // Hide the toolbar optional button since we are going to show the location bar optional
-            // button.
-            hideToolbarOptionalButton();
-            return;
-        }
 
+        boolean isNtp = isNtpVisualState(mVisualState);
+        boolean shouldModifyButtons =
+                ToolbarVariationUtils.shouldModifyToolbarButtons(getContext(), isNtp);
+
+        // Update location bar.
+        boolean showInLocationBar = shouldModifyButtons && !isNtp;
         if (mLocationBar != null) {
-            // When on the NTP or when the feature is disabled, we should hide the location bar
-            // optional button.
-            mLocationBar.hideOptionalButton();
+            if (showInLocationBar) {
+                mLocationBar.updateOptionalButton(buttonData);
+            } else {
+                mLocationBar.hideOptionalButton();
+            }
         }
 
-        // TODO(crbug.com/506984216): See comment in #initializeOptionalButton for details about
-        // when the remainder of this method can be removed.
-
-        // The optional button remains in the toolbar for NTP for the identity disc.
-        if (mOptionalButtonCoordinator == null) {
-            initializeOptionalButton();
+        // Update toolbar.
+        boolean showInToolbar;
+        boolean isSignInLevelUp = SigninFeatureMap.isEnabled(SigninFeatures.SIGNIN_LEVEL_UP_BUTTON);
+        if (shouldModifyButtons) {
+            // New IA: Only show the button on the NTP for the identity disk if needed.
+            showInToolbar =
+                    isNtp && !isSignInLevelUp && buttonData != null && buttonData.isIdentityDisc();
+        } else {
+            // Old IA: Show in toolbar except for NTP + SignInLevelUpButton which should hide it.
+            showInToolbar = !(isNtp && isSignInLevelUp);
         }
 
-        mOptionalButtonCoordinator.setBrandedColorScheme(
-                mThemeColorProvider.getBrandedColorScheme());
-        mOptionalButtonCoordinator.updateButton(buttonData, isIncognitoBranded());
+        if (showInToolbar) {
+            if (mOptionalButtonCoordinator == null) {
+                initializeOptionalButton();
+            }
+            mOptionalButtonCoordinator.setBrandedColorScheme(
+                    mThemeColorProvider.getBrandedColorScheme());
+            mOptionalButtonCoordinator.updateButton(buttonData, isIncognitoBranded());
+        } else {
+            hideToolbarOptionalButton();
+        }
     }
 
     @Override

@@ -244,3 +244,29 @@ TableViewDetailIconItem* EnhancedAutofillEnterpriseManagedLoggingDisabledItem(
       CustomSymbolWithPointSize(kEnterpriseSymbol,
                                 kSettingsRootSymbolImagePointSize));
 }
+
+TableViewSwitchItem* AutofillVerificationSwitchItem(NSInteger itemType,
+                                                    BOOL enabled,
+                                                    BOOL on,
+                                                    id target,
+                                                    SEL action) {
+  TableViewSwitchItem* switchItem =
+      [[TableViewSwitchItem alloc] initWithType:itemType];
+  switchItem.text =
+      l10n_util::GetNSString(IDS_IOS_AUTOFILL_VERIFICATION_INFO_LABEL);
+  switchItem.target = target;
+  switchItem.selector = action;
+  switchItem.on = on;
+  switchItem.enabled = enabled;
+  switchItem.accessibilityIdentifier = kAutofillVerificationSwitchTableViewId;
+  return switchItem;
+}
+
+TableViewHeaderFooterItem* AutofillVerificationSwitchFooter(
+    NSInteger itemType) {
+  TableViewLinkHeaderFooterItem* footer =
+      [[TableViewLinkHeaderFooterItem alloc] initWithType:itemType];
+  footer.text =
+      l10n_util::GetNSString(IDS_IOS_AUTOFILL_VERIFICATION_INFO_FOOTER);
+  return footer;
+}

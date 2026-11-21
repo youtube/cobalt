@@ -92,6 +92,105 @@ std::wstring CreateValidFileNameFromTitle(const GURL& url,
 
 }  // namespace
 
+ScopedTargetDevice::ScopedTargetDevice() = default;
+
+ScopedTargetDevice::ScopedTargetDevice(const DVTARGETDEVICE* source) {
+  Reset(source);
+}
+
+ScopedTargetDevice::ScopedTargetDevice(const ScopedTargetDevice& other) {
+  Reset(other.get());
+}
+
+ScopedTargetDevice& ScopedTargetDevice::operator=(
+    const ScopedTargetDevice& other) {
+  if (this != &other) {
+    Reset(other.get());
+  }
+  return *this;
+}
+
+ScopedTargetDevice::ScopedTargetDevice(ScopedTargetDevice&& other) noexcept
+    : device_(std::exchange(other.device_, nullptr)) {}
+
+ScopedTargetDevice& ScopedTargetDevice::operator=(
+    ScopedTargetDevice&& other) noexcept {
+  if (this != &other) {
+    Reset(nullptr);
+    device_ = std::exchange(other.device_, nullptr);
+  }
+  return *this;
+}
+
+ScopedTargetDevice::~ScopedTargetDevice() {
+  Reset(nullptr);
+}
+
+void ScopedTargetDevice::Reset(const DVTARGETDEVICE* source) {
+  if (device_) {
+    ::CoTaskMemFree(device_);
+    device_ = nullptr;
+  }
+  if (source && source->tdSize >= sizeof(DVTARGETDEVICE)) {
+    device_ = static_cast<DVTARGETDEVICE*>(::CoTaskMemAlloc(source->tdSize));
+    if (device_) {
+      auto source_span = base::span<const uint8_t>(
+          reinterpret_cast<const uint8_t*>(source), source->tdSize);
+      auto dest_span = base::span<uint8_t>(reinterpret_cast<uint8_t*>(device_),
+                                           source->tdSize);
+      dest_span.copy_from(source_span);
+    }
+  }
+}
+
+DVTARGETDEVICE* ScopedTargetDevice::release() {
+  return std::exchange(device_, nullptr);
+}
+
+ScopedFormatEtc::ScopedFormatEtc() = default;
+
+ScopedFormatEtc::ScopedFormatEtc(const FORMATETC& source)
+    : format_etc(source), target_device(source.ptd) {
+  // Perform a deep copy of the `FORMATETC` structure. This is required because
+  // the incoming `FORMATETC` may contain a pointer to a target device (`ptd`)
+  // that is owned by the COM stub and will be freed as soon as `SetData`
+  // returns.
+  format_etc.ptd = target_device.get();
+}
+
+ScopedFormatEtc::ScopedFormatEtc(const ScopedFormatEtc& other)
+    : format_etc(other.format_etc), target_device(other.target_device) {
+  format_etc.ptd = target_device.get();
+}
+
+ScopedFormatEtc::ScopedFormatEtc(ScopedFormatEtc&& other) noexcept
+    : format_etc(other.format_etc),
+      target_device(std::move(other.target_device)) {
+  format_etc.ptd = target_device.get();
+  other.format_etc.ptd = nullptr;
+}
+
+ScopedFormatEtc& ScopedFormatEtc::operator=(const ScopedFormatEtc& other) {
+  if (this != &other) {
+    format_etc = other.format_etc;
+    target_device = other.target_device;
+    format_etc.ptd = target_device.get();
+  }
+  return *this;
+}
+
+ScopedFormatEtc& ScopedFormatEtc::operator=(ScopedFormatEtc&& other) noexcept {
+  if (this != &other) {
+    format_etc = other.format_etc;
+    target_device = std::move(other.target_device);
+    format_etc.ptd = target_device.get();
+    other.format_etc.ptd = nullptr;
+  }
+  return *this;
+}
+
+ScopedFormatEtc::~ScopedFormatEtc() = default;
+
 ///////////////////////////////////////////////////////////////////////////////
 // FormatEtcEnumerator
 
@@ -112,8 +211,6 @@ class FormatEtcEnumerator final : public IEnumFORMATETC {
 
   FormatEtcEnumerator(const FormatEtcEnumerator&) = delete;
   FormatEtcEnumerator& operator=(const FormatEtcEnumerator&) = delete;
-
-  ~FormatEtcEnumerator();
 
   // IEnumFORMATETC implementation:
   HRESULT __stdcall Next(ULONG count,
@@ -142,7 +239,7 @@ class FormatEtcEnumerator final : public IEnumFORMATETC {
   // IEnumFORMATETC API assumes a deterministic ordering of elements through
   // methods like Next and Skip. This exposes the underlying data structure to
   // the user. Bah.
-  std::vector<std::unique_ptr<FORMATETC>> contents_;
+  std::vector<ScopedFormatEtc> contents_;
 
   // The cursor of the active enumeration - an index into |contents_|.
   size_t cursor_;
@@ -150,30 +247,15 @@ class FormatEtcEnumerator final : public IEnumFORMATETC {
   ULONG ref_count_;
 };
 
-// Safely makes a copy of all of the relevant bits of a FORMATETC object.
-static void CloneFormatEtc(const FORMATETC* source, FORMATETC* clone) {
-  *clone = *source;
-  if (source->ptd) {
-    clone->ptd =
-        static_cast<DVTARGETDEVICE*>(CoTaskMemAlloc(sizeof(DVTARGETDEVICE)));
-    *(clone->ptd) = *(source->ptd);
-  }
-}
-
 FormatEtcEnumerator::FormatEtcEnumerator(
     DataObjectImpl::StoredData::const_iterator start,
     DataObjectImpl::StoredData::const_iterator end)
     : cursor_(0), ref_count_(0) {
-  // Copy FORMATETC data from our source into ourselves.
-  while (start != end) {
-    auto format_etc = std::make_unique<FORMATETC>();
-    CloneFormatEtc(&(*start)->format_etc, format_etc.get());
-    contents_.push_back(std::move(format_etc));
-    ++start;
-  }
-}
-
-FormatEtcEnumerator::~FormatEtcEnumerator() {
+  std::ranges::transform(
+      start, end, std::back_inserter(contents_),
+      [](const std::unique_ptr<DataObjectImpl::StoredDataInfo>& info) {
+        return info->format_etc;
+      });
 }
 
 HRESULT FormatEtcEnumerator::Next(ULONG count,
@@ -186,7 +268,9 @@ HRESULT FormatEtcEnumerator::Next(ULONG count,
   // This method copies count elements into |elements_array|.
   ULONG index = 0;
   while (cursor_ < contents_.size() && index < count) {
-    CloneFormatEtc(contents_[cursor_].get(), &elements_array[index]);
+    ScopedFormatEtc copy = contents_[cursor_];
+    elements_array[index] = copy.format_etc;
+    elements_array[index].ptd = copy.target_device.release();
     ++cursor_;
     ++index;
   }
@@ -246,14 +330,7 @@ ULONG FormatEtcEnumerator::Release() {
 FormatEtcEnumerator* FormatEtcEnumerator::CloneFromOther(
     const FormatEtcEnumerator* other) {
   FormatEtcEnumerator* e = new FormatEtcEnumerator;
-  // Copy FORMATETC data from our source into ourselves.
-  std::ranges::transform(other->contents_, std::back_inserter(e->contents_),
-                         [](const std::unique_ptr<FORMATETC>& format_etc) {
-                           auto clone = std::make_unique<FORMATETC>();
-                           CloneFormatEtc(format_etc.get(), clone.get());
-                           return clone;
-                         });
-  // Carry over
+  e->contents_ = other->contents_;
   e->cursor_ = other->cursor_;
   return e;
 }
@@ -523,6 +600,56 @@ void OSExchangeDataProviderWin::SetVirtualFileContentsForTesting(
     data_->contents_.push_back(
         DataObjectImpl::StoredDataInfo::TakeStorageMedium(cf_hdrop_format,
                                                           null_medium));
+  }
+}
+
+void OSExchangeDataProviderWin::SetVirtualFileContentsWithDirectoriesForTesting(
+    const std::vector<std::pair<base::FilePath, base::span<const uint8_t>>>&
+        filenames_and_contents,
+    const std::vector<size_t>& directory_indices,
+    DWORD tymed) {
+  size_t num_files = filenames_and_contents.size();
+  if (!num_files) {
+    return;
+  }
+
+  const size_t total_bytes_fgd = sizeof(FILEGROUPDESCRIPTORW) +
+                                 (sizeof(FILEDESCRIPTORW) * (num_files - 1));
+
+  HANDLE hdata = ::GlobalAlloc(GPTR, total_bytes_fgd);
+  if (!hdata) {
+    return;
+  }
+
+  base::win::ScopedHGlobal<FILEGROUPDESCRIPTORW*> locked_mem(hdata);
+
+  FILEGROUPDESCRIPTORW* descriptor = locked_mem.data();
+  descriptor->cItems = base::checked_cast<UINT>(num_files);
+
+  STGMEDIUM storage = {
+      .tymed = TYMED_HGLOBAL, .hGlobal = hdata, .pUnkForRelease = nullptr};
+  data_->contents_.push_back(DataObjectImpl::StoredDataInfo::TakeStorageMedium(
+      ClipboardFormatType::FileDescriptorType().ToFormatEtc(), storage));
+
+  for (size_t i = 0; i < num_files; i++) {
+    descriptor->fgd[i].dwFlags |= static_cast<DWORD>(FD_UNICODE);
+    std::wstring file_name = filenames_and_contents[i].first.value();
+    wcsncpy_s(descriptor->fgd[i].cFileName, MAX_PATH, file_name.c_str(),
+              std::min(file_name.size(), static_cast<size_t>(MAX_PATH - 1u)));
+
+    if (std::find(directory_indices.begin(), directory_indices.end(), i) !=
+        directory_indices.end()) {
+      // A directory entry carries the directory attribute and no content
+      // stream, just as a real ZIP folder advertises it.
+      descriptor->fgd[i].dwFlags |= static_cast<DWORD>(FD_ATTRIBUTES);
+      descriptor->fgd[i].dwFileAttributes |=
+          static_cast<DWORD>(FILE_ATTRIBUTE_DIRECTORY);
+      continue;
+    }
+
+    SetVirtualFileContentAtIndexForTesting(filenames_and_contents[i].second,
+                                           tymed,
+                                           static_cast<LONG>(i));  // IN-TEST
   }
 }
 
@@ -997,11 +1124,11 @@ void DataObjectImpl::RemoveData(const FORMATETC& format) {
     return;  // Don't attempt to compare target devices.
 
   for (StoredData::iterator i = contents_.begin(); i != contents_.end(); ++i) {
-    if (!(*i)->format_etc.ptd &&
-        format.cfFormat == (*i)->format_etc.cfFormat &&
-        format.dwAspect == (*i)->format_etc.dwAspect &&
-        format.lindex == (*i)->format_etc.lindex &&
-        format.tymed == (*i)->format_etc.tymed) {
+    if (!(*i)->format_etc->ptd &&
+        format.cfFormat == (*i)->format_etc->cfFormat &&
+        format.dwAspect == (*i)->format_etc->dwAspect &&
+        format.lindex == (*i)->format_etc->lindex &&
+        format.tymed == (*i)->format_etc->tymed) {
       contents_.erase(i);
       return;
     }
@@ -1010,7 +1137,7 @@ void DataObjectImpl::RemoveData(const FORMATETC& format) {
 
 void DataObjectImpl::OnDownloadCompleted(const base::FilePath& file_path) {
   for (std::unique_ptr<StoredDataInfo>& content : contents_) {
-    if (content->format_etc.cfFormat == CF_HDROP) {
+    if (content->format_etc->cfFormat == CF_HDROP) {
       // Retrieve the downloader first so it won't get destroyed.
       auto downloader = std::move(content->downloader);
       if (downloader)
@@ -1033,9 +1160,9 @@ HRESULT DataObjectImpl::GetData(FORMATETC* format_etc, STGMEDIUM* medium) {
     return DV_E_FORMATETC;
 
   for (const std::unique_ptr<StoredDataInfo>& content : contents_) {
-    if (content->format_etc.cfFormat == format_etc->cfFormat &&
-        content->format_etc.lindex == format_etc->lindex &&
-        (content->format_etc.tymed & format_etc->tymed)) {
+    if (content->format_etc->cfFormat == format_etc->cfFormat &&
+        content->format_etc->lindex == format_etc->lindex &&
+        (content->format_etc->tymed & format_etc->tymed)) {
       // If medium is NULL, delay-rendering will be used.
       if (content->medium.tymed != TYMED_NULL) {
         // If the drop target requests TYMED_HGLOBAL specifically but the stored
@@ -1075,7 +1202,7 @@ HRESULT DataObjectImpl::GetData(FORMATETC* format_etc, STGMEDIUM* medium) {
           return S_OK;
         }
         *medium =
-            DuplicateMedium(content->format_etc.cfFormat, content->medium);
+            DuplicateMedium(content->format_etc->cfFormat, content->medium);
         return S_OK;
       }
       // Fail all GetData() attempts for DownloadURL data if the drag and drop
@@ -1129,8 +1256,9 @@ HRESULT DataObjectImpl::GetDataHere(FORMATETC* format_etc,
 
 HRESULT DataObjectImpl::QueryGetData(FORMATETC* format_etc) {
   for (const std::unique_ptr<StoredDataInfo>& content : contents_) {
-    if (content->format_etc.cfFormat == format_etc->cfFormat)
+    if (content->format_etc->cfFormat == format_etc->cfFormat) {
       return S_OK;
+    }
   }
   return DV_E_FORMATETC;
 }

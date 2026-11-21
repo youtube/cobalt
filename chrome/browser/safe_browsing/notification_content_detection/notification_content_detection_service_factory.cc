@@ -75,7 +75,7 @@ std::unique_ptr<KeyedService> NotificationContentDetectionServiceFactory::
     return nullptr;
   }
 
-  auto& opt_guide = holder_service->GetGlobalState().prediction_manager();
+  auto& opt_guide = holder_service->GetGlobalState().model_provider();
   return CreateNotificationContentDetectionService(&opt_guide, context);
 #endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_ARMEL)
 }

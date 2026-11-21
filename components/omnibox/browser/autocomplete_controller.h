@@ -281,6 +281,8 @@ class AutocompleteController : public AutocompleteProviderListener,
   // Groups `published_result_` by search vs URL.
   // See also `AutocompleteResult::GroupSuggestionsBySearchVsURL()`.
   virtual void GroupSuggestionsBySearchVsURL(size_t begin, size_t end);
+  std::u16string GetSuggestionGroupHeaderText(
+      const std::optional<omnibox::GroupId>& suggestion_group_id) const;
   bool done() const {
     return last_update_type_ == UpdateType::kNone ||
            last_update_type_ == UpdateType::kSyncPassOnly ||

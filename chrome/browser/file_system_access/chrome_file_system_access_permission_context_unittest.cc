@@ -44,6 +44,8 @@
 #include "components/permissions/permission_util.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/site_instance.h"
+#include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_renderer_host.h"
@@ -513,6 +515,21 @@ class ChromeFileSystemAccessPermissionContextTest : public testing::Test {
     }));
   }
 
+  std::unique_ptr<content::WebContents> CreateGuestWebContents(
+      const GURL& url) {
+    const content::StoragePartitionConfig kGuestConfig =
+        content::StoragePartitionConfig::Create(
+            profile(), "test_partition", "guest_partition", /*in_memory=*/true);
+    scoped_refptr<content::SiteInstance> guest_instance =
+        content::SiteInstance::CreateForGuest(profile(), kGuestConfig);
+    std::unique_ptr<content::WebContents> guest_contents =
+        content::WebContentsTester::CreateTestWebContents(profile(),
+                                                          guest_instance);
+    content::WebContentsTester::For(guest_contents.get())
+        ->NavigateAndCommit(url);
+    return guest_contents;
+  }
+
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::ScopedTempDir temp_dir_;
@@ -547,6 +564,27 @@ class ChromeFileSystemAccessPermissionContextSymbolicLinkCheckTest
  protected:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
+
+TEST_F(ChromeFileSystemAccessPermissionContextTest,
+       CanShowFilePicker_BlocksGuestViews) {
+  // 1. Test HTTPS Guest (should be blocked)
+  {
+    std::unique_ptr<content::WebContents> guest =
+        CreateGuestWebContents(GURL("https://example.com/"));
+    EXPECT_FALSE(permission_context()
+                     ->CanShowFilePicker(guest->GetPrimaryMainFrame())
+                     .has_value());
+  }
+
+  // 2. Test about:blank Guest (should be blocked)
+  {
+    std::unique_ptr<content::WebContents> guest =
+        CreateGuestWebContents(GURL("about:blank"));
+    EXPECT_FALSE(permission_context()
+                     ->CanShowFilePicker(guest->GetPrimaryMainFrame())
+                     .has_value());
+  }
+}
 
 TEST_F(ChromeFileSystemAccessPermissionContextTest,
        ConfirmSensitiveEntryAccess_NoSpecialPath) {

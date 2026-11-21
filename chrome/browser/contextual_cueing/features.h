@@ -84,6 +84,9 @@ extern const base::FeatureParam<TabListVisibility> kTabListVisibility;
 // If true, show the cue even if the tab is shown in split view.
 extern const base::FeatureParam<bool> kShouldShowCueInSplitView;
 
+// If true, logs telemetry events to the Private Insights Service.
+extern const base::FeatureParam<bool> kEnablePrivateInsightsLogging;
+
 }  // namespace contextual_cueing
 
 #endif  // CHROME_BROWSER_CONTEXTUAL_CUEING_FEATURES_H_

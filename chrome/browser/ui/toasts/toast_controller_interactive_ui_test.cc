@@ -29,6 +29,7 @@
 #include "chrome/browser/ui/views/frame/app_menu_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/location_bar/star_view.h"
+#include "chrome/browser/ui/views/test/split_view_interactive_test_mixin.h"
 #include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
@@ -59,6 +60,10 @@
 namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTab);
+
+using ToastViewObserver =
+    views::test::PollingViewObserver<bool, toasts::ToastView>;
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ToastViewObserver, kToastViewObserver);
 
 class OmniboxInputWaiter : public OmniboxTabHelper::Observer {
  public:
@@ -116,21 +121,21 @@ class TestMenuModel : public ui::SimpleMenuModel,
 
 }  // namespace
 
-class ToastControllerInteractiveTest : public InteractiveBrowserTest {
+class ToastControllerInteractiveTest
+    : public SplitViewInteractiveTestMixin<InteractiveBrowserTest> {
  public:
-  void SetUp() override {
-    feature_list_.InitWithFeatures(
-        {toast_features::kLinkCopiedToast, toast_features::kImageCopiedToast,
-         toast_features::kReadingListToast,
-         plus_addresses::features::kPlusAddressesEnabled},
-        {});
-    InteractiveBrowserTest::SetUp();
-  }
-
   void SetUpOnMainThread() override {
-    InteractiveBrowserTest::SetUpOnMainThread();
+    SplitViewInteractiveTestMixin::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
     ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+  const std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures()
+      override {
+    return {{toast_features::kLinkCopiedToast, {}},
+            {toast_features::kImageCopiedToast, {}},
+            {toast_features::kReadingListToast, {}},
+            {plus_addresses::features::kPlusAddressesEnabled, {}}};
   }
 
   GURL GetURL(std::string_view hostname = "example.com",
@@ -172,6 +177,64 @@ class ToastControllerInteractiveTest : public InteractiveBrowserTest {
       ASSERT_TRUE(ui_test_utils::SendKeyPressSync(
           browser(), ui::VKEY_TAB, false, reverse, false, false));
     });
+  }
+
+  auto WaitForToastView(
+      base::RepeatingCallback<bool(const toasts::ToastView*)> check) {
+    auto result = Steps(
+        PollView(kToastViewObserver, toasts::ToastView::kToastViewId, check),
+        WaitForState(kToastViewObserver, true),
+        StopObservingState(kToastViewObserver));
+    AddDescriptionPrefix(result, "WaitForToastView()");
+    return result;
+  }
+
+  template <typename T, typename U>
+  auto TestToastFocus(T&& check_previous_focus, U&& check_next_focus) {
+    ui::Accelerator next_pane;
+    EXPECT_TRUE(
+        BrowserView::GetBrowserViewForBrowser(browser())->GetAccelerator(
+            IDC_FOCUS_NEXT_PANE, &next_pane));
+    return Steps(
+        ShowToast(ToastParams(ToastId::kAddedToReadingList)),
+        WaitForShow(toasts::ToastView::kToastViewId),
+        ActivateSurface(toasts::ToastView::kToastViewId),
+        SendAccelerator(kBrowserViewElementId, next_pane),
+        WaitForToastView(
+            base::BindRepeating([](const toasts::ToastView* toast) {
+              return toast->action_button_for_testing()->HasFocus();
+            })),
+        // Advancing focus backwards should move out of the toast
+        AdvanceKeyboardFocus(true),
+        WaitForToastView(
+            base::BindRepeating([](const toasts::ToastView* toast) {
+              return !toast->action_button_for_testing()->HasFocus();
+            })),
+        std::move(check_previous_focus),
+        // Advancing focus should bring us back into the toast
+        AdvanceKeyboardFocus(false),
+        WaitForToastView(
+            base::BindRepeating([](const toasts::ToastView* toast) {
+              return toast->action_button_for_testing()->HasFocus();
+            })),
+        AdvanceKeyboardFocus(false),
+        WaitForToastView(
+            base::BindRepeating([](const toasts::ToastView* toast) {
+              return toast->close_button_for_testing()->HasFocus();
+            })),
+        // Advancing focus again should move out of the toast
+        AdvanceKeyboardFocus(false),
+        WaitForToastView(
+            base::BindRepeating([](const toasts::ToastView* toast) {
+              return !toast->close_button_for_testing()->HasFocus();
+            })),
+        std::move(check_next_focus),
+        // Advancing focus backwards should bring us back into the toast
+        AdvanceKeyboardFocus(true),
+        WaitForToastView(
+            base::BindRepeating([](const toasts::ToastView* toast) {
+              return toast->close_button_for_testing()->HasFocus();
+            })));
   }
 
   void RemoveOmniboxFocus() {
@@ -233,56 +296,72 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, FocusNextPane) {
       }));
 }
 
-IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, ReverseFocusTraversal) {
-  ui::Accelerator next_pane;
-  ASSERT_TRUE(BrowserView::GetBrowserViewForBrowser(browser())->GetAccelerator(
-      IDC_FOCUS_NEXT_PANE, &next_pane));
-  RunTestSequence(
-      ShowToast(ToastParams(ToastId::kAddedToReadingList)),
-      WaitForShow(toasts::ToastView::kToastViewId),
-      ActivateSurface(toasts::ToastView::kToastViewId),
-      SendAccelerator(kBrowserViewElementId, next_pane),
-      CheckView(toasts::ToastView::kToastViewId,
-                [](toasts::ToastView* toast) {
-                  return toast->GetFocusManager()->GetFocusedView() ==
-                         toast->action_button_for_testing();
-                }),
-      AdvanceKeyboardFocus(true),
+IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, FocusTraversal) {
+  RunTestSequence(TestToastFocus(
 #if BUILDFLAG(IS_MAC)
       // Mac focus traversal order is slightly different from other platforms
       CheckView(kToolbarAppMenuButtonElementId,
-                [](AppMenuButton* button) { return button->HasFocus(); })
+                [](AppMenuButton* button) { return button->HasFocus(); }),
 #else
       CheckView(kBookmarkStarViewElementId,
-                [](views::View* star_view) { return star_view->HasFocus(); })
+                [](views::View* star_view) { return star_view->HasFocus(); }),
 #endif
-  );
+      CheckView(kBrowserViewElementId, [](BrowserView* browser_view) {
+        return browser_view->GetActiveContentsWebView()->HasFocus();
+      })));
 }
 
-IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, ForwardFocusTraversal) {
+IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
+                       FocusTraversalSplitStart) {
   ui::Accelerator next_pane;
   ASSERT_TRUE(BrowserView::GetBrowserViewForBrowser(browser())->GetAccelerator(
       IDC_FOCUS_NEXT_PANE, &next_pane));
   RunTestSequence(
-      ShowToast(ToastParams(ToastId::kAddedToReadingList)),
-      WaitForShow(toasts::ToastView::kToastViewId),
-      ActivateSurface(toasts::ToastView::kToastViewId),
-      SendAccelerator(kBrowserViewElementId, next_pane),
-      // Advancing focus should move into the toast close button
-      AdvanceKeyboardFocus(false),
-      CheckView(toasts::ToastView::kToastViewId,
-                [](toasts::ToastView* toast) {
-                  return toast->close_button_for_testing()->HasFocus();
-                }),
-      // Advancing focus again should move out of the toast and into the WebView
-      AdvanceKeyboardFocus(false),
-      CheckView(toasts::ToastView::kToastViewId,
-                [](toasts::ToastView* toast) {
-                  return !toast->close_button_for_testing()->HasFocus();
-                }),
-      CheckView(kBrowserViewElementId, [](BrowserView* browser_view) {
-        return browser_view->GetActiveContentsWebView()->HasFocus();
-      }));
+      // Set up split view with first tab focused
+      AddInstrumentedTab(kSecondTab, GetURL()),
+      SplitViewInteractiveTestMixin::EnterSplitView(0, 1),
+      CheckResult([=, this]() { return tab_strip_model()->active_index(); }, 0),
+      TestToastFocus(
+#if BUILDFLAG(IS_MAC)
+          // Mac focus traversal order is slightly different from other
+          // platforms
+          CheckView(kToolbarAppMenuButtonElementId,
+                    [](AppMenuButton* button) { return button->HasFocus(); }),
+#else
+          CheckView(
+              kBookmarkStarViewElementId,
+              [](views::View* star_view) { return star_view->HasFocus(); }),
+#endif
+          Steps(
+              CheckResult(
+                  [=, this]() { return tab_strip_model()->active_index(); }, 0),
+              CheckView(kBrowserViewElementId, [](BrowserView* browser_view) {
+                return browser_view->GetActiveContentsWebView()->HasFocus();
+              }))));
+}
+
+IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, FocusTraversalSplitEnd) {
+  ui::Accelerator next_pane;
+  ASSERT_TRUE(BrowserView::GetBrowserViewForBrowser(browser())->GetAccelerator(
+      IDC_FOCUS_NEXT_PANE, &next_pane));
+  RunTestSequence(
+      // Set up split view with second tab focused
+      AddInstrumentedTab(kSecondTab, GetURL()),
+      SelectTab(kTabStripElementId, 1),
+      SplitViewInteractiveTestMixin::EnterSplitView(1, 0),
+      CheckResult([=, this]() { return tab_strip_model()->active_index(); }, 1),
+      TestToastFocus(
+          CheckView(
+              MultiContentsResizeHandle::kMultiContentsResizeHandleElementId,
+              [](MultiContentsResizeHandle* resize_handle) {
+                return resize_handle->HasFocus();
+              }),
+          Steps(
+              CheckResult(
+                  [=, this]() { return tab_strip_model()->active_index(); }, 1),
+              CheckView(kBrowserViewElementId, [](BrowserView* browser_view) {
+                return browser_view->GetActiveContentsWebView()->HasFocus();
+              }))));
 }
 
 IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,

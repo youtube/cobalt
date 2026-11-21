@@ -22,6 +22,7 @@
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/account_picker/ui_bundled/account_picker_configuration.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/google_one/shared/google_one_entry_point.h"
 #import "ios/chrome/browser/photos/model/photos_metrics.h"
 #import "ios/chrome/browser/photos/model/photos_service.h"
@@ -319,6 +320,14 @@ NSString* const kGooglePhotosAppURLScheme = @"googlephotos";
   // being fetched. Exit now if that happened.
   if (!_identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
     if (base::FeatureList::IsEnabled(kIOSSaveToPhotosSignedOut)) {
+      BOOL accountOnDevice =
+          [signin::GetIdentitiesOnDevice(_identityManager,
+                                         _accountManagerService) count] > 0;
+      base::UmaHistogramEnumeration(
+          kSaveToPhotosSignInStatusHistogram,
+          accountOnDevice
+              ? SaveToPhotosSignInStatus::kSignedOutWithAccountOnDevice
+              : SaveToPhotosSignInStatus::kSignedOutWithoutAccountOnDevice);
       [self.delegate openSignIn];
     } else {
       base::UmaHistogramEnumeration(kSaveToPhotosActionsHistogram,
@@ -326,6 +335,10 @@ NSString* const kGooglePhotosAppURLScheme = @"googlephotos";
       [self.delegate hideSaveToPhotos];
     }
     return;
+  }
+  if (base::FeatureList::IsEnabled(kIOSSaveToPhotosSignedOut)) {
+    base::UmaHistogramEnumeration(kSaveToPhotosSignInStatusHistogram,
+                                  SaveToPhotosSignInStatus::kSignedIn);
   }
 
   const GaiaId defaultGaiaId(

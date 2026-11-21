@@ -178,6 +178,7 @@ class ComponentUpdaterTest : public testing::Test {
 
  protected:
   void RunThreads();
+  void TriggerUpdateComplete(const std::string& id);
 
  private:
   void RunUpdateTask(const UpdateScheduler::UserTask& user_task);
@@ -251,6 +252,24 @@ ComponentUpdaterTest::~ComponentUpdaterTest() {
 
 void ComponentUpdaterTest::RunThreads() {
   runloop_.Run();
+}
+
+void ComponentUpdaterTest::TriggerUpdateComplete(const std::string& id) {
+  update_client::Callback update_callback;
+  EXPECT_CALL(update_client(), Update)
+      .WillOnce([&update_callback](const std::vector<std::string>&,
+                                   UpdateClient::CrxDataCallback,
+                                   UpdateClient::CrxStateChangeCallback, bool,
+                                   update_client::Callback callback) {
+        update_callback = std::move(callback);
+      });
+
+  OnDemandTester tester;
+  tester.OnDemand(&component_updater(), id,
+                  OnDemandUpdater::Priority::FOREGROUND);
+
+  ASSERT_TRUE(update_callback);
+  std::move(update_callback).Run(update_client::Error::NONE);
 }
 
 void ComponentUpdaterTest::RunUpdateTask(
@@ -588,6 +607,87 @@ TEST_F(ComponentUpdaterTest, CriticalComponentAlwaysUpdates) {
   EXPECT_EQ(registered.name, name);
 
   EXPECT_TRUE(registered.updates_enabled);
+}
+
+TEST_F(ComponentUpdaterTest,
+       RegisterCancelsPendingUnregistrationBeforeUpdateCompletes) {
+  const std::string id = "abagagagagagagagagagagagagagagag";
+  scoped_refptr<MockInstaller> installer =
+      base::MakeRefCounted<MockInstaller>();
+  EXPECT_CALL(*installer, Uninstall()).Times(0);
+
+  ComponentRegistration component(
+      id, /*name=*/{}, base::ToVector(update_client::abag_hash),
+      base::Version("1.0"), /*fingerprint=*/{}, /*installer_attributes=*/{},
+      /*action_handler=*/nullptr, installer,
+      /*requires_network_encryption=*/false,
+      /*supports_group_policy_enable_component_updates=*/true,
+      /*allow_cached_copies=*/true,
+      /*allow_updates_on_metered_connection=*/true,
+      /*allow_updates=*/true);
+
+  EXPECT_TRUE(component_updater().RegisterComponent(component));
+
+  // Unregister during an in-progress update adds component ID to the pending
+  // unregistration list.
+  EXPECT_CALL(update_client(), IsUpdating(id)).WillOnce(Return(true));
+  EXPECT_TRUE(component_updater().UnregisterComponent(id));
+
+  // Re-register removes the component ID from the pending unregistration list
+  // so the component is not uninstalled after the update completes.
+  EXPECT_TRUE(component_updater().RegisterComponent(component));
+
+  // The update does not uninstall the component.
+  TriggerUpdateComplete(id);
+
+  CrxUpdateItem item;
+  EXPECT_TRUE(component_updater().GetComponentDetails(id, &item));
+  EXPECT_TRUE(item.component);
+}
+
+TEST_F(ComponentUpdaterTest,
+       RegisterCancelsPendingUnregistrationAfterUpdateCompletes) {
+  const std::string id = "abagagagagagagagagagagagagagagag";
+  scoped_refptr<MockInstaller> installer =
+      base::MakeRefCounted<MockInstaller>();
+  // The component is uninstalled after the first update completes when
+  // processing the pending unregistration list.
+  EXPECT_CALL(*installer, Uninstall()).WillOnce(Return(true));
+
+  ComponentRegistration component(
+      id, /*name=*/{}, base::ToVector(update_client::abag_hash),
+      base::Version("1.0"), /*fingerprint=*/{}, /*installer_attributes=*/{},
+      /*action_handler=*/nullptr, installer,
+      /*requires_network_encryption=*/false,
+      /*supports_group_policy_enable_component_updates=*/true,
+      /*allow_cached_copies=*/true,
+      /*allow_updates_on_metered_connection=*/true,
+      /*allow_updates=*/true);
+
+  EXPECT_TRUE(component_updater().RegisterComponent(component));
+
+  // Unregister during an in progress update adds component ID to the pending
+  // unregistration list.
+  EXPECT_CALL(update_client(), IsUpdating(id)).WillOnce(Return(true));
+  EXPECT_TRUE(component_updater().UnregisterComponent(id));
+
+  EXPECT_CALL(update_client(), IsUpdating(id)).WillOnce(Return(false));
+  // When the first update completes the component is uninstalled.
+  TriggerUpdateComplete(id);
+
+  CrxUpdateItem item;
+  EXPECT_FALSE(component_updater().GetComponentDetails(id, &item));
+  EXPECT_FALSE(item.component);
+
+  // Re-register removes the component ID from the pending unregistration list
+  // so the component is not uninstalled after the update completes.
+  EXPECT_TRUE(component_updater().RegisterComponent(component));
+
+  // The second update does not uninstall the component.
+  TriggerUpdateComplete(id);
+
+  EXPECT_TRUE(component_updater().GetComponentDetails(id, &item));
+  EXPECT_TRUE(item.component);
 }
 
 }  // namespace component_updater

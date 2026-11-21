@@ -56,6 +56,26 @@ class LegacyRunnerTests(unittest.TestCase):
         runner._input_props['$recipe_engine/buildbucket']['build']['builder']
         ['builder'], 'some-builder')
 
+    runner = recipe.LegacyRunner(self.tmp_dir, {}, 'dawn', 'some-bucket',
+                                 'some-builder', [], False, False, False,
+                                 self.build_dir)
+    self.assertEqual(runner._swarming_server, 'chromium-swarm')
+    self.assertEqual(runner._luci_realm, 'dawn:try')
+    self.assertEqual(runner._utr_recipe, 'chromium/universal_test_runner')
+
+    custom_src = pathlib.Path('/some/custom/src')
+    runner = recipe.LegacyRunner(self.tmp_dir, {},
+                                 'dawn',
+                                 'some-bucket',
+                                 'some-builder', [],
+                                 False,
+                                 False,
+                                 False,
+                                 self.build_dir,
+                                 src_dir=custom_src)
+    self.assertEqual(runner._input_props['checkout_path'],
+                     str(custom_src.absolute()))
+
   def testRun(self):
     runner = recipe.LegacyRunner(self.tmp_dir, {}, 'some-project',
                                  'some-bucket', 'some-builder', [], False,

@@ -41,7 +41,7 @@ export function getHtml(this: TopToolbarElement) {
         iron-icon="contextual_tasks:notes_spark"
         class="no-overlap" title="$i18n{threadHistoryTooltip}"
         aria-label="$i18n{threadHistoryTooltip}"
-        ?hidden="${!this.isAiPage ||
+        ?hidden="${!this.isAiPage || !this.isUserSignedIn ||
             this.contextualTasksEnableSpatialModelToolbarLayout_}">
     </cr-icon-button>
 
@@ -64,7 +64,7 @@ export function getHtml(this: TopToolbarElement) {
     ` : ''}
     <cr-icon-button id="overflowMenuButton" iron-icon="cr:more-vert"
       data-element-id="kContextualTasksWebUIOverflowMenuElementId"
-      class="no-overlap" title="$i18n{moreOptionsTooltip}"
+      class="no-overlap ${this.overflowMenuOpen_ ? 'active' : ''}" title="$i18n{moreOptionsTooltip}"
       aria-label="$i18n{moreOptionsTooltip}"
       @click="${this.onOverflowMenuButtonClick_}"
       ?hidden="${this.hideOverflowMenuButton_}">
@@ -89,8 +89,11 @@ export function getHtml(this: TopToolbarElement) {
         .isPinButtonEnabled="${this.isPinButtonEnabled}"
         .isAiPage="${this.isAiPage}"
         .isAimEligible="${this.isAimEligible}"
+        .contextualTasksEnableSpatialModelToolbarLayout="${this.contextualTasksEnableSpatialModelToolbarLayout_}"
+        .contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow="${this.contextualTasksEnableSpatialModelToolbarLayoutNewThreadInOverflow_}"
         @pin-click="${this.onPinClick_}"
-        @new-thread-click="${this.onNewThreadClick_}">
+        @new-thread-click="${this.onNewThreadClick_}"
+        @open-changed="${this.onOverflowMenuOpenChanged_}">
     </contextual-tasks-overflow-menu>`}">
   </cr-lazy-render-lit>
   ${this.showReopenTabs_ ? html`

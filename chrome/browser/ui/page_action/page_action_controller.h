@@ -114,6 +114,8 @@ struct AnchoredMessageExpandableContent {
   // If set, overrides the default tooltip on the expand button when the drawer
   // is expanded.
   std::optional<std::u16string> collapse_button_tooltip;
+  // If set, overrides the default accessible name on the expand button.
+  std::optional<std::u16string> expand_button_accessible_name;
 
   bool operator==(const AnchoredMessageExpandableContent&) const = default;
 };

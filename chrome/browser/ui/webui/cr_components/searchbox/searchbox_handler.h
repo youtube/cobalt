@@ -15,6 +15,7 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/views/permissions/permission_prompt_observer.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/contextual_search/pref_names.h"
@@ -31,6 +32,7 @@
 
 class GURL;
 class OmniboxController;
+class OmniboxClient;
 class Profile;
 class OmniboxEditModel;
 
@@ -206,10 +208,14 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
       mojo::PendingRemote<searchbox::mojom::Page> pending_page,
       Profile* profile,
       content::WebContents* web_contents,
-      std::unique_ptr<OmniboxController> controller);
+      std::unique_ptr<OmniboxClient> client,
+      std::optional<base::TimeDelta> autocomplete_stop_timer_duration =
+          std::nullopt);
+
   ~SearchboxHandler() override;
 
   OmniboxController* omnibox_controller() const;
+  OmniboxClient* client() const;
   AutocompleteController* autocomplete_controller() const;
   OmniboxEditModel* edit_model() const;
 
@@ -218,13 +224,20 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   virtual omnibox::InputState GetInputState() const;
   virtual std::string GetPreviousQuery();
 
+  void SetAutocompleteControllerForTesting(
+      std::unique_ptr<AutocompleteController> controller);
+
+  std::u16string GetSuggestionGroupHeaderText(
+      const std::optional<omnibox::GroupId>& suggestion_group_id) const;
+
   raw_ptr<Profile> profile_;
   raw_ptr<content::WebContents> web_contents_;
   raw_ptr<OmniboxController> controller_;
   raw_ptr<Delegate> omnibox_delegate_;
 
-  // Children classes should use `omnibox_controller()` or `controller_`.
   std::unique_ptr<OmniboxController> owned_controller_;
+  std::unique_ptr<OmniboxClient> client_;
+  std::unique_ptr<AutocompleteController> autocomplete_controller_;
 
   base::ScopedObservation<AutocompleteController,
                           AutocompleteController::Observer>
@@ -233,6 +246,10 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   mojo::Receiver<searchbox::mojom::PageHandler> page_handler_;
   mojo::Remote<searchbox::mojom::Page> page_;
   base::WeakPtrFactory<SearchboxHandler> weak_ptr_factory_{this};
+
+  void OpenMatch(AutocompleteMatch match,
+                 WindowOpenDisposition disposition,
+                 base::TimeTicks match_selection_timestamp);
 
   searchbox::mojom::AutocompleteResultPtr CreateAutocompleteResult(
       const std::u16string& input,

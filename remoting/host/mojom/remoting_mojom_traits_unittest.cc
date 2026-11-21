@@ -91,6 +91,7 @@ struct DesktopEnvironmentOptionsParams {
   bool enable_notifications;
   bool terminate_upon_input;
   bool enable_remote_webauthn;
+  bool enable_security_key;
 };
 
 class DesktopEnvironmentOptionsTest
@@ -104,6 +105,7 @@ TEST_P(DesktopEnvironmentOptionsTest, RoundTrip) {
   input.set_enable_notifications(params.enable_notifications);
   input.set_terminate_upon_input(params.terminate_upon_input);
   input.set_enable_remote_webauthn(params.enable_remote_webauthn);
+  input.set_enable_security_key(params.enable_security_key);
 
   DesktopEnvironmentOptions output;
   ASSERT_TRUE(
@@ -115,14 +117,16 @@ TEST_P(DesktopEnvironmentOptionsTest, RoundTrip) {
   EXPECT_EQ(input.enable_notifications(), output.enable_notifications());
   EXPECT_EQ(input.terminate_upon_input(), output.terminate_upon_input());
   EXPECT_EQ(input.enable_remote_webauthn(), output.enable_remote_webauthn());
+  EXPECT_EQ(input.enable_security_key(), output.enable_security_key());
 }
 
 INSTANTIATE_TEST_SUITE_P(
     RemotingMojomTraitsTest,
     DesktopEnvironmentOptionsTest,
-    testing::Values(
-        DesktopEnvironmentOptionsParams{false, false, false, false, false},
-        DesktopEnvironmentOptionsParams{true, true, true, true, true}));
+    testing::Values(DesktopEnvironmentOptionsParams{false, false, false, false,
+                                                    false, false},
+                    DesktopEnvironmentOptionsParams{true, true, true, true,
+                                                    true, true}));
 
 class DesktopCaptureResultTest
     : public testing::TestWithParam<webrtc::DesktopCapturer::Result> {};

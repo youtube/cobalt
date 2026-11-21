@@ -72,12 +72,12 @@ void PrintViewManagerBasic::BindPrintManagerHost(
 void PrintViewManagerBasic::SetupScriptedPrintAndroid(
     SetupScriptedPrintAndroidCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  content::RenderFrameHost* rfh = GetCurrentTargetFrame();
-  DCHECK(rfh->IsRenderFrameLive());
+  content::RenderFrameHost& rfh = CurrentTargetFrame();
+  DCHECK(rfh.IsRenderFrameLive());
 
   // Start Printing Flow via PrinterQuery
   std::unique_ptr<PrinterQuery> printer_query =
-      queue()->CreatePrinterQuery(rfh->GetGlobalId());
+      queue()->CreatePrinterQuery(rfh.GetGlobalId());
   auto* printer_query_ptr = printer_query.get();
 
   printer_query_ptr->GetSettingsFromUser(

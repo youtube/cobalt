@@ -4,6 +4,7 @@
 
 #include "components/omnibox/browser/actions/cross_device_tab_action.h"
 
+#include "base/time/time.h"
 #include "components/omnibox/browser/actions/omnibox_action.h"
 #include "components/omnibox/browser/actions/omnibox_action_concepts.h"
 #include "components/strings/grit/components_strings.h"
@@ -15,20 +16,16 @@
 #include "components/vector_icons/vector_icons.h"     // nogncheck
 #endif  // defined(SUPPORT_PEDALS_VECTOR_ICONS)
 
-CrossDeviceTabAction::CrossDeviceTabAction()
+CrossDeviceTabAction::CrossDeviceTabAction(base::Time tab_last_active_time)
     : OmniboxAction(
           LabelStrings(IDS_OMNIBOX_ACTION_CROSS_DEVICE_TAB_HINT,
                        IDS_OMNIBOX_ACTION_CROSS_DEVICE_TAB_SUGGESTION_CONTENTS,
                        IDS_ACC_OMNIBOX_ACTION_CROSS_DEVICE_TAB_SUFFIX,
                        IDS_ACC_OMNIBOX_ACTION_CROSS_DEVICE_TAB),
-          GURL("chrome://history/syncedTabs")) {}
+          GURL("chrome://history/syncedTabs")),
+      tab_last_active_time_(tab_last_active_time) {}
 
 CrossDeviceTabAction::~CrossDeviceTabAction() = default;
-
-void CrossDeviceTabAction::RecordActionShown(size_t position,
-                                             bool executed) const {
-  // TODO(crbug.com/508162292): Record metrics.
-}
 
 OmniboxActionId CrossDeviceTabAction::ActionId() const {
   return OmniboxActionId::CROSS_DEVICE_TAB;

@@ -42,12 +42,24 @@ enum class PasskeyWelcomeScreenPurpose {
   kReauthenticate,
 };
 
+// User verification statuses for passkey creation/assertion requests.
+enum class PasskeyUserVerificationStatus {
+  kNotRequired,
+  kRequired,
+  kCompleted,
+};
+
 // Helper types representing a key and a list of key respectively.
 using SharedKey = std::vector<uint8_t>;
 using SharedKeyList = std::vector<SharedKey>;
 
 // Callback to be called once keys are fetched.
 using KeysFetchedCallback = base::OnceCallback<void(SharedKeyList, NSError*)>;
+
+// Callback to be called once keys are fetched, including user verification
+// completion status.
+using FetchKeysCallback =
+    base::OnceCallback<void(SharedKeyList, bool did_complete_uv, NSError*)>;
 
 }  // namespace webauthn
 

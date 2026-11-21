@@ -167,7 +167,10 @@ class MockContextualTasksCookieSynchronizer
 class ContextualTasksUIBrowserTest : public InProcessBrowserTest {
  public:
   ContextualTasksUIBrowserTest() {
-    feature_list_.InitAndEnableFeature(contextual_tasks::kContextualTasks);
+    feature_list_.InitWithFeatures(
+        {contextual_tasks::kContextualTasks,
+         contextual_tasks::kContextualTasksForceEntryPointEligibility},
+        {});
   }
   ~ContextualTasksUIBrowserTest() override = default;
 

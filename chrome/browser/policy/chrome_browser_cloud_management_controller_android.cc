@@ -208,6 +208,13 @@ ChromeBrowserCloudManagementControllerAndroid::
   return nullptr;
 }
 
+std::unique_ptr<enterprise_reporting::BrowserLaunchEventController>
+ChromeBrowserCloudManagementControllerAndroid::
+    CreateBrowserLaunchEventController() {
+  // Browser launch reporting is not supported on Android.
+  return nullptr;
+}
+
 void ChromeBrowserCloudManagementControllerAndroid::SetGaiaURLLoaderFactory(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory) {
   // Policy invalidations aren't currently supported on Android.

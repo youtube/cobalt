@@ -61,7 +61,7 @@ DisconnectRequest::DisconnectRequest(
 }
 
 void DisconnectRequest::SetCallbackAndStart(
-    blink::mojom::FederatedAuthRequest::DisconnectCallback callback,
+    blink::mojom::FederatedRequestService::DisconnectCallback callback,
     FederatedIdentityApiPermissionContextDelegate* api_permission_delegate) {
   TRACE_EVENT_BEGIN("content.fedcm", "FedCM disconnect", perfetto_track_);
 

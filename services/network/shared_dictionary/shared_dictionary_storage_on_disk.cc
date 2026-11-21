@@ -10,6 +10,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/pattern.h"
@@ -75,6 +76,9 @@ std::set<mojom::RequestDestination> ToRequestDestinationSet(
   return destinations;
 }
 
+constexpr base::MemoryConsumerTraits kSharedDictionaryStorageTraits(
+    base::MemoryConsumerTraits::ConsumerType::kPassive);
+
 }  // namespace
 
 SharedDictionaryStorageOnDisk::WrappedDictionaryInfo::WrappedDictionaryInfo(
@@ -103,11 +107,9 @@ SharedDictionaryStorageOnDisk::SharedDictionaryStorageOnDisk(
       dictionary_cache_(dictionary_cache),
       memory_consumer_registration_(
           "SharedDictionaryStorageOnDisk",
-          /*traits=*/std::nullopt,  // TODO(crbug.com/489671163): Fill traits.
+          kSharedDictionaryStorageTraits,
           this,
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled),
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled),
       previous_eviction_reason_(previous_eviction_reason) {
   manager_->metadata_store().GetDictionaries(
       isolation_key_,

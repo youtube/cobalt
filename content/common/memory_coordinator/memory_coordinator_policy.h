@@ -5,15 +5,20 @@
 #ifndef CONTENT_COMMON_MEMORY_COORDINATOR_MEMORY_COORDINATOR_POLICY_H_
 #define CONTENT_COMMON_MEMORY_COORDINATOR_MEMORY_COORDINATOR_POLICY_H_
 
+#include <optional>
+#include <string_view>
 #include <type_traits>
 
 #include "base/memory/raw_ref.h"
+#include "base/memory_coordinator/traits.h"
 #include "content/common/content_export.h"
-#include "content/common/memory_coordinator/memory_coordinator_policy_manager.h"
+#include "content/public/common/child_process_id.h"
+#include "content/public/common/process_type.h"
 
 namespace content {
 
 class MemoryCoordinatorPolicyManager;
+class MemoryCoordinatorPolicy;
 
 // An interface for implementing memory management policies.
 //
@@ -22,18 +27,21 @@ class MemoryCoordinatorPolicyManager;
 // (e.g., setting memory limits) through the associated
 // MemoryCoordinatorPolicyManager.
 //
-// If an implementation needs to track individual memory consumer groups (e.g.
-// to maintain per-group state), it should also implement
-// MemoryCoordinatorPolicyManager::Observer.
-//
 // For example, a policy might be implemented to reduce the memory footprint of
 // backgrounded renderers or to respond to system-level memory pressure events.
-//
-// Implementations should be registered with the manager using
-// MemoryCoordinatorPolicyRegistration.
 class CONTENT_EXPORT MemoryCoordinatorPolicy {
  public:
   virtual ~MemoryCoordinatorPolicy() = default;
+
+  // Called when a new consumer group is added/removed.
+  virtual void OnConsumerGroupAdded(
+      uint32_t consumer_id,
+      std::string_view consumer_name,
+      std::optional<base::MemoryConsumerTraits> traits,
+      ProcessType process_type,
+      ChildProcessId child_process_id) = 0;
+  virtual void OnConsumerGroupRemoved(uint32_t consumer_id,
+                                      ChildProcessId child_process_id) = 0;
 
  protected:
   explicit MemoryCoordinatorPolicy(MemoryCoordinatorPolicyManager& manager);
@@ -46,61 +54,25 @@ class CONTENT_EXPORT MemoryCoordinatorPolicy {
   const raw_ref<MemoryCoordinatorPolicyManager> manager_;
 };
 
-namespace internal {
-
-// Note: The registration object is split into a base class to reduce code bloat
-// caused by template instantiation.
-class CONTENT_EXPORT MemoryCoordinatorPolicyRegistrationInternal {
+// Scoped registration helper for MemoryCoordinatorPolicy.
+//
+// Automatically registers the policy with the manager on construction,
+// and unregisters it on destruction.
+class CONTENT_EXPORT MemoryCoordinatorPolicyRegistration {
  public:
-  MemoryCoordinatorPolicyRegistrationInternal(
-      MemoryCoordinatorPolicyManager& manager,
-      MemoryCoordinatorPolicy* policy,
-      MemoryCoordinatorPolicyManager::Observer* observer);
-  ~MemoryCoordinatorPolicyRegistrationInternal();
+  MemoryCoordinatorPolicyRegistration(MemoryCoordinatorPolicyManager& manager,
+                                      MemoryCoordinatorPolicy& policy);
 
-  MemoryCoordinatorPolicyRegistrationInternal(
-      const MemoryCoordinatorPolicyRegistrationInternal&) = delete;
-  MemoryCoordinatorPolicyRegistrationInternal& operator=(
-      const MemoryCoordinatorPolicyRegistrationInternal&) = delete;
+  MemoryCoordinatorPolicyRegistration(
+      const MemoryCoordinatorPolicyRegistration&) = delete;
+  MemoryCoordinatorPolicyRegistration& operator=(
+      const MemoryCoordinatorPolicyRegistration&) = delete;
+
+  ~MemoryCoordinatorPolicyRegistration();
 
  private:
   const raw_ref<MemoryCoordinatorPolicyManager> manager_;
-  const raw_ptr<MemoryCoordinatorPolicy> policy_;
-  const raw_ptr<MemoryCoordinatorPolicyManager::Observer> observer_;
-};
-
-}  // namespace internal
-
-// Scoped registration helper for MemoryCoordinatorPolicy.
-//
-// This object handles the registration of a policy with its manager. It is
-// interface-aware: if the policy also implements the
-// MemoryCoordinatorPolicyManager::Observer interface, this helper will
-// automatically register it as an observer to receive consumer lifecycle
-// notifications.
-//
-// The policy is unregistered when this helper is destroyed. This is the
-// recommended way to manage policy registration as it ensures that both the
-// policy and its optional observer part are registered and unregistered
-// correctly and consistently.
-template <typename T>
-class MemoryCoordinatorPolicyRegistration {
- public:
-  MemoryCoordinatorPolicyRegistration(MemoryCoordinatorPolicyManager& manager,
-                                      T& policy)
-      : impl_(manager, &policy, AsObserver(&policy)) {}
-
- private:
-  // Overload resolution to detect Observer interface at compile time.
-  static MemoryCoordinatorPolicyManager::Observer* AsObserver(
-      MemoryCoordinatorPolicyManager::Observer* observer) {
-    return observer;
-  }
-  static MemoryCoordinatorPolicyManager::Observer* AsObserver(...) {
-    return nullptr;
-  }
-
-  internal::MemoryCoordinatorPolicyRegistrationInternal impl_;
+  const raw_ref<MemoryCoordinatorPolicy> policy_;
 };
 
 }  // namespace content

@@ -5,18 +5,23 @@
 #ifndef COMPONENTS_CONTEXTUAL_SEARCH_CONTEXTUAL_SEARCH_SESSION_HANDLE_H_
 #define COMPONENTS_CONTEXTUAL_SEARCH_CONTEXTUAL_SEARCH_SESSION_HANDLE_H_
 
+#include <map>
 #include <memory>
 
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/scoped_observation.h"
 #include "base/unguessable_token.h"
 #include "components/contextual_search/contextual_search_context_controller.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
+#include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/lens_overlay_invocation_source.h"
+#include "components/sessions/core/session_id.h"
 #include "mojo/public/cpp/base/big_buffer.h"
+#include "third_party/lens_server_proto/lens_overlay_request_id.pb.h"
 #include "third_party/lens_server_proto/modality_chip_props.pb.h"
 
 class GURL;
@@ -33,7 +38,6 @@ namespace proto {
 class LensOverlaySuggestInputs;
 }  // namespace proto
 }  // namespace lens
-class SessionID;
 
 namespace contextual_search {
 using SessionId = base::UnguessableToken;
@@ -44,6 +48,28 @@ using AddFileContextCallback =
 // RAII handle for managing the lifetime of a ComposeboxQueryController.
 class ContextualSearchSessionHandle {
  public:
+  // Interface to perform platform-specific validation of tabs that were
+  // previously uploaded as context.
+  class TabValidator {
+   public:
+    virtual ~TabValidator() = default;
+
+    // Checks if the tab described by `file_info` is still valid.
+    //
+    // A tab is considered valid if:
+    // 1. The tab is still open in the user's browser.
+    // 2. The tab is still pointing to the "same" page as when it was uploaded.
+    //    "Same page" is determined using platform-specific URL deduplication
+    //    logic (e.g., ignoring refs, usernames, passwords, and applying
+    //    Doc-specific normalization).
+    //
+    // Returns:
+    // - true: The tab is still open and pointing to the same page.
+    // - false: The tab has been closed, or the user navigated away from the
+    // page.
+    virtual bool IsTabValidAndPointingToUrl(const FileInfo& file_info) = 0;
+  };
+
   ContextualSearchSessionHandle(const ContextualSearchSessionHandle&) = delete;
   ContextualSearchSessionHandle& operator=(
       const ContextualSearchSessionHandle&) = delete;
@@ -202,10 +228,20 @@ class ContextualSearchSessionHandle {
   void set_submitted_context_tokens(
       const std::vector<base::UnguessableToken>& tokens);
 
+  using SubmittedTabsMap =
+      std::map<SessionID,
+               std::pair<base::UnguessableToken, lens::LensOverlayRequestId>>;
+
+  // Returns the map of submitted tabs.
+  const SubmittedTabsMap& submitted_tabs() const { return submitted_tabs_; }
+
+  // Sets the submitted tabs map.
+  void set_submitted_tabs(SubmittedTabsMap submitted_tabs);
+
   // Returns the list of submitted FileInfo for this particular instance
   // of the session. These are uploaded and submitted, but we have not received
   // confirmation that they are available on the server.
-  std::vector<FileInfo> GetSubmittedContextFileInfos() const;
+  virtual std::vector<FileInfo> GetSubmittedContextFileInfos() const;
 
   // Returns all the tab titles corresponding to the submitted context tokens.
   virtual std::vector<std::string> GetSubmittedContextTabTitles() const;
@@ -239,10 +275,11 @@ class ContextualSearchSessionHandle {
   // Returns true if the token corresponds to a tab context.
   bool IsTabToken(const base::UnguessableToken& token) const;
 
-  // The list of uploaded but not yet committed context tokens for this
-  // particular instance of the session. This list is unique to this instance of
-  // the session handle, meaning that it is unique per instance of the
-  // contextual tasks ui.
+  // The list of uploaded context tokens for this particular instance of the
+  // session. This list is unique to this instance of the session handle.
+  // Note: If kContextManagementInComposebox is enabled, this list can contain
+  // tokens that have already been submitted (committed) in a previous query
+  // but are still active in the UI.
   std::vector<base::UnguessableToken> uploaded_context_tokens_;
 
   // The list of uploaded and submitted, but not yet committed context tokens
@@ -251,8 +288,21 @@ class ContextualSearchSessionHandle {
   // the contextual tasks ui.
   std::vector<base::UnguessableToken> submitted_context_tokens_;
 
+  // Map of tab session IDs to their latest submitted token and request ID.
+  // Tracks active tabs in the session to detect their deletion or removal.
+  std::map<SessionID,
+           std::pair<base::UnguessableToken, lens::LensOverlayRequestId>>
+      submitted_tabs_;
+
   // Whether the SearchContentSharingSettings policy has been checked.
   bool policy_checked_ = false;
+
+  // Returns the tab validator if the service is still alive.
+  TabValidator* GetTabValidator() const;
+
+  // Returns the active (non-superceded) token for the given tab session ID,
+  // or an empty token if not found.
+  base::UnguessableToken GetActiveTokenForTab(SessionID tab_session_id) const;
 
   // The service that vended this handle. This is a weak pointer because a
   // handle may outlive the service.

@@ -977,9 +977,10 @@ std::string ContentAnalysisDelegate::GetContentTransferMethod() const {
     case enterprise_connectors::ContentAnalysisRequest::SYSTEM_DIALOG_PRINT:
     case enterprise_connectors::ContentAnalysisRequest::NORMAL_DOWNLOAD:
     case enterprise_connectors::ContentAnalysisRequest::SAVE_AS_DOWNLOAD:
-    case enterprise_connectors::ContentAnalysisRequest::CLIPBOARD_COPY:
       return "";
 
+    case enterprise_connectors::ContentAnalysisRequest::CLIPBOARD_COPY:
+      return kContentTransferMethodClipboardCopy;
     case enterprise_connectors::ContentAnalysisRequest::CLIPBOARD_PASTE:
       if (!data_.paths.empty()) {
         return kContentTransferMethodFilePaste;

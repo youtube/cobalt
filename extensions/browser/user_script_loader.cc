@@ -534,6 +534,22 @@ UserScriptLoader::SendUpdateResult UserScriptLoader::SendUpdate(
     return SendUpdateResult::kNoActionTaken;
   }
 
+  switch (host_id().type) {
+    case mojom::HostID::HostType::kExtensions:
+      break;
+    case mojom::HostID::HostType::kWebUi:
+    case mojom::HostID::HostType::kControlledFrameEmbedder:
+      // Embedder content scripts are only ever injected into the embedder's
+      // own guest views and never into ordinary web frames, so they only need
+      // to be sent to guest renderers.
+      if (!process->IsForGuestsOnly()) {
+        return SendUpdateResult::kNoActionTaken;
+      }
+      break;
+    default:
+      NOTREACHED();
+  }
+
   base::ReadOnlySharedMemoryRegion region_for_process =
       shared_memory.Duplicate();
   if (!region_for_process.IsValid()) {

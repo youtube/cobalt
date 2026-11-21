@@ -47,6 +47,9 @@ enum class AutofillAiModelExecutionStatus {
 
 inline constexpr std::string_view kUmaAutofillAiModelExecutionStatus =
     "Autofill.Ai.ModelExecutionStatus";
+inline constexpr std::string_view
+    kUmaAutofillAiModelExecutionPiShadowPrediction =
+        "Autofill.Ai.ModelExecution.PiShadowPrediction";
 
 class AutofillAiModelExecutorImpl : public AutofillAiModelExecutor {
  public:
@@ -67,12 +70,20 @@ class AutofillAiModelExecutorImpl : public AutofillAiModelExecutor {
  private:
   // Writes the model execution response into the cache.
   void OnModelExecuted(
-      FormData form_data,
+      const FormData form_data,
+      const optimization_guide::proto::AutofillAiTypeRequest request,
       optimization_guide::OptimizationGuideModelExecutionResult
           execution_result,
       std::unique_ptr<
           optimization_guide::proto::FormsClassificationsLoggingData>
           logging_data);
+
+  // Computes a metric determining if sending the `request` through the PI and
+  // non-PI inference stack yields the same result, assuming the right flags are
+  // enabled.
+  void MaybeComputePrivateAiShadowMetric(
+      const optimization_guide::proto::AutofillAiTypeRequest& request,
+      const optimization_guide::proto::AutofillAiTypeResponse& response);
 
   // Uploads a stripped request and the response of a model run to MQLS.
   void LogModelPredictions(

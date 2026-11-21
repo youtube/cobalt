@@ -225,8 +225,9 @@ class UserPolicySigninServiceTest : public testing::Test {
   }
 
   bool IsRequestActive() {
-    if (identity_test_env()->IsAccessTokenRequestPending())
+    if (identity_test_env()->IsAccessTokenRequestPending()) {
       return true;
+    }
     return test_url_loader_factory_.NumPending() > 0;
   }
 
@@ -448,8 +449,9 @@ TEST_F(UserPolicySigninServiceSignedInTest, InitWhileSignedInOAuthError) {
   ASSERT_TRUE(IsRequestActive());
 
   // Now fail the access token fetch.
-  GoogleServiceAuthError error(
-      GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS);
+  GoogleServiceAuthError error =
+      GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
+          GoogleServiceAuthError::InvalidGaiaCredentialsReason::UNKNOWN);
   identity_test_env()->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
       error);
   ASSERT_FALSE(IsRequestActive());
@@ -992,6 +994,13 @@ TEST_F(UserPolicySigninServiceTest, SignOutThenSignInAgain) {
 
   identity_test_env()->ClearPrimaryAccount();
   ASSERT_FALSE(manager_->core()->service());
+
+  // Reset the registration callback state to filter out stale assertions before
+  // starting the next sign-in attempt.
+  register_completed_ = false;
+  dm_token_.clear();
+  client_id_.clear();
+  user_affiliation_ids_.clear();
 
   // Now sign in again.
   ASSERT_NO_FATAL_FAILURE(TestSuccessfulSignin());

@@ -81,6 +81,16 @@ class PrefServiceSyncable;
 }  // namespace sync_preferences
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if !BUILDFLAG(IS_ANDROID)
+namespace sync_pb {
+class ThemeSpecifics;
+}
+namespace themes {
+template <typename LocalSpecifics>
+class CrossDeviceThemeTracker;
+}
+#endif
+
 // Class responsible for instantiating sync controllers (DataTypeController)
 // for datatypes / features under chrome/.
 //
@@ -141,6 +151,12 @@ class ChromeSyncControllerBuilder {
           wifi_configuration_sync_service);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if !BUILDFLAG(IS_ANDROID)
+  void SetCrossDeviceThemeTracker(
+      themes::CrossDeviceThemeTracker<sync_pb::ThemeSpecifics>*
+          cross_device_theme_tracker);
+#endif
+
   // Actually builds the controllers. All setters above must have been called
   // beforehand (null may or may not be allowed).
   std::vector<std::unique_ptr<syncer::DataTypeController>> Build(
@@ -195,6 +211,12 @@ class ChromeSyncControllerBuilder {
 #if BUILDFLAG(IS_ANDROID)
   SafeOptional<raw_ptr<webapk::WebApkSyncService>> web_apk_sync_service_;
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if !BUILDFLAG(IS_ANDROID)
+  SafeOptional<
+      raw_ptr<themes::CrossDeviceThemeTracker<sync_pb::ThemeSpecifics>>>
+      cross_device_theme_tracker_;
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   SafeOptional<raw_ptr<app_list::AppListSyncableService>>

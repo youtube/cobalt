@@ -47,7 +47,6 @@
 #define IDC_NEW_WINDOW                  34000
 #define IDC_NEW_INCOGNITO_WINDOW        34001
 #define IDC_CLOSE_WINDOW                34012
-#define IDC_ALWAYS_ON_TOP               34013
 #define IDC_NEW_TAB                     34014
 #define IDC_CLOSE_TAB                   34015
 #define IDC_SELECT_NEXT_TAB             34016
@@ -69,10 +68,8 @@
 #define IDC_MOVE_TAB_NEXT               34032
 #define IDC_MOVE_TAB_PREVIOUS           34033
 #define IDC_SEARCH                      34035
-#define IDC_WINDOW_MENU                 34045
 #define IDC_MINIMIZE_WINDOW             34046
 #define IDC_MAXIMIZE_WINDOW             34047
-#define IDC_ALL_WINDOWS_FRONT           34048
 #define IDC_NAME_WINDOW                 34049
 #if BUILDFLAG(IS_CHROMEOS)
 #define IDC_TOGGLE_MULTITASK_MENU       34050
@@ -141,7 +138,6 @@
 #define IDC_WINDOW_MUTE_SITE            35012
 #define IDC_WINDOW_PIN_TAB              35013
 #define IDC_WINDOW_GROUP_TAB            35014
-#define IDC_MIGRATE_LOCAL_CREDIT_CARD_FOR_PAGE 35015
 #define IDC_SEND_TAB_TO_SELF            35016
 #define IDC_FOCUS_THIS_TAB              35017
 #define IDC_QRCODE_GENERATOR            35021
@@ -150,16 +146,12 @@
 #define IDC_NEW_TAB_TO_RIGHT            35024
 #define IDC_SAVE_AUTOFILL_ADDRESS       35025
 #define IDC_OFFERS_AND_REWARDS_FOR_PAGE 35026
-#define IDC_WEBAUTHN                    35027
 #define IDC_SHARING_HUB                 35028
-#define IDC_SHARING_HUB_MENU            35029
 #define IDC_FILLED_CARD_INFORMATION     35030
 #define IDC_SHARING_HUB_SCREENSHOT      35031
 #define IDC_VIRTUAL_CARD_ENROLL         35032
 #define IDC_SAVE_IBAN_FOR_PAGE          35035
 #define IDC_AUTOFILL_MANDATORY_REAUTH   35036
-#define IDC_PROFILE_MENU_IN_APP_MENU    35039
-#define IDC_PASSWORDS_AND_AUTOFILL_MENU 35040
 #define IDC_SHOW_PASSWORD_MANAGER       35041
 #define IDC_SHOW_PAYMENT_METHODS        35042
 #define IDC_SHOW_ADDRESSES              35043
@@ -180,20 +172,13 @@
 #define IDC_CUT                         36000
 #define IDC_COPY                        36001
 #define IDC_PASTE                       36003
-#define IDC_EDIT_MENU                   36004
 
 // Find-in-page
 #define IDC_FIND                        37000
 #define IDC_FIND_NEXT                   37001
 #define IDC_FIND_PREVIOUS               37002
 #define IDC_CLOSE_FIND_OR_STOP          37003
-#define IDC_FIND_MENU                   37100
 
-// Find/Edit sub menu
-#define IDC_FIND_AND_EDIT_MENU          37200
-
-// Save/Share sub menu
-#define IDC_SAVE_AND_SHARE_MENU         37300
 
 // Profile sub menu
 #define IDC_CUSTOMIZE_CHROME            37350
@@ -209,7 +194,6 @@
 #define IDC_SHOW_SYNC_PASSPHRASE_DIALOG 35360
 
 // Zoom
-#define IDC_ZOOM_MENU                   38000
 #define IDC_ZOOM_PLUS                   38001
 #define IDC_ZOOM_NORMAL                 38002
 #define IDC_ZOOM_MINUS                  38003
@@ -228,7 +212,6 @@
 // Show various bits of UI
 #define IDC_OPEN_FILE                   40000
 #define IDC_CREATE_SHORTCUT             40002
-#define IDC_DEVELOPER_MENU              40003
 #define IDC_DEV_TOOLS                   40004
 #define IDC_DEV_TOOLS_CONSOLE           40005
 #define IDC_TASK_MANAGER                40006
@@ -252,43 +235,28 @@
 #define IDC_UPGRADE_DIALOG              40024
 #define IDC_SHOW_HISTORY_CLUSTERS_SIDE_PANEL 40025
 #define IDC_PROFILING_ENABLED           40028
-#define IDC_BOOKMARKS_MENU              40029
-#define IDC_SAVED_TAB_GROUPS_MENU       40030
 #define IDC_EXTENSION_ERRORS            40031
-#define IDC_SHOW_SETTINGS_CHANGE_FIRST  40033
-#define IDC_SHOW_SETTINGS_CHANGE_LAST   40133
 #define IDC_SHOW_AVATAR_MENU            40134
 #define IDC_EXTENSION_INSTALL_ERROR_FIRST 40135
 #define IDC_EXTENSION_INSTALL_ERROR_LAST 40235
 #define IDC_TOGGLE_REQUEST_TABLET_SITE  40236
 #define IDC_DEV_TOOLS_TOGGLE            40237
-#define IDC_RECENT_TABS_MENU            40239
 #define IDC_RECENT_TABS_NO_DEVICE_TABS  40240
-#define IDC_SHOW_SETTINGS_RESET_BUBBLE  40241
 #define IDC_DISTILL_PAGE                40243
-#define IDC_HELP_MENU                   40244
-#define IDC_SHOW_SRT_BUBBLE             40246
-#define IDC_ELEVATED_RECOVERY_DIALOG    40247
 #define IDC_TAKE_SCREENSHOT             40248
-#define IDC_MORE_TOOLS_MENU             40249
 #define IDC_TOGGLE_FULLSCREEN_TOOLBAR   40250
-#define IDC_CUSTOMIZE_TOUCH_BAR         40251
 #define IDC_SHOW_BETA_FORUM             40252
 #define IDC_TOGGLE_JAVASCRIPT_APPLE_EVENTS 40253
 #define IDC_INSTALL_PWA                 40254
 #define IDC_SHOW_MANAGEMENT_PAGE             40255
 #define IDC_PASTE_AND_GO                40256
-#define IDC_SHOW_SAVE_LOCAL_CARD_SIGN_IN_PROMO_IF_APPLICABLE 40257
-#define IDC_CLOSE_SIGN_IN_PROMO        40258
 #define IDC_SHOW_FULL_URLS             40259
 #define IDC_CARET_BROWSING_TOGGLE      40260
 #define IDC_CHROME_TIPS                40263
 #define IDC_CHROME_WHATS_NEW           40264
 #define IDC_PERFORMANCE                             40266
-#define IDC_EXTENSIONS_SUBMENU                         40267
 #define IDC_EXTENSIONS_SUBMENU_MANAGE_EXTENSIONS       40268
 #define IDC_EXTENSIONS_SUBMENU_VISIT_CHROME_WEB_STORE  40269
-#define IDC_READING_LIST_MENU           40270
 #define IDC_READING_LIST_MENU_ADD_TAB   40271
 #define IDC_READING_LIST_MENU_SHOW_UI   40272
 #define IDC_SHOW_READING_MODE_SIDE_PANEL 40273
@@ -328,19 +296,16 @@
 #define IDC_SPELLCHECK_SUGGESTION_3     41003
 #define IDC_SPELLCHECK_SUGGESTION_4     41004
 #define IDC_SPELLCHECK_SUGGESTION_LAST  IDC_SPELLCHECK_SUGGESTION_4
-#define IDC_SPELLCHECK_MENU             41005
 // Language entries are inserted using autogenerated values between
 // [_FIRST, _LAST).
 #define IDC_SPELLCHECK_LANGUAGES_FIRST  41006
 #define IDC_SPELLCHECK_LANGUAGES_LAST   41106
 #define IDC_CHECK_SPELLING_WHILE_TYPING 41107
-#define IDC_SPELLPANEL_TOGGLE           41109
 #define IDC_SPELLCHECK_ADD_TO_DICTIONARY 41110
 #define IDC_SPELLCHECK_MULTI_LINGUAL    41111
 #define IDC_SPELLCHECK_REMOVE_FROM_DICTIONARY 41112
 
 // Writing direction
-#define IDC_WRITING_DIRECTION_MENU       41120
 #define IDC_WRITING_DIRECTION_DEFAULT    41121
 #define IDC_WRITING_DIRECTION_LTR        41122
 #define IDC_WRITING_DIRECTION_RTL        41123
@@ -351,14 +316,7 @@
 
 // Identifiers for platform-specific items.
 // Placed in a common file to help insure they never collide.
-#define IDC_VIEW_MENU                   44000     // OSX only
-#define IDC_FILE_MENU                   44001     // OSX only
-#define IDC_CHROME_MENU                 44002     // OSX only
 #define IDC_HIDE_APP                    44003     // OSX only
-#define IDC_HISTORY_MENU                46000     // OSX only
-#define IDC_TAB_MENU                    46001     // OSX only
-#define IDC_PROFILE_MAIN_MENU           46100     // OSX only
-#define IDC_INPUT_METHODS_MENU          46300     // Linux only
 
 // The range of command ids reserved for context menus added by web content.
 #define IDC_CONTENT_CONTEXT_CUSTOM_FIRST 47000
@@ -375,7 +333,6 @@
 #define IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD 50102
 #define IDC_CONTENT_CONTEXT_SAVELINKAS 50103
 #define IDC_CONTENT_CONTEXT_COPYLINKLOCATION 50104
-#define IDC_CONTENT_CONTEXT_COPYEMAILADDRESS 50105
 #define IDC_CONTENT_CONTEXT_OPENLINKWITH 50106
 #define IDC_CONTENT_CONTEXT_COPYLINKTEXT 50107
 #define IDC_CONTENT_CONTEXT_OPENLINKINPROFILE 50108
@@ -439,6 +396,7 @@
 // is rolled out.
 #define IDC_CONTENT_CONTEXT_GENERATEPASSWORD 50176
 #define IDC_CONTENT_CONTEXT_EXIT_FULLSCREEN 50177
+#define IDC_CONTENT_CONTEXT_SAVE_TO_MEMORY_BANKS 50183
 // TODO(b/316143236): Remove this entry once `kPasswordManualFallbackAvailable`
 // is rolled out.
 #define IDC_CONTENT_CONTEXT_SHOWALLSAVEDPASSWORDS 50178
@@ -498,7 +456,6 @@
 #define IDC_BOOKMARK_MANAGER 51012
 #define IDC_BOOKMARK_BAR_ALWAYS_SHOW 51013
 #define IDC_BOOKMARK_BAR_SHOW_APPS_SHORTCUT 51014
-#define IDC_BOOKMARK_BAR_SHOW_READING_LIST 51015
 #define IDC_BOOKMARK_BAR_SHOW_MANAGED_BOOKMARKS 51016
 #define IDC_BOOKMARK_BAR_TRACK_PRICE_FOR_SHOPPING_BOOKMARK 51017
 #define IDC_BOOKMARK_BAR_UNTRACK_PRICE_FOR_SHOPPING_BOOKMARK 51018
@@ -518,7 +475,6 @@
 #define IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_SINGLE_DEVICE 51032
 #define IDC_CONTENT_CONTEXT_SHARING_SHARED_CLIPBOARD_MULTIPLE_DEVICES 51033
 #define IDC_CONTENT_CONTEXT_GENERATE_QR_CODE 51034
-#define IDC_CONTENT_CONTEXT_SHARING_SUBMENU 51035
 #define IDC_CONTENT_CONTEXT_SEND_TAB_TO_SELF_DEVICE1 51040
 #define IDC_CONTENT_CONTEXT_SEND_TAB_TO_SELF_DEVICE2 51041
 #define IDC_CONTENT_CONTEXT_SEND_TAB_TO_SELF_DEVICE3 51042
@@ -539,9 +495,6 @@
 #define IDC_MEDIA_ROUTER_ABOUT 51200
 #define IDC_MEDIA_ROUTER_HELP 51201
 #define IDC_MEDIA_ROUTER_LEARN_MORE 51202
-#define IDC_MEDIA_ROUTER_ALWAYS_SHOW_TOOLBAR_ACTION 51204
-#define IDC_MEDIA_ROUTER_SHOWN_BY_POLICY 51206
-#define IDC_MEDIA_ROUTER_SHOW_IN_TOOLBAR 51207
 #define IDC_MEDIA_ROUTER_TOGGLE_MEDIA_REMOTING 51208
 
 // Context menu items for media toolbar button
@@ -554,10 +507,8 @@
 #define IDC_UPDATE_SIDE_PANEL_PIN_STATE 51211
 
 // Context menu items for media stream status tray
-#define IDC_MEDIA_STREAM_DEVICE_STATUS_TRAY 51300
 #define IDC_MEDIA_CONTEXT_MEDIA_STREAM_CAPTURE_LIST_FIRST 51301
 #define IDC_MEDIA_CONTEXT_MEDIA_STREAM_CAPTURE_LIST_LAST 51399
-#define IDC_MEDIA_STREAM_DEVICE_ALWAYS_ALLOW 51400
 
 // Protocol handler menu entries
 #define IDC_CONTENT_CONTEXT_PROTOCOL_HANDLER_FIRST     52000
@@ -660,5 +611,55 @@
 // menus).
 #define IDC_FIRST_UNBOUNDED_MENU COMMAND_ID_FIRST_UNBOUNDED
 // LINT.ThenChange(//chrome/browser/ui/actions/chrome_action_id.h)
+
+// -----------------------------------------------------------------------------
+// Centralized Placeholder Command IDs for Non-Actionable Menu Containers
+// -----------------------------------------------------------------------------
+// These negative integer constants replace legacy positive IDC_* command IDs
+// for structural menu containers, submenus, and wrapper menus.
+// Using centralized negative values avoids colliding with positive actionable
+// command IDs while providing a single centralized location for all container IDs.
+
+#ifndef RC_INVOKED
+// App Menu submenus and containers
+constexpr int kEditMenuId = -1001;
+constexpr int kZoomMenuId = -1002;
+constexpr int kPasswordsAndAutofillMenuId = -1003;
+constexpr int kFindAndEditMenuId = -1004;
+constexpr int kSaveAndShareMenuId = -1005;
+constexpr int kRecentTabsMenuId = -1006;
+constexpr int kSharingHubMenuId = -1007;
+constexpr int kProfileMenuId = -1008;
+constexpr int kReadingListMenuId = -1009;
+constexpr int kExtensionsSubMenuId = -1010;
+constexpr int kBookmarksMenuId = -1011;
+constexpr int kSavedTabGroupsMenuId = -1012;
+constexpr int kMoreToolsMenuId = -1013;
+constexpr int kHelpMenuId = -1014;
+
+// Context Menu submenus
+constexpr int kSpellcheckMenuId = -1015;
+constexpr int kWritingDirectionMenuId = -1016;
+
+// macOS Top-Level Menu Bar containers
+constexpr int kMacViewMenuId = -1017;
+constexpr int kMacFileMenuId = -1018;
+constexpr int kMacChromeMenuId = -1019;
+constexpr int kMacHistoryMenuId = -1020;
+constexpr int kMacTabMenuId = -1021;
+constexpr int kMacProfileMainMenuId = -1022;
+constexpr int kMacWindowMenuId = -1023;
+constexpr int kMacAllWindowsMenuId = -1024;
+
+// Linux System menu containers
+constexpr int kLinuxInputMethodsMenuId = -1025;
+
+// Developer / Tools submenus
+constexpr int kDeveloperMenuId = -1026;
+constexpr int kFindMenuId = -1027;
+constexpr int kSharingSubmenuMenuId = -1028;
+constexpr int kCustomizeTouchBarMenuId = -1029;
+#endif  // RC_INVOKED
+
 
 #endif  // CHROME_APP_CHROME_COMMAND_IDS_H_

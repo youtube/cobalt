@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "ash/ash_element_identifiers.h"
+#include "ash/constants/ash_extension_constants.h"
 #include "base/base_paths.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -14,7 +15,6 @@
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/ash/accessibility/chromevox_panel.h"
 #include "chrome/browser/speech/extension_api/tts_engine_extension_api.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/test/base/chromeos/crosier/ash_integration_test.h"
 #include "chrome/test/base/chromeos/crosier/upstart.h"
 #include "extensions/browser/browsertest_util.h"

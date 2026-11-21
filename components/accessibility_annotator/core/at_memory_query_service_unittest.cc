@@ -12,6 +12,7 @@
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/repeating_test_future.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "components/accessibility_annotator/core/annotation_reducer/memory_data_provider.h"
@@ -19,6 +20,8 @@
 #include "components/accessibility_annotator/core/annotation_reducer/memory_search_result.h"
 #include "components/accessibility_annotator/core/at_memory_query_service_delegate.h"
 #include "components/personal_context/core/context_memory_error.h"
+#include "components/personal_context/core/personal_context_debug_features.h"
+#include "net/base/mock_network_change_notifier.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -147,6 +150,28 @@ TEST_F(AtMemoryQueryServiceTest, Query_NoProviders) {
   const auto& result = future.Get();
   EXPECT_TRUE(result.entries.empty());
   EXPECT_EQ(result.status, MemorySearchStatus::kInternalFailure);
+}
+
+// Tests that the query service returns a data fetch failure immediately when
+// the network is offline.
+TEST_F(AtMemoryQueryServiceTest, Query_Offline) {
+  net::test::ScopedMockNetworkChangeNotifier notifier;
+  notifier.mock_network_change_notifier()->SetConnectionType(
+      net::NetworkChangeNotifier::CONNECTION_NONE);
+
+  auto service = std::make_unique<AtMemoryQueryService>(
+      std::make_unique<MockAtMemoryQueryServiceDelegate>(),
+      std::make_unique<FakeMemoryDataProvider>(),
+      /*personal_context_resolver=*/nullptr,
+      /*remote_model_executor=*/nullptr);
+
+  base::test::TestFuture<MemorySearchResults> future;
+  service->Query(u"what is my name", future.GetRepeatingCallback());
+
+  ASSERT_TRUE(future.Wait());
+  const auto& result = future.Get();
+  EXPECT_TRUE(result.entries.empty());
+  EXPECT_EQ(result.status, MemorySearchStatus::kNoConnectionFailure);
 }
 
 // Tests that the query service returns the expected results when the intent is
@@ -546,7 +571,7 @@ TEST_F(AtMemoryQueryServiceTest, Query_PersonalContextResolverError) {
 
   ASSERT_TRUE(future.Wait());
   const auto& result = future.Get();
-  EXPECT_EQ(result.status, MemorySearchStatus::kDataFetchFailure);
+  EXPECT_EQ(result.status, MemorySearchStatus::kInternalFailure);
   EXPECT_TRUE(result.entries.empty());
 }
 
@@ -588,7 +613,7 @@ TEST_F(AtMemoryQueryServiceTest,
   // Then we should get the final result indicating the error, but containing
   // the fallback local entries.
   MemorySearchResults final_result = future.Take();
-  EXPECT_EQ(final_result.status, MemorySearchStatus::kDataFetchFailure);
+  EXPECT_EQ(final_result.status, MemorySearchStatus::kInternalFailure);
   EXPECT_THAT(final_result.entries,
               testing::UnorderedElementsAre(
                   testing::Field(&MemorySearchResult::value, u"John Doe")));
@@ -755,6 +780,37 @@ TEST_F(AtMemoryQueryServiceTest,
   ASSERT_EQ(result.entries[3].metadata_list.size(), 1u);
   EXPECT_EQ(result.entries[3].metadata_list[0].value, u"San Diego");
   EXPECT_EQ(result.entries[3].type, MemoryDataType::kUnknown);
+}
+
+TEST_F(AtMemoryQueryServiceTest,
+       Query_PersonalContextDebug_CustomTypeParam_ReturnsConfiguredType) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      personal_context::features::debug::kMockPersonalContextResult,
+      {{personal_context::features::debug::kMockPersonalContextResultTypeParam
+            .name,
+        "1"}});
+
+  auto data_provider = std::make_unique<FakeMemoryDataProvider>();
+  FakeMemoryDataProvider* fake_data_provider = data_provider.get();
+
+  MemorySearchResult name_entry(MemoryDataType::kNameFull, u"Name",
+                                u"Jane Doe");
+  fake_data_provider->SetResults({name_entry});
+
+  base::test::TestFuture<MemorySearchResults> future;
+  auto service = std::make_unique<AtMemoryQueryService>(
+      std::make_unique<MockAtMemoryQueryServiceDelegate>(),
+      std::move(data_provider), /*personal_context_resolver=*/nullptr,
+      /*remote_model_executor=*/nullptr);
+  service->Query(u"random query", future.GetRepeatingCallback());
+
+  ASSERT_TRUE(future.Wait());
+  const auto& result = future.Get();
+  EXPECT_EQ(result.status, MemorySearchStatus::kFinalResponseSuccess);
+  EXPECT_THAT(result.entries, testing::ElementsAre(testing::Field(
+                                  &MemorySearchResult::value, u"Jane Doe")));
+  EXPECT_EQ(fake_data_provider->last_type(), MemoryDataType::kNameFull);
 }
 
 }  // namespace

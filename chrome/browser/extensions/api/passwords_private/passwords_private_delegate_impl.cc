@@ -26,8 +26,6 @@
 #include "chrome/browser/extensions/api/passwords_private/passwords_private_event_router.h"
 #include "chrome/browser/password_manager/chrome_password_change_service.h"
 #include "chrome/browser/platform_util.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/hats/trust_safety_sentiment_service.h"
@@ -88,12 +86,6 @@ using password_manager::CredentialFacet;
 using password_manager::CredentialUIEntry;
 using password_manager::FetchFamilyMembersRequestStatus;
 using password_manager::constants::kPasswordManagerAuthValidity;
-
-// The error message returned to the UI when Chrome refuses to start multiple
-// exports.
-const char kExportInProgress[] = "in-progress";
-// The error message returned to the UI when the user fails to reauthenticate.
-const char kReauthenticationFailed[] = "reauth-failed";
 
 // Map password_manager::ExportProgressStatus to
 // extensions::api::passwords_private::ExportProgressStatus.
@@ -401,6 +393,16 @@ PasswordsPrivateDelegateImpl::GetDeviceAuthenticator(
   return device_authenticator_factory_.Run(params);
 }
 #endif
+
+void PasswordsPrivateDelegateImpl::AddObserver(
+    PasswordsPrivateDelegate::Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void PasswordsPrivateDelegateImpl::RemoveObserver(
+    PasswordsPrivateDelegate::Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
 
 password_manager::SavedPasswordsPresenter*
 PasswordsPrivateDelegateImpl::GetSavedPasswordsPresenter() {
@@ -798,7 +800,7 @@ void PasswordsPrivateDelegateImpl::ResetImporter(bool delete_file) {
 }
 
 void PasswordsPrivateDelegateImpl::ExportPasswords(
-    base::OnceCallback<void(const std::string&)> accepted_callback,
+    base::OnceCallback<void(ExportPasswordsResult)> accepted_callback,
     content::WebContents* web_contents) {
   std::u16string message;
 #if BUILDFLAG(IS_MAC)
@@ -1069,11 +1071,19 @@ void PasswordsPrivateDelegateImpl::MaybeShowPasswordShareButtonIPH(
 
 void PasswordsPrivateDelegateImpl::OnPasswordsExportProgress(
     const password_manager::PasswordExportInfo& progress) {
-  if (event_router_) {
-    event_router_->OnPasswordsExportProgress(ConvertStatus(progress.status),
-                                             progress.file_path,
-                                             progress.folder_name);
+  if (!base::FeatureList::IsEnabled(
+          password_manager::features::kEnablePasswordManagerMojoApi)) {
+    if (event_router_) {
+      event_router_->OnPasswordsExportProgress(ConvertStatus(progress.status),
+                                               progress.file_path,
+                                               progress.folder_name);
+    }
+    return;
   }
+
+  observers_.Notify(
+      &PasswordsPrivateDelegate::Observer::OnPasswordsExportProgress,
+      progress.status, progress.folder_name);
 }
 
 void PasswordsPrivateDelegateImpl::OnRequestPlaintextPasswordAuthResult(
@@ -1176,17 +1186,18 @@ void PasswordsPrivateDelegateImpl::OnRequestCredentialDetailsAuthResult(
 }
 
 void PasswordsPrivateDelegateImpl::OnExportPasswordsAuthResult(
-    base::OnceCallback<void(const std::string&)> accepted_callback,
+    base::OnceCallback<void(ExportPasswordsResult)> accepted_callback,
     base::WeakPtr<content::WebContents> web_contents,
     bool authenticated) {
   if (!authenticated || !web_contents) {
-    std::move(accepted_callback).Run(kReauthenticationFailed);
+    std::move(accepted_callback).Run(ExportPasswordsResult::kReauthFailed);
     return;
   }
 
   bool accepted = password_export_controller_->Export(web_contents.get());
   std::move(accepted_callback)
-      .Run(accepted ? std::string() : kExportInProgress);
+      .Run(accepted ? ExportPasswordsResult::kSuccess
+                    : ExportPasswordsResult::kInProgress);
 }
 
 void PasswordsPrivateDelegateImpl::OnImportPasswordsAuthResult(

@@ -26,6 +26,7 @@ chromium-metrics-reviews@google.com.
 
 <variants name="ApiRequestType">
   <variant name="ActivateTab"/>
+  <variant name="ActivateTabWithUrl"/>
   <variant name="AttachPanel"/>
   <variant name="AutofillSuggestionDialogOnFormConfirmed"/>
   <variant name="AutofillSuggestionDialogOnFormPresented"/>
@@ -148,35 +149,47 @@ chromium-metrics-reviews@google.com.
   <variant name="SidePanel" summary="a side panel embedder"/>
 </variants>
 
+<!-- LINT.IfChange(GlicInvocationSource) -->
+
 <variants name="GlicInvocationSource">
   <variant name="ActorTaskIcon"/>
   <variant name="AfterSignIn"/>
   <variant name="AnchoredContextualCue"/>
+  <variant name="Autofill"/>
   <variant name="AutoOpenedByContextualCue"/>
   <variant name="AutoOpenedForPdf"/>
   <variant name="CaptureRegionHotkey"/>
+  <variant name="ExperimentalTriggering"/>
   <variant name="Fre"/>
   <variant name="HandoffButton"/>
+  <variant name="IndigoPageAction"/>
   <variant name="Iph"/>
   <variant name="NavigationCapture"/>
   <variant name="Nudge"/>
   <variant name="OsButton"/>
   <variant name="OsButtonMenu"/>
   <variant name="OsHotkey"/>
+  <variant name="PasswordChange"/>
   <variant name="PdfSummarizeButton"/>
   <variant name="ProfilePicker"/>
+  <variant name="PromotionPage"/>
   <variant name="SharedImage"/>
   <variant name="SharedTab"/>
   <variant name="Skills"/>
   <variant name="TextSelectionNudge"/>
   <variant name="TextSelectionWidget"/>
   <variant name="ThreeDotsMenu"/>
+  <variant name="ToolbarButton"/>
   <variant name="TopChromeButton"/>
+  <variant name="UniversalCart"/>
   <variant name="Unsupported"/>
   <variant name="WebContentsContextMenu"/>
+  <variant name="WebDragDrop"/>
   <variant name="WhatsNew"/>
   <variant name="ZeroStateAutoSummarize"/>
 </variants>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:InvocationSource) -->
 
 <variants name="MemoryTriggerEvent">
   <variant name="CriticalPressure"
@@ -1845,6 +1858,44 @@ chromium-metrics-reviews@google.com.
   <summary>Records the onboarding flow source shown to the user.</summary>
 </histogram>
 
+<histogram name="Glic.Onboarding.Profiles.Status" enum="GlicOnboardingStatus"
+    expires_after="2027-06-01">
+  <owner>perrier@chromium.org</owner>
+  <owner>glic+metrics@google.com</owner>
+  <summary>
+    Records the highest onboarding status across all loaded Glic-enabled
+    profiles. Recorded during periodic metrics provider session collection.
+  </summary>
+</histogram>
+
+<histogram name="Glic.Onboarding.Profiles.{Status}"
+    enum="GlicProfilesAllSomeNone" expires_after="2027-06-01">
+  <owner>perrier@chromium.org</owner>
+  <owner>glic+metrics@google.com</owner>
+  <summary>
+    Records the count of loaded Glic-enabled profiles that have have a status
+    which includes the {Status} state. Recorded during periodic metrics provider
+    session collection.
+  </summary>
+  <token key="Status">
+    <variant name="Invoked"/>
+    <variant name="OptIn"/>
+    <variant name="UserSubmit"/>
+  </token>
+</histogram>
+
+<histogram name="Glic.Onboarding.WebUiLoadTime.{Visibility}" units="ms"
+    expires_after="2026-12-31">
+  <owner>sanaakbani@google.com</owner>
+  <owner>basiaz@google.com</owner>
+  <summary>
+    Measures the time it takes for the Glic WebUI to load, specifically for
+    users in the unconsented state. This is recorded when the WebUI transitions
+    to the `kReady` state.
+  </summary>
+  <token key="Visibility" variants="Visibility"/>
+</histogram>
+
 <histogram name="Glic.OsEntrypoint.Settings.Shortcut" enum="BooleanEnabled"
     expires_after="2026-11-29">
   <owner>agale@chromium.org</owner>
@@ -2796,7 +2847,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Glic.TieredRolloutEnablementStatus"
-    enum="GlicTieredRolloutEnablementStatus" expires_after="2026-11-29">
+    enum="GlicProfilesAllSomeNone" expires_after="2026-11-29">
   <owner>sophiechang@chromium.org</owner>
   <owner>dewittj@chromium.org</owner>
   <summary>

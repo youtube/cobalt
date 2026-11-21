@@ -300,10 +300,7 @@ void BackgroundReadback::OnARGBPixelsBufferReadCompleted(
     return;
   }
 
-  if (auto* ri = GetSharedGpuRasterInterface()) {
-    media::WaitAndReplaceSyncTokenClient client(ri);
-    txt_frame->UpdateReleaseSyncToken(&client);
-  } else {
+  if (!GetSharedGpuRasterInterface()) {
     success = false;
   }
 

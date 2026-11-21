@@ -26,6 +26,8 @@ import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.content_public.browser.ImeAdapter;
+import org.chromium.content_public.browser.InputMethodManagerWrapper;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
@@ -81,6 +83,10 @@ public class XrSessionCoordinator {
 
     // The WebContents that triggered the currently active session.
     private @Nullable WebContents mWebContents;
+
+    private @Nullable InputMethodManagerWrapper mOriginalInputMethodManagerWrapper;
+
+    private @Nullable XrInputMethodManagerWrapper mXrInputMethodManagerWrapper;
 
     private @Nullable WeakReference<Activity> mXrHostActivity;
 
@@ -241,6 +247,8 @@ public class XrSessionCoordinator {
             return;
         }
 
+        restoreBrowserInput();
+
         if (mImmersiveOverlay != null) {
             mImmersiveOverlay.cleanupAndExit();
             mImmersiveOverlay = null;
@@ -366,7 +374,61 @@ public class XrSessionCoordinator {
     private void handleXrHostActivityReady(Activity activity) {
         if (mNativeXrSessionCoordinator == 0) return;
         mXrHostActivity = new WeakReference<>(activity);
+
+        // Some test code calls us with the default ChromeActivity, and so we don't need to run this
+        // code in that case.
+        if (activity instanceof XrHostActivity) {
+            setupWebXrInput((XrHostActivity) activity);
+        }
+
         XrSessionCoordinatorJni.get().onXrHostActivityReady(mNativeXrSessionCoordinator, activity);
+    }
+
+    /**
+     * Sets up WebXR input routing by redirecting the browser's soft keyboard interactions to the
+     * proxy view in {@link XrHostActivity}. Because WebXR on AndroidXR runs in a separate activity
+     * (XrHostActivity) that is at the top of the task stack, the browser's 2D activity and its
+     * views lose window focus and cannot receive IME interactions directly. We redirect the IME
+     * wrapper to target our proxy view in the active XrHostActivity, which then forwards the
+     * connection creation back to the browser's adapter.
+     */
+    private void setupWebXrInput(XrHostActivity xrActivity) {
+        if (mWebContents == null) return;
+        if (!WebXrAndroidFeatureMap.isOpenXrAndroidSystemKeyboardEnabled()) return;
+        XrHostProxyInputView proxyView = xrActivity.getProxyInputView();
+        ImeAdapter imeAdapter = ImeAdapter.fromWebContents(mWebContents);
+        if (imeAdapter != null && proxyView != null) {
+            assert (mOriginalInputMethodManagerWrapper == null);
+            assert (mXrInputMethodManagerWrapper == null);
+            proxyView.setImeAdapter(imeAdapter);
+            mOriginalInputMethodManagerWrapper = imeAdapter.getInputMethodManagerWrapper();
+            mXrInputMethodManagerWrapper =
+                    new XrInputMethodManagerWrapper(mOriginalInputMethodManagerWrapper, proxyView);
+            imeAdapter.setInputMethodManagerWrapper(mXrInputMethodManagerWrapper);
+            // Force focus on WebContents so the renderer believes the page is active
+            // and allows IME interactions. This is necessary because our new activity may have
+            // caused the WebContents to become unfocused.
+            mWebContents.setFocus(true);
+        }
+    }
+
+    /** Restores the original input routing and focus state when the XR session ends. */
+    private void restoreBrowserInput() {
+        if (mWebContents != null && mOriginalInputMethodManagerWrapper != null) {
+            ImeAdapter imeAdapter = ImeAdapter.fromWebContents(mWebContents);
+            if (imeAdapter != null) {
+                assert (imeAdapter.getInputMethodManagerWrapper() == mXrInputMethodManagerWrapper);
+                imeAdapter.setInputMethodManagerWrapper(mOriginalInputMethodManagerWrapper);
+            }
+            android.view.View containerView =
+                    mWebContents.getViewAndroidDelegate() != null
+                            ? mWebContents.getViewAndroidDelegate().getContainerView()
+                            : null;
+            boolean hasRealFocus = containerView != null && containerView.hasWindowFocus();
+            mWebContents.setFocus(hasRealFocus);
+        }
+        mOriginalInputMethodManagerWrapper = null;
+        mXrInputMethodManagerWrapper = null;
     }
 
     @CalledByNative

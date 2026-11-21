@@ -11,6 +11,36 @@
 
 using mojo::test::SerializeAndDeserialize;
 
+namespace {
+
+template <typename EnumType>
+void TestValidEnumAttribute(ax::mojom::IntAttribute attribute,
+                            EnumType valid_value) {
+  ui::AXNodeData input, output;
+  input.AddIntAttribute(attribute, static_cast<int32_t>(valid_value));
+  EXPECT_TRUE(SerializeAndDeserialize<ax::mojom::AXNodeData>(input, output));
+  EXPECT_EQ(static_cast<int32_t>(valid_value),
+            output.GetIntAttribute(attribute));
+}
+
+template <typename EnumType>
+void TestInvalidEnumAttribute(ax::mojom::IntAttribute attribute) {
+  {
+    ui::AXNodeData input, output;
+    input.AddIntAttribute(attribute,
+                          static_cast<int32_t>(EnumType::kMaxValue) + 1);
+    EXPECT_FALSE(SerializeAndDeserialize<ax::mojom::AXNodeData>(input, output));
+  }
+  {
+    ui::AXNodeData input, output;
+    input.AddIntAttribute(attribute,
+                          static_cast<int32_t>(EnumType::kMinValue) - 1);
+    EXPECT_FALSE(SerializeAndDeserialize<ax::mojom::AXNodeData>(input, output));
+  }
+}
+
+}  // namespace
+
 TEST(AXNodeDataMojomTraitsTest, ID) {
   ui::AXNodeData input, output;
   input.id = 42;
@@ -66,6 +96,114 @@ TEST(AXNodeDataMojomTraitsTest, IntAttributes) {
   input.AddIntAttribute(ax::mojom::IntAttribute::kScrollX, 42);
   EXPECT_TRUE(SerializeAndDeserialize<ax::mojom::AXNodeData>(input, output));
   EXPECT_EQ(42, output.GetIntAttribute(ax::mojom::IntAttribute::kScrollX));
+}
+
+TEST(AXNodeDataMojomTraitsTest, IntAttributesValidEnumsBulk) {
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kAriaCurrentState,
+                         ax::mojom::AriaCurrentState::kTrue);
+  TestValidEnumAttribute(
+      ax::mojom::IntAttribute::kAriaNotificationInterruptDeprecated,
+      ax::mojom::AriaNotificationInterrupt::kAll);
+  TestValidEnumAttribute(
+      ax::mojom::IntAttribute::kAriaNotificationPriorityDeprecated,
+      ax::mojom::AriaNotificationPriority::kHigh);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kCheckedState,
+                         ax::mojom::CheckedState::kTrue);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kDefaultActionVerb,
+                         ax::mojom::DefaultActionVerb::kClick);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kDescriptionFrom,
+                         ax::mojom::DescriptionFrom::kAriaDescription);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kDetailsFrom,
+                         ax::mojom::DetailsFrom::kAriaDetails);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kHasPopup,
+                         ax::mojom::HasPopup::kTrue);
+  TestValidEnumAttribute(
+      ax::mojom::IntAttribute::kImageAnnotationStatus,
+      ax::mojom::ImageAnnotationStatus::kEligibleForAnnotation);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kInvalidState,
+                         ax::mojom::InvalidState::kTrue);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kIsPopup,
+                         ax::mojom::IsPopup::kAuto);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kListStyle,
+                         ax::mojom::ListStyle::kCircle);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kNameFrom,
+                         ax::mojom::NameFrom::kAttribute);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kRestriction,
+                         ax::mojom::Restriction::kDisabled);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kSortDirection,
+                         ax::mojom::SortDirection::kAscending);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kTextAlign,
+                         ax::mojom::TextAlign::kCenter);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kTextDirection,
+                         ax::mojom::WritingDirection::kLtr);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kTextOverlineStyle,
+                         ax::mojom::TextDecorationStyle::kSolid);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kTextPosition,
+                         ax::mojom::TextPosition::kSubscript);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kTextStrikethroughStyle,
+                         ax::mojom::TextDecorationStyle::kSolid);
+  TestValidEnumAttribute(ax::mojom::IntAttribute::kTextUnderlineStyle,
+                         ax::mojom::TextDecorationStyle::kSolid);
+}
+
+TEST(AXNodeDataMojomTraitsTest, IntAttributesInvalidEnumsBulk) {
+  TestInvalidEnumAttribute<ax::mojom::AriaCurrentState>(
+      ax::mojom::IntAttribute::kAriaCurrentState);
+  TestInvalidEnumAttribute<ax::mojom::AriaNotificationInterrupt>(
+      ax::mojom::IntAttribute::kAriaNotificationInterruptDeprecated);
+  TestInvalidEnumAttribute<ax::mojom::AriaNotificationPriority>(
+      ax::mojom::IntAttribute::kAriaNotificationPriorityDeprecated);
+  TestInvalidEnumAttribute<ax::mojom::CheckedState>(
+      ax::mojom::IntAttribute::kCheckedState);
+  TestInvalidEnumAttribute<ax::mojom::DefaultActionVerb>(
+      ax::mojom::IntAttribute::kDefaultActionVerb);
+  TestInvalidEnumAttribute<ax::mojom::DescriptionFrom>(
+      ax::mojom::IntAttribute::kDescriptionFrom);
+  TestInvalidEnumAttribute<ax::mojom::DetailsFrom>(
+      ax::mojom::IntAttribute::kDetailsFrom);
+  TestInvalidEnumAttribute<ax::mojom::HasPopup>(
+      ax::mojom::IntAttribute::kHasPopup);
+  TestInvalidEnumAttribute<ax::mojom::ImageAnnotationStatus>(
+      ax::mojom::IntAttribute::kImageAnnotationStatus);
+  TestInvalidEnumAttribute<ax::mojom::InvalidState>(
+      ax::mojom::IntAttribute::kInvalidState);
+  TestInvalidEnumAttribute<ax::mojom::IsPopup>(
+      ax::mojom::IntAttribute::kIsPopup);
+  TestInvalidEnumAttribute<ax::mojom::ListStyle>(
+      ax::mojom::IntAttribute::kListStyle);
+  TestInvalidEnumAttribute<ax::mojom::NameFrom>(
+      ax::mojom::IntAttribute::kNameFrom);
+  TestInvalidEnumAttribute<ax::mojom::Restriction>(
+      ax::mojom::IntAttribute::kRestriction);
+  TestInvalidEnumAttribute<ax::mojom::SortDirection>(
+      ax::mojom::IntAttribute::kSortDirection);
+  TestInvalidEnumAttribute<ax::mojom::TextAlign>(
+      ax::mojom::IntAttribute::kTextAlign);
+  TestInvalidEnumAttribute<ax::mojom::WritingDirection>(
+      ax::mojom::IntAttribute::kTextDirection);
+  TestInvalidEnumAttribute<ax::mojom::TextDecorationStyle>(
+      ax::mojom::IntAttribute::kTextOverlineStyle);
+  TestInvalidEnumAttribute<ax::mojom::TextPosition>(
+      ax::mojom::IntAttribute::kTextPosition);
+  TestInvalidEnumAttribute<ax::mojom::TextDecorationStyle>(
+      ax::mojom::IntAttribute::kTextStrikethroughStyle);
+  TestInvalidEnumAttribute<ax::mojom::TextDecorationStyle>(
+      ax::mojom::IntAttribute::kTextUnderlineStyle);
+}
+
+TEST(AXNodeDataMojomTraitsTest, IntAttributesValidTextStyle) {
+  ui::AXNodeData input, output;
+  input.AddTextStyle(ax::mojom::TextStyle::kBold);
+  input.AddTextStyle(ax::mojom::TextStyle::kItalic);
+  EXPECT_TRUE(SerializeAndDeserialize<ax::mojom::AXNodeData>(input, output));
+  EXPECT_TRUE(output.HasTextStyle(ax::mojom::TextStyle::kBold));
+  EXPECT_TRUE(output.HasTextStyle(ax::mojom::TextStyle::kItalic));
+}
+
+TEST(AXNodeDataMojomTraitsTest, IntAttributesInvalidTextStyle) {
+  ui::AXNodeData input, output;
+  input.AddIntAttribute(ax::mojom::IntAttribute::kTextStyle, 1 << 20);
+  EXPECT_FALSE(SerializeAndDeserialize<ax::mojom::AXNodeData>(input, output));
 }
 
 TEST(AXNodeDataMojomTraitsTest, FloatAttributes) {

@@ -33,14 +33,14 @@
 namespace {
 
 content::WebContents* GetWebContentsToUse(
-    content::RenderFrameHost* render_frame_host) {
+    content::RenderFrameHost& render_frame_host) {
   // If we're viewing the PDF in a MimeHandlerViewGuest, use its embedder
   // WebContents.
   auto* guest_view =
-      extensions::MimeHandlerViewGuest::FromRenderFrameHost(render_frame_host);
+      extensions::MimeHandlerViewGuest::FromRenderFrameHost(&render_frame_host);
   return guest_view
              ? guest_view->embedder_web_contents()
-             : content::WebContents::FromRenderFrameHost(render_frame_host);
+             : content::WebContents::FromRenderFrameHost(&render_frame_host);
 }
 
 bool MaybeShowFeaturePromo(const base::Feature& feature,
@@ -64,7 +64,7 @@ void MaybeHideSearchifyFeaturePromo(tabs::TabInterface* tab_interface) {
   }
 }
 
-void LogGlicSummarizeMetrics(content::RenderFrameHost* render_frame_host) {
+void LogGlicSummarizeMetrics(content::RenderFrameHost& render_frame_host) {
   content::WebContents* web_contents_to_use =
       GetWebContentsToUse(render_frame_host);
   if (!web_contents_to_use) {
@@ -87,14 +87,14 @@ ChromePDFDocumentHelperClient::ChromePDFDocumentHelperClient() = default;
 ChromePDFDocumentHelperClient::~ChromePDFDocumentHelperClient() = default;
 
 void ChromePDFDocumentHelperClient::OnDocumentLoadComplete(
-    content::RenderFrameHost* render_frame_host) {
+    content::RenderFrameHost& render_frame_host) {
   content::WebContents* web_contents = GetWebContentsToUse(render_frame_host);
   MaybeShowFeaturePromo(feature_engagement::kIPHPdfInkSignaturesFeature,
                         web_contents);
   MaybeShowFeaturePromo(feature_engagement::kIPHPdfTextAnnotationsFeature,
                         web_contents);
 
-  auto* parent = render_frame_host->GetParent();
+  auto* parent = render_frame_host.GetParent();
   bool is_pdf_viewer =
       parent && parent->GetLastCommittedURL().GetWithEmptyPath() ==
                     base::FilePath(ChromeContentClient::kPDFExtensionPluginPath)
@@ -111,14 +111,14 @@ void ChromePDFDocumentHelperClient::OnDocumentLoadComplete(
 
   if (base::FeatureList::IsEnabled(translate::kEnableTranslatePdf)) {
     auto* pdf_helper =
-        pdf::PDFDocumentHelper::GetForCurrentDocument(render_frame_host);
+        pdf::PDFDocumentHelper::GetForCurrentDocument(&render_frame_host);
     if (pdf_helper) {
       // Get the text of the first page and send it to the main frame for
       // language detection.
       pdf_helper->GetPageText(
           0, base::BindOnce(&ChromePDFDocumentHelperClient::OnPdfTextExtracted,
                             weak_factory_.GetWeakPtr(),
-                            render_frame_host->GetGlobalId()));
+                            render_frame_host.GetGlobalId()));
     }
   }
 }
@@ -132,7 +132,7 @@ void ChromePDFDocumentHelperClient::OnPdfTextExtracted(
     return;
   }
 
-  content::WebContents* web_contents = GetWebContentsToUse(render_frame_host);
+  content::WebContents* web_contents = GetWebContentsToUse(*render_frame_host);
   if (!web_contents) {
     return;
   }
@@ -151,7 +151,7 @@ void ChromePDFDocumentHelperClient::OnPdfTextExtracted(
 }
 
 void ChromePDFDocumentHelperClient::UpdateContentRestrictions(
-    content::RenderFrameHost* render_frame_host,
+    content::RenderFrameHost& render_frame_host,
     int content_restrictions) {
   // Speculative short-term-fix while we get at the root of
   // https://crbug.com/41337937 .
@@ -174,18 +174,18 @@ void ChromePDFDocumentHelperClient::OnSaveURL() {
 }
 
 void ChromePDFDocumentHelperClient::SetPluginCanSave(
-    content::RenderFrameHost* render_frame_host,
+    content::RenderFrameHost& render_frame_host,
     bool can_save) {
   if (chrome_pdf::features::IsOopifPdfEnabled()) {
     auto* mime_handler_stream_manager =
         extensions::mime_handler::MimeHandlerStreamManager::FromWebContents(
-            content::WebContents::FromRenderFrameHost(render_frame_host));
+            content::WebContents::FromRenderFrameHost(&render_frame_host));
     if (!mime_handler_stream_manager) {
       return;
     }
 
     content::RenderFrameHost* embedder_host =
-        pdf_frame_util::GetEmbedderHost(render_frame_host);
+        pdf_frame_util::GetEmbedderHost(&render_frame_host);
     CHECK(embedder_host);
 
     mime_handler_stream_manager->SetPluginCanSave(embedder_host, can_save);
@@ -193,14 +193,14 @@ void ChromePDFDocumentHelperClient::SetPluginCanSave(
   }
 
   auto* guest_view =
-      extensions::MimeHandlerViewGuest::FromRenderFrameHost(render_frame_host);
+      extensions::MimeHandlerViewGuest::FromRenderFrameHost(&render_frame_host);
   if (guest_view) {
     guest_view->SetPluginCanSave(can_save);
   }
 }
 
 void ChromePDFDocumentHelperClient::OnSearchifyStarted(
-    content::RenderFrameHost* render_frame_host) {
+    content::RenderFrameHost& render_frame_host) {
   // Show the promo only when ScreenAI component is available and OCR can be
   // done.
   if (!screen_ai::ScreenAIInstallState::GetInstance()->IsComponentAvailable()) {

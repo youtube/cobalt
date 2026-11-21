@@ -1,12 +1,12 @@
-This tests that XML Viewer is not used when XML is opened in frame.
+This tests XML Viewer behavior when XML is opened in a frame.
+
+iframe root: page
+iframe textContent: SUCCESS
+iframe has XML viewer: true
+iframe viewer header: This XML file does not appear to have any style information associated with it. The document tree is shown below.
+iframe viewer shows source text: true
+object root: page
+object textContent: SUCCESS
+object has XML viewer: false
+
  
-
---------
-Frame: 'iframeFrame'
---------
-SUCCESS
-
---------
-Frame: 'objectFrame'
---------
-SUCCESS

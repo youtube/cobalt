@@ -234,20 +234,20 @@ TEST(CodecTest, TestValidateCodecFormat) {
 
   // Reject codecs with min bitrate > max bitrate.
   Codec incorrect_bitrates = codec;
-  incorrect_bitrates.params[kCodecParamMinBitrate] = "100";
-  incorrect_bitrates.params[kCodecParamMaxBitrate] = "80";
+  incorrect_bitrates.SetParam(kCodecParamMinBitrate, "100");
+  incorrect_bitrates.SetParam(kCodecParamMaxBitrate, "80");
   EXPECT_FALSE(incorrect_bitrates.ValidateCodecFormat());
 
   // Accept min bitrate == max bitrate.
   Codec equal_bitrates = codec;
-  equal_bitrates.params[kCodecParamMinBitrate] = "100";
-  equal_bitrates.params[kCodecParamMaxBitrate] = "100";
+  equal_bitrates.SetParam(kCodecParamMinBitrate, "100");
+  equal_bitrates.SetParam(kCodecParamMaxBitrate, "100");
   EXPECT_TRUE(equal_bitrates.ValidateCodecFormat());
 
   // Accept min bitrate < max bitrate.
   Codec different_bitrates = codec;
-  different_bitrates.params[kCodecParamMinBitrate] = "99";
-  different_bitrates.params[kCodecParamMaxBitrate] = "100";
+  different_bitrates.SetParam(kCodecParamMinBitrate, "99");
+  different_bitrates.SetParam(kCodecParamMaxBitrate, "100");
   EXPECT_TRUE(different_bitrates.ValidateCodecFormat());
 }
 

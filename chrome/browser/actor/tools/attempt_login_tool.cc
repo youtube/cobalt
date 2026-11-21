@@ -16,6 +16,7 @@
 #include "chrome/browser/actor/tools/tool_callbacks.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
+#include "chrome/browser/autofill/actor/one_time_tokens/actor_one_time_token_filling_service.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
@@ -59,6 +60,36 @@ content::RenderFrameHost& GetPrimaryMainFrameOfTab(tabs::TabHandle tab_handle) {
 
 std::string MaybeTargetDebugString(const std::optional<PageTarget>& target) {
   return target ? DebugString(*target) : "null";
+}
+
+bool IsSuccessfulPasswordCredentialFilling(
+    actor_login::LoginStatusResult login_result) {
+  switch (login_result) {
+    case actor_login::LoginStatusResult::kSuccessUsernameAndPasswordFilled:
+    case actor_login::LoginStatusResult::kSuccessUsernameFilled:
+    case actor_login::LoginStatusResult::kSuccessPasswordFilled:
+      return true;
+    case actor_login::LoginStatusResult::kSuccessFederated:
+    case actor_login::LoginStatusResult::kErrorNoSigninForm:
+    case actor_login::LoginStatusResult::kErrorInvalidCredential:
+    case actor_login::LoginStatusResult::kErrorNoFillableFields:
+    case actor_login::LoginStatusResult::kErrorDeviceReauthRequired:
+    case actor_login::LoginStatusResult::kErrorDeviceReauthFailed:
+    case actor_login::LoginStatusResult::kErrorFederatedContinuation:
+    case actor_login::LoginStatusResult::kErrorFederatedAccountNotLoggedIn:
+    case actor_login::LoginStatusResult::kErrorFederatedAccountIsSignUp:
+    case actor_login::LoginStatusResult::kErrorFederatedAccountNotAvailable:
+    case actor_login::LoginStatusResult::kErrorFederatedIdpReturnedError:
+    case actor_login::LoginStatusResult::kErrorFederatedIdpNetworkError:
+    case actor_login::LoginStatusResult::kErrorFederatedTokenRequestAborted:
+    case actor_login::LoginStatusResult::kErrorFederatedFrameNotActive:
+    case actor_login::LoginStatusResult::
+        kErrorFederatedExpectedAccountNotPresent:
+    case actor_login::LoginStatusResult::kErrorFederatedTimeout:
+    case actor_login::LoginStatusResult::kRequiresButtonClick:
+    case actor_login::LoginStatusResult::kErrorPageChangedDuringFilling:
+      return false;
+  }
 }
 
 }  // namespace
@@ -145,22 +176,24 @@ void AttemptLoginTool::Invoke(ToolCallback callback) {
   // origin. If so, use it immediately.
   const url::Origin& current_origin = main_rfh->GetLastCommittedOrigin();
   const std::optional<ToolDelegate::CredentialWithPermission>
-      user_selected_credential_and_pemission =
+      user_selected_credential_and_permission =
           tool_delegate().GetUserSelectedCredential(current_origin);
-  if (user_selected_credential_and_pemission.has_value()) {
+  if (user_selected_credential_and_permission.has_value()) {
     const bool should_store_permission =
-        user_selected_credential_and_pemission->permission_duration ==
+        user_selected_credential_and_permission->permission_duration ==
         webui::mojom::UserGrantedPermissionDuration::kAlwaysAllow;
 
     GetActorLoginService().AttemptLogin(
         ChromeActorLoginDelegateClient::GetOrCreateForWebContents(
             tab->GetContents()),
-        user_selected_credential_and_pemission->credential,
+        user_selected_credential_and_permission->credential,
         should_store_permission, quality_logger_.AsWeakPtr(),
         attempt_login_tool_start_time_,
+        GetFrameFillingStartedCallback(
+            tab, user_selected_credential_and_permission->credential),
         base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                        weak_ptr_factory_.GetWeakPtr(),
-                       user_selected_credential_and_pemission->credential,
+                       user_selected_credential_and_permission->credential,
                        should_store_permission),
         tool_delegate().GetActionSequenceDelegate());
     return;
@@ -428,6 +461,7 @@ void AttemptLoginTool::OnCredentialCachingDone(
           tab->GetContents()),
       selected_credential, should_store_permission, quality_logger_.AsWeakPtr(),
       attempt_login_tool_start_time_,
+      GetFrameFillingStartedCallback(tab, selected_credential),
       base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                      weak_ptr_factory_.GetWeakPtr(), selected_credential,
                      should_store_permission),
@@ -439,10 +473,15 @@ void AttemptLoginTool::OnAttemptLogin(
     bool should_store_permission,
     actor_login::LoginStatusResultOrError login_status) {
   if (!login_status.has_value()) {
+    tool_delegate().GetActorOneTimeTokenFillingService().AbortLoginTracking();
     PostResponseTask(
         std::move(invoke_callback_),
         MakeResult(actor_login::LoginErrorToActorResult(login_status.error())));
     return;
+  }
+
+  if (!IsSuccessfulPasswordCredentialFilling(login_status.value())) {
+    tool_delegate().GetActorOneTimeTokenFillingService().AbortLoginTracking();
   }
 
   if (login_status.value() ==
@@ -477,12 +516,7 @@ void AttemptLoginTool::OnAttemptLogin(
   // The availability of the password submit target is bundled with federated
   // support.
   if (base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin) &&
-      (login_status.value() ==
-           actor_login::LoginStatusResult::kSuccessUsernameAndPasswordFilled ||
-       login_status.value() ==
-           actor_login::LoginStatusResult::kSuccessUsernameFilled ||
-       login_status.value() ==
-           actor_login::LoginStatusResult::kSuccessPasswordFilled) &&
+      IsSuccessfulPasswordCredentialFilling(login_status.value()) &&
       password_button_.has_value()) {
     CHECK_EQ(selected_credential.type, actor_login::CredentialType::kPassword);
     tool_delegate().EnqueueFollowupAction(std::make_unique<ClickToolRequest>(
@@ -579,6 +613,8 @@ void AttemptLoginTool::MaybeRetryCredentialNeedingFocus() {
       credential_awaiting_task_focus_->first,
       credential_awaiting_task_focus_->second, quality_logger_.AsWeakPtr(),
       attempt_login_tool_start_time_,
+      GetFrameFillingStartedCallback(tab,
+                                     credential_awaiting_task_focus_->first),
       base::BindOnce(&AttemptLoginTool::OnAttemptLogin,
                      weak_ptr_factory_.GetWeakPtr(),
                      credential_awaiting_task_focus_->first,
@@ -613,6 +649,17 @@ tabs::TabHandle AttemptLoginTool::GetTargetTab() const {
 
 actor_login::ActorLoginService& AttemptLoginTool::GetActorLoginService() {
   return tool_delegate().GetActorLoginService();
+}
+
+actor_login::FrameFillingStartedCallback
+AttemptLoginTool::GetFrameFillingStartedCallback(
+    tabs::TabInterface* tab,
+    const actor_login::Credential& credential) {
+  return base::BindOnce(
+      &autofill::ActorOneTimeTokenFillingService::OnPasswordFillingStarted,
+      tool_delegate().GetActorOneTimeTokenFillingService().GetWeakPtr(),
+      tab->GetHandle(), credential.request_origin,
+      credential.has_persistent_permission);
 }
 
 }  // namespace actor

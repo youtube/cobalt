@@ -22,6 +22,8 @@ import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.ImmersivePlaybackConfirmationStatus;
+import org.chromium.content_public.browser.ImmersiveProjectionType;
+import org.chromium.content_public.browser.ImmersiveStereoMode;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.navigation_controller.UserAgentOverrideOption;
@@ -134,11 +136,17 @@ public class WebContentsDelegateAndroid {
     /**
      * Called when the page wants to start immersive Picture-in-Picture playback session.
      *
+     * @param stereoMode The default stereo mode to use, defined in {@link ImmersiveStereoMode}.
+     * @param projectionType The default projection type to use, defined in {@link
+     *     ImmersiveProjectionType}.
      * @param callback The callback to be called when the user confirms or cancels the request. The
      *     callback expects a packed integer containing the status and options.
      */
     @CalledByNative
-    public void requestImmersivePlaybackConfirmation(JniOnceCallback<Integer> callback) {
+    public void requestImmersivePlaybackConfirmation(
+            @ImmersiveStereoMode int stereoMode,
+            @ImmersiveProjectionType int projectionType,
+            JniOnceCallback<Integer> callback) {
         callback.onResult(ImmersivePlaybackConfirmationStatus.FAILED);
     }
 

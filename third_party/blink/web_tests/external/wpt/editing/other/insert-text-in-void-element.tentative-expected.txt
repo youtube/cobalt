@@ -1,19 +1,40 @@
 This is a testharness.js-based test.
+[FAIL] Inserting text when selection is collapsed in <br> which follows a text node and an empty <span> element
+  assert_in_array: The text should be inserted at end of the first text node before empty <span> and <br> value "<div>abc<span></span>def<br></div>" not in array ["<div>abcdef<span></span></div>", "<div>abcdef<span></span><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <br> which follows a non-empty <span> element
+  assert_in_array: The text should be inserted at end of the text node in <span> value "<div><span>abc</span>def<br></div>" not in array ["<div><span>abcdef</span></div>", "<div><span>abcdef</span><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <br> which follows a text node, an empty <span> element and white-space only text node
+  assert_in_array: The text should be inserted at end of the first text node with ignoring the empty <span> and invisible text node before <br> value "<div>abc<span></span> def<br></div>" not in array ["<div>abcdef<span></span></div>", "<div>abcdef<span></span><br></div>", "<div>abcdef<span></span> </div>", "<div>abcdef<span></span> <br></div>"]
 [FAIL] Inserting text when selection is collapsed in <embed> which is only child
   assert_in_array: The text should be inserted before the <embed> element value "<div><embed></div>" not in array ["<div>abc<embed></div>", "<div>abc<embed><br></div>"]
 [FAIL] Inserting text when selection is collapsed in <embed> which is only child (explicitly flushes maybe pending layout)
   assert_in_array: The text should be inserted before the <embed> element value "<div><embed></div>" not in array ["<div>abc<embed></div>", "<div>abc<embed><br></div>"]
-[FAIL] Inserting text when selection is collapsed in <embed> which is followed by a text node
-  assert_in_array: The text should be inserted before the <embed> element value "<div><embed>abcdef</div>" not in array ["<div>abc<embed>def</div>", "<div>abc<embed>def<br></div>"]
 [FAIL] Inserting text when selection is collapsed in <embed> which follows an empty <span> element
   assert_in_array: The text should be inserted before the previous empty inline element of <embed> value "<div><span></span><embed></div>" not in array ["<div>abc<span></span><embed></div>", "<div>abc<span></span><embed><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <embed> which follows a text node and an empty <span> element
+  assert_in_array: The text should be inserted before the previous empty inline element of <embed> value "<div>abc<span></span>def<embed></div>" not in array ["<div>abcdef<span></span><embed></div>", "<div>abcdef<span></span><embed><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <embed> which follows a non-empty <span> element
+  assert_in_array: The text should be inserted at end of the text node in <span> before <embed> value "<div><span>abc</span>def<embed></div>" not in array ["<div><span>abcdef</span><embed></div>", "<div><span>abcdef</span><embed><br></div>"]
 [FAIL] Inserting text when selection is collapsed in <embed> which follows a text node, an empty <span> element and white-space only text node
-  assert_in_array: The text should be inserted before the previous empty inline element value "<div>abcdef<span></span><embed></div>" not in array ["<div>abcdef<span></span> <embed></div>", "<div>abcdef<span></span> <embed><br></div>"]
+  assert_in_array: The text should be inserted before the previous empty inline element value "<div>abc<span></span> def<embed></div>" not in array ["<div>abcdef<span></span> <embed></div>", "<div>abcdef<span></span> <embed><br></div>"]
 [FAIL] Inserting text when selection is collapsed in <hr> which follows a text node, an empty <span> element and white-space only text node
   assert_in_array: The text should be inserted after the previous empty inline element value "<div>abc<span></span>\\ndef<hr></div>" not in array ["<div>abc<span></span>def<hr></div>", "<div>abc<span></span>def<br><hr></div>"]
-[FAIL] Inserting text when selection is collapsed in <wbr> which is followed by a text node
-  assert_in_array: The text should be inserted before the <wbr> element value "<div><wbr>abcdef</div>" not in array ["<div>abc<wbr>def</div>", "<div>abc<wbr>def<br></div>"]
+[FAIL] Inserting text when selection is collapsed in <img> which follows an empty <span> element
+  assert_in_array: The text should be inserted before the previous empty inline element of <img> value "<div><span></span>abc<img></div>" not in array ["<div>abc<span></span><img></div>", "<div>abc<span></span><img><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <img> which follows a text node and an empty <span> element
+  assert_in_array: The text should be inserted before the previous empty inline element of <img> value "<div>abc<span></span>def<img></div>" not in array ["<div>abcdef<span></span><img></div>", "<div>abcdef<span></span><img><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <img> which follows a non-empty <span> element
+  assert_in_array: The text should be inserted at end of the text node in <span> before <img> value "<div><span>abc</span>def<img></div>" not in array ["<div><span>abcdef</span><img></div>", "<div><span>abcdef</span><img><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <input> which follows a text node and an empty <span> element
+  assert_in_array: The text should be inserted before the previous empty inline element of <input> value "<div>abc<span></span>def<input></div>" not in array ["<div>abcdef<span></span><input></div>", "<div>abcdef<span></span><input><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <input> which follows a non-empty <span> element
+  assert_in_array: The text should be inserted at end of the text node in <span> before <input> value "<div><span>abc</span>def<input></div>" not in array ["<div><span>abcdef</span><input></div>", "<div><span>abcdef</span><input><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <wbr> which follows an empty <span> element
+  assert_in_array: The text should be inserted before the previous empty inline element of <wbr> value "<div><span></span>abc<wbr></div>" not in array ["<div>abc<span></span><wbr></div>", "<div>abc<span></span><wbr><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <wbr> which follows a text node and an empty <span> element
+  assert_in_array: The text should be inserted before the previous empty inline element of <wbr> value "<div>abc<span></span>def<wbr></div>" not in array ["<div>abcdef<span></span><wbr></div>", "<div>abcdef<span></span><wbr><br></div>"]
+[FAIL] Inserting text when selection is collapsed in <wbr> which follows a non-empty <span> element
+  assert_in_array: The text should be inserted at end of the text node in <span> before <wbr> value "<div><span>abc</span>def<wbr></div>" not in array ["<div><span>abcdef</span><wbr></div>", "<div><span>abcdef</span><wbr><br></div>"]
 [FAIL] Inserting text when selection is collapsed in <wbr> which follows a text node, an empty <span> element and white-space only text node
-  assert_in_array: The text should be inserted before the previous empty inline element value "<div>abcdef<span></span><wbr></div>" not in array ["<div>abcdef<span></span> <wbr></div>", "<div>abcdef<span></span> <wbr><br></div>"]
+  assert_in_array: The text should be inserted before the previous empty inline element value "<div>abc<span></span> def<wbr></div>" not in array ["<div>abcdef<span></span> <wbr></div>", "<div>abcdef<span></span> <wbr><br></div>"]
 Harness: the test ran to completion.
-

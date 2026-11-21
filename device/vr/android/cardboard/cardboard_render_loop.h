@@ -34,6 +34,9 @@ class CardboardSdk;
 using CardboardRequestSessionCallback =
     base::OnceCallback<void(mojom::XRRuntimeSessionResultPtr)>;
 
+// CardboardRenderLoop implements the Android Cardboard WebXR render loop.
+// It runs on a dedicated GL/render thread (JavaHandlerThread) to safely
+// perform EGL and Cardboard SDK operations.
 class CardboardRenderLoop : public base::android::JavaHandlerThread,
                             public device::mojom::XRFrameDataProvider,
                             public device::mojom::XRSessionController,

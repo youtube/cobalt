@@ -42,9 +42,8 @@ void MediaCapturePickerManagerBridge::Show(
 
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_MediaCapturePickerManagerBridge_showDialog(
-      env, java_object_, params.web_contents->GetJavaWebContents(),
-      params.app_name, params.target_name, params.request_audio,
-      params.exclude_system_audio,
+      env, java_object_, params.web_contents, params.app_name,
+      params.target_name, params.request_audio, params.exclude_system_audio,
       static_cast<int>(params.window_audio_preference),
       static_cast<int>(params.preferred_display_surface),
       params.capture_this_tab, params.exclude_self_browser_surface,
@@ -53,7 +52,6 @@ void MediaCapturePickerManagerBridge::Show(
 }
 
 void MediaCapturePickerManagerBridge::OnPickTab(
-    JNIEnv* env,
     content::WebContents* web_contents,
     bool audio_share) {
   CHECK(web_contents);
@@ -70,7 +68,7 @@ void MediaCapturePickerManagerBridge::OnPickTab(
   std::move(callback_).Run(desktop_media_id);
 }
 
-void MediaCapturePickerManagerBridge::OnPickWindow(JNIEnv* env) {
+void MediaCapturePickerManagerBridge::OnPickWindow() {
   auto desktop_media_id = content::DesktopMediaID(
       content::DesktopMediaID::TYPE_WINDOW, next_fake_id_++);
   VLOG(1) << __func__
@@ -78,7 +76,7 @@ void MediaCapturePickerManagerBridge::OnPickWindow(JNIEnv* env) {
   std::move(callback_).Run(desktop_media_id);
 }
 
-void MediaCapturePickerManagerBridge::OnPickScreen(JNIEnv* env) {
+void MediaCapturePickerManagerBridge::OnPickScreen() {
   auto desktop_media_id = content::DesktopMediaID(
       content::DesktopMediaID::TYPE_SCREEN, next_fake_id_++);
   VLOG(1) << __func__
@@ -86,14 +84,13 @@ void MediaCapturePickerManagerBridge::OnPickScreen(JNIEnv* env) {
   std::move(callback_).Run(desktop_media_id);
 }
 
-void MediaCapturePickerManagerBridge::OnCancel(JNIEnv* env) {
+void MediaCapturePickerManagerBridge::OnCancel() {
   VLOG(1) << __func__;
   std::move(callback_).Run(base::unexpected(
       blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_USER));
 }
 
 bool MediaCapturePickerManagerBridge::ShouldFilterWebContents(
-    JNIEnv* env,
     content::WebContents* web_contents) {
   if (!web_contents) {
     return true;

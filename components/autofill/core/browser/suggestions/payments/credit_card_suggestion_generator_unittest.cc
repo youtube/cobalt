@@ -3234,6 +3234,39 @@ TEST_F(
   EXPECT_EQ(suggestions[1].type, SuggestionType::kCreditCardEntry);
 }
 
+TEST_F(CreditCardSuggestionGeneratorBnplTest,
+       GetCreditCardSuggestionsForTouchToFill_TabsEnabled_IncludesBnpl) {
+  scoped_feature_list_.Reset();
+  scoped_feature_list_.InitWithFeatures(
+      /*enabled_features=*/
+      {features::kAutofillEnableBuyNowPayLater,
+       features::kAutofillEnableAmountExtraction,
+       features::kAutofillEnableAiBasedAmountExtraction,
+       features::kAutofillEnablePayNowPayLaterTabs},
+      /*disabled_features=*/{});
+  payments_data().AddBnplIssuer(test::GetTestUnlinkedBnplIssuer());
+  FormData form = test::GetFormData(
+      {.fields = {{.role = CREDIT_CARD_NAME_FULL,
+                   .value = u"Card Name",
+                   .is_autofilled_according_to_renderer = true},
+                  {.role = CREDIT_CARD_NUMBER, .value = u"01230123012399"}}});
+  autofill_manager().AddSeenForm(form,
+                                 {CREDIT_CARD_NAME_FULL, CREDIT_CARD_NUMBER});
+  ON_CALL(*static_cast<MockAutofillOptimizationGuideDecider*>(
+              autofill_client().GetAutofillOptimizationGuideDecider()),
+          IsUrlEligibleForBnplIssuer)
+      .WillByDefault(testing::Return(true));
+
+  std::vector<Suggestion> suggestions = GetCreditCardSuggestionsForTouchToFill(
+      {CreateServerCard(), CreateLocalCard()}, autofill_manager(),
+      form.global_id());
+
+  ASSERT_EQ(suggestions.size(), 3U);
+  EXPECT_EQ(suggestions[0].type, SuggestionType::kCreditCardEntry);
+  EXPECT_EQ(suggestions[1].type, SuggestionType::kCreditCardEntry);
+  EXPECT_EQ(suggestions[2].type, SuggestionType::kBnplEntry);
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)

@@ -10,6 +10,7 @@
 #include <cstdint>
 
 #include "base/compiler_specific.h"
+#include "base/functional/callback.h"
 #include "gpu/command_buffer/client/interface_base.h"
 #include "gpu/command_buffer/common/sync_token.h"
 #include "third_party/skia/include/core/SkAlphaType.h"
@@ -37,9 +38,10 @@ extern "C" typedef const struct _GLcolorSpace* GLcolorSpace;
 
 namespace gpu {
 class ClientSharedImage;
-class RasterScopedAccess;
 
 namespace gles2 {
+
+using CopySharedImageSyncCallback = base::OnceCallback<gpu::SyncToken()>;
 
 // This class is the interface for all client side GL functions.
 class GLES2Interface : public InterfaceBase {
@@ -61,7 +63,10 @@ class GLES2Interface : public InterfaceBase {
   // Copies the contents of |source_shared_image| to |dst_texture| of the
   // current context. Assumes that |dst_texture| has already been allocated (via
   // BindTexture and TexImage2D) to the size of |src_rect|.
-  virtual gpu::SyncToken CopySharedImageToGLTextureViaTextureCopy(
+  // Returns a callback that the client is expected to invoke when they have
+  // finished the access. Invoking the callback ends access and returns a
+  // SyncToken.
+  virtual CopySharedImageSyncCallback CopySharedImageToGLTextureViaTextureCopy(
       const gfx::Rect& src_rect,
       ClientSharedImage* source_shared_image,
       const gpu::SyncToken& source_sync_token,
@@ -77,19 +82,22 @@ class GLES2Interface : public InterfaceBase {
   // Copies the contents of |source_shared_image| to |dst_texture| of the
   // current context. Assumes that |dst_texture| has already been allocated (via
   // BindTexture and TexImage2D) to the size of |src_rect|.
-  virtual std::unique_ptr<RasterScopedAccess>
-  CopySharedImageDirectlyToGLTexture(const gfx::Rect& src_rect,
-                                     ClientSharedImage* source_shared_image,
-                                     const gpu::SyncToken& source_sync_token,
-                                     bool is_opaque,
-                                     uint32_t dst_target,
-                                     uint32_t dst_texture,
-                                     uint32_t dst_internal_format,
-                                     uint32_t dst_format,
-                                     uint32_t dst_type,
-                                     int32_t dst_level,
-                                     SkAlphaType dst_alpha_type,
-                                     GrSurfaceOrigin dst_origin);
+  // Returns a callback that the client is expected to invoke when they have
+  // finished the access. Invoking the callback ends access and returns a
+  // SyncToken.
+  virtual CopySharedImageSyncCallback CopySharedImageDirectlyToGLTexture(
+      const gfx::Rect& src_rect,
+      ClientSharedImage* source_shared_image,
+      const gpu::SyncToken& source_sync_token,
+      bool is_opaque,
+      uint32_t dst_target,
+      uint32_t dst_texture,
+      uint32_t dst_internal_format,
+      uint32_t dst_format,
+      uint32_t dst_type,
+      int32_t dst_level,
+      SkAlphaType dst_alpha_type,
+      GrSurfaceOrigin dst_origin);
 
   virtual void FreeSharedMemory(void*) {}
 

@@ -131,6 +131,9 @@ const CGFloat kLargeKeyboardAccessoryHeight = 59;
 NSString* const kFormInputAccessoryViewAccessibilityID =
     @"kFormInputAccessoryViewAccessibilityID";
 
+NSString* const kFormInputAccessoryViewAtMemoryButtonAccessibilityIdentifier =
+    @"kFormInputAccessoryViewAtMemoryButtonAccessibilityIdentifier";
+
 NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
     @"kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID";
 
@@ -151,6 +154,8 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
 
 @property(nonatomic, weak) UIButton* addressManualFillButton;
 
+@property(nonatomic, weak) UIButton* atMemoryManualFillButton;
+
 @property(nonatomic, weak) UIView* leadingView;
 
 @property(nonatomic, weak) UIView* trailingView;
@@ -162,6 +167,8 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
 @property(nonatomic, strong) UIImage* creditCardManualFillSymbol;
 
 @property(nonatomic, strong) UIImage* addressManualFillSymbol;
+
+@property(nonatomic, strong) UIImage* atMemoryManualFillSymbol;
 
 @property(nonatomic, strong) UIImage* closeButtonSymbol;
 
@@ -184,6 +191,8 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
   UIView* _backgroundView;
   // Whether we are using the large accessory view.
   BOOL _largeAccessoryViewEnabled;
+  // Whether the AtMemory button is hidden.
+  BOOL _atMemoryButtonHidden;
   // Whether we are using the small width accessory view.
   BOOL _smallWidthAccessoryViewEnabled;
   // Whether the current form factor is a tablet.
@@ -231,6 +240,7 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
         passwordManualFillSymbol:nil
       creditCardManualFillSymbol:nil
          addressManualFillSymbol:nil
+        atMemoryManualFillSymbol:nil
                closeButtonSymbol:nil];
 }
 
@@ -240,6 +250,7 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
       passwordManualFillSymbol:(UIImage*)passwordManualFillSymbol
     creditCardManualFillSymbol:(UIImage*)creditCardManualFillSymbol
        addressManualFillSymbol:(UIImage*)addressManualFillSymbol
+      atMemoryManualFillSymbol:(UIImage*)atMemoryManualFillSymbol
              closeButtonSymbol:(UIImage*)closeButtonSymbol
             isTabletFormFactor:(BOOL)isTabletFormFactor {
   DCHECK(manualFillSymbol);
@@ -252,6 +263,7 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
         passwordManualFillSymbol:passwordManualFillSymbol
       creditCardManualFillSymbol:creditCardManualFillSymbol
          addressManualFillSymbol:addressManualFillSymbol
+        atMemoryManualFillSymbol:atMemoryManualFillSymbol
                closeButtonSymbol:closeButtonSymbol];
 }
 
@@ -259,6 +271,20 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
   _omniboxTypingShieldHeightConstraint.constant = typingShieldHeight;
   if (self.window) {
     [self layoutIfNeeded];
+  }
+}
+
+- (void)setAtMemoryButtonHidden:(BOOL)atMemoryButtonHidden {
+  if (_atMemoryButtonHidden == atMemoryButtonHidden) {
+    return;
+  }
+  _atMemoryButtonHidden = atMemoryButtonHidden;
+  if (self.atMemoryManualFillButton) {
+    BOOL hideManualFillByCategoryButtons =
+        (_currentGroup !=
+         FormInputAccessoryViewSubitemGroup::kManualFillButtons);
+    self.atMemoryManualFillButton.hidden =
+        hideManualFillByCategoryButtons || _atMemoryButtonHidden;
   }
 }
 
@@ -288,6 +314,8 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
   self.passwordManualFillButton.hidden = hideManualFillByCategoryButtons;
   self.creditCardManualFillButton.hidden = hideManualFillByCategoryButtons;
   self.addressManualFillButton.hidden = hideManualFillByCategoryButtons;
+  self.atMemoryManualFillButton.hidden =
+      hideManualFillByCategoryButtons || self.atMemoryButtonHidden;
 
   BOOL hideManualFillButton =
       (group != FormInputAccessoryViewSubitemGroup::kExpandButton);
@@ -428,6 +456,10 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
   [self.delegate formInputAccessoryViewDidTapAddressManualFillButton:self];
 }
 
+- (void)atMemoryManualFillButtonTapped {
+  [self.delegate formInputAccessoryViewDidTapAtMemoryManualFillButton:self];
+}
+
 - (void)omniboxTypingShieldTapped {
   [self.delegate fromInputAccessoryViewDidTapOmniboxTypingShield:self];
 }
@@ -444,6 +476,7 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
       passwordManualFillSymbol:(UIImage*)passwordManualFillSymbol
     creditCardManualFillSymbol:(UIImage*)creditCardManualFillSymbol
        addressManualFillSymbol:(UIImage*)addressManualFillSymbol
+      atMemoryManualFillSymbol:(UIImage*)atMemoryManualFillSymbol
              closeButtonSymbol:(UIImage*)closeButtonSymbol {
   DCHECK(!self.subviews.count);  // This should only be called once.
 
@@ -455,6 +488,7 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
   self.passwordManualFillSymbol = passwordManualFillSymbol;
   self.creditCardManualFillSymbol = creditCardManualFillSymbol;
   self.addressManualFillSymbol = addressManualFillSymbol;
+  self.atMemoryManualFillSymbol = atMemoryManualFillSymbol;
   self.closeButtonSymbol = closeButtonSymbol;
 
   // Attempt to set up the liquid glass effect, otherwise, use the non liquid
@@ -691,6 +725,11 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
     addressManualFillButton.hidden = YES;
     self.addressManualFillButton = addressManualFillButton;
 
+    UIButton* atMemoryManualFillButton =
+        [self createAtMemoryManualFillButtonWithText:textData];
+    atMemoryManualFillButton.hidden = YES;
+    self.atMemoryManualFillButton = atMemoryManualFillButton;
+
     if (_isTabletFormFactor) {
       _closeButton.hidden = YES;
     }
@@ -704,9 +743,9 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
     self.nextButton = nextButton;
 
     navigationView = [[UIStackView alloc] initWithArrangedSubviews:@[
-      previousButton, nextButton, passwordManualFillButton,
-      creditCardManualFillButton, addressManualFillButton, manualFillButton,
-      _closeButton
+      previousButton, nextButton, atMemoryManualFillButton,
+      passwordManualFillButton, creditCardManualFillButton,
+      addressManualFillButton, manualFillButton, _closeButton
     ]];
   } else {
     UIButton* previousButton = [self createPreviousButtonWithText:textData];
@@ -871,6 +910,19 @@ NSString* const kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID =
        createImageButton:self.addressManualFillSymbol
                   action:@selector(addressManualFillButtonTapped)
       accessibilityLabel:textData.addressManualFillButtonAccessibilityLabel];
+}
+
+// Create the AtMemory manual fill button.
+- (UIButton*)createAtMemoryManualFillButtonWithText:
+    (FormInputAccessoryViewTextData*)textData {
+  // TODO(crbug.com/522326512): Verify this button action and accessibility.
+  UIButton* button = [self
+       createImageButton:self.atMemoryManualFillSymbol
+                  action:@selector(atMemoryManualFillButtonTapped)
+      accessibilityLabel:textData.atMemoryManualFillButtonAccessibilityLabel];
+  button.accessibilityIdentifier =
+      kFormInputAccessoryViewAtMemoryButtonAccessibilityIdentifier;
+  return button;
 }
 
 // Create the previous button.

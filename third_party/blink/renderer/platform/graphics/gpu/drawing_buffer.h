@@ -141,7 +141,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
       bool desynchronized,
       PreserveDrawingBuffer,
       Platform::WebGLContextType,
-      bool is_offscreen_canvas,
       PredefinedColorSpace,
       gl::GpuPreference);
 
@@ -154,6 +153,9 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
 
   // Issues a glClear() on all framebuffers associated with this DrawingBuffer.
   void ClearFramebuffers(GLbitfield clear_mask);
+
+  // Recreates the back color buffer if it was discarded.
+  void EnsureBackColorBuffer();
 
   // Indicates whether the DrawingBuffer internally allocated a packed
   // depth-stencil renderbuffer in the situation where the end user only asked
@@ -339,7 +341,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
                 Platform::WebGLContextType,
                 bool wants_depth,
                 bool wants_stencil,
-                bool is_offscreen_canvas,
                 PredefinedColorSpace,
                 gl::GpuPreference);
 
@@ -347,6 +348,8 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
 
   void SetSharedImageInterfaceProviderForSoftwareRenderingTest(
       std::unique_ptr<WebGraphicsSharedImageInterfaceProvider> sii_provider);
+
+  bool HasBackColorBufferForTesting() const { return !!back_color_buffer_; }
 
   struct SoftwareResource {
     SoftwareResource(
@@ -665,6 +668,10 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   // buffer.
   bool contents_changed_ = true;
 
+  // Whether the back buffer has been discarded. Used to make sure that it's
+  // been properly recreated.
+  bool back_buffer_discarded_ = false;
+
   // True if resolveIfNeeded() has been called since the last time
   // markContentsChanged() had been called.
   bool contents_change_resolved_ = false;
@@ -697,9 +704,6 @@ class PLATFORM_EXPORT DrawingBuffer : public cc::TextureLayerClient,
   // DrawingBuffer.
   Deque<scoped_refptr<ColorBuffer>> recycled_color_buffer_queue_;
   base::flat_set<scoped_refptr<ColorBuffer>> exported_color_buffers_;
-
-  // Whether it's an offscreen canvas.
-  bool is_offscreen_canvas_;
 
   bool opengl_flip_y_extension_;
 

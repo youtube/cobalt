@@ -5,6 +5,9 @@
 #ifndef CONTENT_PUBLIC_BROWSER_ANDROID_CHILD_PROCESS_IMPORTANCE_H_
 #define CONTENT_PUBLIC_BROWSER_ANDROID_CHILD_PROCESS_IMPORTANCE_H_
 
+#include <iosfwd>
+
+#include "base/process/process.h"
 #include "content/common/content_export.h"
 
 namespace content {
@@ -34,8 +37,16 @@ enum class ChildProcessImportance {
   IMPORTANT,
 };
 
+CONTENT_EXPORT std::ostream& operator<<(std::ostream& out,
+                                        ChildProcessImportance importance);
+
 // Whether the device supports `ChildProcessImportance.PERCEPTIBLE` or not.
 CONTENT_EXPORT bool IsNotPerceptibleImportanceSupported();
+
+// Mapping from base::Process::Priority to ChildProcessImportance for
+// integration with Performance Manager.
+CONTENT_EXPORT ChildProcessImportance
+PriorityToChildProcessImportance(base::Process::Priority priority);
 
 }  // namespace content
 

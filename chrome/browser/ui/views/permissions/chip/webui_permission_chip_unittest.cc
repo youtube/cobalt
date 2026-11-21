@@ -87,3 +87,28 @@ TEST_F(WebUIPermissionChipTest, AnnounceAlertAndText) {
   chip.AnnounceAlert(message);
   chip.AnnounceText(message);
 }
+
+class TestPermissionChipObserver : public PermissionChipInterface::Observer {
+ public:
+  explicit TestPermissionChipObserver(WebUIPermissionChip* chip)
+      : chip_(chip) {}
+  void OnCollapseAnimationEnded() override { chip_->SetVisible(false); }
+
+ private:
+  raw_ptr<WebUIPermissionChip> chip_;
+};
+
+TEST_F(WebUIPermissionChipTest, CollapseAnimationEndedReentrancy) {
+  WebUIPermissionChip chip(location_bar_.get());
+  chip.SetVisible(true);
+  TestPermissionChipObserver observer(&chip);
+  chip.AddObserver(&observer);
+
+  // Trigger expand then collapse to set the animation state flags correctly.
+  chip.AnimateExpand(base::Milliseconds(100));
+  chip.AnimateCollapse(base::Milliseconds(100));
+
+  // This should not crash.
+  chip.OnCollapseAnimationEnded();
+  EXPECT_FALSE(chip.GetVisible());
+}

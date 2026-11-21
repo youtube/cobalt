@@ -40,7 +40,6 @@ import org.chromium.base.supplier.SettableNullableObservableSupplier;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -262,9 +261,10 @@ public class TabBottomSheetManagerTest {
                     Criteria.checkThat(imeAdapter.isValid(), Matchers.is(true));
                 });
 
-        ThreadUtils.runOnUiThread(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     coBrowseViews.destroy();
+                    webContents.destroy();
                 });
     }
 
@@ -324,9 +324,10 @@ public class TabBottomSheetManagerTest {
                 10000,
                 CriteriaHelper.DEFAULT_POLLING_INTERVAL);
 
-        ThreadUtils.runOnUiThread(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     coBrowseViews.destroy();
+                    webContents.destroy();
                 });
     }
 
@@ -522,7 +523,6 @@ public class TabBottomSheetManagerTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "https://crbug.com/510449718")
     public void testDetachNativeInterfaceDelegate() {
         showBottomSheetAndBlockUntilReady();
         assertEquals(mManager.getNativeInterfaceDelegateForTesting(), mDelegate);
@@ -533,6 +533,11 @@ public class TabBottomSheetManagerTest {
                 });
 
         assertEquals(mManager.getNativeInterfaceDelegateForTesting(), null);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mManager.attachNativeInterfaceDelegateForTesting(mDelegate);
+                });
     }
 
     @Test
@@ -552,6 +557,48 @@ public class TabBottomSheetManagerTest {
         verify(mockDelegate).onBottomSheetClosed();
 
         tabSwitcher.leaveHubToPreviousTabViaBack(WebPageStation.newBuilder());
+    }
+
+    @Test
+    @SmallTest
+    public void testTryToCloseBottomSheet_WhenSuppressedByAnotherBottomSheet() {
+        NativeInterfaceDelegate mockDelegate = mock(NativeInterfaceDelegate.class);
+        showBottomSheetAndBlockUntilReady(mockDelegate);
+
+        // Create and show another bottom sheet content of higher priority.
+        BottomSheetContent otherContent = mock(BottomSheetContent.class);
+        when(otherContent.getPriority()).thenReturn(BottomSheetContent.ContentPriority.HIGH);
+        when(otherContent.allowInSheetContentSnackbars()).thenReturn(true);
+        var alwaysFalse =
+                ThreadUtils.runOnUiThreadBlocking(() -> ObservableSuppliers.alwaysFalse());
+        when(otherContent.getBackPressStateChangedSupplier()).thenReturn(alwaysFalse);
+        View otherView = ThreadUtils.runOnUiThreadBlocking(() -> new View(mActivity));
+        when(otherContent.getContentView()).thenReturn(otherView);
+
+        // Request showing the other content. This will suppress the Tab Bottom Sheet.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mBottomSheetController.requestShowContent(otherContent, /* animate= */ false);
+                });
+
+        // Verify the Tab Bottom Sheet is suppressed and no longer showing.
+        CriteriaHelper.pollUiThread(() -> !mManager.isSheetShowing());
+        verify(mockDelegate).onBottomSheetSuppressed();
+
+        // While suppressed, close the Tab Bottom Sheet via the manager.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mManager.tryToCloseBottomSheet(/* animate= */ false);
+                });
+
+        // Verify that native got onBottomSheetClosed.
+        verify(mockDelegate).onBottomSheetClosed();
+
+        // Close the other bottom sheet.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mBottomSheetController.hideContent(otherContent, /* animate= */ false);
+                });
     }
 
     @Test

@@ -4,11 +4,13 @@
 
 #include <string_view>
 
+#include "base/functional/bind.h"
 #include "base/memory/raw_ref.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/values.h"
 #include "chrome/browser/apps/app_service/app_registry_cache_waiter.h"
@@ -20,11 +22,14 @@
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
 #include "chrome/browser/web_applications/app_service/web_app_publisher_helper.h"
+#include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_provider_factory.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
+#include "chrome/browser/web_applications/web_app_registry_update.h"
+#include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -129,7 +134,7 @@ class WebAppNavigationCapturingMigrationSuccessTest
 };
 
 IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingMigrationSuccessTest,
-                       DISABLED_PRE_MigrationOnStartup) {
+                       PRE_MigrationOnStartup) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // Install App A (standard web app, no client mode).
@@ -172,7 +177,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingMigrationSuccessTest,
 }
 
 IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingMigrationSuccessTest,
-                       DISABLED_MigrationOnStartup) {
+                       MigrationOnStartup) {
   apps::AppServiceProxy* proxy =
       apps::AppServiceProxyFactory::GetForProfile(profile());
   PreferredAppsListReadyWaiter(proxy->PreferredAppsList()).Wait();
@@ -274,7 +279,7 @@ class WebAppNavigationCapturingMigrationRollbackTest
 };
 
 IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingMigrationRollbackTest,
-                       DISABLED_PRE_PRE_RollbackOnStartup) {
+                       PRE_PRE_RollbackOnStartup) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   // Install App A.
@@ -316,7 +321,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingMigrationRollbackTest,
 }
 
 IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingMigrationRollbackTest,
-                       DISABLED_PRE_RollbackOnStartup) {
+                       PRE_RollbackOnStartup) {
   apps::AppServiceProxy* proxy =
       apps::AppServiceProxyFactory::GetForProfile(profile());
   PreferredAppsListReadyWaiter(proxy->PreferredAppsList()).Wait();
@@ -355,7 +360,7 @@ IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingMigrationRollbackTest,
 }
 
 IN_PROC_BROWSER_TEST_P(WebAppNavigationCapturingMigrationRollbackTest,
-                       DISABLED_RollbackOnStartup) {
+                       RollbackOnStartup) {
   apps::AppServiceProxy* proxy =
       apps::AppServiceProxyFactory::GetForProfile(profile());
   PreferredAppsListReadyWaiter(proxy->PreferredAppsList()).Wait();
@@ -395,4 +400,105 @@ INSTANTIATE_TEST_SUITE_P(All,
                                       ? "DefaultOn"
                                       : "OnViaClientMode";
                          });
+
+#if BUILDFLAG(IS_CHROMEOS)
+// Verifies that migration is blocked if a conflicting System Web App is already
+// preferred for the same scope.
+class WebAppNavigationCapturingMigrationSwaConflictTest
+    : public WebAppBrowserTestBase {
+ public:
+  WebAppNavigationCapturingMigrationSwaConflictTest() {
+    std::string_view test_name =
+        testing::UnitTest::GetInstance()->current_test_info()->name();
+    if (test_name.starts_with("DISABLED_")) {
+      test_name.remove_prefix(9);
+    }
+
+    std::string link_capturing_state = "reimpl_default_off";
+    if (!test_name.starts_with("PRE_")) {
+      link_capturing_state = "reimpl_default_on";
+    }
+
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kPwaNavigationCapturing,
+        {{"link_capturing_state", link_capturing_state}});
+  }
+
+  WebAppNavigationCapturingMigrationSwaConflictTest(
+      const WebAppNavigationCapturingMigrationSwaConflictTest&) = delete;
+  WebAppNavigationCapturingMigrationSwaConflictTest& operator=(
+      const WebAppNavigationCapturingMigrationSwaConflictTest&) = delete;
+  ~WebAppNavigationCapturingMigrationSwaConflictTest() override = default;
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingMigrationSwaConflictTest,
+                       PRE_SwaConflictOnStartup) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  // Install App A (standard web app).
+  GURL scope("https://example.com/site/");
+  GURL start_url_a("https://example.com/site/index_a.html");
+  GURL start_url_e("https://example.com/site/index_e.html");
+
+  auto info_a = std::make_unique<WebAppInstallInfo>(
+      GenerateManifestIdFromStartUrlOnly(start_url_a), start_url_a);
+  info_a->scope = scope;
+  info_a->title = u"Web App A";
+  info_a->user_display_mode = mojom::UserDisplayMode::kStandalone;
+  webapps::AppId app_a = test::InstallWebApp(profile(), std::move(info_a));
+  apps::AppReadinessWaiter(profile(), app_a).Await();
+
+  // Install App E (System Web App) using SYSTEM_DEFAULT.
+  auto info_e = std::make_unique<WebAppInstallInfo>(
+      GenerateManifestIdFromStartUrlOnly(start_url_e), start_url_e);
+  info_e->scope = scope;
+  info_e->title = u"SWA App E";
+  info_e->user_display_mode = mojom::UserDisplayMode::kStandalone;
+  webapps::AppId app_e =
+      test::InstallWebApp(profile(), std::move(info_e),
+                          /*overwrite_existing_manifest_fields=*/true,
+                          webapps::WebappInstallSource::SYSTEM_DEFAULT);
+  apps::AppReadinessWaiter(profile(), app_e).Await();
+  EXPECT_TRUE(provider().registrar_unsafe().IsSystemApp(app_e));
+
+  // Mark SWA E as preferred (capturing the link). This overrides any other
+  // preference.
+  apps_util::SetSupportedLinksPreferenceAndWait(profile(), app_e);
+
+  apps::AppServiceProxy* proxy =
+      apps::AppServiceProxyFactory::GetForProfile(profile());
+  PreferredAppsListReadyWaiter(proxy->PreferredAppsList()).Wait();
+
+  EXPECT_FALSE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_a));
+  EXPECT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_e));
+}
+
+IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingMigrationSwaConflictTest,
+                       SwaConflictOnStartup) {
+  apps::AppServiceProxy* proxy =
+      apps::AppServiceProxyFactory::GetForProfile(profile());
+  PreferredAppsListReadyWaiter(proxy->PreferredAppsList()).Wait();
+
+  GURL start_url_a("https://example.com/site/index_a.html");
+  webapps::AppId app_a = GenerateAppIdFromManifestId(
+      GenerateManifestIdFromStartUrlOnly(start_url_a));
+
+  // App A must NOT be migrated to preferred, because SWA E is currently set as
+  // preferred for the conflicting scope.
+  EXPECT_FALSE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_a));
+
+  GURL start_url_e("https://example.com/site/index_e.html");
+  webapps::AppId app_e = GenerateAppIdFromManifestId(
+      GenerateManifestIdFromStartUrlOnly(start_url_e));
+  EXPECT_TRUE(
+      proxy->PreferredAppsList().IsPreferredAppForSupportedLinks(app_e));
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 }  // namespace web_app

@@ -29,14 +29,19 @@
               "description": "A function that receives resource content when the request completes.",
               "parameters": [
                 {
-                  "name": "content",
-                  "type": "string",
-                  "description": "Content of the resource (potentially encoded)."
-                },
-                {
-                  "name": "encoding",
-                  "type": "string",
-                  "description": "Empty if the content is not encoded, encoding name otherwise. Currently, only base64 is supported."
+                  "name": "response",
+                  "type": "object",
+                  "description": "An object containing the resource content and its encoding.",
+                  "properties": {
+                    "content": {
+                      "type": "string",
+                      "description": "Content of the resource (potentially encoded)."
+                    },
+                    "encoding": {
+                      "type": "string",
+                      "description": "Empty if the content is not encoded, encoding name otherwise. Currently, only base64 is supported."
+                    }
+                  }
                 }
               ]
             }
@@ -122,40 +127,45 @@
           "optional": true,
           "parameters": [
             {
-              "name": "result",
+              "name": "response",
               "type": "object",
-              "additionalProperties": {"type": "any"},
-              "description": "The result of evaluation."
-            },
-            {
-              "name": "exceptionInfo",
-              "type": "object",
-              "description": "An object providing details if an exception occurred while evaluating the expression.",
+              "description": "The result of evaluation and exception information.",
               "properties": {
-                "isError": {
-                  "type": "boolean",
-                  "description": "Set if the error occurred on the DevTools side before the expression is evaluated."
+                "result": {
+                  "type": "object",
+                  "additionalProperties": {"type": "any"},
+                  "description": "The result of evaluation."
                 },
-                "code": {
-                  "type": "string",
-                  "description": "Set if the error occurred on the DevTools side before the expression is evaluated."
-                },
-                "description": {
-                  "type": "string",
-                  "description": "Set if the error occurred on the DevTools side before the expression is evaluated."
-                },
-                "details": {
-                  "type": "array",
-                  "items": { "type": "any" },
-                  "description": "Set if the error occurred on the DevTools side before the expression is evaluated, contains the array of the values that may be substituted into the description string to provide more information about the cause of the error."
-                },
-                "isException": {
-                  "type": "boolean",
-                  "description": "Set if the evaluated code produces an unhandled exception."
-                },
-                "value": {
-                  "type": "string",
-                  "description": "Set if the evaluated code produces an unhandled exception."
+                "exceptionInfo": {
+                  "type": "object",
+                  "description": "An object providing details if an exception occurred while evaluating the expression.",
+                  "properties": {
+                    "isError": {
+                      "type": "boolean",
+                      "description": "Set if the error occurred on the DevTools side before the expression is evaluated."
+                    },
+                    "code": {
+                      "type": "string",
+                      "description": "Set if the error occurred on the DevTools side before the expression is evaluated."
+                    },
+                    "description": {
+                      "type": "string",
+                      "description": "Set if the error occurred on the DevTools side before the expression is evaluated."
+                    },
+                    "details": {
+                      "type": "array",
+                      "items": { "type": "any" },
+                      "description": "Set if the error occurred on the DevTools side before the expression is evaluated, contains the array of the values that may be substituted into the description string to provide more information about the cause of the error."
+                    },
+                    "isException": {
+                      "type": "boolean",
+                      "description": "Set if the evaluated code produces an unhandled exception."
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "Set if the evaluated code produces an unhandled exception."
+                    }
+                  }
                 }
               }
             }

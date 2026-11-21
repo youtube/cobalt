@@ -195,8 +195,7 @@
              cell.mutator = weakSelf.mutator;
            }];
 
-  if (IsNTPBackgroundCustomizationEnabled() &&
-      !self.customizationDisabledByPolicy) {
+  if (!self.customizationDisabledByPolicy) {
     _backgroundCellRegistration = [UICollectionViewCellRegistration
         registrationWithCellClass:[HomeCustomizationBackgroundCell class]
              configurationHandler:^(HomeCustomizationBackgroundCell* cell,
@@ -219,8 +218,7 @@
              }];
   }
 
-  if (IsNTPBackgroundCustomizationEnabled() &&
-      self.customizationDisabledByPolicy) {
+  if (self.customizationDisabledByPolicy) {
     _enterprisePolicyCellRegistration = [UICollectionViewCellRegistration
         registrationWithCellClass:[HomeCustomizationEnterprisePolicyCell class]
              configurationHandler:^(HomeCustomizationEnterprisePolicyCell* cell,
@@ -237,8 +235,7 @@
   NSDiffableDataSourceSnapshot<CustomizationSection*, NSString*>* snapshot =
       [[NSDiffableDataSourceSnapshot alloc] init];
 
-  if (IsNTPBackgroundCustomizationEnabled() &&
-      !self.customizationDisabledByPolicy) {
+  if (!self.customizationDisabledByPolicy) {
     // Create background customization section and add items to it.
     [snapshot
         appendSectionsWithIdentifiers:@[ kCustomizationSectionBackground ]];
@@ -253,8 +250,7 @@
       appendItemsWithIdentifiers:[self identifiersForToggleMap:self.toggleMap]
        intoSectionWithIdentifier:kCustomizationSectionMainToggles];
 
-  if (IsNTPBackgroundCustomizationEnabled() &&
-      self.customizationDisabledByPolicy) {
+  if (self.customizationDisabledByPolicy) {
     // Create an enterprise section with a message to users.
     [snapshot
         appendSectionsWithIdentifiers:@[ kCustomizationSectionEnterprise ]];
@@ -288,7 +284,6 @@
     return [_collectionConfigurator
         verticalListSectionForLayoutEnvironment:layoutEnvironment];
   } else if (sectionIndex == backgroundCustomizationIdentifier) {
-    CHECK(IsNTPBackgroundCustomizationEnabled());
     CGSize windowSize = self.view.window.bounds.size;
     return [_collectionConfigurator
         backgroundCellSectionForLayoutEnvironment:layoutEnvironment

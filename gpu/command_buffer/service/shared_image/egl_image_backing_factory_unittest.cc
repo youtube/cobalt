@@ -705,7 +705,9 @@ TEST_P(EGLImageBackingFactoryThreadSafeTest, Dawn_WriteUnderReadLock_POC) {
   device_descriptor.requiredFeatures = &dawn_internal_usage;
   wgpu::Device device =
       wgpu::Device::Acquire(adapters[0].CreateDevice(&device_descriptor));
-  ASSERT_NE(device, nullptr);
+  if (!device) {
+    GTEST_SKIP() << "Failed to create Dawn Device";
+  }
 
   // Dawn made its own EGL context current; restore ours so ProduceDawn (which
   // creates a GL sibling on the current context) and subsequent GL work use

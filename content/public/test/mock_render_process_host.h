@@ -99,6 +99,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   bool AreV8OptimizationsDisabled() override;
   bool DisallowV8FeatureFlagOverrides() override;
   bool IsPdf() override;
+  void SetIsPdf(bool is_pdf);
   void OnMediaStreamAdded() override;
   void OnMediaStreamRemoved() override;
   void OnForegroundServiceWorkerAdded() override;
@@ -137,11 +138,9 @@ class MockRenderProcessHost : public RenderProcessHost {
       RenderProcessHostPriorityClient* priority_client) override;
   void RemovePriorityClient(
       RenderProcessHostPriorityClient* priority_client) override;
-#if !BUILDFLAG(IS_ANDROID)
   void SetPriorityOverride(base::Process::Priority priority) override;
   bool HasPriorityOverride() override;
   void ClearPriorityOverride() override;
-#endif
 #if BUILDFLAG(IS_ANDROID)
   void GraduateSpareToNormalRendererPriority() override;
   bool ShouldThrottleNavigationForSpareRendererGraduation() override;
@@ -351,6 +350,7 @@ class MockRenderProcessHost : public RenderProcessHost {
   bool delayed_cleanup_ = false;
   bool deletion_callback_called_;
   bool is_for_guests_only_;
+  bool is_pdf_ = false;
   base::Process::Priority priority_;
   bool is_unused_;
   bool is_for_top_chrome_web_ui_ = false;

@@ -84,9 +84,12 @@ def main():
 
     # Treat unrecognized arguments as test specific arguments.
     runner_args, test_args = parser.parse_known_args()
+    # Strip the '--' separator if it was captured in test_args, so we don't
+    # pass it as a literal argument to the target test binary.
+    if ['--'] == test_args[:1]:
+        test_args.pop(0)
 
-    if runner_args.target_id:
-        runner_args.device = True
+    runner_args.device = runner_args.device or bool(runner_args.target_id)
 
     monitors.tag('fuchsia')
     with ExitStack() as stack:

@@ -39,12 +39,12 @@
 #include "base/no_destructor.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
-namespace base {
+namespace base::i18n {
 namespace {
 
-using ::base::i18n::internal::create_icu_fallbacker;
-using ::base::i18n::internal::Icu4xLocale;
-using ::base::i18n::internal::IcuFallbacker;
+using internal::create_icu_fallbacker;
+using internal::Icu4xLocale;
+using internal::IcuFallbacker;
 
 // Returns the sequence of fallback locales using ICU4X logic, excluding the
 // original locale and the root locale ("und").
@@ -97,31 +97,26 @@ float GetEdgeWeight(const LanguageTag& source, const LanguageTag& target) {
       base::flat_map<std::pair<LanguageTag, LanguageTag>, float>>
       kNonDefaultEdges([]() {
         base::flat_map<std::pair<LanguageTag, LanguageTag>, float>
-            non_default_edges;
-        // Prefer Mexican Spanish for Latin American Spanish.
-        non_default_edges.emplace(
-            std::make_pair(language_tags::SPANISH_LATIN_AMERICAN(),
-                           language_tags::SPANISH_MEXICO()),
-            0.8);
-        // Prefer Brazilian Portuguese for generic Portuguese.
-        non_default_edges.emplace(
-            std::make_pair(language_tags::PORTUGUESE(),
-                           language_tags::BRAZILIAN_PORTUGUESE()),
-            0.8);
-        // Global English (en-001) preferences.
-        LanguageTag english_global =
-            LanguageTagConverter::GetInstance().FromString("en-001").value();
-        non_default_edges.emplace(
-            std::make_pair(english_global, language_tags::ENGLISH_US()), 0.8);
-        non_default_edges.emplace(
-            std::make_pair(english_global, language_tags::BRITISH_ENGLISH()),
-            0.81);
-        // Chinese locales
-        non_default_edges.emplace(
-            std::make_pair(language_tags::CHINESE(),
-                           language_tags::CHINA_CHINESE()),
-            0.8);
-
+            non_default_edges{
+                {{language_tags::SPANISH_LATIN_AMERICAN(),
+                  language_tags::SPANISH_MEXICO()},
+                 0.8},
+                {{language_tags::ENGLISH_GLOBAL(),
+                  language_tags::BRITISH_ENGLISH()},
+                 0.8},
+                {{language_tags::ENGLISH_GLOBAL(), language_tags::ENGLISH_US()},
+                 0.9},
+                {{language_tags::SPANISH(),
+                  language_tags::SPANISH_LATIN_AMERICAN()},
+                 0.8},
+                {{language_tags::PORTUGUESE(),
+                  language_tags::BRAZILIAN_PORTUGUESE()},
+                 0.8},
+                {{language_tags::CHINESE(), language_tags::CHINA_CHINESE()},
+                 0.8},
+                {{language_tags::CHINESE_TRADITIONAL(),
+                  language_tags::TAIWAN_CHINESE()},
+                 0.8}};
         return non_default_edges;
       }());
 
@@ -151,15 +146,18 @@ class LanguageTagPreferenceGraph {
       for (const LanguageTag& fallback_tag :
            GetFallbackLocales(icu_fallbacker, supported_tag)) {
         // For example, an edge is added between <en -> en-US>
-        edges_[fallback_tag].push_back(previous);
-        distance_.try_emplace(fallback_tag, std::numeric_limits<float>::max());
+        AddEdge(fallback_tag, previous);
         previous = fallback_tag;
       }
 
       // Supported locales are their own best match with 0 distance.
-      distance_.insert_or_assign(supported_tag, 0);
-      closest_supported_tag_.insert_or_assign(supported_tag, supported_tag);
+      SetDistance(supported_tag, supported_tag, 0);
     }
+
+    // Special edges for Liberian and Philippino English to favor en-US, the
+    // rest should default to en-GB.
+    AddEdge(language_tags::ENGLISH_PHILIPPINES(), language_tags::ENGLISH_US());
+    AddEdge(language_tags::ENGLISH_LIBERIA(), language_tags::ENGLISH_US());
   }
 
   // Computes the closest supported locale for all reachable nodes in the graph.
@@ -182,6 +180,16 @@ class LanguageTagPreferenceGraph {
   }
 
  private:
+  void AddEdge(LanguageTag source, LanguageTag target) {
+    edges_[source].push_back(target);
+    distance_.try_emplace(source, std::numeric_limits<float>::max());
+  }
+
+  void SetDistance(LanguageTag node, LanguageTag closest_node, float distance) {
+    distance_.insert_or_assign(node, distance);
+    closest_supported_tag_.insert_or_assign(node, closest_node);
+  }
+
   struct Result {
     float distance;
     LanguageTag closest_supported;
@@ -220,9 +228,7 @@ class LanguageTagPreferenceGraph {
     }
 
     // Cache the result for this node.
-    distance_.insert_or_assign(current, best_result.distance);
-    closest_supported_tag_.insert_or_assign(current,
-                                            best_result.closest_supported);
+    SetDistance(current, best_result.closest_supported, best_result.distance);
     return best_result;
   }
 
@@ -245,17 +251,14 @@ LanguageTagMatcher LanguageTagMatcher::Create(
 
 std::optional<LanguageTag> LanguageTagMatcher::Match(
     const LanguageTag& preferred_locale) const {
-  // Step 1: Check if the preferred locale or any of its ancestors were part of
-  // the precomputed graph (i.e., they are supported or lead to a supported
-  // locale).
+  // Step 1: Check if the preferred locale is supported.
   auto it = closest_supported_tag_.find(preferred_locale);
   if (it != closest_supported_tag_.end()) {
     return it->second;
   }
 
-  // Step 2: If the preferred locale is not in the graph, traverse its fallback
-  // chain and check each ancestor. For example, if "fr-CA" is preferred but
-  // not in the graph, its fallbacks ("fr", "und") are checked.
+  // Step 2: Traverse the fallback chain to look for a supported locale. The
+  // first supported locale found is returned.
   for (const LanguageTag& fallback :
        GetFallbackLocales(*icu_fallbacker_, preferred_locale)) {
     auto it_fallback = closest_supported_tag_.find(fallback);
@@ -269,10 +272,10 @@ std::optional<LanguageTag> LanguageTagMatcher::Match(
 
 LanguageTagMatcher::LanguageTagMatcher(
     base::flat_map<LanguageTag, LanguageTag> closest_supported_tag,
-    rust::Box<i18n::internal::IcuFallbacker> icu_fallbacker)
+    rust::Box<internal::IcuFallbacker> icu_fallbacker)
     : closest_supported_tag_(std::move(closest_supported_tag)),
       icu_fallbacker_(std::move(icu_fallbacker)) {}
 
 LanguageTagMatcher::~LanguageTagMatcher() = default;
 
-}  // namespace base
+}  // namespace base::i18n

@@ -23,9 +23,11 @@
 #include <stdint.h>
 
 #include <cstddef>
+#include <initializer_list>
 #include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/base/macros.h"
@@ -47,7 +49,43 @@ namespace webrtc {
 
 class StringBuilder;
 
-using CodecParameterMap = std::map<std::string, std::string>;
+struct RTC_EXPORT CodecParameterMap
+    : public std::map<std::string, std::string> {
+  using std::map<std::string, std::string>::map;
+
+  CodecParameterMap() = default;
+  CodecParameterMap(const CodecParameterMap&) = default;
+  CodecParameterMap(CodecParameterMap&&) = default;
+  CodecParameterMap& operator=(const CodecParameterMap&) = default;
+  CodecParameterMap& operator=(CodecParameterMap&&) = default;
+
+  // TODO(bugs.webrtc.org/42223790): Remove these implicit converters when
+  // downstream projects have been updated to not rely on them.
+  CodecParameterMap(
+      const std::map<std::string, std::string>& o)  // NOLINT(runtime/explicit)
+      : std::map<std::string, std::string>(o) {}
+  CodecParameterMap(
+      std::map<std::string, std::string>&& o)  // NOLINT(runtime/explicit)
+      : std::map<std::string, std::string>(std::move(o)) {}
+
+  CodecParameterMap(
+      std::initializer_list<std::pair<absl::string_view, absl::string_view>>
+          il) {
+    for (const auto& p : il) {
+      emplace(p.first, p.second);
+    }
+  }
+
+  CodecParameterMap& operator=(
+      std::initializer_list<std::pair<absl::string_view, absl::string_view>>
+          il) {
+    clear();
+    for (const auto& p : il) {
+      emplace(p.first, p.second);
+    }
+    return *this;
+  }
+};
 
 enum class FecMechanism {
   RED,
@@ -207,7 +245,7 @@ struct RTC_EXPORT RtpCodec {
   //
   // Corresponds to "a=fmtp" parameters in SDP. The keys are lowercase strings.
   // Boolean values are represented by the string "1".
-  std::map<std::string, std::string> parameters;
+  CodecParameterMap parameters;
 
   bool operator==(const RtpCodec& o) const {
     return name == o.name && kind == o.kind && clock_rate == o.clock_rate &&

@@ -1612,13 +1612,6 @@ class NavCaptureParameterizedBrowserTest
              "Add the switch '--run-all-tests' to run disabled tests too.";
     }
 
-#if BUILDFLAG(IS_CHROMEOS)
-    if (GetClientModeCombination() == ClientModeCombination::kNotSpecified) {
-      GTEST_SKIP() << "Unspecified client mode support is not yet implemented "
-                      "for ChromeOS";
-    }
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
     AssertValidTestConfiguration();
     if (testing::Test::HasFatalFailure()) {
       return;
@@ -1672,12 +1665,6 @@ class NavCaptureParameterizedBrowserTest
     switch (GetLinkCapturing()) {
       case LinkCapturing::kEnabled:
       case LinkCapturing::kEnabledViaClientMode:
-#if BUILDFLAG(IS_CHROMEOS)
-        ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_a),
-                  base::ok());
-        ASSERT_EQ(apps::test::EnableLinkCapturingByUser(profile(), app_b),
-                  base::ok());
-#endif
         break;
       case LinkCapturing::kDisabled:
         ASSERT_EQ(apps::test::DisableLinkCapturingByUser(profile(), app_a),
@@ -2207,6 +2194,26 @@ INSTANTIATE_TEST_SUITE_P(
                         test::ClickMethod::kShiftClick),
         testing::Values(OpenerMode::kOpener),
         testing::Values(NavigationTarget::kBlank)),
+    LinkCaptureTestParamToString);
+
+// Use-case where redirection goes into a browser tab as an intermediate step
+// and ends up in an app window, triggered by a left click.
+// This should only happen when navigation capturing AND
+// kEnableAuxContextKeepSameContainer are both enabled.
+INSTANTIATE_TEST_SUITE_P(
+    Redirection_OpenInApp_LeftClick,
+    NavCaptureParameterizedBrowserTest,
+    testing::Combine(testing::Values(ClientModeCombination::kAuto),
+                     testing::Values(AppUserDisplayMode::kBothStandalone),
+                     testing::Values(LinkCapturing::kEnabled,
+                                     LinkCapturing::kDisabled),
+                     testing::Values(StartingPoint::kAppWindow),
+                     testing::Values(Destination::kScopeA2A),
+                     testing::Values(RedirectType::kServerSideViaX),
+                     testing::Values(NavigationElement::kElementLink),
+                     testing::Values(test::ClickMethod::kLeftClick),
+                     testing::Values(OpenerMode::kOpener),
+                     testing::Values(NavigationTarget::kBlank)),
     LinkCaptureTestParamToString);
 
 // This is meant to test (most) of the user-modified click scenarios that

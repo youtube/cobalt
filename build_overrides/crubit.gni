@@ -4,6 +4,11 @@
 
 crubit_src_dir = "//third_party/rust-toolchain/lib/crubit"
 crubit_absl_dep_target = "//third_party/abseil-cpp:absl"
-crubit_gn_configs_to_remove = [ "//build/config/compiler:chromium_code" ]
-crubit_gn_support_configs_to_add =
-    [ "//build/config/compiler:no_chromium_code" ]
+crubit_gn_configs_to_remove = [
+  "//build/config/compiler:chromium_code",
+  "//build/config/compiler:disallow_unstable_features",
+]
+crubit_gn_support_configs_to_add = [
+  "//build/config/compiler:no_chromium_code",
+  "//build/rust/crubit:allow_unstable_features_required_by_crubit",
+]

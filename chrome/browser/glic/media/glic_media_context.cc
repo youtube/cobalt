@@ -12,9 +12,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_util.h"
+#include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
+#include "chrome/browser/profiles/profile.h"
 #include "components/optimization_guide/content/browser/media_transcript_provider.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/document_picture_in_picture_window_controller.h"
 #include "content/public/browser/media_session.h"
 #include "content/public/browser/render_frame_host.h"
@@ -257,6 +260,10 @@ bool GlicMediaContext::HasTranscriptChunks() const {
          !transcript->transcript_chunks_.empty();
 }
 
+void GlicMediaContext::ClearAllTranscripts() {
+  transcripts_by_title_.clear();
+}
+
 void GlicMediaContext::OnPeerConnectionAdded() {
   num_peer_connections_++;
 }
@@ -276,6 +283,13 @@ bool GlicMediaContext::IsExcludedFromTranscript() const {
   content::WebContents* web_contents =
       content::WebContents::FromRenderFrameHost(&render_frame_host());
   if (!web_contents) {
+    return true;
+  }
+
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
+  if (!profile->GetPrefs()->GetBoolean(
+          glic::prefs::kGlicMediaUnderstandingEnabled)) {
     return true;
   }
 

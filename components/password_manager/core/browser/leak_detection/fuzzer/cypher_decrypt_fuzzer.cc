@@ -37,8 +37,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   std::string payload(reinterpret_cast<const char*>(data), size);
-  std::optional<std::string> result =
-      password_manager::CipherDecrypt(payload, key);
+  std::optional<std::string> result = CipherDecrypt(payload, key);
   return 0;
 }
 

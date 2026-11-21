@@ -7,7 +7,7 @@
 
 #import <string>
 
-#import "base/memory/raw_ptr.h"
+#import "base/scoped_observation.h"
 #import "base/time/time.h"
 #import "ios/web/public/web_state_observer.h"
 #import "ios/web/public/web_state_user_data.h"
@@ -32,23 +32,26 @@ class SendTabToSelfTabCardLabelData
   static SendTabToSelfTabCardLabelData* FromWebState(web::WebState* web_state);
 
   // Returns the formatted localized label string for the tab card.
-  NSString* GetLabelText() const;
-
-  // Returns whether the label has expired (exceeded 5 days since creation).
-  bool IsExpired() const;
+  // This can be used even if the WebState is unrealized.
+  static NSString* GetLabelTextForWebState(web::WebState* web_state);
 
  private:
   friend class web::WebStateUserData<SendTabToSelfTabCardLabelData>;
 
+  // Returns the formatted localized label string for the given device name.
+  static NSString* GetLabelText(const std::u16string& device_name);
+
   SendTabToSelfTabCardLabelData(web::WebState* web_state,
-                                const std::string& sender_device_name);
+                                const std::string& sender_device_name,
+                                base::Time creation_time = base::Time::Now());
 
   // web::WebStateObserver:
   void WasShown(web::WebState* web_state) override;
   void WebStateDestroyed(web::WebState* web_state) override;
 
-  raw_ptr<web::WebState> web_state_ = nullptr;
-  std::string sender_device_name_;
+  base::ScopedObservation<web::WebState, web::WebStateObserver>
+      web_state_observation_{this};
+  std::u16string sender_device_name_;
   base::Time creation_time_;
 };
 

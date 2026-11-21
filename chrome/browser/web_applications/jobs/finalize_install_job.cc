@@ -27,12 +27,12 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/commands/web_app_uninstall_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
 #include "chrome/browser/web_applications/jobs/finalize_install_job.h"
 #include "chrome/browser/web_applications/jobs/uninstall/remove_install_source_job.h"
 #include "chrome/browser/web_applications/jobs/uninstall/remove_install_url_job.h"
 #include "chrome/browser/web_applications/jobs/uninstall/remove_web_app_job.h"
 #include "chrome/browser/web_applications/model/app_installed_by.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_manager.h"
 #include "chrome/browser/web_applications/os_integration/web_app_shortcuts_menu.h"
@@ -133,7 +133,7 @@ bool ShouldInstallOverwriteUserDisplayMode(
 
 FinalizeJobOptions::IwaOptions::IwaOptions(
     IsolatedWebAppStorageLocation location,
-    std::optional<IsolatedWebAppIntegrityBlockData> integrity_block_data)
+    std::optional<IntegrityBlockData> integrity_block_data)
     : location(std::move(location)),
       integrity_block_data(std::move(integrity_block_data)) {}
 
@@ -564,7 +564,7 @@ void FinalizeInstallJob::UpdateIsolationDataAndResetPendingUpdateInfo(
     const IsolatedWebAppStorageLocation& location,
     const IwaVersion& version,
     const std::optional<GURL>& iwa_update_manifest_url,
-    std::optional<IsolatedWebAppIntegrityBlockData> integrity_block_data) {
+    std::optional<IntegrityBlockData> integrity_block_data) {
   IsolationData::Builder builder(location, version);
 
   if (web_app->isolation_data()) {

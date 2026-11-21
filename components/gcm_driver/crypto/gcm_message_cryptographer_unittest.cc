@@ -473,7 +473,7 @@ TEST_P(GCMMessageCryptographerTest, InvalidRecordPadding) {
   }
 
   // Run tests for a missing delimiter in the record.
-  // (Only applicable to draft-ietf-webpush-encryption-03.)
+  // (Only applicable to draft-ietf-webpush-encryption-08.)
   if (GetParam() == GCMMessageCryptographer::Version::DRAFT_08) {
     message[message.size() - 2] = 0x00;
 
@@ -502,6 +502,42 @@ TEST_P(GCMMessageCryptographerTest, InvalidRecordPadding) {
 
   ASSERT_TRUE(cryptographer_->TransformRecord(
       GCMMessageCryptographer::Direction::ENCRYPT, message,
+      content_encryption_key, nonce, &ciphertext));
+
+  ASSERT_FALSE(cryptographer_->Decrypt(
+      recipient_public_key_, sender_public_key_, ecdh_shared_secret_,
+      auth_secret_, salt, ciphertext, record_size, &plaintext));
+}
+
+// A record containing only zero bytes has no padding delimiter. Decryption
+// used to scan the entire record looking for the delimiter and then try to
+// remove more bytes than the record contains. Only applicable to
+// draft-ietf-webpush-encryption-08.
+TEST_P(GCMMessageCryptographerTest, RecordWithoutPaddingDelimiter) {
+  if (GetParam() != GCMMessageCryptographer::Version::DRAFT_08)
+    return;
+
+  const std::string salt = GenerateRandomSalt();
+
+  const std::string prk =
+      cryptographer_->encryption_scheme_->DerivePseudoRandomKey(
+          recipient_public_key_, sender_public_key_, ecdh_shared_secret_,
+          auth_secret_);
+  const std::string content_encryption_key =
+      cryptographer_->DeriveContentEncryptionKey(recipient_public_key_,
+                                                 sender_public_key_, prk, salt);
+  const std::string nonce = cryptographer_->DeriveNonce(
+      recipient_public_key_, sender_public_key_, prk, salt);
+
+  // An all-zero record the same size as a normal draft-08 record (plaintext +
+  // padding delimiter octet + one padding octet).
+  std::string all_zero_message(
+      std::string_view(kExamplePlaintext).size() + 2, '\x00');
+  const size_t record_size = all_zero_message.size() + 1;
+
+  std::string ciphertext, plaintext;
+  ASSERT_TRUE(cryptographer_->TransformRecord(
+      GCMMessageCryptographer::Direction::ENCRYPT, all_zero_message,
       content_encryption_key, nonce, &ciphertext));
 
   ASSERT_FALSE(cryptographer_->Decrypt(

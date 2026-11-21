@@ -56,7 +56,6 @@ PrivateAiService::PrivateAiService(
   CHECK(url_loader_factory);
   CHECK(network_driver_);
   CHECK(oak_session_driver_);
-  CHECK(network_context);
   identity_manager_->AddObserver(this);
 
   auto bsa = bsa_factory->CreateBlindSignAuth(url_loader_factory->Clone());

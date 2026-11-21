@@ -10,6 +10,7 @@
 #import "base/functional/callback_forward.h"
 #import "base/memory/raw_ptr.h"
 #import "base/no_destructor.h"
+#import "base/observer_list.h"
 #import "base/sequence_checker.h"
 #import "url/gurl.h"
 
@@ -19,6 +20,8 @@
 class ProfileIOS;
 
 namespace data_controls {
+
+class DataControlsPasteboardManagerObserver;
 
 // Source of the data on the pasteboard, used for evaluating Data Controls
 // policies.
@@ -97,6 +100,10 @@ class DataControlsPasteboardManager {
   // indicates that the items can't remain in the general Pasteboard.
   void RestorePlaceholderToGeneralPasteboardIfNeeded();
 
+  // Add and remove observer for pasteboard content change.
+  void AddObserver(DataControlsPasteboardManagerObserver* observer);
+  void RemoveObserver(DataControlsPasteboardManagerObserver* observer);
+
  private:
   friend class DataControlsPasteboardManagerTest;
   friend class DataControlsTabHelperTest;
@@ -156,6 +163,8 @@ class DataControlsPasteboardManager {
   __strong PasteboardObserver* pasteboard_observer_;
 
   Stage stage_ = Stage::kUnknownSource;
+
+  base::ObserverList<DataControlsPasteboardManagerObserver> observers_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

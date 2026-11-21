@@ -1235,14 +1235,14 @@ ui::ImageModel EmbedAvatarOntoImage(int resource_id,
 }
 
 #if !BUILDFLAG(IS_ANDROID)
-gfx::ImageSkia GetAvatarWithAiRing(const ui::ImageModel& avatar_image,
-                                   const ui::ColorProvider& color_provider,
-                                   SkColor start_color,
-                                   SkColor end_color,
-                                   base::span<const float, 4> positions,
-                                   int avatar_size,
-                                   int gap_width,
-                                   int ring_thickness) {
+gfx::ImageSkia AddAiRingToAvatar(const ui::ImageModel& avatar_image,
+                                 const ui::ColorProvider& color_provider,
+                                 SkColor start_color,
+                                 SkColor end_color,
+                                 base::span<const float, 4> positions,
+                                 int avatar_size,
+                                 int gap_width,
+                                 int ring_thickness) {
   DCHECK(!avatar_image.IsEmpty());
 
   AiSubscriptionRingGeometry geom(avatar_size, gap_width, ring_thickness);

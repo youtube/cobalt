@@ -1,2 +1,0 @@
-Tests OpenURLFromTab target inherits sandbox privileges.
-PASS

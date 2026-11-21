@@ -49,12 +49,44 @@ struct COMPONENT_EXPORT(NETWORK_CPP_CONNECTION_ALLOWLIST) ConnectionAllowlist {
   std::vector<mojom::ConnectionAllowlistIssue> issues;
   RedirectBehavior redirect_behavior = RedirectBehavior::kBlock;
   WebRtcBehavior webrtc_behavior = WebRtcBehavior::kBlock;
+
+  // True when the `response-origin` token was present but its resolution was
+  // deferred (the allowlist was parsed without knowing the origin to resolve
+  // against, e.g. in the renderer for an iframe attribute). The browser
+  // resolves it against the actual response origin before enforcing. When the
+  // origin is known at parse time (response headers), `response-origin` is
+  // resolved eagerly into `allowlist` and this stays false.
+  bool match_response_origin = false;
+
+  // The original serialized value this allowlist was parsed from (e.g. the
+  // iframe `connectionallowlist` attribute string). Retained so the browser can
+  // re-emit it verbatim in the `Sec-Required-Connection-Allowlist` request
+  // header that advertises an embedded-enforcement requirement to the framed
+  // document, mirroring CSP embedded enforcement's `Sec-Required-CSP`. Empty
+  // unless populated by the requirement's producer (the iframe attribute
+  // parser); response-header parsing leaves it empty.
+  std::string serialized_value;
 };
 
 COMPONENT_EXPORT(NETWORK_CPP_CONNECTION_ALLOWLIST)
 bool ConnectionAllowlistMatchesUrl(
     const ConnectionAllowlist& connection_allowlist,
     const GURL& url);
+
+// Returns true if `candidate` is "at least as strict as" `required`: every
+// endpoint permitted by `candidate` is also permitted by `required`, and
+// `candidate` is at least as strict as `required` with respect to redirects and
+// WebRTC. An empty `candidate` allowlist permits no endpoints and is therefore
+// trivially at least as strict as any `required` (it is maximally strict).
+//
+// Allowlist entries are compared as already-resolved strings (a conservative,
+// syntactic set-membership test), so the `response-origin` token must be
+// resolved against the same response URL in both allowlists before calling
+// this. Used by Connection-Allowlist embedded enforcement; see
+// https://github.com/WICG/connection-allowlists/issues/1.
+COMPONENT_EXPORT(NETWORK_CPP_CONNECTION_ALLOWLIST)
+bool ConnectionAllowlistSubsumes(const ConnectionAllowlist& required,
+                                 const ConnectionAllowlist& candidate);
 
 // The set of allowlists associated with a given response, typemapped for the
 // same reason.

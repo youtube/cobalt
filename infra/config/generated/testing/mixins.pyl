@@ -760,7 +760,7 @@
       'dimensions': {
         'cpu': 'x86-64',
         'gpu': '8086:3e9b',
-        'os': 'Mac-14.5',
+        'os': 'Mac-15.5',
         'display_attached': '1',
       },
     },
@@ -827,10 +827,10 @@
       ],
     },
   },
-  'mac_x64_wpt_child_processes': {
-    'args': [
-      '--child-processes=3',
-    ],
+  'mac_x64_ai_wpt_shards': {
+    'swarming': {
+      'shards': 8,
+    },
   },
   'no_gpu': {
     'fail_if_unused': False,
@@ -925,6 +925,10 @@
       ],
       'cros_test_names_from_file': [
         'chromeos/tast_control_cq_tests.txt',
+      ],
+      'cros_test_names_exclude_from_file': [
+        'chromeos/tast_control_disabled_tests.txt',
+        'chromeos/tast_control_flaky_tests.txt',
       ],
       'cros_test_max_in_shard': 20
     },

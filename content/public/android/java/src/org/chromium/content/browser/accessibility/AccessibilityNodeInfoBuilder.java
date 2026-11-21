@@ -125,6 +125,15 @@ public class AccessibilityNodeInfoBuilder {
     // Keys used for Bundle extras of page absolute bounds values, without screen clipping.
     public static final String EXTRAS_KEY_PAGE_ABSOLUTE_LEFT =
             "AccessibilityNodeInfo.pageAbsoluteLeft";
+
+    public static final String EXTRA_SELECTION_START_OFFSET_TYPE =
+            "androidx.view.accessibility.AccessibilityNodeInfoCompat.SELECTION_START_OFFSET_TYPE";
+    public static final String EXTRA_SELECTION_END_OFFSET_TYPE =
+            "androidx.view.accessibility.AccessibilityNodeInfoCompat.SELECTION_END_OFFSET_TYPE";
+
+    public static final int OFFSET_TYPE_TEXT = 0;
+    public static final int OFFSET_TYPE_CHILD = 1;
+
     public static final String EXTRAS_KEY_PAGE_ABSOLUTE_TOP =
             "AccessibilityNodeInfo.pageAbsoluteTop";
     public static final String EXTRAS_KEY_PAGE_ABSOLUTE_WIDTH =
@@ -716,20 +725,26 @@ public class AccessibilityNodeInfoBuilder {
             AccessibilityNodeInfoCompat node,
             int startVirtualViewId,
             int startOffset,
+            int startOffsetType,
             int endVirtualViewId,
-            int endOffset) {
+            int endOffset,
+            int endOffsetType) {
         node.setSelection(
                 new SelectionCompat(
                         new SelectionPositionCompat(
                                 mDelegate.getView(), startVirtualViewId, startOffset),
                         new SelectionPositionCompat(
                                 mDelegate.getView(), endVirtualViewId, endOffset)));
+        node.getExtras().putInt(EXTRA_SELECTION_START_OFFSET_TYPE, startOffsetType);
+        node.getExtras().putInt(EXTRA_SELECTION_END_OFFSET_TYPE, endOffsetType);
     }
 
     @CalledByNative
     protected void clearAccessibilityNodeInfoExtendedSelectionAttrs(
             AccessibilityNodeInfoCompat node) {
         node.setSelection(null);
+        node.getExtras().remove(EXTRA_SELECTION_START_OFFSET_TYPE);
+        node.getExtras().remove(EXTRA_SELECTION_END_OFFSET_TYPE);
     }
 
     @CalledByNative

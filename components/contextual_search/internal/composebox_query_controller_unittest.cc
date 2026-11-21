@@ -2625,6 +2625,55 @@ TEST_F(ComposeboxQueryControllerTest, CreateSearchUrlWithVoiceSearch) {
   EXPECT_EQ(gs_ivs_param, "1");
 }
 
+TEST_F(ComposeboxQueryControllerTest, CreateSearchUrl_WithDriveId) {
+  CreateController(/*send_lns_surface=*/false);
+  controller().InitializeIfNeeded();
+
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  std::unique_ptr<lens::ContextualInputData> input_data =
+      std::make_unique<lens::ContextualInputData>();
+  input_data->primary_content_type = lens::MimeType::kUnknown;
+  input_data->mime_type_string = "application/vnd.google-apps.document";
+  input_data->drive_id = "test_drive_id";
+  input_data->context_input = std::vector<lens::ContextualInput>();
+  input_data->context_input->push_back(
+      lens::ContextualInput(std::vector<uint8_t>(), lens::MimeType::kUnknown));
+  input_data->upload_type = lens::LensOverlayContextualInputUploadType::
+      CONTEXTUAL_INPUT_UPLOAD_TYPE_EXPLICIT;
+
+  controller().StartFileUploadFlow(file_token, std::move(input_data),
+                                   /*image_options=*/std::nullopt);
+
+  WaitForClusterInfo();
+  WaitForFileUpload(file_token, lens::MimeType::kUnknown);
+
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test query";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
+
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+  GURL aim_url = url_future.Take();
+
+  // Assert: vsrid parameter is not present.
+  std::string vsrid_value;
+  EXPECT_FALSE(net::GetValueForKeyInQuery(aim_url, "vsrid", &vsrid_value));
+
+  // Assert: cinpts parameter is present and contains the drive_id.
+  lens::LensOverlayContextualInputs contextual_inputs =
+      GetContextualInputsFromUrl(aim_url.spec());
+  EXPECT_EQ(contextual_inputs.inputs_size(), 1);
+  EXPECT_EQ(contextual_inputs.inputs(0).drive_id(), "test_drive_id");
+  EXPECT_EQ(contextual_inputs.inputs(0).request_id().uuid(),
+            controller()
+                .GetFileInfoForTesting(file_token)
+                ->GetRequestIdForTesting()
+                ->uuid());
+}
+
 TEST_F(ComposeboxQueryControllerTest, CreateClientToAimRequestWithVoiceSearch) {
   controller().InitializeIfNeeded();
 

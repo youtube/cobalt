@@ -17,6 +17,7 @@
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "chrome/browser/actor/actor_container_config_slot.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_proto_conversion.h"
@@ -594,7 +595,7 @@ void ActorKeyedService::PerformActions(
 
   task->GetExecutionEngine().AddWritableMainframeOrigins(
       task_metadata.added_writable_mainframe_origins());
-  task->GetExecutionEngine().actor_container_config().Assign(
+  task->GetExecutionEngine().actor_container_config_slot().Assign(
       task_metadata.agent_container_config());
 
   task->Act(

@@ -290,8 +290,8 @@ static void WriteStyle(StringBuilder& ts, const LayoutObject& object) {
       const SVGViewportResolver viewport_resolver(object);
       double dash_offset =
           ValueForLength(style.StrokeDashOffset(), viewport_resolver, style);
-      double stroke_width =
-          ValueForLength(style.StrokeWidth(), viewport_resolver);
+      double stroke_width = ValueForLength(
+          style.StrokeWidth(), viewport_resolver, style.EffectiveZoom());
       DashArray dash_array = SVGLayoutSupport::ResolveSVGDashArray(
           style.StrokeDashArray(), style, viewport_resolver);
 

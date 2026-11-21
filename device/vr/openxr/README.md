@@ -16,14 +16,14 @@ The main entry point to OpenXR is via an [`OpenXrDevice`](openxr_device.h).
 Depending on the platform, this may be directly created by a more general
 purpose device provider (e.g. Windows and the [Isolated Xr Device service][xr_device_service])
 or by a specific `OpenXrDeviceProvider` (e.g. [Android's](../../../components/webxr/android/openxr_device_provider.h)).
-It is a good idea to try to create both an `XrInstance` and an `XrDevice` via
-the OpenXR API before creating an `OpenXrDevice`, as that will indicate that a
-session can *actually* be created. This `OpenXrDevice`, when requested for a
-session will create and maintain an [`OpenXrRenderLoop`](openxr_render_loop.h).
+It is a good idea to try to create both an `XrInstance` and obtain an
+`XrSystemId` via the OpenXR API before creating an `OpenXrDevice`, as that
+will indicate that a session can *actually* be created. This `OpenXrDevice`,
+when requested for a session will create and maintain an [`OpenXrRenderLoop`](openxr_render_loop.h).
 This `OpenXrRenderLoop` will create an [`OpenXrApiWrapper`](openxr_api_wrapper.h),
 which is largely responsible for handling the `XrSession` object. The
 `OpenXrRenderLoop` and `OpenXrApiWrapper` between themselves will create a
-number of helper objects to abstract various aspects of the API (e.g. [OpenXrInputHelper](openxr_inut_helper.h)
+number of helper objects to abstract various aspects of the API (e.g. [OpenXrInputHelper](openxr_input_helper.h)
 and [OpenXrExtensionHelper](openxr_extension_helper.h)). Classes that depend
 solely on the core spec can be created directly by the render loop or API
 wrapper; but classes that rely on extension methods should be created by the
@@ -91,17 +91,18 @@ added and extended as needed. The base path of the interaction profile must be
 defined as a constant in [openxr_interaction_profile_paths.h](openxr_interaction_profile_paths.h),
 for compatibility with tests. If the interaction profile should have hand input
 enabled for it, the required extension should also be added to the list in the
-[OpenXrHandTrackerHandlerFactory](openxr_hand_tracker.h).
+[OpenXrHandTrackerFactory](openxr_hand_tracker.h).
 
 ### Hand Gesture Extensions
 
 The secondary means of adding interaction profile support depends upon extension
 methods to the XR_EXT_hand_tracking structs. After the initial enum and profile
 map has been added, simply extend [OpenXrHandTracker](openxr_hand_tracker.h),
-which has some more detailed instructions. [OpenXrHandTrackerAndroid](android/openxr_hand_tracker_android.h)
-is an example of a class that extends `OpenXrHandTracker` to provide such
-support. Note that you are still responsible for ensuring that your extension is
-enabled when available and providing a means to create your new class as
-described in [OpenXR Extensions](#openxr-extensions).
+which has some more detailed instructions. [OpenXrHandTrackerFb](fb/openxr_hand_tracker_fb.h)
+is an example of a class that extends `OpenXrHandTracker` to support
+vendor-specific extensions (specifically Meta's `XR_FB_hand_tracking`
+extensions). Note that you are still responsible for ensuring that your
+extension is enabled when available and providing a means to create your new
+class as described in [OpenXR Extensions](#openxr-extensions).
 
 [xr_device_service]: https://source.chromium.org/chromium/chromium/src/+/main:content/services/isolated_xr_device/README.md

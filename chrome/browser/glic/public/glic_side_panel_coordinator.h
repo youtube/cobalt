@@ -13,6 +13,7 @@
 #include "base/supports_user_data.h"
 #include "build/build_config.h"
 #include "chrome/browser/glic/public/glic_close_options.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 namespace tabs {
@@ -70,6 +71,7 @@ class GlicSidePanelCoordinator {
     bool suppress_animations = false;
     enum class InitialState { kExpanded, kPeeked };
     InitialState initial_state = InitialState::kExpanded;
+    SidePanelOpenTrigger open_trigger = SidePanelOpenTrigger::kGlicOpened;
   };
   virtual void Show(const ShowOptions& options) = 0;
   void Show() { Show({}); }

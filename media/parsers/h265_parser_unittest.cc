@@ -15,6 +15,7 @@
 #include "media/base/test_data_util.h"
 #include "media/filters/h26x_annex_b_bitstream_builder.h"
 #include "media/gpu/h265_builder.h"
+#include "media/parsers/h26x_parser.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
@@ -445,7 +446,7 @@ TEST_F(H265ParserTest, HDRMetadataSEIParsing) {
   EXPECT_EQ(clli_sei.msgs.size(), 1u);
   for (const auto& sei_msg : clli_sei.msgs) {
     const auto* content_light_level_info =
-        std::get_if<H265SEIContentLightLevelInfo>(&sei_msg);
+        std::get_if<H26xSEIContentLightLevelInfo>(&sei_msg);
     ASSERT_TRUE(content_light_level_info);
     EXPECT_EQ(content_light_level_info->max_content_light_level, 1000u);
     EXPECT_EQ(content_light_level_info->max_picture_average_light_level, 400u);
@@ -458,7 +459,7 @@ TEST_F(H265ParserTest, HDRMetadataSEIParsing) {
   EXPECT_EQ(mdcv_sei.msgs.size(), 1u);
   for (const auto& sei_msg : mdcv_sei.msgs) {
     const auto* mastering_display_info =
-        std::get_if<H265SEIMasteringDisplayInfo>(&sei_msg);
+        std::get_if<H26xSEIMasteringDisplayInfo>(&sei_msg);
     ASSERT_TRUE(mastering_display_info);
     EXPECT_EQ(mastering_display_info->display_primaries[0][0], 13250u);
     EXPECT_EQ(mastering_display_info->display_primaries[0][1], 34500u);
@@ -519,6 +520,49 @@ TEST_F(H265ParserTest, AlphaChannelInfoSEIParsing) {
     EXPECT_EQ(alpha_channel_info->alpha_channel_clip_flag, false);
     EXPECT_EQ(alpha_channel_info->alpha_channel_clip_type_flag, false);
   }
+}
+
+TEST_F(H265ParserTest, T35SEIParsing) {
+  constexpr uint8_t kStream[] = {
+      // Start code.
+      0x00,
+      0x00,
+      0x01,
+      // NALU type = 39 (PREFIX_SEI).
+      0x4e,
+      0x01,
+      // SEI payload type = 4 (user_data_registered_itu_t_t35).
+      0x04,
+      // SEI payload size = 5.
+      0x05,
+      // Country code = 0xB5.
+      0xB5,
+      // Payload data (4 bytes).
+      0x01,
+      0x02,
+      0x03,
+      0x04,
+  };
+
+  H265Parser parser;
+  parser.SetStream(kStream);
+
+  H265NALU target_nalu;
+  ASSERT_EQ(H265Parser::kOk, parser.AdvanceToNextNALU(&target_nalu));
+  EXPECT_EQ(target_nalu.nal_unit_type, H265NALU::PREFIX_SEI_NUT);
+
+  H265SEI sei;
+  EXPECT_EQ(H265Parser::kOk, parser.ParseSEI(&sei));
+  EXPECT_EQ(sei.msgs.size(), 1u);
+
+  const auto* t35 = std::get_if<H26xSEIUserDataRegisteredT35>(&sei.msgs[0]);
+  ASSERT_TRUE(t35);
+  EXPECT_EQ(t35->country_code, 0xB5);
+  ASSERT_EQ(t35->payload.size(), 4u);
+  EXPECT_EQ(t35->payload[0], 0x01);
+  EXPECT_EQ(t35->payload[1], 0x02);
+  EXPECT_EQ(t35->payload[2], 0x03);
+  EXPECT_EQ(t35->payload[3], 0x04);
 }
 
 TEST_F(H265ParserTest, RecursiveSEIParsing) {
@@ -586,11 +630,11 @@ TEST_F(H265ParserTest, RecursiveSEIParsing) {
 
   for (const auto& sei_msg : clli_mdcv_sei.msgs) {
     std::visit(
-        absl::Overload{[](const H265SEIContentLightLevelInfo& info) {
+        absl::Overload{[](const H26xSEIContentLightLevelInfo& info) {
                          EXPECT_EQ(info.max_content_light_level, 1000u);
                          EXPECT_EQ(info.max_picture_average_light_level, 200u);
                        },
-                       [](const H265SEIMasteringDisplayInfo& info) {
+                       [](const H26xSEIMasteringDisplayInfo& info) {
                          EXPECT_EQ(info.display_primaries[0][0], 13249u);
                          EXPECT_EQ(info.display_primaries[0][1], 34499u);
                          EXPECT_EQ(info.display_primaries[1][0], 7500u);

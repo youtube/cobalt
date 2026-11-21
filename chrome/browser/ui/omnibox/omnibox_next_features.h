@@ -62,9 +62,8 @@ BASE_DECLARE_FEATURE(kAiModeSpaceDoesNotActivate);
 BASE_DECLARE_FEATURE(kWebUIOmniboxDisableCaretColorAnimation);
 BASE_DECLARE_FEATURE(kWebUIOmniboxAimPopupDisableAnimation);
 BASE_DECLARE_FEATURE(kWebUIOmniboxFullPopup);
-BASE_DECLARE_FEATURE(kWebUIOmniboxFullPopupV2);
 BASE_DECLARE_FEATURE(kWebUIOmniboxFullPopupDoubleClick);
-BASE_DECLARE_FEATURE(kEverywhereOmnibox);
+BASE_DECLARE_FEATURE(kOmniboxEverywhere);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopupDebug);
 BASE_DECLARE_FEATURE(kWebUIOmniboxPopupSelectionControl);
 // Caret animation for omnibox
@@ -106,8 +105,6 @@ extern const base::FeatureParam<bool> kShowSmartCompose;
 extern const base::FeatureParam<bool> kShowToolsAndModels;
 // Whether to show section headers in the context menu.
 extern const base::FeatureParam<bool> kShowContextMenuHeaders;
-// Whether to use the composebox fork.
-extern const base::FeatureParam<bool> kUseComposeboxFork;
 // Whether to use the grey oblong background for context menu entrypoint.
 extern const base::FeatureParam<bool> kContextButtonHasBackground;
 // Whether the button should be an oblong shape vs circular.
@@ -116,7 +113,8 @@ extern const base::FeatureParam<bool> kContextButtonShapeIsOblong;
 extern const base::FeatureParam<bool> kContextButtonShowSuggestionLabel;
 // If enabled, then the WebUI Omnibox will be rendered in a WebView in the
 // BrowserView.
-extern const base::FeatureParam<bool> kWebUIOmniboxFullPopupV2UseBrowserView;
+extern const base::FeatureParam<bool> kWebUIOmniboxFullPopupUseBrowserView;
+extern const base::FeatureParam<bool> kWebUIOmniboxFullPopupMultiline;
 // Whether to open the next panel with cobrowse.
 extern const base::FeatureParam<bool> kAskGCoBrowse;
 // Whether to open the next panel with cobrowse and visual selection.
@@ -125,8 +123,7 @@ extern const base::FeatureParam<bool> kAskGCoBrowseWithVisualSelection;
 // Returns true if `kWebUIOmniboxPopup` is enabled.
 bool IsWebUIOmniboxPopupEnabled();
 
-// Returns true if either `kWebUIOmniboxFullPopup` or `kWebUIOmniboxFullPopupV2`
-// is enabled.
+// Returns true if `kWebUIOmniboxFullPopup` is enabled.
 bool IsWebUIOmniboxFullPopupEnabled();
 
 // Returns true if `kWebUIOmniboxInBrowserView` is enabled.

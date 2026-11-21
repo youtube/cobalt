@@ -202,6 +202,7 @@
 - (void)configureForURL {
   __weak __typeof(self) weakSelf = self;
   [self.miniMapController configureURL:_URL];
+  [self.miniMapController configureIncognito:self.profile->IsOffTheRecord()];
   [self.miniMapController configureFailureCompletion:^{
     [weakSelf fallbackToOriginalURL];
   }];

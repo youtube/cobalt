@@ -52,8 +52,16 @@ export function isVerticalArrow(key: string): boolean {
   return VERTICAL_ARROWS.includes(key);
 }
 
+function hasNoModifiers(e: KeyboardEvent): boolean {
+  return !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
+}
+
 export function isLineFocusShortcut(e: KeyboardEvent): boolean {
-  return e.key === 'l' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey;
+  return e.key?.toLowerCase() === 'l' && hasNoModifiers(e);
+}
+
+export function isPlayPauseShortcut(e: KeyboardEvent): boolean {
+  return e.key?.toLowerCase() === 'k' && hasNoModifiers(e);
 }
 
 export function isActivationKey(key: string): boolean {

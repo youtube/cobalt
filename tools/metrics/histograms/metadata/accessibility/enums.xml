@@ -1677,9 +1677,10 @@ Unknown properties are collapsed to zero. -->
   <int value="1" label="Through a message"/>
   <int value="2" label="Through the app menu item"/>
   <int value="3" label="Through the toolbar button"/>
+  <int value="4" label="Through the context menu"/>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/dom_distiller/ReaderModeManager.java:EntryPoint) -->
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/dom_distiller/ReaderModeManager.java:DomDistillerEntryPoint) -->
 
 <!-- LINT.IfChange(JAWSMajorVersion)-->
 
@@ -1755,7 +1756,7 @@ Unknown properties are collapsed to zero. -->
       label="Reorder the currently-open tab to the left (not implemented)"/>
   <int value="29"
       label="Reorder the currently-open tab to the right (not implemented)"/>
-  <int value="30" label="Toggle caret browsing (not implemented)"/>
+  <int value="30" label="Toggle caret browsing"/>
   <int value="31" label="Focus on inactive dialogs (not implemented)"/>
   <int value="32" label="Open bookmarks"/>
   <int value="33" label="Bookmark page"/>
@@ -1775,7 +1776,7 @@ Unknown properties are collapsed to zero. -->
   <int value="46" label="Open history"/>
   <int value="47" label="Go back in history"/>
   <int value="48" label="Go forward in history"/>
-  <int value="49" label="Clear browsing data (not implemented)"/>
+  <int value="49" label="Clear browsing data"/>
   <int value="50" label="Print"/>
   <int value="51" label="Basic print (not implemented)"/>
   <int value="52" label="Zoom in"/>
@@ -2157,6 +2158,21 @@ Unknown properties are collapsed to zero. -->
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/read_anything/read_anything.mojom:Colors) -->
+
+<!-- LINT.IfChange(ReadAnythingDistillationQualityEvaluationStatus) -->
+
+<enum name="ReadAnythingDistillationQualityEvaluationStatus">
+  <int value="0" label="Success (Logged to UKM)"/>
+  <int value="1" label="Skipped: Empty Snapshot"/>
+  <int value="2" label="Skipped: Snapshot Reached Node Limit"/>
+  <int value="3" label="Skipped: Empty Distilled HTML"/>
+  <int value="4" label="Skipped: Distilled HTML Exceeds Size Limit"/>
+  <int value="5" label="Error: Tree Building Failed / Null Root"/>
+  <int value="6" label="Error: Original AXTree Text is Empty"/>
+  <int value="7" label="Error: Malformed Distilled HTML"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/common/read_anything/distillation_evaluator.mojom:EvaluationStatus) -->
 
 <!-- LINT.IfChange(ReadAnythingDistillationScheme) -->
 

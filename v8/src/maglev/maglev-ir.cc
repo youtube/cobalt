@@ -226,12 +226,13 @@ std::ostream& operator<<(std::ostream& os, const StringEqualInputMode mode) {
 
 bool Phi::is_loop_phi() const { return merge_state()->is_loop(); }
 
-ValueNode* ValueNode::UnwrapIdentitiesAndPhis() {
+namespace {
+template <typename UnwrapFunction>
+ValueNode* UnwrapSinglePhis(ValueNode* node, UnwrapFunction&& unwrap) {
   ValueNode* prev = nullptr;
-  ValueNode* node = this;
   while (prev != node) {
     prev = node;
-    node = node->UnwrapIdentities();
+    node = unwrap(node);
     if (Phi* phi = node->TryCast<Phi>()) {
       // We skip resumable loop phis since their single input could actually be
       // defined within the loop itself.
@@ -244,6 +245,16 @@ ValueNode* ValueNode::UnwrapIdentitiesAndPhis() {
     }
   }
   return node;
+}
+}  // namespace
+
+ValueNode* ValueNode::UnwrapIdentitiesAndPhis() {
+  return UnwrapSinglePhis(
+      this, [](ValueNode* node) { return node->UnwrapIdentities(); });
+}
+
+ValueNode* ValueNode::UnwrapForDeopt() {
+  return UnwrapSinglePhis(this, [](ValueNode* node) { return node->Unwrap(); });
 }
 
 bool Phi::is_unmerged_loop_phi() const {
@@ -577,6 +588,37 @@ void NodeBase::Print() const {
   std::cout << " : ";
   Print(std::cout);
   std::cout << std::endl;
+}
+
+namespace {
+template <typename NodeT>
+bool SameOptionsAndInputs(const NodeBase* a, const NodeBase* b) {
+  if constexpr (Node::participate_in_cse(NodeBase::opcode_of<NodeT>)) {
+    if (a->Cast<NodeT>()->options() != b->Cast<NodeT>()->options()) {
+      return false;
+    }
+    for (int i = 0; i < a->input_count(); ++i) {
+      if (a->input_node(i) != b->input_node(i)) return false;
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+}  // namespace
+
+bool NodeBase::IsStructurallyEqualTo(const NodeBase* other) const {
+  if (this == other) return true;
+  if (opcode() != other->opcode()) return false;
+  if (input_count() != other->input_count()) return false;
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return SameOptionsAndInputs<Name>(this, other);
+    NODE_BASE_LIST(V)
+#undef V
+  }
+  UNREACHABLE();
 }
 
 void ValueNode::SetHint(compiler::InstructionOperand hint) {
@@ -5996,14 +6038,14 @@ void StringSubstring::GenerateCode(MaglevAssembler* masm,
 }
 
 void StringConcat::SetValueLocationConstraints() {
-  using D = StringAdd_CheckNoneDescriptor;
+  using D = StringAdd_NoMapCheckDescriptor;
   UseFixed(LeftInput(), D::GetRegisterParameter(D::kLeft));
   UseFixed(RightInput(), D::GetRegisterParameter(D::kRight));
   DefineAsFixed(this, kReturnRegister0);
 }
 void StringConcat::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  __ CallBuiltin<Builtin::kStringAdd_CheckNone>(
+  __ CallBuiltin<Builtin::kStringAdd_NoMapCheck>(
       masm->native_context().object(),  // context
       LeftInput(),                      // left
       RightInput()                      // right

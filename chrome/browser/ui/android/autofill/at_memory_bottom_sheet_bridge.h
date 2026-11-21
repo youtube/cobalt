@@ -13,6 +13,8 @@
 #include "base/memory/raw_ptr.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 
+class Profile;
+
 namespace ui {
 class WindowAndroid;
 }
@@ -25,7 +27,8 @@ class AtMemoryBottomSheetDelegate;
 // to trigger the @memory bottom sheet on Android.
 class AtMemoryBottomSheetBridge {
  public:
-  explicit AtMemoryBottomSheetBridge(ui::WindowAndroid* window_android);
+  AtMemoryBottomSheetBridge(ui::WindowAndroid* window_android,
+                            Profile* profile);
 
   AtMemoryBottomSheetBridge(const AtMemoryBottomSheetBridge&) = delete;
   AtMemoryBottomSheetBridge& operator=(const AtMemoryBottomSheetBridge&) =
@@ -43,7 +46,9 @@ class AtMemoryBottomSheetBridge {
   // -- JNI calls bridged to AtMemoryBottomSheetDelegate --
   void OnDismissed(JNIEnv* env);
   void OnQuerySubmitted(JNIEnv* env, const std::u16string& query);
+  void OnQueryTextChanged(JNIEnv* env, const std::u16string& query);
   void OnSuggestionSelected(JNIEnv* env, int position);
+  bool IsSearching(JNIEnv* env);
 
  private:
   void ResetDelegate();

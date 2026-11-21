@@ -88,6 +88,7 @@ ChromeClipboardContext::GetClipboardSource(
   switch (copied_text_source.context()) {
     case SourceType::UNSPECIFIED:
     case SourceType::INCOGNITO:
+    case SourceType::GEMINI_IN_CHROME:
       break;
     case SourceType::CLIPBOARD:
       // If the user does something like closing the browser between the time

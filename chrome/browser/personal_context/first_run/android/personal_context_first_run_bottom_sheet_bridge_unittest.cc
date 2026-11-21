@@ -63,27 +63,27 @@ TEST(PersonalContextFirstRunBottomSheetBridgeTest, ShowSuccessRecordsMetric) {
                                       NoticeShowRequestResult::kShown, 1);
 }
 
-TEST(PersonalContextFirstRunBottomSheetBridgeTest, OnInfoAcknowledged) {
+TEST(PersonalContextFirstRunBottomSheetBridgeTest, OnNoticeAcknowledged) {
   base::HistogramTester histogram_tester;
   base::MockCallback<base::OnceCallback<void(NoticeResult)>> callback;
   auto bridge = std::make_unique<PersonalContextFirstRunBottomSheetBridge>(
       /*web_contents=*/nullptr, callback.Get());
 
   EXPECT_CALL(callback, Run(NoticeResult::kAcknowledged));
-  bridge->OnInfoAcknowledged(/*env=*/nullptr);
+  bridge->OnNoticeAcknowledged(/*env=*/nullptr);
 
   histogram_tester.ExpectUniqueSample(kNoticeInteractionsHistogramName,
                                       NoticeShowRequestResult::kAccepted, 1);
 }
 
-TEST(PersonalContextFirstRunBottomSheetBridgeTest, OnInfoDismissed) {
+TEST(PersonalContextFirstRunBottomSheetBridgeTest, OnNoticeDismissed) {
   base::HistogramTester histogram_tester;
   base::MockCallback<base::OnceCallback<void(NoticeResult)>> callback;
   auto bridge = std::make_unique<PersonalContextFirstRunBottomSheetBridge>(
       /*web_contents=*/nullptr, callback.Get());
 
   EXPECT_CALL(callback, Run(NoticeResult::kNotAcknowledged));
-  bridge->OnInfoDismissed(/*env=*/nullptr);
+  bridge->OnNoticeDismissed(/*env=*/nullptr);
 
   histogram_tester.ExpectUniqueSample(kNoticeInteractionsHistogramName,
                                       NoticeShowRequestResult::kDismissed, 1);

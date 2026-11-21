@@ -275,8 +275,7 @@ public class AdaptiveToolbarStatePredictor {
             case AdaptiveToolbarButtonVariant.TRANSLATE:
                 return AdaptiveToolbarFeatures.isTranslateEnabled(mProfile);
             case AdaptiveToolbarButtonVariant.GLIC:
-                return AdaptiveToolbarFeatures.isGlicEnabledForProfile(mProfile)
-                        && !isBottomBarEnabled();
+                return AdaptiveToolbarFeatures.isGlicEnabledForAdaptiveToolbar(mContext, mProfile);
             default:
                 return true;
         }

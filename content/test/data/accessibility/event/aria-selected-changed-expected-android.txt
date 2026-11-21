@@ -1,3 +1,4 @@
+=== END INITIAL PAGE LOAD ===
 TYPE_VIEW_CLICKED class_name=android.view.View on [Grid1, GridCell1] class_name=android.view.View
 TYPE_VIEW_CLICKED class_name=android.view.View on [Grid2, GridCell2] class_name=android.view.View
 TYPE_VIEW_CLICKED class_name=android.view.View on [Grid3, GridCell1] class_name=android.view.View

@@ -4,7 +4,7 @@
 
 #include "third_party/blink/renderer/core/scheduler/idle_deadline.h"
 
-#include "base/time/default_tick_clock.h"
+#include "base/time/time.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
@@ -16,11 +16,10 @@ IdleDeadline::IdleDeadline(base::TimeTicks deadline,
                            CallbackType callback_type)
     : deadline_(deadline),
       cross_origin_isolated_capability_(cross_origin_isolated_capability),
-      callback_type_(callback_type),
-      clock_(base::DefaultTickClock::GetInstance()) {}
+      callback_type_(callback_type) {}
 
 double IdleDeadline::timeRemaining() const {
-  base::TimeDelta time_remaining = deadline_ - clock_->NowTicks();
+  base::TimeDelta time_remaining = deadline_ - base::TimeTicks::Now();
   if (time_remaining.is_negative() ||
       ThreadScheduler::Current()->ShouldYieldForHighPriorityWork()) {
     return 0;

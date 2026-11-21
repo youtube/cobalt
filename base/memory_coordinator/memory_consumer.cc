@@ -49,22 +49,19 @@ MemoryConsumerRegistration::MemoryConsumerRegistration(
     std::string_view consumer_name,
     std::optional<MemoryConsumerTraits> traits,
     MemoryConsumer* consumer,
-    CheckUnregister check_unregister,
-    CheckRegistryExists check_registry_exists)
+    CheckUnregister check_unregister)
     : consumer_name_(consumer_name),
       consumer_(consumer),
       check_unregister_(check_unregister),
       registry_(MemoryConsumerRegistry::MaybeGet()) {
   if (!registry_) {
 #if !BUILDFLAG(IS_IOS)
-    if (check_registry_exists == CheckRegistryExists::kEnabled) {
-      // Enforce that the registry exists outside of tests to prevent components
-      // from silently failing to respond to memory pressure.
-      CHECK_IS_TEST()
-          << ". The MemoryConsumerRegistry did not exist at the time the "
-             "MemoryConsumerRegistration for "
-          << consumer_name << " was created.";
-    }
+    // Enforce that the registry exists outside of tests to prevent components
+    // from silently failing to respond to memory pressure.
+    CHECK_IS_TEST()
+        << ". The MemoryConsumerRegistry did not exist at the time the "
+           "MemoryConsumerRegistration for "
+        << consumer_name << " was created.";
 #endif
     return;
   }

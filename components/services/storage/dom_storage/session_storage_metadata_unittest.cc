@@ -78,7 +78,6 @@ class SessionStorageMetadataTest : public base::test::WithFeatureOverride,
     metadata.map_metadata.push_back({map1_locator_.Clone()});
     metadata.map_metadata.push_back({map3_locator_.Clone()});
     metadata.map_metadata.push_back({map4_locator_.Clone()});
-    metadata.next_map_id = 5;
 
     ASSERT_NO_FATAL_FAILURE(PutMetadataSync(*database_, std::move(metadata)));
 
@@ -202,8 +201,6 @@ TEST_P(SessionStorageMetadataTest, ShallowCopies) {
   // 1 and map 3.
   DomStorageDatabase::Metadata all_metadata;
   ASSERT_NO_FATAL_FAILURE(ReadAllMetadataSync(*database_, &all_metadata));
-
-  EXPECT_EQ(all_metadata.next_map_id, 5);
   ASSERT_EQ(all_metadata.map_metadata.size(), 3u);
 
   DomStorageDatabase::MapMetadata expected_metadata[] = {
@@ -246,8 +243,6 @@ TEST_P(SessionStorageMetadataTest, TakeNamespace) {
   // Verify metadata and data was deleted from disk.
   DomStorageDatabase::Metadata all_metadata;
   ASSERT_NO_FATAL_FAILURE(ReadAllMetadataSync(*database_, &all_metadata));
-
-  EXPECT_EQ(all_metadata.next_map_id, 5);
   ASSERT_EQ(all_metadata.map_metadata.size(), 2u);
 
   // Two maps must remain in the database each used by session
@@ -289,8 +284,6 @@ TEST_P(SessionStorageMetadataTest, DeleteArea) {
   // Verify only the applicable data was deleted.
   DomStorageDatabase::Metadata all_metadata;
   ASSERT_NO_FATAL_FAILURE(ReadAllMetadataSync(*database_, &all_metadata));
-
-  EXPECT_EQ(all_metadata.next_map_id, 5);
   ASSERT_EQ(all_metadata.map_metadata.size(), 3u);
 
   // Three maps must remain in the database.  `test_namespace1_id_` and
@@ -328,8 +321,6 @@ TEST_P(SessionStorageMetadataTest, DeleteArea) {
   // Verify only the applicable data was deleted, which must delete map 4 from
   // the database.
   ASSERT_NO_FATAL_FAILURE(ReadAllMetadataSync(*database_, &all_metadata));
-
-  EXPECT_EQ(all_metadata.next_map_id, 5);
   ASSERT_EQ(all_metadata.map_metadata.size(), 2u);
 
   ExpectEqualsMapMetadataSpan(all_metadata.map_metadata,
@@ -342,8 +333,6 @@ TEST_P(SessionStorageMetadataTest, DeleteArea) {
 
 TEST_P(SessionStorageMetadataTest, InitializesNamespacesEmpty) {
   DomStorageDatabase::Metadata source;
-  source.next_map_id = 0;
-
   SessionStorageMetadata metadata;
   metadata.Initialize(std::move(source));
   EXPECT_EQ(metadata.namespace_storage_key_map().size(), 0u);
@@ -355,8 +344,6 @@ TEST_P(SessionStorageMetadataTest, InitializeNamespaces) {
       .map_locator{test_namespace3_id_, test_storage_key1_, /*map_id=*/1},
       .last_accessed{base::Time::Now()},
   });
-  source.next_map_id = 2;
-
   SessionStorageMetadata metadata;
   metadata.Initialize(std::move(source));
 

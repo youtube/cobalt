@@ -23,6 +23,10 @@ extern const char kPolicyVerificationKey[];
 extern const char kDisablePolicyKeyVerification[];
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_ANDROID)
+extern const char kForceDeviceOwnership[];
+#endif
+
 }  // namespace switches
 }  // namespace policy
 

@@ -17,7 +17,7 @@ class OmniboxPopupViewBrowserViewTest : public InteractiveBrowserTest {
  public:
   OmniboxPopupViewBrowserViewTest() {
     feature_list_.InitAndEnableFeatureWithParameters(
-        omnibox::kWebUIOmniboxFullPopupV2,
+        omnibox::kWebUIOmniboxFullPopup,
         {{"Omnibox_UseBrowserView", "true"}});
   }
 

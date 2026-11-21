@@ -85,6 +85,11 @@ public class FacilitatedPaymentsPaymentMethodsCoordinator
         mMediator.showPixAccountLinkingPrompt(strikeCount);
     }
 
+    @Override
+    public void showPixAccountLinkingSuccessScreen() {
+        mMediator.showPixAccountLinkingSuccessScreen();
+    }
+
     /**
      * Connects the given model with the given view using Model Change Processors.
      *

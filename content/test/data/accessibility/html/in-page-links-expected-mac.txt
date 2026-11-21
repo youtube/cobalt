@@ -17,7 +17,7 @@ AXWebArea
 ++AXLink AXDescription='Paragraph with content' AXLinkedUIElements=[:34]
 ++++AXStaticText AXValue='Paragraph with content'
 ++AXGroup
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++++AXStaticText AXValue='After empty anchor'
 ++AXGroup
 ++++AXGroup
@@ -26,7 +26,7 @@ AXWebArea
 ++++AXGroup
 ++++++AXStaticText AXValue='Anchor with ID'
 ++AXGroup
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++++AXStaticText AXValue='After empty span'
 ++AXGroup
 ++++AXGroup

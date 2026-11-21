@@ -23,7 +23,6 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/flags/flags.h"
 #include "src/objects/object-list-macros.h"
-#include "src/objects/torque-defined-classes.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/compilation-environment.h"
@@ -60,6 +59,7 @@ using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
 using EagerFrameState = compiler::turboshaft::EagerFrameState;
+using compiler::turboshaft::ArraySetOp;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
@@ -77,6 +77,7 @@ using compiler::turboshaft::Simd128ConstantOp;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::StringOrNull;
 using compiler::turboshaft::StructGetOp;
+using compiler::turboshaft::StructSetOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::Tuple;
 using compiler::turboshaft::V;
@@ -317,7 +318,7 @@ class TurboshaftGraphBuildingInterface
     V<WasmTrustedInstanceData> trusted_instance_data;
     if (mode_ == kRegular) {
       static_assert(kWasmInstanceDataParameterIndex == 0);
-      trusted_instance_data = __ WasmInstanceDataParameter();
+      trusted_instance_data = __ WasmInstanceData();
       for (; index < decoder->sig_->parameter_count(); index++) {
         // Parameter indices are shifted by 1 because parameter 0 is the
         // instance.
@@ -369,7 +370,7 @@ class TurboshaftGraphBuildingInterface
     if (v8_flags.wasm_inlining) {
       if (mode_ == kRegular) {
         if (v8_flags.liftoff ||
-            (v8_flags.experimental_wasm_compilation_hints &&
+            (v8_flags.wasm_compilation_hints &&
              !decoder->module_->instruction_frequencies.empty())) {
           inlining_decisions_ = InliningTree::CreateRoot(
               decoder->zone_, decoder->module_, wire_bytes_, func_index_);
@@ -910,7 +911,7 @@ class TurboshaftGraphBuildingInterface
     }
     if (mode_ == kRegular || mode_ == kInlinedTailCall) {
       __ Return(__ Word32Constant(0), base::VectorOf(return_values),
-                v8_flags.experimental_wasm_growable_stacks);
+                v8_flags.wasm_growable_stacks);
     } else {
       // Do not add return values if we are in unreachable code.
       if (__ generating_unreachable_operations()) return;
@@ -2273,7 +2274,7 @@ class TurboshaftGraphBuildingInterface
         V<String> tail_string = ExternRefToString(args[1]);
         V<HeapObject> native_context = instance_cache_.native_context();
         V<String> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
+            BuiltinCallDescriptor::WasmStringAdd_NoMapCheck>(
             decoder, V<Context>::Cast(native_context),
             {head_string, tail_string}, CheckForException::kCatchInThisFrame);
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
@@ -2283,7 +2284,7 @@ class TurboshaftGraphBuildingInterface
         V<String> head_string = ExternRefToString(args[0]);
         V<String> tail_string = ExternRefToString(args[1]);
         V<String> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::WasmStringAdd_CheckNone_Shared>(
+            BuiltinCallDescriptor::WasmStringAdd_NoMapCheck_Shared>(
             decoder, {head_string, tail_string},
             CheckForException::kCatchInThisFrame);
         result = __ AnnotateWasmType(result_value, kWasmRefSharedExternString);
@@ -2715,6 +2716,22 @@ class TurboshaftGraphBuildingInterface
                   const Value args[]) {
     feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
+      // Mirror CallDirect: a well-known import (e.g. a js-string builtin) in
+      // tail position can be lowered inline and its single result returned
+      // directly, instead of always going through a wasm-to-js bridge stub.
+      if (imm.sig->return_count() == 1) {
+        Value wki_return{nullptr, imm.sig->GetReturn(0)};
+        if (HandleWellKnownImport(decoder, imm, args, &wki_return)) {
+          if (mode_ == kRegular || mode_ == kInlinedTailCall) {
+            __ Return(__ Word32Constant(0), base::VectorOf({wki_return.op}),
+                      v8_flags.wasm_growable_stacks);
+          } else if (!__ generating_unreachable_operations()) {
+            return_phis_->AddInputForPhi(0, wki_return.op);
+            __ Goto(return_block_);
+          }
+          return;
+        }
+      }
       auto [target, implicit_arg] =
           BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
       BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args,
@@ -5321,7 +5338,8 @@ class TurboshaftGraphBuildingInterface
                  field.field_imm.index,
                  struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                                   : compiler::kWithoutNullCheck,
-                 {}, FieldImmediateToWriteBarrier(field));
+                 {}, FieldImmediateToWriteBarrier(field),
+                 StructSetOp::Kind::kAssign);
   }
 
   void StructAtomicSet(FullDecoder* decoder, const Value& struct_object,
@@ -5332,7 +5350,8 @@ class TurboshaftGraphBuildingInterface
                  field.field_imm.index,
                  struct_object.type.is_nullable() ? compiler::kWithNullCheck
                                                   : compiler::kWithoutNullCheck,
-                 memory_order, FieldImmediateToWriteBarrier(field));
+                 memory_order, FieldImmediateToWriteBarrier(field),
+                 StructSetOp::Kind::kAssign);
   }
 
   void StructAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -5380,7 +5399,8 @@ class TurboshaftGraphBuildingInterface
       __ StructSet(struct_object.get<WasmStructNullable>(), new_value,
                    struct_type, field.struct_imm.index, field.field_imm.index,
                    compiler::kWithoutNullCheck, {},
-                   FieldImmediateToWriteBarrier(field));
+                   FieldImmediateToWriteBarrier(field),
+                   StructSetOp::Kind::kAssign);
       return;
     }
 
@@ -5434,11 +5454,11 @@ class TurboshaftGraphBuildingInterface
           {}));
       result->op = old_value;
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
-        __ StructSet(struct_object.get<WasmStructNullable>(),
-                     new_value.get<Word64>(), struct_type,
-                     field.struct_imm.index, field.field_imm.index,
-                     compiler::kWithoutNullCheck, {},
-                     FieldImmediateToWriteBarrier(field));
+        __ StructSet(
+            struct_object.get<WasmStructNullable>(), new_value.get<Word64>(),
+            struct_type, field.struct_imm.index, field.field_imm.index,
+            compiler::kWithoutNullCheck, {},
+            FieldImmediateToWriteBarrier(field), StructSetOp::Kind::kAssign);
       }
       return;
     }
@@ -5474,8 +5494,7 @@ class TurboshaftGraphBuildingInterface
   void WaitqueueNotify(FullDecoder* decoder, const Value& waitqueue,
                        const Value& max_waiters, Value* result) {
     // Use an explicit null check. This instruction is not performance critical.
-    if (!v8_flags.experimental_wasm_skip_null_checks &&
-        waitqueue.type.is_nullable()) {
+    if (!v8_flags.wasm_skip_null_checks && waitqueue.type.is_nullable()) {
       __ TrapIf(__ IsNull(waitqueue.get<Object>(), wasm::kWasmAnyRef),
                 TrapId::kTrapNullDereference);
     }
@@ -5543,7 +5562,8 @@ class TurboshaftGraphBuildingInterface
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
                 imm.array_type->element_type(), {},
-                ArrayIndexImmediateToWriteBarrier(imm));
+                ArrayIndexImmediateToWriteBarrier(imm),
+                ArraySetOp::Kind::kAssign);
   }
 
   void ArrayAtomicSet(FullDecoder* decoder, const Value& array_obj,
@@ -5553,7 +5573,8 @@ class TurboshaftGraphBuildingInterface
     __ WasmBoundsCheckArray(array_value, index.get<Word32>(), array_obj.type);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
                 imm.array_type->element_type(), memory_order,
-                ArrayIndexImmediateToWriteBarrier(imm));
+                ArrayIndexImmediateToWriteBarrier(imm),
+                ArraySetOp::Kind::kAssign);
   }
 
   void ArrayAtomicRMW(FullDecoder* decoder, WasmOpcode opcode,
@@ -5597,7 +5618,8 @@ class TurboshaftGraphBuildingInterface
       DCHECK(new_value.valid() || __ generating_unreachable_operations());
       __ ArraySet(array_value, index.get<Word32>(), new_value,
                   imm.array_type->element_type(), {},
-                  ArrayIndexImmediateToWriteBarrier(imm));
+                  ArrayIndexImmediateToWriteBarrier(imm),
+                  ArraySetOp::Kind::kAssign);
       return;
     }
 
@@ -5647,7 +5669,8 @@ class TurboshaftGraphBuildingInterface
       IF (__ Word64Equal(old_value, expected_value.get<Word64>())) {
         __ ArraySet(array_value, index.get<Word32>(), new_value.get<Word64>(),
                     imm.array_type->element_type(), {},
-                    ArrayIndexImmediateToWriteBarrier(imm));
+                    ArrayIndexImmediateToWriteBarrier(imm),
+                    ArraySetOp::Kind::kAssign);
       }
       return;
     }
@@ -5735,7 +5758,8 @@ class TurboshaftGraphBuildingInterface
             V<Any> value = __ ArrayGet(src_array, src_index_loop,
                                        src_imm.array_type, true, {});
             __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
-                        ArrayIndexImmediateToWriteBarrier(src_imm));
+                        ArrayIndexImmediateToWriteBarrier(src_imm),
+                        ArraySetOp::Kind::kAssign);
 
             IF_NOT (__ Uint32LessThan(src_index.get<Word32>(), src_index_loop))
               BREAK;
@@ -5751,7 +5775,8 @@ class TurboshaftGraphBuildingInterface
             V<Any> value = __ ArrayGet(src_array, src_index_loop,
                                        src_imm.array_type, true, {});
             __ ArraySet(dst_array, dst_index_loop, value, element_type, {},
-                        ArrayIndexImmediateToWriteBarrier(src_imm));
+                        ArrayIndexImmediateToWriteBarrier(src_imm),
+                        ArraySetOp::Kind::kAssign);
 
             IF_NOT (__ Uint32LessThan(src_index_loop, src_end_index)) BREAK;
 
@@ -5773,7 +5798,8 @@ class TurboshaftGraphBuildingInterface
                                  : compiler::kWithoutNullCheck);
     ArrayFillImpl(array_not_null, index.get<Word32>(), value.op,
                   length.get<Word32>(), imm.array_type,
-                  ArrayIndexImmediateToWriteBarrier(imm));
+                  ArrayIndexImmediateToWriteBarrier(imm),
+                  ArraySetOp::Kind::kAssign);
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
@@ -5794,7 +5820,7 @@ class TurboshaftGraphBuildingInterface
     // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
       __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type, {},
-                  write_barrier);
+                  write_barrier, ArraySetOp::Kind::kInitialize);
     }
     result->op = array;
   }
@@ -5945,7 +5971,7 @@ class TurboshaftGraphBuildingInterface
   }
 
   void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
@@ -5961,7 +5987,7 @@ class TurboshaftGraphBuildingInterface
 
   void RefCastDescEq(FullDecoder* decoder, const Value& object,
                      const Value& desc, Value* result) {
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
@@ -5974,7 +6000,7 @@ class TurboshaftGraphBuildingInterface
 
   void RefCastAbstract(FullDecoder* decoder, const Value& object, HeapType type,
                        Value* result, bool null_succeeds) {
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
@@ -6284,7 +6310,7 @@ class TurboshaftGraphBuildingInterface
     // instructions trap, so any RangeError should bubble up to JS.
     V<NativeContext> native_context = instance_cache_.native_context();
     V<String> result_value = CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
+        BuiltinCallDescriptor::WasmStringAdd_NoMapCheck>(
         decoder, native_context,
         {V<String>::Cast(NullCheck(head)), V<String>::Cast(NullCheck(tail))});
     result->op = __ AnnotateWasmType(result_value, result->type);
@@ -9216,7 +9242,7 @@ class TurboshaftGraphBuildingInterface
   V<WasmArray> BoundsCheckArrayWithLength(V<WasmArrayNullable> array,
                                           V<Word32> index, V<Word32> length,
                                           compiler::CheckForNull null_check) {
-    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+    if (V8_UNLIKELY(v8_flags.wasm_skip_bounds_checks)) {
       return V<WasmArray>::Cast(array);
     }
     V<Word32> array_length = __ ArrayLength(array, null_check);
@@ -9275,7 +9301,7 @@ class TurboshaftGraphBuildingInterface
     V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type, shared);
     // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
-                  array_type, write_barrier);
+                  array_type, write_barrier, ArraySetOp::Kind::kInitialize);
     return array;
   }
 
@@ -9342,7 +9368,8 @@ class TurboshaftGraphBuildingInterface
                    compiler::kWithoutNullCheck, {},
                    in_old_space && field_is_ref && has_nondefault_args
                        ? kFullWriteBarrier
-                       : kNoWriteBarrier);
+                       : kNoWriteBarrier,
+                   StructSetOp::Kind::kInitialize);
     }
     // If this assert fails then initialization of padding field might be
     // necessary.
@@ -9362,7 +9389,7 @@ class TurboshaftGraphBuildingInterface
 
   void ArrayFillImpl(V<WasmArray> array, V<Word32> index, V<Any> value,
                      OpIndex length, const wasm::ArrayType* type,
-                     WriteBarrierKind write_barrier) {
+                     WriteBarrierKind write_barrier, ArraySetOp::Kind kind) {
     wasm::ValueType element_type = type->element_type();
 
     // Initialize the array. Use an external function for large arrays with
@@ -9393,7 +9420,7 @@ class TurboshaftGraphBuildingInterface
 
     WHILE(__ Uint32LessThan(current_index, __ Word32Add(index, length))) {
       __ ArraySet(array, current_index, value, type->element_type(), {},
-                  write_barrier);
+                  write_barrier, kind);
       current_index = __ Word32Add(current_index, 1);
     }
 

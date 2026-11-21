@@ -207,13 +207,8 @@ AndroidPlatformConfiguration::AndroidPlatformConfiguration(
 ThreadProfilerPlatformConfiguration::RelativePopulations
 AndroidPlatformConfiguration::GetEnableRates(
     std::optional<version_info::Channel> release_channel) const {
-  // For now, until http://crbug.com/485225932 is solved, we disable for
-  // local/CQ builds.
-  if (!release_channel.has_value()) {
-    return RelativePopulations{100.0, 0.0, 0.0};
-  }
-  // Always enable profiling in browser test mode.
-  if (browser_test_mode_enabled()) {
+  // Always enable profiling in tests or local/CQ builds.
+  if (!release_channel.has_value() || browser_test_mode_enabled()) {
     return RelativePopulations{0.0, 100.0, 0.0};
   }
 

@@ -42,6 +42,11 @@ BASE_FEATURE(kWebXRPlaneDetection, base::FEATURE_ENABLED_BY_DEFAULT);
 // Allows blink to process the `visible-blurred` state.
 BASE_FEATURE(kWebXrVisibleBlurred, base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_ANDROID)
+// Controls WebXR support for the system keyboard on Android OpenXR.
+BASE_FEATURE(kOpenXrAndroidSystemKeyboard, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
 #if BUILDFLAG(ENABLE_OPENXR)
 // Controls WebXR support for the OpenXR Runtime.
 BASE_FEATURE(kOpenXR,

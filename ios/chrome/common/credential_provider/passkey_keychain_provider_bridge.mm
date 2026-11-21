@@ -77,12 +77,24 @@ bool ContainsValidKey(const webauthn::SharedKeyList& keys,
                              purpose:(webauthn::ReauthenticatePurpose)purpose
                           completion:(FetchTrustedVaultKeysCompletionBlock)
                                          fetchTrustedVaultKeysCompletion {
+  // Ensure that the completion is invoked only once, since for the main app,
+  // it's wrapped from `base::OnceCallback`, which would lead to a crash in
+  // case of e.g. a double tap. More details in crbug.com/525411441.
+  __block bool completion_executed = false;
+  FetchTrustedVaultKeysCompletionBlock completion =
+      ^(webauthn::SharedKeyList keyList, NSError* error) {
+        if (!completion_executed) {
+          completion_executed = true;
+          fetchTrustedVaultKeysCompletion(std::move(keyList), error);
+        }
+      };
+
   __weak __typeof(self) weakSelf = self;
   auto checkEnrolledCompletion = ^(BOOL is_enrolled, NSError* error) {
     [weakSelf onIsEnrolledForGaia:gaia
                        credential:credential
                           purpose:purpose
-                       completion:fetchTrustedVaultKeysCompletion
+                       completion:completion
                        isEnrolled:is_enrolled
                             error:error];
   };
@@ -119,13 +131,13 @@ bool ContainsValidKey(const webauthn::SharedKeyList& keys,
                                 fetchTrustedVaultKeysCompletion
                  isEnrolled:(BOOL)isEnrolled
                       error:(NSError*)error {
-  if (isEnrolled) {
-    if (error != nil) {
-      // Skip fetching keys if there was an error.
-      fetchTrustedVaultKeysCompletion(/*trustedVaultKeys=*/{}, error);
-      return;
-    }
+  if (error != nil) {
+    // Skip fetching keys if there was an error.
+    fetchTrustedVaultKeysCompletion(/*trustedVaultKeys=*/{}, error);
+    return;
+  }
 
+  if (isEnrolled) {
     [self fetchKeysForGaia:gaia
                 credential:credential
         canMarkKeysAsStale:YES

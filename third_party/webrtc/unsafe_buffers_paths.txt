@@ -55,6 +55,7 @@
 -api/video/test/nv12_buffer_unittest.cc
 -api/transport/stun.cc
 -api/transport/stun_unittest.cc
+-api/video/video_adapter_unittest.cc
 -api/video/video_bitrate_allocation.cc
 -api/video_codecs/h264_profile_level_id.cc
 -api/video_codecs/h265_profile_tier_level.cc
@@ -183,7 +184,6 @@
 -media/base/rtp_utils_unittest.cc
 -media/base/stream_params_unittest.cc
 -media/base/test_utils.h
--media/base/video_adapter_unittest.cc
 -media/engine/simulcast_encoder_adapter.cc
 -media/engine/simulcast_encoder_adapter_unittest.cc
 -media/engine/webrtc_media_engine.cc

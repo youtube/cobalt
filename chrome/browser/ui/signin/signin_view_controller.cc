@@ -647,7 +647,7 @@ void SigninViewController::ShowDiceSigninTab(
       DiceTabHelper::OnSigninHeaderReceived(),
       DiceTabHelper::GetShowSigninErrorCallbackForBrowser());
 
-  if (base::FeatureList::IsEnabled(switches::kMagiChromeSignInBanner)) {
+  if (switches::IsMagiChromePasskeyBannerEnabled()) {
     signin::IsHybridTransportSupportedForQrCodeSignin(base::BindOnce(
         [](base::WeakPtr<content::WebContents> web_contents, bool can_start) {
           if (!can_start || !web_contents) {

@@ -81,7 +81,8 @@ class TabHandleLayer : public Layer {
                      float folio_foot_length,
                      float width_to_hide_tab_title,
                      float pinned_icon_offset_x,
-                     bool is_underlined,
+                     float underline_opacity,
+                     float underline_shimmer_offset,
                      SkColor underline_start_color,
                      SkColor underline_end_color,
                      int underline_width_threshold);

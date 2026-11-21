@@ -3432,8 +3432,19 @@ void LocalFrameView::UpdateStyleAndLayout() {
 
   // Second pass: run autosize until it stabilizes
   if (auto_size_info_) {
-    while (auto_size_info_->AutoSizeIfNeeded())
+    while (auto_size_info_->AutoSizeIfNeeded()) {
+      base::AutoReset<bool> reset(&is_being_auto_sized_, true);
       did_layout |= UpdateStyleAndLayoutInternal();
+    }
+    // We may have a mismatch as we impose an additional min-content constraint
+    // while auto-sizing, set the view as needing layout which will then fall
+    // through to the third-pass below.
+    if (const LayoutView* view = GetLayoutView()) {
+      if (RuntimeEnabledFeatures::AutoSizeUsesScrollWidthForOverflowEnabled() &&
+          view->InitialContainingBlockSize() != view->StitchedSize()) {
+        SetNeedsLayout();
+      }
+    }
     auto_size_info_->Clear();
   }
 
@@ -5038,6 +5049,36 @@ LocalFrameUkmAggregator* LocalFrameView::GetUkmAggregator() {
 
 void LocalFrameView::ResetUkmAggregatorForTesting() {
   ukm_aggregator_.reset();
+}
+
+void LocalFrameView::MaybeStopDeferringCommitsWithoutContentfulPaint() {
+  if (!RuntimeEnabledFeatures::
+          ReleasePaintHoldingWithoutContentfulPaintEnabled()) {
+    return;
+  }
+  if (!frame_->IsMainFrame()) {
+    return;
+  }
+  // If the document has finished parsing, first paint has been rendered and FCP
+  // hasn't fired, stop deferring commits. This handles pages that only have
+  // non-contentful paint (e.g., background-color only, no text or images).
+  Document* document = frame_->GetDocument();
+  if (!document || !document->HasFinishedParsing()) {
+    return;
+  }
+
+  PaintTiming& paint_timing = PaintTiming::From(*document);
+  // Wait for the first paint to be rendered before stopping deferring commits.
+  if (paint_timing.FirstPaintRendered().is_null()) {
+    return;
+  }
+  // Stop deferring commits was already called on FCP, so we don't need to do it
+  // again.
+  if (!paint_timing.FirstContentfulPaintRenderedButNotPresentedAsMonotonicTime()
+           .is_null()) {
+    return;
+  }
+  GetPage()->GetChromeClient().StopDeferringCommits(*frame_);
 }
 
 void LocalFrameView::OnFirstContentfulPaint() {

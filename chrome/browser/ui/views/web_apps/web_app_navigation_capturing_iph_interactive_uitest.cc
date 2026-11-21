@@ -416,8 +416,6 @@ IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIphUiTest,
 IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIphUiTest,
                        AcceptingBubbleMeasuresUserAccept) {
   const webapps::AppId app_id = InstallTestWebApp(GetDestinationUrl());
-  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(browser()->profile(), app_id),
-            base::ok());
   base::UserActionTester user_action_tester;
 
   RunTestSequence(
@@ -433,8 +431,6 @@ IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIphUiTest,
 IN_PROC_BROWSER_TEST_F(WebAppNavigationCapturingIphUiTest,
                        IPHSettingOpensSettingsAndLogsHistogram) {
   const webapps::AppId app_id = InstallTestWebApp(GetDestinationUrl());
-  ASSERT_EQ(apps::test::EnableLinkCapturingByUser(browser()->profile(), app_id),
-            base::ok());
 
   base::HistogramTester histogram_tester;
 #if BUILDFLAG(IS_CHROMEOS)

@@ -2,44 +2,67 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'chrome://contextual-tasks/strings.m.js';
+import 'chrome://resources/cr_components/composebox/composebox_dropdown.js';
+import 'chrome://resources/cr_components/composebox/composebox_input.js';
+
 import {ComposeboxFile} from 'chrome://resources/cr_components/composebox/common.js';
 import {PageCallbackRouter, PageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
+import type {ComposeboxDropdownElement} from 'chrome://resources/cr_components/composebox/composebox_dropdown.js';
+import type {ComposeboxInputElement} from 'chrome://resources/cr_components/composebox/composebox_input.js';
 import {ComposeboxEmbedderMixin} from 'chrome://resources/cr_components/composebox/composebox_mixin.js';
 import {ComposeboxProxyImpl} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
 import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import {CrLitElement, html} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {DriveDisclaimerStatus, DriveUploadError, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SuggestInventory} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {InputType} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from 'chrome://resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import type {TestMock} from 'chrome://webui-test/test_mock.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {installMock} from './composebox_test_utils.js';
 
 const TestElementBase = ComposeboxEmbedderMixin(I18nMixinLit(CrLitElement));
+
+interface TestComposeboxMixinElement {
+  $: {
+    input: ComposeboxInputElement,
+    matches: ComposeboxDropdownElement,
+    inputWrapper: HTMLElement,
+  };
+}
 
 class TestComposeboxMixinElement extends TestElementBase {
   static get is() {
     return 'test-composebox-mixin';
   }
 
-  // Implementation of ComposeboxEmbedderMixinInterface
-  private mockInput_ = {
-    inputElement: document.createElement('input'),
-    input: '',
-  };
-
-  override getInputElement(): any {
-    return this.mockInput_;
+  override render() {
+    return html`
+      <div id="inputWrapper" @keydown="${this.onKeydown}">
+        <cr-composebox-input id="input"
+            .result="${this.result}"
+            @input-input="${this.onInputInput}">
+        </cr-composebox-input>
+        <cr-composebox-dropdown id="matches"
+            .result="${this.result}">
+        </cr-composebox-dropdown>
+      </div>
+    `;
   }
 
-  private mockDropdown_ = {
-    unselect: () => {},
-  };
+  override getInputElement(): ComposeboxInputElement {
+    return this.$.input;
+  }
 
-  override getDropdownElement(): any {
-    return this.mockDropdown_;
+  override getDropdownElement(): ComposeboxDropdownElement {
+    return this.$.matches;
+  }
+
+  getWrapperElement(): HTMLElement {
+    return this.$.inputWrapper;
   }
 
   private activeElement_: Element|null = null;
@@ -48,7 +71,7 @@ class TestComposeboxMixinElement extends TestElementBase {
   }
 
   override getActiveElement(): Element|null {
-    return this.activeElement_;
+    return this.activeElement_ ?? this.shadowRoot.activeElement;
   }
 
   override getPageHandler() {
@@ -71,58 +94,21 @@ class TestComposeboxMixinElement extends TestElementBase {
 customElements.define(
     TestComposeboxMixinElement.is, TestComposeboxMixinElement);
 
+function simulateUserTextInput(
+    inputElement: ComposeboxInputElement, value: string): Promise<void> {
+  inputElement.input = value;
+  inputElement.fire('input-input');
+  return microtasksFinished();
+}
+
 suite('ComposeboxMixinTest', () => {
   let element: TestComposeboxMixinElement;
   let handler: PageHandlerRemote&TestMock<PageHandlerRemote>;
   let searchboxHandler: SearchboxPageHandlerRemote&
       TestMock<SearchboxPageHandlerRemote>;
 
-  setup(async () => {
+  setup(() => {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-
-    loadTimeData.resetForTesting({
-      composeboxShowImageSuggest: false,
-      composeboxSmartComposeEnabled: false,
-      composeboxShowContextMenuDescription: false,
-      composeboxShowZps: true,
-      composeboxContextDragAndDropEnabled: false,
-      composeboxSource: 'NTP',
-      composeboxFileMaxCount: 1,
-      composeboxFileMaxSize: 1024,
-      composeboxAttachmentFileTypes: '.pdf',
-      composeboxImageFileTypes: 'image/png',
-      lensSendRawFileMediaTypesEnabled: false,
-      voiceSearchCoherenceAnySearchboxExperimentEnabled: false,
-      voiceSearchCoherenceSearchboxEnabled: false,
-      voiceSearchCoherenceComposeboxesEnabled: false,
-      composeDeepSearchPlaceholder: 'Deep Search',
-      composeCreateImagePlaceholder: 'Create Image',
-      searchboxComposePlaceholder: 'Compose',
-      composeboxShowContextMenu: false,
-      composeboxShowTypedSuggest: false,
-      composeboxCancelButtonTitleInput: 'Cancel input',
-      composeboxCancelButtonTitle: 'Cancel',
-      voiceSearchButtonLabel: 'Voice search',
-      lensSearchButtonLabel: 'Lens search',
-      lensSearchHint: 'Lens search',
-      suggestionActivityLink: '<a>Activity</a>',
-      composeboxSubmitButtonTitle: 'Submit',
-      composeboxSmartComposeTabTitle: 'Tab',
-      composeboxSmartComposeTitle: 'Smart Compose',
-      voiceListening: 'Listening',
-      voiceDetails: 'Details',
-      voiceClose: 'Close',
-      voiceStop: 'Stop',
-      dismissButton: 'Dismiss',
-      composeboxDragAndDropHint: 'Hint',
-      removeSuggestion: 'Remove',
-      composeboxDeleteFileTitle: 'Delete',
-      contextManagementInComposeboxEnabled: false,
-      tabFaviconChipsToCoinsEnabled: false,
-      maxFilesReachedError: 'Max files reached',
-      composeboxFileUploadInvalidTooLarge: 'File too large',
-      composeboxFileUploadStartedText: 'Upload started',
-    });
 
     handler = installMock(
         PageHandlerRemote,
@@ -139,11 +125,6 @@ suite('ComposeboxMixinTest', () => {
     element = document.createElement('test-composebox-mixin') as
         TestComposeboxMixinElement;
     document.body.appendChild(element);
-    await element.updateComplete;
-  });
-
-  teardown(() => {
-    document.body.innerHTML = window.trustedTypes!.emptyHTML;
   });
 
   test(
@@ -202,8 +183,7 @@ suite('ComposeboxMixinTest', () => {
         assertEquals('about:blank?3', element.tabSuggestions[2]!.url);
       });
 
-  test('clears selected tabs on submit', async () => {
-    // Selected Tab (ID: 100) checked by the user.
+  test('submitCleanup() clears active tab selections', async () => {
     const tokenTab = 'test-token-tab' as unknown as UnguessableToken;
     const selectedTabId = 100;
     const mockTabFile = new ComposeboxFile(
@@ -217,7 +197,7 @@ suite('ComposeboxMixinTest', () => {
     element.files = new Map([[tokenTab, mockTabFile]]);
     element.addedTabsIds = new Map([[selectedTabId, tokenTab]]);
 
-    await element.updateComplete;
+    await microtasksFinished();
 
     element.submitCleanup();
 
@@ -227,9 +207,50 @@ suite('ComposeboxMixinTest', () => {
     assertFalse(element.files.has(tokenTab));
   });
 
+  test(
+      'cacheSubmittedTabs appends submitted tabs in chronological order',
+      () => {
+        const token1 = 'token1' as unknown as UnguessableToken;
+        const tab1 =
+            new ComposeboxFile(token1, 'Tab 1', 'tab', InputType.kBrowserTab, {
+              isDeletable: true,
+              tabId: 1,
+              url: 'about:blank?1',
+            });
+        const token2 = 'token2' as unknown as UnguessableToken;
+        const tab2 =
+            new ComposeboxFile(token2, 'Tab 2', 'tab', InputType.kBrowserTab, {
+              isDeletable: true,
+              tabId: 2,
+              url: 'about:blank?2',
+            });
+
+        element.files = new Map([[token1, tab1], [token2, tab2]]);
+        element.addedTabsIds = new Map([[1, token1], [2, token2]]);
+        element.aimThreadRestoredTabs = [
+          {
+            tabId: 3,
+            title: 'Tab 3',
+            url: 'about:blank?3',
+            showInCurrentTabChip: false,
+            showInPreviousTabChip: false,
+            lastActive: {internalValue: 0n},
+          },
+        ];
+
+        element.cacheSubmittedTabs();
+
+        assertEquals(3, element.aimThreadRestoredTabs.length);
+        // Newly submitted tabs (tab1, tab2) should be appended chronologically:
+        // [tab3, tab1, tab2]
+        assertEquals(3, element.aimThreadRestoredTabs[0]!.tabId);
+        assertEquals(1, element.aimThreadRestoredTabs[1]!.tabId);
+        assertEquals(2, element.aimThreadRestoredTabs[2]!.tabId);
+      });
+
   test('queryAutocomplete passes cursor position', async () => {
     element.input = 'hello';
-    await element.updateComplete;
+    await microtasksFinished();
 
     const inputElement = element.getInputElement();
     inputElement.inputElement.value = 'hello';
@@ -249,7 +270,7 @@ suite('ComposeboxMixinTest', () => {
       'queryAutocomplete passes cursor position when input is out of sync',
       async () => {
         element.input = 'hello';
-        await element.updateComplete;
+        await microtasksFinished();
 
         const inputElement = element.getInputElement();
         inputElement.inputElement.value = 'hello';
@@ -276,7 +297,7 @@ suite('ComposeboxMixinTest', () => {
       'Shift+Enter allows inserting a newline when input is focused and not empty',
       async () => {
         element.input = 'Some text';
-        await element.updateComplete;
+        await microtasksFinished();
 
         const inputElement = element.getInputElement();
         inputElement.inputElement.focus();
@@ -290,14 +311,15 @@ suite('ComposeboxMixinTest', () => {
 
         element.setActiveElement(inputElement.inputElement);
 
-        element.onKeydown(event);
+        element.getWrapperElement().dispatchEvent(event);
+        await microtasksFinished();
 
         assertFalse(event.defaultPrevented);
       });
 
   test(
       'Enter prevents inserting a newline and attempts to submit query when focus is not in dropdown',
-      () => {
+      async () => {
         const event = new KeyboardEvent('keydown', {
           key: 'Enter',
           shiftKey: false,
@@ -307,14 +329,15 @@ suite('ComposeboxMixinTest', () => {
 
         element.setActiveElement(element.getInputElement().inputElement);
 
-        element.onKeydown(event);
+        element.getWrapperElement().dispatchEvent(event);
+        await microtasksFinished();
 
         assertTrue(event.defaultPrevented);
       });
 
   test(
       'Shift+Enter submits dropdown selection when focus is in dropdown',
-      () => {
+      async () => {
         const event = new KeyboardEvent('keydown', {
           key: 'Enter',
           shiftKey: true,
@@ -324,14 +347,15 @@ suite('ComposeboxMixinTest', () => {
 
         element.setActiveElement(element.getDropdownElement());
 
-        element.onKeydown(event);
+        element.getWrapperElement().dispatchEvent(event);
+        await microtasksFinished();
 
         assertTrue(event.defaultPrevented);
       });
 
   test('autocomplete matches are cleared on submit', async () => {
     element.input = 'Some text';
-    await element.updateComplete;
+    await microtasksFinished();
 
     const event = new KeyboardEvent('keydown', {
       key: 'Enter',
@@ -340,7 +364,8 @@ suite('ComposeboxMixinTest', () => {
       cancelable: true,
     });
     element.setActiveElement(element.getInputElement().inputElement);
-    element.onKeydown(event);
+    element.getWrapperElement().dispatchEvent(event);
+    await microtasksFinished();
 
     const clearResult = await searchboxHandler.whenCalled('stopAutocomplete');
     assertTrue(clearResult);
@@ -353,19 +378,15 @@ suite('ComposeboxMixinTest', () => {
     element.smartComposeEnabled = true;
     element.input = 'hello';
     element.smartComposeInlineHint = ' world';
-    await element.updateComplete;
+    await microtasksFinished();
 
     const inputElem = element.getInputElement();
-    inputElem.input = 'hello ';
-    element.onInputInput(new CustomEvent('input') as any);
-    await element.updateComplete;
+    await simulateUserTextInput(inputElem, 'hello ');
 
     assertEquals('world', element.smartComposeInlineHint);
     assertEquals('hello ', element.input);
 
-    inputElem.input = 'hello w';
-    element.onInputInput(new CustomEvent('input') as any);
-    await element.updateComplete;
+    await simulateUserTextInput(inputElem, 'hello w');
 
     assertEquals('orld', element.smartComposeInlineHint);
   });
@@ -374,12 +395,10 @@ suite('ComposeboxMixinTest', () => {
     element.smartComposeEnabled = true;
     element.input = 'hello';
     element.smartComposeInlineHint = ' world';
-    await element.updateComplete;
+    await microtasksFinished();
 
     const inputElem = element.getInputElement();
-    inputElem.input = 'hello!';
-    element.onInputInput(new CustomEvent('input') as any);
-    await element.updateComplete;
+    await simulateUserTextInput(inputElem, 'hello!');
 
     assertEquals('', element.smartComposeInlineHint);
   });
@@ -411,7 +430,7 @@ suite('ComposeboxMixinTest', () => {
         ]);
 
         freshComposebox.requestUpdate();
-        await freshComposebox.updateComplete;
+        await microtasksFinished();
 
         const filteredFiles = freshComposebox.getFilteredCarouselFiles();
         assertEquals(1, filteredFiles.length);
@@ -442,7 +461,7 @@ suite('ComposeboxMixinTest', () => {
     ]);
 
     freshComposebox.requestUpdate();
-    await freshComposebox.updateComplete;
+    await microtasksFinished();
 
     const filteredFiles = freshComposebox.getFilteredCarouselFiles();
     assertEquals(2, filteredFiles.length);
@@ -486,7 +505,7 @@ suite('ComposeboxMixinTest', () => {
       iconUrl: 'icon',
     }]);
 
-    await element.updateComplete;
+    await microtasksFinished();
     assertTrue(element.files.has(token));
     const file = element.files.get(token)!;
     assertEquals('file.png', file.name);
@@ -496,15 +515,17 @@ suite('ComposeboxMixinTest', () => {
 
   test('addDriveUploads handles max files exceeded error', async () => {
     element.addDriveUploads([], DriveUploadError.kMaxFilesExceeded);
-    await element.updateComplete;
+    await microtasksFinished();
     assertEquals(element.i18n('maxFilesReachedError'), element.errorMessage);
   });
 
   test('addDriveUploads handles size limit exceeded error', async () => {
     element.addDriveUploads([], DriveUploadError.kSizeLimitExceeded);
-    await element.updateComplete;
+    await microtasksFinished();
     assertEquals(
-        element.i18n('composeboxFileUploadInvalidTooLarge', 0),
+        element.i18n(
+            'composeboxFileUploadInvalidTooLarge',
+            Math.floor(element.maxFileSize / (1024 * 1024))),
         element.errorMessage);
   });
 
@@ -522,7 +543,7 @@ suite('ComposeboxMixinTest', () => {
       mode: 0,
       model: 0,
     };
-    await element.updateComplete;
+    await microtasksFinished();
     assertTrue(element.files.has(token));
     assertEquals('hello', element.input);
   });

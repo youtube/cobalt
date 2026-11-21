@@ -109,6 +109,7 @@ export class UserEducationInternalsElement extends
       sessionData_: {type: Array},
       currentChromeVersion_: {type: Number},
       selectedTabIndex_: {type: Number},
+      initialized_: {type: Boolean},
     };
   }
 
@@ -131,6 +132,7 @@ export class UserEducationInternalsElement extends
   protected accessor currentChromeVersion_: number =
       loadTimeData.getInteger('currentChromeVersion');
   protected accessor selectedTabIndex_ = -1;
+  protected accessor initialized_ = false;
 
   private handler_: UserEducationInternalsPageHandlerInterface;
 
@@ -142,6 +144,27 @@ export class UserEducationInternalsElement extends
   override firstUpdated() {
     ColorChangeUpdater.forDocument().start();
 
+    this.checkInitializedAndReadAllData_();
+  }
+
+  // If data is read from the backend before the Feature Engagement system is
+  // initialized, certain information will be missing (including all Non-IPH
+  // Promos). This method polls the backend until initialization is complete and
+  // then loads the data.
+  private checkInitializedAndReadAllData_() {
+    this.handler_.isFeatureEngagementInitialized().then(({isInitialized}) => {
+      if (isInitialized) {
+        this.initialized_ = true;
+        this.readAllData_();
+      } else {
+        setTimeout(() => {
+          this.checkInitializedAndReadAllData_();
+        }, 1000);
+      }
+    });
+  }
+
+  private readAllData_() {
     this.handler_.getTutorials().then(({tutorialInfos}) => {
       this.tutorials_ = tutorialInfos;
     });

@@ -9,6 +9,7 @@
 
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/types/expected.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -327,7 +328,8 @@ class MockAuthenticatorInterface : public mojom::blink::Authenticator {
   mojom::blink::GetCredentialOptionsPtr last_get_options_;
 };
 
-class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest {
+class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest,
+                                 public mojom::blink::FederatedRequestService {
  public:
   MockFederatedAuthRequest() = default;
 
@@ -338,8 +340,16 @@ class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest {
 
   void Bind(mojo::PendingReceiver<::blink::mojom::blink::FederatedAuthRequest>
                 receiver) {
-    receiver_.Bind(std::move(receiver));
-    receiver_.set_disconnect_handler(
+    auth_request_receiver_.Bind(std::move(receiver));
+    auth_request_receiver_.set_disconnect_handler(
+        BindOnce(&MockFederatedAuthRequest::Disconnected, Unretained(this)));
+  }
+
+  void BindRequestService(
+      mojo::PendingReceiver<::blink::mojom::blink::FederatedRequestService>
+          receiver) {
+    request_service_receiver_.Bind(std::move(receiver));
+    request_service_receiver_.set_disconnect_handler(
         BindOnce(&MockFederatedAuthRequest::Disconnected, Unretained(this)));
   }
 
@@ -347,8 +357,13 @@ class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest {
 
   bool IsDisconnected() const { return disconnected_; }
 
+  size_t GetTotalPendingCallbacks() const {
+    return request_token_callbacks_.size() +
+           start_token_request_callbacks_.size();
+  }
+
   void WaitForCallToRequestToken(size_t count = 1) {
-    if (request_token_callbacks_.size() >= count) {
+    if (GetTotalPendingCallbacks() >= count) {
       return;
     }
     expected_callbacks_ = count;
@@ -358,29 +373,54 @@ class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest {
   }
 
   void InvokeRequestTokenCallback(wtf_size_t index = 0) {
-    EXPECT_TRUE(receiver_.is_bound());
-    EXPECT_LT(index, request_token_callbacks_.size());
+    if (!start_token_request_callbacks_.empty()) {
+      EXPECT_TRUE(request_service_receiver_.is_bound());
+      EXPECT_LT(index, start_token_request_callbacks_.size());
+      auto [callback, receiver] =
+          std::move(start_token_request_callbacks_[index]);
+      start_token_request_callbacks_.EraseAt(index);
 
-    auto callback = std::move(request_token_callbacks_[index]);
-    request_token_callbacks_.EraseAt(index);
+      auto success = mojom::blink::TokenRequestSuccess::New();
+      success->selected_idp_config_url = KURL("https://idp.example");
+      success->token = base::Value("token");
+      success->is_auto_selected = false;
 
-    std::move(callback).Run(mojom::RequestTokenStatus::kSuccess,
-                            KURL("https://idp.example"), base::Value("token"),
-                            /*error=*/nullptr,
-                            /*is_auto_selected=*/false);
+      std::move(callback).Run(std::move(success));
+    } else {
+      EXPECT_TRUE(auth_request_receiver_.is_bound());
+      EXPECT_LT(index, request_token_callbacks_.size());
+      auto callback = std::move(request_token_callbacks_[index]);
+      request_token_callbacks_.EraseAt(index);
+      std::move(callback).Run(mojom::RequestTokenStatus::kSuccess,
+                              KURL("https://idp.example"), base::Value("token"),
+                              /*error=*/nullptr,
+                              /*is_auto_selected=*/false);
+    }
   }
 
   void InvokeRequestTokenCallbackWithError(mojom::RequestTokenStatus status,
                                            wtf_size_t index = 0) {
-    EXPECT_TRUE(receiver_.is_bound());
-    EXPECT_LT(index, request_token_callbacks_.size());
+    if (!start_token_request_callbacks_.empty()) {
+      EXPECT_TRUE(request_service_receiver_.is_bound());
+      EXPECT_LT(index, start_token_request_callbacks_.size());
+      auto [callback, receiver] =
+          std::move(start_token_request_callbacks_[index]);
+      start_token_request_callbacks_.EraseAt(index);
 
-    auto callback = std::move(request_token_callbacks_[index]);
-    request_token_callbacks_.EraseAt(index);
+      auto failure = mojom::blink::TokenRequestFailure::New();
+      failure->status = status;
+      failure->error = nullptr;
 
-    std::move(callback).Run(status, std::nullopt, std::nullopt,
-                            /*error=*/nullptr,
-                            /*is_auto_selected=*/false);
+      std::move(callback).Run(base::unexpected(std::move(failure)));
+    } else {
+      EXPECT_TRUE(auth_request_receiver_.is_bound());
+      EXPECT_LT(index, request_token_callbacks_.size());
+      auto callback = std::move(request_token_callbacks_[index]);
+      request_token_callbacks_.EraseAt(index);
+      std::move(callback).Run(status, std::nullopt, std::nullopt,
+                              /*error=*/nullptr,
+                              /*is_auto_selected=*/false);
+    }
   }
 
  protected:
@@ -391,36 +431,73 @@ class MockFederatedAuthRequest : public mojom::blink::FederatedAuthRequest {
       RequestTokenCallback callback) override {
     request_token_callbacks_.push_back(std::move(callback));
 
-    if (request_token_callbacks_.size() >= expected_callbacks_ &&
-        quit_closure_) {
+    if (GetTotalPendingCallbacks() >= expected_callbacks_ && quit_closure_) {
       std::move(quit_closure_).Run();
     }
   }
 
-  void RequestUserInfo(mojom::blink::IdentityProviderConfigPtr provider,
-                       RequestUserInfoCallback callback) override {}
+  void StartTokenRequest(
+      Vector<blink::mojom::blink::IdentityProviderGetParametersPtr>
+          idp_get_params_ptrs,
+      mojom::CredentialMediationRequirement requirement,
+      mojo::PendingReceiver<mojom::blink::FederatedRequest> request_receiver,
+      StartTokenRequestCallback callback) override {
+    start_token_request_callbacks_.push_back(
+        std::make_pair(std::move(callback), std::move(request_receiver)));
+
+    if (GetTotalPendingCallbacks() >= expected_callbacks_ && quit_closure_) {
+      std::move(quit_closure_).Run();
+    }
+  }
+
+  // Override for FederatedAuthRequest (legacy)
+  void RequestUserInfo(
+      mojom::blink::IdentityProviderConfigPtr provider,
+      mojom::blink::FederatedAuthRequest::RequestUserInfoCallback callback)
+      override {}
+
+  // Override for FederatedRequestService (new)
+  void RequestUserInfo(
+      mojom::blink::IdentityProviderConfigPtr provider,
+      mojom::blink::FederatedRequestService::RequestUserInfoCallback callback)
+      override {}
+
   void CancelTokenRequest() override {}
-  void ResolveTokenRequest(const String& account_id,
-                           mojom::blink::ResolveTokenParamsPtr params,
-                           ResolveTokenRequestCallback callback) override {}
+  void ResolveTokenRequest(
+      const String& account_id,
+      mojom::blink::ResolveTokenParamsPtr params,
+      mojom::blink::FederatedAuthRequest::ResolveTokenRequestCallback callback)
+      override {}
   void SetIdpSigninStatus(
       const ::scoped_refptr<const ::blink::SecurityOrigin>& origin,
       mojom::IdpSigninStatus status,
       mojom::blink::LoginStatusOptionsPtr options,
-      SetIdpSigninStatusCallback callback) override {}
+      mojom::blink::FederatedAuthRequest::SetIdpSigninStatusCallback callback)
+      override {}
   void RegisterIdP(const ::blink::KURL& url,
-                   RegisterIdPCallback callback) override {}
+                   mojom::blink::FederatedAuthRequest::RegisterIdPCallback
+                       callback) override {}
   void UnregisterIdP(const ::blink::KURL& url,
-                     UnregisterIdPCallback callback) override {}
+                     mojom::blink::FederatedAuthRequest::UnregisterIdPCallback
+                         callback) override {}
   void CloseModalDialogView() override {}
-  void PreventSilentAccess(PreventSilentAccessCallback callback) override {}
+  void PreventSilentAccess(
+      mojom::blink::FederatedAuthRequest::PreventSilentAccessCallback callback)
+      override {}
   void Disconnect(mojom::blink::IdentityCredentialDisconnectOptionsPtr options,
-                  DisconnectCallback callback) override {}
+                  mojom::blink::FederatedAuthRequest::DisconnectCallback
+                      callback) override {}
 
  private:
-  mojo::Receiver<::blink::mojom::blink::FederatedAuthRequest> receiver_{this};
+  mojo::Receiver<::blink::mojom::blink::FederatedAuthRequest>
+      auth_request_receiver_{this};
+  mojo::Receiver<::blink::mojom::blink::FederatedRequestService>
+      request_service_receiver_{this};
 
   Vector<RequestTokenCallback> request_token_callbacks_;
+  Vector<std::pair<StartTokenRequestCallback,
+                   mojo::PendingReceiver<mojom::blink::FederatedRequest>>>
+      start_token_request_callbacks_;
   size_t expected_callbacks_ = 1;
   base::OnceClosure quit_closure_;
   bool disconnected_ = false;
@@ -472,6 +549,18 @@ class CredentialManagerTestingContext {
                         std::move(handle)));
               },
               Unretained(mock_federated_auth_request)));
+
+      DomWindow().GetBrowserInterfaceBroker().SetBinderForTesting(
+          ::blink::mojom::blink::FederatedRequestService::Name_,
+          BindRepeating(
+              [](MockFederatedAuthRequest* mock_federated_auth_request,
+                 mojo::ScopedMessagePipeHandle handle) {
+                mock_federated_auth_request->BindRequestService(
+                    mojo::PendingReceiver<
+                        ::blink::mojom::blink::FederatedRequestService>(
+                        std::move(handle)));
+              },
+              Unretained(mock_federated_auth_request)));
     }
   }
 
@@ -480,6 +569,10 @@ class CredentialManagerTestingContext {
         ::blink::mojom::blink::CredentialManager::Name_, {});
     DomWindow().GetBrowserInterfaceBroker().SetBinderForTesting(
         ::blink::mojom::blink::Authenticator::Name_, {});
+    DomWindow().GetBrowserInterfaceBroker().SetBinderForTesting(
+        ::blink::mojom::blink::FederatedAuthRequest::Name_, {});
+    DomWindow().GetBrowserInterfaceBroker().SetBinderForTesting(
+        ::blink::mojom::blink::FederatedRequestService::Name_, {});
   }
 
   LocalDOMWindow& DomWindow() { return dummy_context_.GetWindow(); }

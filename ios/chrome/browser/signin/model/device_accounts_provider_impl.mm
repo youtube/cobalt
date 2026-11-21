@@ -50,11 +50,9 @@ GoogleServiceAuthError GoogleServiceAuthErrorFromError(
         static_cast<SystemIdentityManagerErrorCode>(error.code);
     switch (error_code) {
       case SystemIdentityManagerErrorCode::kNoAuthenticatedIdentity:
-        return GoogleServiceAuthError(
-            GoogleServiceAuthError::State::ACCOUNT_NOT_FOUND);
+        return GoogleServiceAuthError::CreateAccountNotFound();
       case SystemIdentityManagerErrorCode::kClientIDMismatch:
-        return GoogleServiceAuthError(
-            GoogleServiceAuthError::State::ACCOUNT_NOT_FOUND);
+        return GoogleServiceAuthError::CreateAccountNotFound();
       case SystemIdentityManagerErrorCode::kInvalidTokenIdentity:
         return GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
             GoogleServiceAuthError::InvalidGaiaCredentialsReason::
@@ -70,13 +68,11 @@ GoogleServiceAuthError GoogleServiceAuthErrorFromError(
           GoogleServiceAuthError::InvalidGaiaCredentialsReason::
               CREDENTIALS_REJECTED_BY_SERVER);
     case ios::provider::SigninErrorCategory::kAuthorizationForbiddenError:
-      return GoogleServiceAuthError(
-          GoogleServiceAuthError::SERVICE_UNAVAILABLE);
+      return GoogleServiceAuthError::FromServiceUnavailable("");
     case ios::provider::SigninErrorCategory::kNetworkError:
       return GoogleServiceAuthError::FromConnectionError(net::ERR_FAILED);
     case ios::provider::SigninErrorCategory::kUserCancellationError:
-      return GoogleServiceAuthError(
-          GoogleServiceAuthError::State::REQUEST_CANCELED);
+      return GoogleServiceAuthError::CreateRequestCanceled();
   }
 
   NOTREACHED() << "Unexpected error: "

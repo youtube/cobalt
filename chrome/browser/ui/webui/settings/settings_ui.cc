@@ -24,9 +24,11 @@
 #include "chrome/browser/compose/compose_enabling.h"
 #include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service.h"
+#include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/history_embeddings/history_embeddings_utils.h"
+#include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/chrome_password_change_service.h"
@@ -100,6 +102,7 @@
 #include "chrome/grit/settings_resources_map.h"
 #include "components/account_manager_core/account_manager_facade.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/integrators/personal_context/personal_context_autofill_util.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
@@ -582,6 +585,11 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       base::FeatureList::IsEnabled(
           autofill::features::kAutofillAiWalletPrivatePasses));
 
+  html_source->AddBoolean(
+      "enableInlineCueMenuContentSetting",
+      base::FeatureList::IsEnabled(features::kGlicSelectionPrompt) &&
+          features::kGlicSelectionEnableSiteSettings.Get());
+
   // AI
   bool show_glic_section = false;
   bool glic_disallowed_by_admin = false;
@@ -684,9 +692,17 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
 
   personal_context::PersonalContextEnablementService* enablement_service =
       PersonalContextEnablementServiceFactory::GetForProfile(profile);
+  html_source->AddBoolean("showSuggestionsFromGeminiSettings",
+                          autofill::ShouldShowPersonalContextAutofillSetting(
+                              autofill_client, enablement_service));
   html_source->AddBoolean(
-      "showSuggestionsFromGeminiSettings",
-      autofill::ShouldShowPersonalContextAutofillSetting(enablement_service));
+      "isAtMemoryEnabled",
+      autofill::MayPerformAtMemoryAction(
+          autofill::AtMemoryAction::kShowAtMemoryInSettings, enablement_service,
+          subscription_eligibility::SubscriptionEligibilityServiceFactory::
+              GetForProfile(profile),
+          profile->GetPrefs(),
+          GoogleGroupsManagerFactory::GetForBrowserContext(profile)));
   html_source->AddBoolean(
       "showPersonalContextSettingsLink",
       enablement_service &&

@@ -184,12 +184,11 @@ chrome.test.assertLastError = function(expectedError) {};
 
 /**
  * @param {function(): void} fn
- * @param {?Object|undefined} self
- * @param {!Array<*>} args
- * @param {(string|RegExp)=} message
+ * @param {(string|RegExp)=} expectedError
+ * @param {string=} message Custom failure message.
  * @see https://developer.chrome.com/extensions/test#method-assertThrows
  */
-chrome.test.assertThrows = function(fn, self, args, message) {};
+chrome.test.assertThrows = function(fn, expectedError, message) {};
 
 /**
  * @param {Promise} promise The promise to evaluate, which is expected to

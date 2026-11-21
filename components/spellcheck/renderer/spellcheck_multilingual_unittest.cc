@@ -121,8 +121,10 @@ class MultilingualSpellCheckTest : public testing::Test {
       const std::u16string& input,
       const std::vector<SpellCheckResult>& expected) {
     std::vector<blink::WebTextCheckingResult> results;
+    const std::set<std::u16string>& document_custom_words =
+        provider_->document_custom_words();
     spellcheck_->SpellCheckParagraph(input, provider_->GetSpellCheckHost(),
-                                     &results);
+                                     &results, &document_custom_words);
 
     EXPECT_EQ(expected.size(), results.size());
     size_t size = std::min(results.size(), expected.size());
@@ -296,6 +298,39 @@ TEST_F(MultilingualSpellCheckTest,
   };
   // Use the same SpellCheck instance - no initialization here.
   CheckSpellCheckWordResults("en-US,es-ES", kNewTestCases);
+}
+
+// Cross-script counterpart of the above for the synchronous CheckSpelling()
+// path.
+TEST_F(MultilingualSpellCheckTest,
+       MultilingualCrossScriptCustomDictionarySpellCheckWord) {
+  blink::WebRuntimeFeatures::EnableFeatureFromString(
+      "SpellCheckCustomDictionaryAPI", true);
+
+  // English is the first enabled language; the Cyrillic word below ("пикачу")
+  // is in the script of the second language (ru-RU), which flags it as
+  // misspelled.
+  const wchar_t kCyrillicWord[] = L"\x043F\x0438\x043A\x0430\x0447\x0443";
+
+  // Baseline: the word is flagged before it is added to the dictionary.
+  const SpellcheckTestCase kFlagged[] = {{kCyrillicWord, 0, 6}};
+  // ReinitializeSpellCheck.
+  ExpectSpellCheckWordResults("en-US,ru-RU", kFlagged);
+
+  // Add the Cyrillic word via the web API. It must now be accepted even though
+  // the first enabled language (English) is in a different script.
+  static_cast<blink::WebTextCheckClient*>(provider())
+      ->SpellCheckCustomDictionaryChanged({base::WideToUTF8(kCyrillicWord)},
+                                          {});
+  const SpellcheckTestCase kAccepted[] = {{kCyrillicWord, 0, 0}};
+  // Use the same SpellCheck instance.
+  CheckSpellCheckWordResults("en-US,ru-RU", kAccepted);
+
+  // Removing it restores the misspelling.
+  static_cast<blink::WebTextCheckClient*>(provider())
+      ->SpellCheckCustomDictionaryChanged({},
+                                          {base::WideToUTF8(kCyrillicWord)});
+  CheckSpellCheckWordResults("en-US,ru-RU", kFlagged);
 }
 
 // If there are no spellcheck languages, no text should be marked as misspelled.

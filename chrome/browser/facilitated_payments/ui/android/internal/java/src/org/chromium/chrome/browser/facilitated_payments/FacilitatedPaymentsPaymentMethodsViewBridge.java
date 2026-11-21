@@ -143,4 +143,10 @@ public class FacilitatedPaymentsPaymentMethodsViewBridge {
     public void showPixAccountLinkingPrompt(int strikeCount) {
         mComponent.showPixAccountLinkingPrompt(strikeCount);
     }
+
+    /** Requests to show the Pix account linking success screen in a bottom sheet. */
+    @CalledByNative
+    public void showPixAccountLinkingSuccessScreen() {
+        mComponent.showPixAccountLinkingSuccessScreen();
+    }
 }

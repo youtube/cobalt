@@ -14,7 +14,7 @@
 #include "third_party/blink/renderer/platform/webrtc/webrtc_video_frame_adapter.h"
 #include "third_party/blink/renderer/platform/wtf/deque.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
-#include "third_party/webrtc/media/base/adapted_video_track_source.h"
+#include "third_party/webrtc/api/video/adapted_video_track_source.h"
 #include "third_party/webrtc/rtc_base/timestamp_aligner.h"
 
 namespace media {

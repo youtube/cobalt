@@ -125,6 +125,29 @@ source_set("utils") {
   }
 }
 
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [
+    "tab_group_sync_service_factory_unittest.cc",
+    "tab_group_sync_utils_unittest.cc",
+  ]
+
+  deps = [
+    ":factories",
+    ":factories_impl",
+    ":impl",
+    ":tab_group_sync",
+    "//base",
+    "//chrome/test:test_support",
+    "//components/saved_tab_groups/public:features",
+    "//content/test:test_support",
+    "//net",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
 if (is_android) {
   static_library("android") {
     sources = [

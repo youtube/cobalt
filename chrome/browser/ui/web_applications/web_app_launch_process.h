@@ -76,13 +76,6 @@ class WebAppLaunchProcess {
   BrowserWindowInterface* MaybeFindBrowserForLaunch() const;
   Browser* CreateBrowserForLaunch();
 
-  struct NavigateResult {
-    raw_ptr<content::WebContents> web_contents = nullptr;
-    bool did_navigate;
-  };
-  NavigateResult MaybeNavigateBrowser(const GURL& launch_url,
-                                      const apps::ShareTarget* share_target);
-
   const raw_ref<Profile> profile_;
   const raw_ref<WebAppRegistrar> registrar_;
   const raw_ref<OsIntegrationManager> os_integration_manager_;

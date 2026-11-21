@@ -319,6 +319,9 @@ struct DesktopEnvironmentOptions {
   // True if this host has the remote WebAuthn feature enabled.
   bool enable_remote_webauthn;
 
+  // True if the security key (gnubby) forwarding is enabled.
+  bool enable_security_key;
+
   // The DesktopCaptureOptions to initialize DesktopCapturer.
   DesktopCaptureOptions desktop_capture_options;
 };

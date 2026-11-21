@@ -35,6 +35,9 @@ inline constexpr char kSharedCacheIsolatedSetResourceReady[] =
 inline constexpr char kSharedCacheIsolatedSelectUrlAndReadyByRowId[] =
     "SELECT url, is_ready FROM resources WHERE rowid = ?";
 
+inline constexpr char kSharedCacheIsolatedReaderSelectResource[] =
+    "SELECT rowid FROM resources WHERE hash = ? AND url = ? AND is_ready = 1";
+
 }  // namespace internal
 
 enum class SharedCacheIsolatedDatabaseQuery {
@@ -43,7 +46,8 @@ enum class SharedCacheIsolatedDatabaseQuery {
   kInsertResource = 2,
   kSetResourceReady = 3,
   kSelectUrlAndReadyByRowId = 4,
-  kMaxValue = kSelectUrlAndReadyByRowId,
+  kReaderSelectResource = 5,
+  kMaxValue = kReaderSelectResource,
 };
 
 inline constexpr base::cstring_view GetSharedCacheIsolatedDatabaseQuery(
@@ -59,6 +63,8 @@ inline constexpr base::cstring_view GetSharedCacheIsolatedDatabaseQuery(
       return internal::kSharedCacheIsolatedSetResourceReady;
     case SharedCacheIsolatedDatabaseQuery::kSelectUrlAndReadyByRowId:
       return internal::kSharedCacheIsolatedSelectUrlAndReadyByRowId;
+    case SharedCacheIsolatedDatabaseQuery::kReaderSelectResource:
+      return internal::kSharedCacheIsolatedReaderSelectResource;
   }
 }
 

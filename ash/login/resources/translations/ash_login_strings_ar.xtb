@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">يمكنك أيضا أن تجرّب <ph name="GUEST_SIGNIN_LINK_START" />التصفح كضيف<ph name="GUEST_SIGNIN_LINK_END" /> لإصلاح هذا الخطأ في الشبكة.</translation>
 <translation id="1201402288615127009">التالي</translation>
 <translation id="1222835797152767346">اضبط رقم تعريف شخصي لتسهيل تسجيل الدخول</translation>
+<translation id="1346669614038013595">‏<ph name="BEGIN_H3" />ميزات تصحيح الأخطاء<ph name="END_H3" />
+          <ph name="BR" />
+          يمكنك تفعيل ميزات تصحيح الأخطاء على جهاز ChromeOS لتثبيت رمز مُخصَّص واختباره على جهازك، وبالتالي يمكنك إجراء الآتي:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />إزالة ميزة التحقق من نظام الملفات الجذري (Rootfs Verification) بهدف تعديل ملفات نظام التشغيل
+            <ph name="LIST_ITEM" />إتاحة الوصول عبر بروتوكول النقل الآمن (SSH) إلى الجهاز باستخدام مفاتيح الاختبار العادية بهدف استخدام أدوات، مثل <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> للوصول إلى الجهاز
+            <ph name="LIST_ITEM" />إتاحة تشغيل النظام باستخدام محرّك أقراص USB من أجل تثبيت نسخة نظام تشغيل من محرّك أقراص USB
+            <ph name="LIST_ITEM" />ضبط كلمة مرور تسجيل الدخول إلى حساب المطوِّر وجذر النظام على قيمة مُخصّصة للوصول يدويًا إلى الجهاز عبر بروتوكول النقل الآمن (SSH)
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          عند تفعيل ميزات تصحيح الأخطاء، ستظل معظمها مُفعّلة حتى بعد إعادة الضبط على الإعدادات الأصلية باستخدام ميزة Powerwash أو حجب البيانات على جهاز مؤسسة مُدار. ولإيقاف جميع ميزات تصحيح الأخطاء بشكل كامل، يُرجى إكمال عملية استرداد نظام التشغيل ChromeOS ‏(https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          لمزيد من المعلومات حول ميزات تصحيح الأخطاء، يمكنك الاطّلاع على:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />ملاحظة:<ph name="END_BOLD" /> ستتم إعادة تشغيل النظام أثناء تنفيذ العملية.</translation>
 <translation id="1347625331607114917">‏تأكيد الرمز على هاتف Android</translation>
 <translation id="1347975661240122359">سيبدأ التحديث عندما يصل مستوى البطارية إلى <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">اكتملت عملية إعداد جهازك وحان وقت تجهيزه لتشغيل أحدث الألعاب</translation>
@@ -114,7 +132,7 @@
 <translation id="4568213207643490790">‏عذرًا، غير مسموح بتسجيل دخول حسابات Google على هذا الجهاز.</translation>
 <translation id="4611759022973144129">يمكنك استخدام كلمة المرور هذه لتسجيل الدخول إلى جهاز <ph name="DEVICE_TYPE" />.</translation>
 <translation id="4727847987444062305">جلسة الضيف المُدارة</translation>
-<translation id="473775607612524610">تحديث</translation>
+<translation id="473775607612524610">تعديل</translation>
 <translation id="473936925429402449">تم الاختيار، المحتوى الإضافي <ph name="CURRENT_ELEMENT" /> من أصل <ph name="TOTAL_ELEMENTS" />.</translation>
 <translation id="4830502475412647084">جارٍ تثبيت تحديث لنظام التشغيل</translation>
 <translation id="4837926214103741331">لا يصرح لك باستخدام هذا الجهاز. يُرجى الاتصال بمالك الجهاز، للحصول على إذن تسجيل الدخول.</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">تنزيل التطبيقات</translation>
 <translation id="5045550434625856497">كلمة مرور غير صحيحة</translation>
 <translation id="5062930723426326933">تعذّر تسجيل الدخول، يُرجى الاتصال بالإنترنت وإعادة المحاولة.</translation>
+<translation id="5107486920067578245">‏<ph name="BEGIN_PARAGRAPH1" />يمكنك الدردشة مع Gemini لبدء الكتابة والتخطيط والتعلّم وغير ذلك باستخدام ذكاء Google الاصطناعي.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />بعد عملية الإعداد، يمكنك بدء استخدام Gemini من خلال النقر على تطبيق Gemini على الرف في أسفل الشاشة.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">يُرجى توصيل جهاز <ph name="DEVICE_TYPE" /> بمصدر طاقة.</translation>
 <translation id="5147516217412920887">يُرجى اتّباع التعليمات التي تظهر على هاتفك لتأكيد الرمز.</translation>
 <translation id="5160857336552977725">سجّل الدخول إلى <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591">‏<ph name="BEGIN_H3" />ميزات تصحيح الأخطاء<ph name="END_H3" />
+          <ph name="BR" />
+          يمكنك تفعيل ميزات تصحيح الأخطاء على جهازك الذي يعمل بنظام التشغيل ChromeOS Flex لتثبيت رمز مُخصَّص واختباره على جهازك، وبالتالي يمكنك إجراء الآتي:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />إزالة ميزة التحقق من نظام الملفات الجذري بهدف تعديل ملفات نظام التشغيل
+            <ph name="LIST_ITEM" />إتاحة الوصول إلى الجهاز عبر بروتوكول النقل الآمن (SSH) باستخدام مفاتيح الاختبار العادية بهدف استخدام أدوات، مثل <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> للوصول إلى الجهاز
+            <ph name="LIST_ITEM" />إتاحة تشغيل النظام باستخدام محرّك أقراص USB من أجل تثبيت نسخة نظام تشغيل من محرّك أقراص USB
+            <ph name="LIST_ITEM" />ضبط كلمة مرور تسجيل الدخول إلى حساب المطوِّر وجذر النظام على قيمة مُخصّصة للوصول يدويًا إلى الجهاز عبر بروتوكول النقل الآمن (SSH)
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          عند تفعيل ميزات تصحيح الأخطاء، ستبقى معظمها مُفعّلة حتى بعد إعادة الضبط على الإعدادات الأصلية باستخدام ميزة Powerwash أو حجب البيانات على جهاز مؤسسة مُدار. لإيقاف جميع ميزات تصحيح الأخطاء بشكل كامل، يُرجى إكمال عملية استرداد نظام التشغيل ChromeOS‏ (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          لمزيد من المعلومات حول ميزات تصحيح الأخطاء، يمكنك الاطّلاع على:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />ملاحظة:<ph name="END_BOLD" /> ستتم إعادة تشغيل النظام أثناء تنفيذ العملية.</translation>
 <translation id="523505283826916779">إعدادات إمكانية الدخول</translation>
 <translation id="5240931875940563122">‏تسجيل الدخول باستخدام هاتف Android</translation>
 <translation id="5255859108402770436">تسجيل الدخول مرة أخرى</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">‏يتم حاليًا تفعيل ميزات تصحيح الأخطاء لنظام التشغيل Chrome التي ستثبِّت البرنامج الخفي لبروتوكول النقل الآمن (SSHD) وتتيح تشغيل النظام من محرّكات أقراص USB.</translation>
 <translation id="6965382102122355670">حسنًا</translation>
 <translation id="6981982820502123353">تسهيل الاستخدام</translation>
+<translation id="6984652455487792101">في حال استخدام خادم وكيل، يُرجى التحقّق من إعداداته أو
+        التواصل مع مشرف الشبكة للتحقُّق من أنّه
+        يعمل. وفي حال اعتقادك أنّه لا داعي لاستخدام
+        خادم وكيل، يمكنك تعديل <ph name="LINK_START" />إعدادات الخادم الوكيل<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">‏فعِّل البلوتوث وشبكة Wi-Fi على هاتفك.</translation>
 <translation id="7077829361966535409">تعذّر تحميل صفحة تسجيل الدخول باستخدام إعدادات الخادم الوكيل الحالية. يُرجى <ph name="GAIA_RELOAD_LINK_START" />إعادة محاولة تسجيل الدخول<ph name="GAIA_RELOAD_LINK_END" />، أو استخدام <ph name="PROXY_SETTINGS_LINK_START" />إعدادات خادم وكيل<ph name="PROXY_SETTINGS_LINK_END" /> مختلفة.</translation>
 <translation id="7114054701490058191">كلمات المرور غير متطابقة</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">تأكيد كلمة المرور</translation>
 <translation id="7352651011704765696">حدث خطأ</translation>
 <translation id="7476454130948140105">مستوى البطارية ضعيف جدًا لإجراء التحديث (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912">‏<ph name="BEGIN_PARAGRAPH1" />قبل التسجيل، عليك محو وحدة النظام الأساسي الموثوقة (TPM) ليتمكّن نظام التشغيل <ph name="DEVICE_OS" /> من الحصول على ملكية الجهاز.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />يمكنك أيضًا إيقاف الجهاز الذي يتضمَّن وحدة النظام الأساسي الموثوقة بالكامل. وستظل بياناتك مخزَّنة بشكل آمن بفضل تشفير البرامج، إلا أنّه سيتم إيقاف بعض ميزات الأمان، مثل الشهادات المستندة إلى الأجهزة.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />يمكنك تغيير إعدادات وحدة النظام الأساسي الموثوقة عن طريق إعادة التشغيل والدخول إلى إعدادات BIOS/UEFI للنظام، علمًا بأنّ الخطوات تختلف باختلاف طراز الجهاز. ولمزيد من المعلومات، يُرجى فتح مستندات نظام التشغيل <ph name="DEVICE_OS" /> على جهاز منفصل قبل إعادة التشغيل: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">تفعيل ميزات تصحيح الأخطاء على جهاز <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">إدخال كلمة المرور</translation>
 <translation id="7556242789364317684">‏للأسف، يتعذّر على <ph name="SHORT_PRODUCT_NAME" /> استعادة إعداداتك. ولإصلاح الخطأ، على <ph name="SHORT_PRODUCT_NAME" /> إعادة ضبط جهازك باستخدام Powerwash.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">‏يجري نقل معلومات حساب Google من هاتف Android الخاص بك.</translation>
 <translation id="8524841856047224176">يمكنك تخصيص خلفيات الكاميرا لمكالمات الفيديو وغير ذلك</translation>
 <translation id="8569673829373920831">مزيد من المعلومات حول <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">يرجى اتباع التعليمات التي تظهر على هاتفك لمسح رمز الاستجابة السريعة ضوئيًا. يجب التأكد من تفعيل البلوتوث على هاتفك.
+        <ph name="BR" />
+        <ph name="BR" />
+        جهازك مرئي للأجهزة القريبة باسم <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">فشل تسجيل الدخول، نظرًا لعدم القدرة على التحقق من كلمة مرورك، يُرجى الاتصال بالمسؤول أو إعادة المحاولة.</translation>
 <translation id="8674903726754070732">‏تم إعداد جهاز الكمبيوتر باستخدام معرّف جهاز غير صحيح. يؤدي ذلك إلى منع تحديث نظام التشغيل Chrome وتوفير أحدث الإصلاحات المتعلّقة بالأمان، وقد يكون جهاز الكمبيوتر <ph name="BEGIN_BOLD" />عرضة للهجمات الضارة<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">إضافة أدوات رقابة الأهل بعد الانتهاء من الإعداد</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">تعذّر البحث عن التحديثات باستخدام إعدادات الخادم الوكيل الحالية. يُرجى ضبط <ph name="PROXY_SETTINGS_LINK_START" />إعدادات الخادم الوكيل<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">‏ستكون إعداداتك المفضّلة وبيانات نشاطك المحفوظة جاهزة على أي جهاز يعمل بنظام التشغيل Chrome عند تسجيل الدخول باستخدام حسابك على Google. من خلال الإعدادات، يمكنك اختيار البيانات التي تريد مزامنتها.</translation>
 <translation id="8875221558267407626">تلخيص المحتوى أو تبسيط المصطلحات المعقدة أو طرح الأسئلة</translation>
+<translation id="8913163265790894442">‏يمكنك ضبط إعدادات <ph name="DEVICE_TYPE" /> بسهولة باستخدام هاتفك. ويمكن إضافة شبكة Wi-Fi وحساب Google بدون إدخال كلمات المرور يدويًا.
+        <ph name="BR" />
+        <ph name="BR" />
+        يظهر جهازك باسم <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">لم يتم تفعيل ميزات التصحيح كليًا على هذا الجهاز <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">إدخال كلمة المرور القديمة</translation>
 <translation id="8975396729541388937">يمكنك إلغاء الاشتراك في أي وقت من خلال النقر على الرابط المتوفّر في الرسائل الإلكترونية التي تتلقّاها.</translation>
 <translation id="9033765790910064284">متابعة على أي حال</translation>
 <translation id="903480517321259405">يُرجى كتابة رقم التعريف الشخصي مرّة أخرى</translation>
 <translation id="9076523132036239772">عذرًا، تعذر التحقق من صحة البريد الإلكتروني أو كلمة المرور. جرّب الاتصال بالشبكة أولاً.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />حصريًا لجهاز <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />ما زال الذكاء الاصطناعي التوليدي في المرحلة التجريبية وأولى مراحل التطوير، ويتوفّر حاليًا بشكل محدود.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">‏يمكنك ضبط إعدادات <ph name="DEVICE_TYPE" /> بسهولة باستخدام هاتفك. ويمكن إضافة حسابك على Google بدون إدخال كلمة المرور يدويًا.
+        <ph name="BR" />
+        <ph name="BR" />
+        يظهر جهازك باسم <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

@@ -4,10 +4,6 @@
 // found in the LICENSE file.
 //
 
-#ifdef UNSAFE_BUFFERS_BUILD
-#    pragma allow_unsafe_buffers
-#endif
-
 #include "test_utils/CompilerTest.h"
 
 #include "test_utils/angle_test_configs.h"
@@ -600,6 +596,7 @@ TEST_P(GLSLOutputMSLTest_EnsureLoopForwardProgress, InfiniteFors)
 precision highp int;
 uniform int a;
 uniform uint b;
+int f() { return 0; }
 void main() {
 
 )";
@@ -621,6 +618,8 @@ void main() {
         "for (int i = 0; i < 10; i++) { for (int j = 0; i = 0, j < 10; j++) { } }",
         "for (int i = 0; i < 10; i++) { for (int j = 0; j < 10; i = 0, j++) { } }",
         "for (int i = 0; i < 10; i++) { for (int j = 0; j < 10; i--, j++) { } }",
+        "for (int i = 0; i < 10; f()) { }",
+        "for (int i = 0; i < 10; a == 0 ? i++ : i = 0) { }",
     };
 
     for (const char *test : kTests)

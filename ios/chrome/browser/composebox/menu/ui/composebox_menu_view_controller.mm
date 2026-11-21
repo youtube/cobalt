@@ -26,6 +26,7 @@
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 
 namespace {
@@ -200,8 +201,7 @@ UIImage* IconForModel(ComposeboxModelOption option) {
   size.height =
       _collectionView.contentSize.height + _collectionView.contentInset.top;
 
-  if ([UIDevice currentDevice].userInterfaceIdiom !=
-      UIUserInterfaceIdiomPhone) {
+  if (ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
     return size;
   }
   // Width is controlled by preferredControlSize on phones (see.

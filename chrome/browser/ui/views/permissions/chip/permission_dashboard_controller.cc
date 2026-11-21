@@ -64,6 +64,16 @@ void UpdateIndicatorsVisibilityFlags(LocationBar* location_bar) {
   } else {
     pscs->OnPermissionIndicatorHidden(ContentSettingsType::MEDIASTREAM_MIC);
   }
+
+  bool should_show_sensors =
+      (pscs->active_available_sensors() > 0) ||
+      (pscs->IsContentBlocked(ContentSettingsType::SENSORS) &&
+       pscs->is_any_requested_sensor_available());
+  if (should_show_sensors) {
+    pscs->OnPermissionIndicatorShown(ContentSettingsType::SENSORS);
+  } else {
+    pscs->OnPermissionIndicatorHidden(ContentSettingsType::SENSORS);
+  }
 }
 
 // Returns `true` if there is misalignment in Camera & Mic usage and displayed
@@ -91,7 +101,25 @@ bool ShouldExpandChipIndicator(
     return false;
   }
 
+  if (pscs->active_available_sensors() > 0 &&
+      pscs->IsIndicatorVisible(ContentSettingsType::SENSORS)) {
+    return false;
+  }
+
   return true;
+}
+
+permissions::PermissionIndicatorsTabData::IndicatorsType GetIndicatorsType(
+    ContentSettingImageModel::ImageType image_type) {
+  switch (image_type) {
+    case ContentSettingImageModel::ImageType::kSensors:
+      return permissions::PermissionIndicatorsTabData::IndicatorsType::kSensors;
+    case ContentSettingImageModel::ImageType::kMediaStream:
+      return permissions::PermissionIndicatorsTabData::IndicatorsType::
+          kMediaStream;
+    default:
+      NOTREACHED();
+  }
 }
 
 void RecordIndicators(ContentSettingImageModel* indicator_model,
@@ -105,6 +133,11 @@ void RecordIndicators(ContentSettingImageModel* indicator_model,
   if (pscs->GetMicrophoneCameraState().Has(
           content_settings::PageSpecificContentSettings::kMicrophoneAccessed)) {
     permissions.insert(ContentSettingsType::MEDIASTREAM_MIC);
+  }
+  if ((pscs->active_available_sensors() > 0) ||
+      (pscs->IsContentBlocked(ContentSettingsType::SENSORS) &&
+       pscs->is_any_requested_sensor_available())) {
+    permissions.insert(ContentSettingsType::SENSORS);
   }
 
   permissions::PermissionUmaUtil::RecordActivityIndicator(
@@ -129,9 +162,10 @@ bool SuppressVerboseState(ChipController* request_chip_controller) {
   ContentSettingsType prompt_type = prompt_model->content_settings_type();
 
   // If currently displayed permission request chip is not for media
-  // permissions, the expand animation should be suppressed.
+  // or sensor permissions, the expand animation should be suppressed.
   if (prompt_type != ContentSettingsType::MEDIASTREAM_CAMERA &&
-      prompt_type != ContentSettingsType::MEDIASTREAM_MIC) {
+      prompt_type != ContentSettingsType::MEDIASTREAM_MIC &&
+      prompt_type != ContentSettingsType::SENSORS) {
     return true;
   }
 
@@ -167,6 +201,8 @@ PermissionDashboardController::~PermissionDashboardController() = default;
 
 bool PermissionDashboardController::Update(
     ContentSettingImageModel* indicator_model) {
+  CHECK(indicator_model);
+
   indicator_model->Update(
       content_setting_image_delegate_->ShouldHideContentSettingImage()
           ? nullptr
@@ -252,16 +288,17 @@ bool PermissionDashboardController::Update(
       // Suppress LHS indicator's verbose animation if it was already displayed.
       // Blocked on the system level is an error case and should always be
       // animated.
-      permissions::PermissionIndicatorsTabData* permission_indicators_tab_data =
-          location_bar_->GetBrowser()
-              ->tab_strip_model()
-              ->GetActiveTab()
-              ->GetTabFeatures()
-              ->permission_indicators_tab_data();
+      const permissions::PermissionIndicatorsTabData*
+          permission_indicators_tab_data =
+              location_bar_->GetBrowser()
+                  ->tab_strip_model()
+                  ->GetActiveTab()
+                  ->GetTabFeatures()
+                  ->permission_indicators_tab_data();
+      const permissions::PermissionIndicatorsTabData::IndicatorsType type =
+          GetIndicatorsType(indicator_model->image_type());
       if (permission_indicators_tab_data &&
-          permission_indicators_tab_data->IsVerboseIndicatorAllowed(
-              permissions::PermissionIndicatorsTabData::IndicatorsType::
-                  kMediaStream)) {
+          permission_indicators_tab_data->IsVerboseIndicatorAllowed(type)) {
         indicator_chip->ResetAnimation(
             PermissionChipInterface::AnimationState::kCollapsed);
         indicator_chip->AnimateExpand(
@@ -328,19 +365,20 @@ void PermissionDashboardController::OnCollapseAnimationEnded() {
           ->GetTabFeatures()
           ->permission_indicators_tab_data();
 
-  if (permission_indicators_tab_data) {
-    permission_indicators_tab_data->SetVerboseIndicatorDisplayed(
-        permissions::PermissionIndicatorsTabData::IndicatorsType::kMediaStream);
+  if (permission_indicators_tab_data && content_setting_image_model_) {
+    permissions::PermissionIndicatorsTabData::IndicatorsType type =
+        GetIndicatorsType(content_setting_image_model_->image_type());
+    permission_indicators_tab_data->SetVerboseIndicatorDisplayed(type);
   }
 
   is_verbose_ = false;
   content_settings::PageSpecificContentSettings* content_settings =
       content_settings::PageSpecificContentSettings::GetForFrame(
           location_bar_->GetWebContents()->GetPrimaryMainFrame());
-  if (!content_settings || (!content_settings->IsIndicatorVisible(
-                                ContentSettingsType::MEDIASTREAM_CAMERA) &&
-                            !content_settings->IsIndicatorVisible(
-                                ContentSettingsType::MEDIASTREAM_MIC))) {
+  if (!content_settings || !content_settings->IsAnyIndicatorVisible(
+                               {ContentSettingsType::MEDIASTREAM_CAMERA,
+                                ContentSettingsType::MEDIASTREAM_MIC,
+                                ContentSettingsType::SENSORS})) {
     HideIndicators();
   }
 }
@@ -552,14 +590,27 @@ void PermissionDashboardController::OnIndicatorsChipButtonPressed() {
 
 std::u16string PermissionDashboardController::GetIndicatorTitle(
     ContentSettingImageModel* model) {
-  // Currently PermissionDashboardController supports only Camera and
-  // Microphone.
-  if (model->image_type() !=
-      ContentSettingImageModel::ImageType::kMediaStream) {
-    DUMP_WILL_BE_NOTREACHED();
-    return std::u16string();
+  switch (model->image_type()) {
+    case ContentSettingImageModel::ImageType::kSensors:
+      return GetSensorsIndicatorTitle(model);
+    case ContentSettingImageModel::ImageType::kMediaStream:
+      return GetMediaStreamIndicatorTitle(model);
+    default:
+      DUMP_WILL_BE_NOTREACHED();
+      return std::u16string();
   }
+}
 
+std::u16string PermissionDashboardController::GetSensorsIndicatorTitle(
+    ContentSettingImageModel* model) {
+  if (model->is_blocked()) {
+    return l10n_util::GetStringUTF16(IDS_SENSORS_BLOCKED);
+  }
+  return l10n_util::GetStringUTF16(IDS_SENSORS_IN_USE);
+}
+
+std::u16string PermissionDashboardController::GetMediaStreamIndicatorTitle(
+    ContentSettingImageModel* model) {
   content_settings::PageSpecificContentSettings* content_settings =
       content_settings::PageSpecificContentSettings::GetForFrame(
           location_bar_->GetWebContents()->GetPrimaryMainFrame());

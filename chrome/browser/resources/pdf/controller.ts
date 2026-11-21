@@ -208,6 +208,10 @@ export interface SaveAttachmentMessage {
   attachmentIndex: number;
 }
 
+export interface FocusMessage {
+  type: 'focus';
+}
+
 // <if expr="enable_pdf_ink2">
 export interface SetAnnotationModeMessage {
   type: 'setAnnotationMode';
@@ -246,7 +250,7 @@ export type PluginMessageWithoutReply = StopScrollingMessage|ViewportMessage|
     HighlightTextFragmentsMessage|ResetPrintPreviewModeMessage|
     SetBackgroundColorMessage|LoadPreviewPageMessage|GetPasswordCompleteMessage|
     SetPresentationModeMessage|SaveMessage|GetSaveDataBlockMessage|
-    ReleaseSaveInBlockBuffersMessage
+    ReleaseSaveInBlockBuffersMessage|FocusMessage
     // <if expr="enable_pdf_ink2">
     |SetAnnotationModeMessage|AnnotationBrushMessage|EditTextAnnotationMessage|
     FinishTextAnnotationMessage|AnnotationRedoMessage|AnnotationUndoMessage
@@ -655,6 +659,10 @@ export class PluginController implements ContentController {
       type: 'getNamedDestination',
       namedDestination: destination,
     });
+  }
+
+  focus() {
+    this.postMessage_({type: 'focus'});
   }
 
   setPresentationMode(enablePresentationMode: boolean) {

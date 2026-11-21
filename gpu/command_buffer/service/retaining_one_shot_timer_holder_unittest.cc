@@ -39,11 +39,10 @@ class RetainingOneShotTimerHolderTest : public testing::Test {
 };
 
 TEST_F(RetainingOneShotTimerHolderTest, SameThreadUsage) {
-  scoped_refptr<RetainingOneShotTimerHolder> timer(
-      new RetainingOneShotTimerHolder(
-          /*max_delay=*/base::Milliseconds(100),
-          /*min_delay=*/base::Milliseconds(50),
-          task_environment_.GetMainThreadTaskRunner(), CreateTimerCallback()));
+  auto timer = base::MakeRefCounted<RetainingOneShotTimerHolder>(
+      /*max_delay=*/base::Milliseconds(100),
+      /*min_delay=*/base::Milliseconds(50),
+      task_environment_.GetMainThreadTaskRunner(), CreateTimerCallback());
 
   timer->ResetTimerIfNecessary();
 
@@ -84,11 +83,10 @@ TEST_F(RetainingOneShotTimerHolderTest, SameThreadUsage) {
 }
 
 TEST_F(RetainingOneShotTimerHolderTest, MultiThreadUsage) {
-  scoped_refptr<RetainingOneShotTimerHolder> timer(
-      new RetainingOneShotTimerHolder(
-          /*max_delay=*/base::Milliseconds(100),
-          /*min_delay=*/base::Milliseconds(50),
-          task_environment_.GetMainThreadTaskRunner(), CreateTimerCallback()));
+  auto timer = base::MakeRefCounted<RetainingOneShotTimerHolder>(
+      /*max_delay=*/base::Milliseconds(100),
+      /*min_delay=*/base::Milliseconds(50),
+      task_environment_.GetMainThreadTaskRunner(), CreateTimerCallback());
 
   PostToThreadPoolAndWait(base::BindLambdaForTesting(
       [timer]() { timer->ResetTimerIfNecessary(); }));

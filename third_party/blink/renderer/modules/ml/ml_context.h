@@ -10,6 +10,7 @@
 
 #include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/task/single_thread_task_runner.h"
 #include "services/webnn/public/cpp/context_properties.h"
 #include "services/webnn/public/cpp/ml_tensor_usage.h"
 #include "services/webnn/public/cpp/operand_descriptor.h"
@@ -17,6 +18,7 @@
 #include "services/webnn/public/mojom/webnn_compiler_context.mojom-blink.h"
 #include "services/webnn/public/mojom/webnn_context.mojom-blink.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom-blink-forward.h"
+#include "services/webnn/public/mojom/webnn_graph_builder.mojom-blink.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -147,8 +149,8 @@ class MODULES_EXPORT MLContext : public ScriptWrappable {
   // because the entire context has been lost.
   void OnLost(uint32_t custom_reason, const std::string& description);
 
-  // Called when the compiler context remote disconnects. Marks the entire
-  // context as lost.
+  // Called when the compiler context remote disconnects. Does not eagerly
+  // reconnect; the next CreateWebNNGraphBuilder() triggers reconnection.
   void OnCompilerContextDisconnected();
 
   void DidCreateWebNNTensor(webnn::ScopedTrace scoped_trace,
@@ -173,6 +175,15 @@ class MODULES_EXPORT MLContext : public ScriptWrappable {
   HeapMojoRemote<webnn::mojom::blink::WebNNCompilerContext>
       compiler_context_remote_;
 
+  // Whether the backend routes graph building through a separate Compiler
+  // process. Not a renderer-side choice: set at context creation from whether
+  // the GPU returned a `compiler_context_remote`.
+  // Cached so that after the compiler context remote disconnects (e.g. after a
+  // Compiler process crash or idle shutdown), CreateWebNNGraphBuilder()
+  // reconnects to the Compiler process instead of building the graph through
+  // `context_remote_`.
+  bool backend_uses_compiler_process_ = false;
+
   webnn::ContextProperties properties_;
 
   mojo::ScopedDataPipeProducerHandle write_tensor_producer_;
@@ -190,6 +201,7 @@ class MODULES_EXPORT MLContext : public ScriptWrappable {
   HeapHashSet<WeakMember<MLTensor>> tensors_;
 
   const gpu::CommandBufferId command_buffer_id_;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   uint64_t last_sync_token_release_id_ = 0;
 };
 

@@ -19,6 +19,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/status/status.h"
@@ -135,13 +136,6 @@ const uint8_t kLargestAckedOffset = 2;
 
 // Acks may have only one ack block.
 const uint8_t kQuicHasMultipleAckBlocksOffset = 5;
-
-// Timestamps are 4 bytes followed by 2 bytes.
-const uint8_t kQuicNumTimestampsLength = 1;
-const uint8_t kQuicFirstTimestampLength = 4;
-const uint8_t kQuicTimestampLength = 2;
-// Gaps between packet numbers are 1 byte.
-const uint8_t kQuicTimestampPacketNumberGapLength = 1;
 
 // Maximum length of encoded error strings.
 const int kMaxErrorStringLength = 256;
@@ -439,11 +433,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       alternative_decrypter_latch_(false),
       perspective_(perspective),
       validate_flags_(true),
-      process_timestamps_(false),
-      peer_max_receive_timestamps_per_ack_(
-          std::numeric_limits<uint32_t>::max()),
-      local_max_receive_timestamps_per_ack_(
-          std::numeric_limits<uint32_t>::max()),
+      peer_max_receive_timestamps_per_ack_(0),
+      local_max_receive_timestamps_per_ack_(0),
       peer_receive_timestamps_exponent_(0),
       local_receive_timestamps_exponent_(0),
       process_reset_stream_at_(false),
@@ -2185,29 +2176,6 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   return true;
 }
 
-const QuicTime::Delta QuicFramer::CalculateTimestampFromWire(
-    uint32_t time_delta_us) {
-  // The new time_delta might have wrapped to the next epoch, or it
-  // might have reverse wrapped to the previous epoch, or it might
-  // remain in the same epoch. Select the time closest to the previous
-  // time.
-  //
-  // epoch_delta is the delta between epochs. A delta is 4 bytes of
-  // microseconds.
-  const uint64_t epoch_delta = UINT64_C(1) << 32;
-  uint64_t epoch = last_timestamp_.ToMicroseconds() & ~(epoch_delta - 1);
-  // Wrapping is safe here because a wrapped value will not be ClosestTo below.
-  uint64_t prev_epoch = epoch - epoch_delta;
-  uint64_t next_epoch = epoch + epoch_delta;
-
-  uint64_t time = ClosestTo(
-      last_timestamp_.ToMicroseconds(), epoch + time_delta_us,
-      ClosestTo(last_timestamp_.ToMicroseconds(), prev_epoch + time_delta_us,
-                next_epoch + time_delta_us));
-
-  return QuicTime::Delta::FromMicroseconds(time);
-}
-
 uint64_t QuicFramer::CalculatePacketNumberFromWire(
     QuicPacketNumberLength packet_number_length,
     QuicPacketNumber base_packet_number, uint64_t packet_number) {
@@ -3135,7 +3103,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         }
         case IETF_ACK_RECEIVE_TIMESTAMPS:
         case IETF_ACK_RECEIVE_TIMESTAMPS_ECN:
-          if (!process_timestamps_) {
+          if (local_max_receive_timestamps_per_ack_ == 0) {
             set_detailed_error("Unsupported frame type.");
             QUIC_DLOG(WARNING)
                 << ENDPOINT << "IETF_ACK_RECEIVE_TIMESTAMPS not supported";
@@ -3677,12 +3645,8 @@ bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
     return false;
   }
 
-  QuicPacketNumber seq_num = largest_acked - delta_from_largest_observed;
-  if (process_timestamps_) {
-    last_timestamp_ = CalculateTimestampFromWire(time_delta_us);
-
-    visitor_->OnAckTimestamp(seq_num, creation_time_ + last_timestamp_);
-  }
+  // The actual value of timestamps in Q046 is not processed, as no code using
+  // Q046 reads them.
 
   for (uint8_t i = 1; i < num_received_packets; ++i) {
     if (!reader->ReadUInt8(&delta_from_largest_observed)) {
@@ -3697,7 +3661,6 @@ bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
               .c_str());
       return false;
     }
-    seq_num = largest_acked - delta_from_largest_observed;
 
     // Time delta from the previous timestamp.
     uint64_t incremental_time_delta_us;
@@ -3707,11 +3670,8 @@ bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
       return false;
     }
 
-    if (process_timestamps_) {
-      last_timestamp_ = last_timestamp_ + QuicTime::Delta::FromMicroseconds(
-                                              incremental_time_delta_us);
-      visitor_->OnAckTimestamp(seq_num, creation_time_ + last_timestamp_);
-    }
+    // The actual value of timestamps in Q046 is not processed, as no code
+    // using Q046 reads them.
   }
   return true;
 }
@@ -3873,7 +3833,7 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
   }
 
   if (AckHasTimestamps(frame_type)) {
-    QUICHE_DCHECK(process_timestamps_);
+    QUICHE_DCHECK_GT(local_max_receive_timestamps_per_ack_, 0u);
     if (!ProcessIetfTimestampsInAckFrame(ack_frame->largest_acked, reader)) {
       return false;
     }
@@ -4874,22 +4834,7 @@ size_t QuicFramer::GetAckFrameSize(
                 (ack_block_length + PACKET_1BYTE_PACKET_NUMBER);
   }
 
-  // Include timestamps.
-  if (process_timestamps_) {
-    ack_size += GetAckFrameTimeStampSize(ack);
-  }
-
   return ack_size;
-}
-
-size_t QuicFramer::GetAckFrameTimeStampSize(const QuicAckFrame& ack) {
-  if (ack.received_packet_times.empty()) {
-    return 0;
-  }
-
-  return kQuicNumTimestampsLength + kQuicFirstTimestampLength +
-         (kQuicTimestampLength + kQuicTimestampPacketNumberGapLength) *
-             (ack.received_packet_times.size() - 1);
 }
 
 size_t QuicFramer::ComputeFrameLength(
@@ -5502,85 +5447,12 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
     }
     QUICHE_DCHECK_EQ(num_ack_blocks, num_ack_blocks_written);
   }
-  // Timestamps.
-  // If we don't process timestamps or if we don't have enough available space
-  // to append all the timestamps, don't append any of them.
-  if (process_timestamps_ && writer->capacity() - writer->length() >=
-                                 GetAckFrameTimeStampSize(frame)) {
-    if (!AppendTimestampsToAckFrame(frame, writer)) {
-      return false;
-    }
-  } else {
-    uint8_t num_received_packets = 0;
-    if (!writer->WriteBytes(&num_received_packets, 1)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-bool QuicFramer::AppendTimestampsToAckFrame(const QuicAckFrame& frame,
-                                            QuicDataWriter* writer) {
-  QUICHE_DCHECK_GE(std::numeric_limits<uint8_t>::max(),
-                   frame.received_packet_times.size());
-  // num_received_packets is only 1 byte.
-  if (frame.received_packet_times.size() >
-      std::numeric_limits<uint8_t>::max()) {
-    return false;
-  }
-
-  uint8_t num_received_packets = frame.received_packet_times.size();
+  // List the number of timestamps as zero.
+  uint8_t num_received_packets = 0;
   if (!writer->WriteBytes(&num_received_packets, 1)) {
     return false;
   }
-  if (num_received_packets == 0) {
-    return true;
-  }
 
-  auto it = frame.received_packet_times.begin();
-  QuicPacketNumber packet_number = it->first;
-  uint64_t delta_from_largest_observed = LargestAcked(frame) - packet_number;
-
-  QUICHE_DCHECK_GE(std::numeric_limits<uint8_t>::max(),
-                   delta_from_largest_observed);
-  if (delta_from_largest_observed > std::numeric_limits<uint8_t>::max()) {
-    return false;
-  }
-
-  if (!writer->WriteUInt8(delta_from_largest_observed)) {
-    return false;
-  }
-
-  // Use the lowest 4 bytes of the time delta from the creation_time_.
-  const uint64_t time_epoch_delta_us = UINT64_C(1) << 32;
-  uint32_t time_delta_us =
-      static_cast<uint32_t>((it->second - creation_time_).ToMicroseconds() &
-                            (time_epoch_delta_us - 1));
-  if (!writer->WriteUInt32(time_delta_us)) {
-    return false;
-  }
-
-  QuicTime prev_time = it->second;
-
-  for (++it; it != frame.received_packet_times.end(); ++it) {
-    packet_number = it->first;
-    delta_from_largest_observed = LargestAcked(frame) - packet_number;
-
-    if (delta_from_largest_observed > std::numeric_limits<uint8_t>::max()) {
-      return false;
-    }
-
-    if (!writer->WriteUInt8(delta_from_largest_observed)) {
-      return false;
-    }
-
-    uint64_t frame_time_delta_us = (it->second - prev_time).ToMicroseconds();
-    prev_time = it->second;
-    if (!writer->WriteUFloat16(frame_time_delta_us)) {
-      return false;
-    }
-  }
   return true;
 }
 
@@ -5654,79 +5526,113 @@ QuicFramer::GetAckTimestampRanges(const QuicAckFrame& frame,
   return timestamp_ranges;
 }
 
+namespace {
+
+// Wrapper around a nullable pointer to QuicDataWriter. Always computes the
+// length of data written.
+class QuicDataWriterWrapper {
+ public:
+  explicit QuicDataWriterWrapper(QuicDataWriter* absl_nullable writer)
+      : writer_(writer) {}
+
+  [[nodiscard]] bool WriteVarInt62(uint64_t value) {
+    bytes_written_ += QuicDataWriter::GetVarInt62Len(value);
+    if (writer_ == nullptr) {
+      // Null writer means we are computing the length; assume that all writes
+      // succeed for that purpose.
+      return true;
+    }
+    return writer_->WriteVarInt62(value);
+  }
+
+  size_t bytes_written() const { return bytes_written_; }
+
+ private:
+  QuicDataWriter* absl_nullable writer_;
+  size_t bytes_written_ = 0;
+};
+
+}  // namespace
+
 int64_t QuicFramer::FrameAckTimestampRanges(
     const QuicAckFrame& frame,
     const absl::InlinedVector<AckTimestampRange, 2>& timestamp_ranges,
-    QuicDataWriter* writer) const {
-  int64_t size = 0;
-  auto maybe_write_var_int62 = [&](uint64_t value) {
-    size += QuicDataWriter::GetVarInt62Len(value);
-    if (writer != nullptr && !writer->WriteVarInt62(value)) {
-      return false;
-    }
-    return true;
-  };
+    QuicDataWriter* absl_nullable writer) const {
+  QuicDataWriterWrapper wrapper(writer);
 
-  if (!maybe_write_var_int62(timestamp_ranges.size())) {
+  if (!wrapper.WriteVarInt62(timestamp_ranges.size())) {
     return -1;
   }
 
+  int64_t size = wrapper.bytes_written();
   // |effective_prev_time| is the exponent-encoded timestamp of the previous
   // packet.
   std::optional<QuicTime> effective_prev_time;
   for (const AckTimestampRange& range : timestamp_ranges) {
-    QUIC_DVLOG(3) << "Range: delta:" << range.delta_from_largest_acked
-                  << ", beg:" << range.range_begin
-                  << ", end:" << range.range_end;
-    if (!maybe_write_var_int62(range.delta_from_largest_acked)) {
+    int64_t range_size =
+        FrameAckTimestampRange(frame, range, effective_prev_time, writer);
+    if (range_size < 0) {
       return -1;
     }
-
-    if (!maybe_write_var_int62(range.range_begin - range.range_end + 1)) {
-      return -1;
-    }
-
-    for (int64_t i = range.range_begin; i >= range.range_end; --i) {
-      const QuicTime receive_timestamp = frame.received_packet_times[i].second;
-      uint64_t time_delta;
-      if (effective_prev_time.has_value()) {
-        time_delta =
-            (*effective_prev_time - receive_timestamp).ToMicroseconds();
-        QUIC_DVLOG(3) << "time_delta:" << time_delta
-                      << ", exponent:" << peer_receive_timestamps_exponent_
-                      << ", effective_prev_time:" << *effective_prev_time
-                      << ", recv_time:" << receive_timestamp;
-        time_delta = time_delta >> peer_receive_timestamps_exponent_;
-        effective_prev_time =
-            *effective_prev_time -
-            QuicTime::Delta::FromMicroseconds(
-                time_delta << peer_receive_timestamps_exponent_);
-      } else {
-        // The first delta is from framer creation to the current receive
-        // timestamp (forward in time), whereas in the common case subsequent
-        // deltas move backwards in time.
-        time_delta = (receive_timestamp - creation_time_).ToMicroseconds();
-        QUIC_DVLOG(3) << "First time_delta:" << time_delta
-                      << ", exponent:" << peer_receive_timestamps_exponent_
-                      << ", recv_time:" << receive_timestamp
-                      << ", creation_time:" << creation_time_;
-        // Round up the first exponent-encoded time delta so that the next
-        // receive timestamp is guaranteed to be decreasing.
-        time_delta =
-            ((time_delta - 1) >> peer_receive_timestamps_exponent_) + 1;
-        effective_prev_time =
-            creation_time_ +
-            QuicTime::Delta::FromMicroseconds(
-                time_delta << peer_receive_timestamps_exponent_);
-      }
-
-      if (!maybe_write_var_int62(time_delta)) {
-        return -1;
-      }
-    }
+    size += range_size;
   }
 
   return size;
+}
+
+int64_t QuicFramer::FrameAckTimestampRange(
+    const QuicAckFrame& frame, const AckTimestampRange& range,
+    std::optional<QuicTime>& effective_prev_time,
+    QuicDataWriter* absl_nullable writer) const {
+  QuicDataWriterWrapper wrapper(writer);
+
+  QUIC_DVLOG(3) << "Range: delta:" << range.delta_from_largest_acked
+                << ", beg:" << range.range_begin << ", end:" << range.range_end;
+  if (!wrapper.WriteVarInt62(range.delta_from_largest_acked)) {
+    return -1;
+  }
+
+  if (!wrapper.WriteVarInt62(range.range_begin - range.range_end + 1)) {
+    return -1;
+  }
+
+  for (int64_t i = range.range_begin; i >= range.range_end; --i) {
+    const QuicTime receive_timestamp = frame.received_packet_times[i].second;
+    uint64_t time_delta;
+    if (effective_prev_time.has_value()) {
+      time_delta = (*effective_prev_time - receive_timestamp).ToMicroseconds();
+      QUIC_DVLOG(3) << "time_delta:" << time_delta
+                    << ", exponent:" << peer_receive_timestamps_exponent_
+                    << ", effective_prev_time:" << *effective_prev_time
+                    << ", recv_time:" << receive_timestamp;
+      time_delta = time_delta >> peer_receive_timestamps_exponent_;
+      effective_prev_time =
+          *effective_prev_time -
+          QuicTime::Delta::FromMicroseconds(
+              time_delta << peer_receive_timestamps_exponent_);
+    } else {
+      // The first delta is from framer creation to the current receive
+      // timestamp (forward in time), whereas in the common case subsequent
+      // deltas move backwards in time.
+      time_delta = (receive_timestamp - creation_time_).ToMicroseconds();
+      QUIC_DVLOG(3) << "First time_delta:" << time_delta
+                    << ", exponent:" << peer_receive_timestamps_exponent_
+                    << ", recv_time:" << receive_timestamp
+                    << ", creation_time:" << creation_time_;
+      // Round up the first exponent-encoded time delta so that the next
+      // receive timestamp is guaranteed to be decreasing.
+      time_delta = ((time_delta - 1) >> peer_receive_timestamps_exponent_) + 1;
+      effective_prev_time =
+          creation_time_ + QuicTime::Delta::FromMicroseconds(
+                               time_delta << peer_receive_timestamps_exponent_);
+    }
+
+    if (!wrapper.WriteVarInt62(time_delta)) {
+      return -1;
+    }
+  }
+
+  return wrapper.bytes_written();
 }
 
 bool QuicFramer::AppendIetfTimestampsToAckFrame(const QuicAckFrame& frame,

@@ -6,9 +6,13 @@ package org.chromium.chrome.browser.ui.lens;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,6 +93,7 @@ public class LensOverlayCoordinatorUnitTest {
         when(mTab.getProfile()).thenReturn(mProfile);
         when(mWebContents.getTopLevelNativeWindow()).thenReturn(mWindowAndroid);
         when(mWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mActivity));
+        when(mWindowAndroid.getContext()).thenReturn(new WeakReference<>(mActivity));
 
         IdentityServicesProvider.setInstanceForTests(mIdentityServicesProviderMock);
         when(mIdentityServicesProviderMock.getIdentityManager(mProfile))
@@ -129,6 +134,9 @@ public class LensOverlayCoordinatorUnitTest {
         // Trigger the asynchronous error callback from C++.
         coordinator.onCaptureError();
 
+        // Flush UI thread tasks.
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
         // Verify that the state was reset.
         assertFalse(LensOverlayTabHelper.isOverlayShowing(mTab));
     }
@@ -152,13 +160,40 @@ public class LensOverlayCoordinatorUnitTest {
         // Trigger the callback.
         coordinator.onScreenshotCaptured(mockBitmap);
 
-        // Flush UI thread to run the fallback task.
+        // Flush UI thread to run any chained tasks (like the fallback task).
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
 
         // Verify that startLens was still called (with the raw windowshot).
         verify(mLensControllerMock)
                 .startLens(eq(mWindowAndroid), mLensIntentParamsCaptor.capture());
         assertEquals(mockUri, mLensIntentParamsCaptor.getValue().getImageUri());
+    }
+
+    @Test
+    public void saveCompositedImageAndLaunch_Failure() {
+        // Setup mock URL and Incognito state for the tab.
+        GURL testUrl = new GURL("https://example.com");
+        when(mTab.getUrl()).thenReturn(testUrl);
+        when(mTab.isIncognito()).thenReturn(false);
+
+        // Simulate failure in ShareImageFileUtils by returning a null URI.
+        Function<Bitmap, Uri> mockShareHook = (bitmap) -> null;
+        ShareImageFileUtils.setGenerateTemporaryUriFromBitmapHookForTesting(mockShareHook);
+
+        // Create the coordinator and trigger the final UI-thread step.
+        LensOverlayCoordinator coordinator = LensOverlayCoordinator.getOrCreateForTab(mTab);
+
+        // Ensure the state starts as showing.
+        LensOverlayTabHelper.setOverlayShowing(mTab, true);
+
+        Bitmap mockBitmap = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888);
+        coordinator.saveCompositedImageAndLaunch(mWindowAndroid, mockBitmap);
+
+        // Verify that the LensController was NEVER called.
+        verify(mLensControllerMock, never()).startLens(any(WindowAndroid.class), any());
+
+        // Verify that the showing state was reset to false.
+        assertFalse(LensOverlayTabHelper.isOverlayShowing(mTab));
     }
 
     @Test
@@ -243,29 +278,51 @@ public class LensOverlayCoordinatorUnitTest {
     }
 
     @Test
-    public void saveCompositedImageAndLaunch_Failure() {
-        // Setup mock URL and Incognito state for the tab.
-        GURL testUrl = new GURL("https://example.com");
-        when(mTab.getUrl()).thenReturn(testUrl);
-        when(mTab.isIncognito()).thenReturn(false);
+    public void onScreenshotCaptured_WebUIFlow() {
+        // Override implementation type to WebUI.
+        FeatureOverrides.newBuilder()
+                .enable(ChromeFeatureList.LENS_OVERLAY_ANDROID)
+                .param(
+                        ChromeFeatureList.LENS_OVERLAY_ANDROID,
+                        "implementation_type",
+                        LensOverlayCoordinator.LENS_OVERLAY_IMPL_WEBUI)
+                .apply();
 
-        // Simulate failure in ShareImageFileUtils by returning a null URI.
-        Function<Bitmap, Uri> mockShareHook = (bitmap) -> null;
-        ShareImageFileUtils.setGenerateTemporaryUriFromBitmapHookForTesting(mockShareHook);
-
-        // Create the coordinator and trigger the final UI-thread step.
-        LensOverlayCoordinator coordinator = LensOverlayCoordinator.getOrCreateForTab(mTab);
+        // Use a spy to stub the branching methods.
+        LensOverlayCoordinator coordinator = spy(LensOverlayCoordinator.getOrCreateForTab(mTab));
+        doReturn(true).when(coordinator).startWebUIFlow(any());
+        doReturn(true).when(coordinator).startIntentFlow(any());
 
         // Ensure the state starts as showing.
         LensOverlayTabHelper.setOverlayShowing(mTab, true);
 
         Bitmap mockBitmap = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888);
-        coordinator.saveCompositedImageAndLaunch(mWindowAndroid, mockBitmap);
 
-        // Verify that the LensController was NEVER called.
+        // Trigger the callback.
+        coordinator.onScreenshotCaptured(mockBitmap);
+
+        // Verify branching.
+        verify(coordinator, times(1)).startWebUIFlow(eq(mockBitmap));
+        verify(coordinator, never()).startIntentFlow(any());
+
+        // Verify that startLens was NEVER called.
         verify(mLensControllerMock, never()).startLens(any(WindowAndroid.class), any());
 
-        // Verify that the showing state was reset to false.
+        // Verify that the showing state remains true.
+        assertTrue(LensOverlayTabHelper.isOverlayShowing(mTab));
+    }
+
+    @Test
+    public void close_ResetsState() {
+        LensOverlayCoordinator coordinator = LensOverlayCoordinator.getOrCreateForTab(mTab);
+
+        // Simulate that the overlay is currently showing.
+        LensOverlayTabHelper.setOverlayShowing(mTab, true);
+
+        // Call close().
+        coordinator.close();
+
+        // Verify that the state was reset.
         assertFalse(LensOverlayTabHelper.isOverlayShowing(mTab));
     }
 }

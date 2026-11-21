@@ -19,7 +19,7 @@ import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetManager.Native
 @NullMarked
 public class TabBottomSheetNativeInterface implements NativeInterfaceDelegate {
 
-    private final Tab mTab;
+    private @Nullable Tab mTab;
     private long mNativeTabBottomSheetBridge;
 
     /** Constructor. */
@@ -36,6 +36,7 @@ public class TabBottomSheetNativeInterface implements NativeInterfaceDelegate {
         if (tabBottomSheetManager != null) {
             tabBottomSheetManager.detachNativeInterfaceDelegate(this);
         }
+        mTab = null;
     }
 
     // Native calls for glic.

@@ -253,7 +253,7 @@ class OmniboxPopupViewWebUIFullV2Test : public OmniboxPopupViewWebUITest {
   void SetUp() override {
     feature_list_full_v2_.InitWithFeatures(
         {omnibox::internal::kWebUIOmniboxPopup,
-         omnibox::kWebUIOmniboxFullPopupV2},
+         omnibox::kWebUIOmniboxFullPopup},
         {});
     InProcessBrowserTest::SetUp();
   }

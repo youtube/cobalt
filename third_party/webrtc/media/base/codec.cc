@@ -21,6 +21,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/field_trials_view.h"
 #include "api/media_types.h"
@@ -170,31 +171,31 @@ bool Codec::MatchesRtpCodec(const RtpCodec& codec_capability) const {
           codec_parameters.parameters == codec_capability.parameters);
 }
 
-bool Codec::GetParam(const std::string& key, std::string* out) const {
-  CodecParameterMap::const_iterator iter = params.find(key);
+bool Codec::GetParam(absl::string_view key, std::string* out) const {
+  CodecParameterMap::const_iterator iter = params.find(std::string(key));
   if (iter == params.end())
     return false;
   *out = iter->second;
   return true;
 }
 
-bool Codec::GetParam(const std::string& key, int* out) const {
-  CodecParameterMap::const_iterator iter = params.find(key);
+bool Codec::GetParam(absl::string_view key, int* out) const {
+  CodecParameterMap::const_iterator iter = params.find(std::string(key));
   if (iter == params.end())
     return false;
   return FromString(iter->second, out);
 }
 
-void Codec::SetParam(const std::string& key, const std::string& value) {
-  params[key] = value;
+void Codec::SetParam(absl::string_view key, absl::string_view value) {
+  params[std::string(key)] = std::string(value);
 }
 
-void Codec::SetParam(const std::string& key, int value) {
-  params[key] = absl::StrCat(value);
+void Codec::SetParam(absl::string_view key, int value) {
+  params[std::string(key)] = absl::StrCat(value);
 }
 
-bool Codec::RemoveParam(const std::string& key) {
-  return params.erase(key) == 1;
+bool Codec::RemoveParam(absl::string_view key) {
+  return params.erase(std::string(key)) == 1;
 }
 
 void Codec::AddFeedbackParam(const FeedbackParam& param) {
@@ -436,22 +437,22 @@ void AddDefaultFeedbackParams(Codec* codec, const FieldTrialsView& trials) {
 }
 
 Codec CreateAudioCodec(PayloadType id,
-                       const std::string& name,
+                       absl::string_view name,
                        int clockrate,
                        size_t channels) {
-  return Codec(Codec::Type::kAudio, id, name, clockrate, channels);
+  return Codec(Codec::Type::kAudio, id, std::string(name), clockrate, channels);
 }
 
 Codec CreateAudioCodec(const SdpAudioFormat& c) {
   return Codec(c);
 }
 
-Codec CreateVideoCodec(const std::string& name) {
+Codec CreateVideoCodec(absl::string_view name) {
   return CreateVideoCodec(PayloadType::NotSet(), name);
 }
 
-Codec CreateVideoCodec(PayloadType id, const std::string& name) {
-  Codec c(Codec::Type::kVideo, id, name, kVideoCodecClockrate);
+Codec CreateVideoCodec(PayloadType id, absl::string_view name) {
+  Codec c(Codec::Type::kVideo, id, std::string(name), kVideoCodecClockrate);
   if (absl::EqualsIgnoreCase(kH264CodecName, name)) {
     // This default is set for all H.264 codecs created because
     // that was the default before packetization mode support was added.

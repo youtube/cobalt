@@ -21,7 +21,9 @@
 #include "base/time/time.h"
 #include "base/version_info/version_info.h"
 #include "build/build_config.h"
+#include "components/autofill/core/browser/form_structure_test_api.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
+#include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
@@ -160,6 +162,7 @@ TEST_F(AutocompleteHistoryManagerTest, CreditCardNumberValue) {
   EXPECT_CALL(*(web_data_service_.get()), AddFormFields(_)).Times(0);
   autocomplete_manager_->OnWillSubmitFormWithFields(
       form.fields(),
+      /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -183,7 +186,7 @@ TEST_F(AutocompleteHistoryManagerTest, NonCreditCardNumberValue) {
 
   EXPECT_CALL(*(web_data_service_.get()), AddFormFields(_));
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -204,7 +207,7 @@ TEST_F(AutocompleteHistoryManagerTest, IbanValue) {
 
   EXPECT_CALL(*web_data_service_, AddFormFields(_)).Times(0);
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -225,7 +228,7 @@ TEST_F(AutocompleteHistoryManagerTest, SSNValue) {
 
   EXPECT_CALL(*web_data_service_, AddFormFields(_)).Times(0);
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -247,7 +250,7 @@ TEST_F(AutocompleteHistoryManagerTest, SearchField) {
 
   EXPECT_CALL(*(web_data_service_.get()), AddFormFields(_));
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -268,7 +271,7 @@ TEST_F(AutocompleteHistoryManagerTest, AutocompleteFeatureOff) {
 
   EXPECT_CALL(*(web_data_service_.get()), AddFormFields(_)).Times(0);
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/false);
 }
 
@@ -296,7 +299,7 @@ TEST_F(AutocompleteHistoryManagerTest, InvalidValues) {
 
   EXPECT_CALL(*(web_data_service_.get()), AddFormFields(_)).Times(0);
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -322,7 +325,7 @@ TEST_F(AutocompleteHistoryManagerTest, FieldWithAutocompleteOff) {
 
   EXPECT_CALL(*web_data_service_, AddFormFields(_)).Times(0);
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -346,7 +349,7 @@ TEST_F(AutocompleteHistoryManagerTest, Incognito) {
 
   EXPECT_CALL(*web_data_service_, AddFormFields(_)).Times(0);
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -372,7 +375,7 @@ TEST_F(AutocompleteHistoryManagerTest, UserInputNotFocusable) {
 
   EXPECT_CALL(*(web_data_service_.get()), AddFormFields(_));
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 #endif
@@ -397,7 +400,7 @@ TEST_F(AutocompleteHistoryManagerTest, PresentationField) {
 
   EXPECT_CALL(*web_data_service_, AddFormFields(_)).Times(0);
   autocomplete_manager_->OnWillSubmitFormWithFields(
-      form.fields(),
+      form.fields(), /*form=*/nullptr,
       /*is_autocomplete_enabled=*/true);
 }
 
@@ -468,7 +471,7 @@ TEST_F(AutocompleteHistoryManagerTest,
 
   // Simulate request for suggestions.
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
   run_loop.Run();
@@ -497,7 +500,7 @@ TEST_F(AutocompleteHistoryManagerTest,
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
 
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -525,7 +528,7 @@ TEST_F(AutocompleteHistoryManagerTest,
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
   // Simulate request for suggestions.
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
   run_loop.Run();
@@ -550,7 +553,7 @@ TEST_F(AutocompleteHistoryManagerTest,
         .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
   // Simulate request for suggestions.
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
   run_loop.Run();
@@ -574,7 +577,7 @@ TEST_F(AutocompleteHistoryManagerTest,
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
   // Simulate request for suggestions.
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
   run_loop.Run();
@@ -611,7 +614,7 @@ TEST_F(AutocompleteHistoryManagerTest,
 
   // Simulate request for suggestions.
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -651,7 +654,7 @@ TEST_F(AutocompleteHistoryManagerTest,
 
   // Simulate request for suggestions.
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -684,7 +687,7 @@ TEST_F(AutocompleteHistoryManagerTest,
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
 
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -716,7 +719,7 @@ TEST_F(AutocompleteHistoryManagerTest,
   EXPECT_CALL(mock_callback, Run(test_field_.global_id(), IsEmpty()))
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -753,7 +756,7 @@ TEST_F(AutocompleteHistoryManagerTest,
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
 
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -816,7 +819,7 @@ TEST_F(AutocompleteHistoryManagerTest,
   MockSuggestionsReturnedCallback mock_callback;
   EXPECT_CALL(mock_callback, Run).Times(0);
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -827,7 +830,7 @@ TEST_F(AutocompleteHistoryManagerTest,
                                                u"SomePrefixTwo")))
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -858,7 +861,7 @@ TEST_F(AutocompleteHistoryManagerTest, SuggestionsReturned_CancelPendingQuery) {
   EXPECT_CALL(mock_callback, Run(test_field_.global_id(), testing::IsEmpty()))
       .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -899,7 +902,7 @@ TEST_F(AutocompleteHistoryManagerTest, NoAutocompleteSuggestionsForTextarea) {
   EXPECT_CALL(mock_callback, Run(test_field_.global_id(), testing::SizeIs(1)));
 
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
 
@@ -921,7 +924,7 @@ TEST_F(AutocompleteHistoryManagerTest, DestructorCancelsRequests) {
 
   // Simulate request for suggestions.
   autocomplete_manager_->OnGetSingleFieldSuggestions(
-      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      test_form_data_, /*form=*/nullptr, test_field_,
       /*trigger_autofill_field=*/nullptr, autofill_client_,
       mock_callback.Get());
   run_loop.Run();
@@ -967,6 +970,10 @@ TEST_F(AutocompleteHistoryManagerTest, IsFieldNameMeaningfulForAutocomplete) {
   EXPECT_TRUE(IsMeaningful(u"city"));
   EXPECT_TRUE(IsMeaningful(u"search"));
   EXPECT_TRUE(IsMeaningful(u"payment_info"));
+  EXPECT_TRUE(IsMeaningful(u"email_verification"));
+  EXPECT_TRUE(IsMeaningful(u"verification"));
+  EXPECT_TRUE(IsMeaningful(u"verify"));
+  EXPECT_TRUE(IsMeaningful(u"security"));
 
   // Names that are not meaningful.
   EXPECT_FALSE(IsMeaningful(u"field1"));
@@ -990,6 +997,14 @@ TEST_F(AutocompleteHistoryManagerTest, IsFieldNameMeaningfulForAutocomplete) {
   EXPECT_FALSE(IsMeaningful(u"cc_cvc"));
   EXPECT_FALSE(IsMeaningful(u"cvn_number"));
   EXPECT_FALSE(IsMeaningful(u"cvv"));
+  EXPECT_FALSE(IsMeaningful(u"csc"));
+  EXPECT_FALSE(IsMeaningful(u"my_csc_value"));
+  EXPECT_FALSE(IsMeaningful(u"cvd"));
+  EXPECT_FALSE(IsMeaningful(u"my_cvd_value"));
+  EXPECT_FALSE(IsMeaningful(u"ccv"));
+  EXPECT_FALSE(IsMeaningful(u"my_ccv_value"));
+  EXPECT_FALSE(IsMeaningful(u"cvn"));
+  EXPECT_FALSE(IsMeaningful(u"my_cvn_value"));
   EXPECT_FALSE(IsMeaningful(u"captcha_input"));
   EXPECT_FALSE(IsMeaningful(u"password"));
   EXPECT_FALSE(IsMeaningful(u"pass2"));
@@ -1001,6 +1016,84 @@ TEST_F(AutocompleteHistoryManagerTest, IsFieldNameMeaningfulForAutocomplete) {
   EXPECT_FALSE(IsMeaningful(u"my_senha_value"));
   EXPECT_FALSE(IsMeaningful(u"pincode"));
   EXPECT_FALSE(IsMeaningful(u"my_pincode_value"));
+  EXPECT_FALSE(IsMeaningful(u"flight_verification"));
+  EXPECT_FALSE(IsMeaningful(u"card_verification"));
+  EXPECT_FALSE(IsMeaningful(u"verification_code"));
+  EXPECT_FALSE(IsMeaningful(u"verify_card"));
+  EXPECT_FALSE(IsMeaningful(u"verify_code"));
+  EXPECT_FALSE(IsMeaningful(u"security_code"));
+  EXPECT_FALSE(IsMeaningful(u"card_security_code"));
+  EXPECT_FALSE(IsMeaningful(u"verifycard"));
+  EXPECT_FALSE(IsMeaningful(u"verify-card"));
+  EXPECT_FALSE(IsMeaningful(u"verifycode"));
+  EXPECT_FALSE(IsMeaningful(u"verify-code"));
+  EXPECT_FALSE(IsMeaningful(u"security-code"));
+  EXPECT_FALSE(IsMeaningful(u"securitycode"));
+  EXPECT_FALSE(IsMeaningful(u"security_value"));
+  EXPECT_FALSE(IsMeaningful(u"security-value"));
+  EXPECT_FALSE(IsMeaningful(u"securityvalue"));
+  EXPECT_FALSE(IsMeaningful(u"security_number"));
+  EXPECT_FALSE(IsMeaningful(u"security-number"));
+  EXPECT_FALSE(IsMeaningful(u"securitynumber"));
+}
+
+// Tests that fields with ineligible autocomplete types (e.g., credit card info,
+// promo codes, IBANs, and autofilled loyalty cards) are filtered out and not
+// saved.
+TEST_F(AutocompleteHistoryManagerTest, ClassificationBasedFiltering) {
+  FormData form = test::GetFormData(
+      {.fields = {
+           {.role = CREDIT_CARD_NUMBER, .value = u"1234567890123456"},
+           {.role = CREDIT_CARD_VERIFICATION_CODE, .value = u"123"},
+           {.role = CREDIT_CARD_STANDALONE_VERIFICATION_CODE, .value = u"456"},
+           {.role = LOYALTY_MEMBERSHIP_ID, .value = u"999"},
+           {.role = MERCHANT_PROMO_CODE, .value = u"PROMO123"},
+           {.role = IBAN_VALUE, .value = u"DE75512108001245126199"},
+           {.role = NAME_FIRST, .value = u"John"}}});
+
+  FormStructure form_structure{form};
+  ASSERT_EQ(7u, form_structure.field_count());
+
+  test_api(form_structure)
+      .SetFieldTypes({CREDIT_CARD_NUMBER, CREDIT_CARD_VERIFICATION_CODE,
+                      CREDIT_CARD_STANDALONE_VERIFICATION_CODE,
+                      LOYALTY_MEMBERSHIP_ID, MERCHANT_PROMO_CODE, IBAN_VALUE,
+                      NAME_FIRST});
+
+  // Mark the loyalty card field as autofilled.
+  form_structure.field(3)->AddFieldModifier(FieldModifier::kAutofill);
+
+  // Only the last field (NAME_FIRST) is saveable in Autocomplete.
+  // Credit card numbers, CVC, Loyalty card (autofilled), Merchant Promo, and
+  // IBAN fields are skipped.
+  EXPECT_CALL(*(web_data_service_.get()),
+              AddFormFields(testing::ElementsAre(
+                  testing::Property(&FormFieldData::value, u"John"))));
+
+  autocomplete_manager_->OnWillSubmitFormWithFields(
+      form.fields(), &form_structure,
+      /*is_autocomplete_enabled=*/true);
+}
+
+// Tests that loyalty card fields are saved in autocomplete history if they
+// were entered manually (i.e., not autofilled).
+TEST_F(AutocompleteHistoryManagerTest, LoyaltyCardManualEntryIsSaved) {
+  FormData form = test::GetFormData(
+      {.fields = {{.role = LOYALTY_MEMBERSHIP_ID, .value = u"999"}}});
+
+  FormStructure form_structure{form};
+  ASSERT_EQ(1u, form_structure.field_count());
+
+  test_api(form_structure).SetFieldTypes({LOYALTY_MEMBERSHIP_ID});
+
+  // Since last_modifier is NOT kAutofill, it should be saved.
+  EXPECT_CALL(*(web_data_service_.get()),
+              AddFormFields(testing::ElementsAre(
+                  testing::Property(&FormFieldData::value, u"999"))));
+
+  autocomplete_manager_->OnWillSubmitFormWithFields(
+      form.fields(), &form_structure,
+      /*is_autocomplete_enabled=*/true);
 }
 
 }  // namespace autofill

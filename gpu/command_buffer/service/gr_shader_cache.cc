@@ -14,6 +14,7 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory_coordinator/memory_coordinator_features.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
@@ -42,6 +43,18 @@ sk_sp<SkData> MakeData(const std::string& str) {
   return SkData::MakeWithCopy(str.c_str(), str.length());
 }
 
+constexpr base::MemoryConsumerTraits kGrShaderCacheTraits(
+    // Default capacity is small; footprint under 10MB.
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kSmall,
+    // Eviction requires map and LRU list updates.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kRequiresTraversal,
+    // Shaders are recoverable from disk or source recompilation.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Asynchronous since AsyncMemoryConsumerRegistration is used.
+    base::MemoryConsumerTraits::ExecutionType::kAsynchronous,
+    // Recompiling shaders is slow and causes jank during rendering.
+    base::MemoryConsumerTraits::RecreateMemoryCost::kExpensive);
+
 }  // namespace
 
 GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
@@ -52,8 +65,11 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
       client_(client),
       memory_consumer_registration_(
           "GrShaderCache",
-          std::nullopt,  // TODO(crbug.com/489671163): Add traits..
+          kGrShaderCacheTraits,
           this,
+<<<<<<< HEAD
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kEnabled) {
+=======
           base::AsyncMemoryConsumerRegistration::CheckUnregister::kEnabled,
           base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
               kDisabled)
@@ -63,6 +79,7 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
           base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache))
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 {
+>>>>>>> parent of d4d21cea468 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
         this, "GrShaderCache",

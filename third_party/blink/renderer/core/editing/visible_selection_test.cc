@@ -482,7 +482,7 @@ TEST_F(VisibleSelectionTest, ShadowNested) {
       "<span id='s7'>77</span><slot></slot><span id='s8'>88</span>";
   SetBodyContent(body_content);
   ShadowRoot* shadow_root = SetShadowContent(shadow_content, "host");
-  ShadowRoot* shadow_root2 = CreateShadowRootForElementWithIDAndSetInnerHTML(
+  ShadowRoot* shadow_root2 = CreateShadowRootForElementWithIdAndSetInnerHtml(
       *shadow_root, "s5", shadow_content2);
 
   // Flat tree is something like below:

@@ -4,11 +4,15 @@
 
 package org.chromium.chrome.browser.toolbar.top;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.Region;
@@ -24,6 +28,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
 import android.view.ViewTreeObserver;
+import android.widget.FrameLayout;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
@@ -63,6 +68,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarProgressBar;
 import org.chromium.chrome.browser.toolbar.top.CaptureReadinessResult.TopToolbarBlockCaptureReason;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
 import org.chromium.components.browser_ui.widget.ViewResourceCoordinatorLayout;
@@ -115,6 +121,8 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
     private @Nullable SettableNonNullObservableSupplier<Integer> mHeightChangedSupplier;
     private ToolbarDataProvider mToolbarDataProvider;
     private @Nullable DesktopWindowStateManager mDesktopWindowStateManager;
+    private @Nullable NonNullObservableSupplier<Boolean> mIsVerticalTabsActiveSupplier;
+    private @Nullable View mTopLeftCornerOverlayView;
 
     /**
      * Constructs a new control container.
@@ -128,10 +136,38 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         super(context, attrs);
     }
 
+    @SuppressLint("RtlHardcoded")
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
         mToolbarHairline = findViewById(R.id.toolbar_hairline);
+
+        int radius =
+                getContext().getResources().getDimensionPixelSize(R.dimen.toolbar_corner_radius);
+        mTopLeftCornerOverlayView =
+                new View(getContext()) {
+                    private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    private final Path mPath = new Path();
+
+                    {
+                        mPath.addRect(0, 0, radius, radius, Path.Direction.CW);
+                        Path circle = new Path();
+                        circle.addCircle(radius, radius, radius, Path.Direction.CW);
+                        mPath.op(circle, Path.Op.DIFFERENCE);
+                    }
+
+                    @Override
+                    protected void onDraw(Canvas canvas) {
+                        mPaint.setColor(
+                                SemanticColorUtils.getColorSurfaceContainerHighest(getContext()));
+                        canvas.drawPath(mPath, mPaint);
+                    }
+                };
+        mTopLeftCornerOverlayView.setVisibility(View.GONE);
+        addView(
+                mTopLeftCornerOverlayView,
+                new FrameLayout.LayoutParams(radius, radius, Gravity.TOP | Gravity.LEFT));
+        updateTopLeftCornerOverlay();
     }
 
     @Override
@@ -345,6 +381,7 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
         maybeUpdateTempTabStripDrawableBackground(mIncognito, getAppHeaderState());
         updateToolbarRightOffset(tabStripHeight);
         updateSystemGestureExclusions();
+        updateTopLeftCornerOverlay();
     }
 
     @Override
@@ -1165,6 +1202,41 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
     public void onAppHeaderStateChanged(AppHeaderState newState) {
         updateToolbarRightOffset(mTabStripHeight);
         updateSystemGestureExclusions();
+        updateTopLeftCornerOverlay();
+    }
+
+    @Override
+    public void onDesktopWindowingModeChanged(boolean isInDesktopWindow) {
+        updateTopLeftCornerOverlay();
+    }
+
+    public void setIsVerticalTabsActiveSupplier(
+            @Nullable NonNullObservableSupplier<Boolean> supplier) {
+        mIsVerticalTabsActiveSupplier = supplier;
+        if (mIsVerticalTabsActiveSupplier != null) {
+            mIsVerticalTabsActiveSupplier.addSyncObserver(active -> updateTopLeftCornerOverlay());
+        }
+        updateTopLeftCornerOverlay();
+    }
+
+    private void updateTopLeftCornerOverlay() {
+        assertNonNull(mTopLeftCornerOverlayView);
+
+        AppHeaderState appHeaderState = getAppHeaderState();
+        boolean isInDesktopWindow = appHeaderState != null && appHeaderState.isInDesktopWindow();
+        boolean isVerticalTabsActive =
+                mIsVerticalTabsActiveSupplier != null && mIsVerticalTabsActiveSupplier.get();
+        boolean enableCorner = isInDesktopWindow && isVerticalTabsActive;
+        if (enableCorner) {
+            mTopLeftCornerOverlayView.setVisibility(View.VISIBLE);
+            mTopLeftCornerOverlayView.bringToFront();
+        } else {
+            mTopLeftCornerOverlayView.setVisibility(View.GONE);
+        }
+    }
+
+    @Nullable View getTopLeftCornerOverlayViewForTesting() {
+        return mTopLeftCornerOverlayView;
     }
 
     private void updateToolbarRightOffset(int currentTabStripHeight) {
@@ -1193,11 +1265,10 @@ public class ToolbarControlContainer extends OptimizedFrameLayout
                 && appHeaderState.isInDesktopWindow()
                 && mTabStripHeight == 0
                 && getWidth() > 0) {
-            int left = appHeaderState.getLeftPadding();
             int right = getWidth() - appHeaderState.getRightPadding();
             int top = appHeaderState.getCaptionControlsTopOffset();
             int bottom = top + appHeaderState.getCaptionControlsHeight();
-            Rect exclusionRect = new Rect(left, top, right, bottom);
+            Rect exclusionRect = new Rect(/* left= */ 0, top, right, bottom);
             super.setSystemGestureExclusionRects(List.of(exclusionRect));
         } else {
             super.setSystemGestureExclusionRects(rects);

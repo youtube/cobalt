@@ -584,14 +584,14 @@ void LocalDOMWindow::ExceptionThrown(ErrorEvent* event) {
 }
 
 // https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
-String LocalDOMWindow::OutgoingReferrer() const {
+KURL LocalDOMWindow::OutgoingReferrerUrl() const {
   // Step 3.1: "If environment's global object is a Window object, then"
   // Step 3.1.1: "Let document be the associated Document of environment's
   // global object."
 
   // Step 3.1.2: "If document's origin is an opaque origin, return no referrer."
   if (GetSecurityOrigin()->IsOpaque()) {
-    return String();
+    return NullUrl();
   }
 
   // Step 3.1.3: "While document is an iframe srcdoc document, let document be
@@ -609,7 +609,7 @@ String LocalDOMWindow::OutgoingReferrer() const {
   }
 
   // Step: 3.1.4: "Let referrerSource be document's URL."
-  return referrer_document->Url().StrippedForUseAsReferrer();
+  return referrer_document->OutgoingReferrerUrl();
 }
 
 CoreProbeSink* LocalDOMWindow::GetProbeSink() {

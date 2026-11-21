@@ -58,7 +58,7 @@ DependencyParserModelLoaderFactory::BuildServiceInstanceForBrowserContext(
           profile);
   auto* opt_guide =
       global_state_holder
-          ? &global_state_holder->GetGlobalState().prediction_manager()
+          ? &global_state_holder->GetGlobalState().model_provider()
           : nullptr;
 
   if (opt_guide) {

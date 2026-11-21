@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_PAYMENTS_CONTENT_PAYMENT_APP_H_
 #define COMPONENTS_PAYMENTS_CONTENT_PAYMENT_APP_H_
 
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@
 #include "third_party/blink/public/mojom/payments/payment_app_events.mojom.h"
 #include "third_party/blink/public/mojom/payments/payment_handler_host.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "url/origin.h"
 
 namespace payments {
 
@@ -106,6 +108,9 @@ class PaymentApp {
   // The non-human readable identifier for this payment app. For example, the
   // GUID of an autofill card or the scope of a payment handler.
   virtual std::string GetId() const = 0;
+
+  // Returns the origin of the payment handler, if applicable.
+  virtual std::optional<url::Origin> GetPaymentHandlerOrigin() const;
 
   // Return the sub/label of payment app, to be displayed to the user.
   virtual std::u16string GetLabel() const = 0;

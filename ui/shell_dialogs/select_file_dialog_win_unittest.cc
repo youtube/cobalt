@@ -23,6 +23,7 @@
 #include "base/win/scoped_com_initializer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/shell_dialogs/safe_accept_file_dialog_event_handler_win.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 #include "ui/shell_dialogs/select_file_policy.h"
 #include "ui/shell_dialogs/selected_file_info.h"
@@ -531,4 +532,86 @@ TEST_F(SelectFileDialogWinTest, SaveFileOverwritePrompt) {
 
   EXPECT_TRUE(was_cancelled());
   EXPECT_TRUE(selected_paths().empty());
+}
+
+class SafeAcceptFileDialogEventHandlerTest : public testing::Test {
+ public:
+  SafeAcceptFileDialogEventHandlerTest()
+      : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME) {}
+
+  void CreateHandler() {
+    handler_ = Microsoft::WRL::Make<ui::SafeAcceptFileDialogEventHandler>();
+  }
+
+  void InitializeHandler(bool enter_down) {
+    handler_->InitializeForTesting(enter_down);
+  }
+
+  void SetKeyState(bool is_down) { handler_->SetKeyStateForTesting(is_down); }
+
+  void ReleaseEnterKey() { handler_->OnEnterKeyboardReleased(); }
+
+  HRESULT CallOnFileOk(IFileDialog* dialog = nullptr) {
+    return handler_->OnFileOk(dialog);
+  }
+
+ protected:
+  base::test::TaskEnvironment task_environment_;
+  Microsoft::WRL::ComPtr<ui::SafeAcceptFileDialogEventHandler> handler_;
+};
+
+// Standalone tests validating the logical UI exploit time-delay and keyjacking
+// policies.
+
+TEST_F(SafeAcceptFileDialogEventHandlerTest, MinimumDisplayDuration) {
+  CreateHandler();
+  InitializeHandler(/*enter_down=*/false);
+
+  // User presses Enter to accept the dialog.
+  SetKeyState(/*is_down=*/true);
+
+  // Immediately after initialization, acceptance is vetoed (must display for at
+  // least 500ms).
+  EXPECT_EQ(CallOnFileOk(), S_FALSE);
+
+  // Advance time by 500ms.
+  task_environment_.FastForwardBy(base::Milliseconds(500));
+
+  // Acceptance now succeeds.
+  EXPECT_EQ(CallOnFileOk(), S_OK);
+}
+
+TEST_F(SafeAcceptFileDialogEventHandlerTest, VetoesHeldEnterKeyjacking) {
+  CreateHandler();
+
+  // Simulate that Enter was actively being held down when the dialog opened.
+  InitializeHandler(/*enter_down=*/true);
+
+  // User is still holding Enter down (e.g. keyboard auto-repeat firing).
+  SetKeyState(/*is_down=*/true);
+
+  // Advance time beyond the minimum display duration (500ms).
+  task_environment_.FastForwardBy(base::Milliseconds(600));
+
+  // Acceptance is still vetoed because the initial Enter press was never
+  // released.
+  EXPECT_EQ(CallOnFileOk(), S_FALSE);
+
+  // Simulate physical release of the Enter key.
+  ReleaseEnterKey();
+
+  // Subsequent Enter key press succeeds.
+  EXPECT_EQ(CallOnFileOk(), S_OK);
+}
+
+TEST_F(SafeAcceptFileDialogEventHandlerTest, MouseClickAcceptance) {
+  CreateHandler();
+  InitializeHandler(/*enter_down=*/false);
+
+  // Enter key is NOT down (e.g. mouse click or automated test bot).
+  SetKeyState(/*is_down=*/false);
+
+  // Mouse click acceptance succeeds immediately (0ms) without waiting for
+  // 500ms.
+  EXPECT_EQ(CallOnFileOk(), S_OK);
 }

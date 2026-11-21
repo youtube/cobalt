@@ -15,6 +15,8 @@ String ModuleScriptCreationParams::ModuleTypeToString(
       return "JSON";
     case ModuleType::kCSS:
       return "CSS";
+    case ModuleType::kTEXT:
+      return "TEXT";
     case ModuleType::kInvalid:
       NOTREACHED();
   }

@@ -172,7 +172,7 @@ TEST_F(OmniboxViewTest, DISABLED_GetIcon_BookmarkIcon) {
 
   ui::ImageModel expected_icon = ui::ImageModel::FromVectorIcon(
       features::IsRoundedIconsEnabled()
-          ? omnibox::kStarCustomIcon
+          ? omnibox::kStarIcon
           : omnibox::kBookmarkChromeRefreshOldIcon,
       gfx::kPlaceholderColor, gfx::kFaviconSize);
 

@@ -191,6 +191,11 @@ CreateClickRequest(const ClickAction& action) {
     case apc::ClickAction_ClickType_RIGHT:
       type = mojom::ClickType::kRight;
       break;
+    case apc::ClickAction_ClickType_LEFT_ON_OCCLUDED_TARGET:
+      // The model-side action explicitly asked for click-behind activation.
+      // The renderer still performs the stricter live occluder validation.
+      type = mojom::ClickType::kLeftOnOccludedTarget;
+      break;
     case apc::
         ClickAction_ClickType_ClickAction_ClickType_INT_MIN_SENTINEL_DO_NOT_USE_:
     case apc::

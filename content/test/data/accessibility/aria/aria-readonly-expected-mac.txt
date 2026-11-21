@@ -22,7 +22,7 @@ AXWebArea
 ++++++AXCell AXDescription='Readonly-true gridcell'
 ++++AXColumn
 ++++++AXCell AXDescription='Readonly not specified gridcell'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXCheckBox AXDescription='Readonly checkbox' AXValue=0
 ++AXComboBox AXDescription='Readonly combobox'
 ++AXList AXDescription='Readonly listbox'

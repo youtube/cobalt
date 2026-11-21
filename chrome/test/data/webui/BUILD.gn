@@ -127,7 +127,7 @@ source_set("browser_tests") {
     }
   }
 
-  if (!is_android || enable_webui_contextual_tasks_composebox) {
+  if (!is_android || is_desktop_android) {
     sources += [ "cr_components/cr_components_browsertest.cc" ]
     deps += [
       "//components/contextual_tasks/public:feature_list",
@@ -149,6 +149,7 @@ source_set("browser_tests") {
 
   if (enable_extensions_core) {
     sources += [ "extensions/extensions_browsertest.cc" ]
+    deps += [ "//chrome/browser/ui/webui/extensions:test_support" ]
   }
 
   if (enable_extensions) {
@@ -412,6 +413,7 @@ source_set("interactive_ui_tests") {
 
   if (enable_extensions_core) {
     sources += [ "extensions/extensions_focus_test.cc" ]
+    deps += [ "//chrome/browser/ui/webui/extensions:test_support" ]
   }
 
   if (enable_print_preview && !is_chromeos) {
@@ -519,7 +521,9 @@ webui_ts_library("build_ts") {
   in_files = [
     "chai_assert.ts",
     "fake_chrome_event.ts",
+    "fake_media_query_list.ts",
     "keyboard_mock_interactions.ts",
+    "metrics_test_support.ts",
     "mocha_adapter_simple.ts",
     "mock_controller.ts",
     "mock_timer.ts",
@@ -527,16 +531,14 @@ webui_ts_library("build_ts") {
     "test_browser_proxy.ts",
     "test_mock.ts",
     "test_mock_test.ts",
+    "test_open_window_proxy.ts",
     "test_plural_string_proxy.ts",
     "test_util.ts",
-    "test_open_window_proxy.ts",
     "trusted_html.ts",
-    "metrics_test_support.ts",
   ]
 
   if (!is_android) {
     in_files += [
-      "fake_media_query_list.ts",
       "fake_settings_private.ts",
       "mocked_metrics_reporter.ts",
       "mouse_mock_interactions.ts",
@@ -736,7 +738,7 @@ generate_grd("build_grd") {
     }
   }
 
-  if (!is_android || enable_webui_contextual_tasks_composebox) {
+  if (!is_android || is_desktop_android) {
     deps += [
       "cr_components:build_grdp",
       "cr_components/composebox:build_grdp",

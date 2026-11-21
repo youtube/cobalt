@@ -5,10 +5,10 @@
 #ifndef SERVICES_ON_DEVICE_MODEL_SAFETY_BERT_SAFETY_MODEL_H_
 #define SERVICES_ON_DEVICE_MODEL_SAFETY_BERT_SAFETY_MODEL_H_
 
+#include "base/files/file.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 #include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
-#include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/core/base_task_api.h"
 #include "third_party/tflite_support/src/tensorflow_lite_support/cc/task/text/nlclassifier/nl_classifier.h"
 
 namespace translate {
@@ -20,10 +20,6 @@ namespace on_device_model {
 class BertSafetyModel final : public mojom::TextSafetyModel,
                               public mojom::TextSafetySession {
  public:
-  using BertExecutionTask =
-      tflite::task::core::BaseTaskApi<std::vector<tflite::task::core::Category>,
-                                      const std::string&>;
-
   ~BertSafetyModel() override;
 
   static std::unique_ptr<BertSafetyModel> Create(
@@ -45,11 +41,12 @@ class BertSafetyModel final : public mojom::TextSafetyModel,
 
  private:
   BertSafetyModel();
-  bool InitLanguageDetection(mojom::LanguageModelAssetsPtr assets);
-  bool InitTextSafetyModel(mojom::BertSafetyModelAssetsPtr assets);
+  bool InitLanguageDetection(base::File model);
+  bool InitTextSafetyModel(base::File model);
 
   std::unique_ptr<translate::LanguageDetectionModel> language_detector_;
-  std::unique_ptr<BertExecutionTask> loaded_bert_model_;
+  std::unique_ptr<tflite::task::text::nlclassifier::NLClassifier>
+      loaded_bert_model_;
   mojo::ReceiverSet<mojom::TextSafetySession> sessions_;
 };
 

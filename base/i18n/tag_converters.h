@@ -15,8 +15,9 @@
 #include "base/i18n/internal/icu_bridge.rs.h"
 #include "base/i18n/language_tag.h"
 
-namespace base {
-namespace i18n::internal {
+namespace base::i18n {
+
+namespace internal {
 struct Icu4xLocale;
 }
 
@@ -54,14 +55,13 @@ class BASE_I18N_EXPORT LanguageTagConverter {
   //  - Normalize separator (e.g. "en_US" -> "en-US").
   std::optional<LanguageTag> FromString(std::string_view tag) const;
   // Internal usage.
-  LanguageTag FromIcu4xLocale(
-      const base::i18n::internal::Icu4xLocale& icu_locale) const;
+  LanguageTag FromIcu4xLocale(const internal::Icu4xLocale& icu_locale) const;
 
  private:
   class Impl;
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace base
+}  // namespace base::i18n
 
 #endif  // BASE_I18N_TAG_CONVERTERS_H_

@@ -26,17 +26,18 @@
 
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "base/check_is_test.h"
-#include "third_party/boringssl/src/include/openssl/hpke.h"
+#include "crypto/hpke.h"
+#include "crypto/keypair.h"
 #endif
 
 #if !BUILDFLAG(IS_CHROMEOS)
 // Prod key for feedback encryption.
 // To debug the workflow with a dev key, or replace the prod key, please see
 // google3/analysis/uma/tools/extract_public_key.py for more information.
-const std::array<uint8_t, X25519_PUBLIC_VALUE_LEN> kFeedbackEncryptionPublicKey{
-    0x21, 0x4f, 0x93, 0x34, 0x1f, 0x3a, 0xf8, 0xcb, 0x90, 0xd8, 0x13,
-    0x4c, 0x42, 0x74, 0x77, 0x81, 0x1b, 0x68, 0x1e, 0xe8, 0xc3, 0x49,
-    0x8b, 0x68, 0x10, 0x56, 0xb0, 0xf8, 0xc0, 0xd2, 0x61, 0x01};
+const auto kFeedbackEncryptionPublicKey = std::to_array<uint8_t>(
+    {0x21, 0x4f, 0x93, 0x34, 0x1f, 0x3a, 0xf8, 0xcb, 0x90, 0xd8, 0x13,
+     0x4c, 0x42, 0x74, 0x77, 0x81, 0x1b, 0x68, 0x1e, 0xe8, 0xc3, 0x49,
+     0x8b, 0x68, 0x10, 0x56, 0xb0, 0xf8, 0xc0, 0xd2, 0x61, 0x01});
 #endif
 
 // Exits the browser with a helpful error message.
@@ -128,58 +129,21 @@ std::string GetStringFromDict(const base::DictValue& dict,
 VariationsStateEncryptionStatus EncryptStringWithPublicKey(
     const std::string& plaintext,
     std::vector<uint8_t>* ciphertext,
-    base::span<const uint8_t> public_key,
-    size_t* enc_len = nullptr) {
+    const crypto::keypair::PublicKey& pubkey) {
   if (plaintext.empty()) {
     return VariationsStateEncryptionStatus::kEmptyInput;
   }
-  bssl::ScopedEVP_HPKE_CTX sender_context;
-
-  // The vector will hold the encapsulated shared secret "enc" followed by the
-  // symmetrically encrypted ciphertext "ct". Start with a size big enough for
-  // the shared secret.
-  ciphertext->resize(EVP_HPKE_MAX_ENC_LENGTH);
-  size_t encapsulated_shared_secret_len;
-
-  if (!EVP_HPKE_CTX_setup_sender(
-          /*ctx=*/sender_context.get(),
-          /*out_enc=*/ciphertext->data(),
-          /*out_enc_len=*/&encapsulated_shared_secret_len,
-          /*max_enc=*/ciphertext->size(),
-          /*kem=*/EVP_hpke_x25519_hkdf_sha256(),
-          /*kdf=*/EVP_hpke_hkdf_sha256(),
-          /*aead=*/EVP_hpke_aes_256_gcm(),
-          /*peer_public_key=*/public_key.data(),
-          /*peer_public_key_len=*/public_key.size(),
-          /*info=*/nullptr,
-          /*info_len=*/0)) {
-    DVLOG(1) << "hpke setup failed";
-    return VariationsStateEncryptionStatus::kHpkeSetupFailure;
-  }
-  if (enc_len != nullptr) {
-    *enc_len = encapsulated_shared_secret_len;
-  }
-  // This vector holds encapsulated shared secret and encrypted text.
-  // The encrypted text can be longer so we need to reserve enough length.
-  ciphertext->resize(encapsulated_shared_secret_len + plaintext.length() +
-                     EVP_HPKE_CTX_max_overhead(sender_context.get()));
-  auto ciphertext_span =
-      base::span(*ciphertext).subspan(encapsulated_shared_secret_len);
-  size_t ciphertext_len;
-
-  if (!EVP_HPKE_CTX_seal(
-          /*ctx=*/sender_context.get(),
-          /*out=*/ciphertext_span.data(),
-          /*out_len=*/&ciphertext_len,
-          /*max_out_len=*/ciphertext_span.size(),
-          /*in=*/reinterpret_cast<const uint8_t*>(plaintext.c_str()),
-          /*in_len=*/plaintext.length(),
-          /*ad=*/nullptr,
-          /*ad_len=*/0)) {
-    DVLOG(1) << "hpke seal failed";
+  constexpr crypto::hpke::HpkeParams kParams = {
+      .kem = crypto::hpke::KemType::kX25519HkdfSha256,
+      .kdf = crypto::hpke::KdfType::kHkdfSha256,
+      .aead = crypto::hpke::AeadType::kAes256Gcm,
+  };
+  std::optional<std::vector<uint8_t>> sealed = crypto::hpke::Seal(
+      kParams, pubkey, base::as_byte_span(plaintext), {}, {});
+  if (!sealed.has_value()) {
     return VariationsStateEncryptionStatus::kHpkeSealFailure;
   }
-  ciphertext->resize(encapsulated_shared_secret_len + ciphertext_len);
+  *ciphertext = *sealed;
   return VariationsStateEncryptionStatus::kSuccess;
 }
 #endif
@@ -318,18 +282,18 @@ bool VariationsCommandLine::WriteToString(std::string* serialized_json) const {
 #if !BUILDFLAG(IS_CHROMEOS)
 VariationsStateEncryptionStatus VariationsCommandLine::EncryptToString(
     std::vector<uint8_t>* ciphertext) const {
-  return EncryptStringWithPublicKey(ToString(), ciphertext,
-                                    kFeedbackEncryptionPublicKey);
+  std::optional<crypto::keypair::PublicKey> key =
+      crypto::keypair::PublicKey::FromX25519PublicKey(
+          kFeedbackEncryptionPublicKey);
+  return EncryptStringWithPublicKey(ToString(), ciphertext, *key);
 }
 
 VariationsStateEncryptionStatus
 VariationsCommandLine::EncryptToStringForTesting(
     std::vector<uint8_t>* ciphertext,
-    base::span<const uint8_t> public_key,
-    size_t* enc_len) const {
+    const crypto::keypair::PublicKey& public_key) const {
   CHECK_IS_TEST();
-  return EncryptStringWithPublicKey(ToString(), ciphertext, public_key,
-                                    enc_len);
+  return EncryptStringWithPublicKey(ToString(), ciphertext, public_key);
 }
 #endif
 

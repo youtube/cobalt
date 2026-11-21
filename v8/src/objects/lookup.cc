@@ -19,8 +19,8 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/js-shared-array-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-shared-array.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/property-details.h"
@@ -131,9 +131,11 @@ void LookupIterator::NextInternal(Tagged<Map> orig_map,
       // know which question to ask, we assume the lookup succeeds.
       switch (state_) {
         // https://webidl.spec.whatwg.org/#dfn-named-property-visibility says a
-        // second interceptor on the prototype chain is invisible.
+        // second named interceptor on the prototype chain is invisible. This
+        // only applies to named interceptors, not indexed ones.
         case INTERCEPTOR:
-          continue;
+          if (!is_element) continue;
+          break;
         case ACCESS_CHECK: {
           // If an access check fails, we assume the lookup succeeds.
           if (HasAccess()) {

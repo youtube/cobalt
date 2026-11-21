@@ -5,6 +5,7 @@
 #ifndef BASE_PROCESS_PROCESS_H_
 #define BASE_PROCESS_PROCESS_H_
 
+#include <iosfwd>
 #include <string_view>
 
 #include "base/base_export.h"
@@ -331,6 +332,9 @@ class BASE_EXPORT Process {
 
 BASE_EXPORT const char* ProcessPriorityToString(
     Process::Priority process_priority);
+
+BASE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                     Process::Priority priority);
 
 #if BUILDFLAG(IS_CHROMEOS)
 // Exposed for testing.

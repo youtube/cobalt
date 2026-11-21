@@ -69,8 +69,7 @@ class ZeroSuggestPrefetchTabHelperBrowserTest : public InProcessBrowserTest {
         std::make_unique<testing::NiceMock<MockAutocompleteController>>(
             std::move(client_), 0);
     controller_ = controller.get();
-    browser()
-        ->window()
+    BrowserWindow::FromBrowser(browser())
         ->GetLocationBar()
         ->GetOmniboxController()
         ->SetAutocompleteControllerForTesting(std::move(controller));

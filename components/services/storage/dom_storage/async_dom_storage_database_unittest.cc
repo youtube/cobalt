@@ -144,9 +144,6 @@ TEST_P(AsyncDomStorageDatabaseTest,
 
     ExpectEqualsMapMetadataSpan(read_metadata.map_metadata,
                                 expected_map_metadata);
-
-    // Local storage does not store the next map id number.
-    EXPECT_EQ(read_metadata.next_map_id, std::nullopt);
   }
 
   // Delete the first and third storage keys.
@@ -160,7 +157,6 @@ TEST_P(AsyncDomStorageDatabaseTest,
 
   DomStorageDatabase::Metadata read_metadata;
   ASSERT_NO_FATAL_FAILURE(ReadAllMetadataSync(*database, &read_metadata));
-  EXPECT_EQ(read_metadata.next_map_id, std::nullopt);
 
   // Add the second and fourth storage keys as expected.
   std::vector<DomStorageDatabase::MapMetadata> expected_metadata_after_delete;

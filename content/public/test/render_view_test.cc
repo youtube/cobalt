@@ -217,8 +217,10 @@ class RendererBlinkPlatformImplTestOverrideImpl
     : public RendererBlinkPlatformImpl {
  public:
   explicit RendererBlinkPlatformImplTestOverrideImpl(
-      blink::scheduler::WebThreadScheduler* scheduler)
-      : RendererBlinkPlatformImpl(scheduler) {}
+      blink::scheduler::WebThreadScheduler* scheduler,
+      scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner)
+      : RendererBlinkPlatformImpl(scheduler, std::move(io_thread_task_runner)) {
+  }
 
   // Get rid of the dependency to the sandbox, which is not available in
   // RenderViewTest.
@@ -269,7 +271,8 @@ RenderViewTest::CustomTaskEnvironment::blink_platform() {
   return blink_platform_impl_.get();
 }
 
-void RenderViewTest::CustomTaskEnvironment::SetUp() {
+void RenderViewTest::CustomTaskEnvironment::SetUp(
+    scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner) {
   blink::Platform::InitializeBlink();
 
   main_thread_scheduler_ =
@@ -277,7 +280,7 @@ void RenderViewTest::CustomTaskEnvironment::SetUp() {
           sequence_manager());
   blink_platform_impl_ =
       std::make_unique<RendererBlinkPlatformImplTestOverrideImpl>(
-          main_thread_scheduler_.get());
+          main_thread_scheduler_.get(), std::move(io_thread_task_runner));
 
   DeferredInitFromSubclass(nullptr);
 }
@@ -452,7 +455,7 @@ void RenderViewTest::SetUp() {
 
   // Blink needs to be initialized before calling CreateContentRendererClient()
   // because it uses Blink internally.
-  task_environment_.SetUp();
+  task_environment_.SetUp(render_thread_->GetIOTaskRunner());
   blink::Initialize(task_environment_.blink_platform(), &binders_,
                     task_environment_.main_thread_scheduler());
 

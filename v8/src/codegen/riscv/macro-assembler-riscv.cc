@@ -333,9 +333,6 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
 #if V8_STATIC_ROOTS_BOOL
   LoadCompressedMap(scratch1, destination);
   for (auto& [type, label] : cases) {
-    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
-      continue;
-    }
     BranchInstanceTypeWithUniqueCompressedMap(label, eq, scratch1, scratch2,
                                               type);
   }
@@ -343,9 +340,6 @@ void MacroAssembler::LoadTrustedUnknownPointerField(
   LoadMap(scratch1, destination);
   Lh(scratch1, FieldMemOperand(scratch1, offsetof(Map, instance_type_)));
   for (auto& [type, label] : cases) {
-    if (V8_ENABLE_SANDBOX_BOOL && type == CODE_TYPE) {
-      continue;
-    }
     Branch(label, eq, scratch1, Operand(type));
   }
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -2378,6 +2372,24 @@ void MacroAssembler::Sd(Register rd, const MemOperand& rs, Trapper&& trapper) {
   AlignedStoreHelper(rd, rs, fn);
 }
 #endif
+
+void MacroAssembler::LoadHalf(FPURegister fd, const MemOperand& src,
+                              Trapper&& trapper) {
+  auto fn = [&](FPURegister target, const MemOperand& source) {
+    trapper(pc_offset());
+    flh(target, source.rm(), source.offset());
+  };
+  AlignedLoadHelper(fd, src, fn);
+}
+
+void MacroAssembler::StoreHalf(FPURegister fs, const MemOperand& src,
+                               Trapper&& trapper) {
+  auto fn = [&](FPURegister value, const MemOperand& source) {
+    trapper(pc_offset());
+    fsh(value, source.rm(), source.offset());
+  };
+  AlignedStoreHelper(fs, src, fn);
+}
 
 void MacroAssembler::LoadFloat(FPURegister fd, const MemOperand& src,
                                Trapper&& trapper) {

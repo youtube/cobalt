@@ -162,7 +162,10 @@ class RecentModel : public KeyedService {
   struct CallContext {
     CallContext(const SearchCriteria& search_criteria,
                 GetRecentFilesCallback callback);
-    CallContext(CallContext&& context);
+    CallContext(const CallContext&) = delete;
+    CallContext& operator=(const CallContext&) = delete;
+    CallContext(CallContext&&) = delete;
+    CallContext& operator=(CallContext&&) = delete;
     ~CallContext();
 
     // The parameters of the last query. These are used to check if the

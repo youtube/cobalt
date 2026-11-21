@@ -340,7 +340,7 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   };
 
   struct PasswordInfo {
-    FieldRef password_field;
+    FieldRendererId password_field_id;
     PasswordFormFillData fill_data;
     // The user accepted a suggestion from a dropdown on a password field.
     bool password_field_suggestion_was_accepted = false;
@@ -404,7 +404,7 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
     void ShowValue(blink::WebInputElement element);
 
     bool was_user_gesture_seen_;
-    std::vector<FieldRef> elements_;
+    std::vector<FieldRendererId> element_ids_;
   };
 
   // The RenderFrame* is nullptr while the PasswordAutofillAgent is pending
@@ -616,15 +616,15 @@ class PasswordAutofillAgent : public content::RenderFrameObserver,
   // password manager has fill information for.
   //
   // After any mutation, `last_supplied_password_info_iter_` must be updated.
-  std::map<FieldRef, PasswordInfo> web_input_to_password_info_;
+  std::map<FieldRendererId, PasswordInfo> web_input_to_password_info_;
 
   // A (sort-of) reverse map to `web_input_to_password_info_`.
-  std::map<FieldRef, FieldRef> password_to_username_;
+  std::map<FieldRendererId, FieldRendererId> password_to_username_;
 
   // The chronologically last insertion into `web_input_to_password_info_`.
   // This iterator always points to `web_input_to_password_info_`.
-  std::map<FieldRef, PasswordInfo>::iterator last_supplied_password_info_iter_ =
-      web_input_to_password_info_.end();
+  std::map<FieldRendererId, PasswordInfo>::iterator
+      last_supplied_password_info_iter_ = web_input_to_password_info_.end();
 
   // Set of fields that are reliably identified as non-credential fields.
   base::flat_set<FieldRendererId> suggestion_banned_fields_;

@@ -81,4 +81,15 @@ TEST_F(NetUtilTest, SecureHostsMatch) {
   EXPECT_FALSE(SecureHostsMatch(@"login.example.co.uk", @"co.uk"));
 }
 
+TEST_F(NetUtilTest, HostForIdentifier) {
+  EXPECT_NSEQ(HostForIdentifier(@"https://example.com/login"), @"example.com");
+  EXPECT_NSEQ(HostForIdentifier(@"http://www.google.com/path"),
+              @"www.google.com");
+  EXPECT_NSEQ(HostForIdentifier(@"android://hash@com.test.package"),
+              @"android://hash@com.test.package");
+  EXPECT_NSEQ(HostForIdentifier(@"com.example.MyApp"), @"com.example.MyApp");
+  EXPECT_NSEQ(HostForIdentifier(@"example.com"), @"example.com");
+  EXPECT_NSEQ(HostForIdentifier(nil), nil);
+}
+
 }  // namespace credential_provider

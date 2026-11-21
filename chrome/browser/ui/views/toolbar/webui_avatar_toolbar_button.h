@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
+#include "components/browser_apis/ui_controllers/toolbar/icon_handle.h"
 #include "ui/views/controls/button/button.h"
 
 class Browser;
@@ -89,6 +90,8 @@ class WebUIAvatarToolbarButton : public AvatarToolbarButtonInterface {
   bool hovered_ = false;
   bool focused_ = false;
   bool is_showing_iph_promo_ = false;
+
+  toolbar_ui_api::IconHandle avatar_icon_handle_;
 
   base::WeakPtrFactory<WebUIAvatarToolbarButton> weak_ptr_factory_{this};
 };

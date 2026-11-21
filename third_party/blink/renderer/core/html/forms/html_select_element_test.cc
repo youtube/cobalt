@@ -1154,19 +1154,17 @@ TEST_F(HTMLSelectElementTest, DescendantCounters) {
   };
   auto options_slot = [select]() {
     return select->GetShadowRoot()->getElementById(
-        shadow_element_names::kSelectOptions);
+        shadow_element_names::kPseudoSelectOptionsSlot);
   };
 
-  EXPECT_EQ(select->ChildrenDescendantCounts().at(c1).num_options, 0);
-  EXPECT_EQ(select->ChildrenDescendantCounts().at(c1).num_inputs, 1);
+  EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c1));
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c2).num_options, 0);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c2).num_inputs, 1);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_options, 1);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_inputs, 1);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c4).num_options, 0);
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c4).num_inputs, 1);
-  EXPECT_EQ(select->ChildrenDescendantCounts().at(c5).num_options, 1);
-  EXPECT_EQ(select->ChildrenDescendantCounts().at(c5).num_inputs, 0);
+  EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c5));
   EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c6));
   EXPECT_EQ(select->NumDescendantInputs(), 4);
   EXPECT_TRUE(!!input_slot());
@@ -1209,6 +1207,32 @@ TEST_F(HTMLSelectElementTest, DescendantCounters) {
   EXPECT_EQ(c4->AssignedSlot(), input_slot());
   EXPECT_EQ(c5->AssignedSlot(), options_slot());
   EXPECT_EQ(c6->AssignedSlot(), options_slot());
+
+  // Move input from grand-child to direct child
+  auto* c3i = GetElementById("c3i");
+  select->appendChild(c3i);
+
+  // The input is a direct child, so it shouldn't be in the map
+  EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c3i));
+  // The wrapper c3 should no longer have any inputs tracked
+  EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_inputs, 0);
+  // The wrapper c3 still has its option
+  EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_options, 1);
+  // The total number of descendant inputs should remain unchanged
+  EXPECT_EQ(select->NumDescendantInputs(), 2);
+
+  // Ensure the DOM and slots are still correct
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c3i->AssignedSlot(), input_slot());
+
+  // Restore state to not break the rest of the test
+  c3->appendChild(c3i);
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  EXPECT_EQ(c3i->AssignedSlot(), nullptr);
+  EXPECT_FALSE(select->ChildrenDescendantCounts().Contains(c3i));
+  EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_inputs, 1);
+  EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_options, 1);
+  EXPECT_EQ(select->NumDescendantInputs(), 2);
 
   GetElementById("c3o")->remove();
   EXPECT_EQ(select->ChildrenDescendantCounts().at(c3).num_options, 0);

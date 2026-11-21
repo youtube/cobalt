@@ -113,6 +113,28 @@ class DesktopDataControlsDialogTest : public InProcessBrowserTest,
       dialog_close_loops_;
 };
 
+// Observer that simulates the observed WebContents going away while the modal
+// dialog widget is still being created inside Show(). This mirrors what can
+// happen on platforms where showing a tab-modal dialog spins a nested run
+// loop.
+class WebContentsDestroyedDuringShowObserver
+    : public DesktopDataControlsDialog::TestObserver {
+ public:
+  void OnWidgetInitialized(DesktopDataControlsDialog* dialog,
+                           views::DialogDelegate* dialog_delegate) override {
+    dialog->WebContentsDestroyed();
+  }
+
+  void OnDestructed(DesktopDataControlsDialog* dialog) override {
+    ++destructed_count_;
+  }
+
+  size_t destructed_count() const { return destructed_count_; }
+
+ private:
+  size_t destructed_count_ = 0;
+};
+
 }  // namespace
 
 IN_PROC_BROWSER_TEST_P(DesktopDataControlsDialogUiTest, DefaultUi) {
@@ -138,6 +160,19 @@ IN_PROC_BROWSER_TEST_F(DesktopDataControlsDialogTest, ShowDialogMultipleTimes) {
 
   ASSERT_EQ(constructor_called_count_, 1u);
   CloseDialogsAndWait();
+}
+
+IN_PROC_BROWSER_TEST_F(InProcessBrowserTest,
+                       WebContentsDestroyedWhileShowingWidget) {
+  WebContentsDestroyedDuringShowObserver observer;
+
+  DesktopDataControlsDialogFactory::GetInstance()->ShowDialogIfNeeded(
+      browser()->tab_strip_model()->GetActiveWebContents(),
+      DataControlsDialog::Type::kClipboardCopyBlock);
+
+  // The dialog should have been closed and destroyed synchronously once Show()
+  // detected that its WebContents went away during widget creation.
+  EXPECT_EQ(observer.destructed_count(), 1u);
 }
 
 IN_PROC_BROWSER_TEST_F(DesktopDataControlsDialogTest,

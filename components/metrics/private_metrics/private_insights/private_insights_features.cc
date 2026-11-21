@@ -16,6 +16,17 @@ const base::FeatureParam<base::TimeDelta> kPrivateInsightsUploadInterval{
 BASE_FEATURE(kPrivateInsightsPaicErrorReporting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+const base::FeatureParam<bool> kFcpUseAttestationTransparencyVerifier{
+    &kPrivateInsightsFeature, "fcp_use_attestation_transparency_verifier",
+    false};
+
+const base::FeatureParam<std::string> kFcpServerUri{&kPrivateInsightsFeature,
+                                                    "fcp_server_uri", ""};
+
+const base::FeatureParam<std::string> kFcpPopulationNameContextualCues{
+    &kPrivateInsightsFeature, "fcp_population_name_contextual_cues",
+    "private_insights/contextual_cues"};
+
 const base::FeatureParam<base::TimeDelta> kFcpConditionPollingPeriod{
     &kPrivateInsightsFeature, "fcp_condition_polling_period",
     base::TimeDelta()};
@@ -52,5 +63,8 @@ const base::FeatureParam<base::TimeDelta> kFcpTransientErrorsRetryDelay{
 const base::FeatureParam<base::TimeDelta> kFcpPermanentErrorsRetryDelay{
     &kPrivateInsightsFeature, "fcp_permanent_errors_retry_delay",
     base::Hours(4)};
+
+const base::FeatureParam<int> kMaxContextualCueEvents{
+    &kPrivateInsightsFeature, "max_contextual_cue_events", 20};
 
 }  // namespace private_insights

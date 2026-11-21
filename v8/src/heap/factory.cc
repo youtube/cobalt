@@ -65,9 +65,9 @@
 #include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-regexp-inl.h"
-#include "src/objects/js-shared-array-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-shared-array.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/managed-inl.h"
@@ -5154,18 +5154,15 @@ DirectHandle<Context> Factory::CreatePromiseResolvingFunctionsContext(
       isolate()->native_context(),
       PromiseBuiltins::PromiseResolvingFunctionContextSlot::
           kPromiseContextLength);
-  context->SetNoCell(
-      PromiseBuiltins::PromiseResolvingFunctionContextSlot::kPromiseSlot,
-      *promise);
   context->SetNoCell(PromiseBuiltins::PromiseResolvingFunctionContextSlot::
-                         kAlreadyResolvedSlot,
-                     *false_value());
+                         kPromiseIfNotResolvedSlot,
+                     *promise);
   context->SetNoCell(
       PromiseBuiltins::PromiseResolvingFunctionContextSlot::kDebugEventSlot,
       *false_value());
   DCHECK_EQ(PromiseBuiltins::PromiseResolvingFunctionContextSlot::
                 kPromiseContextLength,
-            Context::MIN_CONTEXT_SLOTS + 3);
+            Context::MIN_CONTEXT_SLOTS + 2);
   return context;
 }
 

@@ -3683,7 +3683,7 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
 
-  framer_.set_process_timestamps(true);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -3698,7 +3698,12 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
   EXPECT_EQ(kSmallLargestObserved, LargestAcked(frame));
   ASSERT_EQ(4254u, frame.packets.NumPacketsSlow());
   EXPECT_EQ(4u, frame.packets.NumIntervals());
-  EXPECT_EQ(2u, frame.received_packet_times.size());
+  if (version_.IsIetfQuic()) {
+    EXPECT_EQ(2u, frame.received_packet_times.size());
+  } else {
+    // Q046 code can parse ACK timestamps, but it never processes them.
+    EXPECT_EQ(0u, frame.received_packet_times.size());
+  }
 }
 
 TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
@@ -3773,7 +3778,7 @@ TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(packet_ietf));
 
-  framer_.set_process_timestamps(true);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
@@ -3853,7 +3858,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampsAndEcn) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(packet_ietf));
 
-  framer_.set_process_timestamps(true);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
@@ -3925,7 +3930,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampWithExponent) {
       AssemblePacketFromFragments(packet_ietf));
 
   framer_.set_local_receive_timestamps_exponent(3);
-  framer_.set_process_timestamps(true);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
@@ -3988,7 +3993,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampGapTooHigh) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(packet_ietf));
 
-  framer_.set_process_timestamps(true);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
                                "Receive delta largest acked too high."));
@@ -4044,7 +4049,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampCountTooHigh) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(packet_ietf));
 
-  framer_.set_process_timestamps(true);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
                                "Receive timestamp delta too high."));
@@ -4098,7 +4103,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaTooHigh) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(packet_ietf));
 
-  framer_.set_process_timestamps(true);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
                                "Receive timestamp count too high."));
@@ -6637,7 +6642,6 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
   };
   // clang-format on
 
-  framer_.set_process_timestamps(true);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -6739,7 +6743,6 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFramePacketOutOfOrder) {
   };
   // clang-format on
 
-  framer_.set_process_timestamps(true);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -6833,7 +6836,6 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsAndEcnFrame) {
   };
   // clang-format on
 
-  framer_.set_process_timestamps(true);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -6935,7 +6937,6 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameExceedsMaxTimestamps) {
   };
   // clang-format on
 
-  framer_.set_process_timestamps(true);
   framer_.set_peer_max_receive_timestamps_per_ack(4);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
@@ -7043,7 +7044,6 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameWithExponentEncoding) {
   };
   // clang-format on
 
-  framer_.set_process_timestamps(true);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   framer_.set_peer_receive_timestamps_exponent(3);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -7060,7 +7060,6 @@ TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsWithMultipleRanges) {
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
 
@@ -7114,7 +7113,6 @@ TEST_P(QuicFramerTest,
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(2);
   framer_.set_peer_max_receive_timestamps_per_ack(2);
 
@@ -7163,7 +7161,6 @@ TEST_P(QuicFramerTest,
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   framer_.set_local_receive_timestamps_exponent(3);
@@ -7213,7 +7210,6 @@ TEST_P(QuicFramerTest,
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   framer_.set_local_receive_timestamps_exponent(3);
@@ -7268,7 +7264,6 @@ TEST_P(QuicFramerTest, AckReceiveTimestamps) {
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   framer_.set_local_receive_timestamps_exponent(3);
@@ -7318,7 +7313,6 @@ TEST_P(QuicFramerTest, AckReceiveTimestampsDifferentExponents) {
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
 
@@ -7372,7 +7366,6 @@ TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsPacketOutOfOrder) {
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
 
@@ -7419,7 +7412,6 @@ TEST_P(QuicFramerTest, AckReceiveTimestampsTimeOutOfOrder) {
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   framer_.set_peer_receive_timestamps_exponent(3);
 
@@ -7450,7 +7442,6 @@ TEST_P(QuicFramerTest, ProcessIetfAckReceiveTimestampsExceedsMaxTimestamps) {
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   framer_.set_local_receive_timestamps_exponent(3);
@@ -7496,7 +7487,6 @@ TEST_P(QuicFramerTest, IetfAckReceiveTimestampsTruncate) {
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8192);
   framer_.set_peer_max_receive_timestamps_per_ack(8192);
   framer_.set_local_receive_timestamps_exponent(3);
@@ -7539,7 +7529,6 @@ TEST_P(QuicFramerTest, IetfAckReceiveTimestampsAckRangeTruncation) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  framer_.set_process_timestamps(true);
   framer_.set_local_max_receive_timestamps_per_ack(8);
   framer_.set_peer_max_receive_timestamps_per_ack(8);
   framer_.set_local_receive_timestamps_exponent(3);
@@ -7587,6 +7576,89 @@ TEST_P(QuicFramerTest, IetfAckReceiveTimestampsAckRangeTruncation) {
             processed_ack_frame.packets.Max());
   // The receive timestamps are also truncated.
   EXPECT_TRUE(processed_ack_frame.received_packet_times.empty());
+}
+
+TEST_P(QuicFramerTest, AckReceiveTimestampsDisabledByDefault) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  // Do NOT configure peer_max_receive_timestamps_per_ack or
+  // local_max_receive_timestamps_per_ack. They should default to 0.
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicAckFrame ack_frame = InitAckFrame(kSmallLargestObserved);
+  ack_frame.received_packet_times = PacketTimeVector{
+      {kSmallLargestObserved - 5, CreationTimePlus((0x29ff << 3))},
+      {kSmallLargestObserved - 4, CreationTimePlus((0x29ff << 3))},
+  };
+  ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  QuicFrames frames = {QuicFrame(&ack_frame)};
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
+  // Timestamps should not be sent.
+  EXPECT_TRUE(frame.received_packet_times.empty());
+}
+
+TEST_P(QuicFramerTest, AckReceiveTimestampsErrorByDefault) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  // Configure peer_max_receive_timestamps_per_ack on the client side so it
+  // generates a packet with timestamps.
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicAckFrame ack_frame = InitAckFrame(kSmallLargestObserved);
+  ack_frame.received_packet_times = PacketTimeVector{
+      {kSmallLargestObserved - 5, CreationTimePlus((0x29ff << 3))},
+      {kSmallLargestObserved - 4, CreationTimePlus((0x29ff << 3))},
+  };
+  ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  QuicFrames frames = {QuicFrame(&ack_frame)};
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // local_max_receive_timestamps_per_ack should be 0 by default.
+
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_FRAME_DATA));
+  EXPECT_EQ("Unsupported frame type.", framer_.detailed_error());
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlockMaxLength) {
@@ -15825,7 +15897,7 @@ TEST_P(QuicFramerTest, CheckAckPacketSizes) {
   // - The timestamp count always has to be included, meaning 1 extra byte.
   // - The timestamps themselves are truncatable, but the range specified above
   //   is 3 bytes.
-  framer_.set_process_timestamps(true);
+  framer_.set_peer_max_receive_timestamps_per_ack(1000);
   ack_frame.ecn_counters = std::nullopt;
   EXPECT_THAT(GetAckFrameSizes(ack_frame), ElementsAre(9, 12));
   ack_frame.ecn_counters = QuicEcnCounts(1, 2, 3);
@@ -15872,7 +15944,7 @@ TEST_P(QuicFramerTest, CheckAckPacketSizesWithTwoRanges) {
   // - The timestamps themselves are truncatable 3 extra bytes.
   // This means that the minimum size is now 12 bytes; the extra 3 bytes of
   // timestamps will be truncated before the extra 2 bytes of ACK ranges.
-  framer_.set_process_timestamps(true);
+  framer_.set_peer_max_receive_timestamps_per_ack(1000);
   ack_frame.received_packet_times.push_back(
       {QuicPacketNumber(3), CreationTimePlus(11)});
   EXPECT_THAT(GetAckFrameSizes(ack_frame), ElementsAre(12, 14, 17));

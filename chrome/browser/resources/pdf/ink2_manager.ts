@@ -9,6 +9,7 @@ import type {AnnotationBrush, Color, Point, TextAnnotation, TextAnnotationMessag
 import {AnnotationBrushType, TextAlignment, TextAnnotationSource, TextStyle, TextTypeface} from './constants.js';
 import {PluginController, PluginControllerEventType} from './controller.js';
 import {screenToPageCoordinates} from './ink_text_annotation_utils.js';
+import {colorsEqual} from './pdf_viewer_utils.js';
 import {UndoRedoStack} from './undo_redo_stack.js';
 import type {Viewport, ViewportRect} from './viewport.js';
 
@@ -23,10 +24,6 @@ export const DEFAULT_TEXTBOX_WIDTH: number = 222;
 // This value is held constant regardless of zoom due to the rendering issue.
 export const MIN_TEXTBOX_SIZE_PX = 24;
 
-export function colorsEqual(color1: Color, color2: Color): boolean {
-  return color1.r === color2.r && color1.g === color2.g &&
-      color1.b === color2.b;
-}
 
 export function stylesEqual(style1: TextStyles, style2: TextStyles): boolean {
   return style1.bold === style2.bold && style1.italic === style2.italic;

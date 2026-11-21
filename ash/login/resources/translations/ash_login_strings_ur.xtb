@@ -14,6 +14,25 @@
 <translation id="1185924365081634987">یہ نیٹ ورک خرابی حل کرنے کیلئے آپ <ph name="GUEST_SIGNIN_LINK_START" />مہمان کے بطور براؤز<ph name="GUEST_SIGNIN_LINK_END" /> کرنے کی بھی کوشش کر سکتے ہیں۔</translation>
 <translation id="1201402288615127009">اگلا</translation>
 <translation id="1222835797152767346">‏سائن ان کرنا آسان بنانے کیلئے ایک PIN سیٹ کریں</translation>
+<translation id="1346669614038013595">‏<ph name="BEGIN_H3" />ڈیبگ کرنے کی خصوصیات<ph name="END_H3" />
+    <ph name="BR" />
+    اپنے آلے پر حسب ضرورت کوڈ انسٹال اور ٹیسٹ کرنے کے لیے، آپ اپنے Chrome OS آلے پر ڈیبگ کرنے کی خصوصیات کو فعال کر سکتے ہیں۔ اس سے آپ کو ان چیزوں کی اجازت مل جائے گی:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs کی توثیق ہٹائیں تاکہ آپ OS فائلوں میں ترمیم کر سکیں
+      <ph name="LIST_ITEM" />معیاری ٹیسٹ کی کلیدوں کا استعمال کر کے آلے پر SSH رسائی فعال کریں تاکہ آپ آلے تک رسائی حاصل کرنے کے لیے <ph name="BEGIN_CODE" />'cros flash‘<ph name="END_CODE" /> جیسے ٹولز کا استعمال کر سکیں
+      <ph name="LIST_ITEM" />USB سے بوٹ کرنے کو فعال کریں تاکہ آپ ایک USB ڈرائیو سے OS امیج انسٹال کر سکیں
+      <ph name="LIST_ITEM" />dev اور سسٹم root لاگ ان پاس ورڈ دونوں کو ایک حسب ضرورت قدر پر سیٹ کریں تاکہ آپ دستی طور پر آلے میں SSH کر سکیں
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          فعال ہونے پر، ڈیبگ کرنے کی زیادہ تر خصوصیات powerwash انجام دینے یا انٹرپرائز کے ذریعے نظم کردہ کسی آلے پر ڈیٹا صاف کرنے کے بعد بھی فعال رہیں گی۔ ڈیبگ کرنے کی تمام خصوصیات کو مکمل طور پر غیر فعال کرنے کے لیے، ChromeOS کی بازيابی کی کارروائی مکمل کریں (https://support.google.com/chromebook/answer/1080595)۔
+
+          <ph name="BR" />
+          <ph name="BR" />
+          ڈیبگ کرنے کی خصوصیات کے بارے میں مزید معلومات کے لیے دیکھیں:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />نوٹ:<ph name="END_BOLD" />  کاروائی کے دوران سسٹم ریبوٹ کرے گا۔</translation>
 <translation id="1347625331607114917">‏اپنے Android فون پر کوڈ کی توثیق کریں</translation>
 <translation id="1347975661240122359">بیٹری کے <ph name="BATTERY_LEVEL" />% پہنچنے پر اپ ڈیٹ شروع ہو جائے گا۔</translation>
 <translation id="1375938286942050085">سیٹ اپ مکمل ہو گیا ہے! اپنے آلے کو اگلی گیمنگ کے لیے تیار کریں</translation>
@@ -126,9 +145,30 @@
 <translation id="503155457707535043">ایپس ڈاؤن لوڈ ہو رہی ہیں</translation>
 <translation id="5045550434625856497">غلط پاس ورڈ</translation>
 <translation id="5062930723426326933">سائن ان ناکام ہوگیا، براہ کرم انٹرنیٹ سے منسلک ہوں اور دوبارہ کوشش کریں۔</translation>
+<translation id="5107486920067578245">‏<ph name="BEGIN_PARAGRAPH1" />‫Google AI کے ساتھ لکھنے، منصوبہ بندی کرنے، سیکھنے اور بہت کچھ شروع کرنے کے لیے Gemini کے ساتھ چیٹ کریں۔<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />سیٹ اپ کے بعد، اپنی سکرین کے نیچے اپنے شیلف پر Gemini ایپ کو منتخب کر کے Gemini کا استعمال شروع کریں۔<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">براہ کرم پاور کے ماخذ میں اپنا <ph name="DEVICE_TYPE" /> پلگ کریں۔</translation>
 <translation id="5147516217412920887">کوڈ کی توثیق کرنے کیلئے، اپنے فون پر ہدایات کی پیروی کریں</translation>
 <translation id="5160857336552977725">اپنے <ph name="DEVICE_TYPE" /> میں سائن ان کریں</translation>
+<translation id="5171185788583376591">‏<ph name="BEGIN_H3" />ڈیبگ کرنے کی خصوصیات<ph name="END_H3" />
+          <ph name="BR" />
+          اپنے آلے پر حسب ضرورت کوڈ انسٹال اور ٹیسٹ کرنے کے لیے، آپ اپنے ChromeOS Flex آلے پر ڈیبگ کرنے کی خصوصیات کو فعال کر سکتے ہیں۔ اس سے آپ کو ان چیزوں کی اجازت مل جائے گی:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs کی توثیق ہٹائیں تاکہ آپ OS فائلوں میں ترمیم کر سکیں
+            <ph name="LIST_ITEM" />معیاری ٹیسٹ کی کلیدوں کا استعمال کر کے آلے پر SSH رسائی فعال کریں تاکہ آپ آلے تک رسائی حاصل کرنے کے لیے <ph name="BEGIN_CODE" />'cros flash‘<ph name="END_CODE" /> جیسے ٹولز کا استعمال کر سکیں
+            <ph name="LIST_ITEM" />USB سے بوٹ کرنے کو فعال کریں تاکہ آپ ایک USB ڈرائیو سے OS امیج انسٹال کر سکیں
+            <ph name="LIST_ITEM" />dev اور سسٹم root لاگ ان پاس ورڈ دونوں کو ایک حسب ضرورت قدر پر سیٹ کریں تاکہ آپ دستی طور پر آلے میں SSH کر سکیں
+          <ph name="END_LIST" />
+          <ph name="BR" />
+           فعال ہونے پر، ڈیبگ کرنے کی زیادہ تر خصوصیات powerwash انجام دینے یا انٹرپرائز کے ذریعے نظم کردہ کسی آلے پر ڈیٹا صاف کرنے کے بعد بھی فعال رہیں گی۔ ڈیبگ کرنے کی تمام خصوصیات کو مکمل طور پر غیر فعال کرنے کے لیے، ChromeOS کی بازيابی کی کارروائی مکمل کریں (https://support.google.com/chromebook/answer/1080595)۔
+
+      <ph name="BR" />
+      <ph name="BR" />
+      ڈیبگ کرنے کی خصوصیات کے بارے میں مزید معلومات کے لیے دیکھیں:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />نوٹ:<ph name="END_BOLD" />  کاروائی کے دوران سسٹم ریبوٹ کرے گا۔</translation>
 <translation id="523505283826916779">ایکسیسبیلٹی کی ترتیبات</translation>
 <translation id="5240931875940563122">‏Android فون سے سائن ان کریں</translation>
 <translation id="5255859108402770436">دوبارہ سائن ان کریں</translation>
@@ -193,6 +233,10 @@
 <translation id="6955698182324067397">‏آپ ChromeOS ڈیبگنگ کی خصوصیات فعال کر رہے رہیں جو sshd daemon تشکیل دیں گی اور USB ڈرائیورز سے بوٹنگ کو فعال کریں گی۔</translation>
 <translation id="6965382102122355670">ٹھیک ہے</translation>
 <translation id="6981982820502123353">ایکسیسبیلٹی</translation>
+<translation id="6984652455487792101">اگر آپ ایک پراکسی سرور استعمال کر رہے ہیں تو اپنی پراکسی کی ترتیبات چیک کریں یا
+        اپنے نیٹ ورک کے منتظم سے رابطہ کر کے چیک کریں کہ پراکسی
+       سرور کام کر رہا ہے۔ اگر آپ کو نہیں لگتا کہ آپ کو ایک
+       پراکسی سرور استعمال کرنا چاہیے تو اپنی <ph name="LINK_START" />پراکسی ترتیبات<ph name="LINK_END" /> ایڈجسٹ کریں۔</translation>
 <translation id="6996245928508281884">‏اپنے فون کے بلوٹوتھ اور Wi-Fi کو آن کریں</translation>
 <translation id="7077829361966535409">موجودہ پراکسی ترتیبات کا استعمال کر کے سائن ان صفحہ لوڈ ہونے میں ناکام ہوگیا۔ براہ کرم <ph name="GAIA_RELOAD_LINK_START" />دوبارہ سائن ان کرنے کی کوشش کریں<ph name="GAIA_RELOAD_LINK_END" /> یا مختلف <ph name="PROXY_SETTINGS_LINK_START" />پراکسی ترتیبات<ph name="PROXY_SETTINGS_LINK_END" /> استعمال کریں۔</translation>
 <translation id="7114054701490058191">پاس ورڈز مماثل نہیں ہیں</translation>
@@ -205,6 +249,9 @@
 <translation id="7345706641791090287">اپنے پاس ورڈ کی توثیق کریں</translation>
 <translation id="7352651011704765696">کچھ غلط ہو گیا</translation>
 <translation id="7476454130948140105">اپ ڈیٹ کے لیے بیٹری بہت کم ہے (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912">‏<ph name="BEGIN_PARAGRAPH1" />اندراج کرنے سے پہلے آپ کو TPM صاف کرنے کی ضرورت ہے تاکہ <ph name="DEVICE_OS" /> آلے کی ملکیت لے سکے۔<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />آپ TPM آلے کو مکمل طور پر آف بھی کر سکتے ہیں۔ آپ کا ڈیٹا اب بھی سافٹ ویئر مرموز کاری کے ساتھ محفوظ طریقے سے اسٹور کیا جائے گا لیکن کچھ حفاظتی خصوصیات جیسے ہارڈ ویئر کے ذریعے تعاون یافتہ سرٹیفیکیٹس غیر فعال ہو جائیں گے۔<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />آپ سسٹم کی BIOS/UEFI ترتیبات کو ریبوٹ کر کے اور درج کر کے اپنی TPM کی ترتیبات کو تبدیل کرسکتے ہیں۔ آلہ کے ماڈل کی بنیاد پر اقدامات مختلف ہوتے ہیں۔ مزید معلومات کے لیے، ریبوٹ کرنے سے پہلے <ph name="DEVICE_OS" /> دستاویز کو ایک علیحدہ آلہ پر کھولیں: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">اس <ph name="IDS_SHORT_PRODUCT_NAME" /> آلہ پر ڈیبگ کرنے کی خصوصیات فعال کریں</translation>
 <translation id="7553242001898162573">اپنا پاس ورڈ درج کریں</translation>
 <translation id="7556242789364317684">‏بدقسمتی سے، <ph name="SHORT_PRODUCT_NAME" /> آپ کی ترتیبات کو بازیافت کرنے سے قاصر ہے۔ خرابی ٹھیک کرنے کیلئے، <ph name="SHORT_PRODUCT_NAME" /> کو آپ کا آلہ Powerwash کے ساتھ ری سیٹ کرنا ضروری ہے۔</translation>
@@ -251,6 +298,10 @@
 <translation id="8452105022015742247">‏اپنے Android فون سے Google اکاؤنٹ کی معلومات کو منتقل کرنا</translation>
 <translation id="8524841856047224176">ویڈیو کالز وغیرہ کے لیے اپنے کیمرے کے پس منظر کو ذاتی نوعیت کا بنائیں</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" /> کے بارے میں مزید</translation>
+<translation id="8628232294964836490">‏QR کوڈ اسکین کرنے کیلئے، اپنے فون پر ہدایات کی پیروی کریں۔ یہ یقینی بنائیں کہ آپ کے فون کا بلوٹوتھ آن ہے۔
+        <ph name="BR" />
+        <ph name="BR" />
+        قریبی آلات کو بطور <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> دکھائی دے رہا ہے...</translation>
 <translation id="8655972064210167941">سائن ان ناکام ہو گیا کیونکہ آپ کے پاس ورڈز کی توثیق نہيں ہو سکی۔ براہ کرم اپنے منتظم سے رابطہ کریں یا دوبارہ کوشش کریں۔</translation>
 <translation id="8674903726754070732">‏بدقسمتی سے، آپ کا کمپیوٹر خراب ہارڈویئر ID کے ساتھ کنفیگر کیا ہوا ہے۔ یہ ChromeOS کو تازہ ترین سیکیورٹی اصلاحات کے ساتھ اپ ڈیٹ ہونے سے روکتا ہے اور آپ کے کمپیوٹر کو <ph name="BEGIN_BOLD" />نقصان دہ حملوں سے خطرہ ہو سکتا ہے<ph name="END_BOLD" />۔</translation>
 <translation id="8695139659682234808">سیٹ اپ کے بعد پیرنٹل کنٹرولز شامل کریں</translation>
@@ -264,10 +315,20 @@
 <translation id="8830796635868321089">موجودہ پراکسی ترتیبات کا استعمال کرتے ہوئے اپ ڈیٹ چیک ناکام ہو گیا۔ براہ کرم اپنی <ph name="PROXY_SETTINGS_LINK_START" />پراکسی کی ترتیبات<ph name="PROXY_SETTINGS_LINK_END" /> ایڈجسٹ کریں۔</translation>
 <translation id="885746075120788020">‏جب آپ اپنے Google اکاؤنٹ کے ساتھ سائن ان کریں گے تو آپ کی محفوظ کردہ ترجیحات اور سرگرمی کسی بھی ChromeOS آلہ پر تیار ہوں گی۔ آپ اس بات کا انتخاب کر سکتے ہیں کہ ترتیبات میں کس چیز کی مطابقت پذیری کرنی ہے۔</translation>
 <translation id="8875221558267407626">مواد کا خلاصہ کریں، پیچیدہ زبان کو سادہ بنائیں، یا سوالات پوچھیں</translation>
+<translation id="8913163265790894442">‏آسانی سے اپنے فون سے اپنے <ph name="DEVICE_TYPE" /> کا سیٹ اپ کریں۔ آپ اپنے پاس ورڈز کو دستی طور پر درج کیے بغیر اپنا Wi-Fi اور Google اکاؤنٹ شامل کر سکتے ہیں۔
+        <ph name="BR" />
+       <ph name="BR" />
+       <ph name="DEVICE_TYPE" />کے طور پر نظر آتا ہے...</translation>
 <translation id="8946359700442089734">ڈیبگ کرنے کی خصوصیات اس <ph name="IDS_SHORT_PRODUCT_NAME" /> آلے پر مکمل طورپر فعال نہیں کی گئی تھیں۔</translation>
 <translation id="8965037249707889821">پرانا پاس ورڈ درج کریں</translation>
 <translation id="8975396729541388937">آپ کو موصول ہونے والی ای میلز میں موجود لنک پر کلک کر کے کسی بھی وقت ان سبسکرائب کریں۔</translation>
 <translation id="9033765790910064284">بہرصورت جاری رکھیں</translation>
 <translation id="903480517321259405">‏PIN دوبارہ ٹائپ کریں</translation>
 <translation id="9076523132036239772">معذرت، آپ کے ای میل یا پاس ورڈ کی توثیق نہیں کی جا سکی۔ پہلے ایک نیٹ ورک سے منسلک ہونے کی کوشش کریں۔</translation>
+<translation id="9217002308921247002">‏<ph name="BEGIN_PARAGRAPH1" /><ph name="DEVICE_TYPE" /> کے لیے مخصوص۔<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />تخلیق کر سکنے والا AI تجرباتی ہے، ڈیولپمنٹ کے ابتدائی مرحلے میں ہے، ساتھ ہی دستیابی بھی فی الحال محدود ہے۔<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">‏آسانی سے اپنے فون سے اپنے <ph name="DEVICE_TYPE" /> کا سیٹ اپ کریں۔ آپ دستی طور پر اپنا پاس ورڈ درج کیے بغیر اپنا Google اکاؤنٹ شامل کر سکتے ہیں۔
+        <ph name="BR" />
+       <ph name="BR" />
+       <ph name="DEVICE_TYPE" />کے طور پر نظر آتا ہے...</translation>
 </translationbundle>

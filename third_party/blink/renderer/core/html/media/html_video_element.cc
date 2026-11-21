@@ -91,6 +91,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/web_test_support.h"
+#include "third_party/blink/renderer/platform/widget/frame_widget.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -113,6 +114,17 @@ constexpr base::TimeDelta kTemporaryResourceDeletionDelay = base::Seconds(3);
 BASE_FEATURE(kKeepVideoTimingAlive,
              "KeepVideoTimingAlive",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(PictureInPictureSizeConstraintResult)
+enum class PictureInPictureSizeConstraintResult {
+  kSizeConstraintMet = 0,
+  kSizeConstraintNotMet = 1,
+  kMaxValue = kSizeConstraintNotMet,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/media/enums.xml:PictureInPictureSizeConstraintResult)
 
 }  // namespace
 
@@ -562,25 +574,36 @@ void HTMLVideoElement::ResetCache(TimerBase*) {
   cached_draw_info_.reset();
 }
 
+gfx::Size HTMLVideoElement::GetVisualSizeInDIPs() const {
+  auto* layout_video = DynamicTo<LayoutVideo>(GetLayoutObject());
+  LocalFrameView* view = GetDocument().View();
+  gfx::Rect viewport_rect;
+  if (layout_video && view) {
+    const PhysicalRect content_rect = layout_video->ReplacedContentRect();
+    viewport_rect = view->FrameToViewport(
+        ToEnclosingRect(layout_video->LocalToAbsoluteRect(content_rect)));
+  } else {
+    viewport_rect = BoundsInWidget();
+  }
+
+  gfx::Size dip_size = viewport_rect.size();
+  LocalFrame* frame = GetDocument().GetFrame();
+  if (auto* widget = frame ? frame->GetWidgetForLocalRoot() : nullptr) {
+    dip_size = widget->BlinkSpaceToEnclosedDIPs(viewport_rect).size();
+  }
+
+  return dip_size;
+}
+
 bool HTMLVideoElement::MeetsRequestEnterPictureInPictureSizeConstraint(
     const std::optional<gfx::Size>& min_size) const {
   if (!min_size.has_value()) {
     return true;
   }
 
-  auto* layout_video = DynamicTo<LayoutVideo>(GetLayoutObject());
-  LocalFrameView* view = GetDocument().View();
-  gfx::Size layout_size;
-  if (layout_video && view) {
-    PhysicalRect content_rect = layout_video->ReplacedContentRect();
-    gfx::Rect viewport_rect = view->FrameToViewport(
-        ToEnclosingRect(layout_video->LocalToAbsoluteRect(content_rect)));
-    layout_size = viewport_rect.size();
-  } else {
-    layout_size = BoundsInWidget().size();
-  }
-  return layout_size.width() >= min_size->width() &&
-         layout_size.height() >= min_size->height();
+  const gfx::Size visual_size = GetVisualSizeInDIPs();
+  return visual_size.width() >= min_size->width() &&
+         visual_size.height() >= min_size->height();
 }
 
 bool HTMLVideoElement::IsPersistent() const {
@@ -642,9 +665,38 @@ void HTMLVideoElement::UpdateVideoVisibilityTracker() {
   visibility_tracker_->UpdateVisibilityTrackerState();
 }
 
+void HTMLVideoElement::LogPictureInPictureSizeMetrics(
+    bool meets_constraint) const {
+  base::UmaHistogramEnumeration(
+      "Media.PictureInPicture.SizeConstraintResult",
+      meets_constraint
+          ? PictureInPictureSizeConstraintResult::kSizeConstraintMet
+          : PictureInPictureSizeConstraintResult::kSizeConstraintNotMet);
+
+  const gfx::Size visual_size = GetVisualSizeInDIPs();
+  if (visual_size.width() <= 0xFFFF && visual_size.width() >= 0 &&
+      visual_size.height() <= 0xFFFF && visual_size.height() >= 0) {
+    int32_t encoded_size = (visual_size.width() << 16) | visual_size.height();
+    if (meets_constraint) {
+      base::UmaHistogramSparse("Media.PictureInPicture.AllowedVideoEncodedSize",
+                               encoded_size);
+    } else {
+      base::UmaHistogramSparse("Media.PictureInPicture.BlockedVideoEncodedSize",
+                               encoded_size);
+    }
+  }
+}
+
 void HTMLVideoElement::RequestEnterPictureInPicture(
     const std::optional<gfx::Size>& min_size) {
-  if (!MeetsRequestEnterPictureInPictureSizeConstraint(min_size)) {
+  bool meets_constraint =
+      MeetsRequestEnterPictureInPictureSizeConstraint(min_size);
+
+  if (min_size.has_value()) {
+    LogPictureInPictureSizeMetrics(meets_constraint);
+  }
+
+  if (!meets_constraint) {
     return;
   }
 

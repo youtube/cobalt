@@ -406,6 +406,12 @@ AccountInfo::Builder& AccountInfo::Builder::UpdateAccountCapabilitiesWith(
   return *this;
 }
 
+AccountInfo::Builder& AccountInfo::Builder::SetAccountCapabilities(
+    const AccountCapabilities& capabilities) {
+  account_info_.capabilities_ = capabilities;
+  return *this;
+}
+
 AccountInfo::Builder::Builder() = default;
 
 // static

@@ -127,6 +127,7 @@ class PeopleHandler : public SettingsPageUIHandler,
   FRIEND_TEST_ALL_PREFIXES(PeopleHandlerTest,
                            DashboardClearWhileSettingsOpen_ConfirmLater);
   FRIEND_TEST_ALL_PREFIXES(PeopleHandlerDiceTest, StoredAccountsList);
+  FRIEND_TEST_ALL_PREFIXES(PeopleHandlerDiceTest, RecordSigninOffered);
   FRIEND_TEST_ALL_PREFIXES(PeopleHandlerGuestModeTest, GetStoredAccountsList);
   FRIEND_TEST_ALL_PREFIXES(PeopleHandlerTest, SyncCookiesDisabled);
   FRIEND_TEST_ALL_PREFIXES(PeopleHandlerTest, TurnOffSync);
@@ -208,6 +209,7 @@ class PeopleHandler : public SettingsPageUIHandler,
   void HandleGetChromeSigninUserChoiceInfo(const base::ListValue& args);
   void HandleSetChromeSigninUserChoice(const base::ListValue& args);
   void HandleRecordSigninPendingOffered(const base::ListValue& args);
+  void HandleRecordSigninOffered(const base::ListValue& args);
 #endif
 
 #if BUILDFLAG(IS_CHROMEOS)

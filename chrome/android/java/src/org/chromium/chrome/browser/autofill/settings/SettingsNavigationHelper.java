@@ -200,4 +200,25 @@ public class SettingsNavigationHelper {
         if (windowAndroid == null) return;
         showAutofillCreditCardSettings(windowAndroid.getActivity().get());
     }
+
+    @CalledByNative
+    private static void showAutofillIdentityDocsSettings(WebContents webContents) {
+        WindowAndroid windowAndroid = webContents.getTopLevelNativeWindow();
+        if (windowAndroid == null) return;
+        showAutofillIdentityDocsSettings(windowAndroid.getActivity().get());
+    }
+
+    @CalledByNative
+    private static void showAutofillTravelSettings(WebContents webContents) {
+        WindowAndroid windowAndroid = webContents.getTopLevelNativeWindow();
+        if (windowAndroid == null) return;
+        showAutofillTravelSettings(windowAndroid.getActivity().get());
+    }
+
+    @CalledByNative
+    private static void showAutofillShoppingSettings(WebContents webContents) {
+        WindowAndroid windowAndroid = webContents.getTopLevelNativeWindow();
+        if (windowAndroid == null) return;
+        showAutofillShoppingSettings(windowAndroid.getActivity().get());
+    }
 }

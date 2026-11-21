@@ -118,6 +118,127 @@ class D3D12VideoDevice3Mock
                                void** ppVideoEncoderHeap));
 };
 
+class D3D12VideoProcessorMock
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          ID3D12VideoProcessor> {
+ public:
+  D3D12VideoProcessorMock();
+  ~D3D12VideoProcessorMock() override;
+
+  MOCK_METHOD(HRESULT,
+              GetPrivateData,
+              (REFGUID, UINT*, void*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              SetPrivateData,
+              (REFGUID, UINT, const void*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              SetPrivateDataInterface,
+              (REFGUID, const IUnknown*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT, SetName, (LPCWSTR), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              GetDevice,
+              (REFIID, void**),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(UINT, GetNodeMask, (), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(UINT, GetNumInputStreamDescs, (), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              GetInputStreamDescs,
+              (UINT, D3D12_VIDEO_PROCESS_INPUT_STREAM_DESC*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(D3D12_VIDEO_PROCESS_OUTPUT_STREAM_DESC,
+              GetOutputStreamDesc,
+              (),
+              (Calltype(STDMETHODCALLTYPE)));
+};
+
+class D3D12VideoProcessCommandListMock
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          ID3D12VideoProcessCommandList> {
+ public:
+  D3D12VideoProcessCommandListMock();
+  ~D3D12VideoProcessCommandListMock() override;
+
+  MOCK_METHOD(HRESULT,
+              GetPrivateData,
+              (REFGUID, UINT*, void*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              SetPrivateData,
+              (REFGUID, UINT, const void*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              SetPrivateDataInterface,
+              (REFGUID, const IUnknown*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT, SetName, (LPCWSTR), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              GetDevice,
+              (REFIID, void**),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(D3D12_COMMAND_LIST_TYPE,
+              GetType,
+              (),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT, Close, (), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(HRESULT,
+              Reset,
+              (ID3D12CommandAllocator*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void, ClearState, (), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              ResourceBarrier,
+              (UINT, const D3D12_RESOURCE_BARRIER*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              DiscardResource,
+              (ID3D12Resource*, const D3D12_DISCARD_REGION*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              BeginQuery,
+              (ID3D12QueryHeap*, D3D12_QUERY_TYPE, UINT),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              EndQuery,
+              (ID3D12QueryHeap*, D3D12_QUERY_TYPE, UINT),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(
+      void,
+      ResolveQueryData,
+      (ID3D12QueryHeap*, D3D12_QUERY_TYPE, UINT, UINT, ID3D12Resource*, UINT64),
+      (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              SetPredication,
+              (ID3D12Resource*, UINT64, D3D12_PREDICATION_OP),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              SetMarker,
+              (UINT, const void*, UINT),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              BeginEvent,
+              (UINT, const void*, UINT),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void, EndEvent, (), (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              ProcessFrames,
+              (ID3D12VideoProcessor*,
+               const D3D12_VIDEO_PROCESS_OUTPUT_STREAM_ARGUMENTS*,
+               UINT,
+               const D3D12_VIDEO_PROCESS_INPUT_STREAM_ARGUMENTS*),
+              (Calltype(STDMETHODCALLTYPE)));
+  MOCK_METHOD(void,
+              WriteBufferImmediate,
+              (UINT,
+               const D3D12_WRITEBUFFERIMMEDIATE_PARAMETER*,
+               const D3D12_WRITEBUFFERIMMEDIATE_MODE*),
+              (Calltype(STDMETHODCALLTYPE)));
+};
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_WIN_D3D12_VIDEO_MOCKS_H_

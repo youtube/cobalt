@@ -302,14 +302,6 @@ enum class TipsNotificationType;
 // operation failed, otherwise nil.
 + (NSError*)tapWebStateElementWithID:(NSString*)elementID;
 
-// Waits for the current web state to contain an element matching `selector`.
-// If not succeed returns an NSError indicating  why the operation failed,
-// otherwise nil.
-+ (NSError*)waitForWebStateContainingElement:(ElementSelector*)selector;
-
-// Waits for the current web state to no longer contain an element matching
-// `selector`. On failure, returns an NSError, otherwise nil.
-+ (NSError*)waitForWebStateNotContainingElement:(ElementSelector*)selector;
 
 // Waits for the current web state's frames to contain `text`.
 // If not succeed returns an NSError indicating  why the operation failed,
@@ -614,6 +606,9 @@ enum class TipsNotificationType;
 // Returns whether the UseLensToSearchForImage feature is enabled.
 + (BOOL)isUseLensToSearchForImageEnabled;
 
+// Returns whether the YourSavedInfoSettingsPageIos feature is enabled.
++ (BOOL)isYourSavedInfoSettingsPageIosEnabled;
+
 // Returns whether the current layout is showing the bottom omnibox.
 + (BOOL)isCurrentLayoutBottomOmnibox;
 
@@ -622,6 +617,9 @@ enum class TipsNotificationType;
 
 // Returns whether chrome next is enabled.
 + (BOOL)isChromeNextEnabled;
+
+// Returns whether overflow menu refactoring on the NTP is enabled.
++ (BOOL)isOverflowMenuNTPRefactorEnabled;
 
 // Returns whether the chrome next share icon is visible.
 + (BOOL)isChromeNextShareIconVisible;

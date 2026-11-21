@@ -650,7 +650,21 @@ void IOSChromePaymentsAutofillClient::ShowCreditCardUploadSaveAndFillDialog(
 void IOSChromePaymentsAutofillClient::ShowCreditCardSaveAndFillPendingDialog(
     CardSaveAndFillDialogCallback callback) {}
 
-void IOSChromePaymentsAutofillClient::HideCreditCardSaveAndFillDialog() {}
+void IOSChromePaymentsAutofillClient::HideCreditCardSaveAndFillDialog() {
+  // Specifically for signed-out users executing a direct local save,
+  // `HideCreditCardSaveAndFillDialog` is called after the card is saved
+  // locally. Calling `CreditCardUploadCompleted` with `kPermanentFailure`
+  // triggers dismissal of the Save and Fill bottom sheet and displays the
+  // "Card saved to device" confirmation dialog, maintaining parity with the
+  // upload save fallback flow for signed-in users.
+  if ((client_->GetAutofillSaveCardInfoBarDelegateIOS() &&
+       !client_->GetAutofillSaveCardInfoBarDelegateIOS()->is_for_upload()) ||
+      (save_card_bottom_sheet_model_ &&
+       !save_card_bottom_sheet_model_->is_for_upload())) {
+    CreditCardUploadCompleted(PaymentsRpcResult::kPermanentFailure,
+                              std::nullopt);
+  }
+}
 
 bool IOSChromePaymentsAutofillClient::IsTabModalPopupDeprecated() const {
   return false;

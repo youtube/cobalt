@@ -295,6 +295,7 @@ bool ShouldStopExtractingAtPseudoElement(
     case CSSSelector::kPseudoViewTransitionOld:
     case CSSSelector::kPseudoScrollMarkerGroup:
     case CSSSelector::kPseudoOverscrollAreaParent:
+    case CSSSelector::kPseudoOverscrollBackdrop:
       return true;
     case CSSSelector::kPseudoCue:
     case CSSSelector::kPseudoFirstLine:
@@ -318,6 +319,7 @@ bool ShouldStopExtractingAtPseudoElement(
     case CSSSelector::kPseudoDetailsContent:
     case CSSSelector::kPseudoPermissionIcon:
     case CSSSelector::kPseudoPicker:
+    case CSSSelector::kPseudoSelectListbox:
     case CSSSelector::kPseudoWebKitCustomElement:
     case CSSSelector::kPseudoBlinkInternalElement:
       return false;
@@ -405,6 +407,7 @@ static bool ExtractBucketingValues(const CSSSelector* selector,
         case CSSSelector::kPseudoDetailsContent:
         case CSSSelector::kPseudoPermissionIcon:
         case CSSSelector::kPseudoFileSelectorButton:
+        case CSSSelector::kPseudoSelectListbox:
         case CSSSelector::kPseudoScrollbarButton:
         case CSSSelector::kPseudoScrollbarCorner:
         case CSSSelector::kPseudoScrollbarThumb:

@@ -94,6 +94,10 @@ std::optional<ResolvedModuleType> ModuleScriptFetcher::WasModuleLoadSuccessful(
     return ResolvedModuleType::kCSS;
   }
 
+  if (expected_module_type == ModuleType::kTEXT) {
+    return ResolvedModuleType::kTEXT;
+  }
+
   String message = StrCat(
       {"Failed to load module script: Expected a ",
        ModuleScriptCreationParams::ModuleTypeToString(expected_module_type),

@@ -86,7 +86,9 @@ class CONTENT_EXPORT Database {
   BuildLockRequestsForTransaction(blink::mojom::IDBTransactionMode mode,
                                   const std::set<int64_t>& scope) const;
 
-  const std::list<Connection*>& connections() const { return connections_; }
+  const std::list<raw_ptr<Connection>>& connections() const {
+    return connections_;
+  }
 
   size_t GetNumTransactionsAcrossAllConnections() const;
 
@@ -325,7 +327,7 @@ class CONTENT_EXPORT Database {
   raw_ref<BucketContext> bucket_context_;
 
   // `list` because iteration order is important.
-  std::list<Connection*> connections_;
+  std::list<raw_ptr<Connection>> connections_;
 
   // True only while `ForceCloseConnectionsAndCancelRequests()` is
   // (synchronously) running.

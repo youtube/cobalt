@@ -185,10 +185,16 @@ void NativeWidgetMac::OnWindowKeyStatusChanged(
 
   if (is_key) {
     widget->OnNativeFocus();
-    widget->GetFocusManager()->RestoreFocusedView();
+    // GetFocusManager() can be null for detached child widgets during
+    // reparenting.
+    if (FocusManager* focus_manager = widget->GetFocusManager()) {
+      focus_manager->RestoreFocusedView();
+    }
   } else {
     widget->OnNativeBlur();
-    widget->GetFocusManager()->StoreFocusedView(false);
+    if (FocusManager* focus_manager = widget->GetFocusManager()) {
+      focus_manager->StoreFocusedView(false);
+    }
     parent_key_lock_.reset();
   }
 }

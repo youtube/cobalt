@@ -72,3 +72,10 @@ wheel: <
   name: "infra/python/wheels/protobuf-py3"
   version: "version:6.33.0"
 >
+
+# Used by test_suite_mapper_test.py
+wheel: <
+  name: "infra/python/wheels/pyfakefs-py3"
+  version: "version:5.5.0"
+>
+

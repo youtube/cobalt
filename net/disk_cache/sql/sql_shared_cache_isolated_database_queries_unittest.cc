@@ -9,7 +9,6 @@
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/task/sequenced_task_runner.h"
 #include "base/test/task_environment.h"
 #include "net/disk_cache/sql/sql_backend_aliases.h"
 #include "net/disk_cache/sql/sql_shared_cache_isolated_database.h"
@@ -33,8 +32,7 @@ class SqlSharedCacheIsolatedDatabaseQueriesTest : public testing::Test {
 
   void CreateDatabaseInTempDir() {
     disk_cache::SqlSharedCacheIsolatedDatabase db(
-        "test_nik", temp_dir_.GetPath(), disk_cache::SqlSharedCacheDbId(1),
-        base::SequencedTaskRunner::GetCurrentDefault());
+        "test_nik", temp_dir_.GetPath(), disk_cache::SqlSharedCacheDbId(1));
     EXPECT_TRUE(db.Init().has_value());
   }
 
@@ -60,6 +58,8 @@ TEST_F(SqlSharedCacheIsolatedDatabaseQueriesTest, AllQueriesHaveValidPlan) {
            "`--SEARCH resources USING INTEGER PRIMARY KEY (rowid=?)"},
           {SharedCacheIsolatedDatabaseQuery::kSelectUrlAndReadyByRowId,
            "`--SEARCH resources USING INTEGER PRIMARY KEY (rowid=?)"},
+          {SharedCacheIsolatedDatabaseQuery::kReaderSelectResource,
+           "`--SEARCH resources USING INDEX index_resources_hash (hash=?)"},
       });
 
   static_assert(kAllQueriesAndPlans.size() + kSchemaAndIndexQueries.size() ==

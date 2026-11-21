@@ -14,8 +14,10 @@
 
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/process/process.h"
 
@@ -143,6 +145,10 @@ class ProcessSingleton {
   using ShouldKillRemoteProcessCallback = base::RepeatingCallback<bool()>;
   void OverrideShouldKillRemoteProcessCallbackForTesting(
       const ShouldKillRemoteProcessCallback& display_dialog_callback);
+
+  // Test-only callback triggered during destruction after the window is
+  // reset but before the lock file is closed.
+  void SetOnWindowDestroyedCallbackForTesting(base::OnceClosure callback);
 #endif
 
  protected:
@@ -176,9 +182,16 @@ class ProcessSingleton {
   bool EscapeVirtualization(const base::FilePath& user_data_dir);
 
   HWND remote_window_;  // The HWND_MESSAGE of another browser.
-  base::win::MessageWindow window_;  // The message-only window.
   bool is_virtualized_;  // Stuck inside Microsoft Softricity VM environment.
-  HANDLE lock_file_;
+
+  // Do not reorder these members. The proper shutdown sequence is:
+  // 1. Destroy the message window.
+  // 2. Invoke the optional test callback.
+  // 3. Close the lock file.
+  base::File lock_file_;
+  base::ScopedClosureRunner on_window_destroyed_for_testing_;
+  base::win::MessageWindow window_;
+
   base::FilePath user_data_dir_;
   ShouldKillRemoteProcessCallback should_kill_remote_process_callback_;
 #elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)

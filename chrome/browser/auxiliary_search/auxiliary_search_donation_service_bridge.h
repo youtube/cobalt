@@ -13,6 +13,8 @@
 #include "chrome/browser/auxiliary_search/jni_headers/AuxiliarySearchDonationServiceBridge_shared_jni.h"
 #include "third_party/jni_zero/jni_zero.h"
 
+struct CoreAccountInfo;
+
 class AuxiliarySearchDonationServiceBridge {
  public:
   static AuxiliarySearchDonationService::DonateCallback
@@ -24,7 +26,8 @@ class AuxiliarySearchDonationServiceBridge {
   AuxiliarySearchDonationServiceBridge();
 
   void DonateHistoryEntries(
-      std::vector<AuxiliarySearchDonationService::HistoryData> entries) const;
+      std::vector<AuxiliarySearchDonationService::HistoryData> entries,
+      CoreAccountInfo account_info) const;
 
   jni_zero::ScopedJavaGlobalRef<JAuxiliarySearchDonationServiceBridge> bridge_;
 };

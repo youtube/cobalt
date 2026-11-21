@@ -56,7 +56,8 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   bool HasContentToShow(JNIEnv* env);
   void OnContentRemoved(JNIEnv* env);
   void OnContentPopulated(JNIEnv* env);
-  void OnWindowResized(JNIEnv* env, bool can_show_side_panel);
+  void OnWillAutoClose(JNIEnv* env);
+  void OnWillAutoRestore(JNIEnv* env);
 
   // Implements `SidePanelUI`:
   void ShowFrom(SidePanelEntryKey entry_key,
@@ -148,8 +149,8 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // until animations have completed and it is fully replaced.
   raw_ptr<SidePanelEntry> pending_replaced_entry_ = nullptr;
 
-  // Whether the window is too small to show a side panel.
-  bool is_window_too_small_ = false;
+  // Whether there is insufficient space to show the side panel.
+  bool has_insufficient_space_ = false;
 
   SidePanelDeferredEntryTracker deferred_entry_tracker_{browser()};
 

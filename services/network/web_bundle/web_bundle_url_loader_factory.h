@@ -80,7 +80,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) WebBundleURLLoaderFactory {
   void OnBeforeSendHeadersComplete(
       base::WeakPtr<URLLoader> loader,
       int result,
-      const std::optional<net::HttpRequestHeaders>& headers);
+      const std::optional<net::HttpRequestHeaders>& headers,
+      std::optional<base::DictValue> extended_net_log_events);
   void QueueOrStartLoader(base::WeakPtr<URLLoader> loader);
 
   void StartLoad(base::WeakPtr<URLLoader> loader);

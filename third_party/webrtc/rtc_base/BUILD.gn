@@ -381,23 +381,20 @@ if (rtc_rust) {
     ]
   }
 
-  if (!is_asan || is_debug) {
-    # TODO(crbug.com/513478482): Fix rate_tracker_rust_tests ASan build.
-    rtc_rust_unittest("rate_tracker_rust_tests") {
-      crate_root = "rate_tracker.rs"
-      sources = [ "rate_tracker.rs" ]
-      deps = [
-        ":checks",
-        "../api/units:time_delta",
-        "../api/units:time_delta_rs",
-        "../api/units:timestamp",
-        "../api/units:timestamp_rs",
-      ]
-    }
+  rtc_rust_unittest("rate_tracker_rust_tests") {
+    crate_root = "rate_tracker.rs"
+    sources = [ "rate_tracker.rs" ]
+    deps = [
+      ":checks",
+      "../api/units:time_delta",
+      "../api/units:time_delta_rs",
+      "../api/units:timestamp",
+      "../api/units:timestamp_rs",
+    ]
+  }
 
-    rtc_rust_test_suite("rust_unit_tests") {
-      deps = [ ":rate_tracker_rust_tests" ]
-    }
+  rtc_rust_test_suite("rust_unit_tests") {
+    deps = [ ":rate_tracker_rust_tests" ]
   }
 } else {
   # This target is required for the bot configuration as it is always

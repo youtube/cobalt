@@ -324,6 +324,9 @@ target("mac_app_bundle", "remoting_native_messaging_host") {
     ]
   }
   deps += [ "//remoting/resources:copy_locales" ]
+  if (!is_official_build) {
+    deps += [ ":remoting_core_bundle_data" ]
+  }
 }
 
 source_set("unit_tests") {

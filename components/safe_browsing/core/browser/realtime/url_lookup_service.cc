@@ -6,10 +6,8 @@
 
 #include "base/base64url.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/rand_util.h"
-#include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
@@ -40,8 +38,6 @@ constexpr int kDefaultRealTimeUrlLookupReferrerLength = 2;
 
 // Probability for sending protego requests for urls on the allowlist
 const float kProbabilityForSendingSampledRequests = 0.01;
-
-constexpr char kCookieHistogramPrefix[] = "SafeBrowsing.RT.Request.HadCookie";
 
 GURL* GetRealTimeLookupUrlTestOverride() {
   static base::NoDestructor<GURL> test_override;
@@ -252,23 +248,6 @@ void RealTimeUrlLookupService::MaybeLogLastProtegoPingTimeToPrefs(
             ? prefs::kSafeBrowsingEsbProtegoPingWithTokenLastLogTime
             : prefs::kSafeBrowsingEsbProtegoPingWithoutTokenLastLogTime,
         base::Time::Now());
-  }
-}
-
-void RealTimeUrlLookupService::MaybeLogProtegoPingCookieHistograms(
-    bool request_had_cookie,
-    bool was_first_request,
-    bool sent_with_token) {
-  std::string histogram_name = kCookieHistogramPrefix;
-  base::StrAppend(&histogram_name,
-                  {was_first_request ? ".FirstRequest" : ".SubsequentRequest"});
-  base::UmaHistogramBoolean(histogram_name, request_had_cookie);
-  // `pref_service_` can be null in tests.
-  // This histogram variant is only logged for signed-out ESB users.
-  if (!sent_with_token && pref_service_ &&
-      IsEnhancedProtectionEnabled(*pref_service_)) {
-    base::StrAppend(&histogram_name, {".SignedOutEsbUser"});
-    base::UmaHistogramBoolean(histogram_name, request_had_cookie);
   }
 }
 

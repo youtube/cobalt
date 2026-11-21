@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://crbug.com/508672616">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+
+<style>
+  div {
+    width: 100px;
+    height: 100px;
+  }
+  #target:unbounded {
+    background-color: green;
+  }
+</style>
+
+<div id="target"></div>
+
+<script>
+promise_test(async t => {
+  const element = document.getElementById('target');
+  assert_false(element.matches(':unbounded'), 'Initially, the element should not match :unbounded.');
+
+  element.setAttribute('unbounded', '');
+  assert_false(element.matches(':unbounded'), 'The element should not match :unbounded just by having the attribute.');
+
+  await test_driver.bless("show unbounded");
+  await element.showUnboundedElement();
+
+  assert_true(element.matches(':unbounded'), 'The element should match :unbounded after showUnboundedElement() is called.');
+  assert_equals(getComputedStyle(element).backgroundColor, 'rgb(0, 128, 0)', 'The :unbounded style should be applied.');
+
+  element.removeAttribute('unbounded');
+  assert_false(element.matches(':unbounded'), 'The element should no longer match :unbounded after the attribute is removed.');
+}, 'Verify the :unbounded pseudo-class matches active unbounded elements.');
+
+promise_test(async t => {
+  const element = document.createElement('div');
+  element.setAttribute('unbounded', '');
+  document.body.appendChild(element);
+  t.add_cleanup(() => element.remove());
+
+  await test_driver.bless("show unbounded");
+  await element.showUnboundedElement();
+
+  assert_true(element.matches(':unbounded'), 'The element should match :unbounded.');
+
+  element.remove();
+  assert_false(element.matches(':unbounded'), 'The element should no longer match :unbounded after being removed from the document.');
+}, 'Verify the :unbounded pseudo-class stops matching when the element is removed from the document.');
+</script>

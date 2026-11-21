@@ -26,15 +26,30 @@ struct ExtraGlyphInfo {
 //
 // TODO(crbug.com/510015130): check `is_horizontal`: if false the rectangle
 // would need to be split on the y-axis instead of the x-axis.
+// TODO(crbug.com/507508097): Correctly handle RTL text.
 InkTextInfo MakeSubstrTextInfo(const InkTextInfo& input,
                                float y_offset,
-                               std::u16string substr,
+                               base::span<const ExtraGlyphInfo> glyph_info,
                                size_t start,
                                size_t end) {
   CHECK_LT(start, input.glyphs.size());
   CHECK_LE(end, input.glyphs.size());
   CHECK_LT(start, end);
   CHECK_EQ(input.glyphs.size(), input.glyph_positions.size());
+
+  // TODO(crbug.com/507508097): Correctly handle RTL text. The most immediate
+  // problem is that in RTL text the glyphs have been reversed in order by Blink
+  // so while `total_advance` is ascending `character_index` will be descending.
+  // Also PDFium will reverse the string in ActualText if it heuristically
+  // determines that the text is RTL. All of that is possible to handle
+  // correctly. The real problem is handling that with 2D glyph positioning at
+  // the same time. If the entire string is wrapped in a reverse ActualText it
+  // copies correctly but the highlight rect is the size of a single character.
+  // Reversing the order of the glyphs in the PDF stream and wrapping each
+  // individually with ActualText ends up not getting the right string and the
+  // 2D offsets end up inserting spaces and newlines in between the glyphs.
+  const bool is_rtl =
+      glyph_info.back().character_index < glyph_info.front().character_index;
 
   const size_t count = end - start;
   const float left = input.glyph_positions[start];
@@ -51,10 +66,14 @@ InkTextInfo MakeSubstrTextInfo(const InkTextInfo& input,
                       /*y=*/input.location.y() + y_offset,
                       /*width=*/right - left,
                       /*height=*/input.location.height());
+  uint32_t start_char = glyph_info[start].character_index;
+  size_t end_char = end == glyph_info.size() ? input.text.size()
+                                             : glyph_info[end].character_index;
+  size_t num_chars = end_char - start_char;
   return InkTextInfo(input.font_id, std::move(glyphs),
                      std::move(glyph_positions), location, input.is_horizontal,
                      input.is_synthetic_bold, input.is_synthetic_italic,
-                     std::move(substr));
+                     !is_rtl ? input.text.substr(start_char, num_chars) : u"");
 }
 
 // Because PDF text objects only support 1D glyph positioning, it is necessary
@@ -83,16 +102,12 @@ InkTextInfo MakeSubstrTextInfo(const InkTextInfo& input,
 // correct behavior should be to group multiple InkTextInfo objects into a
 // single Span mark so that the smallest ActualText string is a single complete
 // Harfbuzz glyph cluster.
-// TODO(crbug.com/507508097): Correctly handle RTL text.
 std::vector<InkTextInfo> Split2DOffsets(
     const InkTextInfo& input,
-    const std::vector<ExtraGlyphInfo>& glyph_info) {
+    base::span<const ExtraGlyphInfo> glyph_info) {
   CHECK(!glyph_info.empty());
   CHECK_EQ(glyph_info.size(), input.glyphs.size());
   CHECK_EQ(glyph_info.size(), input.glyph_positions.size());
-
-  const bool is_rtl =
-      glyph_info.back().character_index < glyph_info.front().character_index;
 
   std::vector<InkTextInfo> results;
   size_t run_start = 0;
@@ -102,14 +117,8 @@ std::vector<InkTextInfo> Split2DOffsets(
     if (!is_boundary) {
       continue;
     }
-    uint32_t start_char = glyph_info[run_start].character_index;
-    size_t end_char = i == glyph_info.size() ? input.text.size()
-                                             : glyph_info[i].character_index;
-    size_t num_chars = end_char - start_char;
-    results.push_back(MakeSubstrTextInfo(
-        input, glyph_info[i - 1].offset,
-        !is_rtl ? input.text.substr(start_char, num_chars) : u"", run_start,
-        i));
+    results.push_back(MakeSubstrTextInfo(input, glyph_info[i - 1].offset,
+                                         glyph_info, run_start, i));
     run_start = i;
   }
   return results;
@@ -232,100 +241,102 @@ InkTextInfo::InkTextInfo(InkTextInfo&&) noexcept = default;
 InkTextInfo& InkTextInfo::operator=(InkTextInfo&&) noexcept = default;
 InkTextInfo::~InkTextInfo() = default;
 
-std::vector<InkTextInfo> InkTextInfo::SplitTypefaceRuns(
+std::vector<InkTextInfo> InkTextInfo::BlinkTextInfoToPDFTextInfo(
     const std::vector<pdf::mojom::InkTextRunPtr>& text_runs,
     float effective_zoom) {
   std::vector<InkTextInfo> results;
   for (const pdf::mojom::InkTextRunPtr& text_run : text_runs) {
-    float left_edge = text_run->location.x();
-    float prev_right_edge_advance = 0;
     const std::vector<pdf::mojom::InkTypefaceRunPtr>& typeface_runs =
         text_run->typeface_runs;
-    for (size_t i = 0; i < typeface_runs.size(); ++i) {
-      const pdf::mojom::InkTypefaceRunPtr& typeface_run = typeface_runs[i];
+
+    // Create an InkTextInfo to represent `text_run`, which will later be split
+    // into typeface runs.
+    //
+    // Note: The font_id, is_synthetic_bold, is_synthetic_italic, and
+    // is_horizontal members here are placeholder values to be replaced later
+    // when `text_run_info` is split into typeface_runs. The reason is
+    // these parameters change for each typeface run.
+    //
+    // TODO(crbug.com/510015130): It probably isn't possible for `text_run`
+    // to contain typeface runs with different values of is_horizontal. That
+    // needs to be confirmed. It might be correct to use the value of the first
+    // typeface run (if not empty) here.
+    InkTextInfo text_run_info(FontId(0), {}, {}, text_run->location, true,
+                              text_run->text);
+    text_run_info.location.Scale(1.0f / effective_zoom);
+    std::vector<ExtraGlyphInfo> extra_glyph_info;
+    size_t glyphs_count = 0;
+    for (const pdf::mojom::InkTypefaceRunPtr& typeface_run : typeface_runs) {
+      glyphs_count += typeface_run->glyphs.size();
+    }
+    text_run_info.glyphs.reserve(glyphs_count);
+    text_run_info.glyph_positions.reserve(glyphs_count);
+    extra_glyph_info.reserve(glyphs_count);
+
+    // Flatten `typeface_runs` into `text_run_info` and `extra_glyph_info` for
+    // the whole `text_run`.
+    for (const pdf::mojom::InkTypefaceRunPtr& typeface_run : typeface_runs) {
       CHECK(!typeface_run->glyphs.empty());
       // TODO(crbug.com/510015130): handle vertical text.
       CHECK(typeface_run->is_horizontal);
 
-      // TODO(crbug.com/507508097): Correctly handle RTL text. The most
-      // immediate problem is that in RTL text the glyphs have been reversed in
-      // order by Blink so while `total_advance` is ascending `character_index`
-      // will be descending. Also PDFium will reverse the string in ActualText
-      // if it heuristically determines that the text is RTL. All of that is
-      // possible to handle correctly. The real problem is handling that with 2D
-      // glyph positioning at the same time. If the entire string is wrapped in
-      // a reverse ActualText it copies correctly but the highlight rect is the
-      // size of a single character. Reversing the order of the glyphs in the
-      // PDF stream and wrapping each individually with ActualText ends up not
-      // getting the right string and the 2D offsets end up inserting spaces and
-      // newlines in between the glyphs.
-      const bool is_rtl = typeface_run->glyphs.back()->character_index <
-                          typeface_run->glyphs.front()->character_index;
-
-      const bool has_next_run = i + 1 < typeface_runs.size();
-      const float right_edge_advance =
-          has_next_run ? typeface_runs[i + 1]->glyphs.front()->total_advance
-                       : text_run->location.width();
-      const float right_edge = right_edge_advance + text_run->location.x();
-      gfx::RectF run_location(left_edge, text_run->location.y(),
-                              right_edge - left_edge,
-                              text_run->location.height());
-      run_location.Scale(1.0 / effective_zoom);
-      left_edge = right_edge;
-
-      std::vector<uint32_t> glyphs;
-      // This is the total_advance + writing direction axis offsets
-      std::vector<float> glyph_positions;
-      // This is the offsets for the non-writing direction axis (plus the
-      // harfbuzz character index for the glyph)
-      std::vector<ExtraGlyphInfo> extra_glyph_info;
-      const size_t num_glyphs = typeface_run->glyphs.size();
-      glyphs.reserve(num_glyphs);
-      glyph_positions.reserve(num_glyphs);
-      extra_glyph_info.reserve(num_glyphs);
-      const uint32_t first_index =
-          typeface_run->glyphs.front()->character_index;
-      const uint32_t last_index =
-          has_next_run ? typeface_runs[i + 1]->glyphs.front()->character_index
-                       : text_run->text.size();
       for (const pdf::mojom::InkGlyphInfoPtr& glyph_info :
            typeface_run->glyphs) {
-        gfx::Vector2dF position(glyph_info->offset.x() +
-                                    glyph_info->total_advance -
-                                    prev_right_edge_advance,
-                                glyph_info->offset.y());
-        position.Scale(1.0 / effective_zoom);
-
-        glyph_positions.push_back(position.x());
-        extra_glyph_info.emplace_back(
-            position.y(), glyph_info->character_index - first_index);
-        glyphs.push_back(glyph_info->glyph);
+        text_run_info.glyphs.push_back(glyph_info->glyph);
+        text_run_info.glyph_positions.push_back(
+            (glyph_info->total_advance + glyph_info->offset.x()) /
+            effective_zoom);
+        extra_glyph_info.emplace_back(glyph_info->offset.y() / effective_zoom,
+                                      glyph_info->character_index);
       }
-      prev_right_edge_advance = right_edge_advance;
+    }
 
-      CHECK_EQ(glyphs.size(), glyph_positions.size());
-      InkTextInfo output_info(
-          FontId(typeface_run->typeface_id), std::move(glyphs),
-          std::move(glyph_positions), run_location,
-          /*is_horizontal=*/typeface_run->is_horizontal,
-          /*is_synthetic_bold=*/typeface_run->is_synthetic_bold,
-          /*is_synthetic_italic=*/typeface_run->is_synthetic_italic,
-          !is_rtl ? text_run->text.substr(first_index, last_index - first_index)
-                  : u"");
-      MaybeCorrectNonZeroFirstOffset(output_info);
+    // Process `text_run_info` and `extra_glyph_info` into separate
+    // `InkTextInfo` structs each representing a single PDF text object using
+    // the information in `typeface_runs`.
+    size_t run_start = 0;
+    base::span<ExtraGlyphInfo> extra_glyph_info_span(extra_glyph_info);
+    for (const pdf::mojom::InkTypefaceRunPtr& typeface_run : typeface_runs) {
+      const size_t run_end = run_start + typeface_run->glyphs.size();
+      CHECK_EQ(text_run_info.is_horizontal, typeface_run->is_horizontal);
+      InkTextInfo typeface_run_info =
+          MakeSubstrTextInfo(text_run_info, /*y_offset=*/0,
+                             extra_glyph_info_span, run_start, run_end);
+      typeface_run_info.font_id = FontId(typeface_run->typeface_id);
+      typeface_run_info.is_synthetic_bold = typeface_run->is_synthetic_bold;
+      typeface_run_info.is_synthetic_italic = typeface_run->is_synthetic_italic;
 
+      MaybeCorrectNonZeroFirstOffset(typeface_run_info);
+
+      base::span<ExtraGlyphInfo> typeface_run_glyph_info =
+          extra_glyph_info_span.subspan(run_start, typeface_run->glyphs.size());
       const bool all_zero = std::ranges::all_of(
-          extra_glyph_info,
-          [](const ExtraGlyphInfo& v) { return v.offset == 0; });
+          typeface_run_glyph_info,
+          [](const ExtraGlyphInfo& info) { return info.offset == 0; });
       if (all_zero) {
-        results.push_back(std::move(output_info));
+        results.push_back(std::move(typeface_run_info));
       } else {
+        // Convert the character_index values to indexes into
+        // `typeface_run_info`.text (from indexes into `text_run`.text).
+        //
+        // TODO(crbug.com/507508097): Correctly handle RTL text. Without this
+        // condition this index adjustment causes underflow wrap-around.
+        const bool is_rtl = extra_glyph_info_span.back().character_index <
+                            extra_glyph_info_span.front().character_index;
+        if (!is_rtl) {
+          uint32_t first_character_index =
+              typeface_run_glyph_info.front().character_index;
+          for (ExtraGlyphInfo& info : typeface_run_glyph_info) {
+            info.character_index -= first_character_index;
+          }
+        }
         std::vector<InkTextInfo> split_infos =
-            Split2DOffsets(output_info, extra_glyph_info);
+            Split2DOffsets(typeface_run_info, typeface_run_glyph_info);
         results.insert(results.end(),
                        std::make_move_iterator(split_infos.begin()),
                        std::make_move_iterator(split_infos.end()));
       }
+      run_start = run_end;
     }
   }
   return results;

@@ -25,15 +25,12 @@ class SingleThreadTaskRunner;
 class BASE_EXPORT AsyncMemoryConsumerRegistration {
  public:
   using CheckUnregister = MemoryConsumerRegistration::CheckUnregister;
-  using CheckRegistryExists = MemoryConsumerRegistration::CheckRegistryExists;
 
   AsyncMemoryConsumerRegistration(
       std::string_view consumer_name,
       std::optional<MemoryConsumerTraits> traits,
       MemoryConsumer* consumer,
-      CheckUnregister check_unregister = CheckUnregister::kEnabled,
-      CheckRegistryExists check_registry_exists =
-          CheckRegistryExists::kEnabled);
+      CheckUnregister check_unregister = CheckUnregister::kEnabled);
   ~AsyncMemoryConsumerRegistration();
 
  private:

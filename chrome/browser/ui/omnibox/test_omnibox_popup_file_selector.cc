@@ -31,6 +31,6 @@ void TestOmniboxPopupFileSelector::OpenFileUploadDialog(
 
 void TestOmniboxPopupFileSelector::FileSelectionCanceled() {
   if (last_was_ai_mode_open_ && edit_model_) {
-    edit_model_->OpenAiMode(false, true);
+    edit_model_->OpenAiMode(OmniboxEditModel::AimActivation::kContextMenu);
   }
 }

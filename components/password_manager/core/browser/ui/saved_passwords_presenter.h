@@ -142,10 +142,10 @@ class SavedPasswordsPresenter : public PasswordStoreInterface::Observer,
   // password), or an entry with such signon_realm and username already exists
   // in any (profile or account) store.
   // "completion" is called regardless of the operation result.
-  bool AddCredential(const CredentialUIEntry& credential,
-                     password_manager::PasswordForm::Type type =
-                         password_manager::PasswordForm::Type::kManuallyAdded,
-                     base::OnceClosure completion = base::DoNothing());
+  bool AddCredential(
+      const CredentialUIEntry& credential,
+      PasswordForm::Type type = PasswordForm::Type::kManuallyAdded,
+      base::OnceClosure completion = base::DoNothing());
 
   // Adds |credentials| to the specified store.
   // Credentials are expected to be valid according to `GetExpectedAddResult`
@@ -156,7 +156,7 @@ class SavedPasswordsPresenter : public PasswordStoreInterface::Observer,
   //
   // For a single credential the behaviour is identical to AddCredential method.
   void AddCredentials(const std::vector<CredentialUIEntry>& credentials,
-                      password_manager::PasswordForm::Type type,
+                      PasswordForm::Type type,
                       AddCredentialsCallback completion);
 
   // Deletes all saved credentials: passwords, passkeys, blocked entries.

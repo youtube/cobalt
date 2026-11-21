@@ -7,18 +7,20 @@ found in the LICENSE file.
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:background="@drawable/immersive_video_card_background"
     android:orientation="vertical"
     android:gravity="start"
     android:clickable="true"
-    android:padding="20dp">
+    android:padding="8dp">
 
     <TextView
         android:id="@+id/format_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:paddingBottom="10dp"
+        android:paddingTop="8dp"
+        android:paddingStart="16dp"
+        android:paddingBottom="4dp"
         android:text="@string/immersive_playback_confirmation_format_title"
         android:textAppearance="@style/TextAppearance.TextLarge"
         android:textColor="@color/immersive_video_theme_foreground" />
@@ -27,6 +29,8 @@ found in the LICENSE file.
         android:id="@+id/format_radio_group"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingBottom="8dp"
         android:theme="@style/ImmersiveVideoRadioGroupTheme" />
 
 </LinearLayout>

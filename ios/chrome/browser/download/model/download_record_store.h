@@ -153,6 +153,9 @@ class DownloadRecordStore {
   // download histories without paying the O(N) load cost of
   // LoadHistoricalRecords. Returns an empty vector / 0 if the DB is not
   // initialized.
+  //
+  // Requires `kDownloadListPagination` to be enabled.
+  // Legacy flag-OFF UI must read from the cache via `GetAllFromCache`.
   std::vector<DownloadRecord> GetDownloadsPage(
       const DownloadRecordQuery& query) const;
   size_t GetDownloadsCount(const DownloadRecordQuery& query) const;

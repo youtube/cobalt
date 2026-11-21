@@ -35,7 +35,6 @@ import android.view.ViewStub;
 
 import androidx.annotation.ColorInt;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.ColorUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -542,8 +541,7 @@ public class StripLayoutHelperManagerTest {
         msb.setHovered(true);
         @ColorInt
         int hoverBackgroundDefaultColor =
-                ColorUtils.setAlphaComponent(
-                        SemanticColorUtils.getDefaultTextColor(mActivity), (int) (0.08 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_hover_tint);
         assertEquals(
                 "Model selector button hover highlight default tint is not as expected",
                 hoverBackgroundDefaultColor,
@@ -554,8 +552,7 @@ public class StripLayoutHelperManagerTest {
         msb.setPressed(true, true);
         @ColorInt
         int hoverBackgroundPressedColor =
-                ColorUtils.setAlphaComponent(
-                        SemanticColorUtils.getDefaultTextColor(mActivity), (int) (0.12 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_peripheral_pressed_tint);
         assertEquals(
                 "Model selector button hover highlight pressed tint is not as expected",
                 hoverBackgroundPressedColor,
@@ -569,9 +566,7 @@ public class StripLayoutHelperManagerTest {
         msb.setHovered(true);
         @ColorInt
         int hoverBackgroundDefaultIncognitoColor =
-                ColorUtils.setAlphaComponent(
-                        mActivity.getColor(R.color.tab_strip_button_hover_bg_color),
-                        (int) (0.08 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_incognito_hover_tint);
         assertEquals(
                 "Model selector button incognito hover highlight default tint is not as expected",
                 hoverBackgroundDefaultIncognitoColor,
@@ -582,9 +577,7 @@ public class StripLayoutHelperManagerTest {
         msb.setPressed(true, true);
         @ColorInt
         int hoverBackgroundPressedIncognitoColor =
-                ColorUtils.setAlphaComponent(
-                        mActivity.getColor(R.color.tab_strip_button_hover_bg_color),
-                        (int) (0.12 * 255));
+                mActivity.getColor(R.color.tab_strip_button_bg_incognito_peripheral_pressed_tint);
         assertEquals(
                 "Model selector button incognito hover highlight pressed tint is not as expected",
                 hoverBackgroundPressedIncognitoColor,

@@ -145,10 +145,14 @@ class DeviceCommandQueryGeolocationJobTest : public testing::Test {
     auto external_data_manager =
         std::make_unique<MockCloudExternalDataManager>();
 
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(
+        test_url_loader_factory_.GetSafeWeakWrapper());
+
     test_manager_ = std::make_unique<TestDeviceCloudPolicyManagerAsh>(
         std::move(store), std::move(external_data_manager));
-    pref_service_ = std::make_unique<TestingPrefServiceSimple>();
-    test_manager_->Initialize(pref_service_.get());
+    test_manager_->Initialize(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory());
 
     // Initialize SystemLocationProvider for the test.
     ash::SystemLocationProvider::Initialize(
@@ -188,6 +192,7 @@ class DeviceCommandQueryGeolocationJobTest : public testing::Test {
     network_handler_test_helper_.reset();
     ash::SystemLocationProvider::DestroyForTesting();
     TestingBrowserProcess::GetGlobal()->SetSystemNotificationHelper(nullptr);
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(nullptr);
     ash::DeviceSettingsService::Shutdown();
     ash::DBusThreadManager::Shutdown();
   }
@@ -240,7 +245,6 @@ class DeviceCommandQueryGeolocationJobTest : public testing::Test {
   network::TestURLLoaderFactory test_url_loader_factory_;
   std::unique_ptr<ash::NetworkHandlerTestHelper> network_handler_test_helper_;
   base::TimeTicks test_start_time_ = base::TimeTicks::Now();
-  std::unique_ptr<TestingPrefServiceSimple> pref_service_;
   std::unique_ptr<TestDeviceCloudPolicyManagerAsh> test_manager_;
 };
 

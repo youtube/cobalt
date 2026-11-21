@@ -466,14 +466,6 @@ struct BLINK_COMMON_EXPORT WebPreferences {
   // devtools extension panels.
   bool ai_ot_apis_enabled = false;
 
-  // Whether IgnoreDuplicateNav is enabled. Controlled by WebView settings on
-  // WebView and by `kIgnoreDuplicateNav` feature flag everywhere.
-  bool ignore_duplicate_nav_enabled = false;
-
-  // Threshold for IgnoreDuplicateNavs. Controlled by WebView settings on
-  // WebView and by `kDuplicateNavThreshold` feature param everywhere.
-  base::TimeDelta duplicate_nav_threshold;
-
 #if BUILDFLAG(IS_MAC)
   bool should_disable_external_popups = false;
 #endif  // BUILDFLAG(IS_MAC)

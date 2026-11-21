@@ -45,15 +45,19 @@ class GestureConfigurationAndroid : public GestureConfiguration {
     set_long_press_time_in_ms(ViewConfiguration::GetLongPressTimeoutInMs());
     set_max_distance_between_taps_for_double_tap(
         ViewConfiguration::GetDoubleTapSlopInDips());
-    set_max_fling_velocity(
-        ViewConfiguration::GetMaximumFlingVelocityInDipsPerSecond());
+    if (!base::FeatureList::IsEnabled(features::kDesktopFlingCurveOnAndroid)) {
+      set_max_fling_velocity(
+          ViewConfiguration::GetMaximumFlingVelocityInDipsPerSecond());
+    }
     set_max_gesture_bounds_length(kMaxGestureBoundsLengthDips);
     set_max_touch_move_in_pixels_for_click(
         ViewConfiguration::GetTouchSlopInDips());
     set_max_stylus_move_in_pixels_for_click(
         ViewConfiguration::GetTouchSlopInDips() * 1.5f);
-    set_min_fling_velocity(
-        ViewConfiguration::GetMinimumFlingVelocityInDipsPerSecond());
+    if (!base::FeatureList::IsEnabled(features::kDesktopFlingCurveOnAndroid)) {
+      set_min_fling_velocity(
+          ViewConfiguration::GetMinimumFlingVelocityInDipsPerSecond());
+    }
     set_min_gesture_bounds_length(kMinGestureBoundsLengthDips);
     set_min_pinch_update_span_delta(0.f);
     set_min_scaling_span_in_pixels(

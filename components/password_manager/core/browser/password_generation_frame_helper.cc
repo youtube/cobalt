@@ -124,7 +124,8 @@ bool PasswordGenerationFrameHelper::IsGenerationEnabled(
     return false;
   }
 
-  if (!client_->IsSavingAndFillingEnabled(url)) {
+  if (!client_->IsSavingAndFillingEnabled(driver_->GetLastCommittedOrigin(),
+                                          url)) {
     if (logger) {
       logger->LogMessage(Logger::STRING_GENERATION_DISABLED_BY_USER_OR_POLICY);
     }

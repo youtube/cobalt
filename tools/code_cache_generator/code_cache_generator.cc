@@ -24,8 +24,25 @@ namespace {
 
 class CodeCacheGenPlatform final : public blink::Platform {
  public:
+  explicit CodeCacheGenPlatform(
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner)
+      : task_runner_(std::move(task_runner)) {}
+
   // blink::Platform:
   bool DisallowV8FeatureFlagOverrides() const override { return true; }
+
+  // Required for binders to work, to ensure deterministic snapshot generation
+  // we have everything operate on a single thread.
+  scoped_refptr<base::SequencedTaskRunner> MediaThreadTaskRunner() override {
+    return task_runner_;
+  }
+
+  scoped_refptr<base::SingleThreadTaskRunner> GetIOTaskRunner() const override {
+    return task_runner_;
+  }
+
+ private:
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };
 
 // Returns true if the module code cache was generated and written successfully.
@@ -82,7 +99,7 @@ int main(int argc, char** argv) {
   static constexpr char kPredictableFlag[] = "--predictable";
   v8::V8::SetFlagsFromString(kPredictableFlag, sizeof(kPredictableFlag) - 1);
 
-  CodeCacheGenPlatform platform;
+  CodeCacheGenPlatform platform(main_thread_task_executor.task_runner());
   mojo::BinderMap binders;
   blink::CreateMainThreadAndInitialize(&platform, &binders);
   auto* isolate = blink::CreateMainThreadIsolate();

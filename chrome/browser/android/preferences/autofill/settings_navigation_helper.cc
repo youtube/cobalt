@@ -22,6 +22,21 @@ void ShowAutofillCreditCardSettings(content::WebContents* web_contents) {
       base::android::AttachCurrentThread(), web_contents->GetJavaWebContents());
 }
 
+void ShowAutofillIdentityDocsSettings(content::WebContents* web_contents) {
+  Java_SettingsNavigationHelper_showAutofillIdentityDocsSettings(
+      base::android::AttachCurrentThread(), web_contents->GetJavaWebContents());
+}
+
+void ShowAutofillTravelSettings(content::WebContents* web_contents) {
+  Java_SettingsNavigationHelper_showAutofillTravelSettings(
+      base::android::AttachCurrentThread(), web_contents->GetJavaWebContents());
+}
+
+void ShowAutofillShoppingSettings(content::WebContents* web_contents) {
+  Java_SettingsNavigationHelper_showAutofillShoppingSettings(
+      base::android::AttachCurrentThread(), web_contents->GetJavaWebContents());
+}
+
 }  // namespace autofill
 
 DEFINE_JNI(SettingsNavigationHelper)

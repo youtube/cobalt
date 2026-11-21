@@ -18,15 +18,15 @@
 // Stat subtitle.
 @property(nonatomic, copy, readonly) NSString* subtitle;
 
-// Stat icon image.
-@property(nonatomic, strong, readonly) UIImage* image;
+// Stat Lottie image name.
+@property(nonatomic, copy, readonly) NSString* imageLottieName;
 
 // Stat type.
 @property(nonatomic, assign, readonly) LevelUpTaskStatType type;
 
 - (instancetype)initWithTitle:(NSString*)title
                      subtitle:(NSString*)subtitle
-                        image:(UIImage*)image
+              imageLottieName:(NSString*)imageLottieName
                          type:(LevelUpTaskStatType)type;
 
 @end

@@ -27,15 +27,21 @@
 #include <unicode/unistr.h>
 #include <unicode/uvernum.h>
 
+#include <string_view>
+
 #include "base/compiler_specific.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
+#include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
+#include "third_party/blink/renderer/core/html/forms/text_control_inner_elements.h"
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
+#include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/platform/bindings/script_regexp.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode_string.h"
@@ -89,8 +95,7 @@ String EmailInputType::ConvertEmailAddressToAscii(const ScriptRegexp& regexp,
   // 8bit and non-8bit strings separately.
   host.Ensure16Bit();
 
-  auto host_span = host.Span16();
-  icu::UnicodeString idn_domain_name(host_span.data(), host_span.size());
+  icu::UnicodeString idn_domain_name{std::u16string_view(host.Span16())};
   icu::UnicodeString domain_name;
 
   // Leak |idna| at the end.
@@ -321,6 +326,77 @@ String EmailInputType::VisibleValue() const {
 
 void EmailInputType::MultipleAttributeChanged() {
   GetElement().SetValueFromRenderer(SanitizeValue(GetElement().Value()));
+}
+
+void EmailInputType::CreateShadowSubtree() {
+  TextFieldInputType::CreateShadowSubtree();
+
+  if (!IsEmailVerificationStatusIndicatorEnabled()) {
+    return;
+  }
+
+  Element* container = ContainerElement();
+  CHECK(container);
+
+  Document& document = GetElement().GetDocument();
+  EmailVerificationIndicatorElement* indicator =
+      MakeGarbageCollected<EmailVerificationIndicatorElement>(document);
+  container->AppendChild(indicator);
+  UpdateEmailVerificationIndicator();
+}
+
+bool EmailInputType::NeedsContainer() const {
+  return IsEmailVerificationStatusIndicatorEnabled();
+}
+
+void EmailInputType::SetEmailVerificationState(EmailVerificationState state) {
+  if (!IsEmailVerificationStatusIndicatorEnabled()) {
+    return;
+  }
+  if (email_verification_state_ == state) {
+    return;
+  }
+  email_verification_state_ = state;
+  UpdateEmailVerificationIndicator();
+}
+
+void EmailInputType::UpdateEmailVerificationIndicator() {
+  if (!IsEmailVerificationStatusIndicatorEnabled()) {
+    return;
+  }
+
+  Element* indicator =
+      GetElement().UserAgentShadowRoot()
+          ? GetElement().UserAgentShadowRoot()->getElementById(
+                shadow_element_names::kIdEmailVerificationIndicator)
+          : nullptr;
+  if (!indicator) {
+    return;
+  }
+
+  if (GetElement().IsInCanvasSubtree()) {
+    // We don't want the website to see the "success" indicator before the
+    // form is submitted, so we show no indicator when inside a canvas subtree.
+    indicator->setAttribute(AtomicString("data-state"), AtomicString("none"));
+    return;
+  }
+
+  const char* state_str = "none";
+  switch (email_verification_state_) {
+    case EmailVerificationState::kNone:
+      state_str = "none";
+      break;
+    case EmailVerificationState::kVerified:
+      state_str = "verified";
+      break;
+  }
+  indicator->setAttribute(AtomicString("data-state"), AtomicString(state_str));
+}
+
+bool EmailInputType::IsEmailVerificationStatusIndicatorEnabled() const {
+  const ExecutionContext* context = GetElement().GetExecutionContext();
+  return RuntimeEnabledFeatures::EmailVerificationStatusIndicatorEnabled(
+      context);
 }
 
 }  // namespace blink

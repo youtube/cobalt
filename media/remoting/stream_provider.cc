@@ -635,8 +635,8 @@ void StreamProvider::CompleteInitialize() {
   std::move(init_done_callback_).Run(PIPELINE_OK);
 }
 
-std::vector<DemuxerStream*> StreamProvider::GetAllStreams() {
-  std::vector<DemuxerStream*> streams;
+std::vector<raw_ptr<DemuxerStream>> StreamProvider::GetAllStreams() {
+  std::vector<raw_ptr<DemuxerStream>> streams;
   if (audio_stream_) {
     streams.push_back(audio_stream_.get());
   }

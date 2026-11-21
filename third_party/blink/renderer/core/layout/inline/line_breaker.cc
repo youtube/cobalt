@@ -671,6 +671,28 @@ void LineBreaker::ComputeBaseDirection() {
       Character::IsLineFeed);
 }
 
+inline LayoutUnit LineBreaker::ComputeFloatOffset() const {
+  if (constraint_space_.AvailableSize().inline_size == kIndefiniteSize) {
+    return LayoutUnit();
+  }
+  const LayoutUnit left = line_opportunity_.line_left_offset;
+  const LayoutUnit bfc_left = constraint_space_.GetBfcOffset().line_offset;
+  const LayoutUnit right = line_opportunity_.line_right_offset;
+  const LayoutUnit bfc_right = constraint_space_.GetBfcOffset().line_offset +
+                               constraint_space_.AvailableSize().inline_size;
+  if (IsLtr(base_direction_)) {
+    if (left <= bfc_left) {
+      return LayoutUnit();
+    }
+    return left - bfc_left;
+  } else {
+    if (right >= bfc_right) {
+      return LayoutUnit();
+    }
+    return bfc_right - right;
+  }
+}
+
 void LineBreaker::RecalcClonedBoxDecorations() {
   cloned_box_decorations_count_ = 0u;
   cloned_box_decorations_initial_size_ = LayoutUnit();
@@ -2943,7 +2965,10 @@ void LineBreaker::HandleControlItem(const InlineItem& item,
                              : style.GetFont();
       const ShapeResult* shape_result =
           ShapeResult::CreateForTabulationCharacters(
-              font, item.Direction(), style.GetTabSize(), position_,
+              font, item.Direction(), style.GetTabSize(),
+              RuntimeEnabledFeatures::TabAlignmentWithFloatsEnabled()
+                  ? position_ + ComputeFloatOffset()
+                  : position_,
               item.StartOffset(), item.Length());
       HandleText(item, *shape_result, line_info);
       return;
@@ -4121,7 +4146,6 @@ void LineBreaker::HandleOverflow(LineInfo* line_info) {
         BreakText(item_result, item, *item.TextShapeResult(),
                   std::min(item_available_width, min_available_width),
                   item_available_width, line_info);
-        DCHECK_LE(item_result->EndOffset(), item_result_before.EndOffset());
 #if DCHECK_IS_ON()
         item_result->CheckConsistency(true);
 #endif
@@ -4151,6 +4175,13 @@ void LineBreaker::HandleOverflow(LineInfo* line_info) {
         }
 
         // Failed to break to fit. Restore to the original state.
+        //
+        // Generally, breaking at a smaller width should result in a shorter or
+        // equal end offset; i.e., `item_result->EndOffset()` should be
+        // `<= item_result_before.EndOffset()`.
+        // However, due to reshaping (especially at huge font sizes) or
+        // float-to-LayoutUnit rounding mismatches, the `EndOffset()` becoming
+        // larger is possible.
         if (HasHyphen()) [[unlikely]] {
           RemoveHyphen(item_results);
         }

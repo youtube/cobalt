@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>SpellCheckCustomDictionary: addWords / removeWords (manual)</title>
+<link rel="help" href="https://github.com/Igalia/explainers/tree/main/spell-check-dictionary">
+<meta name="assert" content="document.spellCheckCustomDictionary.addWords() suppresses the spelling squiggle for the given words across the whole document and across all enabled spellcheck languages; removeWords() restores it.">
+
+<!--
+  This is a MANUAL test: the spelling squiggle is rendered by the browser and
+  cannot be observed from script, so a human must watch the editable regions.
+
+  HOW TO RUN
+    1. Launch a browser with the feature enabled, e.g.:
+         chrome --enable-blink-features=SpellCheckCustomDictionaryAPI
+    2. Make sure spell checking is enabled (Settings > Languages) and at least
+       one spellcheck language is on. The API is a no-op when spell checking is
+       off.
+    3. Serve this page from a secure context (https:// or http://localhost).
+       The interface is [SecureContext]; on an insecure origin
+       document.spellCheckCustomDictionary is undefined.
+    4. Follow the numbered steps under each editable region and mark PASS/FAIL.
+-->
+
+<style>
+  body { font: 14px/1.5 sans-serif; margin: 24px; max-width: 820px; }
+  .editable { border: 1px solid #888; padding: 6px; margin: 6px 0; font-size: 16px; }
+  textarea.editable { width: 100%; height: 3em; box-sizing: border-box; }
+  .word { font-family: monospace; }
+  .status { font-family: monospace; margin-left: 6px; }
+  #env, .note { border: 1px solid #ccc; padding: 8px; margin-bottom: 16px; }
+  .ok { color: #1a6b1a; }
+  .bad { color: #b00020; }
+</style>
+
+<h1>SpellCheckCustomDictionary &mdash; addWords / removeWords</h1>
+
+<div id="env"></div>
+
+<p class="note">
+  <b>Note on the difference between add and remove refresh.</b> <code>addWords()</code>
+  clears the squiggle for those words across the whole document right away.
+  <code>removeWords()</code> does <i>not</i> re-flag every editable from the call
+  itself: it invalidates the per-document spell-check cache and a fresh check then
+  runs on each editable <b>when that editable is focused by a user gesture</b>.
+  So to verify removal, <b>click into each field</b> &mdash; the squiggle should
+  return without typing. See
+  <a href="https://chromium-review.googlesource.com/c/chromium/src/+/7837649">crrev.com/c/7837649</a>.
+  Gating the refresh on a user gesture is a privacy defense. See also
+  <a href="https://explainers-by-googlers.github.io/user-dictionary-leaks/">user-dictionary-leaks</a>.
+</p>
+
+<!-- Test 1: basic add then remove on a single field. -->
+<fieldset>
+  <legend>1. Add suppresses the squiggle, remove restores it</legend>
+  <p>The misspelled nonsense word <span class="word">wugzz</span> below should
+     have a red spelling squiggle to start with.</p>
+  <div id="field1" class="editable" spellcheck="true" contenteditable>This wugzz is misspelled.</div>
+  <button data-add='["wugzz"]'>addWords(["wugzz"])</button>
+  <button data-remove='["wugzz"]'>removeWords(["wugzz"])</button>
+  <ol>
+    <li>Confirm <span class="word">wugzz</span> is underlined as misspelled.</li>
+    <li>Click <b>addWords</b>. The squiggle on <span class="word">wugzz</span> should disappear
+        immediately, with no further interaction.</li>
+    <li>Click <b>removeWords</b>, then click back into this field. The squiggle should
+        come back as soon as you focus the field &mdash; <b>without you having to type</b>.</li>
+  </ol>
+  <div class="verdict" data-test="basic"></div>
+</fieldset>
+
+<!-- Test 2: per-document scope. The dictionary lives on the document, so a word
+     added once must affect every editable region on the page. -->
+<fieldset>
+  <legend>2. The dictionary is per-document</legend>
+  <p>Both regions below contain <span class="word">flooble</span>.</p>
+  <div id="field2a" class="editable" spellcheck="true" contenteditable>A flooble in a contenteditable.</div>
+  <textarea id="field2b" class="editable" spellcheck="true">A flooble in a textarea.</textarea>
+  <button data-add='["flooble"]'>addWords(["flooble"])</button>
+  <button data-remove='["flooble"]'>removeWords(["flooble"])</button>
+  <ol>
+    <li>Confirm <span class="word">flooble</span> is squiggled in <b>both</b> regions.</li>
+    <li>Click <b>addWords</b> once. The squiggle should clear in <b>both</b> regions
+        immediately.</li>
+    <li>Click <b>removeWords</b>, then click into <b>each</b> region in turn. Each
+        region's squiggle should reappear as soon as you focus it &mdash; <b>without
+        typing</b>. Note the asymmetry with add: removal is <b>not</b> applied to every
+        editable from the one button click. Re-checking is driven per editable when it
+        gains focus (via a user gesture), so you confirm each region by visiting it.
+        Seeing both re-flag confirms the per-document removal reached every editable.</li>
+  </ol>
+  <div class="verdict" data-test="per-document"></div>
+</fieldset>
+
+<!-- Test 3: language-agnostic behavior.
+     The added word must be honored regardless of which enabled spellcheck
+     language is active, not just the first one. -->
+<fieldset>
+  <legend>3. Added words are language-agnostic</legend>
+  <p>This step needs <b>two or more</b> spellcheck languages enabled in Settings.
+     It verifies the word set is consulted independently of language order.</p>
+  <div id="field3" class="editable" spellcheck="true" contenteditable lang="en">brilligzzz and brilligzzz</div>
+  <button data-add='["brilligzzz"]'>addWords(["brilligzzz"])</button>
+  <button data-remove='["brilligzzz"]'>removeWords(["brilligzzz"])</button>
+  <ol>
+    <li>Enable a second spellcheck language. Confirm <span class="word">brilligzzz</span> is squiggled.</li>
+    <li>Click <b>addWords</b>. The squiggle should clear.</li>
+    <li>Switch the field's language (change the <code>lang</code> attribute via DevTools,
+        or change the dominant language of the typed text), then <b>click into the field</b>
+        to force a fresh check: <span class="word">brilligzzz</span> should <b>stay</b> unflagged
+        under the other language too.</li>
+  </ol>
+  <div class="verdict" data-test="language-agnostic"></div>
+</fieldset>
+
+<!-- Test 4: per-document cap: 5000 words, 99 bytes/word.
+     Scriptable enough that we can assert it doesn't throw and stays a no-op
+     visually; the cap itself is enforced silently. -->
+<fieldset>
+  <legend>4. Per-document cap is enforced (5000 words / 99 bytes per word)</legend>
+  <p><b>Run this test last.</b> The per-document word set is shared by every test on
+     this page and persists for the document's lifetime, and the bulk step below fills
+     it permanently. If you run Test 4 before Tests 1&ndash;3, their <code>addWords</code>
+     calls will be silently rejected (cap full) and those tests will appear to fail.</p>
+  <p>The per-document set is capped at 5000 words and 99 bytes per word. Once the
+     cap is reached, further additions are <b>silently dropped</b>.</p>
+  <p>Field A contains <span class="word">zzzzzqqqqq</span>; field B contains
+     <span class="word">capword</span>. Both start squiggled.</p>
+  <div id="field4" class="editable" spellcheck="true" contenteditable>zzzzzqqqqq is misspelled.</div>
+  <div id="field4b" class="editable" spellcheck="true" contenteditable>capword is misspelled.</div>
+  <button data-add='["zzzzzqqqqq"]'>A: addWords(["zzzzzqqqqq"])</button>
+  <button id="bulk-add">Fill cap: addWords(6000 words + 1 over-long word)</button>
+  <button data-add='["capword"]'>B: addWords(["capword"])</button>
+  <ol>
+    <li><b>Below the cap.</b> Click <b>A: addWords(["zzzzzqqqqq"])</b>. Its squiggle
+        should clear &mdash; the dictionary works normally below the cap.</li>
+    <li><b>Fill the cap.</b> Click <b>Fill cap</b>. The page must not throw and must
+        stay responsive, and the DevTools console should show exactly one warning:
+        <i>&ldquo;per-document word limit reached&hellip;&rdquo;</i></li>
+    <li><b>Above the cap.</b> Click <b>B: addWords(["capword"])</b>. The squiggle on
+        <span class="word">capword</span> should <b>stay</b> &mdash; the word is
+        rejected because the per-document set is full. (If it clears, the cap is not
+        being enforced.)</li>
+  </ol>
+  <div class="verdict" data-test="cap"></div>
+</fieldset>
+
+<script>
+  const env = document.getElementById('env');
+  const dict = document.spellCheckCustomDictionary;
+  if (!dict) {
+    env.className = 'bad';
+    env.textContent =
+      'FAIL to set up: document.spellCheckCustomDictionary is undefined. ' +
+      'Launch with --enable-blink-features=SpellCheckCustomDictionaryAPI, ' +
+      'over a secure context (https/localhost), with spell checking enabled.';
+  } else {
+    env.className = 'ok';
+    env.textContent =
+      'document.spellCheckCustomDictionary is available. ' +
+      'Follow each step below and record PASS/FAIL.';
+  }
+
+  function setStatus(btn, msg, bad) {
+    let s = btn.nextElementSibling;
+    if (!s || !s.classList.contains('status')) {
+      s = document.createElement('span');
+      s.className = 'status';
+      btn.after(s);
+    }
+    s.textContent = msg;
+    s.style.color = bad ? '#b00020' : '#1a6b1a';
+  }
+
+  function wire(btn, method, words) {
+    btn.addEventListener('click', () => {
+      try {
+        dict[method](words);
+        setStatus(btn, `${method}(${words.length} word${words.length === 1 ? '' : 's'}) ok`, false);
+      } catch (e) {
+        setStatus(btn, `threw: ${e}`, true);
+      }
+    });
+  }
+
+  for (const btn of document.querySelectorAll('button[data-add]')) {
+    wire(btn, 'addWords', JSON.parse(btn.dataset.add));
+  }
+  for (const btn of document.querySelectorAll('button[data-remove]')) {
+    wire(btn, 'removeWords', JSON.parse(btn.dataset.remove));
+  }
+
+  const bulk = document.getElementById('bulk-add');
+  if (bulk) {
+    bulk.addEventListener('click', () => {
+      try {
+        const words = [];
+        for (let i = 0; i < 6000; i++) words.push('w' + i);
+        words.push('x'.repeat(200));  // over the 99-byte per-word limit
+        dict.addWords(words);
+        setStatus(bulk, 'addWords(6001) ok — no throw', false);
+      } catch (e) {
+        setStatus(bulk, `threw: ${e}`, true);
+      }
+    });
+  }
+
+  // PASS / FAIL buttons per scenario.
+  for (const v of document.querySelectorAll('.verdict')) {
+    const name = v.dataset.test;
+    for (const result of ['PASS', 'FAIL']) {
+      const b = document.createElement('button');
+      b.textContent = result;
+      b.addEventListener('click', () => {
+        v.querySelector('.recorded')?.remove();
+        const span = document.createElement('span');
+        span.className = 'recorded status';
+        span.textContent = `${name}: ${result}`;
+        span.style.color = result === 'PASS' ? '#1a6b1a' : '#b00020';
+        v.appendChild(span);
+      });
+      v.appendChild(b);
+    }
+  }
+</script>

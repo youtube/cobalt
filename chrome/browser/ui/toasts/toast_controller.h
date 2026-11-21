@@ -19,6 +19,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/views/widget/widget_observer.h"
 
 class BrowserWindowInterface;
@@ -45,6 +46,7 @@ class MenuModel;
 }
 
 namespace views {
+class View;
 class Widget;
 }
 
@@ -75,6 +77,10 @@ class ToastController : public views::WidgetObserver,
                         public OmniboxTabHelper::Observer,
                         public content::WebContentsObserver {
  public:
+  DECLARE_USER_DATA(ToastController);
+  static ToastController* From(
+      BrowserWindowInterface* browser_window_interface);
+
   explicit ToastController(BrowserWindowInterface* browser_window_interface,
                            const ToastRegistry* toast_registry);
   ~ToastController() override;
@@ -145,6 +151,16 @@ class ToastController : public views::WidgetObserver,
   // Called when the browser window's fullscreen state changes.
   void OnFullscreenStateChanged();
 
+  // Updates the anchor view and reparents the toast widget.
+  void UpdateToastAnchor();
+
+  // Gets the anchor view for a toast.
+  views::View* GetAnchorView(bool global_scope);
+
+  // Updates the focus traversable parent of the toast widget so that keyboard
+  // focus is properly handled.
+  void UpdateToastWidgetFocusTraversableParent(views::View* anchor_view);
+
   const raw_ptr<BrowserWindowInterface> browser_window_interface_;
   const raw_ptr<const ToastRegistry> toast_registry_;
   // Used to transition between the current toast and the queued one.
@@ -172,6 +188,9 @@ class ToastController : public views::WidgetObserver,
   raw_ptr<views::Widget> toast_widget_;
 
   std::vector<base::CallbackListSubscription> browser_subscriptions_;
+
+  std::optional<ui::ScopedUnownedUserData<ToastController>>
+      scoped_unowned_user_data_;
 };
 
 #endif  // CHROME_BROWSER_UI_TOASTS_TOAST_CONTROLLER_H_

@@ -72,6 +72,8 @@ build_webui("build") {
 
   ts_files = [
     "app.html.ts",
+    "app_menu_button.html.ts",
+    "app_menu_button.ts",
     "app.ts",
     "avatar_button.html.ts",
     "avatar_button.ts",
@@ -116,6 +118,8 @@ build_webui("build") {
     "split_tabs_button.ts",
     "timer_helper.ts",
     "toolbar_button.ts",
+    "toolbar_chip_button.html.ts",
+    "toolbar_chip_button.ts",
     "toolbar_divider.html.ts",
     "toolbar_divider.ts",
   ]
@@ -126,6 +130,7 @@ build_webui("build") {
 
   css_files = [
     "app.css",
+    "app_menu_button.css",
     "avatar_button.css",
     "content_setting_icon.css",
     "content_settings_icons.css",
@@ -140,6 +145,7 @@ build_webui("build") {
     "reload_button.css",
     "selected_keyword.css",
     "toolbar_button.css",
+    "toolbar_chip_button.css",
     "toolbar_divider.css",
   ]
 

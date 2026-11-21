@@ -8,16 +8,15 @@
 
 #include "base/containers/span.h"
 #include "base/types/optional_ref.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
 #include "chrome/browser/web_applications/isolated_web_apps/runtime_data/chrome_iwa_runtime_data_provider.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
 
 namespace web_app {
 
 namespace {
 
 bool IntegrityBlockDataHasRotatedKey(
-    base::optional_ref<const IsolatedWebAppIntegrityBlockData>
-        integrity_block_data,
+    base::optional_ref<const IntegrityBlockData> integrity_block_data,
     base::span<const uint8_t> rotated_key) {
   return integrity_block_data &&
          integrity_block_data->HasPublicKey(rotated_key);

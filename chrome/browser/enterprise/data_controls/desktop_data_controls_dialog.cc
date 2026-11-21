@@ -263,9 +263,22 @@ void DesktopDataControlsDialog::Show(base::OnceClosure on_destructed) {
     return;
   }
 
-  widget_ = constrained_window::ShowWebModalDialogViewsOwned(
+  // Showing a tab-modal dialog can run a nested loop on some platforms which
+  // may dispatch `WebContentsObserver` notifications for `web_contents()`, so
+  // hold the returned widget in a local until `this` is known to still be
+  // valid.
+  auto weak_this = weak_ptr_factory_.GetWeakPtr();
+  auto widget = constrained_window::ShowWebModalDialogViewsOwned(
       dialog_delegate_.get(), top_web_contents,
       views::Widget::InitParams::CLIENT_OWNS_WIDGET);
+  if (!weak_this) {
+    return;
+  }
+  widget_ = std::move(widget);
+  if (!web_contents()) {
+    CloseDialog(views::Widget::ClosedReason::kAcceptButtonClicked);
+    return;
+  }
   widget_->MakeCloseSynchronous(base::BindOnce(
       &DesktopDataControlsDialog::CloseDialog, base::Unretained(this)));
 }
@@ -302,6 +315,12 @@ void DesktopDataControlsDialog::WebContentsDestroyed() {
   // was neither bypassed or accepted so it should close without calling
   // any callback.
   ClearCallbacks();
+  if (!widget_) {
+    // `Show()` is still creating the widget; it will close the dialog once the
+    // widget is owned by `this`.
+    Observe(nullptr);
+    return;
+  }
   CloseDialog(views::Widget::ClosedReason::kAcceptButtonClicked);
 }
 
@@ -312,6 +331,12 @@ void DesktopDataControlsDialog::PrimaryPageChanged(content::Page& page) {
   // that trigger on the new page, so callbacks must be cleared before closing
   // the dialog.
   ClearCallbacks();
+  if (!widget_) {
+    // `Show()` is still creating the widget; it will close the dialog once the
+    // widget is owned by `this`.
+    Observe(nullptr);
+    return;
+  }
   CloseDialog(views::Widget::ClosedReason::kAcceptButtonClicked);
 }
 

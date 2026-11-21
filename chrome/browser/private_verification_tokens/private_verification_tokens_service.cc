@@ -105,10 +105,10 @@ void PrivateVerificationTokensService::GetTokens(
   std::vector<
       private_verification_tokens::mojom::PrivateVerificationTokensTokenPtr>
       tokens;
-  for (const auto& [etld_plus_one, token_with_id] : store_->tokens()) {
+  for (const auto& [issuer, token_with_id] : store_->tokens()) {
     auto mojo_token = private_verification_tokens::mojom::
         PrivateVerificationTokensToken::New();
-    mojo_token->issuer = url::Origin::Create(GURL("https://" + etld_plus_one));
+    mojo_token->issuer = issuer;
     mojo_token->serialized_token = token_with_id.token.token();
     tokens.push_back(std::move(mojo_token));
   }

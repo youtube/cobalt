@@ -40,15 +40,6 @@ class DownloadManagerTabHelper
 
   ~DownloadManagerTabHelper() override;
 
-  // Returns whether downloads should be restricted. It checks if downloads
-  // should be restricted based on the download restriction policy for files,
-  // save to drive policy, and incognito.
-  static bool ShouldRestrictDownload(web::WebState* web_state);
-
-  // Returns whether downloads to file should be restricted. It checks if
-  // downloads should be restricted based on the download restriction policy.
-  static bool ShouldRestrictDownloadToFile(web::WebState* web_state);
-
   // Set the current download task for this tab.
   virtual void SetCurrentDownload(std::unique_ptr<web::DownloadTask> task);
 
@@ -67,6 +58,9 @@ class DownloadManagerTabHelper
 
   // Sets the snackbar handler.
   void SetSnackbarHandler(id<SnackbarCommands> snackbar_handler);
+
+  // Displays a snackbar when download is restricted.
+  virtual void ShowRestrictDownloadSnackbar();
 
   // Starts the current download task. Asserts that `task == task_`.
   virtual void StartDownload(web::DownloadTask* task);
@@ -112,9 +106,6 @@ class DownloadManagerTabHelper
   // the delegate and is invoked with the decision made by the user.
   void OnDownloadPolicyDecision(std::unique_ptr<web::DownloadTask> task,
                                 NewDownloadPolicy policy);
-
-  // Displays a snackbar when download is restricted.
-  void ShowRestrictDownloadSnackbar();
 
   // Use `user_documents_path` as the download file destination.
   void UseAvailableUserDocumentsPath(base::FilePath user_documents_path);

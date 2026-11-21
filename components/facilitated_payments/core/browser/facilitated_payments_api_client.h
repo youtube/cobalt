@@ -11,6 +11,7 @@
 
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
+#include "components/facilitated_payments/core/browser/account_linking_result.h"
 #include "components/facilitated_payments/core/browser/model/secure_payload.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_utils.h"
 
@@ -66,6 +67,14 @@ class FacilitatedPaymentsApiClient {
       CoreAccountInfo primary_account,
       const SecurePayload& secure_payload,
       base::OnceCallback<void(PurchaseActionResult)> callback) = 0;
+
+  // Invokes the instrument manager with the given action token and invokes the
+  // given `callback` with the result. Only one InvokeInstrumentManager() call
+  // per API client should be made at a time.
+  virtual void InvokeInstrumentManager(
+      CoreAccountInfo primary_account,
+      const std::vector<uint8_t>& action_token,
+      base::OnceCallback<void(AccountLinkingResult)> callback) = 0;
 };
 
 // A reusable factory for the facilitated payment API client. Since the api

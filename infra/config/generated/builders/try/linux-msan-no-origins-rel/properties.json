@@ -18,7 +18,8 @@
                 "archive_name_prefix": "msan-no-origins",
                 "archive_schema_version": 1,
                 "gs_acl": "public-read",
-                "gs_bucket": "chromium-browser-msan"
+                "gs_bucket": "chromium-browser-msan",
+                "use_archive_path": false
               },
               "execution_mode": "COMPILE_AND_TEST",
               "legacy_chromium_config": {

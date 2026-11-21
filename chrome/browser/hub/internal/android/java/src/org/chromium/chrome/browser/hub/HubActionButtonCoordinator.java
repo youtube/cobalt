@@ -21,6 +21,7 @@ public class HubActionButtonCoordinator {
 
     private final HubActionButtonMediator mMediator;
     private final Button mActionButton;
+    private final PropertyModel mModel;
 
     /**
      * Eagerly creates the action button component.
@@ -44,13 +45,13 @@ public class HubActionButtonCoordinator {
                             HubActionButtonHelper.createTouchDelegate(mActionButton));
                 });
 
-        PropertyModel model =
+        mModel =
                 new PropertyModel.Builder(HubActionButtonProperties.ALL_ACTION_BUTTON_KEYS)
                         .with(COLOR_MIXER, hubColorMixer)
                         .with(ACTION_BUTTON_VISIBLE, true)
                         .build();
-        PropertyModelChangeProcessor.create(model, actionButton, HubActionButtonViewBinder::bind);
-        mMediator = new HubActionButtonMediator(model, paneManager);
+        PropertyModelChangeProcessor.create(mModel, actionButton, HubActionButtonViewBinder::bind);
+        mMediator = new HubActionButtonMediator(mModel, paneManager);
     }
 
     /**
@@ -64,6 +65,7 @@ public class HubActionButtonCoordinator {
 
     /** Cleans up observers and resources. */
     public void destroy() {
+        mModel.set(COLOR_MIXER, null);
         mMediator.destroy();
     }
 }

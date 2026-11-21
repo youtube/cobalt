@@ -7,52 +7,13 @@
 #include <memory>
 #include <string>
 
-#include "base/run_loop.h"
-#include "base/test/task_environment.h"
 #include "chromeos/components/quick_answers/quick_answers_model.h"
 #include "chromeos/components/quick_answers/test/test_helpers.h"
-#include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace quick_answers {
 
-class TranslationResponseParserTest : public testing::Test {
- public:
-  TranslationResponseParserTest() = default;
-
-  TranslationResponseParserTest(const TranslationResponseParserTest&) = delete;
-  TranslationResponseParserTest& operator=(
-      const TranslationResponseParserTest&) = delete;
-
-  // testing::Test:
-  void SetUp() override {
-    translation_response_parser_ =
-        std::make_unique<TranslationResponseParser>(base::BindOnce(
-            &TranslationResponseParserTest::TranslationResponseParserCallback,
-            base::Unretained(this)));
-    run_loop_ = std::make_unique<base::RunLoop>();
-  }
-
-  void TranslationResponseParserCallback(
-      std::unique_ptr<TranslationResult> translation_result) {
-    translation_result_ = std::move(translation_result);
-    run_loop_->Quit();
-  }
-
-  void WaitForResponse() {
-    run_loop_->Run();
-    run_loop_ = std::make_unique<base::RunLoop>();
-  }
-
- protected:
-  base::test::TaskEnvironment task_environment_;
-  std::unique_ptr<TranslationResponseParser> translation_response_parser_;
-  std::unique_ptr<TranslationResult> translation_result_;
-  data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
-  std::unique_ptr<base::RunLoop> run_loop_;
-};
-
-TEST_F(TranslationResponseParserTest, ProcessResponseSuccess) {
+TEST(TranslationResponseParserTest, ProcessResponseSuccess) {
   constexpr char kTranslationResponse[] = R"(
     {
       "data": {
@@ -64,14 +25,14 @@ TEST_F(TranslationResponseParserTest, ProcessResponseSuccess) {
       }
     }
   )";
-  translation_response_parser_->ProcessResponse(kTranslationResponse);
-  WaitForResponse();
-  ASSERT_TRUE(translation_result_);
-  EXPECT_EQ("translated text", translation_result_->translated_text);
+  std::unique_ptr<TranslationResult> translation_result =
+      ParseTranslationResponse(kTranslationResponse);
+  ASSERT_TRUE(translation_result);
+  EXPECT_EQ("translated text", translation_result->translated_text);
 }
 
-TEST_F(TranslationResponseParserTest,
-       ProcessResponseWithAmpersandCharacterCodes) {
+TEST(TranslationResponseParserTest,
+     ProcessResponseWithAmpersandCharacterCodes) {
   constexpr char kTranslationResponse[] = R"(
     {
       "data": {
@@ -83,26 +44,26 @@ TEST_F(TranslationResponseParserTest,
       }
     }
   )";
-  translation_response_parser_->ProcessResponse(kTranslationResponse);
-  WaitForResponse();
-  ASSERT_TRUE(translation_result_);
+  std::unique_ptr<TranslationResult> translation_result =
+      ParseTranslationResponse(kTranslationResponse);
+  ASSERT_TRUE(translation_result);
   // Should correctly unescape ampersand character codes.
-  EXPECT_EQ("don't mess with me", translation_result_->translated_text);
+  EXPECT_EQ("don't mess with me", translation_result->translated_text);
 }
 
-TEST_F(TranslationResponseParserTest, ProcessResponseNoResults) {
+TEST(TranslationResponseParserTest, ProcessResponseNoResults) {
   constexpr char kTranslationResponse[] = R"(
     {}
   )";
-  translation_response_parser_->ProcessResponse(kTranslationResponse);
-  WaitForResponse();
-  EXPECT_FALSE(translation_result_);
+  std::unique_ptr<TranslationResult> translation_result =
+      ParseTranslationResponse(kTranslationResponse);
+  EXPECT_FALSE(translation_result);
 }
 
-TEST_F(TranslationResponseParserTest, ProcessResponseInvalidResponse) {
-  translation_response_parser_->ProcessResponse("results {}");
-  WaitForResponse();
-  EXPECT_FALSE(translation_result_);
+TEST(TranslationResponseParserTest, ProcessResponseInvalidResponse) {
+  std::unique_ptr<TranslationResult> translation_result =
+      ParseTranslationResponse("results {}");
+  EXPECT_FALSE(translation_result);
 }
 
 }  // namespace quick_answers

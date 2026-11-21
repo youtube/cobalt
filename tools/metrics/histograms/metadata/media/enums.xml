@@ -555,6 +555,15 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Failure"/>
 </enum>
 
+<enum name="CodedSizeGuessStatus">
+  <int value="0" label="None Correct"/>
+  <int value="1" label="Guess Correct"/>
+  <int value="2" label="MediaFormat Correct"/>
+  <int value="3" label="Both Correct"/>
+  <int value="4" label="Didn't guess and MediaFormat is correct"/>
+  <int value="5" label="Didn't guess and MediaFormat is not correct"/>
+</enum>
+
 <enum name="ContentProtectionWindowStatus">
   <int value="0" label="Success"/>
   <int value="1" label="Window class registration failed"/>
@@ -2119,6 +2128,15 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/picture_in_picture/picture_in_picture_window_manager.h:PictureInPictureDisallowedType) -->
 
+<!-- LINT.IfChange(PictureInPictureSizeConstraintResult) -->
+
+<enum name="PictureInPictureSizeConstraintResult">
+  <int value="0" label="SizeConstraintMet"/>
+  <int value="1" label="SizeConstraintNotMet"/>
+</enum>
+
+<!-- LINT.ThenChange(//third_party/blink/renderer/core/html/media/html_video_element.cc:PictureInPictureSizeConstraintResult) -->
+
 <!-- LINT.IfChange(PictureInPictureTuckedTypeEnum) -->
 
 <enum name="PictureInPictureTuckedType">
@@ -2156,6 +2174,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="DuplicateCallBeforePromiseResolution"/>
   <int value="4" label="DuplicateCallAfterPromiseResolution"/>
   <int value="5" label="ElementAndMediaDevicesNotInSameExecutionContext"/>
+  <int value="6" label="FencedFrameNotAllowed"/>
 </enum>
 
 <enum name="ProduceTargetPromiseResult">

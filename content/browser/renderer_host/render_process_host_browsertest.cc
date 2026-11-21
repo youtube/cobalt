@@ -17,11 +17,13 @@
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_split.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_expected_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
@@ -1338,6 +1340,57 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest,
               ChildBindingState::WAIVED);
   }
   process->Cleanup();
+}
+
+IN_PROC_BROWSER_TEST_P(RenderProcessHostTest, PriorityOverrideAndroid) {
+  // Start up a real renderer process.
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL test_url = embedded_test_server()->GetURL("/simple_page.html");
+  EXPECT_TRUE(NavigateToURL(shell(), test_url));
+  auto* web_contents = shell()->web_contents();
+  RenderProcessHostImpl* process = static_cast<RenderProcessHostImpl*>(
+      web_contents->GetPrimaryMainFrame()->GetProcess());
+  EXPECT_EQ(web_contents->GetVisibility(), content::Visibility::VISIBLE);
+
+  EXPECT_FALSE(process->HasPriorityOverride());
+
+  // === Case 1: Tab is Active/Visible (Client Importance is IMPORTANT) ===
+  web_contents->SetPrimaryPageImportance(ChildProcessImportance::IMPORTANT,
+                                         ChildProcessImportance::NORMAL);
+
+  // Applying an override lower than the client importance should NOT downgrade
+  // it.
+  process->SetPriorityOverride(base::Process::Priority::kBestEffort);
+  EXPECT_TRUE(process->HasPriorityOverride());
+
+  // Importance and bindings must remain at the maximum level.
+  EXPECT_EQ(process->GetEffectiveImportance(),
+            ChildProcessImportance::IMPORTANT);
+
+  // === Case 2: Simulate tab is Hidden (Client Importance drops to NORMAL) ===
+  web_contents->SetPrimaryPageImportance(ChildProcessImportance::NORMAL,
+                                         ChildProcessImportance::NORMAL);
+
+  // The client importance drops and our priority override is still
+  // kBestEffort. The effective importance should now fall to NORMAL (WAIVED)
+  // since both inputs are NORMAL.
+  EXPECT_EQ(process->GetEffectiveImportance(), ChildProcessImportance::NORMAL);
+
+  // Upgrade to base::Process::Priority::kUserVisible (corresponds to MODERATE).
+  process->SetPriorityOverride(base::Process::Priority::kUserVisible);
+  EXPECT_EQ(process->GetEffectiveImportance(),
+            ChildProcessImportance::MODERATE);
+
+  // Upgrade to base::Process::Priority::kUserBlocking (corresponds to
+  // IMPORTANT).
+  process->SetPriorityOverride(base::Process::Priority::kUserBlocking);
+  EXPECT_EQ(process->GetEffectiveImportance(),
+            ChildProcessImportance::IMPORTANT);
+
+  // Clear override.
+  process->ClearPriorityOverride();
+  EXPECT_FALSE(process->HasPriorityOverride());
+  EXPECT_EQ(process->GetEffectiveImportance(), ChildProcessImportance::NORMAL);
 }
 #endif
 

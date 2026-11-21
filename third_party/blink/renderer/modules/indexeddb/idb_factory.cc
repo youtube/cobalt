@@ -28,6 +28,7 @@
 
 #include "third_party/blink/renderer/modules/indexeddb/idb_factory.h"
 
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -35,6 +36,7 @@
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -54,7 +56,9 @@
 #include "third_party/blink/renderer/modules/indexeddb/idb_database.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_factory_client.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_key.h"
+#include "third_party/blink/renderer/modules/indexeddb/shared_idb_database_connection.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
@@ -86,6 +90,8 @@ static bool IsContextValid(ExecutionContext* context) {
 void IDBFactory::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
+  visitor->Trace(shared_connections_);
+  visitor->Trace(primary_pending_requests_);
   visitor->Trace(remote_);
   visitor->Trace(weak_factory_);
 }
@@ -296,7 +302,8 @@ IDBOpenDBRequest* IDBFactory::OpenInternal(ScriptState* script_state,
       callbacks_remote;
 
   auto* request = MakeGarbageCollected<IDBOpenDBRequest>(
-      script_state, callbacks_remote.InitWithNewEndpointAndPassReceiver(),
+      script_state, this, name,
+      callbacks_remote.InitWithNewEndpointAndPassReceiver(),
       std::move(transaction_remote), transaction_id, version,
       std::move(metrics));
 
@@ -347,10 +354,66 @@ void IDBFactory::OpenInternalImpl(
   DCHECK_GE(scheduling_priority, 0);
   request->set_connection_priority(scheduling_priority);
 
+  if (base::FeatureList::IsEnabled(
+          features::kIndexedDBConnectionDeduplication)) {
+    SharedIDBDatabaseConnection* cached_connection =
+        GetSharedConnectionIfExists(name);
+    if (cached_connection && cached_connection->is_bound()) {
+      const IDBDatabaseMetadata& existing_metadata =
+          cached_connection->metadata();
+      // Sharing requires matching versions. A default open (kNoVersion)
+      // targets the existing version.
+      if (version == IDBDatabaseMetadata::kNoVersion ||
+          version == existing_metadata.version) {
+        // Bind the request to the cached connection to prevent it from closing
+        // while the request is in-flight.
+        request->BindToConnection(cached_connection);
+        GetRemote()->Open(CreatePendingRemote(request->CreateFactoryClient()),
+                          std::move(callbacks_remote), name, version,
+                          std::move(transaction_receiver), transaction_id,
+                          scheduling_priority,
+                          /*request_shared_connection=*/true);
+        return;
+      }
+      // Upgrade requests invalidate the current connection. We must remove it
+      // from the cache to prevent future requests from sharing the outdated
+      // connection. Connections created by older pending requests will safely
+      // resolve and subsequently receive the versionchange event due to Mojo
+      // ordering.
+      if (version > existing_metadata.version) {
+        RemoveSharedConnection(name);
+      }
+    }
+    // Piggyback on an in-flight primary request if one exists for the same
+    // version, avoiding a duplicate connection.
+    auto primary_it = primary_pending_requests_.find(name);
+    if (primary_it != primary_pending_requests_.end()) {
+      IDBOpenDBRequest* primary_request = primary_it->value;
+      if (version == IDBDatabaseMetadata::kNoVersion ||
+          primary_request->version() == version) {
+        // Register the shared request with the primary so the connection can be
+        // pushed to it when established.
+        primary_request->AddSharedRequest(request);
+
+        // Request connection sharing from the browser-side.
+        GetRemote()->Open(CreatePendingRemote(request->CreateFactoryClient()),
+                          std::move(callbacks_remote), name, version,
+                          std::move(transaction_receiver), transaction_id,
+                          scheduling_priority,
+                          /*request_shared_connection=*/true);
+        return;
+      }
+    }
+  }
+
+  primary_pending_requests_.Set(name, request);
+
+  // Fallback: request a new, non-shared connection from the browser.
   GetRemote()->Open(CreatePendingRemote(request->CreateFactoryClient()),
                     std::move(callbacks_remote), name, version,
                     std::move(transaction_receiver), transaction_id,
-                    scheduling_priority);
+                    scheduling_priority,
+                    /*request_shared_connection=*/false);
 }
 
 IDBOpenDBRequest* IDBFactory::open(ScriptState* script_state,
@@ -402,10 +465,14 @@ IDBOpenDBRequest* IDBFactory::DeleteDatabaseInternal(
   }
 
   auto* request = MakeGarbageCollected<IDBOpenDBRequest>(
-      script_state,
+      script_state, this, name,
       /*callbacks_receiver=*/mojo::NullAssociatedReceiver(),
       IDBTransaction::TransactionMojoRemote(context), 0,
       IDBDatabaseMetadata::kDefaultVersion, std::move(metrics));
+
+  // Invalidate database cache.
+  RemoveSharedConnection(name);
+  primary_pending_requests_.erase(name);
 
   auto do_delete = BindOnce(&IDBFactory::DeleteDatabaseInternalImpl,
                             WrapPersistent(weak_factory_.GetWeakCell()),
@@ -525,6 +592,62 @@ IDBFactory::CreatePendingRemote(
       pending_factory_client.InitWithNewEndpointAndPassReceiver(),
       GetTaskRunner());
   return pending_factory_client;
+}
+
+SharedIDBDatabaseConnection* IDBFactory::GetSharedConnectionIfExists(
+    const String& name) {
+  auto it = shared_connections_.find(name);
+  if (it != shared_connections_.end()) {
+    return it->value;
+  }
+  return nullptr;
+}
+
+void IDBFactory::RegisterSharedConnection(
+    const String& name,
+    SharedIDBDatabaseConnection* connection) {
+  shared_connections_.Set(name, connection);
+  connection->SetDisconnectCallback(blink::BindOnce(
+      &IDBFactory::RemoveSharedConnection, WrapWeakPersistent(this), name));
+}
+
+void IDBFactory::RemoveSharedConnection(const String& name) {
+  shared_connections_.erase(name);
+}
+
+void IDBFactory::UnregisterPendingRequest(IDBOpenDBRequest* request) {
+  auto it = primary_pending_requests_.find(request->db_name());
+  if (it != primary_pending_requests_.end() && it->value == request) {
+    primary_pending_requests_.erase(it);
+  }
+}
+
+void IDBFactory::PromoteSharedRequest(
+    IDBOpenDBRequest* old_primary,
+    const HeapVector<Member<IDBOpenDBRequest>>& shared_requests) {
+  CHECK(old_primary);
+  CHECK(!shared_requests.empty());
+
+  IDBOpenDBRequest* new_primary = shared_requests[0];
+
+  // Transfer remaining requests to the new primary.
+  for (wtf_size_t i = 1; i < shared_requests.size(); ++i) {
+    new_primary->AddSharedRequest(shared_requests[i]);
+  }
+
+  const String& name = old_primary->db_name();
+
+  // Replace old_primary with new_primary in the pending map.
+  // Note: We always transfer the remaining requests above to ensure the ongoing
+  // Mojo flow remains correct (so that the promoted `new_primary` can still
+  // push the connection to its piggybacked requests when it succeeds). However,
+  // we only update the factory's pending map if `old_primary` was still the
+  // active primary. If it was already overwritten by a request with a different
+  // version, we must not overwrite it back.
+  auto it = primary_pending_requests_.find(name);
+  if (it != primary_pending_requests_.end() && it->value == old_primary) {
+    it->value = new_primary;
+  }
 }
 
 }  // namespace blink

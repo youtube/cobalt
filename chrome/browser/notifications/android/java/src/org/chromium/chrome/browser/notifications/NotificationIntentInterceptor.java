@@ -251,6 +251,8 @@ public class NotificationIntentInterceptor {
         }
         // The delete intent, and "close incognito" content intent, need to be handled by broadcast
         // receiver from Q due to background activity start restriction.
+        // TODO(crbug.com/527130820): Avoid hardcoding specific action types here. Instead,
+        // add an explicit background action parameter to the notification builder layer.
         boolean shouldUseBroadcast =
                 (intentType == IntentType.CONTENT_INTENT
                                 && metadata.type
@@ -273,6 +275,18 @@ public class NotificationIntentInterceptor {
                         || actionType
                                 == NotificationUmaTracker.ActionType
                                         .REPORT_UNWARNED_NOTIFICATION_AS_SPAM;
+
+        boolean isDownloadAction =
+                actionType == NotificationUmaTracker.ActionType.DOWNLOAD_PAUSE
+                        || actionType == NotificationUmaTracker.ActionType.DOWNLOAD_RESUME
+                        || actionType == NotificationUmaTracker.ActionType.DOWNLOAD_CANCEL
+                        || actionType == NotificationUmaTracker.ActionType.DOWNLOAD_PAGE_PAUSE
+                        || actionType == NotificationUmaTracker.ActionType.DOWNLOAD_PAGE_RESUME
+                        || actionType == NotificationUmaTracker.ActionType.DOWNLOAD_PAGE_CANCEL;
+
+        if (isDownloadAction && ChromeFeatureList.sNotificationTrampolineNoNewTask.isEnabled()) {
+            shouldUseBroadcast = true;
+        }
 
         Context applicationContext = ContextUtils.getApplicationContext();
         Intent intent = null;

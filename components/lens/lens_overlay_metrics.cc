@@ -63,6 +63,8 @@ std::string InvocationSourceToString(
       return "ContextualTasksComposebox";
     case LensOverlayInvocationSource::kCobrowseToolbarButton:
       return "CobrowseToolbarButton";
+    case LensOverlayInvocationSource::kCobrowsePinnedToolbarButton:
+      return "CobrowsePinnedToolbarButton";
   }
 }
 
@@ -490,6 +492,7 @@ void RecordTimeToFirstInteraction(
     case lens::LensOverlayInvocationSource::kNtpContextualQuery:
     case lens::LensOverlayInvocationSource::kOmniboxContextualQuery:
     case lens::LensOverlayInvocationSource::kCobrowseToolbarButton:
+    case lens::LensOverlayInvocationSource::kCobrowsePinnedToolbarButton:
       // Not recorded since the ntp and omnibox contextual query flows and the
       // cobrowse toolbar button flow do not use the Lens Overlay Controller.
       break;

@@ -189,6 +189,8 @@ public class FuseboxMediatorUnitTest {
             ObservableSuppliers.createNonNull(false);
     private final SettableNonNullObservableSupplier<String> mUrlBarText =
             ObservableSuppliers.createNonNull("");
+    private final SettableNonNullObservableSupplier<Boolean> mHasAttachmentsSupplier =
+            ObservableSuppliers.createNonNull(false);
     private final AutocompleteInput mInput = new AutocompleteInput();
 
     @Before
@@ -268,7 +270,8 @@ public class FuseboxMediatorUnitTest {
                         mActivationChipVisibilitySupplier,
                         mOnActivationChipClickedWithQuery,
                         mClearUrlBarTextCallback,
-                        mUrlBarText);
+                        mUrlBarText,
+                        mHasAttachmentsSupplier);
         mMediator.beginInput(createSession());
     }
 
@@ -398,6 +401,7 @@ public class FuseboxMediatorUnitTest {
 
         mMediator.uploadAndAddAttachment(attachment);
         RobolectricUtil.runAllBackgroundAndUi();
+        assertTrue(mHasAttachmentsSupplier.get());
         return attachment;
     }
 
@@ -712,9 +716,12 @@ public class FuseboxMediatorUnitTest {
     public void endInput_clearsState() {
         assertNotEquals(
                 FuseboxState.DISABLED, mModel.get(FuseboxProperties.FUSEBOX_STATE).intValue());
+        addAttachment("title", "token", FuseboxAttachmentType.ATTACHMENT_IMAGE);
+        assertTrue(mHasAttachmentsSupplier.get());
 
         mMediator.endInput();
         assertEquals(FuseboxState.DISABLED, mModel.get(FuseboxProperties.FUSEBOX_STATE).intValue());
+        assertFalse(mHasAttachmentsSupplier.get());
     }
 
     @Test
@@ -987,6 +994,7 @@ public class FuseboxMediatorUnitTest {
                         FuseboxAttachmentButtonType.FILES);
         mMediator.uploadAndAddAttachment(attachment);
         assertTrue(mModel.get(FuseboxProperties.ATTACHMENTS_VISIBLE));
+        assertTrue(mHasAttachmentsSupplier.get());
         verify(mComposeboxQueryControllerBridge).addFile("title", "image", byteArray);
     }
 
@@ -1005,6 +1013,7 @@ public class FuseboxMediatorUnitTest {
                         FuseboxAttachmentButtonType.FILES);
         mMediator.uploadAndAddAttachment(attachment);
         assertFalse(mModel.get(FuseboxProperties.ATTACHMENTS_VISIBLE));
+        assertFalse(mHasAttachmentsSupplier.get());
     }
 
     @Test

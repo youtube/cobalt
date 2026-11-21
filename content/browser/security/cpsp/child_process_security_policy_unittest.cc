@@ -3515,6 +3515,86 @@ TEST_P(ChildProcessSecurityPolicyTest, AddV8OptimizationState_AlreadyCached) {
             p->LookupAreV8OptimizationsDisabled(browsing_instance_id, origin));
 }
 
+TEST_P(ChildProcessSecurityPolicyTest,
+       AddOriginAgentClusterStateForBrowsingInstanceConsistency) {
+  ChildProcessSecurityPolicyImpl* p =
+      ChildProcessSecurityPolicyImpl::GetInstance();
+  url::Origin foo_origin = url::Origin::Create(GURL("https://foo.origin.com/"));
+
+  BrowsingInstanceId browsing_instance_id =
+      BrowsingInstanceId::FromUnsafeValue(1);
+  IsolationContext isolation_context(
+      browsing_instance_id, browser_context(), /*is_guest=*/false,
+      /*is_fenced=*/false,
+      OriginAgentClusterIsolationState::CreateNonIsolatedByDefault());
+
+  OriginAgentClusterIsolationState oac_opt_in =
+      OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
+          /*had_oac_request=*/true, /*requires_origin_keyed_process=*/true);
+
+  // Register the initial state.
+  p->AddOriginAgentClusterStateForBrowsingInstance(isolation_context,
+                                                   foo_origin, oac_opt_in);
+
+  // Attempt to override it with a different state.
+  OriginAgentClusterIsolationState oac_opt_out =
+      OriginAgentClusterIsolationState::CreateNonIsolatedByHeader();
+  p->AddOriginAgentClusterStateForBrowsingInstance(isolation_context,
+                                                   foo_origin, oac_opt_out);
+
+  // Verify that the initial state is preserved.
+  std::optional<OriginAgentClusterIsolationState> result =
+      p->LookupOriginAgentClusterStateForTesting(browsing_instance_id,
+                                                 foo_origin);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(oac_opt_in, result.value());
+
+  p->EraseOriginAgentClusterState(browsing_instance_id);
+}
+
+TEST_P(ChildProcessSecurityPolicyTest,
+       RecordDefaultOriginAgentClusterOriginIfNewConsistency) {
+  ChildProcessSecurityPolicyImpl* p =
+      ChildProcessSecurityPolicyImpl::GetInstance();
+  url::Origin foo_origin = url::Origin::Create(GURL("https://foo.origin.com/"));
+
+  BrowsingInstanceId browsing_instance_id =
+      BrowsingInstanceId::FromUnsafeValue(2);
+  IsolationContext isolation_context(
+      browsing_instance_id, browser_context(), /*is_guest=*/false,
+      /*is_fenced=*/false,
+      OriginAgentClusterIsolationState::CreateNonIsolatedByDefault());
+
+  OriginAgentClusterIsolationState oac_default =
+      OriginAgentClusterIsolationState::CreateNonIsolatedByDefault();
+
+  // Register the initial state.
+  p->RecordDefaultOriginAgentClusterOriginIfNew(
+      isolation_context, foo_origin,
+      /*is_global_walk_or_frame_removal=*/true);
+
+  // Attempt to override it with a different state. Note:
+  // RecordDefaultOriginAgentClusterOriginIfNew uses the default isolation
+  // state from isolation_context. Check that if we call
+  // AddOriginAgentClusterStateForBrowsingInstance (which populates the same
+  // map), it won't override what was set by
+  // RecordDefaultOriginAgentClusterOriginIfNew.
+  OriginAgentClusterIsolationState oac_opt_in =
+      OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
+          /*had_oac_request=*/true, /*requires_origin_keyed_process=*/true);
+  p->AddOriginAgentClusterStateForBrowsingInstance(isolation_context,
+                                                   foo_origin, oac_opt_in);
+
+  // Verify that the initial state (oac_default) is preserved.
+  std::optional<OriginAgentClusterIsolationState> result =
+      p->LookupOriginAgentClusterStateForTesting(browsing_instance_id,
+                                                 foo_origin);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(oac_default, result.value());
+
+  p->EraseOriginAgentClusterState(browsing_instance_id);
+}
+
 // This intentionally excludes {kCppOnly, kProcessState} since that behaves
 // the same as {kCppOnly, kMain} and is redundant to test separately.
 const CpspTestParam kCpspTestParams[] = {

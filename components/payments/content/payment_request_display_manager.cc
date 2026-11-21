@@ -4,9 +4,12 @@
 
 #include "components/payments/content/payment_request_display_manager.h"
 
+#include <optional>
+
 #include "base/check.h"
 #include "base/metrics/histogram_functions.h"
 #include "components/payments/content/content_payment_request_delegate.h"
+#include "url/origin.h"
 
 namespace payments {
 
@@ -82,11 +85,22 @@ void PaymentRequestDisplayManager::DisplayHandle::Retry() {
     delegate_->RetryDialog();
 }
 
+void PaymentRequestDisplayManager::DisplayHandle::SetPaymentHandlerOrigin(
+    std::optional<url::Origin> origin) {
+  payment_handler_origin_ = std::move(origin);
+}
+
 void PaymentRequestDisplayManager::DisplayHandle::DisplayPaymentHandlerWindow(
     const GURL& url,
     PaymentHandlerOpenWindowCallback callback) {
-  if (delegate_)
-    delegate_->EmbedPaymentHandlerWindow(url, std::move(callback));
+  if (!delegate_ || !payment_handler_origin_ ||
+      !payment_handler_origin_->IsSameOriginWith(url::Origin::Create(url))) {
+    std::move(callback).Run(/*success=*/false, /*render_process_id=*/0,
+                            /*render_frame_id=*/0);
+    return;
+  }
+
+  delegate_->EmbedPaymentHandlerWindow(url, std::move(callback));
 }
 
 base::WeakPtr<PaymentRequestDisplayManager::DisplayHandle>

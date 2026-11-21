@@ -187,7 +187,7 @@ TEST_F(AdsBlockedMessageDelegateTest, MessagePropertyValues) {
   EXPECT_EQ(l10n_util::GetStringUTF16(IDS_OK),
             GetMessageWrapper()->GetPrimaryButtonText());
   EXPECT_EQ(message_dispatcher_bridge()->MapToJavaDrawableId(
-                IDR_ANDROID_INFOBAR_BLOCKED_POPUPS),
+                IDR_ANDROID_MESSAGE_BLOCKED_POPUPS),
             GetMessageWrapper()->GetIconResourceId());
   EXPECT_EQ(
       message_dispatcher_bridge()->MapToJavaDrawableId(IDR_ANDROID_SETTINGS),

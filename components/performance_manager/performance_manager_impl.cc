@@ -77,8 +77,21 @@ GraphImpl* PerformanceManagerImpl::GetGraphImpl() {
 }
 
 // static
-std::unique_ptr<PerformanceManagerImpl> PerformanceManagerImpl::Create() {
-  return base::WrapUnique(new PerformanceManagerImpl());
+std::unique_ptr<PerformanceManagerImpl> PerformanceManagerImpl::Create(
+    ProcessPriorityPolicySettings process_priority_policy_settings) {
+  return base::WrapUnique(
+      new PerformanceManagerImpl(process_priority_policy_settings));
+}
+
+// static
+ProcessPriorityPolicySettings
+PerformanceManagerImpl::GetProcessPriorityPolicySettings() {
+  // If the singleton is uninitialized (e.g. in unit tests that don't spin up a
+  // full PerformanceManager environment), fall back to default policy settings.
+  if (!g_performance_manager) {
+    return {};
+  }
+  return g_performance_manager->process_priority_policy_settings_;
 }
 
 // static
@@ -210,7 +223,9 @@ void PerformanceManagerImpl::BatchDeleteNodes(
   // When |nodes| goes out of scope, all nodes are deleted.
 }
 
-PerformanceManagerImpl::PerformanceManagerImpl() {
+PerformanceManagerImpl::PerformanceManagerImpl(
+    ProcessPriorityPolicySettings process_priority_policy_settings)
+    : process_priority_policy_settings_(process_priority_policy_settings) {
   DETACH_FROM_SEQUENCE(sequence_checker_);
   CHECK(!g_performance_manager);
   g_performance_manager = this;

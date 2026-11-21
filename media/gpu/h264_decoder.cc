@@ -17,6 +17,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "media/base/media_switches.h"
 #include "media/parsers/h264_level_limits.h"
+#include "media/parsers/h26x_parser.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace media {
@@ -1841,12 +1842,17 @@ H264Decoder::DecodeResult H264Decoder::Decode() {
                         }
                         return true;
                       },
-                      [this](const H264SEIContentLightLevelInfo& info) {
+                      [this](const H26xSEIContentLightLevelInfo& info) {
                         hdr_metadata_bitstream_.SetCLLI(info.ToSkHdr());
                         return true;
                       },
-                      [this](const H264SEIMasteringDisplayInfo& info) {
+                      [this](const H26xSEIMasteringDisplayInfo& info) {
                         hdr_metadata_bitstream_.SetMDCV(info.ToSkHdr());
+                        return true;
+                      },
+                      [](const H26xSEIUserDataRegisteredT35& info) {
+                        // TODO(http://crbug.com/395659818): Add method to
+                        // set HDR metadata from T35.
                         return true;
                       },
                       [](const std::monostate) { return true; }},

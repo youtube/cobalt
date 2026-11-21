@@ -39,8 +39,7 @@ UniqueFontSelector::UniqueFontSelector(FontSelector* base_selector)
   if (base_selector_) {
     memory_consumer_registration_.emplace(
         "UniqueFontSelector", kUniqueFontSelectorTraits, this,
-        MemoryConsumerRegistration::CheckUnregister::kDisabled,
-        MemoryConsumerRegistration::CheckRegistryExists::kDisabled);
+        MemoryConsumerRegistration::CheckUnregister::kDisabled);
   }
 }
 

@@ -9,7 +9,10 @@
 #include "base/feature_list.h"
 #include "base/fuzzing_buildflags.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile.h"
+#include "content/public/browser/browser_context.h"
+#include "content/public/browser/storage_partition.h"
 
 #if !BUILDFLAG(USE_FUZZING_ENGINE)
 #include "components/metrics/private_metrics/private_insights/private_insights_features.h"  // nogncheck
@@ -56,7 +59,12 @@ PrivateInsightsServiceFactory::BuildServiceInstanceForBrowserContext(
   if (!base::FeatureList::IsEnabled(kPrivateInsightsFeature)) {
     return nullptr;
   }
-  return std::make_unique<PrivateInsightsService>();
+  auto service = std::make_unique<PrivateInsightsService>(
+      g_browser_process->local_state(), context->GetPath(),
+      context->GetDefaultStoragePartition()
+          ->GetURLLoaderFactoryForBrowserProcess());
+  service->Init();
+  return service;
 #endif
 }
 

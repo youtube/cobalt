@@ -48,6 +48,7 @@
 #import "ios/chrome/browser/main_content/ui_bundled/main_content_ui_broadcasting_util.h"
 #import "ios/chrome/browser/main_content/ui_bundled/main_content_ui_state.h"
 #import "ios/chrome/browser/main_content/ui_bundled/web_scroll_view_main_content_ui_forwarder.h"
+#import "ios/chrome/browser/metrics/model/activity_reporter.h"
 #import "ios/chrome/browser/metrics/model/tab_usage_recorder_browser_agent.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/ntp/ui_bundled/logo_animation_controller.h"
@@ -203,6 +204,7 @@ bool IsFullscreenNextIAEnabled() {
   // YES if Voice Search should be started when the new tab animation is
   // finished.
   BOOL _startVoiceSearchAfterNewTabAnimation;
+  ActivityReporterWithIncognito* _activityReporter;
 
   // Whether or not -shutdown has been called.
   BOOL _isShutdown;
@@ -421,6 +423,8 @@ bool IsFullscreenNextIAEnabled() {
     self.findInPageCommandsHandler = dependencies.findInPageCommandsHandler;
     self.geminiHandler = dependencies.geminiHandler;
     _isOffTheRecord = dependencies.isOffTheRecord;
+    _activityReporter = [[ActivityReporterWithIncognito alloc]
+        initWithDomain:ActivityReportDomainTab];
     _visibilityState = BrowserViewVisibilityState::kNotInViewHierarchy;
     _urlLoadingBrowserAgent = dependencies.urlLoadingBrowserAgent;
     _tabUsageRecorderBrowserAgent = dependencies.tabUsageRecorderBrowserAgent;
@@ -788,6 +792,7 @@ bool IsFullscreenNextIAEnabled() {
     }
   }
   [self setNeedsStatusBarAppearanceUpdate];
+  [self updateTabActivityReporting];
 }
 
 // TODO(crbug.com/40842434): Federate ClearPresentedState.
@@ -797,6 +802,8 @@ bool IsFullscreenNextIAEnabled() {
   [_bookmarksCoordinator dismissBookmarkModalControllerAnimated:NO];
   if (dismissOmnibox) {
     [_browserCoordinatorHandler hideComposebox];
+  } else {
+    [_browserCoordinatorHandler dismissMultimodalActionsMenu];
   }
   [self.helpHandler hideAllHelpBubbles];
   [_voiceSearchController dismissMicPermissionHelp];
@@ -1428,12 +1435,12 @@ bool IsFullscreenNextIAEnabled() {
   AppBarPosition position = self.layoutState.appBarPosition;
   switch (position) {
     case AppBarPosition::kLeft:
-      _toolbarLeadingConstraint.constant = kAppBarHeightLandscape;
+      _toolbarLeadingConstraint.constant = AppBarHeightLandscape();
       _toolbarTrailingConstraint.constant = 0;
       break;
     case AppBarPosition::kRight:
       _toolbarLeadingConstraint.constant = 0;
-      _toolbarTrailingConstraint.constant = -kAppBarHeightLandscape;
+      _toolbarTrailingConstraint.constant = -AppBarHeightLandscape();
       break;
     default:
       _toolbarLeadingConstraint.constant = 0;
@@ -1640,6 +1647,7 @@ bool IsFullscreenNextIAEnabled() {
   [self.toolbarCoordinator updateToolbar];
 
   [self updateWebStateVisibility:YES];
+  [self updateTabActivityReporting];
 }
 
 // Invoked when voice search shows.
@@ -2317,10 +2325,22 @@ bool IsFullscreenNextIAEnabled() {
     return;
   }
 
-  const CGFloat isolatedDelta =
-      std::max(0.0, expandedHeight - [self collapsedBottomToolbarHeight]);
-  const CGFloat offset = AlignValueToPixel((1.0 - progress) * isolatedDelta);
-  const CGFloat height = expandedHeight - offset;
+  CGFloat height = expandedHeight;
+  if (IsAppBarHiddenInFullscreen() &&
+      self.layoutState.appBarPosition == AppBarPosition::kBottom) {
+    CGFloat safeAreaBottom = self.safeAreaProvider.safeArea.bottom;
+    CGFloat collapsedHeightWithSafeArea =
+        [self collapsedBottomToolbarHeight] + safeAreaBottom;
+    CGFloat targetHeight =
+        collapsedHeightWithSafeArea +
+        progress * (expandedHeight - collapsedHeightWithSafeArea);
+    height = AlignValueToPixel(targetHeight);
+  } else {
+    const CGFloat isolatedDelta =
+        std::max(0.0, expandedHeight - [self collapsedBottomToolbarHeight]);
+    const CGFloat offset = AlignValueToPixel((1.0 - progress) * isolatedDelta);
+    height = expandedHeight - offset;
+  }
 
   self.secondaryToolbarHeightConstraint.constant = height;
 }
@@ -2672,9 +2692,9 @@ bool IsFullscreenNextIAEnabled() {
     AppBarPosition position = self.layoutState.appBarPosition;
 
     if (position == AppBarPosition::kLeft) {
-      insets.left = kAppBarHeightLandscape;
+      insets.left = AppBarHeightLandscape();
     } else if (position == AppBarPosition::kRight) {
-      insets.right = kAppBarHeightLandscape;
+      insets.right = AppBarHeightLandscape();
     }
   }
 
@@ -2683,7 +2703,7 @@ bool IsFullscreenNextIAEnabled() {
       insets.bottom = [self secondaryToolbarHeightWithInset];
       insets.top = [self expandedTopToolbarHeight];
       if (self.layoutState.appBarPosition == AppBarPosition::kBottom) {
-        insets.bottom += kAppBarHeight;
+        insets.bottom += AppBarHeightPortrait();
       }
     } else {
       insets.top = [self expandedTopToolbarHeight];
@@ -3093,7 +3113,9 @@ bool IsFullscreenNextIAEnabled() {
     // already taller by the height of the App Bar, so we subtract the App Bar
     // height.
     if (self.layoutState.appBarPosition == AppBarPosition::kBottom) {
-      keyboardAttachedOffset -= kAppBarHeightFullscreen;
+      CGFloat minHeight =
+          IsAppBarHiddenInFullscreen() ? 0 : kAppBarHeightFullscreen;
+      keyboardAttachedOffset -= minHeight;
     }
   }
   CGFloat baseHeight = [self secondaryToolbarHeightWithInset];
@@ -3185,6 +3207,20 @@ bool IsFullscreenNextIAEnabled() {
                                        0);
   }
   return NSDirectionalEdgeInsetsZero;
+}
+
+#pragma mark - Activity Reporting
+
+- (void)updateTabActivityReporting {
+  if (self.active && self.currentWebState) {
+    if (IsVisibleURLNewTabPage(self.currentWebState)) {
+      [_activityReporter reportInactive];
+    } else {
+      [_activityReporter reportActiveWithIncognito:_isOffTheRecord];
+    }
+  } else {
+    [_activityReporter reportInactive];
+  }
 }
 
 @end

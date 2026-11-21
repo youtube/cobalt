@@ -456,7 +456,8 @@ TEST(CallStackProfileBuilderTest, ProfileStartTime) {
 
   base::TestModule module;
   const base::Frame frame = {0x10, &module};
-  const base::TimeTicks first_sample_time = base::TimeTicks::UnixEpoch();
+  const base::TimeTicks first_sample_time =
+      base::TimeTicks() + base::Seconds(1);
 
   profile_builder->OnSampleCompleted({frame}, first_sample_time);
   profile_builder->OnSampleCompleted({frame},
@@ -512,7 +513,7 @@ TEST(CallStackProfileBuilderTest, ApplyMetadataRetrospectively_Basic) {
 
   base::TestModule module;
   base::Frame frame = {0x10, &module};
-  base::TimeTicks profile_start_time = base::TimeTicks::UnixEpoch();
+  base::TimeTicks profile_start_time = base::TimeTicks() + base::Seconds(1);
   base::TimeDelta sample_time_delta = base::Seconds(1);
 
   profile_builder->RecordMetadata(base::MetadataRecorder::MetadataProvider(
@@ -577,7 +578,7 @@ TEST(CallStackProfileBuilderTest,
 
   base::TestModule module;
   base::Frame frame = {0x10, &module};
-  base::TimeTicks profile_start_time = base::TimeTicks::UnixEpoch();
+  base::TimeTicks profile_start_time = base::TimeTicks() + base::Seconds(1);
   base::TimeDelta sample_time_delta = base::Seconds(1);
 
   profile_builder->RecordMetadata(base::MetadataRecorder::MetadataProvider(

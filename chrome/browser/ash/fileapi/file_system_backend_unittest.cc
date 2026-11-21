@@ -54,59 +54,21 @@ TEST(ChromeOSFileSystemBackendTest, DefaultMountPoints) {
       nullptr,  // smbfs_delegate
       mount_points.get(), storage::ExternalMountPoints::GetSystemInstance());
   backend.AddSystemMountPoints();
-  std::vector<base::FilePath> root_dirs = backend.GetRootDirectories();
-  std::set<base::FilePath> root_dirs_set(root_dirs.begin(), root_dirs.end());
 
-  // By default there should be 3 mount points (in system mount points):
-  EXPECT_EQ(2u, root_dirs.size());
+  std::vector<storage::MountPoints::MountPointInfo> system_mount_points;
+  storage::ExternalMountPoints::GetSystemInstance()->AddMountPointInfosTo(
+      &system_mount_points);
 
+  std::set<base::FilePath> root_dirs_set;
+  for (const auto& info : system_mount_points) {
+    root_dirs_set.insert(info.path);
+  }
+
+  EXPECT_EQ(2u, system_mount_points.size());
   EXPECT_TRUE(
       root_dirs_set.count(ash::CrosDisksClient::GetRemovableDiskMountPoint()));
   EXPECT_TRUE(
       root_dirs_set.count(ash::CrosDisksClient::GetArchiveMountPoint()));
-}
-
-TEST(ChromeOSFileSystemBackendTest, GetRootDirectories) {
-  scoped_refptr<storage::ExternalMountPoints> mount_points(
-      storage::ExternalMountPoints::CreateRefCounted());
-
-  scoped_refptr<storage::ExternalMountPoints> system_mount_points(
-      storage::ExternalMountPoints::CreateRefCounted());
-
-  ash::FileSystemBackend backend(nullptr,  // profile
-                                 nullptr,  // file_system_provider_delegate
-                                 nullptr,  // mtp_delegate
-                                 nullptr,  // arc_content_delegate
-                                 nullptr,  // arc_documents_provider_delegate
-                                 nullptr,  // drivefs_delegate
-                                 nullptr,  // smbfs_delegate
-                                 mount_points.get(), system_mount_points.get());
-
-  const size_t initial_root_dirs_size = backend.GetRootDirectories().size();
-
-  // Register 'local' test mount points.
-  mount_points->RegisterFileSystem("c", storage::kFileSystemTypeLocal,
-                                   storage::FileSystemMountOption(),
-                                   base::FilePath(FPL("/a/b/c")));
-  mount_points->RegisterFileSystem("d", storage::kFileSystemTypeLocal,
-                                   storage::FileSystemMountOption(),
-                                   base::FilePath(FPL("/b/c/d")));
-
-  // Register system test mount points.
-  system_mount_points->RegisterFileSystem("d", storage::kFileSystemTypeLocal,
-                                          storage::FileSystemMountOption(),
-                                          base::FilePath(FPL("/g/c/d")));
-  system_mount_points->RegisterFileSystem("e", storage::kFileSystemTypeLocal,
-                                          storage::FileSystemMountOption(),
-                                          base::FilePath(FPL("/g/d/e")));
-
-  std::vector<base::FilePath> root_dirs = backend.GetRootDirectories();
-  std::set<base::FilePath> root_dirs_set(root_dirs.begin(), root_dirs.end());
-  EXPECT_EQ(initial_root_dirs_size + 4, root_dirs.size());
-  EXPECT_TRUE(root_dirs_set.count(base::FilePath(FPL("/a/b/c"))));
-  EXPECT_TRUE(root_dirs_set.count(base::FilePath(FPL("/b/c/d"))));
-  EXPECT_TRUE(root_dirs_set.count(base::FilePath(FPL("/g/c/d"))));
-  EXPECT_TRUE(root_dirs_set.count(base::FilePath(FPL("/g/d/e"))));
 }
 
 TEST(ChromeOSFileSystemBackendTest, AccessPermissions) {

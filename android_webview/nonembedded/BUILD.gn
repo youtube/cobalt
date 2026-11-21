@@ -241,3 +241,7 @@ android_resources("devui_resources") {
 java_group("devui_launcher_icon_resources") {
   mergeable_android_manifests = [ "java/DeveloperUiLauncherManifest.xml" ]
 }
+
+android_resources("devui_banner_resources") {
+  sources = [ "java/res_devui_banner/drawable/webview_devui_banner.png" ]
+}

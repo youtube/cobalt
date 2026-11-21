@@ -202,13 +202,15 @@ using OrderOptions = OrderOptionsT<>;
 
 EntityInstance GetOrderEntityInstance(OrderOptions options = {});
 
+EntityInstance GetOrderEntityInstanceWithRandomGuid(OrderOptions options = {});
+
 template <typename = void>
 struct ShipmentOptionsT {
   const char16_t* tracking_number = u"12345";
   const char16_t* delivery_zip_code = u"12345";
   const char16_t* carrier_name = u"Carrier";
   const char16_t* carrier_domain = u"carrier.com";
-  const char16_t* estimated_delivery_date = u"2025-12-01";
+  const char16_t* shipped_date = u"2025-12-01";
   std::string_view guid = "00000000-0000-4000-8000-700000000000";
   std::string_view nickname = "Shipment";
   std::string_view app_locale = "en-US";
@@ -223,6 +225,9 @@ struct ShipmentOptionsT {
 using ShipmentOptions = ShipmentOptionsT<>;
 
 EntityInstance GetShipmentEntityInstance(ShipmentOptions options = {});
+
+EntityInstance GetShipmentEntityInstanceWithRandomGuid(
+    ShipmentOptions options = {});
 
 template <typename = void>
 struct EntityOptionsT {

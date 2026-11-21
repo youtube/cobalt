@@ -8,6 +8,8 @@ import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 export class TestResetBrowserProxy extends TestBrowserProxy implements
     ResetBrowserProxy {
   private tamperedPreferencePaths_: string[] = [];
+  private performResetProfileSettingsPromise_: Promise<void>|null = null;
+  private resolveResetProfileSettings_: (() => void)|null = null;
 
   constructor() {
     super([
@@ -32,7 +34,24 @@ export class TestResetBrowserProxy extends TestBrowserProxy implements
 
   performResetProfileSettings(_sendSettings: boolean, requestOrigin: string) {
     this.methodCalled('performResetProfileSettings', requestOrigin);
+    if (this.performResetProfileSettingsPromise_) {
+      return this.performResetProfileSettingsPromise_;
+    }
     return Promise.resolve();
+  }
+
+  setPerformResetProfileSettingsPromise() {
+    this.performResetProfileSettingsPromise_ = new Promise(resolve => {
+      this.resolveResetProfileSettings_ = resolve;
+    });
+  }
+
+  resolvePerformResetProfileSettings() {
+    if (this.resolveResetProfileSettings_) {
+      this.resolveResetProfileSettings_();
+      this.performResetProfileSettingsPromise_ = null;
+      this.resolveResetProfileSettings_ = null;
+    }
   }
 
   onHideResetProfileDialog() {

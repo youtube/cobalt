@@ -4,8 +4,11 @@
 
 package org.chromium.content.browser.accessibility;
 
+import android.os.Build;
+import android.os.Bundle;
 import android.util.Pair;
 
+import androidx.annotation.RequiresApi;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 
 import org.chromium.base.AconfigFlaggedApiDelegate;
@@ -56,5 +59,82 @@ public class FakeAconfigFlaggedApiDelegate implements AconfigFlaggedApiDelegate 
         return mStartVirtualDescendantId == -1
                 ? null
                 : new Pair<>(mEndVirtualDescendantId, mEndOffset);
+    }
+
+    // In production code, this function and the next ones also check
+    // `android.view.accessibility.ExportedFlags.a11ySelectionPositionAppGettersApi()` which is not
+    // available here. If the test runs on a device with SDK 36.1 but not the flag, the test will
+    // fail.
+    @Override
+    public boolean isActionSetExtendedSelectionSupported() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+                && Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1;
+    }
+
+    @Override
+    public @Nullable Pair<Integer, Integer> getActionSetExtendedSelectionStartArgument(
+            Bundle arguments) {
+        if (arguments == null) return null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+                && Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1) {
+            return Api36Helper.getSelectionStart(arguments);
+        }
+        return null;
+    }
+
+    @Override
+    public @Nullable Pair<Integer, Integer> getActionSetExtendedSelectionEndArgument(
+            Bundle arguments) {
+        if (arguments == null) return null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+                && Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1) {
+            return Api36Helper.getSelectionEnd(arguments);
+        }
+        return null;
+    }
+
+    @RequiresApi(Build.VERSION_CODES_FULL.BAKLAVA_1)
+    private static class Api36Helper {
+        public static @Nullable Pair<Integer, Integer> getSelectionStart(Bundle arguments) {
+            android.view.accessibility.AccessibilityNodeInfo.Selection selection =
+                    arguments.getParcelable(
+                            android.view.accessibility.AccessibilityNodeInfo
+                                    .ACTION_ARGUMENT_SELECTION_PARCELABLE,
+                            android.view.accessibility.AccessibilityNodeInfo.Selection.class);
+            if (selection == null) {
+                selection =
+                        arguments.getParcelable(
+                                androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+                                        .ACTION_ARGUMENT_SELECTION_PARCELABLE,
+                                android.view.accessibility.AccessibilityNodeInfo.Selection.class);
+            }
+            if (selection != null) {
+                return new Pair<>(
+                        selection.getStart().getVirtualDescendantId(),
+                        selection.getStart().getOffset());
+            }
+            return null;
+        }
+
+        public static @Nullable Pair<Integer, Integer> getSelectionEnd(Bundle arguments) {
+            android.view.accessibility.AccessibilityNodeInfo.Selection selection =
+                    arguments.getParcelable(
+                            android.view.accessibility.AccessibilityNodeInfo
+                                    .ACTION_ARGUMENT_SELECTION_PARCELABLE,
+                            android.view.accessibility.AccessibilityNodeInfo.Selection.class);
+            if (selection == null) {
+                selection =
+                        arguments.getParcelable(
+                                androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+                                        .ACTION_ARGUMENT_SELECTION_PARCELABLE,
+                                android.view.accessibility.AccessibilityNodeInfo.Selection.class);
+            }
+            if (selection != null) {
+                return new Pair<>(
+                        selection.getEnd().getVirtualDescendantId(),
+                        selection.getEnd().getOffset());
+            }
+            return null;
+        }
     }
 }

@@ -26,13 +26,20 @@ template("fuchsia_package_metadata") {
     }
   }
 
-  pkg_metadata = "${target_name}_script_meta"
-  generated_file(pkg_metadata) {
+  _metadata_target = "${target_name}_script_meta_gen"
+  _metadata_file = "$root_gen_dir/package_metadata/${invoker.target_name}.meta"
+  generated_file(_metadata_target) {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     contents = {
       packages = pkg_dep_paths
     }
     output_conversion = "json"
-    outputs = [ "$root_gen_dir/package_metadata/${invoker.target_name}.meta" ]
+    outputs = [ _metadata_file ]
+  }
+
+  group("${target_name}_script_meta") {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    data = [ _metadata_file ]
+    deps = [ ":$_metadata_target" ]
   }
 }

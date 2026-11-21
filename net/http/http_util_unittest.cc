@@ -12,6 +12,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -1218,6 +1219,239 @@ TEST(HttpUtilTest, ParseRangeHeader) {
   EXPECT_FALSE(HttpUtil::ParseRangeHeader("bytes", &ranges));
   EXPECT_FALSE(HttpUtil::ParseRangeHeader("bytes=100", &ranges));
 }
+
+// Invalid Fetch single-range header values should fail parsing, including
+// malformed syntax, unsupported formats, missing digits, reverse ranges,
+// and out-of-range numeric values.
+TEST(HttpUtilTest, ParseFetchSingleRangeRejectsInvalid) {
+  static constexpr const char* kCases[] = {
+      "",
+      "byte=0-",
+      "bytes",
+      "bytes\t \t",
+      "bytes=0-5,15-",
+      "bytes=0-5, 15-",
+      "bytes=0-5,",
+      "bytes=-",
+      "bytes=x-5",
+      "bytes=5",
+      "bytes=5-x",
+      "bytes=x",
+      "5-",
+      "Bytes=0-5",
+      "bytes=-5-10",
+      // Trailing whitespace after the range is not allowed by the spec.
+      "bytes=5-10 ",
+      // Multiple ranges are not a single range.
+      "bytes=0-10,15-20",
+      // Extra '=' or '-' delimiters are rejected.
+      "bytes==0-5",
+      "bytes=0--5",
+      "bytes=0-5-",
+      "bytes=-0-5",
+  };
+  for (const char* value : kCases) {
+    SCOPED_TRACE(value);
+    // Invalid Fetch range forms must be rejected.
+    EXPECT_FALSE(
+        HttpUtil::ParseFetchSingleRange(value, /*allow_whitespace=*/true)
+            .has_value());
+  }
+}
+
+// Verifies that syntactically valid but semantically invalid ranges parse
+// successfully. Callers are responsible for checking IsValid().
+TEST(HttpUtilTest, ParseFetchSingleRangeParsesSemanticInvalid) {
+  {
+    // "bytes=-0" is a zero-length suffix range -- syntactically valid, but
+    // IsValid() returns false because suffix_length must be > 0.
+    SCOPED_TRACE("bytes=-0");
+    std::optional<HttpByteRange> range =
+        HttpUtil::ParseFetchSingleRange("bytes=-0", /*allow_whitespace=*/true);
+    ASSERT_TRUE(range.has_value());
+    EXPECT_TRUE(range->IsSuffixByteRange());
+    EXPECT_EQ(0, range->suffix_length());
+    EXPECT_FALSE(range->IsValid());
+  }
+  {
+    // "bytes=10-5" has start > end -- syntactically valid, but IsValid()
+    // returns false.
+    SCOPED_TRACE("bytes=10-5");
+    std::optional<HttpByteRange> range =
+        HttpUtil::ParseFetchSingleRange("bytes=10-5",
+                                        /*allow_whitespace=*/true);
+    ASSERT_TRUE(range.has_value());
+    EXPECT_FALSE(range->IsSuffixByteRange());
+    EXPECT_EQ(10, range->first_byte_position());
+    EXPECT_EQ(5, range->last_byte_position());
+    EXPECT_FALSE(range->IsValid());
+  }
+  {
+    // Overflow saturates to int64_t max, making start > end.
+    SCOPED_TRACE("bytes=999999999999999999999-5");
+    std::optional<HttpByteRange> range =
+        HttpUtil::ParseFetchSingleRange("bytes=999999999999999999999-5",
+                                        /*allow_whitespace=*/true);
+    ASSERT_TRUE(range.has_value());
+    EXPECT_FALSE(range->IsValid());
+  }
+}
+
+// Verifies that valid bounded byte ranges ("bytes=first-last") are parsed
+// correctly, including leading-zero variants.
+TEST(HttpUtilTest, ParseFetchSingleRangeAcceptsNormal) {
+  struct {
+    const char* value;
+    int64_t first;
+    int64_t last;
+  } kCases[] = {
+      {"bytes=5-10", 5, 10},
+      {"bytes=00005-00010", 5, 10},
+      {"bytes=0-0", 0, 0},
+  };
+  for (const auto& tc : kCases) {
+    SCOPED_TRACE(tc.value);
+    std::optional<HttpByteRange> range =
+        HttpUtil::ParseFetchSingleRange(tc.value, /*allow_whitespace=*/true);
+    ASSERT_TRUE(range.has_value());
+    EXPECT_FALSE(range->IsSuffixByteRange());
+    EXPECT_EQ(tc.first, range->first_byte_position());
+    EXPECT_EQ(tc.last, range->last_byte_position());
+  }
+}
+
+// Verifies that suffix byte ranges ("bytes=-N") are parsed as suffix
+// ranges, with and without allowed HTTP whitespace.
+TEST(HttpUtilTest, ParseFetchSingleRangeAcceptsSuffix) {
+  static constexpr const char* kCases[] = {
+      "bytes=-5",
+      // Whitespace variant: Fetch allows HTTP tab/space around '-'.
+      "bytes=-\t 5",
+  };
+  for (const char* value : kCases) {
+    SCOPED_TRACE(value);
+    std::optional<HttpByteRange> range =
+        HttpUtil::ParseFetchSingleRange(value, /*allow_whitespace=*/true);
+    ASSERT_TRUE(range.has_value());
+    EXPECT_TRUE(range->IsSuffixByteRange());
+    EXPECT_EQ(5, range->suffix_length());
+  }
+}
+
+// Verifies that open-ended byte ranges ("bytes=N-") are parsed as
+// right-unbounded ranges, with and without allowed HTTP whitespace.
+TEST(HttpUtilTest, ParseFetchSingleRangeAcceptsOpenEnded) {
+  static constexpr const char* kCases[] = {
+      "bytes=5-",
+      // Whitespace variants: Fetch allows HTTP tab/space around '=' and '-'.
+      "bytes= 5 - ",
+      "bytes \t =\t 5-",
+  };
+  for (const char* value : kCases) {
+    SCOPED_TRACE(value);
+    std::optional<HttpByteRange> range =
+        HttpUtil::ParseFetchSingleRange(value, /*allow_whitespace=*/true);
+    ASSERT_TRUE(range.has_value());
+    EXPECT_FALSE(range->IsSuffixByteRange());
+    EXPECT_EQ(5, range->first_byte_position());
+    EXPECT_FALSE(range->HasLastBytePosition());
+  }
+}
+
+// Verifies that optional HTTP tab/space around '=' and '-' is accepted
+// only when `allow_whitespace` is true, and rejected otherwise.
+TEST(HttpUtilTest, ParseFetchSingleRangeAcceptsWhitespaceWhenAllowed) {
+  static constexpr const char* kCases[] = {
+      "bytes =5-10", "bytes= 5-10",    "bytes=5 -10",
+      "bytes=5- 10", "bytes=5\t-\t10",
+  };
+  for (const char* value : kCases) {
+    SCOPED_TRACE(value);
+    // Spec-allowed whitespace is accepted only when enabled.
+    std::optional<HttpByteRange> range =
+        HttpUtil::ParseFetchSingleRange(value, /*allow_whitespace=*/true);
+    ASSERT_TRUE(range.has_value());
+    EXPECT_EQ(5, range->first_byte_position());
+    EXPECT_EQ(10, range->last_byte_position());
+    EXPECT_FALSE(
+        HttpUtil::ParseFetchSingleRange(value, /*allow_whitespace=*/false)
+            .has_value());
+  }
+}
+
+// Verifies boundary values: a zero-start open-ended range and a
+// single-byte suffix range both parse successfully.
+TEST(HttpUtilTest, ParseFetchSingleRangeAcceptsBoundaryValues) {
+  // "bytes=0-": open-ended range starting at byte 0.
+  std::optional<HttpByteRange> open_ended =
+      HttpUtil::ParseFetchSingleRange("bytes=0-", /*allow_whitespace=*/true);
+  ASSERT_TRUE(open_ended.has_value());
+  EXPECT_FALSE(open_ended->IsSuffixByteRange());
+  EXPECT_EQ(0, open_ended->first_byte_position());
+  EXPECT_FALSE(open_ended->HasLastBytePosition());
+
+  // "bytes=-1": suffix range of the last single byte.
+  std::optional<HttpByteRange> suffix =
+      HttpUtil::ParseFetchSingleRange("bytes=-1", /*allow_whitespace=*/true);
+  ASSERT_TRUE(suffix.has_value());
+  EXPECT_TRUE(suffix->IsSuffixByteRange());
+  EXPECT_EQ(1, suffix->suffix_length());
+}
+
+// Verifies that valid ranges without whitespace still parse in strict
+// mode (`allow_whitespace=false`).
+TEST(HttpUtilTest, ParseFetchSingleRangeAcceptsValidRangesInStrictMode) {
+  static constexpr const char* kCases[] = {
+      "bytes=5-10",
+      "bytes=5-",
+      "bytes=-5",
+  };
+  for (const char* value : kCases) {
+    SCOPED_TRACE(value);
+    EXPECT_TRUE(
+        HttpUtil::ParseFetchSingleRange(value, /*allow_whitespace=*/false)
+            .has_value());
+  }
+}
+
+// Verifies that overflowing range values saturate to int64_t max rather than
+// being rejected
+TEST(HttpUtilTest, ParseFetchSingleRangeSaturatesOverflow) {
+  constexpr int64_t kMax = std::numeric_limits<int64_t>::max();
+
+  // Overflowing end with a valid start: bounded range [5, max].
+  std::optional<HttpByteRange> bounded = HttpUtil::ParseFetchSingleRange(
+      "bytes=5-999999999999999999999", /*allow_whitespace=*/true);
+  ASSERT_TRUE(bounded.has_value());
+  EXPECT_FALSE(bounded->IsSuffixByteRange());
+  EXPECT_EQ(5, bounded->first_byte_position());
+  EXPECT_EQ(kMax, bounded->last_byte_position());
+
+  // Overflowing start, open-ended: right-unbounded range [max, ).
+  std::optional<HttpByteRange> open_ended = HttpUtil::ParseFetchSingleRange(
+      "bytes=999999999999999999999-", /*allow_whitespace=*/true);
+  ASSERT_TRUE(open_ended.has_value());
+  EXPECT_FALSE(open_ended->IsSuffixByteRange());
+  EXPECT_EQ(kMax, open_ended->first_byte_position());
+  EXPECT_FALSE(open_ended->HasLastBytePosition());
+
+  // Overflowing suffix: suffix range of int64_t max length.
+  std::optional<HttpByteRange> suffix = HttpUtil::ParseFetchSingleRange(
+      "bytes=-999999999999999999999", /*allow_whitespace=*/true);
+  ASSERT_TRUE(suffix.has_value());
+  EXPECT_TRUE(suffix->IsSuffixByteRange());
+  EXPECT_EQ(kMax, suffix->suffix_length());
+}
+
+// Fuzzer: ParseFetchSingleRange() must never crash on arbitrary input,
+// regardless of the allow_whitespace setting.
+namespace {
+void ParseFetchSingleRangeNeverCrashes(const std::string& range_header_value,
+                                       bool allow_whitespace) {
+  HttpUtil::ParseFetchSingleRange(range_header_value, allow_whitespace);
+}
+FUZZ_TEST(HttpUtilTest, ParseFetchSingleRangeNeverCrashes);
+}  // namespace
 
 TEST(HttpUtilTest, ParseRetryAfterHeader) {
   base::Time::Exploded now_exploded = {2014, 11, 4, 5, 22, 39, 30, 0};

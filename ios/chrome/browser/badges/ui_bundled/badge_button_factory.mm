@@ -301,7 +301,6 @@ const CGFloat kInfobarSymbolPointSizeModifier = 4;
       kBadgeButtonReaderModeAccessibilityIdentifier;
   button.accessibilityLabel =
       l10n_util::GetNSString(IDS_IOS_READER_MODE_CHIP_ACCESSIBILITY_LABEL);
-  ;
   return button;
 }
 

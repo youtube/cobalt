@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
+#include "base/test/test_future.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/test_completion_callback.h"
@@ -1246,6 +1247,226 @@ TEST_F(SequencedSocketDataTest, PauseAndResume_ReadPauseWrite) {
   ASSERT_FALSE(IsPaused());
   ASSERT_TRUE(write_callback_.have_result());
   ASSERT_EQ(kLen2, write_callback_.WaitForResult());
+}
+
+TEST_F(TestWithTaskEnvironment, MockUDPClientSocket_ReadMultiple_Pending) {
+  MockRead reads[] = {
+      MockRead(SYNCHRONOUS, 0, "packet1"),
+      MockRead(ASYNC, ERR_IO_PENDING, 1),
+      MockRead(ASYNC, 2, "packet2"),
+      MockRead(SYNCHRONOUS, ERR_IO_PENDING, 3),
+  };
+
+  SequencedSocketData data(reads, base::span<const MockWrite>());
+  MockUDPClientSocket socket(&data, nullptr);
+
+  IPEndPoint peer_addr(IPAddress::IPv4Localhost(), 80);
+  ASSERT_THAT(socket.Connect(peer_addr), IsOk());
+
+  constexpr size_t kMaxPacketSize = 1000;
+  constexpr size_t kBufLen = 2 * kMaxPacketSize;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kBufLen);
+
+  base::expected<DatagramsMetadata, Error> result1 = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, base::DoNothing());
+
+  ASSERT_TRUE(result1.has_value());
+  ASSERT_EQ(result1.value().size(), 1u);
+  EXPECT_EQ(result1.value()[0].length, 7u);
+  EXPECT_EQ(result1.value()[0].offset, 0u);
+
+  base::test::TestFuture<base::expected<DatagramsMetadata, Error>> future;
+  base::expected<DatagramsMetadata, Error> rv_call2 = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, future.GetCallback());
+
+  ASSERT_FALSE(rv_call2.has_value());
+  ASSERT_EQ(rv_call2.error(), ERR_IO_PENDING);
+
+  ASSERT_TRUE(data.IsPaused());
+
+  data.Resume();
+  base::expected<DatagramsMetadata, Error> result2 = future.Take();
+
+  ASSERT_TRUE(result2.has_value());
+  ASSERT_EQ(result2.value().size(), 1u);
+  EXPECT_EQ(result2.value()[0].length, 7u);
+  EXPECT_EQ(result2.value()[0].offset, 0u);
+}
+
+TEST_F(TestWithTaskEnvironment,
+       MockUDPClientSocket_ReadMultiple_PostponedError) {
+  MockRead reads[] = {
+      MockRead(SYNCHRONOUS, 0, "packet1"),
+      MockRead(SYNCHRONOUS, ERR_CONNECTION_RESET, 1),
+  };
+
+  SequencedSocketData data(reads, base::span<const MockWrite>());
+  MockUDPClientSocket socket(&data, nullptr);
+
+  IPEndPoint peer_addr(IPAddress::IPv4Localhost(), 80);
+  ASSERT_THAT(socket.Connect(peer_addr), IsOk());
+
+  constexpr size_t kMaxPacketSize = 1000;
+  constexpr size_t kBufLen = 2 * kMaxPacketSize;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kBufLen);
+
+  base::expected<DatagramsMetadata, Error> result1 = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, base::DoNothing());
+
+  ASSERT_TRUE(result1.has_value());
+  ASSERT_EQ(result1.value().size(), 1u);
+  EXPECT_EQ(result1.value()[0].length, 7u);
+  EXPECT_EQ(result1.value()[0].offset, 0u);
+
+  base::expected<DatagramsMetadata, Error> result2 = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, base::DoNothing());
+
+  ASSERT_FALSE(result2.has_value());
+  EXPECT_EQ(result2.error(), ERR_CONNECTION_RESET);
+}
+
+TEST_F(TestWithTaskEnvironment,
+       MockUDPClientSocket_ReadMultiple_MultipleSynchronous) {
+  MockRead reads[] = {
+      MockRead(SYNCHRONOUS, 0, "packet1"),
+      MockRead(SYNCHRONOUS, 1, "packet2"),
+      MockRead(SYNCHRONOUS, ERR_IO_PENDING, 2),
+  };
+
+  SequencedSocketData data(reads, base::span<const MockWrite>());
+  MockUDPClientSocket socket(&data, nullptr);
+
+  IPEndPoint peer_addr(IPAddress::IPv4Localhost(), 80);
+  ASSERT_THAT(socket.Connect(peer_addr), IsOk());
+
+  constexpr size_t kMaxPacketSize = 1000;
+  constexpr size_t kBufLen = 2 * kMaxPacketSize;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kBufLen);
+
+  base::expected<DatagramsMetadata, Error> result = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, base::DoNothing());
+
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(result.value().size(), 2u);
+  EXPECT_EQ(result.value()[0].length, 7u);
+  EXPECT_EQ(result.value()[0].offset, 0u);
+  EXPECT_EQ(result.value()[1].length, 7u);
+  EXPECT_EQ(result.value()[1].offset, kMaxPacketSize);
+}
+
+TEST_F(TestWithTaskEnvironment, MockUDPClientSocket_ReadMultiple_NotConnected) {
+  SequencedSocketData data;
+  MockUDPClientSocket socket(&data, nullptr);
+
+  constexpr size_t kMaxPacketSize = 1000;
+  constexpr size_t kBufLen = 2 * kMaxPacketSize;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kBufLen);
+
+  base::expected<DatagramsMetadata, Error> result = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, base::DoNothing());
+
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), ERR_UNEXPECTED);
+}
+
+TEST_F(TestWithTaskEnvironment,
+       MockUDPClientSocket_ReadMultiple_ImmediateError) {
+  MockRead reads[] = {
+      MockRead(SYNCHRONOUS, ERR_CONNECTION_RESET, 0),
+  };
+
+  SequencedSocketData data(reads, base::span<const MockWrite>());
+  MockUDPClientSocket socket(&data, nullptr);
+
+  IPEndPoint peer_addr(IPAddress::IPv4Localhost(), 80);
+  ASSERT_THAT(socket.Connect(peer_addr), IsOk());
+
+  constexpr size_t kMaxPacketSize = 1000;
+  constexpr size_t kBufLen = 2 * kMaxPacketSize;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kBufLen);
+
+  base::expected<DatagramsMetadata, Error> result = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, base::DoNothing());
+
+  ASSERT_FALSE(result.has_value());
+  EXPECT_EQ(result.error(), ERR_CONNECTION_RESET);
+}
+
+TEST_F(TestWithTaskEnvironment,
+       MockUDPClientSocket_ReadMultiple_SyncThenAsync) {
+  MockRead reads[] = {
+      MockRead(SYNCHRONOUS, 0, "packet1"),
+      MockRead(ASYNC, 1, "packet2"),
+  };
+
+  SequencedSocketData data(reads, base::span<const MockWrite>());
+  MockUDPClientSocket socket(&data, nullptr);
+
+  IPEndPoint peer_addr(IPAddress::IPv4Localhost(), 80);
+  ASSERT_THAT(socket.Connect(peer_addr), IsOk());
+
+  constexpr size_t kMaxPacketSize = 1000;
+  constexpr size_t kBufLen = 2 * kMaxPacketSize;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kBufLen);
+
+  // First call: should return "packet1" synchronously, because "packet2" is
+  // ASYNC and we don't want to mix them.
+  base::expected<DatagramsMetadata, Error> result1 = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, base::DoNothing());
+
+  ASSERT_TRUE(result1.has_value());
+  ASSERT_EQ(result1.value().size(), 1u);
+  EXPECT_EQ(result1.value()[0].length, 7u);
+  EXPECT_EQ(result1.value()[0].offset, 0u);
+
+  // Second call: should return "packet2". Since it is ASYNC, it should return
+  // ERR_IO_PENDING and complete asynchronously.
+  base::test::TestFuture<base::expected<DatagramsMetadata, Error>> future;
+  base::expected<DatagramsMetadata, Error> rv_call2 = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, future.GetCallback());
+
+  ASSERT_FALSE(rv_call2.has_value());
+  ASSERT_EQ(rv_call2.error(), ERR_IO_PENDING);
+
+  base::expected<DatagramsMetadata, Error> result2 = future.Take();
+
+  ASSERT_TRUE(result2.has_value());
+  ASSERT_EQ(result2.value().size(), 1u);
+  EXPECT_EQ(result2.value()[0].length, 7u);
+  EXPECT_EQ(result2.value()[0].offset, 0u);
+}
+
+TEST_F(TestWithTaskEnvironment,
+       MockUDPClientSocket_ReadMultiple_AsyncImmediate) {
+  MockRead reads[] = {
+      MockRead(ASYNC, 0, "packet1"),
+  };
+
+  StaticSocketDataProvider data(reads, base::span<const MockWrite>());
+  MockUDPClientSocket socket(&data, nullptr);
+
+  IPEndPoint peer_addr(IPAddress::IPv4Localhost(), 80);
+  ASSERT_THAT(socket.Connect(peer_addr), IsOk());
+
+  constexpr size_t kMaxPacketSize = 1000;
+  constexpr size_t kBufLen = 10 * kMaxPacketSize;
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kBufLen);
+
+  // Since StaticSocketDataProvider returns ASYNC immediately, ReadMultiple
+  // should return ERR_IO_PENDING synchronously and post RunDatagramsCallback
+  // to run the callback later.
+  base::test::TestFuture<base::expected<DatagramsMetadata, Error>> future;
+  base::expected<DatagramsMetadata, Error> rv = socket.ReadMultiple(
+      read_buf.get(), kBufLen, kMaxPacketSize, future.GetCallback());
+
+  ASSERT_FALSE(rv.has_value());
+  ASSERT_EQ(rv.error(), ERR_IO_PENDING);
+
+  base::expected<DatagramsMetadata, Error> result = future.Take();
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(result.value().size(), 1u);
+  EXPECT_EQ(result.value()[0].length, 7u);
+  EXPECT_EQ(result.value()[0].offset, 0u);
 }
 
 }  // namespace

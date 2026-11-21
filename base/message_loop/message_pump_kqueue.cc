@@ -14,6 +14,7 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
+#include "base/message_loop/message_pump_wakeup_counter.h"
 #include "base/notreached.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/task/task_features.h"
@@ -436,6 +437,7 @@ bool MessagePumpKqueue::DoInternalWork(Delegate* delegate,
     // No events to dispatch so no need to call ProcessEvents().
     return false;
   }
+  MessagePumpWakeupCounter::GetForCurrentThread().RecordWakeup();
 
   PCHECK(rv > 0) << "kevent64";
   return ProcessEvents(delegate, static_cast<size_t>(rv));

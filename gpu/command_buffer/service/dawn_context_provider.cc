@@ -99,7 +99,7 @@ NOINLINE NOOPT void DumpWithoutCrashingOnDXGIError(wgpu::ErrorType error_type,
                                                    std::string_view message) {
   LOG(ERROR) << "DXGI Error: " << message;
 
-  if (features::kSkiaGraphiteDawnDumpWCOnD3DError.Get()) {
+  if (features::SkiaGraphiteDawnDumpWCOnD3DError()) {
     base::debug::DumpWithoutCrashing();
   }
 }
@@ -108,7 +108,7 @@ NOINLINE NOOPT void DumpWithoutCrashingOnD3D11DebugLayerError(
     wgpu::ErrorType error_type,
     std::string_view message) {
   LOG(ERROR) << message;
-  if (features::kSkiaGraphiteDawnDumpWCOnD3DError.Get()) {
+  if (features::SkiaGraphiteDawnDumpWCOnD3DError()) {
     base::debug::DumpWithoutCrashing();
   }
 }
@@ -145,7 +145,7 @@ std::vector<const char*> GetDisabledToggles(
     disabled_toggles.push_back(toggle.c_str());
   }
 
-  if (!features::kSkiaGraphiteDawnBackendDebugLabels.Get()) {
+  if (!features::SkiaGraphiteDawnBackendDebugLabels()) {
     // Note: This toggle needs to be explicitly enabled or disabled.
     disabled_toggles.push_back("use_user_defined_labels_in_backend");
   }
@@ -154,7 +154,7 @@ std::vector<const char*> GetDisabledToggles(
   // regressions are investigated.
   disabled_toggles.push_back("vulkan_use_dynamic_rendering");
 
-  if (features::kSkiaGraphiteDawnSkipValidation.Get()) {
+  if (features::SkiaGraphiteDawnSkipValidation()) {
     disabled_toggles.push_back("enable_spirv_validation");
   }
 
@@ -176,16 +176,16 @@ std::vector<const char*> GetEnabledToggles(
 
   // The following toggles are all device-scoped toggles so it's not necessary
   // to pass them when creating the Instance above.
-  if (features::kSkiaGraphiteDawnBackendDebugLabels.Get()) {
+  if (features::SkiaGraphiteDawnBackendDebugLabels()) {
     // Note: This toggle needs to be explicitly enabled or disabled.
     enabled_toggles.push_back("use_user_defined_labels_in_backend");
   }
 
-  if (features::kSkiaGraphiteDawnSkipValidation.Get()) {
+  if (features::SkiaGraphiteDawnSkipValidation()) {
     enabled_toggles.push_back("skip_validation");
   }
 
-  if (features::kSkiaGraphiteDawnEnableAutoMap.Get()) {
+  if (features::SkiaGraphiteDawnEnableAutoMap()) {
     // Tell Dawn to automatically map buffers when they are not in use by the
     // GPU. This allows Skia to access buffer contents on the CPU without
     // blocking, making operations faster.
@@ -202,7 +202,7 @@ std::vector<const char*> GetEnabledToggles(
     // format.
     enabled_toggles.push_back("use_packed_depth24_unorm_stencil8_format");
 
-    if (features::kSkiaGraphiteDawnD3D11DelayFlush.Get()) {
+    if (features::SkiaGraphiteDawnD3D11DelayFlush()) {
       // Tell Dawn to defer sending commands to GPU until swapchain's Present.
       // This will batch the commands better.
       enabled_toggles.push_back("d3d11_delay_flush_to_gpu");
@@ -211,7 +211,7 @@ std::vector<const char*> GetEnabledToggles(
 
   if (backend_type == wgpu::BackendType::D3D11 ||
       backend_type == wgpu::BackendType::D3D12) {
-    if (features::kSkiaGraphiteDawnDisableD3DShaderOptimizations.Get()) {
+    if (features::SkiaGraphiteDawnDisableD3DShaderOptimizations()) {
       enabled_toggles.push_back("d3d_skip_shader_optimizations");
     }
   }
@@ -549,7 +549,7 @@ class DawnSharedContext : public base::RefCountedThreadSafe<DawnSharedContext>,
     }
 
     // This function is meant for delayed flush option.
-    if (!features::kSkiaGraphiteDawnD3D11DelayFlush.Get()) {
+    if (!features::SkiaGraphiteDawnD3D11DelayFlush()) {
       return;
     }
 
@@ -591,8 +591,7 @@ class DawnSharedContext : public base::RefCountedThreadSafe<DawnSharedContext>,
 
     return std::make_unique<GraphiteSharedContext>(
         std::move(graphite_context), use_shader_cache_shm_count, is_thread_safe,
-        features::kSkiaGraphiteMaxPendingRecordings.Get(),
-        GetBackendFlushCallback(),
+        features::SkiaGraphiteMaxPendingRecordings(), GetBackendFlushCallback(),
         // DawnSharedContext is guaranteed to outlive GraphiteSharedContext.
         base::BindRepeating(&DawnSharedContext::MarkContextLost,
                             base::Unretained(this)));
@@ -1021,7 +1020,7 @@ bool DawnSharedContext::Initialize(
 
   std::vector<dawn::native::BackendValidationLevel> backend_validation_levels =
       {dawn::native::BackendValidationLevel::Disabled};
-  if (features::kSkiaGraphiteDawnBackendValidation.Get() ||
+  if (features::SkiaGraphiteDawnBackendValidation() ||
       enable_backend_validation) {
     backend_validation_levels.push_back(
         dawn::native::BackendValidationLevel::Partial);

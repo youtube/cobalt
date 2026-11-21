@@ -171,8 +171,8 @@ void SpeechRecognitionMediaStreamAudioSink::ResetChannelMixerIfNeeded(
     channel_layout_ = channel_layout;
     channel_count_ = channel_count;
     channel_mixer_ = std::make_unique<media::ChannelMixer>(
-        channel_layout, channel_count, media::CHANNEL_LAYOUT_MONO,
-        1 /*output_channels*/);
+        media::ChannelLayoutConfig(channel_layout, channel_count),
+        media::ChannelLayoutConfig::Mono());
   }
 }
 

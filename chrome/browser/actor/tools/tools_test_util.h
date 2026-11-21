@@ -60,6 +60,7 @@ class MockActorLoginService : public actor_login::ActorLoginService {
       bool should_store_permission,
       base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
       base::TimeTicks attempt_login_tool_start_time,
+      actor_login::FrameFillingStartedCallback frame_filling_started_cb,
       actor_login::LoginStatusResultOrErrorReply callback,
       base::WeakPtr<actor_login::ActionSequenceDelegate>
           action_sequence_delegate) override;
@@ -80,6 +81,7 @@ class MockActorLoginService : public actor_login::ActorLoginService {
   const std::optional<actor_login::Credential>& last_credential_used() const;
   bool last_permission_was_permanent() const;
   bool last_sequence_succeeded() const;
+  actor_login::FrameFillingStartedCallback last_frame_filling_started_cb();
 
  private:
   void OnActionSequenceEnded(bool success);
@@ -98,6 +100,7 @@ class MockActorLoginService : public actor_login::ActorLoginService {
   std::optional<actor_login::Credential> last_credential_used_;
   bool last_permission_was_permanent_ = false;
   std::optional<bool> last_sequence_succeeded_;
+  actor_login::FrameFillingStartedCallback last_frame_filling_started_cb_;
 };
 
 inline constexpr int32_t kNonExistentContentNodeId =

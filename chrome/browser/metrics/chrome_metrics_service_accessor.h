@@ -57,6 +57,7 @@ class FirstRunMasterPrefsVariationsSeedTest;
 }
 
 namespace glic {
+class GlicMetricsProvider;
 class GlicSyntheticTrialManager;
 }  // namespace glic
 
@@ -176,6 +177,7 @@ class ChromeMetricsServiceAccessor : public metrics::MetricsServiceAccessor {
   friend class BrowserProcessImpl;
   friend class GlobalFeatures;
   friend class supervised_user::MetricsServiceAccessorDelegateImpl;
+  friend class glic::GlicMetricsProvider;
   friend class glic::GlicSyntheticTrialManager;
   friend class OptimizationGuideKeyedService;
   friend class optimization_guide::ChromeOnDeviceModelServiceController;

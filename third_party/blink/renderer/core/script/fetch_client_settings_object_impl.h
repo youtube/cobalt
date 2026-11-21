@@ -38,7 +38,7 @@ class CORE_EXPORT FetchClientSettingsObjectImpl final
   const mojom::blink::PolicyContainerPolicies& GetPolicyContainerPolicies()
       const override;
 
-  const String GetOutgoingReferrer() const override;
+  KURL GetOutgoingReferrerUrl() const override;
 
   HttpsState GetHttpsState() const override;
 

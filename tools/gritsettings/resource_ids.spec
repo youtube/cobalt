@@ -566,7 +566,7 @@
     "includes": [4100],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/intro/resources.grd": {
-    "META": {"sizes": {"includes": [60],}},
+    "META": {"sizes": {"includes": [80],}},
     "includes": [4110],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/key_value_pair_viewer_shared/resources.grd": {
@@ -641,9 +641,17 @@
     "META": {"sizes": {"includes": [10]}},
     "includes": [4450],
   },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/omnibox/aim_eligibility_extension/resources.grd": {
+    "META": {"sizes": {"includes": [10]}},
+    "includes": [4455],
+  },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/omnibox/resources.grd": {
     "META": {"sizes": {"includes": [50]}},
     "includes": [4460],
+  },
+  "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/omnibox_everywhere/resources.grd": {
+    "META": {"sizes": {"includes": [15]}},
+    "includes": [4470],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/omnibox_popup/resources.grd": {
     "META": {"sizes": {"includes": [50]}},
@@ -718,7 +726,7 @@
     "includes": [4730],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/settings/resources.grd": {
-    "META": {"sizes": {"includes": [600],}},
+    "META": {"sizes": {"includes": [700],}},
     "includes": [4740],
   },
   "<(SHARED_INTERMEDIATE_DIR)/chrome/browser/resources/settings_shared/resources.grd": {

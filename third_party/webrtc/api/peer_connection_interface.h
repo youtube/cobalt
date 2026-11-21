@@ -122,6 +122,7 @@
 #include "api/transport/network_control.h"
 #include "api/transport/sctp_transport_factory_interface.h"
 #include "api/turn_customizer.h"
+#include "api/video/timing/video_jitter_timing_factory.h"
 #include "api/video/video_bitrate_allocator_factory.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
@@ -1460,6 +1461,9 @@ struct RTC_EXPORT PeerConnectionFactoryDependencies final {
   // called without a `port_allocator`, and the above `network_manager' is null.
   std::unique_ptr<NetworkMonitorFactory> network_monitor_factory;
   std::unique_ptr<NetEqFactory> neteq_factory;
+  // Factory for creating VideoJitterTiming instances, used to track and
+  // manage video frame timing for rendering.
+  std::unique_ptr<VideoJitterTimingFactory> video_jitter_timing_factory;
   std::unique_ptr<SctpTransportFactoryInterface> sctp_factory;
   // Metronome used for decoding, must be called on the worker thread.
   std::unique_ptr<Metronome> decode_metronome;

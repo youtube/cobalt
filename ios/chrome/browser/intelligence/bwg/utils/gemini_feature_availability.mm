@@ -17,27 +17,28 @@ namespace gemini {
 
 namespace {
 
+// Helper to check if model execution features are allowed for the given account
+// under the updated eligibility constraints.
+bool CheckModelExecutionEligibility(bool feature_flag_enabled,
+                                    const AccountInfo& account_info) {
+  if (!feature_flag_enabled) {
+    return false;
+  }
+  if (!IsGeminiUpdatedEligibilityEnabled()) {
+    return true;
+  }
+  return HasModelExecutionCapability(account_info);
+}
+
 // Returns whether the specified feature is available for the given account.
 bool IsFeatureAvailable(Feature feature, const AccountInfo& account_info) {
   switch (feature) {
-    case Feature::kImageRemix: {
-      // With the new availability logic enabled, feature enablement is no
-      // longer sufficient; instead, we rely an additional capability check.
-      if (!IsGeminiImageRemixToolEnabled()) {
-        return false;
-      }
-      if (!IsGeminiUpdatedEligibilityEnabled()) {
-        return true;
-      }
-      if (account_info.IsEmpty()) {
-        return false;
-      }
-
-      const AccountCapabilities capabilities =
-          account_info.GetAccountCapabilities();
-      return signin::TriboolToBoolOr(
-          capabilities.can_use_model_execution_features(), false);
-    }
+    case Feature::kImageRemix:
+      return CheckModelExecutionEligibility(IsGeminiImageRemixToolEnabled(),
+                                            account_info);
+    case Feature::kLive:
+      return CheckModelExecutionEligibility(IsGeminiLiveEnabled(),
+                                            account_info);
   }
 }
 

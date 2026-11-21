@@ -161,8 +161,7 @@ chrome.test.runTests([
     // Initialize to a 100x100 box at 55, 10. Place the box in the top corner
     // of the page, so that the viewport won't scroll when it is focused.
     initializeBox(100, 100, 55, 10);
-    // Wait for focus to happen so that we can correctly test focus changes
-    // later.
+    // Wait for focus to ensure focus changes can be correctly tested later.
     await eventToPromise('textbox-focused-for-test', textbox);
     await microtasksFinished();
     chrome.test.assertFalse(textbox.hidden);

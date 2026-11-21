@@ -2441,6 +2441,22 @@ void RenderWidgetHostImpl::ImeCancelComposition() {
       base::OnceClosure());
 }
 
+void RenderWidgetHostImpl::SetExternallySourcedComposition(
+    const std::u16string& text,
+    const std::vector<ui::ImeTextSpan>& ime_text_spans) {
+  int length = text.length();
+  GetWidgetInputHandler()->ImeSetComposition(
+      text, ime_text_spans, gfx::Range::InvalidRange(), length, length,
+      blink::mojom::ImeState::kNone, base::OnceClosure());
+}
+
+void RenderWidgetHostImpl::CommitExternallySourcedComposition(
+    const std::u16string& text) {
+  GetWidgetInputHandler()->ImeCommitText(text, std::vector<ui::ImeTextSpan>(),
+                                         gfx::Range::InvalidRange(), 0,
+                                         base::OnceClosure());
+}
+
 void RenderWidgetHostImpl::RejectPointerLockOrUnlockIfNecessary(
     blink::mojom::PointerLockResult reason) {
   CHECK(!request_pointer_lock_callback_ || !IsPointerLocked());

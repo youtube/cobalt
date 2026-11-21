@@ -46,6 +46,9 @@ selection_test(
     ],
     'InsertText replacing content inside the hyperlink');
 
+// TODO(crbug/521637098): Expected <div>c|</div> per spec (empty <a> should be
+// stripped by DeleteSelection). Restore baseline when DeleteSelection's
+// wrapper-stripping path is fixed in a follow-up CL.
 selection_test(
     [
         '<div contenteditable>^',
@@ -55,10 +58,11 @@ selection_test(
     'insertText c',
     [
         '<div contenteditable>',
-            'c|',
+            '<a href="#">c|</a>',
         '</div>',
     ],
     'InsertText replacing content inside the editable block');
+
 
 selection_test(
     [

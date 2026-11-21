@@ -5,6 +5,7 @@
 #ifndef SERVICES_WEBNN_HOST_WEIGHTS_FILE_PROVIDER_H_
 #define SERVICES_WEBNN_HOST_WEIGHTS_FILE_PROVIDER_H_
 
+#include "base/component_export.h"
 #include "base/files/file.h"
 #include "base/functional/callback.h"
 
@@ -13,6 +14,7 @@ namespace webnn {
 using CreateWeightsFileCallback = base::OnceCallback<void(base::File)>;
 
 // Create a file in browser process to save all weights in the WebNN service.
+COMPONENT_EXPORT(WEBNN_HOST)
 void CreateWeightsFile(CreateWeightsFileCallback callback);
 
 }  // namespace webnn

@@ -1665,7 +1665,8 @@ enum ssl_grease_index_t {
   ssl_grease_version,
   ssl_grease_ticket_extension,
   ssl_grease_ech_config_id,
-  ssl_grease_last_index = ssl_grease_ech_config_id,
+  ssl_grease_signature_algorithm,
+  ssl_grease_last_index = ssl_grease_signature_algorithm,
 };
 
 enum tls12_server_hs_state_t {
@@ -1985,12 +1986,15 @@ struct SSL_HANDSHAKE {
   // key_block is the record-layer key block for TLS 1.2 and earlier.
   Array<uint8_t> key_block;
 
-  // hints contains the handshake hints for this connection. If
-  // `hints_requested` is true, this field is non-null and contains the pending
-  // hints to filled as the predicted handshake progresses. Otherwise, this
-  // field, if non-null, contains hints configured by the caller and will
-  // influence the handshake on match.
-  UniquePtr<SSL_HANDSHAKE_HINTS> hints;
+  // pending_hints, if non-null, contains the pending hints to filled as the
+  // predicted handshake progresses. If non-null, only the first round-trip of
+  // the handshake will complete, after which the `pending_hints` structure can
+  // be serialized.
+  UniquePtr<SSL_HANDSHAKE_HINTS> pending_hints;
+
+  // provided_hints, if non-null, contains hints configured by the caller
+  // and will influence the (real or predicted) handshake on match.
+  UniquePtr<SSL_HANDSHAKE_HINTS> provided_hints;
 
   // ech_is_inner, on the server, indicates whether the ClientHello contained an
   // inner ECH extension.
@@ -2069,11 +2073,6 @@ struct SSL_HANDSHAKE {
   // `SSL_get_error` returns `SSL_ERROR_HANDBACK`.  It is set by
   // `SSL_apply_handoff`.
   bool handback : 1;
-
-  // hints_requested indicates the caller has requested handshake hints. Only
-  // the first round-trip of the handshake will complete, after which the
-  // `hints` structure can be serialized.
-  bool hints_requested : 1;
 
   // cert_compression_negotiated is true iff `cert_compression_alg_id` is valid.
   bool cert_compression_negotiated : 1;
@@ -4161,6 +4160,11 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
 
   // grease_enabled is whether GREASE (RFC 8701) is enabled.
   bool grease_enabled : 1;
+
+  // grease_sigalgs_enabled controls whether GREASE signature algorithms may be
+  // sent.
+  // TODO(crbug.com/526597789): Fold into `grease_enabled` once deployed safely.
+  bool grease_sigalgs_enabled : 1;
 
   // permute_extensions is whether to permute extensions when sending messages.
   bool permute_extensions : 1;

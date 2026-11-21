@@ -1529,10 +1529,8 @@ void HTMLTreeBuilder::ProcessStartTag(AtomicHTMLToken* token) {
           return;
         case CAPTION_COL_OR_COLGROUP_CASES:
         case TABLE_BODY_CONTEXT_CASES:
-          // FIXME: This is slow.
-          if (!tree_.OpenElements()->InTableScope(HTMLTag::kTbody) &&
-              !tree_.OpenElements()->InTableScope(HTMLTag::kThead) &&
-              !tree_.OpenElements()->InTableScope(HTMLTag::kTfoot)) {
+          if (!tree_.OpenElements()->InTableScope(
+                  {HTMLTag::kTbody, HTMLTag::kThead, HTMLTag::kTfoot})) {
             DCHECK(IsParsingFragmentOrTemplateContents());
             ParseError(token);
             return;
@@ -2020,10 +2018,8 @@ void HTMLTreeBuilder::ProcessEndTagForInTableBody(AtomicHTMLToken* token) {
       SetInsertionMode(kInTableMode);
       return;
     case HTMLTag::kTable:
-      // FIXME: This is slow.
-      if (!tree_.OpenElements()->InTableScope(HTMLTag::kTbody) &&
-          !tree_.OpenElements()->InTableScope(HTMLTag::kThead) &&
-          !tree_.OpenElements()->InTableScope(HTMLTag::kTfoot)) {
+      if (!tree_.OpenElements()->InTableScope(
+              {HTMLTag::kTbody, HTMLTag::kThead, HTMLTag::kTfoot})) {
         DCHECK(IsParsingFragmentOrTemplateContents());
         ParseError(token);
         return;

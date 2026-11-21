@@ -262,8 +262,6 @@ ProcessSingleton::ProcessSingleton(
 
 ProcessSingleton::~ProcessSingleton() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (lock_file_ != INVALID_HANDLE_VALUE)
-    ::CloseHandle(lock_file_);
 }
 
 // Code roughly based on Mozilla.
@@ -272,7 +270,7 @@ ProcessSingleton::NotifyResult ProcessSingleton::NotifyOtherProcess() {
 
   if (is_virtualized_)
     return PROCESS_NOTIFIED;  // We already spawned the process in this case.
-  if (lock_file_ == INVALID_HANDLE_VALUE && !remote_window_) {
+  if (!lock_file_.IsValid() && !remote_window_) {
     return LOCK_ERROR;
   } else if (!remote_window_) {
     return PROCESS_NONE;
@@ -396,21 +394,27 @@ bool ProcessSingleton::Create() {
     if (!remote_window_) {
       // We have to make sure there is no Chrome instance running on another
       // machine that uses the same profile.
+      HANDLE lock_file_handle = nullptr;
       {
         TRACE_EVENT0("startup", "ProcessSingleton::Create:CreateLockFile");
         base::FilePath lock_file_path = user_data_dir_.AppendASCII(kLockfile);
-        lock_file_ = ::CreateFile(
+        lock_file_handle = ::CreateFile(
             lock_file_path.value().c_str(), GENERIC_WRITE, FILE_SHARE_READ,
             NULL, CREATE_ALWAYS,
             FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, NULL);
       }
-      DWORD error = ::GetLastError();
-      LOG_IF(WARNING, lock_file_ != INVALID_HANDLE_VALUE &&
-          error == ERROR_ALREADY_EXISTS) << "Lock file exists but is writable.";
-      LOG_IF(ERROR, lock_file_ == INVALID_HANDLE_VALUE)
-          << "Lock file can not be created! Error code: " << error;
 
-      if (lock_file_ != INVALID_HANDLE_VALUE) {
+      DWORD error = ::GetLastError();
+      if (lock_file_handle != INVALID_HANDLE_VALUE) {
+        lock_file_ = base::File(std::exchange(lock_file_handle, nullptr));
+        LOG_IF(WARNING, error == ERROR_ALREADY_EXISTS)
+            << "Lock file exists but is writable.";
+      } else {
+        lock_file_ = base::File(base::File::OSErrorToFileError(error));
+        PLOG(ERROR) << "Lock file can not be created";
+      }
+
+      if (lock_file_.IsValid()) {
         // Set the window's title to the path of our user data directory so
         // other Chrome instances can decide if they should forward to us.
         TRACE_EVENT0("startup", "ProcessSingleton::Create:CreateWindow");
@@ -434,4 +438,9 @@ void ProcessSingleton::Cleanup() {
 void ProcessSingleton::OverrideShouldKillRemoteProcessCallbackForTesting(
     const ShouldKillRemoteProcessCallback& display_dialog_callback) {
   should_kill_remote_process_callback_ = display_dialog_callback;
+}
+
+void ProcessSingleton::SetOnWindowDestroyedCallbackForTesting(
+    base::OnceClosure callback) {
+  on_window_destroyed_for_testing_.ReplaceClosure(std::move(callback));
 }

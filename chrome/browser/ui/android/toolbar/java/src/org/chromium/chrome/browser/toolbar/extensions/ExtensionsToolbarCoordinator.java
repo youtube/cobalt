@@ -22,6 +22,7 @@ import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
+import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeature;
 import org.chromium.chrome.browser.ui.extensions.ExtensionUi;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
@@ -41,7 +42,7 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
  * extensionsToolbarCoordinatorImpl}) when it is available.
  */
 @NullMarked
-public interface ExtensionsToolbarCoordinator extends Destroyable {
+public interface ExtensionsToolbarCoordinator extends ChromeAndroidTaskFeature, Destroyable {
     /** Instantiates the implementation if it is available. */
     @Nullable
     static ExtensionsToolbarCoordinator maybeCreate(
@@ -57,7 +58,8 @@ public interface ExtensionsToolbarCoordinator extends Destroyable {
             @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
             @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate,
             TabModelSelector tabModelSelector,
-            ModalDialogManager modalDialogManager) {
+            ModalDialogManager modalDialogManager,
+            @Nullable Runnable onFeatureRemoved) {
         // Check if the extension UI is enabled first.
         if (!ExtensionUi.isEnabled(profile)) {
             return null;
@@ -81,7 +83,8 @@ public interface ExtensionsToolbarCoordinator extends Destroyable {
                 contextMenuPopulatorFactory,
                 selectionDropdownMenuDelegate,
                 tabModelSelector,
-                modalDialogManager);
+                modalDialogManager,
+                onFeatureRemoved);
         return coordinator;
     }
 
@@ -105,7 +108,8 @@ public interface ExtensionsToolbarCoordinator extends Destroyable {
             @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
             @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate,
             TabModelSelector tabModelSelector,
-            ModalDialogManager modalDialogManager);
+            ModalDialogManager modalDialogManager,
+            @Nullable Runnable onFeatureRemoved);
 
     /**
      * Dispatches the key event to trigger the corresponding extension action if any.

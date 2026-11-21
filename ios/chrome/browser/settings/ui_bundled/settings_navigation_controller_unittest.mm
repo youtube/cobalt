@@ -14,8 +14,10 @@
 #import "components/password_manager/core/browser/password_manager_test_utils.h"
 #import "components/password_manager/core/browser/password_store/test_password_store.h"
 #import "components/search_engines/template_url_service.h"
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
+#import "ios/chrome/browser/metrics/model/activity_reporter.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -29,6 +31,8 @@
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/testing/protocol_fake.h"
 #import "ios/web/public/test/web_task_environment.h"
@@ -60,6 +64,8 @@ class SettingsNavigationControllerTest : public PlatformTest {
         IOSChromeProfilePasswordStoreFactory::GetInstance(),
         base::BindOnce(&password_manager::BuildPasswordStore<
                        ProfileIOS, password_manager::TestPasswordStore>));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     profile_ = profile_manager_.AddProfileWithBuilder(std::move(builder));
     browser_ = std::make_unique<TestBrowser>(profile_.get());
     DiscoverFeedVisibilityBrowserAgent::CreateForBrowser(browser_.get());
@@ -200,6 +206,29 @@ TEST_F(SettingsNavigationControllerTest, Metrics) {
 
   EXPECT_EQ(user_action_tester.GetActionCount(kMobileKeyCommandClose), 1);
   [settingsController cleanUpSettings];
+}
+
+TEST_F(SettingsNavigationControllerTest, ActivityReporting) {
+  SettingsNavigationController* settingsController =
+      [SettingsNavigationController
+          mainSettingsControllerForBrowser:browser_.get()
+                                  delegate:nil
+                  hasDefaultBrowserBlueDot:NO];
+
+  id mockInstance = OCMClassMock([ActivityReporter class]);
+  [settingsController setValue:mockInstance forKey:@"activityReporter"];
+
+  OCMExpect([mockInstance reportActive]);
+  [settingsController viewWillAppear:NO];
+  [mockInstance verify];
+
+  OCMExpect([mockInstance reportInactive]);
+  [settingsController viewDidDisappear:NO];
+  [mockInstance verify];
+
+  [settingsController cleanUpSettings];
+  [settingsController setValue:nil forKey:@"activityReporter"];
+  [mockInstance stopMocking];
 }
 
 }  // namespace

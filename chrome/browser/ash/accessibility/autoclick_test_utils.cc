@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/accessibility/autoclick_test_utils.h"
 
 #include "ash/accessibility/autoclick/autoclick_controller.h"
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/accessibility_controller_enums.h"
 #include "ash/shell.h"
@@ -17,7 +18,6 @@
 #include "chrome/browser/ash/accessibility/accessibility_test_utils.h"
 #include "chrome/browser/ash/accessibility/automation_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/browser/browsertest_util.h"

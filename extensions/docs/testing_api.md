@@ -285,11 +285,58 @@ otherwise.
 Asserts that `chrome.runtime.lastError.message` is equivalent to
 `expectedError`, printing out the expected and actual errors otherwise.
 
-#### assertThrows(fn, self?, args[], expectedError?)
-Asserts that executing `fn` with the context object of `self` (if defined) and
-the specified `args` array throws a runtime error, which is then validated
-against `expectedError`.  `expectedError` may be either a string (which must
-match exactly) or a `RegExp`.
+#### assertThrows(fn, expectedError?, message?)
+Asserts that executing `fn` throws a runtime error.
+
+*   `fn` (`Function`): The function that is expected to throw. It must be called
+    without arguments. If arguments are needed, wrap it in an arrow function or
+    `bind`.
+*   `expectedError` (`String` or `RegExp`, optional): If defined, the thrown
+    error's message must match this value (either exactly for `String`, or by
+    matching for `RegExp`).
+*   `message` (`String`, optional): A custom error message to print if the
+    assertion fails (e.g., if the function does not throw, or throws the
+    wrong error).
+
+Examples:
+```js
+// Assert that any error is thrown:
+chrome.test.assertThrows(myObject.myFunction.bind(myObject, arg1));
+
+// Assert that an error with a specific message is thrown:
+chrome.test.assertThrows(
+  myObject.myFunction.bind(myObject, arg1),
+  /* expectedError */ 'specific error'
+);
+
+// Assert that an error matching a `RegExp` is thrown:
+chrome.test.assertThrows(
+  JSON.parse.bind(null, /* text */ 'invalid-json'),
+  /* expectedError */ /Unexpected token/
+);
+
+// Assert that an error is thrown with a custom failure message:
+chrome.test.assertThrows(
+  myObject.myFunction.bind(myObject, arg1),
+  /* expectedError */ 'expected error',
+  /* message */ 'My custom failure message'
+);
+
+// Assert that a function called with a specific context and arguments throws.
+// Note: Using an arrow function wrapper can reduce stack trace clarity
+// (since an anonymous function will show up in the stack trace when doing this).
+chrome.test.assertThrows(
+  () => myObject.myFunction(arg1, arg2),
+  /* expectedError */ 'Expected Error Message'
+);
+
+// Assert that a function called with a specific context and arguments throws
+// (using `bind`):
+chrome.test.assertThrows(
+  myObject.myFunction.bind(myObject, arg1, arg2),
+  /* expectedError */ 'Expected Error Message'
+);
+```
 
 ### callbackPass() and callbackFail()
 **Important Notes:**

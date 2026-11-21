@@ -28,9 +28,6 @@ class FakeOnDeviceModel;
 inline constexpr std::string FakeTsData() {
   return "fake_ts_data";
 }
-inline constexpr std::string FakeTsSpModel() {
-  return "fake_ts_sp_model";
-}
 inline constexpr std::string FakeLanguageModel() {
   return "fake_language_model";
 }
@@ -228,7 +225,7 @@ class FakeTsModel final : public mojom::TextSafetyModel,
   mojo::ReceiverSet<mojom::TextSafetySession> sessions_;
 };
 
-// TsHolder holds a single TsModel. Its operations may block.
+// FakeTsHolder holds a single FakeTsModel. Its operations may block.
 class FakeTsHolder final {
  public:
   explicit FakeTsHolder();

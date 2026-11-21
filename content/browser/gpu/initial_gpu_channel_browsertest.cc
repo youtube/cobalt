@@ -353,7 +353,6 @@ class InitialGpuChannelForTopChromeWebUIOnlyBrowserTest
     feature_list_.InitWithFeaturesAndParameters(
         {{features::kSendGPUChannelEarly,
           {{"for_topchrome_webui_only", "true"}}},
-         {features::kInitialWebUISyncNavStartToCommit, {}},
          {features::kWebUIInProcessResourceLoadingV2, {}}},
         {/* disabled_features */});
   }

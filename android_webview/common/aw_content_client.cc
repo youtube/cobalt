@@ -157,6 +157,21 @@ bool AwContentClient::ShouldAllowDefaultSiteInstanceGroup() {
   return false;
 }
 
+bool AwContentClient::ShouldIgnoreDuplicateNavs(
+    const GURL& url,
+    bool is_renderer_initiated) const {
+  if (!base::FeatureList::IsEnabled(features::kWebViewIgnoreDuplicateNavs)) {
+    return false;
+  }
+
+  return content::ContentClient::ShouldIgnoreDuplicateNavs(
+      url, is_renderer_initiated);
+}
+
+base::TimeDelta AwContentClient::GetIgnoreDuplicateNavsThreshold() const {
+  return features::kWebViewDuplicateNavThreshold.Get();
+}
+
 
 bool IsDisableOriginTrialsSafeModeActionOn() {
   // TODO(crbug.com/393461816) - fix origin trial safemode for renderers.

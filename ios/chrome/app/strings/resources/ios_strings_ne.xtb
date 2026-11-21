@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">एड्रेस बारको स्थान छनौट गर्नुहोस्</translation>
 <translation id="1347468774581902829">क्रियाकलाप व्यवस्थापन गर्नुहोस्</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">प्रोग्रेस अपडेट अफ गर्नुहोस्</translation>
 <translation id="1355337783640312381">खाताहरू अदलबदल गर्न आफ्नो खाताको आइकनमा ट्याप गर्नुहोस्</translation>
 <translation id="135806768612505061">सबै ट्याबहरू</translation>
 <translation id="1358106883354237005">व्यवस्थापन गरिएको खाता</translation>
@@ -609,6 +610,7 @@
 <translation id="3073633853887034268">बुझेँ</translation>
 <translation id="3080525922482950719">तपाईं पृष्ठहरू सुरक्षित गरी ती पृष्ठ पछि वा इन्टरनेट नभएका बेलामा पढ्न सक्नुहुन्छ</translation>
 <translation id="3081338492074632642">तपाईंले सुरक्षित गर्न लाग्नुभएको पासवर्ड तपाईंको <ph name="WEBSITE" /> को पासवर्डसँग मेल खान्छ भन्ने कुरा सुनिश्चित गर्नुहोस्</translation>
+<translation id="3084484227247071193">प्रोग्रेस अपडेट अन गर्नुहोस्</translation>
 <translation id="3087734570205094154">तल</translation>
 <translation id="309710370695886264">तपाईंले एकभन्दा बढी ठाउँमा एउटा पासवर्ड प्रयोग गर्नुभएको छ। सुरक्षित रहन अहिले नै यो समस्या निवारण गर्नुहोस्।</translation>
 <translation id="3099402981545350675">तपाईंले यसो गर्नुभयो भने यो डिभाइसमा सेभ गरिएका ठेगानाहरू मेटिन्छन्। यसका साथै Chrome मा भएका चयन गरिएका जानकारी पनि हट्छन् तर तपाईंको Google खातामा भएको यो जानकारी भने मेटिने छैन।</translation>
@@ -708,6 +710,7 @@
 <translation id="3449029510150690417">आफ्नो नयाँ ट्याब समूह बनाउनुहोस् र यसको नाम राख्नुका साथै यसको रङ चयन गर्नुहोस्</translation>
 <translation id="345348365500626747">ठेगाना भेटिएको छ</translation>
 <translation id="3459644598174926977">पेजका बारेमा प्रश्न सोध्न, आइडियाहरू फुराउन र दोहोरो कुरा गर्न Gemini सँग लाइभ कुराकानी गर्नुहोस्।</translation>
+<translation id="3462768334899086950">यसको अर्थ तपाईंले सेभ नगरिएको फाइल र हालका ट्याबहरू गुमाउनु हुने छ</translation>
 <translation id="3464194322481586217">मूल्य ट्रयाक गर्न सकिएन।</translation>
 <translation id="3469117812148449995">पासवर्ड सेभ गर्ने विकल्पहरू</translation>
 <translation id="3472469028191701821">नयाँ ट्याबमा खुल्छ</translation>
@@ -836,7 +839,6 @@
 <translation id="391904960191284041">उत्पादनसम्बन्धी रिभ्यूहरू</translation>
 <translation id="3921585859122905677">एड्रेस बारको पोजिसन</translation>
 <translation id="3922185497376658606">वेबपेजहरू प्रिलोड गर्नुहोस्</translation>
-<translation id="3922395466317605522">मेनु कस्टमाइज गर्नुहोस्</translation>
 <translation id="3926703470020109118">डाउनलोड रद्द गरियो</translation>
 <translation id="3929457972718048006">ठेगानाहरू</translation>
 <translation id="3931215329146376310">{count,plural, =1{यो साइटको नयाँ पासवर्ड}other{यो साइटका नयाँ पासवर्डहरू}}</translation>
@@ -965,6 +967,7 @@
 <translation id="4326912346867677256">सुरक्षित रूपमा साइन इन गर्न "पासवर्ड प्रयोग गर्नुहोस्" मा ट्याप गर्नुहोस्।</translation>
 <translation id="4328843285884395590">मेरो ड्राइभ</translation>
 <translation id="4331177082088332784">तपाईं BEGIN_LINK सामग्रीसम्बन्धी सेटिङ END_LINKमा गई यो कुरा व्यवस्थापन गर्न सक्नुहुन्छ</translation>
+<translation id="4331712008356052424">यो लिंक पठाउन <ph name="USER_EMAIL" /> प्रयोग गरी आफ्नो अर्को डिभाइसमा साइन इन गर्नुहोस्</translation>
 <translation id="4334428914252001502">१ वटा नपढिएको लेख।</translation>
 <translation id="4338258232580025606">साइन इन गर्न सकिएन</translation>
 <translation id="4338650699862464074">यसले Google मा तपाईं जाने पृष्ठका URL हरू पठाउँछ।</translation>
@@ -1471,6 +1474,7 @@
 <translation id="6040143037577758943">बन्द गर्नुहोस्</translation>
 <translation id="6042308850641462728">थप</translation>
 <translation id="6045460247888249350">शीर्षक राख्नुहोस्</translation>
+<translation id="6050237559175440178">आफ्ना सबै डिभाइसमा आफ्नो जानकारी प्रयोग र सेभ गर्न आफ्नो पहिचान पुष्टि गर्नुहोस्</translation>
 <translation id="6052269326659653305">प्रोफाइल बदल्नुहोस्</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">यहाँ आफ्नो समाचार फिडमा देखिने सामग्री तथा क्रियाकलाप नियन्त्रण गर्नुहोस्</translation>
@@ -1690,7 +1694,6 @@
 <translation id="6674917187596384849">तपाईं सजिलै खाताहरू अदलबदल गर्न सक्नुहुन्छ</translation>
 <translation id="6676349090816247042">साइन इनसम्बन्धी विकल्पहरू।</translation>
 <translation id="667999046851023355">कागजात</translation>
-<translation id="6680416467695217368">मेनु कस्टमाइज गर्नुहोस्</translation>
 <translation id="6681791404926413601">{count,plural, =1{तपाईंको किबोर्डको माथिल्लो भागमा भुक्तानी विधिसम्बन्धी {count} विकल्प उपलब्ध छ।}other{तपाईंको किबोर्डको माथिल्लो भागमा भुक्तानी विधिसम्बन्धी {count} वटा विकल्प उपलब्ध छन्।}}</translation>
 <translation id="6682680306647339111">रिमाइन्डर हटाइयो</translation>
 <translation id="6684262542644248484">कुनै वेबसाइटमा साइन इन गर्नुहोस्</translation>
@@ -1846,6 +1849,7 @@
 <translation id="722339453342442311">अहिले नै जाँच्नुहोस्</translation>
 <translation id="7227235818314667565">सेयर गर्ने सुविधा व्यवस्थापन गर्नुहोस्</translation>
 <translation id="7233006041370588369">आफूले हाल्न चाहेको पासवर्ड चयन गर्नुहोस्।</translation>
+<translation id="723874023660911012">प्रोफाइल बदल्नुहोस्</translation>
 <translation id="7241135764990439166">इन्कोग्निटो मोड उपलब्ध छैन</translation>
 <translation id="7248046129087111453"><ph name="BEGIN_LINK" />सर्च हिस्ट्री<ph name="END_LINK" /> र <ph name="BEGIN_LINK" />अन्य किसिमका क्रियाकलाप<ph name="END_LINK" /> तपाईंको Google खातामा सेभ गरिन सक्छन्।</translation>
 <translation id="7253951228444156601">पासवर्डहरू जाँच गरिँदै…</translation>
@@ -2072,6 +2076,7 @@
 <translation id="7996239959906074962">सेटअप गर्नुहोस्…</translation>
 <translation id="800361585186029508">Google Chrome मा प्रविष्टि गरिएका URL हरू खोल्छ।</translation>
 <translation id="8005666035647241369">यो डिभाइसमा Google पासवर्ड म्यानेजरमा</translation>
+<translation id="8007106936382123905">{count,plural, =1{एउटा कार्य पूरा भएको छ}other{# वटा कार्यहरू पूरा भएका छन्}}</translation>
 <translation id="8010488806779226127">तपाईंले ब्राउज गर्दै गर्दा तपाईंलाई थप कार्य पूरा गर्न सघाउने सुविधाहरूका बारेमा जान्नुहोस्</translation>
 <translation id="8011489434346330032">वेब इन्स्पेक्टर</translation>
 <translation id="8014007212279733632">संवेदनशील जानकारी अटोफिल गर्न आफ्नो पहिचान पुष्टि गर्नुहोस्</translation>
@@ -2155,6 +2160,7 @@
 <translation id="826614135184049678">तपाईंको iPad रिसेट गर्ने क्रममा तपाईंलाई तपाईंको <ph name="USER_NAME" /> खाताबाट साइन आउट गरिएको थियो। फेरि साइन इन गर्न तलको "जारी राख्नुहोस्" मा ट्याप गर्नुहोस्।</translation>
 <translation id="8270320981823560179">Drive</translation>
 <translation id="8273982424131314219">तपाईंले <ph name="URL" /> मा जानकारी भर्नु पर्ने हुन्छ</translation>
+<translation id="8274795744553482834">तपाईं प्रोफाइल बदल्न लाग्दै हुनुहुन्छ</translation>
 <translation id="8275068909952022340">थप…</translation>
 <translation id="8280797717392145626">लिंकहरू प्राप्त भएका छन्</translation>
 <translation id="8281781826761538115">डिफल्ट - <ph name="DEFAULT_LOCALE" /></translation>

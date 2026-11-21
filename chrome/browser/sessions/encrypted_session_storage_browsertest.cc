@@ -36,6 +36,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window_state.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
@@ -79,6 +80,9 @@
 namespace sessions {
 
 using SessionType = sessions::CommandStorageManager::SessionType;
+using internal::kEncryptSessionStorageStageWriteBothReadOnlyClear;
+using internal::kEncryptSessionStorageStageWriteBothReadPreferEncrypted;
+using internal::kEncryptSessionStorageStageWriteEncryptedReadPreferEncrypted;
 
 struct TestParams {
   bool encryption_enabled;    // Enables feature kEncryptSessionStorage.
@@ -93,9 +97,7 @@ std::string TestParamNameGenerator(
 
 // Base fixture for command storage encryption browser tests.
 // Provides common utilities (adding tabs, quitting and restoring the browser,
-// tab restore operations) and implements GetTestPreCount() boundaries to sense
-// multi-stage PRE_ browser restarts and configure kEncryptSessionStorage flag
-// and stage parameters upon browser startup.
+// tab restore operations).
 class EncryptedSessionStorageBrowserTestBase : public InProcessBrowserTest {
  public:
   EncryptedSessionStorageBrowserTestBase() {
@@ -106,27 +108,23 @@ class EncryptedSessionStorageBrowserTestBase : public InProcessBrowserTest {
                 base::Unretained(this)));
   }
 
-  // Returns the sequence of TestParams corresponding to each step of a
-  // multi-stage PRE_ browser restart test. The vector's size dictates the
-  // overall number of steps, mapping sequentially from the initial PRE_PRE_
-  // step down to the final non-PRE_ test step.
-  virtual std::vector<TestParams> GetTestParamsForEachStep() { return {}; }
-
-  void SetUp() override {
-    auto test_params = GetTestParamsForEachStep();
-    if (!test_params.empty()) {
-      CHECK(test_params.size() > GetTestPreCount())
-          << "One or more test steps are missing test params.";
-      TestParams params =
-          test_params[test_params.size() - GetTestPreCount() - 1];
-      if (!params.encryption_enabled) {
-        scoped_feature_list_.InitAndDisableFeature(kEncryptSessionStorage);
-      } else {
-        scoped_feature_list_.InitAndEnableFeatureWithParameters(
-            kEncryptSessionStorage, {{"stage", params.rollout_stage}});
-      }
+ protected:
+  void InitEncryptionFeature(const TestParams& params) {
+    if (!params.encryption_enabled) {
+      scoped_feature_list_.InitAndDisableFeature(kEncryptSessionStorage);
+    } else {
+      scoped_feature_list_.InitAndEnableFeatureWithParameters(
+          kEncryptSessionStorage, {{"stage", params.rollout_stage}});
     }
-    InProcessBrowserTest::SetUp();
+  }
+
+  void VerifyWindowBounds(gfx::Rect expected, gfx::Rect actual) {
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+    // On Linux Wayland, the client cannot set top-level window positions.
+    EXPECT_EQ(expected.size(), actual.size());
+#else
+    EXPECT_EQ(expected, actual);
+#endif
   }
 
   void AssertCommandStorageBackendFilesExist(SessionType session_type,
@@ -367,17 +365,13 @@ class EncryptedSessionStorageBrowserTestBase : public InProcessBrowserTest {
 // storage encryption rollout. Its purpose is to verify that sessions are
 // written and restored correctly.  For tests that span multiple
 // stages of rollout, see the SessionRestoreAcrossStagesTest.
-//
-// TODO(b/479420496): Update this test to verify navigation history, tab groups,
-// pinned tabs, the active tab index, and window state/bounds.
-// See examples in SessionRestoreAcrossStagesTest.
 class SessionRestoreWithEncryptionTest
     : public EncryptedSessionStorageBrowserTestBase,
       public testing::WithParamInterface<TestParams> {
  public:
-  std::vector<TestParams> GetTestParamsForEachStep() override {
-    // For this test, there is only one step.
-    return {GetParam()};
+  void SetUp() override {
+    InitEncryptionFeature(GetParam());
+    EncryptedSessionStorageBrowserTestBase::SetUp();
   }
 };
 
@@ -411,11 +405,122 @@ IN_PROC_BROWSER_TEST_P(SessionRestoreWithEncryptionTest, LargeSessionRestore) {
   }
 }
 
+IN_PROC_BROWSER_TEST_P(SessionRestoreWithEncryptionTest,
+                       NavigationHistoryIsRestored) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl(1)));
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetUrl(2), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+
+  // Navigate the active tab (index 1) to GetUrl(3), keeping GetUrl(2) in
+  // history.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl(3)));
+
+  AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
+
+  BrowserWindowInterface* restored = QuitBrowserAndRestore(browser());
+  TabStripModel* tab_strip_model = restored->GetTabStripModel();
+  ASSERT_EQ(2, tab_strip_model->count());
+  EXPECT_EQ(GetUrl(1), tab_strip_model->GetWebContentsAt(0)->GetURL());
+
+  content::WebContents* restored_tab2 = tab_strip_model->GetWebContentsAt(1);
+  EXPECT_EQ(GetUrl(3), restored_tab2->GetURL());
+
+  content::NavigationController& controller = restored_tab2->GetController();
+  EXPECT_EQ(2, controller.GetEntryCount());
+  EXPECT_EQ(GetUrl(2), controller.GetEntryAtIndex(0)->GetURL());
+  EXPECT_EQ(GetUrl(3), controller.GetEntryAtIndex(1)->GetURL());
+}
+
+IN_PROC_BROWSER_TEST_P(SessionRestoreWithEncryptionTest, TabGroupsAreRestored) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl(1)));
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetUrl(2), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetUrl(3), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_EQ(3, browser()->tab_strip_model()->count());
+
+  tab_groups::TabGroupId group_id =
+      browser()->tab_strip_model()->AddToNewGroup({1, 2});
+  browser()->tab_strip_model()->ChangeTabGroupVisuals(
+      group_id, tab_groups::TabGroupVisualData(
+                    u"Work", tab_groups::TabGroupColorId::kBlue));
+
+  AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
+
+  BrowserWindowInterface* restored = QuitBrowserAndRestore(browser());
+  TabStripModel* tab_strip_model = restored->GetTabStripModel();
+  ASSERT_EQ(3, tab_strip_model->count());
+
+  EXPECT_FALSE(tab_strip_model->GetTabGroupForTab(0).has_value());
+
+  std::optional<tab_groups::TabGroupId> group_id1 =
+      tab_strip_model->GetTabGroupForTab(1);
+  std::optional<tab_groups::TabGroupId> group_id2 =
+      tab_strip_model->GetTabGroupForTab(2);
+  ASSERT_TRUE(group_id1.has_value());
+  ASSERT_TRUE(group_id2.has_value());
+  EXPECT_EQ(group_id1.value(), group_id2.value());
+
+  const tab_groups::TabGroupVisualData* visual_data =
+      tab_strip_model->group_model()
+          ->GetTabGroup(group_id1.value())
+          ->visual_data();
+  ASSERT_TRUE(visual_data);
+  EXPECT_EQ(u"Work", visual_data->title());
+  EXPECT_EQ(tab_groups::TabGroupColorId::kBlue, visual_data->color());
+}
+
+IN_PROC_BROWSER_TEST_P(SessionRestoreWithEncryptionTest,
+                       PinnedTabsAreRestored) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl(1)));
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetUrl(2), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+
+  browser()->tab_strip_model()->SetTabPinned(0, true);
+
+  AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
+
+  BrowserWindowInterface* restored = QuitBrowserAndRestore(browser());
+  TabStripModel* tab_strip_model = restored->GetTabStripModel();
+  ASSERT_EQ(2, tab_strip_model->count());
+  EXPECT_TRUE(tab_strip_model->IsTabPinned(0));
+  EXPECT_FALSE(tab_strip_model->IsTabPinned(1));
+}
+
+IN_PROC_BROWSER_TEST_P(SessionRestoreWithEncryptionTest, ActiveTabIsRestored) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl(1)));
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(), GetUrl(2), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  ASSERT_EQ(2, browser()->tab_strip_model()->count());
+
+  browser()->tab_strip_model()->ActivateTabAt(0);
+
+  AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
+
+  BrowserWindowInterface* restored = QuitBrowserAndRestore(browser());
+  TabStripModel* tab_strip_model = restored->GetTabStripModel();
+  ASSERT_EQ(2, tab_strip_model->count());
+  EXPECT_EQ(0, tab_strip_model->active_index());
+}
+
 INSTANTIATE_TEST_SUITE_P(
     All,
     SessionRestoreWithEncryptionTest,
-    testing::Values(TestParams{false, ""},
-                    TestParams{true, "write_both_read_only_clear"}),
+    testing::Values(
+        TestParams{false, ""},
+        TestParams{true, kEncryptSessionStorageStageWriteBothReadOnlyClear},
+        TestParams{true,
+                   kEncryptSessionStorageStageWriteBothReadPreferEncrypted},
+        TestParams{
+            true,
+            kEncryptSessionStorageStageWriteEncryptedReadPreferEncrypted}),
     TestParamNameGenerator);
 
 // Tests Tab Restore functionality for a particular stage of the command storage
@@ -427,9 +532,9 @@ class TabRestoreWithEncryptionTest
     : public EncryptedSessionStorageBrowserTestBase,
       public testing::WithParamInterface<TestParams> {
  public:
-  std::vector<TestParams> GetTestParamsForEachStep() override {
-    // For this test, there is only one step.
-    return {GetParam()};
+  void SetUp() override {
+    InitEncryptionFeature(GetParam());
+    EncryptedSessionStorageBrowserTestBase::SetUp();
   }
 };
 
@@ -483,12 +588,79 @@ IN_PROC_BROWSER_TEST_P(TabRestoreWithEncryptionTest, LargeSessionRestore) {
   }
 }
 
+IN_PROC_BROWSER_TEST_P(SessionRestoreWithEncryptionTest,
+                       WindowBoundsAreRestored) {
+  gfx::Rect expected_bounds(50, 50, 550, 500);
+  browser()->GetWindow()->SetBounds(expected_bounds);
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    // Wait for window to be updated.  Only check window size because some
+    // Window Managers do not update position or adjust the position.
+    return browser()->GetWindow()->GetBounds().size() == expected_bounds.size();
+  }));
+  // Capture the actual OS-granted bounds so we verify against what session
+  // restore will save.
+  expected_bounds = browser()->GetWindow()->GetBounds();
+
+  // Navigate to trigger SessionService creation and record the new bounds.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl(1)));
+
+  AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
+  BrowserWindowInterface* restored = QuitBrowserAndRestore(browser());
+
+  // Navigate to trigger SessionService creation and compare the bounds.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(restored, GetUrl(1)));
+#if BUILDFLAG(IS_MAC)
+  // On MacOS, relaunch behavior differs from other platforms so evaluating
+  // window size restore is difficult. See https://crrev.com/c/8006276.
+#else
+  VerifyWindowBounds(expected_bounds, restored->GetWindow()->GetBounds());
+#endif
+}
+
 INSTANTIATE_TEST_SUITE_P(
     All,
     TabRestoreWithEncryptionTest,
-    testing::Values(TestParams{false, ""},
-                    TestParams{true, "write_both_read_only_clear"}),
+    testing::Values(
+        TestParams{false, ""},
+        TestParams{true, kEncryptSessionStorageStageWriteBothReadOnlyClear},
+        TestParams{true,
+                   kEncryptSessionStorageStageWriteBothReadPreferEncrypted},
+        TestParams{
+            true,
+            kEncryptSessionStorageStageWriteEncryptedReadPreferEncrypted}),
     TestParamNameGenerator);
+
+struct StageTransitionTestParams {
+  TestParams before;
+  TestParams after;
+};
+
+std::string StageTransitionNameGenerator(
+    const testing::TestParamInfo<StageTransitionTestParams>& info) {
+  auto get_name = [](const TestParams& params) -> std::string {
+    return params.encryption_enabled ? params.rollout_stage : "clear_only";
+  };
+  return get_name(info.param.before) + "_To_" + get_name(info.param.after);
+}
+
+class RestoreAcrossStagesTestBase
+    : public EncryptedSessionStorageBrowserTestBase,
+      public testing::WithParamInterface<StageTransitionTestParams> {
+ public:
+  std::vector<TestParams> GetTestParamsForEachStep() {
+    return {GetParam().before, GetParam().after};
+  }
+
+  void SetUp() override {
+    auto test_params = GetTestParamsForEachStep();
+    CHECK(test_params.size() > GetTestPreCount())
+        << "One or more test steps are missing test params.";
+    TestParams params = test_params[test_params.size() - GetTestPreCount() - 1];
+    InitEncryptionFeature(params);
+    EncryptedSessionStorageBrowserTestBase::SetUp();
+  }
+};
 
 // Tests session restore behavior across browser restarts, where the encryption
 // rollout stage changes between restarts.
@@ -498,24 +670,10 @@ INSTANTIATE_TEST_SUITE_P(
 //
 // Separate test TabRestoreTestAcrossStagesTest will verify that the correct
 // tabs are restored.
-class SessionRestoreAcrossStagesTest
-    : public EncryptedSessionStorageBrowserTestBase {
+class SessionRestoreAcrossStagesTest : public RestoreAcrossStagesTestBase {
  public:
   static constexpr gfx::Rect kWindowBounds1{50, 50, 550, 500};
   static constexpr gfx::Rect kWindowBounds2{200, 50, 550, 500};
-
-  std::vector<TestParams> GetTestParamsForEachStep() override {
-    return {
-        // Initially, feature kEncryptSessionStorage is disabled.
-        TestParams{false, ""},
-        // Start the rollout.
-        TestParams{true, "write_both_read_only_clear"},
-        // Simulate a rollback
-        TestParams{false, ""},
-        // Resume the rollout.
-        TestParams{true, "write_both_read_only_clear"},
-    };
-  }
 
   // Saves the bounds of the two windows to a JSON file.
   // This file is required because this test class runs across multiple restarts
@@ -681,7 +839,7 @@ class SessionRestoreAcrossStagesTest
         ReadWindowBoundsFromFile(bounds_file);
 
     // Assert Window 1 bounds
-    EXPECT_EQ(expected_bounds1, w1->GetWindow()->GetBounds());
+    VerifyWindowBounds(expected_bounds1, w1->GetWindow()->GetBounds());
 
     // Window 1 Tab 1 shows GetUrl(1) and is active
     TabStripModel* w1_model = w1->GetTabStripModel();
@@ -697,7 +855,7 @@ class SessionRestoreAcrossStagesTest
     EXPECT_EQ(GetUrl(3), controller.GetEntryAtIndex(1)->GetURL());
 
     // Assert Window 2 bounds
-    EXPECT_EQ(expected_bounds2, w2->GetWindow()->GetBounds());
+    VerifyWindowBounds(expected_bounds2, w2->GetWindow()->GetBounds());
 
     TabStripModel* w2_model = w2->GetTabStripModel();
     // Tab 1 should be pinned and shows GetUrl(1)
@@ -734,52 +892,20 @@ class SessionRestoreAcrossStagesTest
   }
 };
 
-IN_PROC_BROWSER_TEST_F(SessionRestoreAcrossStagesTest, PRE_PRE_PRE_Restore) {
+IN_PROC_BROWSER_TEST_P(SessionRestoreAcrossStagesTest, PRE_Restore) {
   SetUpSessionState();
   browser()->profile()->SaveSessionState();
   AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
 }
 
-IN_PROC_BROWSER_TEST_F(SessionRestoreAcrossStagesTest, PRE_PRE_Restore) {
-  AssertSessionState();
-  browser()->profile()->SaveSessionState();
-  AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
-}
-
-IN_PROC_BROWSER_TEST_F(SessionRestoreAcrossStagesTest, PRE_Restore) {
-  AssertSessionState();
-  browser()->profile()->SaveSessionState();
-  AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
-}
-
-// TODO(crbug.com/525638651): Re-enable this test on Linux Wayland.
-#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-#define MAYBE_Restore DISABLED_Restore
-#else
-#define MAYBE_Restore Restore
-#endif
-IN_PROC_BROWSER_TEST_F(SessionRestoreAcrossStagesTest, MAYBE_Restore) {
+IN_PROC_BROWSER_TEST_P(SessionRestoreAcrossStagesTest, Restore) {
   AssertSessionState();
 }
 
-// Tests session restore behavior across browser restarts, where the encryption
+// Tests tab restore behavior across browser restarts, where the encryption
 // rollout stage changes between restarts.
-class TabRestoreAcrossStagesTest
-    : public EncryptedSessionStorageBrowserTestBase {
+class TabRestoreAcrossStagesTest : public RestoreAcrossStagesTestBase {
  public:
-  std::vector<TestParams> GetTestParamsForEachStep() override {
-    return {
-        // Initially, feature kEncryptSessionStorage is disabled.
-        TestParams{false, ""},
-        // Start the rollout.
-        TestParams{true, "write_both_read_only_clear"},
-        // Simulate a rollback
-        TestParams{false, ""},
-        // Resume the rollout.
-        TestParams{true, "write_both_read_only_clear"},
-    };
-  }
-
   // Creates the expected tabs for the test, which are verified in
   // AssertExpectedTabs().
   void SetUpExpectedTabs() {
@@ -828,26 +954,68 @@ class TabRestoreAcrossStagesTest
   }
 };
 
-IN_PROC_BROWSER_TEST_F(TabRestoreAcrossStagesTest, PRE_PRE_PRE_Restore) {
+IN_PROC_BROWSER_TEST_P(TabRestoreAcrossStagesTest, PRE_Restore) {
   SetUpExpectedTabs();
   browser()->profile()->SaveSessionState();
   AssertCommandStorageBackendFilesExist(SessionType::kTabRestore);
 }
 
-IN_PROC_BROWSER_TEST_F(TabRestoreAcrossStagesTest, PRE_PRE_Restore) {
+IN_PROC_BROWSER_TEST_P(TabRestoreAcrossStagesTest, Restore) {
   AssertExpectedTabs();
-  browser()->profile()->SaveSessionState();
-  AssertCommandStorageBackendFilesExist(SessionType::kTabRestore);
 }
 
-IN_PROC_BROWSER_TEST_F(TabRestoreAcrossStagesTest, PRE_Restore) {
-  AssertExpectedTabs();
-  browser()->profile()->SaveSessionState();
-  AssertCommandStorageBackendFilesExist(SessionType::kTabRestore);
-}
+const StageTransitionTestParams kStageTransitionTestParams[] = {
+    // Starting a rollout with Stage 1
+    {TestParams{false, ""},
+     TestParams{true, kEncryptSessionStorageStageWriteBothReadOnlyClear}},
+    // Rollback from Stage 1 to Stage 0
+    {TestParams{true, kEncryptSessionStorageStageWriteBothReadOnlyClear},
+     TestParams{false, ""}},
 
-IN_PROC_BROWSER_TEST_F(TabRestoreAcrossStagesTest, Restore) {
-  AssertExpectedTabs();
-}
+    // Continuing rollout from Stage 1 to Stage 2
+    {TestParams{true, kEncryptSessionStorageStageWriteBothReadOnlyClear},
+     TestParams{true, kEncryptSessionStorageStageWriteBothReadPreferEncrypted}},
+    // Jump from Stage 0 to Stage 2
+    // This could occur if a user misses the rollout from Stage 1 to Stage 2
+    {TestParams{false, ""},
+     TestParams{true, kEncryptSessionStorageStageWriteBothReadPreferEncrypted}},
+    // Rollback from Stage 2 to Stage 1
+    {TestParams{true, kEncryptSessionStorageStageWriteBothReadPreferEncrypted},
+     TestParams{true, kEncryptSessionStorageStageWriteBothReadOnlyClear}},
+    // Rollback from Stage 2 to Stage 0
+    {TestParams{true, kEncryptSessionStorageStageWriteBothReadPreferEncrypted},
+     TestParams{false, ""}},
+
+    // Continuing rollout from Stage 2 to Stage 3
+    {TestParams{true, kEncryptSessionStorageStageWriteBothReadPreferEncrypted},
+     TestParams{true,
+                kEncryptSessionStorageStageWriteEncryptedReadPreferEncrypted}},
+    // Jump from Stage 0 to Stage 3
+    // This could occur if a user misses the rollouts to Stages 1 and 2
+    {TestParams{false, ""},
+     TestParams{true,
+                kEncryptSessionStorageStageWriteEncryptedReadPreferEncrypted}},
+    // Jump from Stage 1 to Stage 3
+    // This could occur if a user misses the rollout to Stage 2
+    {TestParams{true, kEncryptSessionStorageStageWriteBothReadOnlyClear},
+     TestParams{true,
+                kEncryptSessionStorageStageWriteEncryptedReadPreferEncrypted}},
+    // Rollback from Stage 3 to Stage 2
+    {TestParams{true,
+                kEncryptSessionStorageStageWriteEncryptedReadPreferEncrypted},
+     TestParams{true, kEncryptSessionStorageStageWriteBothReadPreferEncrypted}},
+    // Rollback from Stage 3 to Stage 0 or 1 is not possible because cleartext
+    // files are not written in Stage 3 and are required for Stages 0 and 1.
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         SessionRestoreAcrossStagesTest,
+                         testing::ValuesIn(kStageTransitionTestParams),
+                         StageTransitionNameGenerator);
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         TabRestoreAcrossStagesTest,
+                         testing::ValuesIn(kStageTransitionTestParams),
+                         StageTransitionNameGenerator);
 
 }  // namespace sessions

@@ -6,8 +6,11 @@ package org.chromium.chrome.browser.ui.autofill;
 
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetCoordinator.ITEM_TYPE_SEARCH_TILE;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetCoordinator.ITEM_TYPE_SUGGESTION;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetCoordinator.ITEM_TYPE_ZERO_STATE;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.FLYOUT_SUGGESTIONS;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.IS_LOADING;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.IS_NOTICE_VISIBLE;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.NOTICE_OK_CLICK_LISTENER;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ON_QUERY_SUBMITTED_CALLBACK;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ON_QUERY_TEXT_CHANGED_CALLBACK;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SHOW_SUGGESTIONS_BACKGROUND;
@@ -22,11 +25,11 @@ import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggest
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggestionProperties.ON_SUGGESTION_CLICKED;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetSuggestionProperties.TITLE;
 
-import android.content.Context;
-
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.chrome.browser.ui.autofill.internal.R;
+import org.chromium.chrome.browser.personal_context.first_run.PersonalContextFirstRunService;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.AutofillSuggestion;
+import org.chromium.components.autofill.SuggestionType;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -36,51 +39,115 @@ import java.util.List;
 /** Contains the business logic for the AtMemoryBottomSheet. */
 @NullMarked
 class AtMemoryBottomSheetMediator {
-    private final Context mContext;
     private final PropertyModel mModel;
     private final ModelList mModelList;
     private final AtMemoryBottomSheetCoordinator.Delegate mDelegate;
+    private final Profile mProfile;
     private final Runnable mHideKeyboardCallback;
 
     AtMemoryBottomSheetMediator(
-            Context context,
+            Profile profile,
             AtMemoryBottomSheetCoordinator.Delegate delegate,
-            PropertyModel model,
             ModelList modelList,
             Runnable hideKeyboardCallback) {
-        mContext = context;
-        mModel = model;
+        mProfile = profile;
         mModelList = modelList;
         mDelegate = delegate;
         mHideKeyboardCallback = hideKeyboardCallback;
 
-        mModel.set(ON_QUERY_SUBMITTED_CALLBACK, this::onQuerySubmitted);
-        mModel.set(ON_QUERY_TEXT_CHANGED_CALLBACK, this::onQueryTextChanged);
+        boolean shouldShowNotice = PersonalContextFirstRunService.shouldShowNotice(mProfile);
+
+        mModel =
+                new PropertyModel.Builder(AtMemoryBottomSheetProperties.ALL_KEYS)
+                        .with(VISIBLE, false)
+                        .with(SHOW_SUGGESTIONS_BACKGROUND, false)
+                        .with(ON_QUERY_SUBMITTED_CALLBACK, this::onQuerySubmitted)
+                        .with(ON_QUERY_TEXT_CHANGED_CALLBACK, mDelegate::onQueryTextChanged)
+                        .with(IS_NOTICE_VISIBLE, shouldShowNotice)
+                        .with(NOTICE_OK_CLICK_LISTENER, this::onNoticeAcknowledged)
+                        .build();
+    }
+
+    PropertyModel getModel() {
+        return mModel;
     }
 
     void show(List<AutofillSuggestion> suggestions) {
-        setSuggestions(suggestions);
-        // When an async search begins, the backend clears old results by sending an empty list.
-        // We only reset the loading indicator when non-empty suggestions arrive. Completed searches
-        // always return non-empty lists (using fallback items when no data is found).
-        if (!suggestions.isEmpty()) {
-            mModel.set(IS_LOADING, false);
-        }
-        mModel.set(SHOW_SUGGESTIONS_BACKGROUND, !suggestions.isEmpty());
+        applyScreenState(getScreenState(suggestions), suggestions);
         mModel.set(VISIBLE, true);
     }
 
     void onDismissed() {
-        mModelList.clear();
-        mModel.set(IS_LOADING, false);
-        mModel.set(SHOW_SUGGESTIONS_BACKGROUND, false);
+        applyScreenState(AtMemoryScreenState.HIDDEN, List.of());
         mModel.set(VISIBLE, false);
         mDelegate.onDismissed();
     }
 
-    private void setSuggestions(List<AutofillSuggestion> suggestions) {
-        mModelList.clear();
+    private void onNoticeAcknowledged() {
+        mModel.set(IS_NOTICE_VISIBLE, false);
+        PersonalContextFirstRunService.noticeAcknowledged(mProfile);
+    }
 
+    private AtMemoryScreenState getScreenState(List<AutofillSuggestion> suggestions) {
+        if (isSearchAffordance(suggestions)) {
+            return AtMemoryScreenState.SEARCH_AFFORDANCE;
+        }
+        if (suggestions.isEmpty()) {
+            return mDelegate.isSearching()
+                    ? AtMemoryScreenState.LOADING
+                    : AtMemoryScreenState.ZERO_STATE;
+        }
+        return AtMemoryScreenState.SUGGESTIONS;
+    }
+
+    private void applyScreenState(
+            AtMemoryScreenState screenState, List<AutofillSuggestion> suggestions) {
+        mModel.set(IS_LOADING, screenState.isLoading);
+        mModel.set(SHOW_SUGGESTIONS_BACKGROUND, screenState.showSuggestionsBackground);
+
+        if (screenState.showZeroState) {
+            applyZeroState();
+        }
+        if (screenState.showSearchAffordance) {
+            applySearchAffordance(suggestions.get(0));
+        }
+        if (screenState.showAtMemorySuggestions) {
+            applySuggestions(suggestions);
+        }
+        if (screenState == AtMemoryScreenState.HIDDEN) {
+            mModelList.clear();
+        }
+    }
+
+    private void applyZeroState() {
+        if (mModelList.size() == 1 && mModelList.get(0).type == ITEM_TYPE_ZERO_STATE) {
+            return;
+        }
+        mModelList.clear();
+        mModelList.add(new ListItem(ITEM_TYPE_ZERO_STATE, new PropertyModel()));
+    }
+
+    private void applySearchAffordance(AutofillSuggestion affordance) {
+        if (!mModelList.isEmpty() && mModelList.get(0).type == ITEM_TYPE_SEARCH_TILE) {
+            mModelList.get(0).model.set(TILE_TITLE, affordance.getLabel());
+            if (mModelList.size() > 1) {
+                mModelList.removeRange(1, mModelList.size() - 1);
+            }
+            return;
+        }
+        mModelList.clear();
+        PropertyModel itemModel =
+                new PropertyModel.Builder(AtMemoryBottomSheetSearchTileProperties.ALL_KEYS)
+                        .with(TILE_ICON, affordance.getIconId())
+                        .with(TILE_TITLE, affordance.getLabel())
+                        .with(TILE_DETAILS, affordance.getSublabel())
+                        .with(ON_TILE_CLICKED, this::onSearchTileClicked)
+                        .build();
+        mModelList.add(new ListItem(ITEM_TYPE_SEARCH_TILE, itemModel));
+    }
+
+    private void applySuggestions(List<AutofillSuggestion> suggestions) {
+        mModelList.clear();
         for (int i = 0; i < suggestions.size(); i++) {
             AutofillSuggestion suggestion = suggestions.get(i);
             int position = i;
@@ -108,36 +175,7 @@ class AtMemoryBottomSheetMediator {
     }
 
     void onQuerySubmitted(String query) {
-        mModel.set(IS_LOADING, true);
         mDelegate.onQuerySubmitted(query);
-    }
-
-    void onQueryTextChanged(String query) {
-        mModel.set(SHOW_SUGGESTIONS_BACKGROUND, false);
-        // Update the existing search tile in place rather than re-creating it to avoid UI
-        // flickering.
-        if (!query.isEmpty() && isSearchTileAlreadyVisible()) {
-            mModelList.get(0).model.set(TILE_TITLE, query);
-            return;
-        }
-        mModelList.clear();
-        if (query.isEmpty()) {
-            return;
-        }
-        PropertyModel itemModel =
-                new PropertyModel.Builder(AtMemoryBottomSheetSearchTileProperties.ALL_KEYS)
-                        .with(TILE_ICON, R.drawable.ic_spark_24dp)
-                        .with(TILE_TITLE, query)
-                        .with(
-                                TILE_DETAILS,
-                                mContext.getString(R.string.autofill_at_memory_search_tile_details))
-                        .with(ON_TILE_CLICKED, this::onSearchTileClicked)
-                        .build();
-        mModelList.add(new ListItem(ITEM_TYPE_SEARCH_TILE, itemModel));
-    }
-
-    private boolean isSearchTileAlreadyVisible() {
-        return mModelList.size() == 1 && mModelList.get(0).type == ITEM_TYPE_SEARCH_TILE;
     }
 
     private void onSearchTileClicked() {
@@ -148,5 +186,11 @@ class AtMemoryBottomSheetMediator {
 
         mHideKeyboardCallback.run();
         onQuerySubmitted(query);
+    }
+
+    private boolean isSearchAffordance(List<AutofillSuggestion> suggestions) {
+        return suggestions.size() == 1
+                && suggestions.get(0).getSuggestionType()
+                        == SuggestionType.AT_MEMORY_SEARCH_AFFORDANCE;
     }
 }

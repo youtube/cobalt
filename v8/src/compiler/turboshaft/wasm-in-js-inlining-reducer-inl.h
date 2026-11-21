@@ -114,15 +114,14 @@ class WasmInJSInliningReducer : public Next {
         CHECK(origin.valid());
         SourcePosition call_pos = __ input_graph().source_positions()[origin];
         CHECK(call_pos.IsKnown());
-        int inlining_id = __ data() -> info()->AddInlinedFunction(
-            descriptor->js_wasm_call_parameters->shared_fct_info().object(),
-            Handle<BytecodeArray>(), call_pos);
         V<EagerFrameState> wasm_inlined_frame_state =
             CreateWasmInlinedIntoJSFrameState(
                 js_context, frame_state.value(),
                 descriptor->js_wasm_call_parameters->shared_fct_info());
-        inlined_function_data = {native_module, func_idx,
-                                 wasm_inlined_frame_state, inlining_id};
+        inlined_function_data = {
+            native_module, func_idx, wasm_inlined_frame_state,
+            descriptor->js_wasm_call_parameters->shared_fct_info().object(),
+            call_pos};
       }
 
       // The JS-to-Wasm wrapper is always inlined at this point, because the
@@ -772,7 +771,8 @@ class WasmInJsInliningInterface {
         field.struct_imm.struct_type, field.struct_imm.index,
         field.field_imm.index,
         struct_object.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck,
-        {}, wasm::FieldImmediateToWriteBarrier(field));
+        {}, wasm::FieldImmediateToWriteBarrier(field),
+        StructSetOp::Kind::kAssign);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
@@ -793,7 +793,8 @@ class WasmInJsInliningInterface {
                             frame_state_);
     __ ArraySet(array_value, index.get<Word32>(), value.op,
                 imm.array_type->element_type(), {},
-                wasm::ArrayIndexImmediateToWriteBarrier(imm));
+                wasm::ArrayIndexImmediateToWriteBarrier(imm),
+                ArraySetOp::Kind::kAssign);
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
@@ -820,7 +821,7 @@ class WasmInJsInliningInterface {
     if (target.is_shared() == SharedFlag::kYes) {
       return Bailout(decoder);
     }
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
@@ -835,7 +836,7 @@ class WasmInJsInliningInterface {
 
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
@@ -1054,7 +1055,6 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   wasm::NativeModule* native_module = inlined_data.native_module;
   uint32_t func_idx = inlined_data.function_index;
   V<EagerFrameState> frame_state = inlined_data.js_caller_frame_state;
-  int inlining_id = inlined_data.inlining_id;
   const wasm::WasmModule* module = native_module->module();
   const wasm::WasmFunction& func = module->functions[func_idx];
 
@@ -1141,10 +1141,10 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   using Decoder =
       wasm::WasmFullDecoder<typename Interface::ValidationTag, Interface>;
   {
-    Decoder can_inline_decoder(Asm().phase_zone(), env.module,
-                               env.enabled_features, &detected, func_body,
-                               Asm(), arguments_without_instance,
-                               trusted_instance_data, frame_state, inlining_id);
+    Decoder can_inline_decoder(
+        Asm().phase_zone(), env.module, env.enabled_features, &detected,
+        func_body, Asm(), arguments_without_instance, trusted_instance_data,
+        frame_state, SourcePosition::kNotInlined);
     can_inline_decoder.Decode();
 
     // The function was already validated, so decoding can only fail if we
@@ -1157,6 +1157,12 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
     DCHECK(can_inline_decoder.interface().result().success);
   }
 
+  // The inlining succeeded, register the inlined Wasm function in the
+  // compilation info.
+  int inlining_id = __ data() -> info()->AddInlinedFunction(
+      inlined_data.shared_fct_info, Handle<BytecodeArray>(),
+      inlined_data.call_pos);
+
   // Second pass: Actually emit the inlinee instructions now.
   __ Bind(inlinee_body_and_rest);
   Decoder emitting_decoder(Asm().phase_zone(), env.module, env.enabled_features,
@@ -1166,6 +1172,7 @@ WasmBodyInliningResult WasmInJSInliningReducer<Next>::TryInlineWasmBody(
   emitting_decoder.Decode();
   DCHECK(emitting_decoder.ok());
   DCHECK(emitting_decoder.interface().result().success);
+  __ data() -> set_wasm_in_js_inlined_any_body();
   TRACE("- inlining Wasm function");
   return emitting_decoder.interface().result();
 }

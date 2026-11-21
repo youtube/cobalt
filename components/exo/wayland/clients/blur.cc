@@ -79,11 +79,11 @@ void DrawContents(SkImage* background_grid_image,
   }
 
   // Draw rotated rectangles.
-  SkScalar rect_size =
-      SkScalarHalf(std::min(cell_size.width(), cell_size.height()));
-  SkIRect rect = SkIRect::MakeXYWH(
-      -SkScalarHalf(rect_size), -SkScalarHalf(rect_size), rect_size, rect_size);
-  SkScalar rotation = elapsed_time.InMilliseconds() * kRotationSpeed / 1000;
+  float rect_size = std::min(cell_size.width(), cell_size.height()) / 2.f;
+  SkIRect rect = SkIRect::MakeXYWH(static_cast<int>(-rect_size / 2.f),
+                                   static_cast<int>(-rect_size / 2.f),
+                                   rect_size, rect_size);
+  float rotation = elapsed_time.InMilliseconds() * kRotationSpeed / 1000;
   for (int y = 0; y < kGridSize; ++y) {
     for (int x = 0; x < kGridSize; ++x) {
       const SkColor kColors[] = {SK_ColorBLUE, SK_ColorGREEN,
@@ -92,9 +92,8 @@ void DrawContents(SkImage* background_grid_image,
       SkPaint paint;
       paint.setColor(kColors[(y * kGridSize + x) % std::size(kColors)]);
       canvas->save();
-      canvas->translate(
-          x * cell_size.width() + SkScalarHalf(cell_size.width()),
-          y * cell_size.height() + SkScalarHalf(cell_size.height()));
+      canvas->translate(x * cell_size.width() + cell_size.width() / 2.f,
+                        y * cell_size.height() + cell_size.height() / 2.f);
       canvas->rotate(rotation / (y * kGridSize + x + 1));
       canvas->drawIRect(rect, paint);
       canvas->restore();

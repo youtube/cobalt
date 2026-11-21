@@ -429,13 +429,8 @@ INSTANTIATE_TEST_SUITE_P(
     All,
     IntentPickerIconBrowserTest,
     testing::Combine(testing::Values("", "noopener", "noreferrer", "nofollow"),
-#if BUILDFLAG(IS_CHROMEOS)
-                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
-                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOn,
-                                     LinkCapturingFeatureVersion::kV2DefaultOff)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-                         ,
+                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff,
+                                     LinkCapturingFeatureVersion::kV2DefaultOn),
                      testing::Bool()),
     GetLinkCapturingTestName);
 
@@ -467,11 +462,7 @@ class IntentPickerIconBrowserBubbleTest
     return std::get<LinkCapturingFeatureVersion>(GetParam());
   }
   bool LinkCapturingEnabledByDefault() const {
-#if BUILDFLAG(IS_CHROMEOS)
-    return false;
-#else
     return LinkCapturingVersion() == LinkCapturingFeatureVersion::kV2DefaultOn;
-#endif  // BUILDFLAG(IS_CHROMEOS)
   }
 
   size_t GetItemContainerSize(IntentPickerBubbleView* bubble) {
@@ -487,6 +478,13 @@ class IntentPickerIconBrowserBubbleTest
 #if BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_P(IntentPickerIconBrowserBubbleTest,
                        IntentChipOpensBubble) {
+  // TODO(b/521860617): Under kV2DefaultOn, navigation directly launches the
+  // app on ChromeOS. Skip this test under kV2DefaultOn until default-on
+  // behavior is resolved.
+  if (LinkCapturingEnabledByDefault()) {
+    GTEST_SKIP() << "Skipping due to default-on auto-launch on ChromeOS";
+  }
+
   InstallTestWebApp();
   const GURL in_scope_url =
       embedded_https_test_server().GetURL(GetAppUrlHost(), GetInScopeUrlPath());
@@ -503,6 +501,12 @@ IN_PROC_BROWSER_TEST_P(IntentPickerIconBrowserBubbleTest,
 
 // Test that the "Remember this choice" checkbox works.
 IN_PROC_BROWSER_TEST_P(IntentPickerIconBrowserBubbleTest, RememberOpenWebApp) {
+  // TODO(b/521860617): Skipping because under kV2DefaultOn, navigations need to
+  // be fixed on ChromeOS.
+  if (LinkCapturingEnabledByDefault()) {
+    GTEST_SKIP() << "Skipping due to default-on auto-launch on ChromeOS";
+  }
+
   base::HistogramTester histogram_tester;
 
   InstallTestWebApp();
@@ -573,13 +577,8 @@ INSTANTIATE_TEST_SUITE_P(
     All,
     IntentPickerIconBrowserBubbleTest,
     testing::Combine(testing::Values("", "noopener", "noreferrer", "nofollow"),
-#if BUILDFLAG(IS_CHROMEOS)
-                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
-                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOn,
-                                     LinkCapturingFeatureVersion::kV2DefaultOff)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-                         ,
+                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff,
+                                     LinkCapturingFeatureVersion::kV2DefaultOn),
                      testing::Bool()),
     GetLinkCapturingTestName);
 
@@ -715,12 +714,7 @@ INSTANTIATE_TEST_SUITE_P(
     All,
     IntentPickerIconFencedFrameBrowserTest,
     testing::Combine(testing::Values("", "noopener", "noreferrer", "nofollow"),
-#if BUILDFLAG(IS_CHROMEOS)
-                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
-                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOn,
-                                     LinkCapturingFeatureVersion::kV2DefaultOff)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-                         ,
+                     testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff,
+                                     LinkCapturingFeatureVersion::kV2DefaultOn),
                      testing::Bool()),
     GetLinkCapturingTestName);

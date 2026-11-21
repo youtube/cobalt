@@ -58,6 +58,13 @@ class APIBindingJSUtil final : public gin::Wrappable<APIBindingJSUtil> {
                                      const std::string& event_name,
                                      v8::Local<v8::Function> massager);
 
+  // A handler to register an event dispatch handler for a specific event, which
+  // takes over the event's dispatch entirely (see
+  // `APIEventHandler::RegisterEventDispatchHandler`).
+  void RegisterEventDispatchHandler(gin::Arguments* arguments,
+                                    const std::string& event_name,
+                                    v8::Local<v8::Function> dispatch_handler);
+
   // A handler to allow custom bindings to create custom extension API event
   // objects (e.g. foo.onBar).
   void CreateCustomEvent(gin::Arguments* arguments,

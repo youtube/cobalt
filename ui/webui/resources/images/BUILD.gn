@@ -60,7 +60,9 @@ generate_grd("build_grdp") {
     ]
   }
 
-  if ((!is_android && !is_ios) || is_desktop_android) {
+  if (!is_ios) {
+    # TODO(crbug.com/527601593): Revert back to (!is_ios && (!is_android ||
+    # is_desktop_android)) if we disable composebox on mobile Android phones.
     input_files += [
       "arrow_right.svg",
       "business.svg",

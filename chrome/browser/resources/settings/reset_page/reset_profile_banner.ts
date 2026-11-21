@@ -9,15 +9,15 @@
  */
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import '../settings_shared.css.js';
 
 import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {ResetBrowserProxy} from './reset_browser_proxy.js';
 import {ResetBrowserProxyImpl} from './reset_browser_proxy.js';
-import {getTemplate} from './reset_profile_banner.html.js';
+import {getCss} from './reset_profile_banner.css.js';
+import {getHtml} from './reset_profile_banner.html.js';
 
 export interface SettingsResetProfileBannerElement {
   $: {
@@ -25,7 +25,7 @@ export interface SettingsResetProfileBannerElement {
   };
 }
 
-const SettingsResetProfileBannerElementBase = I18nMixin(PolymerElement);
+const SettingsResetProfileBannerElementBase = I18nMixinLit(CrLitElement);
 
 export class SettingsResetProfileBannerElement extends
     SettingsResetProfileBannerElementBase {
@@ -33,25 +33,23 @@ export class SettingsResetProfileBannerElement extends
     return 'settings-reset-profile-banner';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      tamperedPrefs: {
-        type: Array,
-        value: () => [],
-      },
-      showTamperedPrefsList: {
-        type: Boolean,
-        value: false,
-      },
+      tamperedPrefs: {type: Array},
+      showTamperedPrefsList: {type: Boolean},
     };
   }
 
-  declare tamperedPrefs: string[];
-  declare showTamperedPrefsList: boolean;
+  accessor tamperedPrefs: string[] = [];
+  accessor showTamperedPrefsList: boolean = false;
 
   private browserProxy_: ResetBrowserProxy =
       ResetBrowserProxyImpl.getInstance();
@@ -69,16 +67,16 @@ export class SettingsResetProfileBannerElement extends
     });
   }
 
-  private onCancel_() {
+  protected onCancel_() {
     this.browserProxy_.onHideResetProfileBanner();
   }
 
-  private onConfirmClick_() {
+  protected onConfirmClick_() {
     this.$.dialog.close();
     this.browserProxy_.onHideResetProfileBanner();
   }
 
-  private onLearnMoreClick_() {
+  protected onLearnMoreClick_() {
     window.open(this.i18n('resetProfileBannerLearnMoreUrl'));
   }
 }

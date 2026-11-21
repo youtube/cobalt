@@ -6,7 +6,6 @@
 
 #import "base/memory/scoped_refptr.h"
 #import "base/task/sequenced_task_runner.h"
-#import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
 #import "components/application_locale_storage/application_locale_storage.h"
 #import "components/prefs/pref_registry_simple.h"
@@ -29,8 +28,6 @@
 class NTPBackgroundImageCacheServiceTest : public PlatformTest {
  public:
   void SetUp() override {
-    feature_list_.InitAndEnableFeature(kNTPBackgroundCustomization);
-
     pref_service_ = std::make_unique<TestingPrefServiceSimple>();
     HomeBackgroundCustomizationService::RegisterProfilePrefs(
         pref_service_->registry());
@@ -68,7 +65,6 @@ class NTPBackgroundImageCacheServiceTest : public PlatformTest {
 
  protected:
   base::test::TaskEnvironment task_environment_;
-  base::test::ScopedFeatureList feature_list_;
   std::unique_ptr<TestingPrefServiceSimple> pref_service_;
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;

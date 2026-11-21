@@ -15,6 +15,14 @@ public abstract class SafeModeAction {
         mIsEnabled = true;
     }
 
+    /**
+     * This should only be used by the non-embedded process which keeps track of enabled actions
+     * separately to the model used by embedded WebView.
+     */
+    public final void disable() {
+        mIsEnabled = false;
+    }
+
     public final boolean isEnabled() {
         return mIsEnabled;
     }

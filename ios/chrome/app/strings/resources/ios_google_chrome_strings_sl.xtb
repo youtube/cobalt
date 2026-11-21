@@ -61,6 +61,7 @@ Kaj je treba upoštevati:
 <translation id="2120238739383482109">Odpre zaznamke v Chromu.</translation>
 <translation id="2147651015520127414">Chrome je preveril, da je izdajatelj <ph name="ISSUER" /> izdal potrdilo tega spletnega mesta.</translation>
 <translation id="2199719347983604670">Podatki iz Sinhronizacije za Chrome</translation>
+<translation id="2212318912894837281">Vnesite geslo, če želite shraniti to geslo in pridobiti podatke iz Chroma v vseh napravah</translation>
 <translation id="2213327331203157297">Če želite onemogočiti način zaklepa v Chromu, ga izklopite v iPhonu.</translation>
 <translation id="2242467532204595597">Chrome lahko uporabljate, kadar koli se dotaknete povezav v sporočilih, dokumentih in drugih aplikacijah.</translation>
 <translation id="2256384876478573507">Hitreje odprite Chrome, ko ste pripravljeni na brskanje v iPhonu.</translation>
@@ -371,6 +372,7 @@ Podatki so bili z geslom šifrirani: <ph name="TIME" />. Vnesite ga, če želite
 <translation id="9068336935206019333">Odpri v anonimnem oknu v Chromu</translation>
 <translation id="9082304295862405388">Gemini lahko uporablja vašo natančno lokacijo, in sicer odvisno od dovoljenja, ki ste ga že dali Chromu</translation>
 <translation id="909127538042363610">Izberite Chromovo najmočnejšo varnost</translation>
+<translation id="9113725809421872108">Potrdite, da ste to vi, če želite shraniti to geslo in pridobiti podatke iz Chroma v vseh napravah</translation>
 <translation id="9122931302567044771">To pomeni, da bo Chrome vsakič zahteval spletno mesto za namizne naprave.</translation>
 <translation id="9176561303811134420">Upravljanje plačilnih sredstev v Chromu</translation>
 <translation id="9181628561061032322">Odpiranje nedavnih zavihkov v Chromu.</translation>

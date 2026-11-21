@@ -44,8 +44,6 @@ class AtMemoryEnablementUtilsTest : public testing::Test {
         features::kAutofillAtMemory, {{"at_memory_eligible_tiers", ""}});
     personal_context::prefs::RegisterProfilePrefs(
         autofill_client().GetPrefs()->registry());
-    subscription_eligibility::prefs::RegisterProfilePrefs(
-        autofill_client().GetPrefs()->registry());
     // Enable the toggle by default in tests since it represents the default
     // active state.
     autofill_client().GetPrefs()->SetUserPref(
@@ -183,8 +181,8 @@ TEST_F(AtMemoryEnablementUtilsTest, MayPerformAtMemoryAction_States) {
   autofill_client().GetPrefs()->SetUserPref(
       personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
       base::Value(false));
-  EXPECT_TRUE(MayPerformAtMemoryAction(AtMemoryAction::kShowAtMemoryInSettings,
-                                       autofill_client()));
+  EXPECT_FALSE(MayPerformAtMemoryAction(AtMemoryAction::kShowAtMemoryInSettings,
+                                        autofill_client()));
 
   // State: kDisabledNotEligible
   EXPECT_CALL(personal_context_service_, GetEnablementState)

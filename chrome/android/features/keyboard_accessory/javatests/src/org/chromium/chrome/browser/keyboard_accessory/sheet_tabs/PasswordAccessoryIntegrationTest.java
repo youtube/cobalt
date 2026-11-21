@@ -18,7 +18,7 @@ import static org.hamcrest.Matchers.containsString;
 
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.isTransformed;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.scrollToLastElement;
-import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.selectTabAtPosition;
+import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.selectTabWithDescription;
 import static org.chromium.chrome.browser.keyboard_accessory.ManualFillingTestHelper.whenDisplayed;
 
 import android.os.Looper;
@@ -111,7 +111,7 @@ public class PasswordAccessoryIntegrationTest {
         mHelper.waitForKeyboardAccessoryToBeShown();
         mHelper.waitForKeyboardToShow();
         whenDisplayed(isAssignableFrom(KeyboardAccessoryButtonGroupView.class))
-                .perform(selectTabAtPosition(0));
+                .perform(selectTabWithDescription(R.string.password_accessory_sheet_toggle));
 
         // Check that the provided elements are there.
         whenDisplayed(withText("mayapark@gmail.com"));
@@ -140,7 +140,7 @@ public class PasswordAccessoryIntegrationTest {
         mHelper.focusPasswordField();
         mHelper.waitForKeyboardAccessoryToBeShown();
         whenDisplayed(isAssignableFrom(KeyboardAccessoryButtonGroupView.class))
-                .perform(selectTabAtPosition(0));
+                .perform(selectTabWithDescription(R.string.password_accessory_sheet_toggle));
 
         mHelper.waitForKeyboardToDisappear();
         whenDisplayed(withId(R.id.passwords_sheet), /* atLeast= */ 51)
@@ -166,7 +166,7 @@ public class PasswordAccessoryIntegrationTest {
         mHelper.waitForKeyboardAccessoryToBeShown();
         mHelper.waitForKeyboardToShow();
         whenDisplayed(isAssignableFrom(KeyboardAccessoryButtonGroupView.class))
-                .perform(selectTabAtPosition(0));
+                .perform(selectTabWithDescription(R.string.password_accessory_sheet_toggle));
 
         // Click the suggestion.
         whenDisplayed(withText("ShorterPassword")).perform(click());
@@ -188,7 +188,7 @@ public class PasswordAccessoryIntegrationTest {
 
         // Click the tab to show the sheet and hide the keyboard.
         whenDisplayed(isAssignableFrom(KeyboardAccessoryButtonGroupView.class))
-                .perform(selectTabAtPosition(0));
+                .perform(selectTabWithDescription(R.string.password_accessory_sheet_toggle));
         mHelper.waitForKeyboardToDisappear();
         whenDisplayed(withId(R.id.passwords_sheet), /* atLeast= */ 51);
         onView(withText(containsString("No saved passwords"))).check(matches(isDisplayed()));
@@ -209,7 +209,7 @@ public class PasswordAccessoryIntegrationTest {
         mHelper.waitForKeyboardAccessoryToBeShown();
         mHelper.waitForKeyboardToShow();
         whenDisplayed(isAssignableFrom(KeyboardAccessoryButtonGroupView.class))
-                .perform(selectTabAtPosition(0));
+                .perform(selectTabWithDescription(R.string.password_accessory_sheet_toggle));
 
         whenDisplayed(withId(R.id.option_toggle_switch)).check(matches(isNotChecked()));
         onView(withId(R.id.option_toggle_subtitle)).check(matches(withText(R.string.text_off)));

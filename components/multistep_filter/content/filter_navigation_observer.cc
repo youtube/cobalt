@@ -128,8 +128,10 @@ void FilterNavigationObserver::DidFinishNavigation(
     return;
   }
 
-  // We only care about committed navigations in the primary main frame.
+  // We only care about committed navigations in the outermost primary main
+  // frame.
   if (!navigation_handle->IsInPrimaryMainFrame() ||
+      !navigation_handle->IsInOutermostMainFrame() ||
       !navigation_handle->HasCommitted()) {
     return;
   }
@@ -185,15 +187,11 @@ void FilterNavigationObserver::DidFinishNavigation(
                                  metadata.url.GetHost());
   service_->ExtractAnnotation(navigation_id, metadata.url);
 
-  // Prevent showing suggestions for same-site navigations to avoid spamming
-  // the user, and don't re-trigger if the navigation was already initiated by
+  // Don't re-trigger if the navigation was already initiated by
   // the filter UI.
-  if (metadata.was_filter_initiated_navigation ||
-      IsSameDomainOrHost(metadata.url, metadata.prev_url)) {
+  if (metadata.was_filter_initiated_navigation) {
     LogSuggestionSuppressed(log_router_, navigation_id, metadata.url.GetHost(),
-                            metadata.was_filter_initiated_navigation
-                                ? "filter_initiated"
-                                : "same_site");
+                            "filter_initiated_navigation");
     return;
   }
 

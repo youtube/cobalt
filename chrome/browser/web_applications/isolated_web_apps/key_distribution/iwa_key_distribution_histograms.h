@@ -75,6 +75,21 @@ enum class IwaComponentUpdateSource {
 inline constexpr std::string_view kIwaKeyDistributionComponentUpdateSource =
     "WebApp.Isolated.KeyDistributionComponent.UpdateSource";
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(IwaComponentBestEffortWaitOutcome)
+enum class IwaComponentBestEffortWaitOutcome {
+  kNoWaitComponentAlreadyReady = 0,
+  kWaitTimeoutFellBackToPreload = 1,
+  kWaitCompletedLoadedCachedComponent = 2,
+  kWaitCompletedDownloadedNewComponent = 3,
+  kMaxValue = kWaitCompletedDownloadedNewComponent,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/webapps/enums.xml:IwaComponentBestEffortWaitOutcome)
+
+inline constexpr std::string_view kIwaComponentBestEffortWaitOutcome =
+    "WebApp.Isolated.KeyDistributionComponent.BestEffortWaitOutcome";
+
 }  // namespace web_app
 
 #endif  // CHROME_BROWSER_WEB_APPLICATIONS_ISOLATED_WEB_APPS_KEY_DISTRIBUTION_IWA_KEY_DISTRIBUTION_HISTOGRAMS_H_

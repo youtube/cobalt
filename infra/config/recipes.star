@@ -285,6 +285,10 @@ build_recipe(
 )
 
 build_recipe(
+    name = "recipe:chromium_toolchain/trusted_packaging",
+)
+
+build_recipe(
     name = "recipe:flakiness/reproducer",
 )
 

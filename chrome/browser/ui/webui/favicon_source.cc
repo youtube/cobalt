@@ -317,6 +317,7 @@ void FaviconSource::SendDefaultResponse(
 
   int resource_id;
   switch (size_in_dip) {
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
     case 64:
       resource_id =
           dark_mode ? IDR_DEFAULT_FAVICON_DARK_64 : IDR_DEFAULT_FAVICON_64;
@@ -325,6 +326,7 @@ void FaviconSource::SendDefaultResponse(
       resource_id =
           dark_mode ? IDR_DEFAULT_FAVICON_DARK_32 : IDR_DEFAULT_FAVICON_32;
       break;
+#endif
     default:
       resource_id = dark_mode ? IDR_DEFAULT_FAVICON_DARK : IDR_DEFAULT_FAVICON;
       break;

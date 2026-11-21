@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/files/scoped_temp_dir.h"
+#include "base/values.h"
 #include "components/optimization_guide/core/model_execution/manifest_broker/manifest.h"
 #include "components/optimization_guide/proto/manifest.pb.h"
 
@@ -126,6 +127,36 @@ class ManifestComponentDirectory {
                                   const proto::SolutionConfig& config);
 
   base::FilePath path() const { return temp_dir_.GetPath(); }
+
+ private:
+  base::ScopedTempDir temp_dir_;
+};
+
+// Builder for the override JSON dict.
+class ManifestOverrideBuilder {
+ public:
+  ManifestOverrideBuilder();
+  ~ManifestOverrideBuilder();
+
+  ManifestOverrideBuilder& SetManifestPath(const base::FilePath& path);
+  ManifestOverrideBuilder& AddComponentOverride(
+      const std::string& public_key_hex,
+      const std::string& version,
+      const base::FilePath& path);
+
+  base::DictValue Build();
+
+ private:
+  base::DictValue dict_;
+};
+
+// Constructs an override JSON file from a Dict.
+class ManifestOverrideFile {
+ public:
+  explicit ManifestOverrideFile(base::DictValue dict);
+  ~ManifestOverrideFile();
+
+  base::FilePath path() const;
 
  private:
   base::ScopedTempDir temp_dir_;

@@ -21,6 +21,7 @@ rtc_library("streams_config") {
     "../../api:field_trials_view",
     "../../api/units:data_rate",
     "../../api/video:resolution",
+    "../../api/video:video_adapter",
     "../../api/video:video_frame",
     "../../api/video_codecs:video_codecs_api",
     "../../call/adaptation:resource_adaptation",

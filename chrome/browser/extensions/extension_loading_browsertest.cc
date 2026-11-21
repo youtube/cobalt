@@ -31,6 +31,7 @@
 #include "extensions/browser/process_manager.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "extensions/common/permissions/permissions_data.h"
+#include "extensions/common/switches.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -262,6 +263,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest,
 #endif
 IN_PROC_BROWSER_TEST_F(ExtensionLoadingTest,
                        MAYBE_RuntimeValidWhileDevToolsOpen) {
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      extensions::switches::kExtensionsOnExtensionURLs);
   TestExtensionDir devtools_dir;
   TestExtensionDir inspect_dir;
 

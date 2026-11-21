@@ -275,13 +275,13 @@ void FragmentBuilder::PropagateChildAnchors(
         AnchorScopedName* anchor_scoped_name =
             ToAnchorScopedName(*name, *child.GetLayoutObject());
         EnsureAnchorMap().Set(anchor_scoped_name, *child.GetLayoutObject(),
-                              transform_state, rect, options, context);
+                              transform_state, options, context);
       }
     }
     if (child.IsImplicitAnchor()) {
       EnsureAnchorMap().Set(To<Element>(child.GetNode()),
-                            *child.GetLayoutObject(), transform_state, rect,
-                            options, context);
+                            *child.GetLayoutObject(), transform_state, options,
+                            context);
     }
   }
 

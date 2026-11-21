@@ -165,9 +165,17 @@ bool ContentClient::ShouldAllowDefaultSiteInstanceGroup() {
   return true;
 }
 
+base::TimeDelta ContentClient::GetIgnoreDuplicateNavsThreshold() const {
+  return features::kDuplicateNavThreshold.Get();
+}
+
 bool ContentClient::ShouldIgnoreDuplicateNavs(
     const GURL& url,
     bool is_renderer_initiated) const {
+  if (!base::FeatureList::IsEnabled(features::kIgnoreDuplicateNavs)) {
+    return false;
+  }
+
   const std::string& origins_list_str =
       features::kIgnoreDuplicateNavsOrigins.Get();
 

@@ -179,8 +179,8 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
     // file which actually has video content). This gives the engine an
     // opportunity to filter out streams which might not be declared in the
     // manifest.
-    virtual std::vector<DemuxerStream*> FilterDemuxerStreams(
-        std::vector<DemuxerStream*>&&) = 0;
+    virtual std::vector<raw_ptr<DemuxerStream>> FilterDemuxerStreams(
+        std::vector<raw_ptr<DemuxerStream>>&&) = 0;
   };
 
   // ManifestDemuxer takes and keeps ownership of `impl` for the lifetime of
@@ -193,7 +193,7 @@ class MEDIA_EXPORT ManifestDemuxer : public Demuxer, ManifestDemuxerEngineHost {
   ~ManifestDemuxer() override;
 
   // `media::Demuxer` implementation
-  std::vector<DemuxerStream*> GetAllStreams() override;
+  std::vector<raw_ptr<DemuxerStream>> GetAllStreams() override;
   std::string GetDisplayName() const override;
   DemuxerType GetDemuxerType() const override;
   void Initialize(DemuxerHost* host, PipelineStatusCallback status_cb) override;

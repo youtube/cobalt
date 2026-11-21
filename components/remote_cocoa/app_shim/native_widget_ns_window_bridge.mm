@@ -1519,7 +1519,12 @@ void NativeWidgetNSWindowBridge::InitCompositorView(
   // native shape is what's most appropriate for displaying sheets on Mac.
   if (is_translucent_window_ && !IsWindowModalSheet()) {
     [window_ setOpaque:NO];
-    [window_ setBackgroundColor:[NSColor clearColor]];
+    // A completely transparent background ([NSColor clearColor]) causes AppKit
+    // to continuously invalidate the window surface, resulting in high CPU
+    // and energy usage. Using an almost-transparent color (alpha 0.001) avoids
+    // this performance issue while remaining visually indistinguishable.
+    [window_ setBackgroundColor:[[NSColor windowBackgroundColor]
+                                    colorWithAlphaComponent:0.001]];
 
     // Don't block waiting for the initial frame of completely transparent
     // windows. This allows us to avoid blocking on the UI thread e.g, while

@@ -23,10 +23,13 @@ class PageContentCacheService;
 
 // PersistTabContextBrowserAgent allows saving and retrieving saved page
 // contexts. Page contexts are retrieved and saved to storage when a tab is
-// backgrounded (either switched tab or closed app). The page contexts that are
-// stored contain information on tab content such as the APC and the inner_text,
-// along with the page title and url. Once a tab is closed, its page context is
-// deleted from storage.
+// backgrounded (either switched tab or backgrounded app). The page contexts
+// that are stored contain information on tab content such as the APC and the
+// inner_text, along with the page title and url. Once a tab is closed, its page
+// context is deleted from storage. They're also deleted when their TTL expires.
+//
+// *NOTE*: We do not store snapshots for the persisted tab contexts, since that
+// would be duplicately stored. Those need to be fetched separately.
 class PersistTabContextBrowserAgent
     : public BrowserUserData<PersistTabContextBrowserAgent>,
       public web::WebStateObserver,

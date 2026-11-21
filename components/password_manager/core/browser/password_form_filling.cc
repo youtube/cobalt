@@ -28,6 +28,7 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/url_formatter/elide_url.h"
+#include "url/origin.h"
 
 namespace password_manager {
 
@@ -179,7 +180,12 @@ LikelyFormFilling SendFillInformationToRenderer(
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
     if (!should_show_popup_without_passwords) {
-      client->MaybeShowSavePasswordPrimingPromo(observed_form.url);
+      url::Origin origin =
+          base::FeatureList::IsEnabled(
+              password_manager::features::kPasswordBlockOpaqueOrigins)
+              ? driver->GetLastCommittedOrigin()
+              : url::Origin::Create(observed_form.url);
+      client->MaybeShowSavePasswordPrimingPromo(origin);
     }
 #endif
 
