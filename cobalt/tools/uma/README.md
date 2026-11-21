@@ -36,10 +36,18 @@ vpython3 pull_uma_histogram_set_via_cdp.py [OPTIONS]
     This is the default and only supported behavior on Linux.
 *   `--package-name` (type: `str`, default: `dev.cobalt.coat`)
     (Android only) The package name of the Cobalt application.
+*   `--activity-name` (type: `str`)
+    (Android only) The activity to start. Defaults to
+    `dev.cobalt.app.MainActivity` for `dev.cobalt.coat`. For any other package,
+    the script sends the `--url` as a VIEW intent to the package instead, so
+    apps with a different launch activity start too. Pass an empty string to
+    force the VIEW intent.
 *   `--platform` (choices: `android`, `linux`, default: `android`)
     The platform the script is targeting.
 *   `--poll-interval-s` (type: `float`, default: `30.0`)
     The polling frequency in seconds.
+*   `--duration-s` (type: `float`, default: `0`)
+    Stop polling after this many seconds. `0` polls until Ctrl+C.
 *   `--port` (type: `int`, default: `9222`)
     The remote debugging port that Cobalt is listening on.
 *   `--output-file` (type: `str`)
@@ -50,6 +58,19 @@ vpython3 pull_uma_histogram_set_via_cdp.py [OPTIONS]
 *   `-q`, `--quiet` (action: `store_true`)
     If set, suppresses all non-essential print output. Useful for cleaner logs
     or for running in automated scripts.
+
+On Android, the script runs plain `adb` commands, so set `ANDROID_SERIAL` when
+more than one device is connected. For example, to poll the storage histograms
+of YouTube on Android TV twice from its home screen and then stop:
+
+```bash
+ANDROID_SERIAL=<serial> vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py \
+    --package-name=com.google.android.youtube.tv \
+    --url='https://www.youtube.com/tv' \
+    --histogram-file=cobalt/tools/uma/storage_histograms.txt \
+    --poll-interval-s=30 --duration-s=45 \
+    --output-file=uma.txt
+```
 
 ### Verifying Cobalt Memory Breakdown Metrics via CDP
 
