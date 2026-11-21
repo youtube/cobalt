@@ -8,11 +8,13 @@
 #include <string_view>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/storage_partition_impl.h"
+#include "content/common/features.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -117,6 +119,21 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
       process->GetBrowserContext(), origin, is_for_isolated_world,
       is_for_service_worker, params.get());
 
+#if BUILDFLAG(IS_COBALT)
+  const bool suppress_ui_observers =
+      !devtools_observer &&
+      base::FeatureList::IsEnabled(
+          features::kCobaltSuppressLoaderUiThreadObservers);
+  if (!suppress_ui_observers) {
+    params->cookie_observer = std::move(cookie_observer);
+    params->trust_token_observer = std::move(trust_token_observer);
+    params->shared_dictionary_observer = std::move(shared_dictionary_observer);
+    params->device_bound_session_observer =
+        std::move(device_bound_session_observer);
+  }
+  params->url_loader_network_observer = std::move(url_loader_network_observer);
+  params->devtools_observer = std::move(devtools_observer);
+#else
   params->cookie_observer = std::move(cookie_observer);
   params->trust_token_observer = std::move(trust_token_observer);
   params->shared_dictionary_observer = std::move(shared_dictionary_observer);
@@ -124,6 +141,7 @@ network::mojom::URLLoaderFactoryParamsPtr CreateParams(
   params->devtools_observer = std::move(devtools_observer);
   params->device_bound_session_observer =
       std::move(device_bound_session_observer);
+#endif  // BUILDFLAG(IS_COBALT)
 
   params->cookie_setting_overrides = cookie_setting_overrides;
 
