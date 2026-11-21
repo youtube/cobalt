@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 
@@ -23,9 +24,11 @@
 #include "base/memory/ref_counted.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/media_client.h"
 #include "media/base/media_switches.h"
 #include "media/base/media_track.h"
 #include "media/base/media_tracks.h"
@@ -1080,6 +1083,121 @@ TEST_F(MP4StreamParserTest, MultiTrackFile) {
   EXPECT_EQ(audio_track2.label().value(), "SoundHandler");
   EXPECT_EQ(audio_track2.language().value(), "und");
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+
+class FailingMP4ExternalMemoryAllocator : public ExternalMemoryAllocator {
+ public:
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const uint8_t> /*span*/) override {
+    ++span_calls;
+    return nullptr;
+  }
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const base::span<const uint8_t>> /*parts*/,
+      DemuxerStream::Type /*type*/) override {
+    ++parts_calls;
+    return nullptr;
+  }
+  int span_calls = 0;
+  int parts_calls = 0;
+};
+
+class FailingMP4MediaClient : public MediaClient {
+ public:
+  bool IsDecoderSupportedAudioType(const AudioType& /*type*/) override {
+    return true;
+  }
+  bool IsDecoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsEncoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsSupportedBitstreamAudioCodec(AudioCodec /*codec*/) override {
+    return false;
+  }
+  std::optional<AudioRendererAlgorithmParameters>
+  GetAudioRendererAlgorithmParameters(
+      AudioParameters /*audio_parameters*/) override {
+    return std::nullopt;
+  }
+  ExternalMemoryAllocator* GetMediaAllocator() override { return &allocator_; }
+  const FailingMP4ExternalMemoryAllocator& allocator() const {
+    return allocator_;
+  }
+
+ private:
+  FailingMP4ExternalMemoryAllocator allocator_;
+};
+
+class ScopedFailingMP4MediaClient {
+ public:
+  ScopedFailingMP4MediaClient()
+      : prev_allocator_(DecoderBuffer::Allocator::Get()) {
+    DecoderBuffer::Allocator::Set(nullptr);
+    client_.emplace();
+    SetMediaClient(&*client_);
+  }
+  ~ScopedFailingMP4MediaClient() {
+    SetMediaClient(nullptr);
+    DecoderBuffer::Allocator::Set(nullptr);
+    DecoderBuffer::Allocator::Set(prev_allocator_);
+    client_.reset();
+  }
+  int span_calls() const { return client_->allocator().span_calls; }
+  int parts_calls() const { return client_->allocator().parts_calls; }
+
+ private:
+  DecoderBuffer::Allocator* prev_allocator_;
+  std::optional<FailingMP4MediaClient> client_;
+};
+
+}  // namespace
+
+TEST_F(MP4StreamParserTest, AllocationFailureReturnsParseError) {
+  ScopedFailingMP4MediaClient scoped_client;
+  InitializeParser();
+
+  EXPECT_MEDIA_LOG(ErrorLog("Failed to allocate a media buffer."));
+  scoped_refptr<DecoderBuffer> buffer =
+      ReadTestDataFile("bear-1280x720-av_frag.mp4");
+  EXPECT_FALSE(AppendAllDataThenParseInPieces(*buffer, 512));
+  EXPECT_GT(scoped_client.span_calls() + scoped_client.parts_calls(), 0);
+}
+
+TEST_F(MP4StreamParserTest, AllocationFailureSegmentedAudioReturnsParseError) {
+  // The segmented copy path is the in-place parser's, which is off by default
+  // on Android.
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(kCobaltInPlaceMediaSourceParser);
+  ScopedFailingMP4MediaClient scoped_client;
+  parser_ = std::make_unique<MP4StreamParser>(base::flat_set<int>(), false,
+                                              true, false, false);
+  auto params = GetDefaultInitParametersExpectations();
+  params.detected_video_track_count = 0;
+  InitializeParserWithInitParametersExpectations(params);
+
+  EXPECT_MEDIA_LOG(ErrorLog("Failed to allocate a media buffer."));
+  scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile("bear-flac_frag.mp4");
+  EXPECT_FALSE(AppendAllDataThenParseInPieces(*buffer, 512));
+  EXPECT_GT(scoped_client.parts_calls(), 0);
+}
+
+TEST_F(MP4StreamParserTest, AllocationFailureAvcVideoReturnsParseError) {
+  ScopedFailingMP4MediaClient scoped_client;
+  auto params = GetDefaultInitParametersExpectations();
+  params.detected_audio_track_count = 0;
+  InitializeParserWithInitParametersExpectations(params);
+
+  EXPECT_MEDIA_LOG(ErrorLog("Failed to allocate a media buffer."));
+  scoped_refptr<DecoderBuffer> buffer =
+      ReadTestDataFile("bear-640x360-v-2frames_frag.mp4");
+  EXPECT_FALSE(AppendAllDataThenParseInPieces(*buffer, 512));
+  EXPECT_GT(scoped_client.span_calls(), 0);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // <cos(θ), sin(θ), θ expressed as a rotation Enum>
 using MatrixRotationTestCaseParam =

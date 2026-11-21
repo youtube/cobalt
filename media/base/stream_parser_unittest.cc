@@ -14,10 +14,13 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <sstream>
 
+#include "media/base/media_client.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/base/test_data_util.h"
+#include "media/media_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -297,5 +300,126 @@ TEST_F(StreamParserTest, MergeBufferQueues_InvalidAppendToExistingMerge) {
   GenerateAudioBuffers(more_audio_timestamps);
   VerifyMergeFailure();
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+
+class FailingExternalMemoryAllocator : public ExternalMemoryAllocator {
+ public:
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const uint8_t> /*span*/) override {
+    return nullptr;
+  }
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const base::span<const uint8_t>> /*parts*/,
+      DemuxerStream::Type /*type*/) override {
+    return nullptr;
+  }
+};
+
+class FailingAllocatorMediaClient : public MediaClient {
+ public:
+  bool IsDecoderSupportedAudioType(const AudioType& /*type*/) override {
+    return true;
+  }
+  bool IsDecoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsEncoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsSupportedBitstreamAudioCodec(AudioCodec /*codec*/) override {
+    return false;
+  }
+  std::optional<AudioRendererAlgorithmParameters>
+  GetAudioRendererAlgorithmParameters(
+      AudioParameters /*audio_parameters*/) override {
+    return std::nullopt;
+  }
+  ExternalMemoryAllocator* GetMediaAllocator() override { return &allocator_; }
+
+ private:
+  FailingExternalMemoryAllocator allocator_;
+};
+
+// Saves and restores DecoderBuffer::Allocator::Get() because MediaClient's
+// constructor installs its own member DecoderBufferAllocator globally.
+class ScopedFailingMediaClient {
+ public:
+  ScopedFailingMediaClient()
+      : prev_allocator_(DecoderBuffer::Allocator::Get()) {
+    DecoderBuffer::Allocator::Set(nullptr);
+    client_.emplace();
+    SetMediaClient(&*client_);
+  }
+  ~ScopedFailingMediaClient() {
+    SetMediaClient(nullptr);
+    DecoderBuffer::Allocator::Set(nullptr);
+    DecoderBuffer::Allocator::Set(prev_allocator_);
+    client_.reset();
+  }
+
+ private:
+  DecoderBuffer::Allocator* prev_allocator_;
+  std::optional<FailingAllocatorMediaClient> client_;
+};
+
+}  // namespace
+
+TEST(StreamParserBufferCopyFromTest, ReturnsNullOnAllocationFailure) {
+  ScopedFailingMediaClient scoped_client;
+
+  const uint8_t payload[] = {1, 2, 3, 4};
+  scoped_refptr<StreamParserBuffer> buf = StreamParserBuffer::CopyFrom(
+      payload, /*is_key_frame=*/true, DemuxerStream::VIDEO, kVideoTrackId);
+  EXPECT_EQ(buf, nullptr);
+
+  const uint8_t part_a[] = {10, 20};
+  const uint8_t part_b[] = {30, 40, 50};
+  const base::span<const uint8_t> parts[] = {part_a, part_b};
+  scoped_refptr<StreamParserBuffer> multi_buf = StreamParserBuffer::CopyFrom(
+      parts, /*is_key_frame=*/true, DemuxerStream::VIDEO, kVideoTrackId);
+  EXPECT_EQ(multi_buf, nullptr);
+
+  // Leading empty part followed by a non-empty part still fails cleanly.
+  base::span<const uint8_t> empty_part;
+  const base::span<const uint8_t> mixed_parts[] = {empty_part, part_a};
+  scoped_refptr<StreamParserBuffer> mixed_buf = StreamParserBuffer::CopyFrom(
+      mixed_parts, /*is_key_frame=*/true, DemuxerStream::VIDEO, kVideoTrackId);
+  EXPECT_EQ(mixed_buf, nullptr);
+}
+
+TEST(StreamParserBufferCopyFromTest, ReturnsEmptyBufferForEmptySpan) {
+  ScopedFailingMediaClient scoped_client;
+
+  base::span<const uint8_t> empty;
+  scoped_refptr<StreamParserBuffer> buf = StreamParserBuffer::CopyFrom(
+      empty, /*is_key_frame=*/false, DemuxerStream::AUDIO, kAudioTrackId);
+  ASSERT_NE(buf, nullptr);
+  EXPECT_TRUE(buf->empty());
+  EXPECT_EQ(buf->size(), 0u);
+}
+
+TEST(StreamParserBufferCopyFromTest, ReturnsEmptyBufferForAllEmptyParts) {
+  ScopedFailingMediaClient scoped_client;
+
+  base::span<const uint8_t> empty;
+  const base::span<const uint8_t> one_empty_part[] = {empty};
+  scoped_refptr<StreamParserBuffer> single_buf = StreamParserBuffer::CopyFrom(
+      one_empty_part, /*is_key_frame=*/false, DemuxerStream::AUDIO,
+      kAudioTrackId);
+  ASSERT_NE(single_buf, nullptr);
+  EXPECT_TRUE(single_buf->empty());
+  EXPECT_EQ(single_buf->size(), 0u);
+
+  const base::span<const uint8_t> all_empty_parts[] = {empty, empty};
+  scoped_refptr<StreamParserBuffer> multi_buf = StreamParserBuffer::CopyFrom(
+      all_empty_parts, /*is_key_frame=*/false, DemuxerStream::AUDIO,
+      kAudioTrackId);
+  ASSERT_NE(multi_buf, nullptr);
+  EXPECT_TRUE(multi_buf->empty());
+  EXPECT_EQ(multi_buf->size(), 0u);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

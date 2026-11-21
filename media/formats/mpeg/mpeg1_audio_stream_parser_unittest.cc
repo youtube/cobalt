@@ -10,7 +10,22 @@
 
 #include "media/base/test_data_util.h"
 #include "media/formats/common/stream_parser_test_base.h"
+#include "media/media_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <optional>
+#include <vector>
+
+#include "base/containers/span.h"
+#include "base/functional/bind.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/media_client.h"
+#include "media/base/media_tracks.h"
+#include "media/base/mock_media_log.h"
+#include "media/base/stream_parser.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#endif
 
 namespace media {
 
@@ -122,5 +137,108 @@ TEST_F(MPEG1AudioStreamParserTest, MetadataParsing) {
             ParseData((*buffer).subspan(offset, kFirstRealFrameSize)));
   EXPECT_TRUE(last_audio_config().IsValidConfig());
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+
+class FailingMpegExternalMemoryAllocator : public ExternalMemoryAllocator {
+ public:
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const uint8_t> /*span*/) override {
+    ++copy_calls;
+    return nullptr;
+  }
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const base::span<const uint8_t>> /*parts*/,
+      DemuxerStream::Type /*type*/) override {
+    ++copy_calls;
+    return nullptr;
+  }
+  int copy_calls = 0;
+};
+
+class FailingMpegMediaClient : public MediaClient {
+ public:
+  bool IsDecoderSupportedAudioType(const AudioType& /*type*/) override {
+    return true;
+  }
+  bool IsDecoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsEncoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsSupportedBitstreamAudioCodec(AudioCodec /*codec*/) override {
+    return false;
+  }
+  std::optional<AudioRendererAlgorithmParameters>
+  GetAudioRendererAlgorithmParameters(
+      AudioParameters /*audio_parameters*/) override {
+    return std::nullopt;
+  }
+  ExternalMemoryAllocator* GetMediaAllocator() override { return &allocator_; }
+  int copy_calls() const { return allocator_.copy_calls; }
+
+ private:
+  FailingMpegExternalMemoryAllocator allocator_;
+};
+
+// Saves and restores DecoderBuffer::Allocator::Get() because MediaClient's
+// constructor installs its own member DecoderBufferAllocator globally.
+class ScopedFailingMpegMediaClient {
+ public:
+  ScopedFailingMpegMediaClient()
+      : prev_allocator_(DecoderBuffer::Allocator::Get()) {
+    DecoderBuffer::Allocator::Set(nullptr);
+    client_.emplace();
+    SetMediaClient(&*client_);
+  }
+  ~ScopedFailingMpegMediaClient() {
+    SetMediaClient(nullptr);
+    DecoderBuffer::Allocator::Set(nullptr);
+    DecoderBuffer::Allocator::Set(prev_allocator_);
+    client_.reset();
+  }
+  int copy_calls() const { return client_->copy_calls(); }
+
+ private:
+  DecoderBuffer::Allocator* prev_allocator_;
+  std::optional<FailingMpegMediaClient> client_;
+};
+
+}  // namespace
+
+TEST(MPEG1AudioStreamParserAllocationFailureTest,
+     ReturnsParseErrorAndLogsOnAllocationFailure) {
+  ScopedFailingMpegMediaClient scoped_client;
+  testing::StrictMock<MockMediaLog> media_log_;
+  bool new_buffers_called = false;
+
+  MPEG1AudioStreamParser parser;
+  parser.Init(
+      base::BindOnce([](const StreamParser::InitParameters&) {}),
+      base::BindRepeating([](std::unique_ptr<MediaTracks>) { return true; }),
+      base::BindRepeating(
+          [](bool* called, const StreamParser::BufferQueueMap&) {
+            *called = true;
+            return true;
+          },
+          &new_buffers_called),
+      base::BindRepeating(
+          [](EmeInitDataType, const std::vector<uint8_t>&) {}),
+      base::BindRepeating([]() {}), base::BindRepeating([]() {}), &media_log_);
+
+  scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile("sfx.mp3");
+  ASSERT_TRUE(parser.AppendToParseBuffer(*buffer));
+
+  EXPECT_MEDIA_LOG(testing::HasSubstr("Skipping XING header."));
+  EXPECT_MEDIA_LOG(
+      testing::HasSubstr("\"error\":\"Failed to allocate a media buffer.\""));
+  EXPECT_EQ(StreamParser::ParseStatus::kFailed,
+            parser.Parse(StreamParser::kMaxPendingBytesPerParse));
+  EXPECT_GT(scoped_client.copy_calls(), 0);
+  EXPECT_FALSE(new_buffers_called);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

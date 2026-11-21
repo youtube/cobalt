@@ -161,6 +161,8 @@ scoped_refptr<media::StreamParserBuffer> MakeAudioStreamParserBuffer(
   auto stream_parser_buffer = media::StreamParserBuffer::CopyFrom(
       *audio_chunk.buffer(), audio_chunk.buffer()->is_key_frame(),
       media::DemuxerStream::AUDIO, kWebCodecsAudioTrackId);
+  // A media pool allocation failure stays fatal on this path, as before.
+  CHECK(stream_parser_buffer);
 
   // Currently, we do not populate any side_data in these converters.
   DCHECK(!stream_parser_buffer->side_data());
@@ -184,6 +186,8 @@ scoped_refptr<media::StreamParserBuffer> MakeVideoStreamParserBuffer(
   auto stream_parser_buffer = media::StreamParserBuffer::CopyFrom(
       *video_chunk.buffer(), video_chunk.buffer()->is_key_frame(),
       media::DemuxerStream::VIDEO, kWebCodecsVideoTrackId);
+  // A media pool allocation failure stays fatal on this path, as before.
+  CHECK(stream_parser_buffer);
 
   // Currently, we do not populate any side_data in these converters.
   DCHECK(!stream_parser_buffer->side_data());

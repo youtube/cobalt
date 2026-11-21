@@ -135,6 +135,9 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   static scoped_refptr<StreamParserBuffer> CreateEOSBuffer(
       std::optional<ConfigVariant> next_config = std::nullopt);
 
+  // With Starboard media, returns nullptr if the media buffer pool can't hold
+  // non-empty `data` (only possible with kCobaltMediaPoolSoftFail); callers
+  // report that as a parse error.
   static scoped_refptr<StreamParserBuffer> CopyFrom(
       base::span<const uint8_t> data,
       bool is_key_frame,
