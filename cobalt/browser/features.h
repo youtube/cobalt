@@ -261,6 +261,16 @@ BASE_DECLARE_FEATURE(kCobaltCodeCacheOptimization);
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeBytes);
 BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 
+// Holds ContentBrowserClient::PostAfterStartupTask() callbacks and Chromium's
+// BrowserMainLoop BEST_EFFORT task execution fence until the web app signals
+// startup readiness via h5vcc.system.notifyMainReady(), or until
+// `CobaltDeferAfterStartupTasks_failsafe_delay` (default: 8500ms, clamped to
+// [0ms, 9500ms] so +10s BEST_EFFORT startup storage metrics always run before
+// Android's +15s Initial UMA Log).
+BASE_DECLARE_FEATURE(kCobaltDeferAfterStartupTasks);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kCobaltDeferAfterStartupTasksFailsafeDelay);
+
 }  // namespace features
 }  // namespace cobalt
 
