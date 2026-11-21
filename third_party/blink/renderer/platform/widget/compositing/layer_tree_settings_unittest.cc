@@ -67,6 +67,42 @@ TEST(LayerTreeSettings, CobaltForceGpuMemAvailableFeature) {
       GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
   EXPECT_EQ(128u * 1024u * 1024u, policy.bytes_limit_when_visible);
 }
+
+// With a zero prepaint budget only tiles required for the current draw are
+// rasterized.
+TEST(LayerTreeSettings, CobaltZeroPrepaintBudgetAllowsRequiredOnly) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      base::features::kCobaltMaxMemoryForPrepaint,
+      {{"max_memory_for_prepaint_percentage", "0"}});
+  auto policy =
+      GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
+  EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY,
+            policy.priority_cutoff_when_visible);
+}
+
+// A non-zero prepaint budget must also allow prepaint tiles to be scheduled.
+TEST(LayerTreeSettings, CobaltNonZeroPrepaintBudgetAllowsNiceToHave) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      base::features::kCobaltMaxMemoryForPrepaint,
+      {{"max_memory_for_prepaint_percentage", "50"}});
+  auto policy =
+      GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
+  EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE,
+            policy.priority_cutoff_when_visible);
+}
+
+// Disabling the feature falls back to the upstream cutoff.
+TEST(LayerTreeSettings, CobaltPrepaintFeatureDisabledAllowsNiceToHave) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      base::features::kCobaltMaxMemoryForPrepaint);
+  auto policy =
+      GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
+  EXPECT_EQ(gpu::MemoryAllocation::CUTOFF_ALLOW_NICE_TO_HAVE,
+            policy.priority_cutoff_when_visible);
+}
 #endif
 
 }  // namespace blink
