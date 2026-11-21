@@ -21,9 +21,11 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <list>
+#include <mutex>
 
 #include "build/build_config.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -401,6 +403,17 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       SB_LOG(ERROR) << *error_message;
       TeardownCodec();
     }
+  } else if (output_mode_ == kSbPlayerOutputModePunchOut &&
+             IsAndroidVideoDecoderImprovementEnabled(
+                 decoder_improvements_flags_,
+                 android_video_decoder_improvements::
+                     kHoldVideoSurfaceForDecoderLifetime)) {
+    if (!AcquirePunchOutSurface(AttachCurrentThread())) {
+      *error_message =
+          "Failed to initialize video decoder with error: Video surface does "
+          "not exist.";
+      SB_LOG(ERROR) << *error_message;
+    }
   }
 
   SB_LOG(INFO) << "Created VideoDecoder for codec="
@@ -422,16 +435,31 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
+  // Wake any UI thread waiting in `OnSurfaceDestroyed()` once the codec has
+  // stopped, and skip scheduling new jobs while tearing down the surface.
+  {
+    std::lock_guard lock(surface_destroy_mutex_);
+    is_destroying_ = true;
+    surface_destroyed_ = true;
+  }
+  surface_condition_variable_.notify_all();
 
   const bool guard_surface_reset_and_cleanup =
       IsAndroidVideoDecoderImprovementEnabled(
           decoder_improvements_flags_,
           android_video_decoder_improvements::
               kGuardSurfaceResetAndCleanupByOwnership);
+  const bool hold_video_surface_for_lifetime =
+      IsAndroidVideoDecoderImprovementEnabled(
+          decoder_improvements_flags_, android_video_decoder_improvements::
+                                           kHoldVideoSurfaceForDecoderLifetime);
+  const bool has_valid_punch_out_surface =
+      surface_view_ ||
+      (hold_video_surface_for_lifetime ? OwnsVideoSurface()
+                                       : IsVideoSurfaceAvailable());
   const bool should_reset_or_clean_up_surface =
       !guard_surface_reset_and_cleanup ||
-      (needs_surface_reset_or_cleanup_ &&
-       (surface_view_ || IsVideoSurfaceAvailable()));
+      (needs_surface_reset_or_cleanup_ && has_valid_punch_out_surface);
   if (should_reset_or_clean_up_surface) {
     // The video surface must be reset after tunnel mode playbacks. This
     // prevents video distortion on some platforms. For details, see
@@ -441,6 +469,11 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
     } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
       CleanUpVideoSurface(decode_target_graphics_context_provider_);
     }
+  }
+
+  if (owns_video_surface_) {
+    ReleaseVideoSurface();
+    owns_video_surface_ = false;
   }
 }
 
@@ -794,6 +827,17 @@ void MediaCodecVideoDecoder::OnFrameAvailable() {
   has_new_texture_available_.store(true);
 }
 
+jni_zero::ScopedJavaLocalRef<jobject>
+MediaCodecVideoDecoder::AcquirePunchOutSurface(JNIEnv* env) {
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModePunchOut);
+  auto j_output_surface =
+      surface_view_ ? surface_view_.AsLocalRef(env) : AcquireVideoSurface();
+  if (j_output_surface) {
+    owns_video_surface_ = true;
+  }
+  return j_output_surface;
+}
+
 Result<void> MediaCodecVideoDecoder::InitializeCodec(
     const VideoStreamInfo& video_stream_info) {
   SB_CHECK(BelongsToCurrentThread());
@@ -836,13 +880,8 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   jni_zero::ScopedJavaLocalRef<jobject> j_output_surface;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
-      if (surface_view_) {
-        j_output_surface = surface_view_.AsLocalRef(env);
-      } else {
-        j_output_surface = AcquireVideoSurface();
-      }
+      j_output_surface = AcquirePunchOutSurface(env);
       if (j_output_surface) {
-        owns_video_surface_ = true;
         needs_surface_reset_or_cleanup_ = true;
       }
     } break;
@@ -948,7 +987,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
 void MediaCodecVideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
-  if (owns_video_surface_) {
+  const bool hold_video_surface_for_lifetime =
+      IsAndroidVideoDecoderImprovementEnabled(
+          decoder_improvements_flags_, android_video_decoder_improvements::
+                                           kHoldVideoSurfaceForDecoderLifetime);
+  if (!hold_video_surface_for_lifetime && owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
   }
@@ -1218,6 +1261,9 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed() {
   if (!BelongsToCurrentThread()) {
     // Wait until codec is stopped.
     std::unique_lock lock(surface_destroy_mutex_);
+    if (is_destroying_) {
+      return;
+    }
     surface_destroyed_ = false;
     Schedule(std::bind(&MediaCodecVideoDecoder::OnSurfaceDestroyed, this));
     surface_condition_variable_.wait_for(lock,

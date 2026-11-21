@@ -66,6 +66,12 @@ namespace android_video_decoder_improvements {
 // video surface ownership.
 inline constexpr uint32_t kGuardSurfaceResetAndCleanupByOwnership = 1u << 0;
 
+// Acquires the punch-out video surface during decoder construction (even when
+// codec initialization is deferred waiting for FPS) and retains ownership
+// across codec resets/rebuilds until `OnSurfaceDestroyed()` or destruction
+// (after codec teardown and surface reset/cleanup).
+inline constexpr uint32_t kHoldVideoSurfaceForDecoderLifetime = 1u << 1;
+
 }  // namespace android_video_decoder_improvements
 
 inline uint32_t GetAndroidVideoDecoderImprovementsFlags(
@@ -171,6 +177,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
+  jni_zero::ScopedJavaLocalRef<jobject> AcquirePunchOutSurface(JNIEnv* env);
   // Attempt to initialize the codec.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
   void TeardownCodec();
@@ -307,6 +314,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
+  bool is_destroying_ = false;      // Guarded by |surface_destroy_mutex_|.
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
