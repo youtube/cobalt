@@ -68,7 +68,7 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledFeatures) {
   std::string enabled_features =
       GetSwitchValue(cmd_line_pxr, ::switches::kEnableFeatures);
   EXPECT_EQ(std::string("UseFoo,DefaultEnableANGLEValidation, "
-                        "SmallerInterestArea, "
+                        "SmallerInterestArea:size_in_pixels/1200, "
                         "ReclaimPrepaintTilesWhenIdle, "
                         "ReclaimOldPrepaintTiles, "
                         "WebAudioRemoveAudioDestinationResampler, "
