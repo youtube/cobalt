@@ -788,5 +788,122 @@ TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
       kGuardSurfaceResetAndCleanupByOwnership));
 }
 
+TEST_F(MediaCodecVideoDecoderTest,
+       HdrStartupInitializesColorMetadataInConstructorWhenEnabled) {
+  CreateDecoder(
+      /*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(
+          android_video_decoder_improvements::
+              kInitializeColorMetadataInConstructor));
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  auto initial_color_metadata = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(initial_color_metadata.has_value());
+  EXPECT_EQ(initial_color_metadata->transfer, kSbMediaTransferIdSmpteSt2084);
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  auto active_color_metadata = fake_factory_->last_video_color_metadata();
+  ASSERT_TRUE(active_color_metadata.has_value());
+  EXPECT_EQ(active_color_metadata->transfer, kSbMediaTransferIdSmpteSt2084);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       HdrStartupRecreatesCodecOnFirstInputWhenDisabledOrNegativePlacebo) {
+  for (int64_t flags : {int64_t{0}, int64_t{-1}}) {
+    CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo,
+                  MakeVideoDecoderImprovementsFeatures(flags));
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+    EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+    InitializeDecoder();
+    decoder_->WriteInputBuffers(
+        {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                     /*is_key_frame=*/true)});
+    EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+    ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+    EXPECT_FALSE(error_called_);
+  }
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       InitialInputColorMetadataMismatchStillRebuildsCodecWhenEnabled) {
+  const auto features = MakeVideoDecoderImprovementsFeatures(
+      android_video_decoder_improvements::
+          kInitializeColorMetadataInConstructor);
+
+  // SDR StreamConfig followed by an HDR first input buffer rebuilds to HDR.
+  CreateDecoder(/*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+                features);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_EQ(fake_factory_->last_video_color_metadata()->transfer,
+            kSbMediaTransferIdSmpteSt2084);
+
+  // HDR StreamConfig followed by an SDR first input buffer rebuilds to SDR.
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo, features);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kDefaultVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  EXPECT_FALSE(fake_factory_->last_video_color_metadata().has_value());
+
+  // PQ HDR StreamConfig followed by an HLG HDR first input buffer rebuilds.
+  VideoStreamInfo hlg_info = kHdrVideoStreamInfo;
+  hlg_info.color_metadata.transfer = kSbMediaTransferIdAribStdB67;
+  CreateDecoder(/*max_video_capabilities=*/"", &kHdrVideoStreamInfo, features);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &hlg_info, /*is_key_frame=*/true)});
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 2);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_EQ(fake_factory_->last_video_color_metadata()->transfer,
+            kSbMediaTransferIdAribStdB67);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       Av1DelayedHdrInitStillInitializesOnceWhenEnabled) {
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  VideoStreamInfo av1_hdr_info = kHdrVideoStreamInfo;
+  av1_hdr_info.codec = kSbMediaVideoCodecAv1;
+
+  CreateDecoder(
+      /*max_video_capabilities=*/"", &av1_hdr_info,
+      MakeVideoDecoderImprovementsFeatures(
+          android_video_decoder_improvements::
+              kInitializeColorMetadataInConstructor));
+  ASSERT_EQ(GetFakeVideoCodec(), nullptr);
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 0);
+
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &av1_hdr_info,
+                                   /*is_key_frame=*/true),
+       CreateDummyVideoInputBuffer(33'333, 1024, &av1_hdr_info),
+       CreateDummyVideoInputBuffer(66'666, 1024, &av1_hdr_info)});
+
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  ASSERT_TRUE(fake_factory_->last_video_color_metadata().has_value());
+  EXPECT_EQ(fake_factory_->last_video_color_metadata()->transfer,
+            kSbMediaTransferIdSmpteSt2084);
+  EXPECT_FALSE(error_called_);
+}
+
 }  // namespace
 }  // namespace starboard
