@@ -69,7 +69,14 @@ RendererSettings CreateRendererSettings() {
                         &renderer_settings.slow_down_compositing_scale_factor);
   }
 
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  // `quad_split_limit` is an exclusive upper bound in OcclusionCuller's
+  // ReduceComplexity(): setting it to 1 disables multi-quad splitting
+  // (InsertCopyBeforeDrawQuad) so partially occluded backdrop quads do not
+  // multiply GLES draw calls or CPU splitting work, while retaining full-quad
+  // occlusion culling and single-rect visible_rect edge shrinking.
+  renderer_settings.occlusion_culler_settings.quad_split_limit = 1;
+#elif BUILDFLAG(IS_CHROMEOS)
   // Used finch experiment to determine the best value. See b:330617490 for
   // details.
   renderer_settings.occlusion_culler_settings.quad_split_limit = 12;
