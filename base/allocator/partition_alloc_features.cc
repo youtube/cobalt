@@ -169,6 +169,11 @@ BASE_FEATURE(kPartitionAllocFewerMemoryRegions,
 #else
              FEATURE_DISABLED_BY_DEFAULT);
 #endif
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltBlinkFewerMemoryRegions,
+             "CobaltBlinkFewerMemoryRegions",
+             FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 BASE_FEATURE(kPartitionAllocBackupRefPtr,

@@ -7,8 +7,15 @@
 #include <vector>
 
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
 #include "partition_alloc/memory_reclaimer.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#include "base/allocator/partition_alloc_features.h"
+#include "base/feature_list.h"
+#include "partition_alloc/partition_root.h"
+#endif  // BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 namespace WTF {
 
@@ -73,6 +80,26 @@ TEST_F(PartitionsTest, Decommit) {
   ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
   EXPECT_LT(Partitions::TotalSizeOfCommittedPages(), committed_after);
 }
+
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+// Covers Cobalt video streaming and browsing sessions where Blink's buffer and
+// array_buffer partitions allocate non-PartitionPage-aligned chunks (for
+// example under QUIC or low-latency Live) and must honor
+// CobaltBlinkFewerMemoryRegions independently of malloc so 2 MiB superpages
+// are not split by interior PROT_NONE tail-guard VMAs.
+TEST_F(PartitionsTest, FewerMemoryRegionsMatchesFeatureForBlinkPartitions) {
+  const bool expected = base::FeatureList::IsEnabled(
+      base::features::kCobaltBlinkFewerMemoryRegions);
+  EXPECT_EQ(expected,
+            Partitions::BufferPartition()->settings.fewer_memory_regions);
+
+  if (!Partitions::ArrayBufferPartitionInitialized()) {
+    Partitions::InitializeArrayBufferPartition();
+  }
+  EXPECT_EQ(expected,
+            Partitions::ArrayBufferPartition()->settings.fewer_memory_regions);
+}
+#endif  // BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 #endif  // !defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
 

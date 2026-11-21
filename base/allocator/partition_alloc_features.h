@@ -119,6 +119,11 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocEventuallyZeroFreedMemory);
 // Linux-based systems, where there is a per-process limit that we hit in some
 // cases. See the comment in PartitionBucket::SlotSpanCOmmitedSize() for detail.
 BASE_EXPORT BASE_DECLARE_FEATURE(kPartitionAllocFewerMemoryRegions);
+#if BUILDFLAG(IS_COBALT)
+// Enables PartitionAlloc fewer_memory_regions mode for Blink's buffer and
+// array_buffer partitions independently of the main malloc partition.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltBlinkFewerMemoryRegions);
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 using BackupRefPtrEnabledProcesses = internal::PAFeatureEnabledProcesses;
