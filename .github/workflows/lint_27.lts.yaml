@@ -86,8 +86,6 @@ jobs:
         with:
           fetch-depth: 2
           filter: blob:none
-<<<<<<< HEAD:.github/workflows/lint_27.lts.yaml
-=======
           sparse-checkout: |
             .github
             .pre-commit-config.yaml
@@ -99,7 +97,6 @@ jobs:
       - name: Sparse checkout changed files
         run: |
           git diff --name-only HEAD~1 HEAD | git sparse-checkout add --stdin
->>>>>>> e22810c11d (ci: Shard Android cobalt_browsertests across 4 on-device shards (#13879)):.github/workflows/lint.yaml
       - name: Run pre-commit
         run: |
           export SKIP=chromium-pre-commit
