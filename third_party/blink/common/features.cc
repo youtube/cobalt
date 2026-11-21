@@ -466,7 +466,7 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
 // enabled via Finch for experimentation.
 BASE_FEATURE(kCobaltPreserveTrivial3DTransform,
              "CobaltPreserveTrivial3DTransform",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Skips creating hidden MediaControlsImpl (shadow DOM, observers, and ~26
 // media event listeners) when native media controls are hidden, which is
