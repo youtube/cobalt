@@ -1578,6 +1578,12 @@ void StoragePartitionImpl::Initialize(
                             .AppendASCII("Code Cache");
     }
     DCHECK_GE(settings.size_in_bytes(), 0);
+#if BUILDFLAG(IS_COBALT)
+    if (settings.wasm_size_in_bytes()) {
+      GetGeneratedCodeCacheContext()->set_max_bytes_wasm(
+          *settings.wasm_size_in_bytes());
+    }
+#endif
     GetGeneratedCodeCacheContext()->Initialize(code_cache_path,
                                                settings.size_in_bytes());
   }

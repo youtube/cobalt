@@ -40,6 +40,7 @@
 #include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
+#include "cobalt/browser/cache_quotas.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -57,7 +58,9 @@
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/site_instance.h"
 #include "content/test/test_web_contents.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "gpu/config/gpu_switches.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -830,6 +833,380 @@ TEST_F(CobaltContentBrowserClientTest,
   EXPECT_THAT(disabled, testing::Not(testing::Contains(0xcca8)));
   EXPECT_THAT(disabled, testing::Not(testing::Contains(0xcca9)));
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+// kCobaltCacheQuotas sizes the caches on Starboard only. Expectations that
+// depend on the platform's budget are written for any budget.
+class CobaltContentBrowserClientCacheQuotasTest
+    : public CobaltContentBrowserClientTest {
+ protected:
+  static constexpr int64_t kMiB = 1024 * 1024;
+
+  void SetUp() override { ResetCacheQuotasForTesting(); }
+  void TearDown() override { ResetCacheQuotasForTesting(); }
+
+  // The budget that the quotas of this process are fitted to.
+  static int64_t Budget() {
+    return std::max(int64_t{kSbMaxSystemPathCacheDirectorySize}, 24 * kMiB);
+  }
+
+  void EnableCacheQuotas(const base::FieldTrialParams& params) {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        features::kCobaltCacheQuotas, params);
+  }
+
+  static int ConfigureHttpCacheMaxSize(bool in_memory,
+                                       uint32_t total_dir_budget_bytes) {
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        in_memory, total_dir_budget_bytes, params.get());
+    return params->http_cache_max_size;
+  }
+
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(CobaltContentBrowserClientCacheQuotasTest,
+       HttpCacheGetsItsQuotaAndTheUncommittedBudget) {
+  EnableCacheQuotas({});
+  // The other five default quotas add up to 15 MiB, and policy "http" gives
+  // the HTTP cache the rest of the budget: 9 MiB of 24 MiB.
+  EXPECT_EQ(ConfigureHttpCacheMaxSize(/*in_memory=*/false,
+                                      kSbMaxSystemPathCacheDirectorySize),
+            Budget() - 15 * kMiB);
+}
+
+TEST_F(CobaltContentBrowserClientCacheQuotasTest, HttpCacheUsesItsParam) {
+  EnableCacheQuotas({{"CobaltCacheQuotas_http_cache_size_bytes", "4194304"},
+                     {"CobaltCacheQuotas_js_code_cache_size_bytes", "10485760"},
+                     {"CobaltCacheQuotas_uncommitted_policy", "none"}});
+  EXPECT_EQ(ConfigureHttpCacheMaxSize(/*in_memory=*/false,
+                                      kSbMaxSystemPathCacheDirectorySize),
+            4 * kMiB);
+}
+
+// The quotas are fitted to the platform's budget, which they read themselves.
+TEST_F(CobaltContentBrowserClientCacheQuotasTest,
+       HttpCacheIgnoresTheBudgetArgument) {
+  EnableCacheQuotas({});
+  EXPECT_EQ(ConfigureHttpCacheMaxSize(/*in_memory=*/false,
+                                      /*total_dir_budget_bytes=*/0),
+            Budget() - 15 * kMiB);
+  ResetCacheQuotasForTesting();
+  EXPECT_EQ(ConfigureHttpCacheMaxSize(
+                /*in_memory=*/false,
+                /*total_dir_budget_bytes=*/100 * 1024 * 1024),
+            Budget() - 15 * kMiB);
+}
+
+TEST_F(CobaltContentBrowserClientCacheQuotasTest,
+       HttpCacheIgnoresHttpCacheQuotaFeature) {
+  // On its own, kCobaltHttpCacheQuota would cap the HTTP cache at 2 MiB.
+  feature_list_.InitWithFeaturesAndParameters(
+      {{features::kCobaltCacheQuotas, {}},
+       {features::kCobaltHttpCacheQuota,
+        {{features::kCobaltMaxHttpCacheSizeBytes.name, "2097152"}}}},
+      {});
+  EXPECT_EQ(ConfigureHttpCacheMaxSize(/*in_memory=*/false,
+                                      kSbMaxSystemPathCacheDirectorySize),
+            Budget() - 15 * kMiB);
+}
+
+TEST_F(CobaltContentBrowserClientCacheQuotasTest,
+       HttpCacheOfInMemoryProfileIsLeftAlone) {
+  EnableCacheQuotas({});
+  EXPECT_EQ(ConfigureHttpCacheMaxSize(/*in_memory=*/true,
+                                      kSbMaxSystemPathCacheDirectorySize),
+            0);
+}
+
+TEST_F(CobaltContentBrowserClientCacheQuotasTest,
+       HttpCacheHonorsMaxHttpCacheSizeSwitch) {
+  EnableCacheQuotas({});
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+      switches::kMaxHttpCacheSize, "16777216");
+  EXPECT_EQ(ConfigureHttpCacheMaxSize(/*in_memory=*/false,
+                                      kSbMaxSystemPathCacheDirectorySize),
+            16777216);
+  // As without the feature, the switch also applies to in-memory profiles.
+  EXPECT_EQ(ConfigureHttpCacheMaxSize(/*in_memory=*/true,
+                                      kSbMaxSystemPathCacheDirectorySize),
+            16777216);
+  EXPECT_EQ(CobaltContentBrowserClient::GetCacheQuotasInEffect().outcome,
+            CacheQuotaOutcome::kDeveloperOverride);
+}
+
+TEST_F(CobaltContentBrowserClientCacheQuotasTest, CodeCachesGetTheirQuotas) {
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // 1. Default params: 5 MiB for JS and 1 MiB for wasm.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltCacheQuotas);
+    ResetCacheQuotasForTesting();
+    const content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_TRUE(settings.enabled());
+    EXPECT_EQ(settings.size_in_bytes(), 5 * kMiB);
+    EXPECT_EQ(settings.wasm_size_in_bytes(), 1 * kMiB);
+    EXPECT_EQ(settings.path(), cache_dir);
+  }
+
+  // 2. Both sizes come from the params.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCacheQuotas,
+        {{"CobaltCacheQuotas_js_code_cache_size_bytes", "10485760"},
+         {"CobaltCacheQuotas_wasm_code_cache_size_bytes", "2097152"},
+         {"CobaltCacheQuotas_uncommitted_policy", "none"}});
+    ResetCacheQuotasForTesting();
+    const content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 10 * kMiB);
+    EXPECT_EQ(settings.wasm_size_in_bytes(), 2 * kMiB);
+  }
+
+  // 3. The size param of kCobaltCodeCacheOptimization (default 10 MiB) is
+  // ignored.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures(
+        {features::kCobaltCacheQuotas, features::kCobaltCodeCacheOptimization},
+        {});
+    ResetCacheQuotasForTesting();
+    const content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 5 * kMiB);
+    EXPECT_EQ(settings.wasm_size_in_bytes(), 1 * kMiB);
+  }
+
+  // 4. Without the feature, the wasm code cache keeps its built-in size.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltCacheQuotas);
+    ResetCacheQuotasForTesting();
+    const content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 5 * kMiB);
+    EXPECT_EQ(settings.wasm_size_in_bytes(), std::nullopt);
+  }
+}
+
+TEST_F(CobaltContentBrowserClientCacheQuotasTest,
+       CacheStorageGetsItsQuotaPerOriginAndTwiceThatAsPool) {
+  MockQuotaDeviceInfoHelper device_info_helper;
+  EXPECT_CALL(device_info_helper, AmountOfTotalDiskSpace(testing::_))
+      .WillRepeatedly(testing::Return(500LL * 1024 * 1024 * 1024));
+  const base::FilePath cache_path(FILE_PATH_LITERAL("/dummy/cache"));
+
+  // 1. Default param: 6 MiB per origin, as without the feature.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltCacheQuotas);
+    ResetCacheQuotasForTesting();
+    const auto settings =
+        CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+            cache_path, &device_info_helper);
+    ASSERT_TRUE(settings.has_value());
+    EXPECT_EQ(settings->per_storage_key_quota, 6 * kMiB);
+    EXPECT_EQ(settings->session_only_per_storage_key_quota, 6 * kMiB);
+    EXPECT_EQ(settings->pool_size, 12 * kMiB);
+  }
+
+  // 2. The param is the per-origin quota.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCacheQuotas,
+        {{"CobaltCacheQuotas_cache_storage_size_bytes", "3145728"},
+         {"CobaltCacheQuotas_uncommitted_policy", "none"}});
+    ResetCacheQuotasForTesting();
+    const auto settings =
+        CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+            cache_path, &device_info_helper);
+    ASSERT_TRUE(settings.has_value());
+    EXPECT_EQ(settings->per_storage_key_quota, 3 * kMiB);
+    EXPECT_EQ(settings->session_only_per_storage_key_quota, 3 * kMiB);
+    EXPECT_EQ(settings->pool_size, 6 * kMiB);
+  }
+}
+
+TEST_F(CobaltContentBrowserClientCacheQuotasTest,
+       CacheStorageQuotaIsLimitedToTheDisk) {
+  EnableCacheQuotas({});
+  MockQuotaDeviceInfoHelper device_info_helper;
+  EXPECT_CALL(device_info_helper, AmountOfTotalDiskSpace(testing::_))
+      .WillRepeatedly(testing::Return(1 * kMiB));
+  const auto settings =
+      CobaltContentBrowserClient::CalculateCacheQuotaSettingsForTesting(
+          base::FilePath(FILE_PATH_LITERAL("/dummy/cache")),
+          &device_info_helper);
+  ASSERT_TRUE(settings.has_value());
+  EXPECT_EQ(settings->per_storage_key_quota, 1 * kMiB);
+  EXPECT_EQ(settings->pool_size, 2 * kMiB);
+}
+
+// The sizes that the caches choose without kCobaltCacheQuotas, as reported to
+// metrics.
+class CobaltContentBrowserClientLegacyCacheQuotasTest
+    : public CobaltContentBrowserClientCacheQuotasTest {
+ protected:
+  static constexpr uint32_t kBudget24MiB = 24 * 1024 * 1024;
+
+  static constexpr CacheQuotaSizes MiB(int64_t http_cache,
+                                       int64_t js_code_cache,
+                                       int64_t wasm_code_cache,
+                                       int64_t cache_storage,
+                                       int64_t gpu_shader_cache,
+                                       int64_t other) {
+    return {.http_cache = http_cache * kMiB,
+            .js_code_cache = js_code_cache * kMiB,
+            .wasm_code_cache = wasm_code_cache * kMiB,
+            .cache_storage = cache_storage * kMiB,
+            .gpu_shader_cache = gpu_shader_cache * kMiB,
+            .other = other * kMiB};
+  }
+
+  // A launch in which the GPU shader disk cache stays disabled, as on every
+  // visible launch.
+  void SetUp() override {
+    CobaltContentBrowserClientCacheQuotasTest::SetUp();
+    scoped_command_line_.GetProcessCommandLine()->AppendSwitch(
+        ::switches::kDisableGpuShaderDiskCache);
+  }
+
+  base::test::ScopedCommandLine scoped_command_line_;
+};
+
+TEST_F(CobaltContentBrowserClientLegacyCacheQuotasTest, DefaultSizes) {
+  const CacheQuotaAllocation quotas =
+      CobaltContentBrowserClient::ComputeLegacyCacheQuotas(kBudget24MiB);
+  EXPECT_EQ(quotas.sizes, MiB(11, 5, 1, 6, 0, 1));
+  EXPECT_EQ(quotas.outcome, CacheQuotaOutcome::kFeatureDisabled);
+  EXPECT_FALSE(quotas.budget_below_minimum);
+  EXPECT_EQ(quotas.platform_budget_bytes, 24 * kMiB);
+  EXPECT_EQ(quotas.budget_bytes, 24 * kMiB);
+  EXPECT_EQ(quotas.configured_bytes, 24 * kMiB);
+  EXPECT_EQ(quotas.uncommitted_bytes, 0);
+}
+
+// On a preload launch CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache()
+// enables the GPU shader disk cache with a size of 2 MiB, which the HTTP cache
+// does not make room for.
+TEST_F(CobaltContentBrowserClientLegacyCacheQuotasTest,
+       GpuShaderCacheCountsWhenItIsEnabled) {
+  base::CommandLine* command_line =
+      scoped_command_line_.GetProcessCommandLine();
+  command_line->RemoveSwitch(::switches::kDisableGpuShaderDiskCache);
+  command_line->AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "2048");
+
+  const CacheQuotaAllocation quotas =
+      CobaltContentBrowserClient::ComputeLegacyCacheQuotas(kBudget24MiB);
+  EXPECT_EQ(quotas.sizes, MiB(11, 5, 1, 6, 2, 1));
+  EXPECT_EQ(quotas.outcome, CacheQuotaOutcome::kFeatureDisabled);
+  EXPECT_EQ(quotas.configured_bytes, 26 * kMiB);
+  EXPECT_EQ(quotas.uncommitted_bytes, 0);
+}
+
+TEST_F(CobaltContentBrowserClientLegacyCacheQuotasTest,
+       HttpCacheTakesTheRestOfALargerBudget) {
+  const CacheQuotaAllocation quotas =
+      CobaltContentBrowserClient::ComputeLegacyCacheQuotas(32 * 1024 * 1024);
+  EXPECT_EQ(quotas.sizes, MiB(19, 5, 1, 6, 0, 1));
+  EXPECT_EQ(quotas.platform_budget_bytes, 32 * kMiB);
+  EXPECT_EQ(quotas.uncommitted_bytes, 0);
+}
+
+TEST_F(CobaltContentBrowserClientLegacyCacheQuotasTest,
+       IncludesTheOlderFeatures) {
+  // kCobaltHttpCacheQuota caps the HTTP cache at 12 MiB, which leaves 7 MiB of
+  // a 32 MiB budget uncommitted.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    const CacheQuotaAllocation quotas =
+        CobaltContentBrowserClient::ComputeLegacyCacheQuotas(32 * 1024 * 1024);
+    EXPECT_EQ(quotas.sizes, MiB(12, 5, 1, 6, 0, 1));
+    EXPECT_EQ(quotas.configured_bytes, 25 * kMiB);
+    EXPECT_EQ(quotas.uncommitted_bytes, 7 * kMiB);
+  }
+
+  // kCobaltCodeCacheOptimization raises the JS code cache to 10 MiB at the
+  // cost of the HTTP cache.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
+    const CacheQuotaAllocation quotas =
+        CobaltContentBrowserClient::ComputeLegacyCacheQuotas(kBudget24MiB);
+    EXPECT_EQ(quotas.sizes, MiB(6, 10, 1, 6, 0, 1));
+    EXPECT_EQ(quotas.uncommitted_bytes, 0);
+  }
+}
+
+TEST_F(CobaltContentBrowserClientLegacyCacheQuotasTest,
+       IncludesMaxHttpCacheSizeSwitch) {
+  scoped_command_line_.GetProcessCommandLine()->AppendSwitchASCII(
+      switches::kMaxHttpCacheSize, "16777216");
+  const CacheQuotaAllocation quotas =
+      CobaltContentBrowserClient::ComputeLegacyCacheQuotas(kBudget24MiB);
+  EXPECT_EQ(quotas.sizes, MiB(16, 5, 1, 6, 0, 1));
+  EXPECT_EQ(quotas.outcome, CacheQuotaOutcome::kFeatureDisabled);
+  EXPECT_EQ(quotas.uncommitted_bytes, 0);
+}
+
+// Without a budget the HTTP cache chooses its own size, which is reported as
+// no quota.
+TEST_F(CobaltContentBrowserClientLegacyCacheQuotasTest, NoBudget) {
+  const CacheQuotaAllocation quotas =
+      CobaltContentBrowserClient::ComputeLegacyCacheQuotas(0);
+  EXPECT_EQ(quotas.sizes, MiB(0, 5, 1, 6, 0, 1));
+  EXPECT_TRUE(quotas.budget_below_minimum);
+  EXPECT_EQ(quotas.platform_budget_bytes, 0);
+  EXPECT_EQ(quotas.budget_bytes, 24 * kMiB);
+  EXPECT_EQ(quotas.configured_bytes, 13 * kMiB);
+  EXPECT_EQ(quotas.uncommitted_bytes, 11 * kMiB);
+}
+
+TEST_F(CobaltContentBrowserClientLegacyCacheQuotasTest,
+       CacheQuotasInEffectFollowTheFeature) {
+  // Disabled: the sizes that the caches choose for the platform's budget.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltCacheQuotas);
+    const CacheQuotaAllocation quotas =
+        CobaltContentBrowserClient::GetCacheQuotasInEffect();
+    EXPECT_EQ(quotas.outcome, CacheQuotaOutcome::kFeatureDisabled);
+    EXPECT_EQ(quotas.sizes,
+              CobaltContentBrowserClient::ComputeLegacyCacheQuotas(
+                  kSbMaxSystemPathCacheDirectorySize)
+                  .sizes);
+    EXPECT_EQ(quotas.platform_budget_bytes,
+              int64_t{kSbMaxSystemPathCacheDirectorySize});
+  }
+
+  // Enabled: the allocation. Unlike above, the GPU shader cache counts on
+  // every launch.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCacheQuotas,
+        {{"CobaltCacheQuotas_uncommitted_policy", "none"}});
+    ResetCacheQuotasForTesting();
+    const CacheQuotaAllocation quotas =
+        CobaltContentBrowserClient::GetCacheQuotasInEffect();
+    EXPECT_NE(quotas.outcome, CacheQuotaOutcome::kFeatureDisabled);
+    EXPECT_EQ(quotas.sizes, MiB(9, 5, 1, 6, 2, 1));
+    EXPECT_EQ(quotas.platform_budget_bytes,
+              int64_t{kSbMaxSystemPathCacheDirectorySize});
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 class CobaltContentBrowserClientHeaderTest
     : public CobaltContentBrowserClientTest {
