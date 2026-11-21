@@ -1,7 +1,0 @@
-{
-  "angle-linux-x64-builder-dbg": {
-    "additional_compile_targets": [
-      "all"
-    ]
-  }
-}
