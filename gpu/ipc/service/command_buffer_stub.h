@@ -116,6 +116,12 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
   virtual MemoryTracker* GetContextGroupMemoryTracker() const = 0;
 
   virtual base::WeakPtr<CommandBufferStub> AsWeakPtr() = 0;
+#if BUILDFLAG(IS_COBALT)
+  virtual bool IsRasterCommandBuffer() const;
+  SchedulingPriority GetWaitSchedulingPriorityForTesting() const {
+    return GetWaitSchedulingPriority();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Executes a DeferredRequest routed to this command buffer by a GpuChannel.
   void ExecuteDeferredRequest(mojom::DeferredCommandBufferRequestParams& params,
@@ -249,6 +255,9 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
   void UpdateActiveUrl();
 
   bool MakeCurrent();
+#if BUILDFLAG(IS_COBALT)
+  SchedulingPriority GetWaitSchedulingPriority() const;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // The lifetime of objects of this class is managed by a GpuChannel. The
   // GpuChannels destroy all the CommandBufferStubs that they own when

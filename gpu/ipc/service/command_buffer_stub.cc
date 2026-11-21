@@ -49,6 +49,11 @@
 #include "base/win/win_util.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gpu {
 
 struct WaitForCommandState {
@@ -416,8 +421,13 @@ void CommandBufferStub::WaitForTokenInRange(int32_t start,
   CheckContextLost();
   if (wait_for_token_)
     LOG(ERROR) << "Got WaitForToken command while currently waiting for token.";
+#if BUILDFLAG(IS_COBALT)
+  channel_->scheduler()->SetSequencePriority(sequence_id_,
+                                             GetWaitSchedulingPriority());
+#else
   channel_->scheduler()->SetSequencePriority(sequence_id_,
                                              SchedulingPriority::kHigh);
+#endif  // BUILDFLAG(IS_COBALT)
   wait_for_token_ =
       std::make_unique<WaitForCommandState>(start, end, std::move(callback));
   CheckCompleteWaits();
@@ -437,13 +447,38 @@ void CommandBufferStub::WaitForGetOffsetInRange(uint32_t set_get_buffer_count,
     LOG(ERROR)
         << "Got WaitForGetOffset command while currently waiting for offset.";
   }
+#if BUILDFLAG(IS_COBALT)
+  channel_->scheduler()->SetSequencePriority(sequence_id_,
+                                             GetWaitSchedulingPriority());
+#else
   channel_->scheduler()->SetSequencePriority(sequence_id_,
                                              SchedulingPriority::kHigh);
+#endif  // BUILDFLAG(IS_COBALT)
   wait_for_get_offset_ =
       std::make_unique<WaitForCommandState>(start, end, std::move(callback));
   wait_set_get_buffer_count_ = set_get_buffer_count;
   CheckCompleteWaits();
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool CommandBufferStub::IsRasterCommandBuffer() const {
+  return false;
+}
+
+SchedulingPriority CommandBufferStub::GetWaitSchedulingPriority() const {
+  // On Cobalt single-process builds, background raster sequences must not be
+  // boosted to kHigh, which would cause priority inversion with the Viz display
+  // compositor (kHigh) and starve frame presentation during tile rasterization.
+  // Media video compositor streams (default priority kHigh) retain kHigh.
+  if (IsRasterCommandBuffer() &&
+      base::FeatureList::IsEnabled(features::kCobaltCapRasterWaitPriority) &&
+      channel_->scheduler()->GetSequenceDefaultPriority(sequence_id_) !=
+          SchedulingPriority::kHigh) {
+    return SchedulingPriority::kNormal;
+  }
+  return SchedulingPriority::kHigh;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void CommandBufferStub::CheckCompleteWaits() {
   bool has_wait = wait_for_token_ || wait_for_get_offset_;

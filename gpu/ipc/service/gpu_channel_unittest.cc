@@ -14,6 +14,11 @@
 #include "gpu/ipc/service/gpu_channel_manager.h"
 #include "gpu/ipc/service/gpu_channel_test_common.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gpu {
 
 class GpuChannelTest : public GpuChannelTestCommon {
@@ -243,5 +248,99 @@ TEST_F(GpuChannelExitForContextLostTest,
   EXPECT_EQ(result, gpu::ContextResult::kTransientFailure);
   EXPECT_FALSE(channel->LookupCommandBuffer(kRouteId));
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(GpuChannelTest, CobaltRasterCommandBufferWaitCapsNormalPriority) {
+  base::test::ScopedFeatureList enabled_feature{
+      features::kCobaltCapRasterWaitPriority};
+  int32_t kClientId = 1;
+  GpuChannel* channel = CreateChannel(kClientId, true);
+  ASSERT_TRUE(channel);
+
+  const int32_t kBaseRouteId =
+      static_cast<int32_t>(GpuChannelReservedRoutes::kMaxValue) + 1;
+
+  auto make_raster_params = [](int32_t stream_id, SchedulingPriority priority) {
+    auto params = mojom::CreateCommandBufferParams::New();
+    params->share_group_id = MSG_ROUTING_NONE;
+    params->stream_id = stream_id;
+    params->stream_priority = priority;
+    params->attribs = ContextCreationAttribs();
+    params->attribs.bind_generates_resource = false;
+    params->attribs.enable_raster_interface = true;
+    params->attribs.enable_gles2_interface = false;
+    params->attribs.enable_grcontext = false;
+    return params;
+  };
+
+  // 1. Background/normal-priority RasterCommandBufferStub stays at kNormal.
+  {
+    gpu::ContextResult result = gpu::ContextResult::kSuccess;
+    gpu::Capabilities capabilities;
+    gpu::GLCapabilities gl_capabilities;
+    CreateCommandBuffer(*channel,
+                        make_raster_params(1, SchedulingPriority::kNormal),
+                        kBaseRouteId, GetSharedMemoryRegion(), &result,
+                        &capabilities, &gl_capabilities);
+    ASSERT_EQ(result, gpu::ContextResult::kSuccess);
+    CommandBufferStub* raster_stub = channel->LookupCommandBuffer(kBaseRouteId);
+    ASSERT_TRUE(raster_stub);
+    EXPECT_TRUE(raster_stub->IsRasterCommandBuffer());
+    EXPECT_EQ(SchedulingPriority::kNormal,
+              raster_stub->GetWaitSchedulingPriorityForTesting());
+
+    // Disabling the Finch killswitch restores upstream kHigh boost.
+    base::test::ScopedFeatureList disabled_feature;
+    disabled_feature.InitAndDisableFeature(
+        features::kCobaltCapRasterWaitPriority);
+    EXPECT_EQ(SchedulingPriority::kHigh,
+              raster_stub->GetWaitSchedulingPriorityForTesting());
+  }
+
+  // 2. High-priority RasterCommandBufferStub (e.g. media stream) retains kHigh.
+  {
+    gpu::ContextResult result = gpu::ContextResult::kSuccess;
+    gpu::Capabilities capabilities;
+    gpu::GLCapabilities gl_capabilities;
+    CreateCommandBuffer(*channel,
+                        make_raster_params(2, SchedulingPriority::kHigh),
+                        kBaseRouteId + 1, GetSharedMemoryRegion(), &result,
+                        &capabilities, &gl_capabilities);
+    ASSERT_EQ(result, gpu::ContextResult::kSuccess);
+    CommandBufferStub* high_raster_stub =
+        channel->LookupCommandBuffer(kBaseRouteId + 1);
+    ASSERT_TRUE(high_raster_stub);
+    EXPECT_TRUE(high_raster_stub->IsRasterCommandBuffer());
+    EXPECT_EQ(SchedulingPriority::kHigh,
+              high_raster_stub->GetWaitSchedulingPriorityForTesting());
+  }
+
+  // 3. GLES2CommandBufferStub retains upstream kHigh boost.
+  {
+    auto params = mojom::CreateCommandBufferParams::New();
+    params->share_group_id = MSG_ROUTING_NONE;
+    params->stream_id = 3;
+    params->stream_priority = SchedulingPriority::kNormal;
+    params->attribs = ContextCreationAttribs();
+    gpu::ContextResult result = gpu::ContextResult::kSuccess;
+    gpu::Capabilities capabilities;
+    gpu::GLCapabilities gl_capabilities;
+    CreateCommandBuffer(*channel, std::move(params), kBaseRouteId + 2,
+                        GetSharedMemoryRegion(), &result, &capabilities,
+                        &gl_capabilities);
+    ASSERT_EQ(result, gpu::ContextResult::kSuccess);
+    CommandBufferStub* gles2_stub =
+        channel->LookupCommandBuffer(kBaseRouteId + 2);
+    ASSERT_TRUE(gles2_stub);
+    EXPECT_FALSE(gles2_stub->IsRasterCommandBuffer());
+    EXPECT_EQ(SchedulingPriority::kHigh,
+              gles2_stub->GetWaitSchedulingPriorityForTesting());
+  }
+
+  channel->DestroyCommandBuffer(kBaseRouteId + 2);
+  channel->DestroyCommandBuffer(kBaseRouteId + 1);
+  channel->DestroyCommandBuffer(kBaseRouteId);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace gpu

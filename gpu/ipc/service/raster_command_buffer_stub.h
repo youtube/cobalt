@@ -6,6 +6,7 @@
 #define GPU_IPC_SERVICE_RASTER_COMMAND_BUFFER_STUB_H_
 
 #include "base/memory/weak_ptr.h"
+#include "build/build_config.h"
 #include "gpu/ipc/service/command_buffer_stub.h"
 
 namespace gpu {
@@ -34,6 +35,9 @@ class GPU_IPC_SERVICE_EXPORT RasterCommandBufferStub final
       base::UnsafeSharedMemoryRegion shared_state_shm) override;
   MemoryTracker* GetContextGroupMemoryTracker() const override;
   base::WeakPtr<CommandBufferStub> AsWeakPtr() override;
+#if BUILDFLAG(IS_COBALT)
+  bool IsRasterCommandBuffer() const override;
+#endif  // BUILDFLAG(IS_COBALT)
 
  private:
   void SetActiveURL(GURL url) override;
