@@ -1863,7 +1863,22 @@ void QuotaManagerImpl::EnsureDatabaseOpened() {
   }
 
   MaybeBootstrapDatabase();
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltLazyServiceWorkerAndQuotaInit)) {
+    // Defer the one-time MediaLicenseDatabase meta flag check/update past cold
+    // start so any early QuotaDatabase open only runs schema bootstrap.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&QuotaManagerImpl::MaybeRemoveMediaLicenseDatabases,
+                       weak_factory_.GetWeakPtr()),
+        base::Seconds(15));
+  } else {
+    MaybeRemoveMediaLicenseDatabases();
+  }
+#else
   MaybeRemoveMediaLicenseDatabases();
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void QuotaManagerImpl::MaybeRemoveMediaLicenseDatabases() {
