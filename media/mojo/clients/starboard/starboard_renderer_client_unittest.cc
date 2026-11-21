@@ -60,6 +60,7 @@ struct FakeMojomRendererCallRecord {
   uint32_t last_bypass_bridge_id = 0;
   std::optional<size_t> last_stream_count;
   std::optional<uint64_t> last_sb_window_handle;
+  std::vector<uint64_t> sb_window_handles;
 };
 
 class FakeMojomRenderer : public mojom::Renderer {
@@ -106,6 +107,7 @@ class FakeStarboardRendererExtension
   void OnSbWindowHandleReady(uint64_t sb_window_handle) override {
     if (record_) {
       record_->last_sb_window_handle = sb_window_handle;
+      record_->sb_window_handles.push_back(sb_window_handle);
     }
   }
   void InitializeWithBypassBridge(
@@ -532,6 +534,79 @@ TEST_F(StarboardRendererClientTest, GetSbWindowHandleWaitsForAsyncCallback) {
   constexpr uint64_t kNewWindowHandle = 0x2222;
   std::move(pending_window_cb).Run(kNewWindowHandle);
   task_environment_.RunUntilIdle();
+  EXPECT_EQ(fake_mojom_renderer_record_.last_sb_window_handle,
+            std::make_optional(kNewWindowHandle));
+}
+
+// When rapid conceal/reveal transitions issue two overlapping GetSbWindowHandle
+// requests over separate Mojo pipes and the newer reply arrives before the
+// stale reply, StarboardRendererClient closes the superseded request with 0,
+// forwards the newer handle, and drops the late stale reply so
+// StarboardRenderer never receives a destroyed window handle last.
+TEST_F(StarboardRendererClientTest,
+       GetSbWindowHandleDiscardsOutOfOrderStaleReply) {
+  mojo::PendingRemote<mojom::Renderer> renderer_remote;
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_),
+      renderer_remote.InitWithNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<mojom::StarboardRendererExtension>
+      starboard_renderer_extensions_remote;
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<FakeStarboardRendererExtension>(
+          &fake_mojom_renderer_record_),
+      starboard_renderer_extensions_remote.InitWithNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
+      client_extension_remote;
+  auto client_extension_receiver =
+      client_extension_remote.InitWithNewPipeAndPassReceiver();
+  auto mojo_renderer = std::make_unique<MojoRenderer>(
+      task_environment_.GetMainThreadTaskRunner(),
+      /*video_overlay_factory=*/nullptr,
+      /*video_renderer_sink=*/nullptr, std::move(renderer_remote));
+  auto overlay_factory = std::make_unique<VideoOverlayFactory>();
+
+  std::vector<SbWindowHandleReadyCallback> pending_cbs;
+  auto client = std::make_unique<StarboardRendererClient>(
+      task_environment_.GetMainThreadTaskRunner(), media_log_.Clone(),
+      std::move(mojo_renderer), std::move(overlay_factory),
+      &mock_video_renderer_sink_,
+      std::move(starboard_renderer_extensions_remote),
+      std::move(client_extension_receiver),
+      base::BindRepeating(
+          [](std::vector<SbWindowHandleReadyCallback>* out_cbs,
+             SbWindowHandleReadyCallback cb) {
+            out_cbs->push_back(std::move(cb));
+          },
+          base::Unretained(&pending_cbs)),
+      /*gpu_factories=*/nullptr,
+#if BUILDFLAG(IS_ANDROID)
+      /*request_overlay_info_cb=*/base::DoNothing(),
+#endif  // BUILDFLAG(IS_ANDROID)
+      /*bypass_mojo_for_media=*/false);
+
+  client->Initialize(media_resource_.get(), &renderer_client_,
+                     base::DoNothing());
+  task_environment_.RunUntilIdle();
+
+  // Issue two overlapping window-handle requests.
+  client->GetSbWindowHandle();
+  client->GetSbWindowHandle();
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(pending_cbs.size(), 2u);
+  EXPECT_EQ(fake_mojom_renderer_record_.sb_window_handles,
+            std::vector<uint64_t>({0u}));
+
+  // Resolve the newer request first, then deliver the stale earlier reply.
+  constexpr uint64_t kStaleWindowHandle = 0x1111;
+  constexpr uint64_t kNewWindowHandle = 0x2222;
+  std::move(pending_cbs[1]).Run(kNewWindowHandle);
+  std::move(pending_cbs[0]).Run(kStaleWindowHandle);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_EQ(fake_mojom_renderer_record_.sb_window_handles,
+            std::vector<uint64_t>({0u, kNewWindowHandle}));
   EXPECT_EQ(fake_mojom_renderer_record_.last_sb_window_handle,
             std::make_optional(kNewWindowHandle));
 }

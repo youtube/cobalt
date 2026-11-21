@@ -246,8 +246,11 @@ void CobaltContentRendererClient::GetSbWindowHandleOnMainThread(
   auto receiver = window_provider.BindNewPipeAndPassReceiver();
   if (platform_window_provider_binder_for_testing_) {
     platform_window_provider_binder_for_testing_.Run(std::move(receiver));
+  } else if (auto* render_thread = content::RenderThread::Get()) {
+    render_thread->BindHostReceiver(std::move(receiver));
   } else {
-    content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
+    std::move(callback).Run(0);
+    return;
   }
 
   auto* window_provider_ptr = window_provider.get();

@@ -281,17 +281,33 @@ void StarboardRendererClient::UpdateStarboardRenderingMode(
 
 void StarboardRendererClient::GetSbWindowHandle() {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  const uint64_t request_id = ++sb_window_handle_request_id_;
+  if (has_pending_sb_window_handle_request_) {
+    // Supersede any in-flight request with a placeholder reply so
+    // StarboardRenderer receives callbacks in FIFO order on
+    // |renderer_extension_| even when separate PlatformWindowProvider pipes
+    // resolve out of order.
+    has_pending_sb_window_handle_request_ = false;
+    renderer_extension_->OnSbWindowHandleReady(0);
+  }
   if (get_sb_window_handle_callback_) {
+    has_pending_sb_window_handle_request_ = true;
     get_sb_window_handle_callback_.Run(
         base::BindOnce(&StarboardRendererClient::OnSbWindowHandleReady,
-                       weak_factory_.GetWeakPtr()));
+                       weak_factory_.GetWeakPtr(), request_id));
     return;
   }
   renderer_extension_->OnSbWindowHandleReady(0);
 }
 
-void StarboardRendererClient::OnSbWindowHandleReady(uint64_t sb_window_handle) {
+void StarboardRendererClient::OnSbWindowHandleReady(uint64_t request_id,
+                                                    uint64_t sb_window_handle) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (!has_pending_sb_window_handle_request_ ||
+      request_id != sb_window_handle_request_id_) {
+    return;
+  }
+  has_pending_sb_window_handle_request_ = false;
   renderer_extension_->OnSbWindowHandleReady(sb_window_handle);
 }
 

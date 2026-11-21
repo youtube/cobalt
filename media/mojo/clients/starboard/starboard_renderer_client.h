@@ -164,7 +164,7 @@ class MEDIA_EXPORT StarboardRendererClient
   void SetPlayingState(bool is_playing);
   void UpdateCurrentFrame();
   void OnGetCurrentVideoFrameDone(const scoped_refptr<VideoFrame>& frame);
-  void OnSbWindowHandleReady(uint64_t sb_window_handle);
+  void OnSbWindowHandleReady(uint64_t request_id, uint64_t sb_window_handle);
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -179,6 +179,8 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::PendingReceiver<ClientExtension> pending_client_extension_receiver_;
   mojo::Receiver<ClientExtension> client_extension_receiver_;
   const GetSbWindowHandleCallback get_sb_window_handle_callback_;
+  uint64_t sb_window_handle_request_id_ = 0;
+  bool has_pending_sb_window_handle_request_ = false;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCB request_overlay_info_cb_;

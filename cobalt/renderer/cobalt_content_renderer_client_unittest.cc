@@ -166,6 +166,10 @@ class CobaltContentRendererClientWindowHandleTest : public ::testing::Test {
         &FakePlatformWindowProvider::Bind, base::Unretained(&provider_)));
   }
 
+  void ClearPlatformWindowProviderBinder() {
+    client_->SetPlatformWindowProviderBinderForTesting({});
+  }
+
   base::test::TaskEnvironment task_environment_;
   FakePlatformWindowProvider provider_;
   std::unique_ptr<CobaltContentRendererClient> client_;
@@ -284,6 +288,26 @@ TEST_F(CobaltContentRendererClientWindowHandleTest,
   reply_received.Run();
   EXPECT_TRUE(replied_on_caller_sequence);
   EXPECT_EQ(received_handle, 0x5555u);
+}
+
+// Verifies the teardown / test-environment journey where a queued window handle
+// request runs on the main thread when content::RenderThread::Get() is null:
+// the callback completes safely with 0 instead of dereferencing a null pointer.
+TEST_F(CobaltContentRendererClientWindowHandleTest,
+       GetSbWindowHandleReturnsZeroWhenRenderThreadIsNull) {
+  ClearPlatformWindowProviderBinder();
+
+  bool called = false;
+  uint64_t received_handle = 0xdead;
+  client_->GetSbWindowHandle(base::BindLambdaForTesting([&](uint64_t handle) {
+    called = true;
+    received_handle = handle;
+  }));
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(called);
+  EXPECT_EQ(received_handle, 0u);
+  EXPECT_EQ(provider_.bind_count(), 0u);
 }
 #else
 // Verifies that non-Starboard builds (e.g., Android and tvOS) return 0
