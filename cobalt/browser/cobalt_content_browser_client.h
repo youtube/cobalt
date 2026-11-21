@@ -88,16 +88,19 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   static CobaltContentBrowserClient* Get();
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID)
   // Display-compositor shader cache; its location follows
   // kCobaltStorageCleanup. With kCobaltGpuShaderDiskCache on, GpuHostImpl only
   // opens the GrShaderCache, so this cache is never created.
   base::FilePath GetShaderDiskCacheDirectory() override;
+#endif  // BUILDFLAG(IS_ANDROID)
   // Only Skia's GrShaderCache is persisted (see kCobaltGpuShaderDiskCache),
-  // and only under base::DIR_CACHE. Returns an empty path while the feature is
-  // off.
+  // and only under base::DIR_CACHE. Android: empty unless
+  // kCobaltGpuShaderDiskCache is enabled. Starboard: always set; the cache
+  // itself is only opened for preload launches.
   base::FilePath GetGrShaderDiskCacheDirectory() override;
-#endif
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::VideoOverlayWindow>
@@ -210,6 +213,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Computes the maximum HTTP cache size in bytes based on the platform's
   // total cache directory budget.
   static uint32_t ComputeDefaultHttpCacheSize(uint32_t total_dir_budget_bytes);
+
+  // Populates `network_context_params->initial_ssl_config` with Cobalt's
+  // disabled TLS cipher suites.
+  static void ConfigureSSLConfig(
+      network::mojom::NetworkContextParams* network_context_params);
 
   // Populates `network_context_params->cobalt_extra_request_headers` from
   // `CobaltHeaderValueProvider` when `kCobaltSkipTrustedHeaderClient` is

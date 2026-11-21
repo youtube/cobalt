@@ -83,8 +83,10 @@
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/ssl_config.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "starboard/configuration_constants.h"
 #include "storage/browser/quota/quota_device_info_helper.h"
@@ -92,6 +94,7 @@
 #include "storage/browser/quota/quota_settings.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
@@ -348,6 +351,7 @@ CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
       content::ShellContentBrowserClient::Get());
 }
 
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID)
 base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   const int path_key =
@@ -360,6 +364,7 @@ base::FilePath CobaltContentBrowserClient::GetShaderDiskCacheDirectory() {
   }
   return base::FilePath();
 }
+#endif  // BUILDFLAG(IS_ANDROID)
 
 base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   // Only Skia's GrShaderCache is persisted (see kCobaltGpuShaderDiskCache), and
@@ -367,16 +372,20 @@ base::FilePath CobaltContentBrowserClient::GetGrShaderDiskCacheDirectory() {
   // under storage pressure and it does not count against persistent app data,
   // unlike SHELL_DIR_USER_DATA, where Local Storage lives. This does not depend
   // on kCobaltStorageCleanup so that the kCobaltGpuShaderDiskCache treatment
-  // arm always uses the same location.
+  // arm always uses the same location. Starboard: always DIR_CACHE too.
+#if BUILDFLAG(IS_ANDROID)
+  if (!base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache)) {
+    return base::FilePath();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   base::FilePath cache_dir;
-  if (base::FeatureList::IsEnabled(::features::kCobaltGpuShaderDiskCache) &&
-      base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
+  if (base::PathService::Get(base::DIR_CACHE, &cache_dir) &&
       !cache_dir.empty()) {
     return cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache"));
   }
   return base::FilePath();
 }
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
 std::unique_ptr<content::VideoOverlayWindow>
 CobaltContentBrowserClient::CreateWindowForVideoPictureInPicture(
@@ -586,6 +595,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // per-site basis.
   network_context_params->require_network_anonymization_key = true;
 
+  ConfigureSSLConfig(network_context_params);
   PopulateCobaltExtraRequestHeaders(network_context_params);
 }
 
@@ -596,6 +606,35 @@ bool CobaltContentBrowserClient::AllowCompressionDictionaryTransport(
   }
   return content::ShellContentBrowserClient::
       AllowCompressionDictionaryTransport(context);
+}
+
+// static
+void CobaltContentBrowserClient::ConfigureSSLConfig(
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!network_context_params->initial_ssl_config) {
+    network_context_params->initial_ssl_config =
+        network::mojom::SSLConfig::New();
+  }
+  // Disable TLS 1.2 cipher suites classified as obsolete and disallowed on
+  // HTTP/2 by net::IsTLSCipherSuiteAllowedByHTTP2() (static RSA key exchange
+  // without forward secrecy and non-AEAD CBC-mode ciphers).
+  static const base::NoDestructor<std::vector<uint16_t>> kDisabledCipherSuites(
+      []() {
+        std::vector<uint16_t> disabled;
+        bssl::UniquePtr<SSL_CTX> ssl_ctx(SSL_CTX_new(TLS_method()));
+        if (ssl_ctx) {
+          for (const SSL_CIPHER* cipher : SSL_CTX_get_ciphers(ssl_ctx.get())) {
+            const uint16_t id = SSL_CIPHER_get_protocol_id(cipher);
+            if (!net::IsTLSCipherSuiteAllowedByHTTP2(id)) {
+              disabled.push_back(id);
+            }
+          }
+        }
+        return disabled;
+      }());
+  network_context_params->initial_ssl_config->disabled_cipher_suites.insert(
+      network_context_params->initial_ssl_config->disabled_cipher_suites.end(),
+      kDisabledCipherSuites->begin(), kDisabledCipherSuites->end());
 }
 
 // static
