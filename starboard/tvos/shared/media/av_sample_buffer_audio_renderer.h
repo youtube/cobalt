@@ -85,6 +85,7 @@ class AVSBAudioRenderer : public AudioRenderer, private JobQueue::JobOwner {
   int64_t seek_to_time_ = 0;
   int64_t media_time_offset_ = 0;
   int prerolled_frames_ = 0;
+  size_t total_encrypted_buffers_ = 0;
   int64_t last_buffer_end_time_ = 0;
   bool seeking_ = false;
   bool eos_written_ = false;

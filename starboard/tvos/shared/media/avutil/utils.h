@@ -19,6 +19,9 @@
 
 #include <functional>
 #include <sstream>
+#include <string>
+
+#include "starboard/drm.h"
 
 namespace starboard {
 namespace avutil {
@@ -28,6 +31,15 @@ typedef std::function<void(NSString* key_path)> KVOProxyObserverCallback;
 NSObject* CreateKVOProxyObserver(KVOProxyObserverCallback callback);
 
 void AppendAVErrorDetails(NSError* error, std::stringstream* ss);
+
+// Returns the code, the domain and the underlying error of |error|, or "none"
+// if there is no error.
+std::string DescribeError(NSError* error);
+
+// Returns the encryption parameters of a sample, and whether the subsample
+// mapping adds up to |sample_size|.
+std::string DescribeDrmSampleInfo(const SbDrmSampleInfo* drm_info,
+                                  size_t sample_size);
 
 }  // namespace avutil
 }  // namespace starboard
