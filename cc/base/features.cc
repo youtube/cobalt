@@ -288,6 +288,14 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Milliseconds(700));
 
 #if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltResourcePoolExpirationDelay,
+             "CobaltResourcePoolExpirationDelay",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kCobaltResourcePoolExpirationDelayMs{
+    &kCobaltResourcePoolExpirationDelay,
+    "CobaltResourcePoolExpirationDelay_ms", 1000};
+
 BASE_FEATURE(kCobaltTileMemoryMetrics,
              "CobaltTileMemoryMetrics",
              base::FEATURE_ENABLED_BY_DEFAULT);
