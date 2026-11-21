@@ -106,6 +106,13 @@ partition_alloc::PartitionOptions PartitionOptionsFromFeatures() {
   PartitionOptions opts;
   opts.backup_ref_ptr = brp_setting;
   opts.memory_tagging = {.enabled = memory_tagging};
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  opts.fewer_memory_regions =
+      base::FeatureList::IsEnabled(
+          base::features::kPartitionAllocFewerMemoryRegions)
+          ? partition_alloc::PartitionOptions::kEnabled
+          : partition_alloc::PartitionOptions::kDisabled;
+#endif  // BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
   opts.use_small_single_slot_spans =
       base::FeatureList::IsEnabled(
           base::features::kPartitionAllocUseSmallSingleSlotSpans)
@@ -189,6 +196,13 @@ void Partitions::InitializeArrayBufferPartition() {
             partition_alloc::PartitionOptions::kAllowed;
         opts.memory_tagging = {
             .enabled = partition_alloc::PartitionOptions::kDisabled};
+#if BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+        opts.fewer_memory_regions =
+            base::FeatureList::IsEnabled(
+                base::features::kPartitionAllocFewerMemoryRegions)
+                ? partition_alloc::PartitionOptions::kEnabled
+                : partition_alloc::PartitionOptions::kDisabled;
+#endif  // BUILDFLAG(IS_COBALT) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
         return opts;
       }());
 

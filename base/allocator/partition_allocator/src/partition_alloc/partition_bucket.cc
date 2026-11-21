@@ -1475,6 +1475,21 @@ uintptr_t PartitionBucket::SlowPathAlloc(
           // span pages have been previously committed, and then decommitted
           // using PageAccessibilityDisposition::kAllowKeepForPerf, so use the
           // same option as an optimization.
+#if BUILDFLAG(IS_COBALT)
+          const size_t committed_size =
+              new_slot_span->bucket->SlotSpanCommittedSize(root);
+          const bool ok = root->TryRecommitSystemPagesForDataLocked(
+              slot_span_start, committed_size,
+              PageAccessibilityDisposition::kAllowKeepForPerf,
+              slot_size <= kMaxMemoryTaggingSize);
+          if (!ok) {
+            if (!ContainsFlags(flags, AllocFlags::kReturnNull)) {
+              ScopedUnlockGuard unlock{PartitionRootLock(root)};
+              PartitionOutOfMemoryCommitFailure(root, committed_size);
+            }
+            return 0;
+          }
+#else
           const bool ok = root->TryRecommitSystemPagesForDataLocked(
               slot_span_start, new_slot_span->bucket->get_bytes_per_span(),
               PageAccessibilityDisposition::kAllowKeepForPerf,
@@ -1487,6 +1502,7 @@ uintptr_t PartitionBucket::SlowPathAlloc(
             }
             return 0;
           }
+#endif  // BUILDFLAG(IS_COBALT)
         }
 
         decommitted_slot_spans_head = new_slot_span->next_slot_span;
