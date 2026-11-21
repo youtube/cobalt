@@ -48,6 +48,20 @@ BASE_FEATURE(kCobaltDiscardableSingleMapping,
              "CobaltDiscardableSingleMapping",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltDiscardableChunkSize,
+             "CobaltDiscardableChunkSize",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltDiscardableChunkSizeKb,
+                   &kCobaltDiscardableChunkSize,
+                   "CobaltDiscardableChunkSize_chunk_kb",
+                   1024);
+
+BASE_FEATURE(kCobaltDiscardableRescuePurge,
+             "CobaltDiscardableRescuePurge",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCobaltDiscardableModeratePressureLimit,
              "CobaltDiscardableModeratePressureLimit",
              FEATURE_DISABLED_BY_DEFAULT);

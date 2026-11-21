@@ -5,11 +5,15 @@
 #include "components/discardable_memory/client/client_discardable_shared_memory_manager.h"
 
 #include <algorithm>
+#include <atomic>
 #include <utility>
 
 #include "base/atomic_sequence_num.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/memory/discardable_memory.h"
 #include "base/memory/discardable_shared_memory.h"
 #include "base/memory/page_size.h"
@@ -33,8 +37,43 @@ namespace {
 // Global atomic to generate unique discardable shared memory IDs.
 base::AtomicSequenceNumber g_next_discardable_shared_memory_id;
 
+#if BUILDFLAG(IS_COBALT)
+std::atomic<bool> g_address_space_features_on_64_bit_for_testing{false};
+
+// The Cobalt discardable address-space features apply to 32-bit builds only:
+// 64-bit address spaces don't run out. Tests can opt in on 64-bit builds.
+bool IsAddressSpaceFeatureEnabled(const base::Feature& feature) {
+#if !defined(ARCH_CPU_32_BITS)
+  if (!g_address_space_features_on_64_bit_for_testing.load(
+          std::memory_order_relaxed)) {
+    return false;
+  }
+#endif
+  return base::FeatureList::IsEnabled(feature);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 size_t GetDefaultAllocationSize() {
   const size_t kOneMegabyteInBytes = 1024 * 1024;
+
+#if BUILDFLAG(IS_COBALT)
+  // kCobaltDiscardableChunkSize: a segment for small allocations (up to
+  // chunk_kb KiB less a page) maps exactly chunk_kb KiB.
+  // DiscardableSharedMemory adds a one-page header, so the payload is a page
+  // less.
+  if (IsAddressSpaceFeatureEnabled(
+          base::features::kCobaltDiscardableChunkSize)) {
+    const int kb = base::features::kCobaltDiscardableChunkSizeKb.Get();
+    // At least 512 KiB keeps descriptor counts bounded; whole pages only.
+    if (kb >= 512 && kb <= 16 * 1024) {
+      const size_t bytes = static_cast<size_t>(kb) * 1024;
+      if (bytes % base::GetPageSize() == 0 &&
+          bytes >= 2 * base::GetPageSize()) {
+        return bytes - base::GetPageSize();
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   // There is a trade-off between round-trip cost to the browser process and
   // memory usage overhead. 4MB is measured as the ideal size according to the
@@ -62,6 +101,18 @@ size_t GetDefaultAllocationSize() {
 #else
   return kDefaultAllocationSize;
 #endif
+}
+
+crash_reporter::CrashKeyString<24>& IpcRequestedSizeCrashKey() {
+  static crash_reporter::CrashKeyString<24> key(
+      "discardable-memory-ipc-requested-size");
+  return key;
+}
+
+crash_reporter::CrashKeyString<24>& IpcErrorCauseCrashKey() {
+  static crash_reporter::CrashKeyString<24> key(
+      "discardable-memory-ipc-error-cause");
+  return key;
 }
 
 void InitManagerMojoOnIO(
@@ -259,7 +310,7 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
       std::max((size + base::GetPageSize() - 1) / base::GetPageSize(),
                static_cast<size_t>(1));
 
-  static const size_t allocation_size = GetDefaultAllocationSize();
+  const size_t allocation_size = GetDefaultAllocationSize();
   DCHECK_EQ(allocation_size % base::GetPageSize(), 0u);
   // Default allocation size in pages.
   size_t allocation_pages = allocation_size / base::GetPageSize();
@@ -274,41 +325,9 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
     slack = allocation_pages - pages;
 
   size_t heap_size_prior_to_releasing_purged_memory = heap_->GetSize();
-  for (;;) {
-    // Search free lists for suitable span.
-    std::unique_ptr<DiscardableSharedMemoryHeap::Span> free_span =
-        heap_->SearchFreeLists(pages, slack);
-    if (!free_span)
-      break;
-
-    // Attempt to lock |free_span|. Delete span and search free lists again
-    // if locking failed.
-    if (free_span->shared_memory()->Lock(
-            free_span->first_block() * base::GetPageSize(),
-            free_span->num_blocks() * base::GetPageSize()) ==
-        base::DiscardableSharedMemory::FAILED) {
-      DCHECK(!free_span->shared_memory()->IsMemoryResident());
-      // We have to release purged memory before |free_span| can be destroyed.
-      heap_->ReleasePurgedMemory();
-      DCHECK(!free_span->shared_memory());
-      continue;
-    }
-
-    free_span->set_is_locked(true);
-
-    if (pages >= allocation_pages) {
-      UMA_HISTOGRAM_BOOLEAN("Memory.Discardable.LargeAllocationFromFreelist",
-                            true);
-    }
-
-    // Memory usage is guaranteed to have changed after having removed
-    // at least one span from the free lists.
-    MemoryUsageChanged(heap_->GetSize(), heap_->GetFreelistSize());
-
-    auto discardable_memory =
-        std::make_unique<DiscardableMemoryImpl>(this, std::move(free_span));
-    allocated_memory_.insert(discardable_memory.get());
-    return std::move(discardable_memory);
+  if (std::unique_ptr<base::DiscardableMemory> discardable_memory =
+          AllocateFromFreeListsLocked(pages, slack, allocation_pages)) {
+    return discardable_memory;
   }
 
   // Release purged memory to free up the address space before we attempt to
@@ -333,6 +352,44 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
   // Ask parent process to allocate a new discardable shared memory segment.
   std::unique_ptr<base::DiscardableSharedMemory> shared_memory =
       AllocateLockedDiscardableSharedMemory(allocation_size_in_bytes, new_id);
+
+#if BUILDFLAG(IS_COBALT)
+  // kCobaltDiscardableRescuePurge: before giving up, which is fatal for most
+  // callers, discard every unlocked allocation (the caches holding them
+  // re-create content when Lock() fails), look in the free lists again and
+  // unmap wholly free segments. If that unmapped anything, ask for a new
+  // segment once more. Discarding returns spans to the free lists; only unmapping a
+  // wholly free segment returns address space and descriptors.
+  if (!shared_memory && IsAddressSpaceFeatureEnabled(
+                            base::features::kCobaltDiscardableRescuePurge)) {
+    const size_t heap_size_before_rescue = heap_->GetSize();
+    const size_t purged = PurgeUnlockedMemoryLocked(base::TimeTicks::Max());
+    std::unique_ptr<base::DiscardableMemory> rescued =
+        AllocateFromFreeListsLocked(pages, slack, allocation_pages);
+    // Unmap the segments the purge left wholly free, also when the free lists
+    // served the request.
+    heap_->ReleasePurgedMemory();
+    heap_->ReleaseFreeMemory();
+    const size_t unmapped = heap_size_before_rescue - heap_->GetSize();
+    if (unmapped) {
+      MemoryUsageChanged(heap_->GetSize(), heap_->GetFreelistSize());
+    }
+    LOG(WARNING) << "Discardable allocation of " << allocation_size_in_bytes
+                 << " bytes failed; the rescue purge discarded " << purged
+                 << " allocations and unmapped " << unmapped << " bytes.";
+    if (rescued) {
+      // The failed attempt set these; the process recovered.
+      IpcErrorCauseCrashKey().Clear();
+      IpcRequestedSizeCrashKey().Clear();
+      return rescued;
+    }
+    if (unmapped) {
+      new_id = g_next_discardable_shared_memory_id.GetNext();
+      shared_memory = AllocateLockedDiscardableSharedMemory(
+          allocation_size_in_bytes, new_id);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (!shared_memory)
     return nullptr;
@@ -370,6 +427,50 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableMemory(
       std::make_unique<DiscardableMemoryImpl>(this, std::move(new_span));
   allocated_memory_.insert(discardable_memory.get());
   return std::move(discardable_memory);
+}
+
+std::unique_ptr<base::DiscardableMemory>
+ClientDiscardableSharedMemoryManager::AllocateFromFreeListsLocked(
+    size_t pages,
+    size_t slack,
+    size_t allocation_pages) {
+  for (;;) {
+    // Search free lists for suitable span.
+    std::unique_ptr<DiscardableSharedMemoryHeap::Span> free_span =
+        heap_->SearchFreeLists(pages, slack);
+    if (!free_span)
+      break;
+
+    // Attempt to lock |free_span|. Delete span and search free lists again
+    // if locking failed.
+    if (free_span->shared_memory()->Lock(
+            free_span->first_block() * base::GetPageSize(),
+            free_span->num_blocks() * base::GetPageSize()) ==
+        base::DiscardableSharedMemory::FAILED) {
+      DCHECK(!free_span->shared_memory()->IsMemoryResident());
+      // We have to release purged memory before |free_span| can be destroyed.
+      heap_->ReleasePurgedMemory();
+      DCHECK(!free_span->shared_memory());
+      continue;
+    }
+
+    free_span->set_is_locked(true);
+
+    if (pages >= allocation_pages) {
+      UMA_HISTOGRAM_BOOLEAN("Memory.Discardable.LargeAllocationFromFreelist",
+                            true);
+    }
+
+    // Memory usage is guaranteed to have changed after having removed
+    // at least one span from the free lists.
+    MemoryUsageChanged(heap_->GetSize(), heap_->GetFreelistSize());
+
+    auto discardable_memory =
+        std::make_unique<DiscardableMemoryImpl>(this, std::move(free_span));
+    allocated_memory_.insert(discardable_memory.get());
+    return std::move(discardable_memory);
+  }
+  return nullptr;
 }
 
 bool ClientDiscardableSharedMemoryManager::OnMemoryDump(
@@ -438,31 +539,36 @@ void ClientDiscardableSharedMemoryManager::PurgeUnlockedMemory(
     base::TimeDelta min_age) {
   {
     base::AutoLock lock(lock_);
-
-    auto now = base::TimeTicks::Now();
-
-    // Iterate this way in order to avoid invalidating the iterator while
-    // removing elements from |allocated_memory_| as we iterate over it.
-    for (auto it = allocated_memory_.begin(); it != allocated_memory_.end();
-         /* nop */) {
-      auto prev = it++;
-      DiscardableMemoryImpl* mem = *prev;
-
-      // This assert is only required because the static checker can't figure
-      // out that |mem->manager_->lock_| is the same as |this->lock_|, as
-      // verified by the DCHECK.
-      DCHECK_EQ(&lock_, &mem->manager_->lock_);
-      mem->manager_->lock_.AssertAcquired();
-
-      auto span = mem->Purge(now - min_age);
-      if (span) {
-        allocated_memory_.erase(prev);
-        ReleaseSpan(std::move(span));
-      }
-    }
+    PurgeUnlockedMemoryLocked(base::TimeTicks::Now() - min_age);
   }
 
   ReleaseFreeMemory();
+}
+
+size_t ClientDiscardableSharedMemoryManager::PurgeUnlockedMemoryLocked(
+    base::TimeTicks cutoff) {
+  size_t purged = 0;
+  // Iterate this way in order to avoid invalidating the iterator while
+  // removing elements from |allocated_memory_| as we iterate over it.
+  for (auto it = allocated_memory_.begin(); it != allocated_memory_.end();
+       /* nop */) {
+    auto prev = it++;
+    DiscardableMemoryImpl* mem = *prev;
+
+    // This assert is only required because the static checker can't figure
+    // out that |mem->manager_->lock_| is the same as |this->lock_|, as
+    // verified by the DCHECK.
+    DCHECK_EQ(&lock_, &mem->manager_->lock_);
+    mem->manager_->lock_.AssertAcquired();
+
+    auto span = mem->Purge(cutoff);
+    if (span) {
+      allocated_memory_.erase(prev);
+      ReleaseSpan(std::move(span));
+      ++purged;
+    }
+  }
+  return purged;
 }
 
 void ClientDiscardableSharedMemoryManager::ReleaseFreeMemory() {
@@ -557,11 +663,10 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableSharedMemory(
                "ClientDiscardableSharedMemoryManager::"
                "AllocateLockedDiscardableSharedMemory",
                "size", size, "id", id);
-  static crash_reporter::CrashKeyString<24>
-      discardable_memory_ipc_requested_size(
-          "discardable-memory-ipc-requested-size");
-  static crash_reporter::CrashKeyString<24> discardable_memory_ipc_error_cause(
-      "discardable-memory-ipc-error-cause");
+  crash_reporter::CrashKeyString<24>& discardable_memory_ipc_requested_size =
+      IpcRequestedSizeCrashKey();
+  crash_reporter::CrashKeyString<24>& discardable_memory_ipc_error_cause =
+      IpcErrorCauseCrashKey();
 
   base::UnsafeSharedMemoryRegion region;
   base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow;
@@ -606,6 +711,20 @@ bool ClientDiscardableSharedMemoryManager::MapDiscardableSharedMemory(
     base::DiscardableSharedMemory* memory,
     size_t size) {
   return memory->Map(size);
+}
+
+#if BUILDFLAG(IS_COBALT)
+// static
+void ClientDiscardableSharedMemoryManager::
+    SetAddressSpaceFeaturesOn64BitForTesting(bool enabled) {
+  g_address_space_features_on_64_bit_for_testing.store(
+      enabled, std::memory_order_relaxed);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
+// static
+size_t ClientDiscardableSharedMemoryManager::GetAllocationSizeForTesting() {
+  return GetDefaultAllocationSize();
 }
 
 void ClientDiscardableSharedMemoryManager::FlushMojoForTesting() {

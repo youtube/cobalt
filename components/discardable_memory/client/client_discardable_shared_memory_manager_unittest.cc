@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <set>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -29,6 +30,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -67,12 +69,35 @@ class TestClientDiscardableSharedMemoryManager
 
   std::unique_ptr<base::DiscardableSharedMemory>
   AllocateLockedDiscardableSharedMemory(size_t size, int32_t id) override {
+    ++alloc_call_count_;
+    if (fail_allocations_) {
+      return nullptr;
+    }
+    if (max_live_segments_.has_value() &&
+        live_segment_ids_.size() >= *max_live_segments_) {
+      return nullptr;
+    }
     auto shared_memory = std::make_unique<base::DiscardableSharedMemory>();
     shared_memory->CreateAndMap(size);
+    live_segment_ids_.insert(id);
+    allocated_ids_.push_back(id);
     return shared_memory;
   }
 
-  void DeletedDiscardableSharedMemory(int32_t id) override {}
+  void DeletedDiscardableSharedMemory(int32_t id) override {
+    live_segment_ids_.erase(id);
+    deleted_ids_.push_back(id);
+  }
+
+  void set_fail_allocations(bool fail) { fail_allocations_ = fail; }
+  void set_max_live_segments(std::optional<size_t> max_segments) {
+    max_live_segments_ = max_segments;
+  }
+  size_t alloc_call_count() const { return alloc_call_count_; }
+  void reset_alloc_call_count() { alloc_call_count_ = 0; }
+  const std::vector<int32_t>& allocated_ids() const { return allocated_ids_; }
+  const std::vector<int32_t>& deleted_ids() const { return deleted_ids_; }
+  size_t live_segment_count() const { return live_segment_ids_.size(); }
 
   size_t GetSize() const {
     base::AutoLock lock(lock_);
@@ -91,6 +116,13 @@ class TestClientDiscardableSharedMemoryManager
 
  private:
   ~TestClientDiscardableSharedMemoryManager() override = default;
+
+  bool fail_allocations_ = false;
+  std::optional<size_t> max_live_segments_;
+  size_t alloc_call_count_ = 0;
+  std::set<int32_t> live_segment_ids_;
+  std::vector<int32_t> allocated_ids_;
+  std::vector<int32_t> deleted_ids_;
 };
 
 class ClientDiscardableSharedMemoryManagerTest : public testing::Test {
@@ -549,19 +581,33 @@ class MapHookClientDiscardableSharedMemoryManager
 
 #if BUILDFLAG(IS_COBALT)
 // Sets features before a fixture starts any thread, and restores them after
-// the fixture has stopped its threads.
+// the fixture has stopped its threads. With `on_64_bit`, the 32-bit
+// address-space features also apply on 64-bit test builds.
 class ScopedTestFeatures {
  public:
   ScopedTestFeatures(const std::vector<base::test::FeatureRef>& enabled,
-                     const std::vector<base::test::FeatureRef>& disabled) {
+                     const std::vector<base::test::FeatureRef>& disabled,
+                     bool on_64_bit = false)
+      : on_64_bit_(on_64_bit) {
+    if (on_64_bit_) {
+      ClientDiscardableSharedMemoryManager::
+          SetAddressSpaceFeaturesOn64BitForTesting(true);
+    }
     if (!enabled.empty() || !disabled.empty()) {
       features_.InitWithFeatures(enabled, disabled);
     }
   }
   ScopedTestFeatures(const ScopedTestFeatures&) = delete;
   ScopedTestFeatures& operator=(const ScopedTestFeatures&) = delete;
+  ~ScopedTestFeatures() {
+    if (on_64_bit_) {
+      ClientDiscardableSharedMemoryManager::
+          SetAddressSpaceFeaturesOn64BitForTesting(false);
+    }
+  }
 
  private:
+  const bool on_64_bit_;
   base::test::ScopedFeatureList features_;
 };
 #endif  // BUILDFLAG(IS_COBALT)
@@ -571,8 +617,9 @@ class ClientDiscardableSharedMemoryManagerIpcTest : public testing::Test {
   ClientDiscardableSharedMemoryManagerIpcTest() = default;
 #if BUILDFLAG(IS_COBALT)
   explicit ClientDiscardableSharedMemoryManagerIpcTest(
-      const std::vector<base::test::FeatureRef>& enabled)
-      : features_(enabled, {}) {}
+      const std::vector<base::test::FeatureRef>& enabled,
+      bool on_64_bit = false)
+      : features_(enabled, {}, on_64_bit) {}
 #endif  // BUILDFLAG(IS_COBALT)
 
   void SetUp() override {
@@ -774,6 +821,463 @@ TEST_F(ClientDiscardableSharedMemoryManagerIpcTest,
   EXPECT_TRUE(good);
   EXPECT_EQ(service_->ClientSegmentCount(client_id_), 1u);
 }
+
+#if BUILDFLAG(IS_COBALT)
+class ClientDiscardableSharedMemoryManagerRescueIpcTest
+    : public ClientDiscardableSharedMemoryManagerIpcTest {
+ protected:
+  ClientDiscardableSharedMemoryManagerRescueIpcTest()
+      : ClientDiscardableSharedMemoryManagerIpcTest(
+            {base::features::kCobaltDiscardableRescuePurge},
+            /*on_64_bit=*/true) {}
+};
+
+TEST_F(ClientDiscardableSharedMemoryManagerRescueIpcTest,
+       MapFailureWithRescuePurgeDeletesFailedServiceSegment) {
+  // Chunk 1: an unlocked allocation the rescue purges, and a locked filler.
+  auto first = client_->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(first);
+  const size_t chunk_size = client_->GetSize();
+  auto filler1 =
+      client_->AllocateLockedDiscardableMemory(chunk_size - page_size_);
+  ASSERT_TRUE(filler1);
+  // Chunk 2: a locked allocation that must survive.
+  auto locked = client_->AllocateLockedDiscardableMemory(chunk_size);
+  ASSERT_TRUE(locked);
+  *static_cast<uint8_t*>(locked->data()) = 0x5Au;
+
+  const size_t baseline_bytes = service_->GetBytesAllocated();
+  ASSERT_EQ(service_->ClientSegmentCount(client_id_), 2u);
+  const std::vector<int32_t> baseline_ids =
+      service_->GetClientSegmentIds(client_id_);
+
+  first->Unlock();
+
+  std::vector<int32_t> failed_ids;
+  client_->set_fail_map(true);
+  client_->set_on_map_failed(base::BindRepeating(
+      [](TestDiscardableSharedMemoryManager* svc, int cid,
+         const std::vector<int32_t>* base_ids, std::vector<int32_t>* out_ids) {
+        for (int32_t id : svc->GetClientSegmentIds(cid)) {
+          if (std::find(base_ids->begin(), base_ids->end(), id) ==
+                  base_ids->end() &&
+              std::find(out_ids->begin(), out_ids->end(), id) ==
+                  out_ids->end()) {
+            out_ids->push_back(id);
+          }
+        }
+      },
+      base::Unretained(service_.get()), client_id_, &baseline_ids,
+      &failed_ids));
+
+  // The IPC fails Map(), the rescue purges |first| and the free lists serve
+  // the request. Nothing was unmapped, so there is no second IPC.
+  auto rescued = client_->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(rescued);
+  EXPECT_FALSE(first->Lock());
+  EXPECT_EQ(*static_cast<const uint8_t*>(locked->data()), 0x5Au);
+  EXPECT_EQ(failed_ids.size(), 1u);
+
+  client_->FlushMojo();
+
+  // The failed segment didn't leak on the service side.
+  EXPECT_EQ(service_->GetBytesAllocated(), baseline_bytes);
+  EXPECT_EQ(service_->ClientSegmentCount(client_id_), 2u);
+  for (int32_t id : failed_ids) {
+    EXPECT_FALSE(service_->HasClientSegment(client_id_, id));
+  }
+}
+
+class ClientDiscardableSharedMemoryManagerRescueLazyMappingIpcTest
+    : public ClientDiscardableSharedMemoryManagerIpcTest {
+ protected:
+  ClientDiscardableSharedMemoryManagerRescueLazyMappingIpcTest()
+      : ClientDiscardableSharedMemoryManagerIpcTest(
+            {base::features::kCobaltDiscardableRescuePurge,
+             base::features::kCobaltDiscardableSingleMapping},
+            /*on_64_bit=*/true) {}
+};
+
+TEST_F(ClientDiscardableSharedMemoryManagerRescueLazyMappingIpcTest,
+       RescueUnmapsFreeSegmentAndRetries) {
+  // Segment 1 holds one unlocked allocation filling the chunk.
+  auto probe = client_->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(probe);
+  const size_t chunk_size = client_->GetSize();
+  probe.reset();
+  client_->ReleaseFreeMemory();
+  client_->FlushMojo();
+  ASSERT_EQ(service_->ClientSegmentCount(client_id_), 0u);
+
+  auto seg1 = client_->AllocateLockedDiscardableMemory(chunk_size);
+  ASSERT_TRUE(seg1);
+  const std::vector<int32_t> seg1_ids =
+      service_->GetClientSegmentIds(client_id_);
+  ASSERT_EQ(seg1_ids.size(), 1u);
+  seg1->Unlock();
+
+  // The next Map() fails once. The request is larger than a chunk, so the
+  // purged segment 1 can't serve it: the rescue must unmap segment 1 (deleting
+  // it in the service) and ask for a new segment again.
+  std::vector<int32_t> failed_ids;
+  client_->set_fail_map(true);
+  client_->set_on_map_failed(base::BindRepeating(
+      [](MapHookClientDiscardableSharedMemoryManager* client,
+         TestDiscardableSharedMemoryManager* svc, int cid, int32_t seg1_id,
+         std::vector<int32_t>* out_ids) {
+        for (int32_t id : svc->GetClientSegmentIds(cid)) {
+          if (id != seg1_id) {
+            out_ids->push_back(id);
+          }
+        }
+        client->set_fail_map(false);
+      },
+      base::Unretained(client_.get()), base::Unretained(service_.get()),
+      client_id_, seg1_ids[0], &failed_ids));
+
+  auto rescued =
+      client_->AllocateLockedDiscardableMemory(chunk_size + page_size_);
+  ASSERT_TRUE(rescued);
+  *static_cast<uint8_t*>(rescued->data()) = 0x33u;
+  EXPECT_EQ(*static_cast<const uint8_t*>(rescued->data()), 0x33u);
+  EXPECT_FALSE(seg1->Lock());
+  ASSERT_EQ(failed_ids.size(), 1u);
+
+  client_->FlushMojo();
+
+  // Only the retried segment is left in the service.
+  EXPECT_FALSE(service_->HasClientSegment(client_id_, seg1_ids[0]));
+  EXPECT_FALSE(service_->HasClientSegment(client_id_, failed_ids[0]));
+  EXPECT_EQ(service_->ClientSegmentCount(client_id_), 1u);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
+// --- Tests for kCobaltDiscardableRescuePurge ---
+
+TEST_F(ClientDiscardableSharedMemoryManagerTest,
+       RescuePurgeDisabledDoesNotPurgeUnlocked) {
+  auto client =
+      base::MakeRefCounted<TestClientDiscardableSharedMemoryManager>();
+  auto unlocked = client->AllocateLockedDiscardableMemory(page_size_ * 2);
+  ASSERT_TRUE(unlocked);
+  auto filler =
+      client->AllocateLockedDiscardableMemory(client->GetFreelistSize());
+  ASSERT_TRUE(filler);
+  ASSERT_EQ(client->GetFreelistSize(), 0u);
+
+  unlocked->Unlock();
+  task_env_.FastForwardBy(base::Seconds(10));
+
+  client->reset_alloc_call_count();
+  client->set_fail_allocations(true);
+  EXPECT_EQ(client->AllocateLockedDiscardableMemory(page_size_ * 2), nullptr);
+  EXPECT_EQ(client->alloc_call_count(), 1u);
+  EXPECT_TRUE(unlocked->Lock());
+}
+
+#if BUILDFLAG(IS_COBALT)
+class ClientDiscardableSharedMemoryManagerRescueTest : public testing::Test {
+ protected:
+  ClientDiscardableSharedMemoryManagerRescueTest()
+      : ClientDiscardableSharedMemoryManagerRescueTest(/*on_64_bit=*/true) {}
+  explicit ClientDiscardableSharedMemoryManagerRescueTest(bool on_64_bit)
+      : features_({base::features::kCobaltDiscardableRescuePurge},
+                  {},
+                  on_64_bit) {}
+
+  const size_t page_size_ = base::GetPageSize();
+  // Before the task environment starts threads.
+  ScopedTestFeatures features_;
+  base::test::TaskEnvironment task_env_{
+      base::test::TaskEnvironment::MainThreadType::UI,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+};
+
+TEST_F(ClientDiscardableSharedMemoryManagerRescueTest,
+       PurgesAllUnlockedAndKeepsLocked) {
+  auto client =
+      base::MakeRefCounted<TestClientDiscardableSharedMemoryManager>();
+  auto old_unlocked = client->AllocateLockedDiscardableMemory(page_size_ * 2);
+  auto recent_unlocked =
+      client->AllocateLockedDiscardableMemory(page_size_ * 2);
+  auto locked = client->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(old_unlocked);
+  ASSERT_TRUE(recent_unlocked);
+  ASSERT_TRUE(locked);
+  *static_cast<uint8_t*>(locked->data()) = 0xA5u;
+  auto filler =
+      client->AllocateLockedDiscardableMemory(client->GetFreelistSize());
+  ASSERT_TRUE(filler);
+  ASSERT_EQ(client->GetFreelistSize(), 0u);
+
+  old_unlocked->Unlock();
+  task_env_.FastForwardBy(base::Seconds(60));
+  recent_unlocked->Unlock();
+
+  client->reset_alloc_call_count();
+  client->set_fail_allocations(true);
+  auto rescued = client->AllocateLockedDiscardableMemory(page_size_ * 2);
+  ASSERT_TRUE(rescued);
+  *static_cast<uint8_t*>(rescued->data()) = 0x11u;
+  EXPECT_EQ(*static_cast<const uint8_t*>(rescued->data()), 0x11u);
+
+  // One pass discards every unlocked allocation, however recent, and the
+  // free lists serve the request without a second IPC.
+  EXPECT_EQ(client->alloc_call_count(), 1u);
+  EXPECT_FALSE(old_unlocked->Lock());
+  EXPECT_FALSE(recent_unlocked->Lock());
+  EXPECT_EQ(*static_cast<const uint8_t*>(locked->data()), 0xA5u);
+}
+
+TEST_F(ClientDiscardableSharedMemoryManagerRescueTest,
+       UnmapsOtherFreeSegmentsWhenServedFromFreeList) {
+  auto client =
+      base::MakeRefCounted<TestClientDiscardableSharedMemoryManager>();
+  auto probe = client->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(probe);
+  const size_t chunk_size = client->GetSize();
+  probe.reset();
+  client->ReleaseFreeMemory();
+  ASSERT_EQ(client->live_segment_count(), 0u);
+
+  // Three segments, each filled by one allocation that is then unlocked.
+  std::vector<std::unique_ptr<base::DiscardableMemory>> unlocked;
+  for (int i = 0; i < 3; ++i) {
+    unlocked.push_back(client->AllocateLockedDiscardableMemory(chunk_size));
+    ASSERT_TRUE(unlocked.back());
+  }
+  ASSERT_EQ(client->live_segment_count(), 3u);
+  for (auto& memory : unlocked) {
+    memory->Unlock();
+  }
+
+  client->reset_alloc_call_count();
+  client->set_fail_allocations(true);
+  const size_t deleted_before = client->deleted_ids().size();
+  auto rescued = client->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(rescued);
+
+  // The purge freed all three segments; one serves the request and the
+  // other two are unmapped right away instead of at the next scheduled purge.
+  EXPECT_EQ(client->alloc_call_count(), 1u);
+  EXPECT_EQ(client->live_segment_count(), 1u);
+  EXPECT_EQ(client->deleted_ids().size(), deleted_before + 2u);
+}
+
+TEST_F(ClientDiscardableSharedMemoryManagerRescueTest,
+       UnmapsFreeSegmentAndRetriesAllocation) {
+  auto client =
+      base::MakeRefCounted<TestClientDiscardableSharedMemoryManager>();
+  auto probe = client->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(probe);
+  const size_t chunk_size = client->GetSize();
+  probe.reset();
+  client->ReleaseFreeMemory();
+  ASSERT_EQ(client->live_segment_count(), 0u);
+
+  // Segment 1: a single allocation covering the whole chunk.
+  auto seg1 = client->AllocateLockedDiscardableMemory(chunk_size);
+  ASSERT_TRUE(seg1);
+  ASSERT_EQ(client->live_segment_count(), 1u);
+  const int32_t seg1_id = client->allocated_ids().back();
+
+  // Segment 2: holds a locked allocation that must remain intact.
+  auto seg2_locked = client->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(seg2_locked);
+  *static_cast<uint8_t*>(seg2_locked->data()) = 0x7Eu;
+  ASSERT_EQ(client->live_segment_count(), 2u);
+
+  seg1->Unlock();
+
+  // Cap live segments at 2 so allocating segment 3 fails until a wholly free
+  // segment is unmapped and deleted.
+  client->set_max_live_segments(2);
+  client->reset_alloc_call_count();
+  const size_t deleted_before = client->deleted_ids().size();
+
+  // Larger than a chunk, so the free lists can't serve it after the purge
+  // frees |seg1|: the rescue must unmap |seg1| and retry the IPC.
+  auto rescued =
+      client->AllocateLockedDiscardableMemory(chunk_size + page_size_);
+  ASSERT_TRUE(rescued);
+  *static_cast<uint8_t*>(rescued->data()) = 0x33u;
+  EXPECT_EQ(*static_cast<const uint8_t*>(rescued->data()), 0x33u);
+
+  EXPECT_EQ(client->alloc_call_count(), 2u);
+  EXPECT_FALSE(seg1->Lock());
+  EXPECT_EQ(*static_cast<const uint8_t*>(seg2_locked->data()), 0x7Eu);
+  ASSERT_EQ(client->deleted_ids().size(), deleted_before + 1u);
+  EXPECT_EQ(client->deleted_ids().back(), seg1_id);
+  EXPECT_EQ(client->live_segment_count(), 2u);
+}
+
+TEST_F(ClientDiscardableSharedMemoryManagerRescueTest,
+       NoRetryWhenNothingWasUnmapped) {
+  auto client =
+      base::MakeRefCounted<TestClientDiscardableSharedMemoryManager>();
+  auto locked = client->AllocateLockedDiscardableMemory(page_size_);
+  ASSERT_TRUE(locked);
+  *static_cast<uint8_t*>(locked->data()) = 0x3Cu;
+  auto filler =
+      client->AllocateLockedDiscardableMemory(client->GetFreelistSize());
+  ASSERT_TRUE(filler);
+
+  client->reset_alloc_call_count();
+  client->set_fail_allocations(true);
+  EXPECT_EQ(client->AllocateLockedDiscardableMemory(page_size_), nullptr);
+  // Everything is locked, so the rescue frees nothing and doesn't repeat
+  // the IPC.
+  EXPECT_EQ(client->alloc_call_count(), 1u);
+  EXPECT_EQ(*static_cast<const uint8_t*>(locked->data()), 0x3Cu);
+}
+
+TEST_F(ClientDiscardableSharedMemoryManagerRescueTest,
+       NoRetryWhenPurgeUnmapsNothing) {
+  auto client =
+      base::MakeRefCounted<TestClientDiscardableSharedMemoryManager>();
+  auto unlocked = client->AllocateLockedDiscardableMemory(page_size_ * 2);
+  ASSERT_TRUE(unlocked);
+  auto filler =
+      client->AllocateLockedDiscardableMemory(client->GetFreelistSize());
+  ASSERT_TRUE(filler);
+  ASSERT_EQ(client->GetFreelistSize(), 0u);
+  unlocked->Unlock();
+
+  client->reset_alloc_call_count();
+  client->set_fail_allocations(true);
+  // The purge frees two pages, too few for the request, inside a segment the
+  // locked filler keeps mapped: nothing is unmapped, so no second IPC.
+  EXPECT_EQ(client->AllocateLockedDiscardableMemory(page_size_ * 4), nullptr);
+  EXPECT_EQ(client->alloc_call_count(), 1u);
+  EXPECT_FALSE(unlocked->Lock());
+}
+
+#if !defined(ARCH_CPU_32_BITS)
+class ClientDiscardableSharedMemoryManagerRescueOff64BitTest
+    : public ClientDiscardableSharedMemoryManagerRescueTest {
+ protected:
+  ClientDiscardableSharedMemoryManagerRescueOff64BitTest()
+      : ClientDiscardableSharedMemoryManagerRescueTest(/*on_64_bit=*/false) {}
+};
+
+TEST_F(ClientDiscardableSharedMemoryManagerRescueOff64BitTest,
+       IgnoredOn64BitBuilds) {
+  auto client =
+      base::MakeRefCounted<TestClientDiscardableSharedMemoryManager>();
+  auto unlocked = client->AllocateLockedDiscardableMemory(page_size_ * 2);
+  ASSERT_TRUE(unlocked);
+  auto filler =
+      client->AllocateLockedDiscardableMemory(client->GetFreelistSize());
+  ASSERT_TRUE(filler);
+  unlocked->Unlock();
+
+  client->reset_alloc_call_count();
+  client->set_fail_allocations(true);
+  EXPECT_EQ(client->AllocateLockedDiscardableMemory(page_size_ * 2), nullptr);
+  EXPECT_EQ(client->alloc_call_count(), 1u);
+  EXPECT_TRUE(unlocked->Lock());
+}
+#endif  // !defined(ARCH_CPU_32_BITS)
+
+constexpr char kChunkKbParam[] = "CobaltDiscardableChunkSize_chunk_kb";
+
+TEST(ClientDiscardableSharedMemoryManagerChunkSizeTest,
+     FeatureSetsSegmentSize) {
+  const size_t page_size = base::GetPageSize();
+  size_t default_size = 0;
+  {
+    base::test::ScopedFeatureList features;
+    features.InitAndDisableFeature(base::features::kCobaltDiscardableChunkSize);
+    default_size =
+        ClientDiscardableSharedMemoryManager::GetAllocationSizeForTesting();
+  }
+  {
+    base::test::ScopedFeatureList features;
+    features.InitAndEnableFeatureWithParameters(
+        base::features::kCobaltDiscardableChunkSize, {{kChunkKbParam, "1024"}});
+#if defined(ARCH_CPU_32_BITS)
+    EXPECT_EQ(
+        ClientDiscardableSharedMemoryManager::GetAllocationSizeForTesting(),
+        1024u * 1024 - page_size);
+#else
+    // Ignored on 64-bit builds.
+    EXPECT_EQ(
+        ClientDiscardableSharedMemoryManager::GetAllocationSizeForTesting(),
+        default_size);
+#endif
+  }
+
+  ScopedTestFeatures on_64_bit({}, {}, /*on_64_bit=*/true);
+  {
+    // The default parameter is 1024.
+    base::test::ScopedFeatureList features;
+    features.InitAndEnableFeature(base::features::kCobaltDiscardableChunkSize);
+    EXPECT_EQ(
+        ClientDiscardableSharedMemoryManager::GetAllocationSizeForTesting(),
+        1024u * 1024 - page_size);
+  }
+  for (const char* kb : {"512", "1024", "16384"}) {
+    base::test::ScopedFeatureList features;
+    features.InitAndEnableFeatureWithParameters(
+        base::features::kCobaltDiscardableChunkSize, {{kChunkKbParam, kb}});
+    size_t expected = 0;
+    ASSERT_TRUE(base::StringToSizeT(kb, &expected));
+    EXPECT_EQ(
+        ClientDiscardableSharedMemoryManager::GetAllocationSizeForTesting(),
+        expected * 1024 - page_size)
+        << kb;
+  }
+  // Out-of-range, negative and (with 4 KiB or larger pages) partial-page
+  // values are ignored.
+  std::vector<const char*> ignored = {"0", "511", "16385", "-1"};
+  if (page_size > 1024) {
+    ignored.push_back("513");
+  }
+  for (const char* kb : ignored) {
+    base::test::ScopedFeatureList features;
+    features.InitAndEnableFeatureWithParameters(
+        base::features::kCobaltDiscardableChunkSize, {{kChunkKbParam, kb}});
+    EXPECT_EQ(
+        ClientDiscardableSharedMemoryManager::GetAllocationSizeForTesting(),
+        default_size)
+        << kb;
+  }
+}
+
+// Enables kCobaltDiscardableChunkSize at 1024 KiB, also on 64-bit builds,
+// before the fixture's task environment starts threads.
+class ScopedChunkSize1024 {
+ protected:
+  ScopedChunkSize1024() {
+    features_.InitAndEnableFeatureWithParameters(
+        base::features::kCobaltDiscardableChunkSize, {{kChunkKbParam, "1024"}});
+  }
+
+ private:
+  ScopedTestFeatures on_64_bit_{{}, {}, /*on_64_bit=*/true};
+  base::test::ScopedFeatureList features_;
+};
+
+class ClientDiscardableSharedMemoryManagerChunkSizeAllocTest
+    : public ScopedChunkSize1024,
+      public testing::Test {
+ protected:
+  base::test::TaskEnvironment task_env_{
+      base::test::TaskEnvironment::MainThreadType::UI,
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+};
+
+TEST_F(ClientDiscardableSharedMemoryManagerChunkSizeAllocTest,
+       NewSegmentHasChunkPayload) {
+  auto client =
+      base::MakeRefCounted<TestClientDiscardableSharedMemoryManager>();
+  auto memory = client->AllocateLockedDiscardableMemory(base::GetPageSize());
+  ASSERT_TRUE(memory);
+  // A 1 MiB mapping: 1 MiB less the header page of payload.
+  EXPECT_EQ(client->GetSize(), 1024u * 1024 - base::GetPageSize());
+  EXPECT_EQ(client->live_segment_count(), 1u);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
 }  // namespace discardable_memory
