@@ -30,7 +30,8 @@ vpython3 pull_uma_histogram_set_via_cdp.py [OPTIONS]
 #### Command-line Arguments
 
 *   `--histogram-file` (type: `str`)
-    Path to a text file containing a list of histograms to query, one per line.
+    Path to a text file with one histogram name per line. A line ending in `*`
+    matches a name prefix. Each histogram is reported once.
 *   `--no-manage-cobalt` (action: `store_true`)
     If set, the script will not attempt to start or stop the Cobalt process.
     This is the default and only supported behavior on Linux.
@@ -42,6 +43,8 @@ vpython3 pull_uma_histogram_set_via_cdp.py [OPTIONS]
     the script sends the `--url` as a VIEW intent to the package instead, so
     apps with a different launch activity start too. Pass an empty string to
     force the VIEW intent.
+*   `--serial` (type: `str`)
+    (Android only) The device to use. Sets `ANDROID_SERIAL` for `adb`.
 *   `--platform` (choices: `android`, `linux`, default: `android`)
     The platform the script is targeting.
 *   `--poll-interval-s` (type: `float`, default: `30.0`)
@@ -49,22 +52,23 @@ vpython3 pull_uma_histogram_set_via_cdp.py [OPTIONS]
 *   `--duration-s` (type: `float`, default: `0`)
     Stop polling after this many seconds. `0` polls until Ctrl+C.
 *   `--port` (type: `int`, default: `9222`)
-    The remote debugging port that Cobalt is listening on.
+    The local DevTools port. On Android, it is forwarded to the app with
+    `adb forward`.
 *   `--output-file` (type: `str`)
-    Path to a file to log the histogram data to. The data will be saved in a
-    CSV-like format with the timestamp, histogram name, and JSON data.
+    Path to a file to save the histogram data to (overwritten). Each poll
+    starts with a `# poll <n> <time> OK: ...` or `... FAILED: <reason>` line.
 *   `--url` (type: `str`)
     (Android only) The target URL for Cobalt to navigate to on launch.
 *   `-q`, `--quiet` (action: `store_true`)
     If set, suppresses all non-essential print output. Useful for cleaner logs
     or for running in automated scripts.
 
-On Android, the script runs plain `adb` commands, so set `ANDROID_SERIAL` when
-more than one device is connected. For example, to poll the storage histograms
-of YouTube on Android TV twice from its home screen and then stop:
+For example, to poll the storage histograms of YouTube on Android TV twice from
+its home screen and then stop:
 
 ```bash
-ANDROID_SERIAL=<serial> vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py \
+vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py \
+    --serial=<serial> \
     --package-name=com.google.android.youtube.tv \
     --url='https://www.youtube.com/tv' \
     --histogram-file=cobalt/tools/uma/storage_histograms.txt \
@@ -72,11 +76,23 @@ ANDROID_SERIAL=<serial> vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp
     --output-file=uma.txt
 ```
 
+Notes:
+
+*   Each poll is one `Browser.getHistograms` call on the DevTools browser
+    target, so its values are one snapshot and a busy or backgrounded page
+    cannot block it. A failed poll is written as `FAILED`, and the script then
+    exits with status 1.
+*   Values are cumulative since the app started, plus the samples that Cobalt
+    merges at startup from older `.pma` files in `BrowserStabilityMetrics`
+    (see `Cobalt.StabilityMetrics.PriorPmaFilesMergedCount`).
+*   Cobalt records its startup storage samples 10 s after startup, so the first
+    poll usually does not contain them.
+
 ### Verifying Cobalt Memory Breakdown Metrics via CDP
 
 Cobalt integrates real-time live memory metrics, session median (P50) breakdown histograms, and time-windowed peak guardrails directly into the Chrome DevTools Protocol (`Performance.getMetrics`).
 
-When `pull_uma_histogram_set_via_cdp.py` runs, it issues `Performance.enable` and `Performance.getMetrics` on every polling cycle, printing the full dual-stream memory metrics without requiring any external metric list files.
+When `pull_uma_histogram_set_via_cdp.py` runs without `--quiet`, it issues `Performance.enable` and `Performance.getMetrics` on the page after every histogram poll, printing the full dual-stream memory metrics without requiring any external metric list files.
 
 #### Step 1: Launch Cobalt with Remote Debugging
 
@@ -118,9 +134,6 @@ When `pull_uma_histogram_set_via_cdp.py` runs, it issues `Performance.enable` an
 On each polling iteration, the script will output the Performance metrics block containing both **Live instantaneous** memory values and **Session P50 / Peak** guardrails:
 
 ```text
-Connected to WebSocket: ws://127.0.0.1:9222/devtools/page/...
-Enabled Performance domain (ID: 1)
-
 Performance Metrics for https://www.youtube.com/tv:
   JSHeapUsedSize: 14581348
   JSHeapTotalSize: 16998400
@@ -145,7 +158,7 @@ Performance Metrics for https://www.youtube.com/tv:
 #### Handshake status 403 Forbidden
 
 If you see an error similar to this:
-`An error occurred: Handshake status 403 Forbidden ... Rejected an incoming WebSocket connection`
+`# poll 1 ... FAILED: Handshake status 403 Forbidden ... Rejected an incoming WebSocket connection`
 
 This means the running Cobalt instance is rejecting the connection from the script. To fix this, you must launch Cobalt with the correct flags to enable the remote debugging port and allow connections from remote origins. The method for this differs by platform.
 
@@ -183,8 +196,8 @@ A script to read the data file generated by the puller script, calculate key sta
 ### Features
 
 *   **Percentile Analysis:** Calculates the 25th, 50th, 75th, 95th, and 99th percentiles to summarize the distribution of histogram data.
-*   **Data Filtering:** Skips any histogram that contains no data (i.e., where the total `count` of values is zero) to ensure that the analysis and visualizations are meaningful.
-*   **Clear Console Output:** Prints a human-readable summary for each histogram at each timestamp.
+*   **Data Filtering:** Skips any histogram that contains no data (i.e., where the total `count` of values is zero) to ensure that the analysis and visualizations are meaningful. Lines of the histogram list that matched no histogram are printed as `no data`.
+*   **Clear Console Output:** Prints a human-readable summary for each histogram in each poll, labeled with the poll number and time. Failed polls are printed too.
 *   **Data Visualization:** Can generate and save line graphs plotting the percentiles over time for each histogram.
 
 ### Prerequisites
@@ -205,7 +218,7 @@ python3 interpret_uma_histogram.py [INPUT_FILE] [OPTIONS]
 *   `input_file` (positional)
     The path to the UMA histogram data file generated by the puller script (e.g., `test-uma-out.txt`).
 *   `--visualize` (action: `store_true`)
-    If set, the script will generate and save PNG plots of the percentile data over time. A separate plot is created for each histogram.
+    If set, the script will generate and save PNG plots of the percentile data over time in the current directory. A separate plot is created for each histogram.
 
 ### Example
 
@@ -233,4 +246,24 @@ The script performs the following steps:
 
 2.  **Walk Through Buckets Cumulatively:** The script iterates through the histogram's buckets in order, adding up the `count` of values in each bucket until the cumulative count meets or exceeds the calculated rank.
 
-3.  **Select the Value from the Bucket:** Once the target bucket is found, the script uses that bucket's `high` value as the percentile value. This provides a strong approximation of the true percentile.
+3.  **Select the Value from the Bucket:** The script interpolates linearly
+    inside the bucket's `[low, high)` range. A bucket of width 1 (enums,
+    booleans, small counts) gives its exact `low` value, a single sample gives
+    its exact value (`sum`), and the overflow bucket gives `>= low`. The mean
+    (`sum / count`), and for width-1 histograms the count of each value, are
+    printed too.
+
+---
+
+## 3. Related Tools in `cobalt/tools`
+
+*   `cdp_dump_uma.py` writes all histograms from one `Browser.getHistograms`
+    call as `{"metadata": {...}, "histograms": [...]}`. `--serial` sets up and
+    removes the `adb forward`, and `--filter` uses the same rule as the
+    histogram list. It exits with status 1 on errors.
+*   `verify_pma_disk_usage.py` checks the logical size of the `.pma` files,
+    the size that Cobalt's budget counts (`du` is informational). It reads them
+    through `run-as <package>`, so the app must be debuggable (or the device
+    rooted). Exit status: `0` within budget, `1` exceeded, `2` could not
+    measure, which includes any failed `--poll` poll. `--stress-launches` kills
+    the app as soon as each launch creates a new `.pma` file.
