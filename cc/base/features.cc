@@ -95,8 +95,14 @@ BASE_FEATURE(kReclaimOldPrepaintTiles,
              "ReclaimOldPrepaintTiles",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-const base::FeatureParam<int> kReclaimDelayInSeconds{&kSmallerInterestArea,
-                                                     "reclaim_delay_s", 30};
+const base::FeatureParam<int> kReclaimDelayInSeconds{
+    &kSmallerInterestArea, "reclaim_delay_s",
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+    2
+#else
+    30
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+};
 
 // This feature can be removed once M136 hits stable as long as no issues are
 // reported that require it to be disabled in finch.

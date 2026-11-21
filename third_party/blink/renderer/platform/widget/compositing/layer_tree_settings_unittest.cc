@@ -69,4 +69,13 @@ TEST(LayerTreeSettings, CobaltForceGpuMemAvailableFeature) {
 }
 #endif
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+TEST(LayerTreeSettings, CobaltReleasesHiddenLayerTiles) {
+  cc::LayerTreeSettings settings = GenerateLayerTreeSettings(
+      /*is_threaded=*/true, /*is_for_embedded_frame=*/false,
+      /*is_for_scalable_page=*/false, gfx::Size(1920, 1080), 1.f);
+  EXPECT_TRUE(settings.release_tile_resources_for_hidden_layers);
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+
 }  // namespace blink

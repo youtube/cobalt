@@ -531,9 +531,15 @@ void TileManager::TrimPrepaintTiles() {
     // practice, as of 2023, the memory policy generally doesn't allow tiles are
     // not in the SOON bin to be rasterized anyway, but this is to ensure that
     // we are not wasting CPU and GPU time.
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+    bool eligible =
+        prioritized_tile.priority().priority_bin > TilePriority::NOW &&
+        TilePriorityViolatesMemoryPolicy(prioritized_tile.priority());
+#else
     bool eligible =
         prioritized_tile.priority().priority_bin > TilePriority::SOON &&
         TilePriorityViolatesMemoryPolicy(prioritized_tile.priority());
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
     if (!eligible) {
       continue;
     }
