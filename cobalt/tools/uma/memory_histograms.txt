@@ -179,6 +179,13 @@ Memory.Experimental.Browser2.Skia.PurgeableSize
 Memory.Experimental.Browser2.Skia.Small.SkGlyphCache
 Memory.Experimental.Browser2.Skia.SkResourceCache
 Memory.Experimental.Browser2.Small.FontCaches
+Memory.Experimental.Browser2.Small.ParkableImage.OnDiskSize
+Memory.Experimental.Browser2.Small.ParkableImage.TotalSize
+Memory.Experimental.Browser2.Small.ParkableImage.UnparkedSize
+Memory.Experimental.Browser2.Small.ParkableString.CompressedSize
+Memory.Experimental.Browser2.Small.ParkableString.OnDiskSize
+Memory.Experimental.Browser2.Small.ParkableString.SavingsSize
+Memory.Experimental.Browser2.Small.ParkableString.TotalSize
 Memory.Experimental.Browser2.Sync
 Memory.Experimental.Browser2.V8
 Memory.Experimental.Browser2.V8.AllocatedObjects

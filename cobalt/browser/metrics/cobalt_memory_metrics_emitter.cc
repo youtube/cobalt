@@ -151,6 +151,48 @@ const CobaltMemoryMetricsEmitter::Metric kAllocatorDumpNamesForMetrics[] = {
      kAllocatedObjectsSize,
      CobaltMemoryMetricsEmitter::EmitTo::kSizeInUkmAndUma,
      {}},
+    {"parkable_images",
+     "ParkableImage.OnDiskSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kSmallFine,
+     "on_disk_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"parkable_images",
+     "ParkableImage.UnparkedSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kSmallFine,
+     "unparked_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"parkable_images",
+     "ParkableImage.TotalSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kSmallFine,
+     "total_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"parkable_strings",
+     "ParkableString.CompressedSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kSmallFine,
+     "compressed_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"parkable_strings",
+     "ParkableString.OnDiskSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kSmallFine,
+     "on_disk_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"parkable_strings",
+     "ParkableString.SavingsSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kSmallFine,
+     "savings_size",
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
+    {"parkable_strings",
+     "ParkableString.TotalSize",
+     CobaltMemoryMetricsEmitter::MetricSize::kSmallFine,
+     kSize,
+     CobaltMemoryMetricsEmitter::EmitTo::kSizeInUmaOnly,
+     {}},
     {"partition_alloc",
      "PartitionAlloc",
      CobaltMemoryMetricsEmitter::MetricSize::kLarge,
@@ -312,6 +354,7 @@ static const char* MetricSizeToVersionSuffix(
     case CobaltMemoryMetricsEmitter::MetricSize::kLarge:
       return kVersionSuffixNormal;
     case CobaltMemoryMetricsEmitter::MetricSize::kSmall:
+    case CobaltMemoryMetricsEmitter::MetricSize::kSmallFine:
       return kVersionSuffixSmall;
     case CobaltMemoryMetricsEmitter::MetricSize::kTiny:
       return kVersionSuffixTiny;
@@ -571,6 +614,9 @@ void CobaltMemoryMetricsEmitter::EmitProcessUma(
       break;
     case MetricSize::kSmall:
       base::UmaHistogramMemoryKB(uma_name, static_cast<int>(value / kKiB));
+      break;
+    case MetricSize::kSmallFine:
+      base::UmaHistogramCounts100000(uma_name, static_cast<int>(value / kKiB));
       break;
     case MetricSize::kTiny:
       base::UmaHistogramCustomCounts(uma_name, static_cast<int>(value), 1,

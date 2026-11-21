@@ -71,6 +71,10 @@
 #include "base/android/pre_freeze_background_memory_trimmer.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/platform/graphics/parkable_image_manager.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace base {
 class LazyNow;
 }  // namespace base
@@ -971,6 +975,11 @@ void MainThreadSchedulerImpl::SetRendererHidden(bool hidden) {
   }
   helper_.CheckOnValidThread();
   main_thread_only().renderer_hidden = hidden;
+#if BUILDFLAG(IS_COBALT)
+  if (ParkableImageManager::IsUnparkedBudgetEnabled()) {
+    ParkableImageManager::Instance().SetRendererHidden(hidden);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
@@ -999,6 +1008,11 @@ void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
   UpdatePolicy();
 
   ParkableStringManager::Instance().SetRendererBackgrounded(backgrounded);
+#if BUILDFLAG(IS_COBALT)
+  if (ParkableImageManager::IsUnparkedBudgetEnabled()) {
+    ParkableImageManager::Instance().SetRendererBackgrounded(backgrounded);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   memory_purge_manager_.SetRendererBackgrounded(backgrounded);
 }
 

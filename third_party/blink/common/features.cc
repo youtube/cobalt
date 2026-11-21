@@ -458,6 +458,23 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
              "CobaltBypassHTMLPreloadScanner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Keeps up to CobaltParkableMemoryOptimization_max_unparked_kb of encoded
+// ParkableImage data in RAM while the renderer is in the foreground, and parks
+// only the least recently used images above that budget to the swap file.
+// Everything parkable is parked while the renderer is backgrounded or hidden,
+// and on critical memory pressure.
+BASE_FEATURE(kCobaltParkableMemoryOptimization,
+             "CobaltParkableMemoryOptimization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so the param name
+// is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+BASE_FEATURE_PARAM(int,
+                   kCobaltParkableMemoryOptimizationMaxUnparkedKb,
+                   &kCobaltParkableMemoryOptimization,
+                   "CobaltParkableMemoryOptimization_max_unparked_kb",
+                   2048);
+
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
 // hardware-composited cc::PictureLayers rather than triggering CPU repaints.
