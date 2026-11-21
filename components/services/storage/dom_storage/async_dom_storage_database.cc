@@ -20,6 +20,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
+#include "build/build_config.h"
 #include "third_party/leveldatabase/env_chromium.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 #include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
@@ -75,51 +76,63 @@ void AsyncDomStorageDatabase::RewriteDB(StatusCallback callback) {
       std::move(callback), base::SequencedTaskRunner::GetCurrentDefault()));
 }
 
+#if BUILDFLAG(IS_COBALT)
+void AsyncDomStorageDatabase::ReopenDB(StatusCallback callback) {
+  DCHECK(database_);
+  database_.PostTaskWithThisObject(base::BindOnce(
+      [](StatusCallback callback,
+         scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
+         DomStorageDatabase* db) {
+        callback_task_runner->PostTask(
+            FROM_HERE, base::BindOnce(std::move(callback), db->Reopen()));
+      },
+      std::move(callback), base::SequencedTaskRunner::GetCurrentDefault()));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void AsyncDomStorageDatabase::RunBatchDatabaseTasks(
     RunBatchTasksContext context,
     std::vector<BatchDatabaseTask> tasks,
     base::OnceCallback<void(leveldb::Status)> callback) {
-  RunDatabaseTask(base::BindOnce(
-                      [](RunBatchTasksContext context,
-                         std::vector<BatchDatabaseTask> tasks,
-                         const DomStorageDatabase& db) {
-                        leveldb::WriteBatch batch;
-                        // TODO(crbug.com/40245293): Remove this after debugging
-                        // is complete.
-                        base::debug::Alias(&context);
-                        size_t batch_task_count = tasks.size();
-                        size_t iteration_count = 0;
-                        size_t current_batch_size = 0;
-                        base::debug::Alias(&batch_task_count);
-                        base::debug::Alias(&iteration_count);
-                        base::debug::Alias(&current_batch_size);
-                        for (auto& task : tasks) {
-                          iteration_count++;
-                          std::move(task).Run(&batch, db);
-                          size_t growth =
-                              batch.ApproximateSize() - current_batch_size;
-                          base::UmaHistogramCustomCounts(
-                              "Storage.DomStorage."
-                              "BatchTaskGrowthSizeBytes",
-                              growth, 1, 100 * 1024 * 1024, 50);
-                          const size_t kTargetBatchSizesMB[] = {20, 100, 500};
-                          for (size_t batch_size_mb : kTargetBatchSizesMB) {
-                            size_t target_batch_size =
-                                batch_size_mb * 1024 * 1024;
-                            if (current_batch_size < target_batch_size &&
-                                batch.ApproximateSize() >= target_batch_size) {
-                              base::UmaHistogramCounts10000(
-                                  base::StringPrintf("Storage.DomStorage."
-                                                     "IterationsToReach%zuMB",
-                                                     batch_size_mb),
-                                  iteration_count);
-                            }
-                          }
-                        }
-                        return db.Commit(&batch);
-                      },
-                      context, std::move(tasks)),
-                  std::move(callback));
+  RunDatabaseTask(
+      base::BindOnce(
+          [](RunBatchTasksContext context, std::vector<BatchDatabaseTask> tasks,
+             const DomStorageDatabase& db) {
+            leveldb::WriteBatch batch;
+            // TODO(crbug.com/40245293): Remove this after debugging
+            // is complete.
+            base::debug::Alias(&context);
+            size_t batch_task_count = tasks.size();
+            size_t iteration_count = 0;
+            size_t current_batch_size = 0;
+            base::debug::Alias(&batch_task_count);
+            base::debug::Alias(&iteration_count);
+            base::debug::Alias(&current_batch_size);
+            for (auto& task : tasks) {
+              iteration_count++;
+              std::move(task).Run(&batch, db);
+              size_t growth = batch.ApproximateSize() - current_batch_size;
+              base::UmaHistogramCustomCounts(
+                  "Storage.DomStorage."
+                  "BatchTaskGrowthSizeBytes",
+                  growth, 1, 100 * 1024 * 1024, 50);
+              const size_t kTargetBatchSizesMB[] = {20, 100, 500};
+              for (size_t batch_size_mb : kTargetBatchSizesMB) {
+                size_t target_batch_size = batch_size_mb * 1024 * 1024;
+                if (current_batch_size < target_batch_size &&
+                    batch.ApproximateSize() >= target_batch_size) {
+                  base::UmaHistogramCounts10000(
+                      base::StringPrintf("Storage.DomStorage."
+                                         "IterationsToReach%zuMB",
+                                         batch_size_mb),
+                      iteration_count);
+                }
+              }
+            }
+            return db.Commit(&batch);
+          },
+          context, std::move(tasks)),
+      std::move(callback));
 }
 
 void AsyncDomStorageDatabase::AddCommitter(Committer* source) {
@@ -180,7 +193,17 @@ void AsyncDomStorageDatabase::InitiateCommit(Committer* source) {
               }
 
               if (commit.clear_all_first) {
+#if BUILDFLAG(IS_COBALT)
+                leveldb::Status delete_status =
+                    db.DeletePrefixed(commit.prefix, &batch);
+                if (!delete_status.ok() &&
+                    base::FeatureList::IsEnabled(
+                        base::features::kCobaltLocalStorageErrorRecovery)) {
+                  return delete_status;
+                }
+#else
                 db.DeletePrefixed(commit.prefix, &batch);
+#endif
               }
               for (const auto& entry : commit.entries_to_add) {
                 batch.Put(leveldb_env::MakeSlice(entry.key),
@@ -190,8 +213,18 @@ void AsyncDomStorageDatabase::InitiateCommit(Committer* source) {
                 batch.Delete(leveldb_env::MakeSlice(key));
               }
               if (commit.copy_to_prefix) {
+#if BUILDFLAG(IS_COBALT)
+                leveldb::Status copy_status = db.CopyPrefixed(
+                    commit.prefix, commit.copy_to_prefix.value(), &batch);
+                if (!copy_status.ok() &&
+                    base::FeatureList::IsEnabled(
+                        base::features::kCobaltLocalStorageErrorRecovery)) {
+                  return copy_status;
+                }
+#else
                 db.CopyPrefixed(commit.prefix, commit.copy_to_prefix.value(),
                                 &batch);
+#endif
               }
             }
             return db.Commit(&batch);
@@ -208,8 +241,9 @@ void AsyncDomStorageDatabase::OnDatabaseOpened(
   std::vector<BoundDatabaseTask> tasks;
   std::swap(tasks, tasks_to_run_on_open_);
   if (status.ok()) {
-    for (auto& task : tasks)
+    for (auto& task : tasks) {
       database_.PostTaskWithThisObject(std::move(task));
+    }
   }
   std::move(callback).Run(status);
 }

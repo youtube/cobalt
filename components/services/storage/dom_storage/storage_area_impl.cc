@@ -16,6 +16,10 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "third_party/leveldatabase/env_chromium.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage {
 
 BASE_FEATURE(kDomStorageSmartFlushing,
@@ -29,6 +33,13 @@ void StorageAreaImpl::Delegate::PrepareToCommit(
     std::vector<DomStorageDatabase::Key>* extra_keys_to_delete) {}
 
 void StorageAreaImpl::Delegate::OnMapLoaded(leveldb::Status) {}
+
+#if BUILDFLAG(IS_COBALT)
+bool StorageAreaImpl::Delegate::ShouldKeepDatabaseOnMapLoadError(
+    leveldb::Status) {
+  return false;
+}
+#endif
 
 bool StorageAreaImpl::s_aggressive_flushing_enabled_ = false;
 
@@ -45,8 +56,9 @@ base::TimeDelta StorageAreaImpl::RateLimiter::ComputeTimeNeeded() const {
 base::TimeDelta StorageAreaImpl::RateLimiter::ComputeDelayNeeded(
     const base::TimeDelta elapsed_time) const {
   base::TimeDelta time_needed = ComputeTimeNeeded();
-  if (time_needed > elapsed_time)
+  if (time_needed > elapsed_time) {
     return time_needed - elapsed_time;
+  }
   return base::TimeDelta();
 }
 
@@ -87,8 +99,9 @@ StorageAreaImpl::StorageAreaImpl(AsyncDomStorageDatabase* database,
 
 StorageAreaImpl::~StorageAreaImpl() {
   DCHECK(!has_pending_load_tasks());
-  if (commit_batch_)
+  if (commit_batch_) {
     CommitChanges();
+  }
   if (database_) {
     database_->RemoveCommitter(this);
   }
@@ -155,6 +168,12 @@ void StorageAreaImpl::EnableAggressiveCommitDelay() {
   s_aggressive_flushing_enabled_ = true;
 }
 
+#if BUILDFLAG(IS_COBALT)
+void StorageAreaImpl::DisableAggressiveCommitDelayForTesting() {
+  s_aggressive_flushing_enabled_ = false;
+}
+#endif
+
 void StorageAreaImpl::ScheduleImmediateCommit() {
   if (!on_load_complete_tasks_.empty()) {
     LoadMap(base::BindOnce(&StorageAreaImpl::ScheduleImmediateCommit,
@@ -168,32 +187,85 @@ void StorageAreaImpl::ScheduleImmediateCommit() {
   CommitChanges();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void StorageAreaImpl::ScheduleResyncCommitAfterDatabaseReopen(bool immediate) {
+  if (!database_ || map_state_ != MapState::LOADED_KEYS_AND_VALUES) {
+    return;
+  }
+  if (loaded_empty_due_to_io_error_) {
+    const bool has_outage_mutations =
+        !keys_values_map_.empty() ||
+        !keys_deleted_after_load_io_error_.empty() ||
+        cleared_all_after_load_io_error_ || commit_batch_ != nullptr ||
+        has_unsynced_commit_error_;
+    if (!has_outage_mutations) {
+      if (immediate && !has_pending_load_tasks() &&
+          commit_batches_in_flight_ == 0) {
+        loaded_empty_due_to_io_error_ = false;
+        map_state_ = MapState::UNLOADED;
+      }
+      return;
+    }
+    CreateCommitBatchIfNeeded();
+    commit_batch_->clear_all_first = cleared_all_after_load_io_error_;
+    commit_batch_->changed_values.clear();
+    for (const auto& [key, _] : keys_values_map_) {
+      commit_batch_->changed_keys.insert(key);
+    }
+    for (const auto& key : keys_deleted_after_load_io_error_) {
+      commit_batch_->changed_keys.insert(key);
+    }
+    if (immediate) {
+      ScheduleImmediateCommit();
+    }
+    return;
+  }
+  if (!has_committed_data_ && !commit_batch_ && !has_unsynced_commit_error_) {
+    return;
+  }
+  CreateCommitBatchIfNeeded();
+  commit_batch_->clear_all_first = true;
+  commit_batch_->changed_values.clear();
+  for (const auto& [key, _] : keys_values_map_) {
+    commit_batch_->changed_keys.insert(key);
+  }
+  if (immediate) {
+    ScheduleImmediateCommit();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void StorageAreaImpl::OnMemoryDump(const std::string& name,
                                    base::trace_event::ProcessMemoryDump* pmd) {
-  if (!IsMapLoaded())
+  if (!IsMapLoaded()) {
     return;
+  }
 
   const char* system_allocator_name =
       base::trace_event::MemoryDumpManager::GetInstance()
           ->system_allocator_pool_name();
   if (commit_batch_) {
     size_t data_size = 0;
-    for (const auto& iter : commit_batch_->changed_values)
+    for (const auto& iter : commit_batch_->changed_values) {
       data_size += iter.first.size() + iter.second.size();
-    for (const auto& key : commit_batch_->changed_keys)
+    }
+    for (const auto& key : commit_batch_->changed_keys) {
       data_size += key.size();
+    }
 
     auto* commit_batch_mad = pmd->CreateAllocatorDump(name + "/commit_batch");
     commit_batch_mad->AddScalar(
         base::trace_event::MemoryAllocatorDump::kNameSize,
         base::trace_event::MemoryAllocatorDump::kUnitsBytes, data_size);
-    if (system_allocator_name)
+    if (system_allocator_name) {
       pmd->AddSuballocation(commit_batch_mad->guid(), system_allocator_name);
+    }
   }
 
   // Do not add storage map usage if less than 1KB.
-  if (memory_used_ < 1024)
+  if (memory_used_ < 1024) {
     return;
+  }
 
   auto* map_mad = pmd->CreateAllocatorDump(name + "/storage_map");
   map_mad->AddScalar(base::trace_event::MemoryAllocatorDump::kNameSize,
@@ -203,16 +275,29 @@ void StorageAreaImpl::OnMemoryDump(const std::string& name,
                      map_state_ == MapState::LOADED_KEYS_ONLY
                          ? "keys_only"
                          : "keys_and_values");
-  if (system_allocator_name)
+  if (system_allocator_name) {
     pmd->AddSuballocation(map_mad->guid(), system_allocator_name);
+  }
 }
 
 void StorageAreaImpl::PurgeMemory() {
+#if BUILDFLAG(IS_COBALT)
+  if (!IsMapLoaded() ||  // We're not using any memory.
+      commit_batch_ ||   // We leave things alone with changes pending.
+      (base::FeatureList::IsEnabled(
+           base::features::kCobaltLocalStorageErrorRecovery) &&
+       (commit_batches_in_flight_ > 0 || has_unsynced_commit_error_ ||
+        loaded_empty_due_to_io_error_)) ||
+      !database_) {  // Don't purge anything if we're not backed by a database.
+    return;
+  }
+#else
   if (!IsMapLoaded() ||  // We're not using any memory.
       commit_batch_ ||   // We leave things alone with changes pending.
       !database_) {  // Don't purge anything if we're not backed by a database.
     return;
   }
+#endif
 
   map_state_ = MapState::UNLOADED;
   memory_used_ = 0;
@@ -228,8 +313,9 @@ void StorageAreaImpl::AddObserver(
     mojo::PendingRemote<blink::mojom::StorageAreaObserver> observer) {
   mojo::Remote<blink::mojom::StorageAreaObserver> observer_remote(
       std::move(observer));
-  if (cache_mode_ == CacheMode::KEYS_AND_VALUES)
+  if (cache_mode_ == CacheMode::KEYS_AND_VALUES) {
     observer_remote->ShouldSendOldValueOnMutations(false);
+  }
   observers_.Add(std::move(observer_remote));
 }
 
@@ -259,8 +345,9 @@ void StorageAreaImpl::Put(
           // NOTE: Even though the key is not changing, we have to acknowledge
           // the change request, as clients may rely on this acknowledgement for
           // caching behavior.
-          for (const auto& observer : observers_)
+          for (const auto& observer : observers_) {
             observer->KeyChanged(key, value, value, source);
+          }
           std::move(callback).Run(true);  // Key already has this value.
           return;
         }
@@ -295,8 +382,9 @@ void StorageAreaImpl::Put(
         // NOTE: Even though the key is not changing, we have to acknowledge
         // the change request, as clients may rely on this acknowledgement for
         // caching behavior.
-        for (const auto& observer : observers_)
+        for (const auto& observer : observers_) {
           observer->KeyChanged(key, value, value, source);
+        }
         std::move(callback).Run(true);  // Key already has this value.
         return;
       }
@@ -318,8 +406,9 @@ void StorageAreaImpl::Put(
           "The quota in browser cannot exceed when there is only one "
           "renderer.");
     } else {
-      for (const auto& observer : observers_)
+      for (const auto& observer : observers_) {
         observer->KeyChangeFailed(key, source);
+      }
       std::move(callback).Run(false);
     }
     return;
@@ -330,23 +419,32 @@ void StorageAreaImpl::Put(
     // No need to store values in |commit_batch_| if values are already
     // available in |keys_values_map_|, since CommitChanges() will take values
     // from there.
-    if (map_state_ == MapState::LOADED_KEYS_ONLY)
+    if (map_state_ == MapState::LOADED_KEYS_ONLY) {
       commit_batch_->changed_values[key] = value;
-    else
+    } else {
       commit_batch_->changed_keys.insert(key);
+    }
 
     commit_batch_->put_timestamps.push_back(base::TimeTicks::Now());
   }
 
-  if (map_state_ == MapState::LOADED_KEYS_ONLY)
+  if (map_state_ == MapState::LOADED_KEYS_ONLY) {
     keys_only_map_[key] = value.size();
-  else
+  } else {
     keys_values_map_[key] = value;
+  }
+
+#if BUILDFLAG(IS_COBALT)
+  if (loaded_empty_due_to_io_error_) {
+    keys_deleted_after_load_io_error_.erase(key);
+  }
+#endif
 
   storage_used_ = new_storage_used;
   memory_used_ += new_item_memory - old_item_memory;
-  for (const auto& observer : observers_)
+  for (const auto& observer : observers_) {
     observer->KeyChanged(key, value, old_value, source);
+  }
   std::move(callback).Run(true);
 }
 
@@ -366,8 +464,9 @@ void StorageAreaImpl::Delete(
     return;
   }
 
-  if (database_)
+  if (database_) {
     CreateCommitBatchIfNeeded();
+  }
 
   std::vector<uint8_t> old_value;
   if (map_state_ == MapState::LOADED_KEYS_ONLY) {
@@ -376,8 +475,9 @@ void StorageAreaImpl::Delete(
       // NOTE: Even though the key is not changing, we have to acknowledge
       // the change request, as clients may rely on this acknowledgement for
       // caching behavior.
-      for (const auto& observer : observers_)
+      for (const auto& observer : observers_) {
         observer->KeyDeleted(key, std::nullopt, source);
+      }
       std::move(callback).Run(true);
       return;
     }
@@ -403,17 +503,26 @@ void StorageAreaImpl::Delete(
     storage_used_ -= key.size() + found->second;
     keys_only_map_.erase(found);
     memory_used_ -= key.size() + sizeof(size_t);
-    if (commit_batch_)
+    if (commit_batch_) {
       commit_batch_->changed_values[key] = std::vector<uint8_t>();
+    }
   } else {
     DCHECK_EQ(map_state_, MapState::LOADED_KEYS_AND_VALUES);
     auto found = keys_values_map_.find(key);
     if (found == keys_values_map_.end()) {
+#if BUILDFLAG(IS_COBALT)
+      if (loaded_empty_due_to_io_error_ && !cleared_all_after_load_io_error_ &&
+          commit_batch_) {
+        keys_deleted_after_load_io_error_.insert(key);
+        commit_batch_->changed_keys.insert(key);
+      }
+#endif
       // NOTE: Even though the key is not changing, we have to acknowledge
       // the change request, as clients may rely on this acknowledgement for
       // caching behavior.
-      for (const auto& observer : observers_)
+      for (const auto& observer : observers_) {
         observer->KeyDeleted(key, std::nullopt, source);
+      }
       std::move(callback).Run(true);
       return;
     }
@@ -421,12 +530,19 @@ void StorageAreaImpl::Delete(
     keys_values_map_.erase(found);
     memory_used_ -= key.size() + old_value.size();
     storage_used_ -= key.size() + old_value.size();
-    if (commit_batch_)
+#if BUILDFLAG(IS_COBALT)
+    if (loaded_empty_due_to_io_error_ && !cleared_all_after_load_io_error_) {
+      keys_deleted_after_load_io_error_.insert(key);
+    }
+#endif
+    if (commit_batch_) {
       commit_batch_->changed_keys.insert(key);
+    }
   }
 
-  for (auto& observer : observers_)
+  for (auto& observer : observers_) {
     observer->KeyDeleted(key, old_value, source);
+  }
   std::move(callback).Run(true);
 }
 
@@ -443,7 +559,13 @@ void StorageAreaImpl::DeleteAll(
     return;
   }
 
+#if BUILDFLAG(IS_COBALT)
+  bool already_empty =
+      IsMapLoadedAndEmpty() &&
+      (!loaded_empty_due_to_io_error_ || cleared_all_after_load_io_error_);
+#else
   bool already_empty = IsMapLoadedAndEmpty();
+#endif
 
   // Upgrade map state if needed.
   if (IsMapUpgradeNeeded()) {
@@ -451,12 +573,14 @@ void StorageAreaImpl::DeleteAll(
     map_state_ = MapState::LOADED_KEYS_AND_VALUES;
   }
 
-  if (new_observer)
+  if (new_observer) {
     AddObserver(std::move(new_observer));
+  }
 
   if (already_empty) {
-    for (const auto& observer : observers_)
+    for (const auto& observer : observers_) {
       observer->AllDeleted(/*was_nonempty=*/false, source);
+    }
     std::move(callback).Run(true);
     return;
   }
@@ -467,14 +591,21 @@ void StorageAreaImpl::DeleteAll(
     commit_batch_->changed_values.clear();
     commit_batch_->changed_keys.clear();
   }
+#if BUILDFLAG(IS_COBALT)
+  if (loaded_empty_due_to_io_error_) {
+    cleared_all_after_load_io_error_ = true;
+    keys_deleted_after_load_io_error_.clear();
+  }
+#endif
 
   keys_only_map_.clear();
   keys_values_map_.clear();
 
   storage_used_ = 0;
   memory_used_ = 0;
-  for (const auto& observer : observers_)
+  for (const auto& observer : observers_) {
     observer->AllDeleted(/*was_nonempty=*/true, source);
+  }
   std::move(callback).Run(/*success=*/true);
 }
 
@@ -506,8 +637,9 @@ void StorageAreaImpl::GetAll(
   // If the map is keys-only and empty, then no loading is necessary.
   if (IsMapLoadedAndEmpty()) {
     std::move(callback).Run(std::vector<blink::mojom::KeyValuePtr>());
-    if (new_observer)
+    if (new_observer) {
       AddObserver(std::move(new_observer));
+    }
     return;
   }
 
@@ -527,8 +659,9 @@ void StorageAreaImpl::GetAll(
     all.push_back(std::move(kv));
   }
   std::move(callback).Run(std::move(all));
-  if (new_observer)
+  if (new_observer) {
     AddObserver(std::move(new_observer));
+  }
 }
 
 base::OnceCallback<void(leveldb::Status)>
@@ -544,8 +677,9 @@ void StorageAreaImpl::SetCacheMode(CacheMode cache_mode) {
   }
   cache_mode_ = cache_mode;
   bool should_send_values = cache_mode == CacheMode::KEYS_ONLY_WHEN_POSSIBLE;
-  for (auto& observer : observers_)
+  for (auto& observer : observers_) {
     observer->ShouldSendOldValueOnMutations(should_send_values);
+  }
 
   // If the |keys_only_map_| is loaded and desired state needs values, no point
   // keeping around the map since the next change would require reload. On the
@@ -567,12 +701,14 @@ void StorageAreaImpl::Checkpoint() {
 }
 
 void StorageAreaImpl::OnConnectionError() {
-  if (!receivers_.empty())
+  if (!receivers_.empty()) {
     return;
+  }
   // If any tasks are waiting for load to complete, delay calling the
   // no_bindings_callback_ until all those tasks have completed.
-  if (!on_load_complete_tasks_.empty())
+  if (!on_load_complete_tasks_.empty()) {
     return;
+  }
   delegate_->OnNoBindings();
 }
 
@@ -587,8 +723,9 @@ void StorageAreaImpl::LoadMap(base::OnceClosure completion_callback) {
   if (map_state_ == MapState::LOADED_KEYS_ONLY) {
     DCHECK(on_load_complete_tasks_.empty());
     DCHECK(database_);
-    if (commit_batch_)
+    if (commit_batch_) {
       CommitChanges();
+    }
     // Make sure the keys only map is not used when on load tasks are in queue.
     // The changes to the area will be queued to on load tasks.
     keys_only_map_.clear();
@@ -642,6 +779,24 @@ void StorageAreaImpl::OnMapLoaded(
   // We proceed without using a backing store, nothing will be persisted but the
   // class is functional for the lifetime of the object.
   delegate_->OnMapLoaded(status);
+#if BUILDFLAG(IS_COBALT)
+  if (!status.ok()) {
+    if (delegate_->ShouldKeepDatabaseOnMapLoadError(status)) {
+      loaded_empty_due_to_io_error_ = true;
+      SetCacheMode(CacheMode::KEYS_AND_VALUES);
+    } else {
+      if (database_) {
+        database_->RemoveCommitter(this);
+      }
+      database_ = nullptr;
+      SetCacheMode(CacheMode::KEYS_AND_VALUES);
+    }
+  } else {
+    loaded_empty_due_to_io_error_ = false;
+    cleared_all_after_load_io_error_ = false;
+    keys_deleted_after_load_io_error_.clear();
+  }
+#else
   if (!status.ok()) {
     if (database_) {
       database_->RemoveCommitter(this);
@@ -649,9 +804,11 @@ void StorageAreaImpl::OnMapLoaded(
     database_ = nullptr;
     SetCacheMode(CacheMode::KEYS_AND_VALUES);
   }
+#endif
 
-  if (on_load_callback_for_testing_)
+  if (on_load_callback_for_testing_) {
     std::move(on_load_callback_for_testing_).Run();
+  }
 
   OnLoadComplete();
 }
@@ -660,8 +817,9 @@ void StorageAreaImpl::CalculateStorageAndMemoryUsed() {
   memory_used_ = 0;
   storage_used_ = 0;
 
-  for (auto& it : keys_values_map_)
+  for (auto& it : keys_values_map_) {
     memory_used_ += it.first.size() + it.second.size();
+  }
   storage_used_ = memory_used_;
 
   for (auto& it : keys_only_map_) {
@@ -695,13 +853,15 @@ void StorageAreaImpl::OnLoadComplete() {
 
   // We might need to call the no_bindings_callback_ here if bindings became
   // empty while waiting for load to complete.
-  if (receivers_.empty())
+  if (receivers_.empty()) {
     delegate_->OnNoBindings();
+  }
 }
 
 void StorageAreaImpl::CreateCommitBatchIfNeeded() {
-  if (commit_batch_)
+  if (commit_batch_) {
     return;
+  }
   DCHECK(database_);
 
   commit_batch_ = std::make_unique<CommitBatch>();
@@ -709,14 +869,16 @@ void StorageAreaImpl::CreateCommitBatchIfNeeded() {
 }
 
 void StorageAreaImpl::StartCommitTimer() {
-  if (!commit_batch_)
+  if (!commit_batch_) {
     return;
+  }
 
   // Start a timer to commit any changes that accrue in the batch, but only if
   // no commits are currently in flight. In that case the timer will be
   // started after the commits have happened.
-  if (commit_batches_in_flight_)
+  if (commit_batches_in_flight_) {
     return;
+  }
 
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE,
@@ -726,8 +888,9 @@ void StorageAreaImpl::StartCommitTimer() {
 }
 
 base::TimeDelta StorageAreaImpl::ComputeCommitDelay() const {
-  if (s_aggressive_flushing_enabled_)
+  if (s_aggressive_flushing_enabled_) {
     return base::Seconds(1);
+  }
 
   base::TimeDelta elapsed_time = base::TimeTicks::Now() - start_time_;
   base::TimeDelta delay =
@@ -760,6 +923,25 @@ StorageAreaImpl::CollectCommit() {
   DCHECK(IsMapLoaded()) << static_cast<int>(map_state_);
 
   commit_rate_limiter_.add_samples(1);
+
+#if BUILDFLAG(IS_COBALT)
+  if (has_unsynced_commit_error_ && !commit_batch_->copy_to_prefix &&
+      map_state_ == MapState::LOADED_KEYS_AND_VALUES &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltLocalStorageErrorRecovery)) {
+    commit_batch_->clear_all_first =
+        loaded_empty_due_to_io_error_ ? cleared_all_after_load_io_error_ : true;
+    commit_batch_->changed_values.clear();
+    for (const auto& [key, _] : keys_values_map_) {
+      commit_batch_->changed_keys.insert(key);
+    }
+    if (loaded_empty_due_to_io_error_) {
+      for (const auto& key : keys_deleted_after_load_io_error_) {
+        commit_batch_->changed_keys.insert(key);
+      }
+    }
+  }
+#endif
 
   // Commit all our changes in a single batch.
   AsyncDomStorageDatabase::Commit commit;
@@ -836,10 +1018,23 @@ StorageAreaImpl::CollectCommit() {
 void StorageAreaImpl::OnCommitComplete(leveldb::Status status) {
   has_committed_data_ = true;
   --commit_batches_in_flight_;
+#if BUILDFLAG(IS_COBALT)
+  if (status.ok()) {
+    if (commit_batches_in_flight_ == 0) {
+      has_unsynced_commit_error_ = false;
+      loaded_empty_due_to_io_error_ = false;
+      cleared_all_after_load_io_error_ = false;
+      keys_deleted_after_load_io_error_.clear();
+    }
+  } else {
+    has_unsynced_commit_error_ = true;
+  }
+#endif
   StartCommitTimer();
 
-  if (!status.ok())
+  if (!status.ok()) {
     SetCacheMode(CacheMode::KEYS_AND_VALUES);
+  }
 
   // Call before |DidCommit| as delegate can destroy this object.
   UnloadMapIfPossible();
@@ -885,8 +1080,9 @@ void StorageAreaImpl::UnloadMapIfPossible() {
 
 void StorageAreaImpl::DoForkOperation(
     const base::WeakPtr<StorageAreaImpl>& forked_area) {
-  if (!forked_area)
+  if (!forked_area) {
     return;
+  }
 
   DCHECK(IsMapLoaded());
   // TODO(dmurph): If these commits fails, then the disk could be in an
@@ -894,8 +1090,9 @@ void StorageAreaImpl::DoForkOperation(
   // will correctly delete the database?
   if (database_) {
     // All changes must be stored in the database before the copy operation.
-    if (has_changes_to_commit())
+    if (has_changes_to_commit()) {
       CommitChanges();
+    }
     CreateCommitBatchIfNeeded();
     commit_batch_->copy_to_prefix = forked_area->prefix_;
     CommitChanges();
