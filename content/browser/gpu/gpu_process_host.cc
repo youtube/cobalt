@@ -18,6 +18,7 @@
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -896,6 +897,14 @@ bool GpuProcessHost::Init() {
     options.message_pump_type = base::MessagePumpType::UI;
 #endif
     options.thread_type = base::ThreadType::kDisplayCritical;
+#if BUILDFLAG(IS_COBALT) && (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD))
+    // The in-process GPU thread both rasterizes tiles and draws/swaps frames;
+    // see base::features::kCobaltGpuThreadRealtimePriority.
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltGpuThreadRealtimePriority)) {
+      options.thread_type = base::ThreadType::kRealtimeAudio;
+    }
+#endif
     in_process_gpu_thread_->StartWithOptions(std::move(options));
   } else if (!LaunchGpuProcess()) {
     return false;
