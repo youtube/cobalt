@@ -36,6 +36,13 @@ public class StarboardBridge extends BaseStarboardBridge {
       String[] args,
       String startDeepLink) {
     super(appContext, activityHolder, serviceHolder, args, startDeepLink);
+    StarboardMediaSession.initialize(appContext);
+  }
+
+  @Override
+  protected void beforeSuspend() {
+    StarboardMediaSession.deactivateMediaSession();
+    super.beforeSuspend();
   }
 
   @Override

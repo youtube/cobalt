@@ -14,16 +14,12 @@
 
 #include "starboard/android/shared/android_media_session_client.h"
 
-#include "starboard/common/log.h"
-
 namespace starboard {
 
 const void* GetMediaSessionApi() {
-  // Android build uses the Chromium MediaSession implementation directly,
-  // bypassing this Starboard extension. However, AOSP builds may require this
-  // Starboard API to be implemented.
-  // TODO: b/377019873 - Implement this method if required for AOSP.
-  SB_LOG(FATAL) << "MediaSessionApi is not supported.";
+  // Android TV builds publish the media session from CobaltMediaSession.java,
+  // so they don't provide this extension. AOSP builds use
+  // android_media_session_client_aosp.cc instead of this file.
   return nullptr;
 }
 
