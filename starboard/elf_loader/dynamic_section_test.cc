@@ -62,7 +62,7 @@ void TestDestructor2() {
 
 TEST_F(DynamicSectionTest, Initialize) {
   Addr addr = 0x1234;
-  Dyn dynamic_table[3];
+  Dyn dynamic_table[3] = {};
   Word flags = 0;
 
   DynamicSection d(addr, dynamic_table, 3, flags);
