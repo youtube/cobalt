@@ -257,6 +257,9 @@ jobs:
             "${PREFIX}-conflict-*"); do
             gh stack init --base "${ROLL_BRANCH}" "${BRANCH}"
             gh stack submit --auto
-            gh pr edit "${BRANCH}" \
-              --add-reviewer linxinan-yt,oxve,briantting
+            PR_NUMBER=$(gh pr view "${BRANCH}" --json number --jq .number)
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/requested_reviewers" \
+              -f "reviewers[]=linxinan-yt" \
+              -f "reviewers[]=oxve" \
+              -f "reviewers[]=briantting"
           done
