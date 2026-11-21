@@ -80,6 +80,7 @@ void WebMStreamParser::Flush() {
   DCHECK_NE(state_, kWaitingForInit);
 
   byte_queue_.Reset();
+  byte_queue_.MaybeShrinkIdleBuffer();
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (segmented_queue_) {
     segmented_queue_->Reset();

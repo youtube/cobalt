@@ -9,6 +9,13 @@
 #include "base/auto_reset.h"
 #include "base/compiler_specific.h"
 #include "base/numerics/safe_conversions.h"
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#include "partition_alloc/partition_alloc.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/partitions.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/fetch/body.h"
@@ -530,6 +537,14 @@ void BodyStreamBuffer::CancelConsumer() {
   if (consumer_) {
     consumer_->Cancel();
     consumer_ = nullptr;
+#if BUILDFLAG(IS_COBALT)
+    if (base::FeatureList::IsEnabled(
+            base::features::kCobaltMseMemoryOptimization)) {
+      WTF::Partitions::BufferPartition()->PurgeMemory(
+          partition_alloc::PurgeFlags::kDecommitEmptySlotSpans |
+          partition_alloc::PurgeFlags::kLimitDuration);
+    }
+#endif  // BUILDFLAG(IS_COBALT)
   }
 }
 
@@ -560,6 +575,13 @@ void BodyStreamBuffer::ProcessData(ExceptionState& exception_state) {
       }
       if (!byob_view) {
         CHECK(!array);
+#if BUILDFLAG(IS_COBALT)
+        if (base::FeatureList::IsEnabled(
+                base::features::kCobaltMseMemoryOptimization)) {
+          constexpr size_t kMaxNonByobChunkBytes = 128 * 1024;
+          buffer = buffer.first(std::min(buffer.size(), kMaxNonByobChunkBytes));
+        }
+#endif  // BUILDFLAG(IS_COBALT)
         array = DOMUint8Array::CreateOrNull(base::as_bytes(buffer));
       }
       result = consumer_->EndRead(buffer.size());

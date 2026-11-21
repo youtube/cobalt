@@ -43,6 +43,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "media/base/media_switches.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -451,6 +452,14 @@ StreamParser::ParseStatus MP4StreamParser::Parse(
       return ParseStatus::kSuccessHasMoreData;
     }
   }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (state_ == kParsingBoxes && scratch_frame_buf_.capacity() > 64 * 1024 &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltMseMemoryOptimization)) {
+    scratch_frame_buf_.clear();
+    scratch_frame_buf_.shrink_to_fit();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return ParseStatus::kSuccess;
 }
 

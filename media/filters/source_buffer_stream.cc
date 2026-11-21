@@ -10,11 +10,15 @@
 #include "media/filters/source_buffer_stream.h"
 
 #include <algorithm>
+#include <limits>
 #include <map>
 #include <memory>
 #include <sstream>
 #include <string>
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/features.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/functional/bind.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/demuxer_memory_limit.h"
@@ -774,6 +778,81 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
         << ", currently buffered ranges_size=" << ranges_size;
     return false;
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!end_of_stream_ && !ranges_.empty() &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltMseMemoryOptimization)) {
+    const size_t retention_floor_bytes =
+        GetType() == SourceBufferStreamType::kVideo
+            ? static_cast<size_t>(std::max(
+                  0, base::features::
+                         kCobaltMseMemoryOptimizationVideoRetentionFloorMb
+                             .Get())) *
+                  1024 * 1024
+            : static_cast<size_t>(std::max(
+                  0, base::features::
+                         kCobaltMseMemoryOptimizationAudioRetentionFloorKb
+                             .Get())) *
+                  1024;
+    if (!seek_pending_ && ranges_size + newDataSize > retention_floor_bytes) {
+      base::TimeDelta back_evict_time = media_time;
+      if (selected_range_ &&
+          back_evict_time > selected_range_->GetBufferedEndTimestamp()) {
+        back_evict_time = selected_range_->GetBufferedEndTimestamp();
+      }
+      if (range_for_next_append_ != ranges_.end() &&
+          highest_buffered_end_time_in_append_sequence_ != kNoTimestamp &&
+          back_evict_time > highest_buffered_end_time_in_append_sequence_ &&
+          (*range_for_next_append_)->GetStartTimestamp() < back_evict_time) {
+        back_evict_time = (*range_for_next_append_)->GetStartTimestamp();
+      }
+      const base::TimeDelta back_horizon = base::Milliseconds(std::max(
+          0, base::features::kCobaltMseMemoryOptimizationBackHorizonMs.Get()));
+      if (back_evict_time > back_horizon) {
+        const size_t bytes_above_floor =
+            ranges_size + newDataSize - retention_floor_bytes;
+        FreeBuffers(bytes_above_floor, back_evict_time - back_horizon,
+                    /*reverse_direction=*/false);
+        ranges_size = GetMemoryUsage();
+      }
+    }
+    if (ranges_.size() > 1 &&
+        ranges_size + newDataSize > retention_floor_bytes) {
+      const SourceBufferRange* next_append_range =
+          range_for_next_append_ != ranges_.end()
+              ? range_for_next_append_->get()
+              : nullptr;
+      if (ranges_.front().get() != selected_range_ &&
+          ranges_.front().get() != next_append_range) {
+        const size_t orphan_front_bytes =
+            std::min(ranges_.front()->GetMemoryUsage(),
+                     ranges_size + newDataSize - retention_floor_bytes);
+        if (orphan_front_bytes > 0) {
+          FreeBuffers(orphan_front_bytes, media_time,
+                      /*reverse_direction=*/false);
+          ranges_size = GetMemoryUsage();
+        }
+      }
+      next_append_range = range_for_next_append_ != ranges_.end()
+                              ? range_for_next_append_->get()
+                              : nullptr;
+      if (ranges_.size() > 1 &&
+          ranges_size + newDataSize > retention_floor_bytes &&
+          ranges_.back().get() != selected_range_ &&
+          ranges_.back().get() != next_append_range) {
+        const size_t orphan_back_bytes =
+            std::min(ranges_.back()->GetMemoryUsage(),
+                     ranges_size + newDataSize - retention_floor_bytes);
+        if (orphan_back_bytes > 0) {
+          FreeBuffers(orphan_back_bytes, media_time,
+                      /*reverse_direction=*/true);
+          ranges_size = GetMemoryUsage();
+        }
+      }
+    }
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   size_t effective_memory_limit = memory_limit_;
   if (base::FeatureList::IsEnabled(kMemoryPressureBasedSourceBufferGC)) {

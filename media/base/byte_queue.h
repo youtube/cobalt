@@ -40,6 +40,11 @@ class MEDIA_EXPORT ByteQueue {
   // Reset the queue to the empty state.
   void Reset();
 
+  // Releases oversized backing storage once the queue drains completely empty
+  // when CobaltMseMemoryOptimization is enabled (unlike Reset(), which
+  // preserves backing storage capacity for scratch callers).
+  void MaybeShrinkIdleBuffer();
+
   // Appends new bytes onto the end of the queue. If allocation failure occurs,
   // then the append of `data` is not done and returns false. Otherwise, returns
   // true.

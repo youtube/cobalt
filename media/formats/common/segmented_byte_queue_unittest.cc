@@ -21,8 +21,10 @@
 #include <utility>
 #include <vector>
 
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/test/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -310,6 +312,41 @@ TEST_F(BorrowedSegmentedByteQueueTest, ScratchIsReusedUntilReset) {
   EXPECT_EQ(scratch, data->data());
 
   queue_.Reset();
+  EXPECT_FALSE(queue_.HasScratchForTesting());
+}
+
+TEST_F(BorrowedSegmentedByteQueueTest,
+       DrainingQueuePreservesScratchWhenOptimizationDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      base::features::kCobaltMseMemoryOptimization);
+
+  PushTracked(kSegmentA, 0);
+  PushTracked(kSegmentB, 1);
+  ASSERT_TRUE(queue_.PeekLinearizedData(4, 12));
+  EXPECT_TRUE(queue_.HasScratchForTesting());
+
+  queue_.Pop(16);
+  EXPECT_EQ(0u, queue_.size());
+  EXPECT_TRUE(queue_.HasScratchForTesting());
+}
+
+TEST_F(BorrowedSegmentedByteQueueTest,
+       DrainingQueueReleasesScratchWhenOptimizationEnabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      base::features::kCobaltMseMemoryOptimization);
+
+  PushTracked(kSegmentA, 0);
+  PushTracked(kSegmentB, 1);
+  ASSERT_TRUE(queue_.PeekLinearizedData(4, 12));
+  EXPECT_TRUE(queue_.HasScratchForTesting());
+
+  queue_.Pop(8);
+  EXPECT_TRUE(queue_.HasScratchForTesting());
+
+  queue_.Pop(8);
+  EXPECT_EQ(0u, queue_.size());
   EXPECT_FALSE(queue_.HasScratchForTesting());
 }
 

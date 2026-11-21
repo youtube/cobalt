@@ -96,6 +96,15 @@ class CORE_EXPORT DOMArrayBuffer : public DOMArrayBufferBase {
   // the ArrayBuffer while at the same time exposing a NonShared TypedArray.
   virtual bool ShareNonSharedForInternalUse(ArrayBufferContents& result);
 
+#if BUILDFLAG(IS_COBALT)
+  // Transfers and detaches this ArrayBuffer for internal platform consumption
+  // iff it is non-shared, not already detached, has no custom detach key, and
+  // is detachable in all worlds. Never throws JS exceptions; returns false and
+  // leaves this ArrayBuffer untouched if it cannot be cleanly detached.
+  bool TryTransferForInternalUse(v8::Isolate* isolate,
+                                 ArrayBufferContents& result);
+#endif  // BUILDFLAG(IS_COBALT)
+
   v8::Local<v8::Value> Wrap(ScriptState*) override;
 
   void Trace(Visitor*) const override;

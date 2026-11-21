@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -5767,5 +5768,61 @@ TEST_F(SourceBufferStreamTest,
   CheckExpectedBuffers("100D10K");
   CheckNoNextBuffer();
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST_F(SourceBufferStreamTest,
+       MseMemoryOptimizationDisabledDoesNotEvictUnderMemoryLimit) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      base::features::kCobaltMseMemoryOptimization);
+
+  SetStreamInfo(10, 1);  // 100ms frames, 1s GOPs.
+  stream_->set_memory_limit(200 * 1024 * 1024);
+  const std::vector<uint8_t> payload(256 * 1024, 0x11);
+  // 200 buffers = 20s [0, 20000ms), ~50 MiB (> 12 MiB floor, < 200 MiB cap).
+  NewCodedFrameGroupAppend(0, 200, payload);
+  Seek(0);
+  CheckExpectedBuffers(0, 160, payload);
+
+  EXPECT_TRUE(GarbageCollect(base::Seconds(16), 0));
+  CheckExpectedRangesByTimestamp("{ [0,20000) }");
+}
+
+TEST_F(SourceBufferStreamTest,
+       MseMemoryOptimizationEnabledEvictsBehind12sHorizonRespectingFloor) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      base::features::kCobaltMseMemoryOptimization);
+
+  SetStreamInfo(10, 1);  // 100ms frames, 1s GOPs.
+  stream_->set_memory_limit(200 * 1024 * 1024);
+
+  // First verify small clips within the 12 MiB video retention floor are not
+  // evicted behind playhead (~5 MiB total across 20s).
+  const std::vector<uint8_t> small_payload(25 * 1024, 0x22);
+  NewCodedFrameGroupAppend(0, 200, small_payload);
+  Seek(0);
+  CheckExpectedBuffers(0, 180, small_payload);
+  EXPECT_TRUE(GarbageCollect(base::Seconds(18), 0));
+  CheckExpectedRangesByTimestamp("{ [0,20000) }");
+
+  // Reset and buffer ~50 MiB across 20s ([0, 20000ms), 1s GOPs).
+  ResetStream<>(video_config_);
+  stream_->set_memory_limit(200 * 1024 * 1024);
+  const std::vector<uint8_t> large_payload(256 * 1024, 0x33);
+  NewCodedFrameGroupAppend(0, 200, large_payload);
+  Seek(0);
+  CheckExpectedBuffers(0, 100, large_payload);
+
+  // Within 12s back horizon (media_time = 10s <= 12s): nothing evicted.
+  EXPECT_TRUE(GarbageCollect(base::Seconds(10), 0));
+  CheckExpectedRangesByTimestamp("{ [0,20000) }");
+
+  // Advance read position past 4s to 16s; GOPs behind 16s - 12s = 4s evict.
+  CheckExpectedBuffers(101, 160, large_payload);
+  EXPECT_TRUE(GarbageCollect(base::Seconds(16), 0));
+  CheckExpectedRangesByTimestamp("{ [4000,20000) }");
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media
