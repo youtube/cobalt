@@ -588,15 +588,41 @@ ClientDiscardableSharedMemoryManager::AllocateLockedDiscardableSharedMemory(
 
   auto memory =
       std::make_unique<base::DiscardableSharedMemory>(std::move(region));
-  if (!memory->Map(size)) {
+  if (!MapDiscardableSharedMemory(memory.get(), size)) {
     discardable_memory_ipc_error_cause.Set("client side");
     discardable_memory_ipc_requested_size.Set(base::NumberToString(size));
+    // The browser side already recorded the segment as allocated and locked;
+    // without this it would never be purged or released.
+    DeletedDiscardableSharedMemory(id);
     return nullptr;
   }
 
   discardable_memory_ipc_error_cause.Clear();
   discardable_memory_ipc_requested_size.Clear();
   return memory;
+}
+
+bool ClientDiscardableSharedMemoryManager::MapDiscardableSharedMemory(
+    base::DiscardableSharedMemory* memory,
+    size_t size) {
+  return memory->Map(size);
+}
+
+void ClientDiscardableSharedMemoryManager::FlushMojoForTesting() {
+  DCHECK(manager_mojo_);
+  base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow;
+  base::WaitableEvent flushed(base::WaitableEvent::ResetPolicy::MANUAL,
+                              base::WaitableEvent::InitialState::NOT_SIGNALED);
+  io_task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](mojo::Remote<mojom::DiscardableSharedMemoryManager>* manager_mojo,
+             base::WaitableEvent* event) {
+            manager_mojo->FlushAsyncForTesting(base::BindOnce(
+                &base::WaitableEvent::Signal, base::Unretained(event)));
+          },
+          manager_mojo_.get(), &flushed));
+  flushed.Wait();
 }
 
 void ClientDiscardableSharedMemoryManager::AllocateOnIO(

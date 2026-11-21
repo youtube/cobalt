@@ -26,6 +26,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 
 namespace base {
+class DiscardableSharedMemory;
 class SingleThreadTaskRunner;
 }
 
@@ -100,6 +101,11 @@ class DISCARDABLE_MEMORY_EXPORT ClientDiscardableSharedMemoryManager
   ~ClientDiscardableSharedMemoryManager() override;
   explicit ClientDiscardableSharedMemoryManager(
       scoped_refptr<base::SingleThreadTaskRunner> io_task_runner);
+
+  // Virtual for testing. Default forwards to |memory->Map(size)|.
+  virtual bool MapDiscardableSharedMemory(base::DiscardableSharedMemory* memory,
+                                          size_t size);
+  void FlushMojoForTesting();
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   mutable base::Lock lock_;

@@ -19,7 +19,13 @@
 #include "base/test/task_environment.h"
 #include "base/threading/simple_thread.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#include "base/test/scoped_feature_list.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace discardable_memory {
 namespace {
@@ -60,6 +66,28 @@ class TestDiscardableSharedMemoryManager
     return on_memory_pressure_call_count_;
   }
 
+  void set_fail_duplicate_region(bool fail) { fail_duplicate_region_ = fail; }
+
+  bool HasClientSegment(int client_id, int32_t id) const {
+    base::AutoLock lock(lock_);
+    auto client_it = clients_.find(client_id);
+    if (client_it == clients_.end()) {
+      return false;
+    }
+    return client_it->second.find(id) != client_it->second.end();
+  }
+
+  size_t ClientSegmentCount(int client_id) const {
+    base::AutoLock lock(lock_);
+    auto client_it = clients_.find(client_id);
+    return client_it == clients_.end() ? 0u : client_it->second.size();
+  }
+
+  size_t SegmentCount() const {
+    base::AutoLock lock(lock_);
+    return segments_.size();
+  }
+
  private:
   // Overriden from DiscardableSharedMemoryManager:
   void OnMemoryPressure(base::MemoryPressureListener::MemoryPressureLevel
@@ -71,10 +99,18 @@ class TestDiscardableSharedMemoryManager
   void ScheduleEnforceMemoryPolicy() override {
     enforce_memory_policy_pending_ = true;
   }
+  base::UnsafeSharedMemoryRegion DuplicateRegion(
+      const base::DiscardableSharedMemory& memory) const override {
+    if (fail_duplicate_region_) {
+      return base::UnsafeSharedMemoryRegion();
+    }
+    return DiscardableSharedMemoryManager::DuplicateRegion(memory);
+  }
 
   base::Time now_;
   bool enforce_memory_policy_pending_ = false;
   size_t on_memory_pressure_call_count_ = 0;
+  bool fail_duplicate_region_ = false;
 };
 
 class DiscardableSharedMemoryManagerTest : public testing::Test {
@@ -271,6 +307,123 @@ TEST_F(DiscardableSharedMemoryManagerTest, OnMemoryPressure) {
   EXPECT_EQ(std::size(pressure_levels),
             manager_->on_memory_pressure_call_count());
 }
+
+TEST_F(DiscardableSharedMemoryManagerTest,
+       DuplicateRegionFailureDoesNotRecordSegment) {
+  constexpr size_t kDataSize = 1024;
+
+  base::UnsafeSharedMemoryRegion region1;
+  manager_->AllocateLockedDiscardableSharedMemoryForClient(
+      kInvalidUniqueID, kDataSize, 1, &region1);
+  ASSERT_TRUE(region1.IsValid());
+  const size_t baseline_bytes = manager_->GetBytesAllocated();
+  ASSERT_GT(baseline_bytes, 0u);
+  ASSERT_EQ(manager_->ClientSegmentCount(kInvalidUniqueID), 1u);
+  ASSERT_EQ(manager_->SegmentCount(), 1u);
+
+  manager_->set_fail_duplicate_region(true);
+  base::UnsafeSharedMemoryRegion failed_region;
+  manager_->AllocateLockedDiscardableSharedMemoryForClient(
+      kInvalidUniqueID, kDataSize, 2, &failed_region);
+  EXPECT_FALSE(failed_region.IsValid());
+  EXPECT_EQ(manager_->GetBytesAllocated(), baseline_bytes);
+  EXPECT_FALSE(manager_->HasClientSegment(kInvalidUniqueID, 2));
+  EXPECT_EQ(manager_->ClientSegmentCount(kInvalidUniqueID), 1u);
+  EXPECT_EQ(manager_->SegmentCount(), 1u);
+
+  // Reusing the same segment ID succeeds because the failed dup() recorded no
+  // entry in client_segments.
+  manager_->set_fail_duplicate_region(false);
+  base::UnsafeSharedMemoryRegion region2;
+  manager_->AllocateLockedDiscardableSharedMemoryForClient(
+      kInvalidUniqueID, kDataSize, 2, &region2);
+  EXPECT_TRUE(region2.IsValid());
+  EXPECT_TRUE(manager_->HasClientSegment(kInvalidUniqueID, 2));
+  EXPECT_EQ(manager_->ClientSegmentCount(kInvalidUniqueID), 2u);
+  EXPECT_EQ(manager_->SegmentCount(), 2u);
+  EXPECT_EQ(manager_->GetBytesAllocated(), baseline_bytes * 2);
+
+  manager_->ClientDeletedDiscardableSharedMemory(1, kInvalidUniqueID);
+  manager_->ClientDeletedDiscardableSharedMemory(2, kInvalidUniqueID);
+  EXPECT_EQ(manager_->GetBytesAllocated(), 0u);
+}
+
+TEST_F(DiscardableSharedMemoryManagerTest,
+       DuplicateRegionFailureFromEmptyDoesNotEnforceMemoryPolicy) {
+  constexpr size_t kDataSize = 1024;
+  manager_->SetMemoryLimit(kDataSize - 1);
+  manager_->set_enforce_memory_policy_pending(false);
+  manager_->set_fail_duplicate_region(true);
+
+  base::UnsafeSharedMemoryRegion failed_region;
+  manager_->AllocateLockedDiscardableSharedMemoryForClient(
+      kInvalidUniqueID, kDataSize, 7, &failed_region);
+  EXPECT_FALSE(failed_region.IsValid());
+  EXPECT_EQ(manager_->GetBytesAllocated(), 0u);
+  EXPECT_FALSE(manager_->HasClientSegment(kInvalidUniqueID, 7));
+  EXPECT_EQ(manager_->ClientSegmentCount(kInvalidUniqueID), 0u);
+  EXPECT_EQ(manager_->SegmentCount(), 0u);
+  EXPECT_FALSE(manager_->enforce_memory_policy_pending());
+
+  manager_->set_fail_duplicate_region(false);
+  base::UnsafeSharedMemoryRegion region;
+  manager_->AllocateLockedDiscardableSharedMemoryForClient(
+      kInvalidUniqueID, kDataSize, 7, &region);
+  EXPECT_TRUE(region.IsValid());
+  EXPECT_GT(manager_->GetBytesAllocated(), 0u);
+  EXPECT_TRUE(manager_->enforce_memory_policy_pending());
+}
+#if BUILDFLAG(IS_COBALT)
+// Enables kCobaltDiscardableSingleMapping before the fixture's task
+// environment starts threads, and restores it after they stop.
+class ScopedSingleMapping {
+ protected:
+  ScopedSingleMapping() {
+    features_.InitAndEnableFeature(
+        base::features::kCobaltDiscardableSingleMapping);
+  }
+
+ private:
+  base::test::ScopedFeatureList features_;
+};
+
+class DiscardableSharedMemoryManagerLazyMappingTest
+    : public ScopedSingleMapping,
+      public DiscardableSharedMemoryManagerTest {};
+
+TEST_F(DiscardableSharedMemoryManagerLazyMappingTest,
+       DuplicateRegionFailureDoesNotRecordSegment) {
+  constexpr size_t kDataSize = 1024;
+
+  base::UnsafeSharedMemoryRegion region1;
+  manager_->AllocateLockedDiscardableSharedMemoryForClient(
+      kInvalidUniqueID, kDataSize, 1, &region1);
+  ASSERT_TRUE(region1.IsValid());
+  const size_t baseline_bytes = manager_->GetBytesAllocated();
+  ASSERT_GT(baseline_bytes, 0u);
+
+  manager_->set_fail_duplicate_region(true);
+  base::UnsafeSharedMemoryRegion failed_region;
+  manager_->AllocateLockedDiscardableSharedMemoryForClient(
+      kInvalidUniqueID, kDataSize, 2, &failed_region);
+  EXPECT_FALSE(failed_region.IsValid());
+  EXPECT_EQ(manager_->GetBytesAllocated(), baseline_bytes);
+  EXPECT_FALSE(manager_->HasClientSegment(kInvalidUniqueID, 2));
+  EXPECT_EQ(manager_->ClientSegmentCount(kInvalidUniqueID), 1u);
+  EXPECT_EQ(manager_->SegmentCount(), 1u);
+
+  manager_->set_fail_duplicate_region(false);
+  base::UnsafeSharedMemoryRegion region2;
+  manager_->AllocateLockedDiscardableSharedMemoryForClient(
+      kInvalidUniqueID, kDataSize, 2, &region2);
+  EXPECT_TRUE(region2.IsValid());
+  EXPECT_EQ(manager_->GetBytesAllocated(), baseline_bytes * 2);
+
+  manager_->ClientDeletedDiscardableSharedMemory(1, kInvalidUniqueID);
+  manager_->ClientDeletedDiscardableSharedMemory(2, kInvalidUniqueID);
+  EXPECT_EQ(manager_->GetBytesAllocated(), 0u);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 class DiscardableSharedMemoryManagerScheduleEnforceMemoryPolicyTest
     : public testing::Test {

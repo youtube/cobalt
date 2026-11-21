@@ -31,6 +31,9 @@ source_set("unit_tests") {
     ":client",
     "//base",
     "//base/test:test_support",
+    "//components/discardable_memory/public/mojom",
+    "//components/discardable_memory/service",
+    "//mojo/public/cpp/bindings",
     "//testing/gtest",
   ]
 }

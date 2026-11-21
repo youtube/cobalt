@@ -525,10 +525,15 @@ void DiscardableSharedMemoryManager::AllocateLockedDiscardableSharedMemory(
     return;
   }
 
+  // Duplicate first. If dup() fails (out of descriptors), return an invalid
+  // region without recording a segment the client will never see.
+  *shared_memory_region = DuplicateRegion(*memory);
+  if (!shared_memory_region->IsValid()) {
+    return;
+  }
   bytes_allocated_ = checked_bytes_allocated.ValueOrDie();
   BytesAllocatedChanged(bytes_allocated_);
 
-  *shared_memory_region = memory->DuplicateRegion();
 #if BUILDFLAG(IS_COBALT)
   // The amount added to |bytes_allocated_| above, which ReleaseSegment()
   // subtracts. Read it before Unmap(), after which mapped_size() returns 0.
@@ -768,6 +773,11 @@ void DiscardableSharedMemoryManager::BytesAllocatedChanged(
 
 base::Time DiscardableSharedMemoryManager::Now() const {
   return base::Time::Now();
+}
+
+base::UnsafeSharedMemoryRegion DiscardableSharedMemoryManager::DuplicateRegion(
+    const base::DiscardableSharedMemory& memory) const {
+  return memory.DuplicateRegion();
 }
 
 void DiscardableSharedMemoryManager::ScheduleEnforceMemoryPolicy() {
