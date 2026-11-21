@@ -417,7 +417,10 @@ ExternalMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
     return free_block_iter;
   }
 
-  if (free_blocks_.empty()) {
+  // The top-up below only helps if the new block can be adjacent to the last
+  // free block; with guarded fallback blocks it would only strand a small
+  // block that can't serve this request.
+  if (free_blocks_.empty() || !FallbackCanAllocateContiguously()) {
     SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }

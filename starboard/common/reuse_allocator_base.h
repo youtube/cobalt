@@ -67,6 +67,10 @@ class ReuseAllocatorBase : public Allocator {
   void TryToDecommitOneBlock(int64_t now_us = CurrentMonotonicTime());
 
  protected:
+  bool FallbackCanAllocateContiguously() const {
+    return fallback_allocator_->CanAllocateContiguously();
+  }
+
   // TODO(b/454441375): Refactor positional boolean parameters into an Options
   // struct to prevent argument ordering mistakes.
   ReuseAllocatorBase(Allocator* fallback_allocator,
