@@ -125,15 +125,7 @@ class FakeAudioSinkType : public SbAudioSinkPrivate::Type {
 
 class DummyRenderCallback : public AudioRendererSink::RenderCallback {
  public:
-  void GetSourceStatus(int* frames_in_buffer,
-                       int* offset_in_frames,
-                       bool* is_playing,
-                       bool* is_eos_reached) override {
-    *frames_in_buffer = 0;
-    *offset_in_frames = 0;
-    *is_playing = false;
-    *is_eos_reached = false;
-  }
+  SourceStatus GetSourceStatus() override { return {}; }
   void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override {
   }
   void OnError(bool capability_changed,
