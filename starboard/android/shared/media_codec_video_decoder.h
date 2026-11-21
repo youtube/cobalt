@@ -66,6 +66,11 @@ namespace android_video_decoder_improvements {
 // video surface ownership.
 inline constexpr uint32_t kGuardSurfaceResetAndCleanupByOwnership = 1u << 0;
 
+// Initializes `color_metadata_` from `StreamConfig` before creating the
+// initial codec in `MediaCodecVideoDecoder()` so HDR playbacks do not create
+// an SDR codec and immediately tear it down on the first input buffer.
+inline constexpr uint32_t kInitializeColorMetadataInConstructor = 1u << 2;
+
 }  // namespace android_video_decoder_improvements
 
 inline uint32_t GetAndroidVideoDecoderImprovementsFlags(

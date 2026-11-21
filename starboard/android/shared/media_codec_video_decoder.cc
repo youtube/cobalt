@@ -394,6 +394,13 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   }
 
   if (!needs_fps_to_initialize_codec_) {
+    if (IsAndroidVideoDecoderImprovementEnabled(
+            decoder_improvements_flags_,
+            android_video_decoder_improvements::
+                kInitializeColorMetadataInConstructor) &&
+        !IsIdentity(stream_config.video_stream_info.color_metadata)) {
+      color_metadata_ = stream_config.video_stream_info.color_metadata;
+    }
     auto result = InitializeCodec(stream_config.video_stream_info);
     if (!result) {
       *error_message =
@@ -560,7 +567,20 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
     // teardown the codec so it can be reinitalized with the new metadata.
     const auto& color_metadata =
         input_buffers.front()->video_stream_info().color_metadata;
-    if (!IsIdentity(color_metadata)) {
+    const bool initialize_color_metadata_in_ctor =
+        IsAndroidVideoDecoderImprovementEnabled(
+            decoder_improvements_flags_,
+            android_video_decoder_improvements::
+                kInitializeColorMetadataInConstructor);
+    if (initialize_color_metadata_in_ctor && media_decoder_ != nullptr) {
+      if (NeedsCodecTransition(input_buffers.front())) {
+        SB_LOG(INFO) << "Reinitializing codec with updated color metadata.";
+        TeardownCodec();
+      }
+      if (!IsIdentity(color_metadata)) {
+        color_metadata_ = color_metadata;
+      }
+    } else if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
       TeardownCodec();
