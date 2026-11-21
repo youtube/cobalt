@@ -4029,6 +4029,57 @@ TEST_P(PartitionAllocTest, FewerMemoryRegions) {
   root->Free(ptr);
 }
 
+#if BUILDFLAG(IS_COBALT)
+// Covers long-running Linux/Android streaming sessions where PartitionAlloc
+// with fewer_memory_regions enabled repeatedly frees, decommits, and recommits
+// non-PartitionPage-aligned slot spans; committed-page accounting must remain
+// exact without drifting or underflowing size_t.
+TEST_P(PartitionAllocTest, FewerMemoryRegionsRecommitAccounting) {
+  auto* root = allocator.root();
+  ASSERT_FALSE(root->settings.fewer_memory_regions);
+  root->settings.fewer_memory_regions = true;
+
+  PartitionBucket* incomplete_bucket = nullptr;
+  for (size_t alloc_size = 0;
+       alloc_size < MaxRegularSlotSpanSize() - ExtraAllocSize(allocator);
+       alloc_size++) {
+    size_t index = SizeToIndex(alloc_size + ExtraAllocSize(allocator));
+    auto& bucket = root->buckets[index];
+    if (bucket.get_bytes_per_span() !=
+        (bucket.get_pages_per_slot_span() << PartitionPageShift())) {
+      incomplete_bucket = &bucket;
+      break;
+    }
+  }
+  if (!incomplete_bucket) {
+    GTEST_SKIP();
+  }
+
+  const size_t expected_committed =
+      incomplete_bucket->SlotSpanCommittedSize(root);
+  ASSERT_GT(expected_committed, incomplete_bucket->get_bytes_per_span());
+  ASSERT_EQ(0u, root->get_total_size_of_committed_pages());
+
+  void* first_ptr = nullptr;
+  for (int i = 0; i < 16; ++i) {
+    void* ptr = root->Alloc(
+        incomplete_bucket->slot_size - ExtraAllocSize(allocator), "");
+    ASSERT_TRUE(ptr);
+    if (i == 0) {
+      first_ptr = ptr;
+    } else {
+      // Confirm subsequent iterations reuse and recommit the decommitted span.
+      PA_EXPECT_PTR_EQ(first_ptr, ptr);
+    }
+    EXPECT_EQ(expected_committed, root->get_total_size_of_committed_pages());
+
+    root->Free(ptr);
+    root->PurgeMemory(PurgeFlags::kDecommitEmptySlotSpans);
+    EXPECT_EQ(0u, root->get_total_size_of_committed_pages());
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 #endif  // PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_ANDROID) ||
         // PA_BUILDFLAG(IS_CHROMEOS)
 
