@@ -110,7 +110,11 @@ SimpleFontData::SimpleFontData(const FontPlatformData* platform_data,
 
 SimpleFontData::~SimpleFontData() {
   if (v8::Isolate* isolate = v8::Isolate::TryGetCurrent()) {
+#if BUILDFLAG(IS_COBALT)
+    external_memory_accounter_.Clear(isolate);
+#else
     external_memory_accounter_.Decrease(isolate, kFontObjectsMemoryConsumption);
+#endif
   }
 }
 
