@@ -16,10 +16,12 @@
 #include <string_view>
 
 #include "starboard/common/time.h"
+#include "starboard/media.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
+#include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -371,6 +373,19 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
       "width=640; height=480; framerate=30;";
   const char* kSecondaryTestFile = "beneath_the_canopy_135_avc.dmp";
   const char* key_system = GetParam().key_system;
+
+  // Android only supports punch-out, which Widevine L1 requires, in the main
+  // player. Play the secondary video with Widevine L3, which can decode to a
+  // texture.
+  if (IsWidevineKeySystem(key_system)) {
+    starboard::VideoDmpReader dmp_reader(
+        kSecondaryTestFile, starboard::VideoDmpReader::kEnableReadOnDemand);
+    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.video_mime_type().c_str(),
+                                       kWidevineL3KeySystem) &&
+        IsWidevineKeySystemProvisioned(kWidevineL3KeySystem)) {
+      key_system = kWidevineL3KeySystem;
+    }
+  }
 
   SbPlayerTestConfig secondary_player_config(nullptr, kSecondaryTestFile,
                                              kSbPlayerOutputModeInvalid,
