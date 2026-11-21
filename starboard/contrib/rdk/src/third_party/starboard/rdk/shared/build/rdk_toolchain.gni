@@ -31,10 +31,6 @@
 import("//starboard/build/config/linux/rdk/config_variables.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 
-declare_args() {
-  rdk_build_with_yocto = true
-}
-
 template("rdk_gcc_toolchain") {
   gcc_toolchain(target_name) {
     if (rdk_build_with_yocto) {
