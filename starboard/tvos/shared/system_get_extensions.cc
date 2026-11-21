@@ -19,8 +19,10 @@
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/ifa.h"
 #include "starboard/extension/media_session.h"
+#include "starboard/extension/native_stability.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/shared/starboard/features_extension.h"
+#include "starboard/shared/starboard/native_stability.h"
 #include "starboard/system.h"
 #include "starboard/tvos/shared/accessibility_extension.h"
 #include "starboard/tvos/shared/uikit_media_session_client.h"
@@ -52,6 +54,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
     return starboard::GetFeaturesApi();
+  }
+  if (strcmp(name, kStarboardExtensionNativeStabilityName) == 0) {
+    return starboard::GetNativeStabilityApi();
   }
   return nullptr;
 }

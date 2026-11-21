@@ -57,6 +57,8 @@
 #include "gpu/config/gpu_finch_features.h"
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
+#endif
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
 #include "starboard/crashpad_wrapper/native_stability_reader.h"  // nogncheck
 #include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
@@ -75,7 +77,7 @@
 
 namespace cobalt {
 
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
 namespace {
 
 int ReadNativeStabilityReports(SbNativeStabilityReport* reports,
@@ -90,7 +92,7 @@ int ReadNativeStabilityReports(SbNativeStabilityReport* reports,
 }
 
 }  // namespace
-#endif  // BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
 
 CobaltMainDelegate::CobaltMainDelegate(std::optional<int64_t> startup_timestamp,
                                        const char* initial_deep_link,
@@ -295,7 +297,7 @@ void CobaltMainDelegate::PreSandboxStartup() {
     if (process_type != switches::kZygoteProcess) {
       crash_reporter::InitializeCrashpad(process_type.empty(), process_type);
       crash_reporter::SetUploadConsent(true);
-#if BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
       // On 3P (Evergreen), the callback is registered by the Starboard-only
       // Crashpad wrapper module (//starboard/crashpad_wrapper).
       if (process_type.empty()) {
@@ -309,7 +311,7 @@ void CobaltMainDelegate::PreSandboxStartup() {
               &ReadNativeStabilityReports);
         }
       }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
+#endif  // BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_LINUX)
       crash_reporter::SetFirstChanceExceptionHandler(
           v8::TryHandleWebAssemblyTrapPosix);
