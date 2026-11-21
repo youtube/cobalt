@@ -122,6 +122,7 @@ source_set("browser") {
 
   if (!cobalt_is_release_build) {
     deps += [
+      "//cobalt/browser/devtools",
       "//components/services/heap_profiling",
       "//components/services/heap_profiling/public/cpp",
     ]

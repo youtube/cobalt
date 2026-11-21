@@ -54,6 +54,10 @@ constexpr char kEnableActivityLifecycleCoordination[] =
 constexpr char kAllowCriticalMemoryPressureHandlingInForeground[] =
     "allow-critical-memory-pressure-handling-in-foreground";
 
+// Enables native log buffering at startup so early boot logs replay into
+// DevTools Console on non-release builds.
+constexpr char kEnableDevToolsNativeLogs[] = "enable-devtools-native-logs";
+
 }  // namespace switches
 }  // namespace cobalt
 
