@@ -214,6 +214,18 @@ source_set("features") {
   ]
 }
 
+source_set("cache_quota_allocator") {
+  sources = [
+    "cache_quota_allocator.cc",
+    "cache_quota_allocator.h",
+  ]
+  public = [ "cache_quota_allocator.h" ]
+  deps = [
+    ":features",
+    "//base",
+  ]
+}
+
 source_set("memory_ablation") {
   sources = [
     "memory_ablation.cc",
