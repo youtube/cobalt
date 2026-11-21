@@ -497,6 +497,11 @@ test("cobalt_browsertests") {
 
   if (use_aura) {
     deps += [ "//ui/events:test_support" ]
+    if (shell_use_toolkit_views) {
+      sources +=
+          [ "//cobalt/shell/browser/splash_screen_visibility_browsertest.cc" ]
+      deps += [ "//ui/aura" ]
+    }
   }
 
   if (is_linux && !is_tsan) {

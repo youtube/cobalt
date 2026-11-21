@@ -240,7 +240,14 @@ def run_lifecycle_test(executable: str,
         if os.path.exists(storage_dir):
           shutil.rmtree(storage_dir, ignore_errors=True)
 
-    html_payload = '<html><body><h1>Test</h1><input autofocus></body></html>'
+    html_payload = (
+        '<html><head><script>'
+        'window.initial_visibility_state = document.visibilityState;'
+        'window.startup_visibility_events = [];'
+        'document.addEventListener("visibilitychange", function() {'
+        '  window.startup_visibility_events.push(document.visibilityState);'
+        '});'
+        '</script></head><body><h1>Test</h1><input autofocus></body></html>')
     b64_html = base64.b64encode(html_payload.encode('utf-8')).decode('utf-8')
 
     runner.launch([
@@ -256,8 +263,28 @@ def run_lifecycle_test(executable: str,
     cdp.wait_for_state('document.readyState', 'complete', timeout=60.0)
 
     logger.info('Verifying initial state (Visible & Focused)...')
+    # Wait for the main test document sentinel so DevTools does not attach to
+    # the transient splash screen page while it is still focused and displayed.
+    cdp.wait_for_state(
+        "typeof window.initial_visibility_state === 'string'",
+        True,
+        timeout=60.0,
+    )
     cdp.wait_for_state('document.visibilityState', 'visible', timeout=120.0)
     cdp.wait_for_state('document.hasFocus()', True, timeout=120.0)
+
+    initial_visibility = cdp.evaluate('window.initial_visibility_state')
+    startup_visibility_events = cdp.evaluate(
+        'JSON.stringify(window.startup_visibility_events)')
+    if initial_visibility != 'visible':
+      raise AssertionError(
+          f'Expected initial document.visibilityState to be "visible" during '
+          f'foreground startup (with splash screen), got {initial_visibility!r}'
+      )
+    if startup_visibility_events != '[]':
+      raise AssertionError(
+          f'Unexpected startup visibilitychange events before conceal: '
+          f'{startup_visibility_events}')
 
     logger.info('Injecting in-page event logger...')
     injection_script = """
