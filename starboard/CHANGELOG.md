@@ -53,6 +53,11 @@ The following assignments were removed from in-tree
 
 ## Version 18
 
+### Added an NPLB test for the minimum kSbMaxSystemPathCacheDirectorySize
+`kSbMaxSystemPathCacheDirectorySize` must be at least 24 MiB. This is now
+verified by the NPLB test
+`SbConfigurationConstantsTest.MaxSystemPathCacheDirectorySizeIsAtLeast24MiB`.
+
 ### RDK: Suspend hangwatcher while backgrounded and bound lifecycle
 ### events to 2.5s
 
