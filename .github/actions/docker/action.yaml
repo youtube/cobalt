@@ -24,29 +24,6 @@ runs:
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
       if: inputs.is_pr == 'true'
 
-    - name: Set Docker Build Vars
-      env:
-        DOCKER_SERVICE: ${{ inputs.docker_service }}
-        IS_PR: ${{ inputs.is_pr }}
-        PR_NUMBER: ${{ github.event.pull_request.number }}
-      run: |
-        # Set Docker Build Vars
-        set -x
-
-        # Set floating to either the PR number (for PRs) or the branch name (for post-submit).
-        if [[ "${IS_PR}" == "true" ]]; then
-          FLOATING_TAG="${PR_NUMBER}"
-        else
-          FLOATING_TAG="${GITHUB_REF_NAME}"
-        fi
-        # Replace slashes with double underscore.
-        FLOATING_TAG="${FLOATING_TAG//\//__}"
-        # Remove url unsafe suffix from LTS branches.
-        FLOATING_TAG="${FLOATING_TAG%.1[+,-]}"
-
-        echo "DOCKER_FLOATING_TAG=${FLOATING_TAG}" >> "${GITHUB_ENV}"
-      shell: bash
-
     - name: Login to GAR
       env:
         IS_PR: ${{ inputs.is_pr }}
@@ -71,55 +48,71 @@ runs:
         username: ${{ github.actor }}
         password: ${{ inputs.github_token }}
 
-    - name: Pull Existing Docker Image
+    - name: Pull or Build Docker Image
       id: pull-cached-image
       env:
+        BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
         GITHUB_DOCKER_REGISTRY_URL: ghcr.io
         PR_DOCKER_REGISTRY_URL: us-central1-docker.pkg.dev
         DOCKER_SERVICE: ${{ inputs.docker_service }}
         DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
         IS_PR: ${{ inputs.is_pr }}
       run: |
-        # Pull Existing Docker Image
-        set -x
-        DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${GITHUB_REPOSITORY}/${DOCKER_SERVICE}"
+        set -euo pipefail
 
-        if [[ "${IS_PR}" == "true" ]]; then
-          if docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
-            # A postsubmit image exists, use it.
-            echo "Using existing ${DOCKER_COMPOSE_IMAGE}"
+        digest() {
+          docker manifest inspect --verbose "$1" 2>/dev/null |
+            jq -r '(if type == "array" then map(select(.Descriptor.platform.architecture != "unknown"))[0] else . end) | (.SchemaV2Manifest.config.digest // .OCIManifest.config.digest // empty)' || true
+        }
 
-          else
-            # No fitting post-submit image was found. Check PR registry to see if there's an image there.
-            PROJECT_NAME=$(gcloud config get-value project)
-            DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/${PROJECT_NAME}/github/${DOCKER_SERVICE}"
+        # 1. Resolve cached image in GHCR (with GAR fallback for fork PRs).
+        DOCKER_COMPOSE_IMAGE="${GITHUB_DOCKER_REGISTRY_URL}/${GITHUB_REPOSITORY,,}/${DOCKER_SERVICE}"
+        IMAGE_SHA="${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
+        SHA_DIGEST=$(digest "${IMAGE_SHA}")
+        if [[ -z "${SHA_DIGEST}" && "${IS_PR}" == "true" ]]; then
+          DOCKER_COMPOSE_IMAGE="${PR_DOCKER_REGISTRY_URL}/$(gcloud config get-value project)/github/${DOCKER_SERVICE}"
+          IMAGE_SHA="${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
+          SHA_DIGEST=$(digest "${IMAGE_SHA}")
+        fi
+        echo "docker_tag=${IMAGE_SHA}" >> "${GITHUB_OUTPUT}"
+        echo "Resolved ${IMAGE_SHA} (${SHA_DIGEST:-cache miss})"
 
-            if ! docker manifest inspect "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"; then
-              echo "::warning::No pre-built docker image found for tag ${DOCKER_CONTENT_SHA}."
-              echo "build_image=true" >> "${GITHUB_OUTPUT}"
+        # 2. Build and push only :<docker_content_sha> (never --all-tags) on cache miss.
+        if [[ -z "${SHA_DIGEST}" ]]; then
+          export DOCKER_COMPOSE_IMAGE
+          docker compose build "${DOCKER_SERVICE}"
+          docker tag "${DOCKER_COMPOSE_IMAGE}" "${IMAGE_SHA}"
+          for _ in 1 2 3 4 5; do
+            SHA_DIGEST=$(digest "${IMAGE_SHA}")
+            if [[ -n "${SHA_DIGEST}" ]]; then break; fi
+            if docker push "${IMAGE_SHA}"; then
+              SHA_DIGEST=$(digest "${IMAGE_SHA}")
+              if [[ -n "${SHA_DIGEST}" ]]; then break; fi
             fi
-          fi
+            sleep $((RANDOM % 5 + 2))
+          done
+          [[ -n "${SHA_DIGEST}" ]] || { echo "::error::Failed to push ${IMAGE_SHA}"; exit 1; }
         fi
 
-        # Tell builders which image tag to use.
-        echo "docker_tag=${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}" >> "${GITHUB_OUTPUT}"
-
-        # Make the compose image tag available to the build step below.
-        echo "DOCKER_COMPOSE_IMAGE=${DOCKER_COMPOSE_IMAGE}" >> "${GITHUB_ENV}"
-      shell: bash
-
-    - name: Build and Push Docker Image
-      if: inputs.is_pr != 'true' || steps.pull-cached-image.outputs.build_image == 'true'
-      env:
-        DOCKER_CONTENT_SHA: ${{ inputs.docker_content_sha }}
-        DOCKER_SERVICE: ${{ inputs.docker_service }}
-      run: |
-        # Build and Push Docker Image
-        set -x
-        docker compose build ${DOCKER_SERVICE}
-
-        # The compose build tags the built image with ${DOCKER_COMPOSE_IMAGE}. Add the Docker content sha and floating tag and push.
-        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_CONTENT_SHA}"
-        docker tag "${DOCKER_COMPOSE_IMAGE}" "${DOCKER_COMPOSE_IMAGE}:${DOCKER_FLOATING_TAG}"
-        docker push --all-tags "${DOCKER_COMPOSE_IMAGE}"
+        # 3. Sync floating branch tag (e.g. :main, :27.lts) on non-PR runs (single-arch linux/amd64).
+        if [[ "${IS_PR}" != "true" ]]; then
+          FLOATING_TAG="${GITHUB_REF_NAME//\//__}"
+          FLOATING_TAG="${FLOATING_TAG%.1[+,-]}"
+          IMAGE_FLOATING="${DOCKER_COMPOSE_IMAGE}:${FLOATING_TAG}"
+          if [[ -n "${FLOATING_TAG}" && "$(digest "${IMAGE_FLOATING}")" != "${SHA_DIGEST}" ]]; then
+            docker pull "${IMAGE_SHA}"
+            docker tag "${IMAGE_SHA}" "${IMAGE_FLOATING}"
+            SHA_DIGEST=$(digest "${IMAGE_SHA}")
+            synced=false
+            for _ in 1 2 3 4 5; do
+              if [[ -n "${SHA_DIGEST}" && "$(digest "${IMAGE_FLOATING}")" == "${SHA_DIGEST}" ]] || docker push "${IMAGE_FLOATING}"; then
+                synced=true
+                break
+              fi
+              sleep $((RANDOM % 5 + 2))
+              SHA_DIGEST=$(digest "${IMAGE_SHA}")
+            done
+            [[ "${synced}" == "true" ]] || { echo "::error::Failed to sync ${IMAGE_FLOATING}"; exit 1; }
+          fi
+        fi
       shell: bash
