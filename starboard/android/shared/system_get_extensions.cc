@@ -76,9 +76,15 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetConfigurationApiAndroid();
   }
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
-    // TODO(b/377019873): Re-enable
-    // return starboard::GetMediaSessionApi();
+#if BUILDFLAG(IS_STARBOARD)
+    // AOSP: the Evergreen Core reports the web app's media session through
+    // this extension, which is mirrored into an Android MediaSession.
+    return starboard::GetMediaSessionApi();
+#else
+    // Android TV uses Chromium's MediaSession directly via
+    // CobaltMediaSession.java.
     return NULL;
+#endif  // BUILDFLAG(IS_STARBOARD)
   }
   if (strcmp(name, kStarboardExtensionFeaturesName) == 0) {
     return starboard::GetFeaturesApi();

@@ -98,8 +98,10 @@ generate_jni("jni_headers") {
   ]
 
   if (is_starboard) {
-    sources +=
-        [ "//cobalt/aosp/apk/app/java/dev/cobalt/coat/PlatformError.java" ]
+    sources += [
+      "//cobalt/aosp/apk/app/java/dev/cobalt/coat/PlatformError.java",
+      "//cobalt/aosp/apk/app/java/dev/cobalt/coat/StarboardMediaSession.java",
+    ]
   } else {
     sources += [
       "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
@@ -268,6 +270,7 @@ android_library("cobalt_main_java") {
     sources += [
       "//cobalt/aosp/apk/app/java/dev/cobalt/coat/PlatformError.java",
       "//cobalt/aosp/apk/app/java/dev/cobalt/coat/StarboardBridge.java",
+      "//cobalt/aosp/apk/app/java/dev/cobalt/coat/StarboardMediaSession.java",
     ]
   } else {
     sources += [
