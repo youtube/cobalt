@@ -3201,6 +3201,10 @@ target(_test_target_type, "net_unittests") {
     sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 
+  if (is_starboard) {
+    sources += [ "cert/internal/trust_store_in_memory_starboard_unittest.cc" ]
+  }
+
   if (enable_reporting) {
     sources += [
       "network_error_logging/mock_persistent_nel_store_unittest.cc",

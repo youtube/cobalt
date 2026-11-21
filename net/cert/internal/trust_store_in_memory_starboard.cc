@@ -37,8 +37,8 @@ namespace {
 const short kCertFileNameLength = 10;
 const char kCertificateHeader[] = "CERTIFICATE";
 
-std::vector<std::shared_ptr<const bssl::ParsedCertificate>> GetAllCertsOnDisk() {
-  const base::FilePath cert_dir_path(starboard::GetCACertificatesPath());
+std::vector<std::shared_ptr<const bssl::ParsedCertificate>> GetAllCertsOnDisk(
+    const base::FilePath& cert_dir_path) {
   DIR* sb_certs_directory = opendir(cert_dir_path.value().c_str());
   if (!sb_certs_directory) {
 // Unit tests, for example, do not use production certificates.
@@ -100,8 +100,13 @@ std::vector<std::shared_ptr<const bssl::ParsedCertificate>> GetAllCertsOnDisk() 
 }
 }  // namespace
 
-TrustStoreInMemoryStarboard::TrustStoreInMemoryStarboard() {
-  for (const auto& cert : GetAllCertsOnDisk()) {
+TrustStoreInMemoryStarboard::TrustStoreInMemoryStarboard()
+    : TrustStoreInMemoryStarboard(
+          base::FilePath(starboard::GetCACertificatesPath())) {}
+
+TrustStoreInMemoryStarboard::TrustStoreInMemoryStarboard(
+    const base::FilePath& cert_dir_path) {
+  for (const auto& cert : GetAllCertsOnDisk(cert_dir_path)) {
     underlying_trust_store_.AddTrustAnchor(cert);
   }
 }
