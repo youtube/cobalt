@@ -280,4 +280,30 @@ TEST(PartitionAllocAddressSpaceRandomizationTest, CanMapInAslrRange) {
 }
 #endif  // PA_BUILDFLAG(IS_MAC)
 
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+TEST(PartitionAllocAddressSpaceRandomizationTest,
+     DisableRandomPageBaseFor32Bit) {
+  const bool previous = IsRandomPageBaseDisabledFor32Bit();
+  struct ScopedRestore {
+    bool prev;
+    ~ScopedRestore() { SetRandomPageBaseDisabledFor32Bit(prev); }
+  } restore{previous};
+
+  SetRandomPageBaseDisabledFor32Bit(false);
+  EXPECT_FALSE(IsRandomPageBaseDisabledFor32Bit());
+
+  SetRandomPageBaseDisabledFor32Bit(true);
+  EXPECT_TRUE(IsRandomPageBaseDisabledFor32Bit());
+  for (size_t i = 0; i < 16; ++i) {
+    EXPECT_EQ(0u, GetRandomPageBase());
+  }
+
+  SetRandomPageBaseDisabledFor32Bit(false);
+  EXPECT_FALSE(IsRandomPageBaseDisabledFor32Bit());
+  if (GetMask() != 0) {
+    EXPECT_NE(0u, GetRandomPageBase());
+  }
+}
+#endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
 }  // namespace partition_alloc

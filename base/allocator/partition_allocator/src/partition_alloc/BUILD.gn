@@ -471,6 +471,8 @@ if (is_clang_or_gcc) {
       "spinning_mutex.h",
       "stack/stack.cc",
       "stack/stack.h",
+      "superpage_region_32bit.cc",
+      "superpage_region_32bit.h",
       "tagging.cc",
       "tagging.h",
       "thread_cache.cc",
@@ -1012,6 +1014,7 @@ if (build_with_chromium) {
         "partition_lock_unittest.cc",
         "reverse_bytes_unittest.cc",
         "slot_start_unittest.cc",
+        "superpage_region_32bit_unittest.cc",
         "thread_cache_unittest.cc",
         "use_death_tests.h",
       ]

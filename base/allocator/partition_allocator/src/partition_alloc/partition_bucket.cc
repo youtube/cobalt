@@ -32,6 +32,7 @@
 #include "partition_alloc/partition_page.h"
 #include "partition_alloc/partition_root.h"
 #include "partition_alloc/reservation_offset_table.h"
+#include "partition_alloc/superpage_region_32bit.h"
 #include "partition_alloc/tagging.h"
 
 namespace partition_alloc::internal {
@@ -777,8 +778,37 @@ uintptr_t PartitionBucket::AllocNewSuperPageSpan(PartitionRoot* root,
   // architectures.
   uintptr_t requested_address = root->next_super_page;
   pool_handle pool = root->ChoosePool();
-  uintptr_t super_page_span_start = ReserveMemoryFromPool(
-      pool, requested_address, super_page_count * kSuperPageSize);
+  uintptr_t super_page_span_start = 0;
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+  // Take normal-bucket super pages from the 32-bit super-page regions or the
+  // bottom-up cursor when configured (the BRP pool keeps its blocklisted
+  // path).
+  if (pool == kRegularPoolHandle) {
+    super_page_span_start =
+        SuperPageRegionReserve(super_page_count * kSuperPageSize);
+    if (super_page_span_start) {
+      AddressPoolManager::GetInstance().MarkUsed(
+          pool, super_page_span_start, super_page_count * kSuperPageSize);
+    }
+  }
+  if (!super_page_span_start && pool == kRegularPoolHandle &&
+      SuperPageRegionShouldDropHint(requested_address)) {
+    // The chain hint points into the bottom-up band; falling back from there
+    // would keep extending it past its limit. Use today's first-super-page
+    // path instead: a random hint, or none when random hints are disabled.
+    requested_address = 0;
+  }
+  if (!super_page_span_start)
+#endif
+  {
+    super_page_span_start = ReserveMemoryFromPool(
+        pool, requested_address, super_page_count * kSuperPageSize);
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+    if (super_page_span_start && pool == kRegularPoolHandle) {
+      SuperPageRegionNoteFallback(super_page_count);
+    }
+#endif
+  }
   if (!super_page_span_start) [[unlikely]] {
     if (ContainsFlags(flags, AllocFlags::kReturnNull)) {
       return 0;

@@ -4,6 +4,8 @@
 
 #include "partition_alloc/address_space_randomization.h"
 
+#include <atomic>
+
 #include "partition_alloc/build_config.h"
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/partition_alloc_check.h"
@@ -15,7 +17,29 @@
 
 namespace partition_alloc {
 
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+namespace {
+// 32-bit only (Cobalt): when set, GetRandomPageBase() returns 0 so
+// callers pass no hint and the kernel places the mapping (top-down), as on
+// 32-bit Windows. Set once at startup; relaxed reads are enough.
+std::atomic<bool> g_random_page_base_disabled{false};
+}  // namespace
+
+void SetRandomPageBaseDisabledFor32Bit(bool disabled) {
+  g_random_page_base_disabled.store(disabled, std::memory_order_relaxed);
+}
+
+bool IsRandomPageBaseDisabledFor32Bit() {
+  return g_random_page_base_disabled.load(std::memory_order_relaxed);
+}
+#endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
 uintptr_t GetRandomPageBase() {
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+  if (g_random_page_base_disabled.load(std::memory_order_relaxed)) {
+    return 0;
+  }
+#endif
   uintptr_t random = static_cast<uintptr_t>(internal::RandomValue());
 
 #if PA_BUILDFLAG(HAS_64_BIT_POINTERS)

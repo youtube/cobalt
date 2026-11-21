@@ -689,6 +689,53 @@ TEST(PartitionAllocPageAllocatorTest, MAYBE_AllocReadWriteExecute) {
   FreePages(buffer, PageAllocationGranularity());
 }
 
+#if PA_BUILDFLAG(PA_ARCH_CPU_32_BITS)
+TEST(PartitionAllocPageAllocatorTest,
+     AllocPages2MiBAlignedWithRandomBaseDisabledFor32Bit) {
+  const bool previous = IsRandomPageBaseDisabledFor32Bit();
+  struct ScopedRestore {
+    bool prev;
+    ~ScopedRestore() { SetRandomPageBaseDisabledFor32Bit(prev); }
+  } restore{previous};
+
+  SetRandomPageBaseDisabledFor32Bit(true);
+  ASSERT_TRUE(IsRandomPageBaseDisabledFor32Bit());
+  ASSERT_EQ(0u, GetRandomPageBase());
+
+  constexpr size_t k2MiB = 2 * 1024 * 1024;
+  std::vector<uintptr_t> allocs;
+  for (int i = 0; i < 4; ++i) {
+    uintptr_t addr =
+        AllocPages(k2MiB, k2MiB,
+                   PageAccessibilityConfiguration(
+                       PageAccessibilityConfiguration::kReadWrite),
+                   PageTag::kPartitionAlloc);
+    ASSERT_NE(addr, 0u);
+    EXPECT_EQ(addr % k2MiB, 0u);
+    *reinterpret_cast<uint8_t*>(addr) = static_cast<uint8_t>(i + 1);
+    *reinterpret_cast<uint8_t*>(addr + k2MiB - 1) = static_cast<uint8_t>(i + 9);
+    EXPECT_EQ(*reinterpret_cast<uint8_t*>(addr), static_cast<uint8_t>(i + 1));
+    EXPECT_EQ(*reinterpret_cast<uint8_t*>(addr + k2MiB - 1),
+              static_cast<uint8_t>(i + 9));
+    allocs.push_back(addr);
+  }
+  for (uintptr_t addr : allocs) {
+    FreePages(addr, k2MiB);
+  }
+
+  // Also verify non-zero align_offset with the round-down retry path.
+  const size_t offset = PageAllocationGranularity();
+  uintptr_t with_offset = AllocPagesWithAlignOffset(
+      0, k2MiB, k2MiB, offset,
+      PageAccessibilityConfiguration(
+          PageAccessibilityConfiguration::kReadWrite),
+      PageTag::kPartitionAlloc);
+  ASSERT_NE(with_offset, 0u);
+  EXPECT_EQ(with_offset % k2MiB, offset);
+  FreePages(with_offset, k2MiB);
+}
+#endif  // PA_BUILDFLAG(PA_ARCH_CPU_32_BITS)
+
 }  // namespace partition_alloc::internal
 
 #endif  // !defined(MEMORY_TOOL_REPLACES_ALLOCATOR)

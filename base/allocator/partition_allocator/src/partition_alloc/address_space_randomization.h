@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "partition_alloc/build_config.h"
+#include "partition_alloc/buildflags.h"
 #include "partition_alloc/page_allocator_constants.h"
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
@@ -17,6 +18,17 @@ namespace partition_alloc {
 // Calculates a random preferred mapping address. In calculating an address, we
 // balance good ASLR against not fragmenting the address space too badly.
 PA_COMPONENT_EXPORT(PARTITION_ALLOC) uintptr_t GetRandomPageBase();
+
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+// 32-bit only (Cobalt): makes GetRandomPageBase() return 0 (no hint),
+// so PartitionAlloc super pages, direct maps, and V8/Oilpan pages (through
+// gin::PageAllocator) are placed by the kernel instead of at random addresses
+// in [0.5, 1.5) GiB. Call once, early.
+PA_COMPONENT_EXPORT(PARTITION_ALLOC)
+void SetRandomPageBaseDisabledFor32Bit(bool disabled);
+PA_COMPONENT_EXPORT(PARTITION_ALLOC)
+bool IsRandomPageBaseDisabledFor32Bit();
+#endif
 
 namespace internal {
 

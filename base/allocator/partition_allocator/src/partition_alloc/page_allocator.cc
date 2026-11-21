@@ -143,6 +143,16 @@ uintptr_t SystemAllocPages(uintptr_t hint,
   return ret;
 }
 
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+void NoteMappedAddressSpace(size_t length) {
+  g_total_mapped_address_space.fetch_add(length, std::memory_order_relaxed);
+}
+
+void NoteUnmappedAddressSpace(size_t length) {
+  g_total_mapped_address_space.fetch_sub(length, std::memory_order_relaxed);
+}
+#endif  // !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+
 }  // namespace internal
 
 uintptr_t AllocPages(size_t length,
@@ -192,8 +202,13 @@ uintptr_t AllocPagesWithAlignOffset(
   PA_DCHECK(!address || (address & align_offset_mask) == align_offset);
 
   // If the client passed null as the address, choose a good one.
+  // With random hints disabled (32-bit super-page placement),
+  // GetRandomPageBase() returns 0: keep no hint rather than one at
+  // `align_offset`, near the bottom of the address space.
   if (!address) {
-    address = (GetRandomPageBase() & align_base_mask) + align_offset;
+    if (const uintptr_t random_base = GetRandomPageBase()) {
+      address = (random_base & align_base_mask) + align_offset;
+    }
   }
 
   // First try to force an exact-size, aligned allocation from our random base.
@@ -230,6 +245,19 @@ uintptr_t AllocPagesWithAlignOffset(
     // |align_offset| is non-zero, this calculation may get us not the first,
     // but the next matching address.
     address = ((ret + align_offset_mask) & align_base_mask) + align_offset;
+#if !PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+    // With random hints disabled (SetRandomPageBaseDisabledFor32Bit()), the
+    // kernel places |ret| at the top of a hole, so the next aligned address
+    // above it overlaps the mapping above the hole and the retry always
+    // misses. Round down instead: the aligned range then lies lower in the
+    // same hole.
+    if (ret && IsRandomPageBaseDisabledFor32Bit()) {
+      address = (ret & align_base_mask) + align_offset;
+      if (address > ret) {
+        address = address >= align ? address - align : 0;
+      }
+    }
+#endif
 #else  // PA_BUILDFLAG(PA_ARCH_CPU_64_BITS)
     // Keep trying random addresses on systems that have a large address space.
     address = NextAlignedWithOffset(GetRandomPageBase(), align, align_offset);

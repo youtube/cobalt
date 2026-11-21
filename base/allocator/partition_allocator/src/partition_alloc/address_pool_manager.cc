@@ -18,6 +18,7 @@
 #include "partition_alloc/partition_alloc_check.h"
 #include "partition_alloc/partition_alloc_constants.h"
 #include "partition_alloc/reservation_offset_table.h"
+#include "partition_alloc/superpage_region_32bit.h"
 #include "partition_alloc/thread_isolation/alignment.h"
 
 #if PA_BUILDFLAG(IS_APPLE) || PA_BUILDFLAG(ENABLE_THREAD_ISOLATION)
@@ -371,6 +372,11 @@ void AddressPoolManager::UnreserveAndDecommit(pool_handle handle,
                                               size_t length) {
   PA_DCHECK(!(address & kSuperPageOffsetMask));
   PA_DCHECK(!(length & DirectMapAllocationGranularityOffsetMask()));
+  // Super pages from a 32-bit super-page region go back to the region,
+  // still reserved.
+  if (SuperPageRegionRelease(address, length)) {
+    return;
+  }
   FreePages(address, length);
 }
 
