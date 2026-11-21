@@ -19,11 +19,17 @@ import static dev.cobalt.util.Log.TAG;
 import android.app.Activity;
 import android.app.Service;
 import android.graphics.PixelFormat;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.Window;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
+import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.BaseCobaltActivity;
 import dev.cobalt.coat.BaseStarboardBridge;
 import dev.cobalt.coat.CobaltService;
@@ -68,6 +74,16 @@ public class MainActivity extends BaseCobaltActivity {
     // the cache and assert, until they can be forwarded to libcobalt.
     UmaRecorderHolder.setNonNativeDelegate(new DiscardingUmaRecorder());
   }
+
+  // Tracks if a physical/hardware back button press is currently in progress.
+  // On Android 13+ (API >= 33) with predictive back gesture enabled, the OS dispatches physical
+  // back button presses as both key events (onKeyDown/onKeyUp) and OnBackInvokedCallback.
+  // To prevent double-triggering back navigation in the web application (which maps back keys
+  // to Escape), this flag is used by OnBackInvokedCallback to detect physical key presses and
+  // bypass simulated key dispatching.
+  private boolean mPhysicalBackKeyPressed;
+
+  private Object mBackInvokedCallback;
 
   @NativeMethods
   interface Natives {
@@ -180,6 +196,48 @@ public class MainActivity extends BaseCobaltActivity {
 
     mVideoSurfaceView = new VideoSurfaceView(this);
     setContentView(mVideoSurfaceView);
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      mBackInvokedCallback = OnBackInvokedHelper.register(this);
+    }
+  }
+
+  @RequiresApi(api = 33)
+  private static class OnBackInvokedHelper {
+    private static final Handler sHandler = new Handler(Looper.getMainLooper());
+
+    static Object register(MainActivity activity) {
+      OnBackInvokedCallback callback =
+          () -> {
+            if (activity.mPhysicalBackKeyPressed) {
+              return; // dispatchKeyEvent() already forwards this press.
+            }
+            activity.sendBackKey(KeyEvent.ACTION_DOWN);
+            // Delay the release, so the web page's focus manager doesn't see the
+            // key-up before a page transition finishes.
+            sHandler.postDelayed(
+                () -> {
+                  if (!activity.isDestroyed() && !activity.isFinishing()) {
+                    activity.sendBackKey(KeyEvent.ACTION_UP);
+                  }
+                },
+                100);
+          };
+      activity
+          .getOnBackInvokedDispatcher()
+          .registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback);
+      return callback;
+    }
+
+    static void unregister(MainActivity activity, Object callback) {
+      activity
+          .getOnBackInvokedDispatcher()
+          .unregisterOnBackInvokedCallback((OnBackInvokedCallback) callback);
+    }
+  }
+
+  private void sendBackKey(int action) {
+    MainActivityJni.get().nativeSendKeyEvent(KeyEvent.KEYCODE_BACK, action, 0, 0);
   }
 
   /**
@@ -214,6 +272,7 @@ public class MainActivity extends BaseCobaltActivity {
 
   @Override
   protected void onPause() {
+    mPhysicalBackKeyPressed = false;
     // Blurred, not concealed, the surface is still alive.
     MainActivityJni.get().nativeSendBlurEvent();
     super.onPause();
@@ -237,11 +296,18 @@ public class MainActivity extends BaseCobaltActivity {
     if (isFinishing()) {
       MainActivityJni.get().nativeSendStopEvent();
     }
+    if (mBackInvokedCallback != null) {
+      OnBackInvokedHelper.unregister(this, mBackInvokedCallback);
+      mBackInvokedCallback = null;
+    }
     super.onDestroy();
   }
 
   @Override
   public boolean dispatchKeyEvent(KeyEvent event) {
+    if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+      mPhysicalBackKeyPressed = event.getAction() == KeyEvent.ACTION_DOWN;
+    }
     boolean handled =
         MainActivityJni.get()
             .nativeSendKeyEvent(
