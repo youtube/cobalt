@@ -271,5 +271,17 @@ BASE_FEATURE_PARAM(bool,
                    "CobaltCodeCacheOptimization_bypass_heat_check",
                    true);
 
+BASE_FEATURE(kCobaltStorageFootprintSampler,
+             "CobaltStorageFootprintSampler",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Finch flattens params across features into one namespace, so the param name
+// is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltStorageFootprintSamplerUptimeInterval,
+                   &kCobaltStorageFootprintSampler,
+                   "CobaltStorageFootprintSampler_uptime_interval",
+                   base::Hours(24));
+
 }  // namespace features
 }  // namespace cobalt

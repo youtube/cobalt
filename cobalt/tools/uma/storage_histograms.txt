@@ -18,6 +18,9 @@
 # --- P0.1 Persistent & Cache Disk Footprint + RAM ---
 Cobalt.Storage.UserData.StartupTotalSizeKB
 Cobalt.Storage.DirCache.StartupTotalSizeKB
+# Allocated size per root and per storage bucket at Startup (+10 s),
+# PostCleanup (+30 s), and every 24 h of uptime, plus the walk's own cost.
+Cobalt.Storage.Footprint.
 Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
 
@@ -72,6 +75,7 @@ V8.ProduceCodeCacheMicroseconds
 # --- P1.3 Process Block I/O Volume ---
 Cobalt.Storage.ProcessIo.StartupReadKB
 Cobalt.Storage.ProcessIo.StartupWriteKB
+Cobalt.Storage.ProcessIo.StartupMajorPageFaults
 Cobalt.Storage.ProcessIo.WriteRateKBPerMin
 
 # ==============================================================================
@@ -83,6 +87,9 @@ Cobalt.Startup.Time.NavigationDispatchToCommit
 Cobalt.Startup.MilestoneReached
 Cobalt.Startup.TimeToMilestone.
 Browser.MainThreadsCongestion
+# Blocking calls (mostly disk I/O) of 1 s or longer on non-background threads,
+# reported once per minute (IOJankyIntervalsPerMinute, IOJanksTotalPerMinute).
+Cobalt.Responsiveness.
 
 # --- P2.2 Data Integrity & Error Guardrails ---
 Cobalt.LocalStorage.DatabaseOpenError
