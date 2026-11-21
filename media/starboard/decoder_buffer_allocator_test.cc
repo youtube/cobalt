@@ -14,7 +14,11 @@
 
 #include "media/starboard/decoder_buffer_allocator.h"
 
+#include <sys/mman.h>
+#include <unistd.h>
+
 #include <algorithm>
+#include <cstring>
 #include <numeric>
 #include <string>
 #include <unordered_map>
@@ -33,6 +37,7 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_switches.h"
 #include "media/base/test_data_util.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: b/369245553 - Cobalt: As of today the tests here are used to experiment
@@ -289,6 +294,94 @@ TEST(DecoderBufferAllocatorNonParameterizedTest, DisabledViaFeatureFlag) {
   DecoderBufferAllocator allocator;
   EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
   EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 0u);
+}
+
+bool IsInteriorPageResident(Handle handle, size_t buffer_size) {
+  const size_t page_size = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+  uint8_t* raw_ptr = reinterpret_cast<uint8_t*>(handle);
+  uint8_t* aligned_page = starboard::AlignUp(raw_ptr + page_size, page_size);
+  CHECK_LE(aligned_page + page_size, raw_ptr + buffer_size);
+  unsigned char vec = 0;
+  CHECK_EQ(mincore(aligned_page, page_size, &vec), 0);
+  return (vec & 1) != 0;
+}
+
+TEST(DecoderBufferAllocatorNonParameterizedTest,
+     DecommitsIdleGrowthBlocksAboveRetainedWhenEmpty) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      media::kCobaltDecoderBufferDecommitOnMemoryPressure,
+      {{"CobaltDecoderBufferDecommitOnMemoryPressure_retain_blocks", "1"},
+       {"CobaltDecoderBufferDecommitOnMemoryPressure_when_empty", "true"}});
+
+  constexpr int kBlockSize = 256 * 1024;
+  constexpr size_t kBufferSize = 192 * 1024;
+  DecoderBufferAllocator allocator(
+      /*is_memory_pool_allocated_on_demand=*/false, kBlockSize, kBlockSize);
+
+  // Allocate 3 buffers so the pool has 1 initial block + 2 growth blocks.
+  Handle h0 = allocator.Allocate(DemuxerStream::VIDEO, kBufferSize);
+  Handle h1 = allocator.Allocate(DemuxerStream::VIDEO, kBufferSize);
+  Handle h2 = allocator.Allocate(DemuxerStream::VIDEO, kBufferSize);
+  ASSERT_NE(h0, DecoderBuffer::Allocator::kInvalidHandle);
+  ASSERT_NE(h1, DecoderBuffer::Allocator::kInvalidHandle);
+  ASSERT_NE(h2, DecoderBuffer::Allocator::kInvalidHandle);
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(),
+            static_cast<size_t>(3 * kBlockSize));
+
+  // Dirty all 3 blocks so OS pages are resident in RAM.
+  std::memset(reinterpret_cast<void*>(h0), 0xAB, kBufferSize);
+  std::memset(reinterpret_cast<void*>(h1), 0xAB, kBufferSize);
+  std::memset(reinterpret_cast<void*>(h2), 0xAB, kBufferSize);
+  ASSERT_TRUE(IsInteriorPageResident(h0, kBufferSize));
+  ASSERT_TRUE(IsInteriorPageResident(h1, kBufferSize));
+  ASSERT_TRUE(IsInteriorPageResident(h2, kBufferSize));
+
+  // Free growth-block buffers while h0 is still live: pool is not empty yet, so
+  // growth blocks remain committed.
+  allocator.Free(DemuxerStream::VIDEO, h2, kBufferSize);
+  allocator.Free(DemuxerStream::VIDEO, h1, kBufferSize);
+  EXPECT_GT(allocator.GetAllocatedMemory(), 0u);
+  EXPECT_TRUE(IsInteriorPageResident(h1, kBufferSize));
+  EXPECT_TRUE(IsInteriorPageResident(h2, kBufferSize));
+
+  // Freeing the last live buffer drops GetAllocatedMemory() to 0 and
+  // immediately decommits idle growth blocks above the 1 retained block.
+  allocator.Free(DemuxerStream::VIDEO, h0, kBufferSize);
+  EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
+  EXPECT_TRUE(IsInteriorPageResident(h0, kBufferSize));
+  EXPECT_FALSE(IsInteriorPageResident(h1, kBufferSize));
+  EXPECT_FALSE(IsInteriorPageResident(h2, kBufferSize));
+}
+
+TEST(DecoderBufferAllocatorNonParameterizedTest,
+     KeepsIdleGrowthBlocksCommittedWhenEmptyParamFalse) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      media::kCobaltDecoderBufferDecommitOnMemoryPressure,
+      {{"CobaltDecoderBufferDecommitOnMemoryPressure_retain_blocks", "1"},
+       {"CobaltDecoderBufferDecommitOnMemoryPressure_when_empty", "false"}});
+
+  constexpr int kBlockSize = 256 * 1024;
+  constexpr size_t kBufferSize = 192 * 1024;
+  DecoderBufferAllocator allocator(
+      /*is_memory_pool_allocated_on_demand=*/false, kBlockSize, kBlockSize);
+
+  Handle h0 = allocator.Allocate(DemuxerStream::VIDEO, kBufferSize);
+  Handle h1 = allocator.Allocate(DemuxerStream::VIDEO, kBufferSize);
+  std::memset(reinterpret_cast<void*>(h0), 0xCD, kBufferSize);
+  std::memset(reinterpret_cast<void*>(h1), 0xCD, kBufferSize);
+  ASSERT_TRUE(IsInteriorPageResident(h0, kBufferSize));
+  ASSERT_TRUE(IsInteriorPageResident(h1, kBufferSize));
+
+  allocator.Free(DemuxerStream::VIDEO, h1, kBufferSize);
+  allocator.Free(DemuxerStream::VIDEO, h0, kBufferSize);
+  EXPECT_EQ(allocator.GetAllocatedMemory(), 0u);
+
+  // Without CobaltDecoderBufferDecommitOnMemoryPressure_when_empty=true, growth
+  // block stays resident until an explicit memory pressure signal arrives.
+  EXPECT_TRUE(IsInteriorPageResident(h0, kBufferSize));
+  EXPECT_TRUE(IsInteriorPageResident(h1, kBufferSize));
 }
 
 }  // namespace

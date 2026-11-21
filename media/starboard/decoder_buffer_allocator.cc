@@ -185,6 +185,10 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
     LOG(INFO) << "Freeing " << strategy_->GetCapacity()
               << " bytes of decoder buffer pool.";
     strategy_.reset();
+  } else if (is_decommit_on_pressure_strategy_ &&
+             kCobaltDecoderBufferDecommitWhenEmpty.Get() &&
+             strategy_->GetAllocated() == 0) {
+    strategy_->DecommitAllDecommitableBlocks(/*include_retained_blocks=*/false);
   }
 }
 
