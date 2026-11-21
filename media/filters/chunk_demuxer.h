@@ -446,6 +446,14 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                                       size_t newDataSize);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // True if the last EvictCodedFrames() on this thread failed because the
+  // media buffer pool couldn't grow (rather than the SourceBuffer being full).
+  // Reading it clears it. Lets the page get a distinct QuotaExceededError
+  // message for telemetry.
+  static bool TakeMediaPoolExhausted();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Returns the latest presentation timestamp of the buffers to be read
   // from the DemuxerStream.
   [[nodiscard]] base::TimeDelta GetWriteHead(const std::string& id) const;

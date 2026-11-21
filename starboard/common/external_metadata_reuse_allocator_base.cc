@@ -184,6 +184,14 @@ void ExternalMetadataReuseAllocatorBase::Free(void* memory) {
   SB_DCHECK(result);
 }
 
+bool ExternalMetadataReuseAllocatorBase::EnsureHeadroom(size_t bytes) {
+  return GrowForHeadroom(
+      bytes, allocation_increment_, kMinAlignment,
+      [this](void* address, intptr_t index, size_t size) {
+        AddFreeBlock(MemoryBlock(static_cast<int>(index), address, size));
+      });
+}
+
 void ExternalMetadataReuseAllocatorBase::PrintAllocations(
     bool align_allocated_size,
     int max_allocations_to_print) const {

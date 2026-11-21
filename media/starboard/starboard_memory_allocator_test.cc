@@ -30,6 +30,7 @@
 #include "media/starboard/media_pool_direct_map.h"
 #include "starboard/common/bidirectional_fit_reuse_allocator.h"
 #include "starboard/common/embedded_metadata_reuse_allocator_base.h"
+#include "starboard/common/external_metadata_reuse_allocator_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -503,6 +504,195 @@ TEST_F(StarboardMemoryAllocatorSoftFailTest,
             DecoderBuffer::Allocator::kInvalidHandle);
   EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 0u);
   EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
+}
+
+TEST_F(StarboardMemoryAllocatorSoftFailTest,
+       HeadroomCountsFreeSpaceWithoutAllocating) {
+  DecoderBufferAllocator allocator(/*is_memory_pool_allocated_on_demand=*/false,
+                                   /*initial_capacity=*/kPoolIncrement,
+                                   /*allocation_unit=*/kPoolIncrement);
+  constexpr size_t kLive = 1024 * 1024;
+  auto live = allocator.TryAllocate(DemuxerStream::VIDEO, kLive);
+  ASSERT_NE(live, DecoderBuffer::Allocator::kInvalidHandle);
+  const size_t allocated = allocator.GetAllocatedMemory();
+  const size_t base_blocks = MediaPoolDirectMap::BlockCountForTesting();
+
+  // About 3 MiB of the 4 MiB block is free: 2 MiB fits without growing, and
+  // nothing is allocated from the pool to find out.
+  MediaPoolDirectMap::SetMapFailForTesting(true);
+  EXPECT_TRUE(allocator.TryEnsureHeadroom(2 * 1024 * 1024));
+  EXPECT_EQ(allocator.GetAllocatedMemory(), allocated);
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), kPoolIncrement);
+  // 4 MiB would need another block, which can't be mapped.
+  EXPECT_FALSE(allocator.TryEnsureHeadroom(kPoolIncrement));
+  EXPECT_EQ(allocator.GetAllocatedMemory(), allocated);
+  EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
+  MediaPoolDirectMap::SetMapFailForTesting(false);
+
+  allocator.Free(DemuxerStream::VIDEO, live, kLive);
+}
+
+TEST_F(StarboardMemoryAllocatorSoftFailTest, HeadroomCountsSmallFreeHoles) {
+  DecoderBufferAllocator allocator(/*is_memory_pool_allocated_on_demand=*/false,
+                                   /*initial_capacity=*/kPoolIncrement,
+                                   /*allocation_unit=*/kPoolIncrement);
+  // Fill the block with 256 KiB frames, then free every other one: the free
+  // space is 2 MiB, in holes no larger than 256 KiB.
+  constexpr size_t kFrame = 256 * 1024 - 64;
+  constexpr int kFrames = 16;
+  DecoderBuffer::Allocator::Handle frames[kFrames];
+  for (auto& frame : frames) {
+    frame = allocator.TryAllocate(DemuxerStream::VIDEO, kFrame);
+    ASSERT_NE(frame, DecoderBuffer::Allocator::kInvalidHandle);
+  }
+  for (int i = 0; i < kFrames; i += 2) {
+    allocator.Free(DemuxerStream::VIDEO, frames[i], kFrame);
+  }
+  MediaPoolDirectMap::SetMapFailForTesting(true);
+  EXPECT_TRUE(allocator.TryEnsureHeadroom(1024 * 1024));
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), kPoolIncrement);
+  MediaPoolDirectMap::SetMapFailForTesting(false);
+  for (int i = 1; i < kFrames; i += 2) {
+    allocator.Free(DemuxerStream::VIDEO, frames[i], kFrame);
+  }
+}
+
+TEST_F(StarboardMemoryAllocatorSoftFailTest, HeadroomGrowsOnlyForShortfall) {
+  DecoderBufferAllocator allocator(/*is_memory_pool_allocated_on_demand=*/false,
+                                   /*initial_capacity=*/kPoolIncrement,
+                                   /*allocation_unit=*/kPoolIncrement);
+  constexpr size_t kLive = kPoolIncrement - 512 * 1024;
+  auto live = allocator.TryAllocate(DemuxerStream::VIDEO, kLive);
+  ASSERT_NE(live, DecoderBuffer::Allocator::kInvalidHandle);
+  const size_t allocated = allocator.GetAllocatedMemory();
+
+  // About 512 KiB is free, so 1 MiB of headroom needs one more block.
+  EXPECT_TRUE(allocator.TryEnsureHeadroom(1024 * 1024));
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 2 * kPoolIncrement);
+  // Asking again needs nothing new.
+  EXPECT_TRUE(allocator.TryEnsureHeadroom(1024 * 1024));
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 2 * kPoolIncrement);
+  // 9 MiB grows block by block until it fits.
+  EXPECT_TRUE(allocator.TryEnsureHeadroom(9 * 1024 * 1024));
+  EXPECT_EQ(allocator.GetCurrentMemoryCapacity(), 4 * kPoolIncrement);
+  EXPECT_EQ(allocator.GetAllocatedMemory(), allocated);
+
+  allocator.Free(DemuxerStream::VIDEO, live, kLive);
+}
+
+TEST_F(StarboardMemoryAllocatorSoftFailTest,
+       HeadroomStepsDownToSmallerBlocks) {
+  // When the largest hole is smaller than the pool's 4 MiB increment, the
+  // headroom check grows the pool with smaller blocks instead of failing.
+  for (size_t ceiling :
+       {size_t{2} << 20, size_t{1} << 20, size_t{512} << 10}) {
+    DecoderBufferAllocator allocator(
+        /*is_memory_pool_allocated_on_demand=*/false,
+        /*initial_capacity=*/kPoolIncrement,
+        /*allocation_unit=*/kPoolIncrement);
+    constexpr size_t kLive = kPoolIncrement - 1024;
+    auto live = allocator.TryAllocate(DemuxerStream::VIDEO, kLive);
+    ASSERT_NE(live, DecoderBuffer::Allocator::kInvalidHandle);
+    const size_t base_blocks = MediaPoolDirectMap::BlockCountForTesting();
+
+    MediaPoolDirectMap::SetMapFailAboveForTesting(ceiling);
+    constexpr size_t kNeeded = 3 * 1024 * 1024;
+    EXPECT_TRUE(allocator.TryEnsureHeadroom(kNeeded)) << ceiling;
+    // About 1 KiB was free, so this takes ceil(3 MiB / ceiling) blocks.
+    const size_t blocks = (kNeeded + ceiling - 1) / ceiling;
+    EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting() - base_blocks, blocks)
+        << ceiling;
+    EXPECT_EQ(allocator.GetCurrentMemoryCapacity(),
+              kPoolIncrement + blocks * ceiling)
+        << ceiling;
+    MediaPoolDirectMap::SetMapFailAboveForTesting(std::nullopt);
+
+    allocator.Free(DemuxerStream::VIDEO, live, kLive);
+  }
+
+  // Below 512 KiB, the last try is a block of exactly the shortfall.
+  DecoderBufferAllocator allocator(/*is_memory_pool_allocated_on_demand=*/false,
+                                   /*initial_capacity=*/kPoolIncrement,
+                                   /*allocation_unit=*/kPoolIncrement);
+  constexpr size_t kLive = kPoolIncrement - 1024;
+  auto live = allocator.TryAllocate(DemuxerStream::VIDEO, kLive);
+  ASSERT_NE(live, DecoderBuffer::Allocator::kInvalidHandle);
+  const size_t base_blocks = MediaPoolDirectMap::BlockCountForTesting();
+  MediaPoolDirectMap::SetMapFailAboveForTesting(size_t{256} << 10);
+  constexpr size_t kNeeded = 200 * 1024;
+  EXPECT_TRUE(allocator.TryEnsureHeadroom(kNeeded));
+  EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting() - base_blocks, 1u);
+  const size_t grown = allocator.GetCurrentMemoryCapacity() - kPoolIncrement;
+  EXPECT_GE(grown, kNeeded - 1024);
+  EXPECT_LE(grown, kNeeded);
+  MediaPoolDirectMap::SetMapFailAboveForTesting(std::nullopt);
+  allocator.Free(DemuxerStream::VIDEO, live, kLive);
+}
+
+TEST_F(StarboardMemoryAllocatorSoftFailTest,
+       HeadroomStepsDownWithExternalMetadata) {
+  StarboardMemoryAllocator fallback(/*enable_decommit=*/false,
+                                    /*enable_page_alignment=*/false,
+                                    /*max_step_size=*/kPoolIncrement);
+  starboard::BidirectionalFitReuseAllocator<
+      starboard::ExternalMetadataReuseAllocatorBase>
+      pool(&fallback, kPoolIncrement, /*small_allocation_threshold=*/512,
+           kPoolIncrement);
+  void* live = pool.Allocate(kPoolIncrement - 1024);
+  ASSERT_NE(live, nullptr);
+
+  MediaPoolDirectMap::SetMapFailAboveForTesting(size_t{1} << 20);
+  EXPECT_TRUE(pool.EnsureHeadroom(3 * 1024 * 1024));
+  EXPECT_EQ(pool.GetCapacity(), kPoolIncrement + 3 * 1024 * 1024);
+  // Without any mapping, more than the pool has free fails.
+  MediaPoolDirectMap::SetMapFailForTesting(true);
+  EXPECT_FALSE(pool.EnsureHeadroom(4 * 1024 * 1024));
+  EXPECT_EQ(pool.GetCapacity(), kPoolIncrement + 3 * 1024 * 1024);
+  MediaPoolDirectMap::SetMapFailForTesting(false);
+  MediaPoolDirectMap::SetMapFailAboveForTesting(std::nullopt);
+
+  pool.Free(live);
+}
+
+// Counts the decommits of idle blocks.
+class DecommitCountingAllocator : public StarboardMemoryAllocator {
+ public:
+  using StarboardMemoryAllocator::StarboardMemoryAllocator;
+  void Decommit(void* memory, size_t size, DecommitMode mode) override {
+    ++decommits_;
+    StarboardMemoryAllocator::Decommit(memory, size, mode);
+  }
+  int decommits() const { return decommits_; }
+
+ private:
+  int decommits_ = 0;
+};
+
+TEST_F(StarboardMemoryAllocatorSoftFailTest, FailedHeadroomKeepsIdleBlockIdle) {
+  DecommitCountingAllocator fallback(/*enable_decommit=*/true,
+                                     /*enable_page_alignment=*/false,
+                                     /*max_step_size=*/kPoolIncrement);
+  starboard::BidirectionalFitReuseAllocator<
+      starboard::EmbeddedMetadataReuseAllocatorBase>
+      pool(&fallback, kPoolIncrement, /*small_allocation_threshold=*/512,
+           kPoolIncrement, /*enable_decommit_on_idle=*/false,
+           /*retain_blocks=*/0, /*conservative_decommit_blocks=*/0,
+           /*aggressive_decommit_on_suspend=*/false,
+           /*memset_on_reclaim=*/false, /*mark_as_cold_on_reclaim=*/false,
+           /*enable_decommit_only_on_memory_pressure=*/true);
+  // Make the pool idle: its block goes back to the idle blocks.
+  void* p = pool.Allocate(1024);
+  ASSERT_NE(p, nullptr);
+  pool.Free(p);
+
+  // The idle block counts as free; more than that fails, and the idle block
+  // must stay idle so that memory pressure can still release it.
+  MediaPoolDirectMap::SetMapFailForTesting(true);
+  EXPECT_TRUE(pool.EnsureHeadroom(kPoolIncrement));
+  EXPECT_FALSE(pool.EnsureHeadroom(2 * kPoolIncrement));
+  MediaPoolDirectMap::SetMapFailForTesting(false);
+  pool.DecommitAllDecommitableBlocks(/*include_retained_blocks=*/true);
+  EXPECT_EQ(fallback.decommits(), 1);
 }
 
 TEST_F(StarboardMemoryAllocatorSoftFailTest,

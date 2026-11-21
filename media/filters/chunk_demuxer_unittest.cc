@@ -48,6 +48,12 @@
 #include "media/media_buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <optional>
+
+#include "media/base/media_client.h"
+#endif
+
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
 using ::testing::Exactly;
@@ -5013,6 +5019,159 @@ TEST_F(ChunkDemuxerTest, AddAutoDetectIDFindsCodecs) {
   CheckExpectedRanges(kPrimary, "{ [1466,2267) }");
 }
 #endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+
+class HeadroomStubExternalMemoryAllocator : public ExternalMemoryAllocator {
+ public:
+  explicit HeadroomStubExternalMemoryAllocator(bool headroom_result)
+      : headroom_result_(headroom_result) {}
+
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const uint8_t> /*span*/) override {
+    return nullptr;
+  }
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const base::span<const uint8_t>> /*parts*/,
+      DemuxerStream::Type /*type*/) override {
+    return nullptr;
+  }
+  bool EnsureHeadroom(size_t bytes) override {
+    ++ensure_calls_;
+    last_bytes_ = bytes;
+    return headroom_result_;
+  }
+
+  void set_headroom_result(bool result) { headroom_result_ = result; }
+  int ensure_calls() const { return ensure_calls_; }
+  size_t last_bytes() const { return last_bytes_; }
+
+ private:
+  bool headroom_result_;
+  int ensure_calls_ = 0;
+  size_t last_bytes_ = 0;
+};
+
+class HeadroomStubMediaClient : public MediaClient {
+ public:
+  explicit HeadroomStubMediaClient(bool headroom_result)
+      : allocator_(headroom_result) {}
+
+  bool IsDecoderSupportedAudioType(const AudioType& /*type*/) override {
+    return true;
+  }
+  bool IsDecoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsEncoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsSupportedBitstreamAudioCodec(AudioCodec /*codec*/) override {
+    return false;
+  }
+  std::optional<AudioRendererAlgorithmParameters>
+  GetAudioRendererAlgorithmParameters(
+      AudioParameters /*audio_parameters*/) override {
+    return std::nullopt;
+  }
+  ExternalMemoryAllocator* GetMediaAllocator() override { return &allocator_; }
+
+  HeadroomStubExternalMemoryAllocator& allocator() { return allocator_; }
+  const HeadroomStubExternalMemoryAllocator& allocator() const {
+    return allocator_;
+  }
+
+ private:
+  HeadroomStubExternalMemoryAllocator allocator_;
+};
+
+// Saves and restores DecoderBuffer::Allocator::Get() because MediaClient's
+// constructor installs its own member DecoderBufferAllocator globally.
+class ScopedHeadroomMediaClient {
+ public:
+  explicit ScopedHeadroomMediaClient(bool headroom_result)
+      : prev_allocator_(DecoderBuffer::Allocator::Get()) {
+    DecoderBuffer::Allocator::Set(nullptr);
+    client_.emplace(headroom_result);
+    // MediaClient's constructor installs its own DecoderBufferAllocator
+    // globally; the test only needs the media allocator, so restore the
+    // previous one right away.
+    DecoderBuffer::Allocator::Set(nullptr);
+    DecoderBuffer::Allocator::Set(prev_allocator_);
+    SetMediaClient(&*client_);
+  }
+  ~ScopedHeadroomMediaClient() {
+    SetMediaClient(nullptr);
+    DecoderBuffer::Allocator::Set(nullptr);
+    DecoderBuffer::Allocator::Set(prev_allocator_);
+    client_.reset();
+  }
+
+  void set_headroom_result(bool result) {
+    client_->allocator().set_headroom_result(result);
+  }
+  int ensure_calls() const { return client_->allocator().ensure_calls(); }
+  size_t last_bytes() const { return client_->allocator().last_bytes(); }
+
+ private:
+  raw_ptr<DecoderBuffer::Allocator> prev_allocator_;
+  std::optional<HeadroomStubMediaClient> client_;
+};
+
+}  // namespace
+
+TEST_F(ChunkDemuxerTest, EvictCodedFramesMediaPoolHeadroomCheck) {
+  ASSERT_TRUE(InitDemuxer(HAS_AUDIO | HAS_VIDEO));
+  // Clear any prior thread-local flag state.
+  ChunkDemuxer::TakeMediaPoolExhausted();
+
+  ScopedHeadroomMediaClient scoped_client(/*headroom_result=*/false);
+  constexpr size_t kAppendBytes = 1024 * 1024;
+  EXPECT_FALSE(demuxer_->EvictCodedFrames(kSourceId, base::Milliseconds(0),
+                                          kAppendBytes));
+  EXPECT_EQ(scoped_client.ensure_calls(), 1);
+  EXPECT_EQ(scoped_client.last_bytes(), kAppendBytes);
+  // TakeMediaPoolExhausted() reads true once, then clears to false.
+  EXPECT_TRUE(ChunkDemuxer::TakeMediaPoolExhausted());
+  EXPECT_FALSE(ChunkDemuxer::TakeMediaPoolExhausted());
+
+  // When EnsureHeadroom returns true, EvictCodedFrames succeeds and does not
+  // mark the pool exhausted.
+  scoped_client.set_headroom_result(true);
+  EXPECT_TRUE(demuxer_->EvictCodedFrames(kSourceId, base::Milliseconds(0),
+                                         256 * 1024));
+  EXPECT_EQ(scoped_client.ensure_calls(), 2);
+  EXPECT_EQ(scoped_client.last_bytes(), 256u * 1024);
+  EXPECT_FALSE(ChunkDemuxer::TakeMediaPoolExhausted());
+}
+
+TEST_F(ChunkDemuxerTest,
+       EvictCodedFramesSourceBufferFullDoesNotSetMediaPoolExhausted) {
+  ASSERT_TRUE(InitDemuxer(HAS_AUDIO | HAS_VIDEO));
+  demuxer_->SetMemoryLimitsForTest(
+      DemuxerStream::AUDIO, GetExpectedMemoryUsage(10, 10 * block_size_));
+  demuxer_->SetMemoryLimitsForTest(
+      DemuxerStream::VIDEO, GetExpectedMemoryUsage(15, 15 * block_size_));
+
+  const char* kAudioStreamInfo = "0K 40K 80K 120K 160K 200K 240K 280K";
+  const char* kVideoStreamInfo =
+      "0K 10 20K 30 40K 50 60K 70 80K 90 100K 110 120K 130 140K";
+  AppendMuxedCluster(MuxedStreamInfo(kAudioTrackNum, kAudioStreamInfo, 40),
+                     MuxedStreamInfo(kVideoTrackNum, kVideoStreamInfo, 10));
+
+  ChunkDemuxer::TakeMediaPoolExhausted();
+  ScopedHeadroomMediaClient scoped_client(/*headroom_result=*/false);
+
+  // Inner SourceBuffer eviction fails at media time 0; EnsureHeadroom should
+  // not be called and TakeMediaPoolExhausted() must stay false.
+  EXPECT_FALSE(demuxer_->EvictCodedFrames(
+      kSourceId, base::Milliseconds(0),
+      GetExpectedMemoryUsage(8, 8 * block_size_)));
+  EXPECT_EQ(scoped_client.ensure_calls(), 0);
+  EXPECT_FALSE(ChunkDemuxer::TakeMediaPoolExhausted());
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // TODO(servolk): Add a unit test with multiple audio/video tracks using the
 // same codec type in a single SourceBufferState, when WebM parser supports

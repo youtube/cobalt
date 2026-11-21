@@ -99,6 +99,47 @@ class ReuseAllocatorBase : public Allocator {
   std::pair<void*, intptr_t> AllocateFallbackBlock(size_t* size_to_try,
                                                    size_t alignment);
 
+  // Like AllocateFallbackBlock(), but always allocates a new block from the
+  // fallback allocator instead of reusing an idle one.
+  std::pair<void*, intptr_t> AllocateNewFallbackBlock(size_t* size_to_try,
+                                                      size_t alignment);
+
+  // Grows the pool with new fallback blocks until its free space (capacity,
+  // idle blocks included, less what is allocated) is at least `bytes`. Idle
+  // blocks stay idle. Blocks are `allocation_increment` bytes; when one can't
+  // be allocated, smaller ones are tried (see NextHeadroomBlockSize()), and
+  // the smaller size is kept. `add_free_block(address, fallback_index, size)`
+  // must add each new block to the subclass's free blocks. Returns false if
+  // the pool can't grow that far.
+  template <typename AddFreeBlock>
+  bool GrowForHeadroom(size_t bytes,
+                       size_t allocation_increment,
+                       size_t alignment,
+                       AddFreeBlock add_free_block) {
+    const size_t capacity = GetCapacity();
+    const size_t allocated = GetAllocated();
+    size_t available = capacity > allocated ? capacity - allocated : 0;
+    if (available >= bytes) {
+      return true;
+    }
+    size_t block_size =
+        allocation_increment > 0 ? allocation_increment : bytes - available;
+    while (available < bytes) {
+      size_t size = block_size;
+      auto [address, index] = AllocateNewFallbackBlock(&size, alignment);
+      if (address) {
+        add_free_block(address, index, size);
+        available += size;
+        continue;
+      }
+      block_size = NextHeadroomBlockSize(block_size, bytes - available);
+      if (block_size == 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   // Reclaims all backing allocations to the base idle pool (subclass-driven).
   void ReclaimFallbackBlocks();
 
@@ -113,6 +154,10 @@ class ReuseAllocatorBase : public Allocator {
   }
 
  private:
+  // After a block of `block_size` failed: the next of 2 MiB, 1 MiB and
+  // 512 KiB below it, then `shortfall` if that is smaller still, then 0.
+  static size_t NextHeadroomBlockSize(size_t block_size, size_t shortfall);
+
   enum BlockState {
     // Actively allocated and managed by subclass.
     kActiveInUse,

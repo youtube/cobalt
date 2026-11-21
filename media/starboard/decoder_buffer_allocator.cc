@@ -210,6 +210,17 @@ void DecoderBufferAllocator::MaybeResetStrategy_Locked() {
   }
 }
 
+bool DecoderBufferAllocator::TryEnsureHeadroom(size_t bytes) {
+  if (bytes == 0) {
+    return true;
+  }
+  base::AutoLock scoped_lock(mutex_);
+  EnsureStrategyIsCreated();
+  const bool ok = strategy_->EnsureHeadroom(bytes);
+  MaybeResetStrategy_Locked();
+  return ok;
+}
+
 void DecoderBufferAllocator::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
   if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {

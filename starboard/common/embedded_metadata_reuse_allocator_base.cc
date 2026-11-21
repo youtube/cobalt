@@ -147,13 +147,7 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
                                                    size_t alignment) {
   SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
-  if (!pending_frees_.empty()) {
-    for (auto address_to_free : pending_frees_) {
-      bool freed = TryFree(address_to_free);
-      SB_DCHECK(freed);
-    }
-    pending_frees_.clear();
-  }
+  FlushPendingFrees();
 
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment) +
          sizeof(BlockMetadata);
@@ -236,6 +230,23 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       pending_frees_.clear();
     }
   }
+}
+
+bool EmbeddedMetadataReuseAllocatorBase::EnsureHeadroom(size_t bytes) {
+  FlushPendingFrees();
+  return GrowForHeadroom(
+      bytes, allocation_increment_, kMinAlignment,
+      [this](void* address, intptr_t index, size_t size) {
+        AddFreeBlock(MemoryBlock(static_cast<int>(index), address, size));
+      });
+}
+
+void EmbeddedMetadataReuseAllocatorBase::FlushPendingFrees() {
+  for (auto address_to_free : pending_frees_) {
+    bool freed = TryFree(address_to_free);
+    SB_DCHECK(freed);
+  }
+  pending_frees_.clear();
 }
 
 void EmbeddedMetadataReuseAllocatorBase::PrintAllocations(

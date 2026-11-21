@@ -73,6 +73,10 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
     return bidirectional_fit_allocator_.GetAllocated();
   }
 
+  bool EnsureHeadroom(size_t bytes) override {
+    return bidirectional_fit_allocator_.EnsureHeadroom(bytes);
+  }
+
   void SetSuspended(bool is_suspended) override {
     bidirectional_fit_allocator_.SetSuspended(is_suspended);
   }

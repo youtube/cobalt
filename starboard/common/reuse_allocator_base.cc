@@ -115,7 +115,17 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     }
   }
 
-  if (max_capacity_ && capacity_ + *size_to_try > max_capacity_) {
+  return AllocateNewFallbackBlock(size_to_try, alignment);
+}
+
+std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateNewFallbackBlock(
+    size_t* size_to_try,
+    size_t alignment) {
+  SB_DCHECK(size_to_try);
+  SB_DCHECK_GT(*size_to_try, 0U);
+
+  if (max_capacity_ && (capacity_ >= max_capacity_ ||
+                        *size_to_try > max_capacity_ - capacity_)) {
     return {nullptr, -1};
   }
 
@@ -128,6 +138,17 @@ std::pair<void*, intptr_t> ReuseAllocatorBase::AllocateFallbackBlock(
     return {ptr, index};
   }
   return {nullptr, -1};
+}
+
+// static
+size_t ReuseAllocatorBase::NextHeadroomBlockSize(size_t block_size,
+                                                 size_t shortfall) {
+  for (size_t step : {size_t{2} << 20, size_t{1} << 20, size_t{512} << 10}) {
+    if (step < block_size) {
+      return step;
+    }
+  }
+  return shortfall < block_size ? shortfall : 0;
 }
 
 void ReuseAllocatorBase::ReclaimFallbackBlocks() {

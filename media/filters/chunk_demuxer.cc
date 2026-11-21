@@ -18,6 +18,7 @@
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer.h"
+#include "media/base/media_client.h"
 #include "media/base/media_tracks.h"
 #include "media/base/mime_util.h"
 #include "media/base/stream_parser.h"
@@ -1027,21 +1028,57 @@ void ChunkDemuxer::OnMemoryPressure(
   }
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+thread_local bool g_media_pool_exhausted = false;
+}  // namespace
+
+// static
+bool ChunkDemuxer::TakeMediaPoolExhausted() {
+  bool exhausted = g_media_pool_exhausted;
+  g_media_pool_exhausted = false;
+  return exhausted;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool ChunkDemuxer::EvictCodedFrames(const std::string& id,
                                     base::TimeDelta currentMediaTime,
                                     size_t newDataSize) {
   DVLOG(1) << __func__ << "(" << id << ")"
            << " media_time=" << currentMediaTime.InSecondsF()
            << " newDataSize=" << newDataSize;
-  base::AutoLock auto_lock(lock_);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  g_media_pool_exhausted = false;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  {
+    base::AutoLock auto_lock(lock_);
 
-  DCHECK(!id.empty());
-  auto itr = source_state_map_.find(id);
-  if (itr == source_state_map_.end()) {
-    LOG(WARNING) << __func__ << " stream " << id << " not found";
-    return false;
+    DCHECK(!id.empty());
+    auto itr = source_state_map_.find(id);
+    if (itr == source_state_map_.end()) {
+      LOG(WARNING) << __func__ << " stream " << id << " not found";
+      return false;
+    }
+    if (!itr->second->EvictCodedFrames(currentMediaTime, newDataSize)) {
+      return false;
+    }
   }
-  return itr->second->EvictCodedFrames(currentMediaTime, newDataSize);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // After eviction has returned what it can to the media pool: if the pool
+  // can't hold the new data, reject the append now (QuotaExceededError, which
+  // the page treats as backpressure) rather than fail its parse later
+  // (a decode error, which is fatal to playback). Outside |lock_|: probing the
+  // pool may map memory.
+  if (auto* media_client = GetMediaClient()) {
+    if (auto* alloc = media_client->GetMediaAllocator()) {
+      if (!alloc->EnsureHeadroom(newDataSize)) {
+        g_media_pool_exhausted = true;
+        return false;
+      }
+    }
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  return true;
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
