@@ -156,6 +156,7 @@ jobs:
           TARGET_BRANCH: ${{ matrix.branch.target }}
           GITHUB_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
           PR_LINKS: ${{ steps.autoroll.outputs.pr_links }}
+          AUTOROLL_FILE: ${{ matrix.branch.autoroll }}
         run: |
           set -x
 
