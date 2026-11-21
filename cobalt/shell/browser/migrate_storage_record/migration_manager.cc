@@ -22,8 +22,10 @@
 
 #include "base/barrier_closure.h"
 #include "base/base64url.h"
+#include "base/base_paths.h"
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
+#include "base/environment.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -37,7 +39,10 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "build/build_config.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/build/configs/buildflags.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/url_matcher/url_util.h"
@@ -62,6 +67,10 @@
 
 namespace cobalt {
 namespace migrate_storage_record {
+
+BASE_FEATURE(kCobaltStorageMigrationOptimization,
+             "CobaltStorageMigrationOptimization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 using StorageAreaRemote = mojo::Remote<blink::mojom::StorageArea>;
 
@@ -107,6 +116,8 @@ constexpr char kLocalStorageCountHistogram[] =
 constexpr char kDurationHistogram[] = "Cobalt.StorageMigration.Duration";
 constexpr char kSentinelWriteResultHistogram[] =
     "Cobalt.StorageMigration.SentinelWriteResult";
+constexpr base::FilePath::CharType kSentinelFileName[] =
+    FILE_PATH_LITERAL("migration_completed.txt");
 
 // ============================================================================
 // General File / Cache Utilities
@@ -123,16 +134,50 @@ base::FilePath GetOldCachePath() {
   return base::FilePath(path.data());
 }
 
-// Retrieves the path to the sentinel file used to fast-path skip the migration.
-// If this file exists, it means the migration was already completed on a prior
-// app launch.
-base::FilePath GetMigrationSentinelPath() {
+base::FilePath GetCacheMigrationSentinelPath() {
   base::FilePath current_cache_path;
   if (!base::PathService::Get(base::DIR_CACHE, &current_cache_path)) {
     LOG(ERROR) << "Failed to get cache directory for migration sentinel file.";
     return base::FilePath();
   }
-  return current_cache_path.Append("migration_completed.txt");
+  return current_cache_path.Append(kSentinelFileName);
+}
+
+base::FilePath GetUserDataMigrationSentinelPath() {
+  base::FilePath user_data_path;
+  if (!base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_path)) {
+    LOG(ERROR)
+        << "Failed to get user data directory for migration sentinel file.";
+    return base::FilePath();
+  }
+  return user_data_path.Append(kSentinelFileName);
+}
+
+// Retrieves the target sentinel file path where newly completed migrations
+// record their status.
+base::FilePath GetMigrationSentinelPath() {
+  if (base::FeatureList::IsEnabled(kCobaltStorageMigrationOptimization)) {
+    return GetUserDataMigrationSentinelPath();
+  }
+  return GetCacheMigrationSentinelPath();
+}
+
+void MigrateLegacySentinelToUserDataAsync(
+    const base::FilePath& legacy_cache_sentinel,
+    const base::FilePath& user_data_sentinel) {
+  if (user_data_sentinel.empty()) {
+    return;
+  }
+  std::string contents;
+  if (!base::ReadFileToString(legacy_cache_sentinel, &contents) ||
+      contents.empty()) {
+    contents = "0-0-0";
+  }
+  if (!base::CreateDirectory(user_data_sentinel.DirName()) ||
+      !base::WriteFile(user_data_sentinel, contents)) {
+    LOG(ERROR) << "Failed to copy legacy migration sentinel to "
+               << user_data_sentinel.value();
+  }
 }
 
 // Writes the sentinel file `migration_completed.txt` in the background so that
@@ -145,6 +190,9 @@ void WriteMigrationSentinelAsync(scoped_refptr<MigrationState> state) {
     LOG(ERROR) << "Sentinel path is empty, cannot write sentinel file.";
     result = SentinelWriteResult::kEmptyPath;
   } else {
+    if (base::FeatureList::IsEnabled(kCobaltStorageMigrationOptimization)) {
+      base::CreateDirectory(sentinel_path.DirName());
+    }
     // WriteFile returns a boolean indicating success.
     // state->GetStatusString() is used as the file content.
     if (!base::WriteFile(sentinel_path, state->GetStatusString())) {
@@ -156,6 +204,64 @@ void WriteMigrationSentinelAsync(scoped_refptr<MigrationState> state) {
 
   // Record the result to UMA.
   base::UmaHistogramEnumeration(kSentinelWriteResultHistogram, result);
+}
+
+// Resolves the on-disk file path backing `SbStorageOpenRecord(name)` on
+// non-Evergreen file-backed platforms (`<home>/.starboard[.<name>].storage`) so
+// callers can check record existence/size without invoking `open(...,
+// O_CREAT)`. Returns `std::nullopt` on platforms where storage records are not
+// directly addressable via a known filesystem directory (e.g., tvOS
+// `NSUserDefaults` or Evergreen partner loader symbols).
+std::optional<base::FilePath> ResolveLegacyStorageRecordFilePath(
+    const char* name) {
+#if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_IOS_TVOS)
+  return std::nullopt;
+#elif BUILDFLAG(IS_ANDROID)
+  // On Android, `starboard::GetHomeDirectory()` returns `g_app_files_dir`
+  // (`Context.getFilesDir()`, a sibling `files/` directory next to
+  // `Context.getCacheDir()`).
+  base::FilePath cache_dir;
+  if (!base::PathService::Get(base::DIR_CACHE, &cache_dir) ||
+      cache_dir.empty()) {
+    return std::nullopt;
+  }
+  base::FilePath files_dir = cache_dir.DirName().AppendASCII("files");
+  if (!base::DirectoryExists(files_dir)) {
+    return std::nullopt;
+  }
+  std::string filename = ".starboard";
+  if (name && name[0] != '\0') {
+    filename += ".";
+    filename += name;
+  }
+  filename += ".storage";
+  return files_dir.AppendASCII(filename);
+#elif BUILDFLAG(IS_LINUX)
+  // Match `starboard/shared/linux/get_home_directory.cc`, which checks `$HOME`
+  // first and falls back to the user's home directory.
+  base::FilePath home_dir;
+  std::unique_ptr<base::Environment> env = base::Environment::Create();
+  std::optional<std::string> home_env =
+      env ? env->GetVar("HOME") : std::nullopt;
+  if (home_env.has_value() && !home_env->empty()) {
+    home_dir = base::FilePath(*home_env);
+  } else if (!base::PathService::Get(base::DIR_HOME, &home_dir) ||
+             home_dir.empty()) {
+    return std::nullopt;
+  }
+  if (!base::DirectoryExists(home_dir)) {
+    return std::nullopt;
+  }
+  std::string filename = ".starboard";
+  if (name && name[0] != '\0') {
+    filename += ".";
+    filename += name;
+  }
+  filename += ".storage";
+  return home_dir.AppendASCII(filename);
+#else
+  return std::nullopt;
+#endif
 }
 
 // Generates the Base64 encoded key used to look up the legacy Starboard storage
@@ -182,6 +288,24 @@ bool DeleteLegacyStorageRecord(starboard::StorageRecord* record) {
   return true;
 }
 
+void DeleteLegacyStorageRecordByName(const char* name) {
+  if (base::FeatureList::IsEnabled(kCobaltStorageMigrationOptimization)) {
+    if (std::optional<base::FilePath> path =
+            ResolveLegacyStorageRecordFilePath(name)) {
+      if (!base::PathExists(*path)) {
+        return;
+      }
+      if (!base::DeleteFile(*path)) {
+        LOG(ERROR) << "Failed to delete legacy storage file: " << path->value();
+      }
+      return;
+    }
+  }
+  auto record = name ? std::make_unique<starboard::StorageRecord>(name)
+                     : std::make_unique<starboard::StorageRecord>();
+  DeleteLegacyStorageRecord(record.get());
+}
+
 // Deletes the legacy starboard storage files asynchronously.
 void DeleteLegacyStorageFilesAsync() {
   // Logic extracted from the internal lambda.
@@ -190,14 +314,11 @@ void DeleteLegacyStorageFilesAsync() {
 
   if (initial_url.is_valid()) {
     std::string partition_key = GetApplicationKey(initial_url);
-    auto record =
-        std::make_unique<starboard::StorageRecord>(partition_key.c_str());
-    DeleteLegacyStorageRecord(record.get());
+    DeleteLegacyStorageRecordByName(partition_key.c_str());
   }
 
   // Also attempt to delete the fallback default record.
-  auto fallback_record = std::make_unique<starboard::StorageRecord>();
-  DeleteLegacyStorageRecord(fallback_record.get());
+  DeleteLegacyStorageRecordByName(nullptr);
 }
 
 // Deletes legacy cache subdirectories asynchronously to free up disk space.
@@ -308,6 +429,40 @@ Task RecordMigrationDurationTask(
 // Legacy Storage Reader
 // ============================================================================
 
+// Opens a legacy Starboard storage record for reading. When
+// `kCobaltStorageMigrationOptimization` is enabled, returns `nullptr` without
+// creating a 0-byte file on disk if no non-empty record exists (and cleans up
+// any pre-existing 0-byte placeholder file).
+std::unique_ptr<starboard::StorageRecord> OpenExistingLegacyStorageRecord(
+    const char* name) {
+  const bool optimize_migration =
+      base::FeatureList::IsEnabled(kCobaltStorageMigrationOptimization);
+  if (optimize_migration) {
+    if (std::optional<base::FilePath> record_path =
+            ResolveLegacyStorageRecordFilePath(name)) {
+      std::optional<int64_t> file_size = base::GetFileSize(*record_path);
+      if (!file_size.has_value()) {
+        return nullptr;
+      }
+      if (*file_size == 0) {
+        base::DeleteFile(*record_path);
+        return nullptr;
+      }
+    }
+  }
+
+  auto record = name ? std::make_unique<starboard::StorageRecord>(name)
+                     : std::make_unique<starboard::StorageRecord>();
+  if (!record->IsValid()) {
+    return nullptr;
+  }
+  if (optimize_migration && record->GetSize() == 0) {
+    record->Delete();
+    return nullptr;
+  }
+  return record;
+}
+
 // Reads the legacy Starboard storage record from disk and parses it into a
 // cobalt::storage::Storage protobuf, alongside the final StorageReadResult.
 std::pair<StorageReadResult, std::unique_ptr<cobalt::storage::Storage>>
@@ -328,18 +483,21 @@ ReadAndParseLegacyStorageRecord() {
     }
 
     std::string partition_key = GetApplicationKey(initial_url);
-    auto record =
-        std::make_unique<starboard::StorageRecord>(partition_key.c_str());
-    if (!record->IsValid()) {
+    auto record = OpenExistingLegacyStorageRecord(partition_key.c_str());
+    if (!record) {
       bool fallback =
           partition_key == GetApplicationKey(GURL(::switches::kDefaultURL));
       if (!fallback) {
-        result = StorageReadResult::kPartitionKeyNotDefault;
+        if (base::FeatureList::IsEnabled(kCobaltStorageMigrationOptimization)) {
+          result = StorageReadResult::kRecordInvalid;
+        } else {
+          result = StorageReadResult::kPartitionKeyNotDefault;
+        }
         return;
       }
 
-      record = std::make_unique<starboard::StorageRecord>();
-      if (!record->IsValid()) {
+      record = OpenExistingLegacyStorageRecord(nullptr);
+      if (!record) {
         result = StorageReadResult::kRecordInvalid;
         return;
       }
@@ -487,10 +645,33 @@ void MigrationManager::RunMigration(content::StoragePartition* partition,
   auto elapsed_timer = std::make_unique<base::ElapsedTimer>();
 
   // Fast Path: If the sentinel file exists, migration is already done.
-  base::ElapsedTimer sentinel_timer;
-  base::FilePath sentinel_path = GetMigrationSentinelPath();
-  bool sentinel_exists =
-      !sentinel_path.empty() && base::PathExists(sentinel_path);
+  bool sentinel_exists = false;
+  if (base::FeatureList::IsEnabled(kCobaltStorageMigrationOptimization)) {
+    const base::FilePath user_data_sentinel =
+        GetUserDataMigrationSentinelPath();
+    if (!user_data_sentinel.empty() && base::PathExists(user_data_sentinel)) {
+      sentinel_exists = true;
+    } else {
+      const base::FilePath legacy_cache_sentinel =
+          GetCacheMigrationSentinelPath();
+      if (!legacy_cache_sentinel.empty() &&
+          base::PathExists(legacy_cache_sentinel)) {
+        sentinel_exists = true;
+        // One-time backfill into persistent UserData so future OS cache trims
+        // never re-trigger synchronous pre-main-loop migration.
+        base::ThreadPool::PostTask(
+            FROM_HERE,
+            {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+             base::ThreadPolicy::PREFER_BACKGROUND,
+             base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
+            base::BindOnce(&MigrateLegacySentinelToUserDataAsync,
+                           legacy_cache_sentinel, user_data_sentinel));
+      }
+    }
+  } else {
+    const base::FilePath sentinel_path = GetCacheMigrationSentinelPath();
+    sentinel_exists = !sentinel_path.empty() && base::PathExists(sentinel_path);
+  }
   if (sentinel_exists) {
     LOG(INFO) << "Migration sentinel file found. Skipping migration.";
     LOG(INFO) << "RunMigration fast path took "
