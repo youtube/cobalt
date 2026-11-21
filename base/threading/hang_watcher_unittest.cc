@@ -839,6 +839,102 @@ TEST_F(HangWatcherSnapshotTest, TimeSinceLastSystemPowerResumeCrashKey) {
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_F(HangWatcherSnapshotTest, CobaltConcealSuspendAndResume) {
+  hang_watcher_.SetOnHangClosureForTesting(
+      base::BindLambdaForTesting([this] { ++hang_capture_count_; }));
+  hang_watcher_.SetAfterMonitorClosureForTesting(
+      base::BindLambdaForTesting([this] { monitor_event_.Signal(); }));
+
+  hang_watcher_.Start();
+
+  auto unregister_thread_closure =
+      HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
+
+  // 1. Initial foreground state: a hang is detected.
+  {
+    WatchHangsInScope expires_instantly(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(1, hang_capture_count_);
+  }
+
+  // 2. Suspend (app concealed): an expired scope during suspend MUST NOT be
+  // captured.
+  HangWatcher::Suspend();
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope expires_instantly(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    // Hang count should remain 1 (no hang captured while suspended).
+    EXPECT_EQ(1, hang_capture_count_);
+  }
+
+  // 3. Resume (app revealed): HangWatcher resumes. A subsequent foreground
+  // hang MUST be captured (verifies that Resume() does not set
+  // deadline_ignore_threshold_ to HangWatchDeadline::Max()).
+  HangWatcher::Resume();
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope expires_instantly(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(2, hang_capture_count_);
+  }
+
+  // 4. Redundant Resume() while already enabled MUST NOT advance
+  // deadline_ignore_threshold_ or mask an active foreground hang.
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope expires_instantly(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    HangWatcher::Resume();
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(3, hang_capture_count_);
+  }
+
+  // 5. A scope started BEFORE Suspend() that stays alive across Suspend() ->
+  // Resume() holds a stale finite deadline: Resume() must advance
+  // deadline_ignore_threshold_ past it so reveal does not falsely capture it,
+  // while still capturing the next foreground scope after it exits.
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope pre_suspend_scope(base::Seconds(5));
+    HangWatcher::Suspend();
+    task_environment_.AdvanceClock(base::Seconds(10));
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(3, hang_capture_count_);
+
+    HangWatcher::Resume();
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(3, hang_capture_count_);
+  }
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope fresh_foreground_scope(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(4, hang_capture_count_);
+  }
+}
+
+TEST(HangWatcherDisabledTest, CobaltResumeIsNoOpWithoutInstance) {
+  test::ScopedFeatureList disable_hang_watcher;
+  disable_hang_watcher.InitAndDisableFeature(kEnableHangWatcher);
+  HangWatcher::InitializeOnMainThread(HangWatcher::ProcessType::kBrowserProcess,
+                                      /*emit_crashes=*/false);
+  ASSERT_EQ(nullptr, HangWatcher::GetInstance());
+  ASSERT_FALSE(HangWatcher::IsEnabled());
+
+  HangWatcher::Resume();
+  EXPECT_FALSE(HangWatcher::IsEnabled());
+
+  HangWatcher::UninitializeOnMainThreadForTesting();
+}
+#endif
+
 namespace {
 
 // Determines how long the HangWatcher will wait between calls to

@@ -451,7 +451,10 @@ void CobaltContentRendererClient::PostSandboxInitialized() {
   // CobaltContentRendererClient (which is destroyed on the main thread during
   // shutdown), and avoid thread_local ScopedClosureRunner which pulls in
   // __cxa_thread_atexit_impl (an illegal API leak in Evergreen).
-  if (base::HangWatcher::IsEnabled() && base::HangWatcher::GetInstance()) {
+  // Check GetInstance() rather than IsEnabled() so hidden/preload startup
+  // registers the renderer thread without reporting hangs while hidden; once
+  // visible, HangWatcher starts detecting on this thread.
+  if (base::HangWatcher::GetInstance()) {
     // Use kRendererThread as the type for this in-process renderer thread.
     base::ScopedClosureRunner unregister_thread_closure =
         base::HangWatcher::RegisterThread(

@@ -13,6 +13,7 @@
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/viz/client/frame_eviction_manager.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/gpu/browser_gpu_channel_host_factory.h"
@@ -22,6 +23,10 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_features.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/threading/hang_watcher.h"
+#endif
 
 namespace content {
 
@@ -209,7 +214,15 @@ void CompositorDependenciesAndroid::OnVisibilityChanged() {
     BrowserGpuChannelHostFactorySetApplicationVisible(true);
     SendOnForegroundedToGpuService();
     low_end_background_cleanup_task_.Cancel();
+#if BUILDFLAG(IS_COBALT)
+    // Resume hang watching when a compositor becomes visible.
+    base::HangWatcher::Resume();
+#endif
   } else {
+#if BUILDFLAG(IS_COBALT)
+    // Suspend hang watching when the last visible compositor is hidden.
+    base::HangWatcher::Suspend();
+#endif
     GpuDataManagerImpl::GetInstance()->SetApplicationVisible(false);
     BrowserGpuChannelHostFactorySetApplicationVisible(false);
     SendOnBackgroundedToGpuService();
