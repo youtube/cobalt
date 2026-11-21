@@ -21,6 +21,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <tuple>
@@ -169,9 +170,8 @@ class MediaCapabilitiesProvider {
   virtual bool GetIsTunneledAudioSupported(int encoding,
                                            int sampling_frequency_hz,
                                            int channels) = 0;
-  virtual bool GetAudioConfiguration(
-      int index,
-      SbMediaAudioConfiguration* configuration) = 0;
+  virtual std::optional<SbMediaAudioConfiguration> GetAudioConfiguration(
+      int index) = 0;
 
   typedef std::vector<std::unique_ptr<AudioCodecCapability>>
       AudioCodecCapabilities;
@@ -209,8 +209,7 @@ class MediaCapabilitiesCache {
   // video fps to prevent 8k60 is used unexpectedly.
   bool IsAv18kCappedAt30();
 
-  bool GetAudioConfiguration(int index,
-                             SbMediaAudioConfiguration* configuration);
+  std::optional<SbMediaAudioConfiguration> GetAudioConfiguration(int index);
 
   bool HasAudioDecoderFor(const std::string& mime_type, int bitrate);
 
