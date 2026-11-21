@@ -1616,6 +1616,13 @@ void PipelineImpl::OnError(PipelineStatus error) {
   // If the error happens during starting/seeking/suspending/resuming,
   // report the error via the completion callback for those tasks.
   // Else report error via the client interface.
+#if BUILDFLAG(IS_COBALT)
+  if (error == PIPELINE_ERROR_HARDWARE_CONTEXT_RESET) {
+    DCHECK(client_);
+    client_->OnError(error);
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   if (seek_cb_) {
     std::move(seek_cb_).Run(error);
     return;

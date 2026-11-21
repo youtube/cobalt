@@ -15,11 +15,9 @@
 #ifndef COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
 #define COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
 
-#include <atomic>
 #include <memory>
 
 #include "base/functional/callback.h"
-#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
@@ -29,6 +27,7 @@
 #include "media/base/demuxer.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/starboard/renderer_factory_traits.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -83,11 +82,19 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
                       bool has_played_media_before,
                       base::OnceClosure closure) override;
 
-  uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
+  void GetSbWindowHandle(::media::SbWindowHandleReadyCallback callback);
 
  private:
+  friend class CobaltContentRendererClientWindowHandleTest;
+
+  using PlatformWindowProviderBinder = base::RepeatingCallback<void(
+      mojo::PendingReceiver<media::mojom::PlatformWindowProvider>)>;
+
   void EnsureH5vccSettingsRemoteInitialized();
-  void OnGetSbWindow(uint64_t handle);
+  void GetSbWindowHandleOnMainThread(
+      ::media::SbWindowHandleReadyCallback callback);
+  void SetPlatformWindowProviderBinderForTesting(
+      PlatformWindowProviderBinder binder);
 
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
@@ -104,15 +111,10 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   gfx::Size viewport_size_;
 
-  std::atomic<uint64_t> sb_window_handle_ = 0;
-  bool window_handle_requested_ = false;
+  scoped_refptr<base::SequencedTaskRunner> main_task_runner_;
+  PlatformWindowProviderBinder platform_window_provider_binder_for_testing_;
 
   COBALT_THREAD_CHECKER(main_thread_checker_);
-
-  // NOTE: Do not add member variables after weak_factory_
-  // It should be the first one destroyed among all members.
-  // See base/memory/weak_ptr.h.
-  base::WeakPtrFactory<CobaltContentRendererClient> weak_factory_{this};
 };
 
 }  // namespace cobalt

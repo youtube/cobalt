@@ -108,7 +108,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
       base::RepeatingCallback<void(const gfx::Size&)>;
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
-  using GetSbWindowHandleCallback = base::RepeatingCallback<void()>;
+  using RequestSbWindowHandleCB = base::RepeatingCallback<void()>;
 #if BUILDFLAG(IS_IOS_TVOS)
   using DurationChangeCB =
       base::RepeatingCallback<void(base::TimeDelta duration)>;
@@ -138,7 +138,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void SetStarboardRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
       UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb,
-      GetSbWindowHandleCallback get_sb_window_handle_cb
+      RequestSbWindowHandleCB get_sb_window_handle_cb
 #if BUILDFLAG(IS_ANDROID)
       ,
       RequestOverlayInfoCallBack request_overlay_info_cb
@@ -197,7 +197,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
   void UpdateAudioWriteDuration();
+  void StartOrDeferPlayerBridgeCreation();
   void CreatePlayerBridge();
+  void OnRevealResume();
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
@@ -275,7 +277,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
-  GetSbWindowHandleCallback get_sb_window_handle_cb_;
+  RequestSbWindowHandleCB get_sb_window_handle_cb_;
 #if BUILDFLAG(IS_IOS_TVOS)
   std::string source_url_;
 
@@ -344,6 +346,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   SbPlayerBridge::PlayerStatistics last_reported_statistics_;
 
   SbWindow sb_window_ = kSbWindowInvalid;
+  bool init_deferred_for_conceal_ = false;
+  size_t pending_sb_window_handle_callbacks_ = 0;
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   GetDecodeTargetGraphicsContextProviderFunc

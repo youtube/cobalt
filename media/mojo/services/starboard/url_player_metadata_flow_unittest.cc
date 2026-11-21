@@ -102,7 +102,8 @@ class UrlPlayerMetadataFlowTest : public testing::Test {
         std::move(renderer_extension_remote),
         std::move(client_extension_receiver),
         /*get_sb_window_handle_callback=*/
-        base::BindRepeating([]() -> uint64_t { return 0; }),
+        base::BindRepeating(
+            [](SbWindowHandleReadyCallback cb) { std::move(cb).Run(0); }),
         /*gpu_factories=*/nullptr);
 
     demuxer_.Initialize(&demuxer_host_, base::DoNothing());

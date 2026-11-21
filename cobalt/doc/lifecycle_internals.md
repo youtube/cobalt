@@ -264,7 +264,7 @@ sequenceDiagram
 ```
 
 ### D. Reveal Transition
-This sequence diagram illustrates how the browser restores GPU and `StarboardRenderer` state (`RestoreGpuProcessOnUI` and `StarboardRenderer::ResumeActiveRenderers`), recreates the platform window (`RevealShell`), blocks the UI thread synchronously while waiting for Mojo frame visible layout ACKs, and conditionally auto-resumes media playback when the web application did not explicitly pause or tear down the player on conceal:
+This sequence diagram illustrates how the browser restores GPU state (`RestoreGpuProcessOnUI`), recreates the platform window (`RevealShell`), resumes `StarboardRenderer` instances (`StarboardRenderer::ResumeActiveRenderers`) only when `HasPlatformWindow()` is true so deferred players receive a valid window handle, blocks the UI thread synchronously while waiting for Mojo frame visible layout ACKs, and conditionally auto-resumes media playback when the web application did not explicitly pause or tear down the player on conceal:
 
 ```mermaid
 sequenceDiagram
@@ -282,8 +282,8 @@ sequenceDiagram
   Note over Delegate: Resolve intermediate step:<br/>kConcealed ➔ kBlurred
   Delegate->>Runner: DoReveal()
   Runner->>Shell: ShellPlatformDelegate::OnReveal()
-  Note over Shell: 1. RestoreGpuProcessOnUI()<br/>2. StarboardRenderer::ResumeActiveRenderers()<br/>3. RevealShell() (SbWindowCreate)
-  Shell->>Media: StarboardRenderer::ResumeActiveRenderers()
+  Note over Shell: 1. RestoreGpuProcessOnUI()<br/>2. RevealShell() (SbWindowCreate)<br/>3. If HasPlatformWindow():<br/>   StarboardRenderer::ResumeActiveRenderers()
+  Shell->>Media: StarboardRenderer::ResumeActiveRenderers() (if window exists)
   Shell->>Blink: Mojo: blink::mojom::Widget::WasShown() <br/> (via WebContents::WasShown)
   Note over Runner: Initialize visual wait state:<br/>pending_ack_ = kReveal
   Note over Runner: WaitForAck(kReveal)<br/>(Blocks UI thread via nested RunLoop)

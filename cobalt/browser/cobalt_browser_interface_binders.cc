@@ -41,8 +41,6 @@
 #include "cobalt/browser/performance/performance_impl.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "cobalt/build/configs/buildflags.h"
-#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
-#include "cobalt/media/service/platform_window_provider_service.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
@@ -77,20 +75,6 @@
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 
 namespace cobalt {
-
-namespace {
-
-void BindPlatformWindowProvider(
-    content::RenderFrameHost* rfh,
-    mojo::PendingReceiver<media::mojom::PlatformWindowProvider> receiver) {
-#if BUILDFLAG(IS_STARBOARD)
-  if (auto* client = CobaltContentBrowserClient::Get()) {
-    client->AddPendingWindowReceiver(std::move(receiver));
-  }
-#endif
-}
-
-}  // namespace
 
 #if BUILDFLAG(IS_ANDROIDTV)
 template <typename Interface>
@@ -206,8 +190,6 @@ void PopulateCobaltFrameBinders(
                     << "unsupported platform build.";
           }));
 #endif
-  binder_map->Add<media::mojom::PlatformWindowProvider>(
-      base::BindRepeating(&BindPlatformWindowProvider));
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
       base::BindRepeating(&h5vcc_platform_service::
                               H5vccPlatformServiceManagerImpl::GetOrCreate));

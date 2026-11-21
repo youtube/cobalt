@@ -892,6 +892,17 @@ void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
   registry->AddInterface<cobalt::mojom::H5vccSettings>(
       base::BindRepeating(&H5vccSettingsImpl::Create),
       base::SingleThreadTaskRunner::GetCurrentDefault());
+#if BUILDFLAG(IS_STARBOARD)
+  registry->AddInterface<cobalt::media::mojom::PlatformWindowProvider>(
+      base::BindRepeating(
+          [](mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
+                 receiver) {
+            if (auto* client = CobaltContentBrowserClient::Get()) {
+              client->AddPendingWindowReceiver(std::move(receiver));
+            }
+          }),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
