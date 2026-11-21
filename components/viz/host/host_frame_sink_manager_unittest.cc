@@ -8,10 +8,12 @@
 #include <utility>
 
 #include "base/run_loop.h"
+#include "build/build_config.h"
 #include "components/viz/common/display/renderer_settings.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "components/viz/common/surfaces/surface_info.h"
+#include "components/viz/host/renderer_settings_creation.h"
 #include "components/viz/test/compositor_frame_helpers.h"
 #include "components/viz/test/fake_host_frame_sink_client.h"
 #include "components/viz/test/fake_surface_observer.h"
@@ -548,5 +550,12 @@ TEST_F(HostFrameSinkManagerTest, DestroyCompositorFrameSinkKeepsRegistration) {
   FlushHostAndVerifyExpectations();
 }
 #endif
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+TEST(RendererSettingsCreationCobaltTest, SetsQuadSplitLimitToOne) {
+  RendererSettings settings = CreateRendererSettings();
+  EXPECT_EQ(1, settings.occlusion_culler_settings.quad_split_limit);
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
 }  // namespace viz
