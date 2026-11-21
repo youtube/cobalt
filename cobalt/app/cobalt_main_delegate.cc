@@ -39,7 +39,7 @@
 #include "content/public/gpu/content_gpu_client.h"
 #include "content/public/renderer/content_renderer_client.h"
 
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
 #include "cobalt/browser/hang_watcher_delegate_impl.h"
 #endif
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
@@ -211,7 +211,7 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 
   InitializeHangWatcher();
 
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_IOS_TVOS)
   // This delegate is for reading the flag value and updates the configuration.
   cobalt::browser::CobaltHangWatcherDelegate::Initialize();
 #endif

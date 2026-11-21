@@ -46,6 +46,13 @@ const std::map<std::string, std::string>& GetProcessSimpleAnnotations() {
       process_annotations["prod"] =
           base::SysNSStringToUTF8(product).append("_").append(kPlatformName);
 #endif
+#if BUILDFLAG(IS_COBALT)
+      NSString* breakpad_product = base::apple::ObjCCast<NSString>(
+          [outer_bundle objectForInfoDictionaryKey:@"BreakpadProduct"]);
+      if (breakpad_product && breakpad_product.length) {
+        process_annotations["prod"] = base::SysNSStringToUTF8(breakpad_product);
+      }
+#endif
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       // Empty means stable.
@@ -63,6 +70,13 @@ const std::map<std::string, std::string>& GetProcessSimpleAnnotations() {
           base::apple::ObjCCast<NSString>([base::apple::FrameworkBundle()
               objectForInfoDictionaryKey:@"CFBundleVersion"]);
       process_annotations["ver"] = base::SysNSStringToUTF8(version);
+#if BUILDFLAG(IS_COBALT)
+      NSString* short_version = base::apple::ObjCCast<NSString>([outer_bundle
+          objectForInfoDictionaryKey:@"CFBundleShortVersionString"]);
+      if (short_version && short_version.length) {
+        process_annotations["ver"] = base::SysNSStringToUTF8(short_version);
+      }
+#endif
       process_annotations["plat"] = kPlatformName;
       process_annotations["crashpad"] = std::string("yes");
     }  // @autoreleasepool
