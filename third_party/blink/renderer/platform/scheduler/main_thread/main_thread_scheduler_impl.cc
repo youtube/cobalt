@@ -312,6 +312,9 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
   // the main thread scheduler.
   memory_purge_task_queue_->SetQueuePriority(
       ComputePriority(memory_purge_task_queue_.get()));
+#if BUILDFLAG(IS_COBALT)
+  UpdateCompositorTaskQueuePriority();
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 MainThreadSchedulerImpl::~MainThreadSchedulerImpl() {
@@ -2502,6 +2505,18 @@ TaskPriority MainThreadSchedulerImpl::ComputeCompositorPriority() const {
   std::optional<TaskPriority> use_case_priority =
       ComputeCompositorPriorityFromUseCase();
   if (!targeted_main_frame_priority && !use_case_priority) {
+#if BUILDFLAG(IS_COBALT)
+    // On Cobalt living-room devices, TV remote navigation is driven by discrete
+    // DPAD keys rather than continuous touch gestures, leaving UseCase at kNone.
+    // During interactive browsing (RAILMode != kLoad), elevate compositor
+    // priority to kVeryHighPriority so BeginMainFrame commits run ahead of
+    // non-interactive JS. During page loading (RAILMode::kLoad), preserve
+    // kNormalPriority so navigation and player setup scripts are not preempted.
+    if (base::FeatureList::IsEnabled(kCobaltCompositorQueuePriority) &&
+        ComputeCurrentRAILMode(current_use_case()) != RAILMode::kLoad) {
+      return TaskPriority::kVeryHighPriority;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     return TaskPriority::kNormalPriority;
   } else if (!use_case_priority) {
     return *targeted_main_frame_priority;
