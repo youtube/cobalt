@@ -32,6 +32,8 @@ namespace content {
 class ContentBrowserTestContentBrowserClient
     : public ShellContentBrowserTestClient {
  public:
+  static constexpr char kPreloadSwitch[] = "preload";
+
   ContentBrowserTestContentBrowserClient();
   ~ContentBrowserTestContentBrowserClient() override;
 

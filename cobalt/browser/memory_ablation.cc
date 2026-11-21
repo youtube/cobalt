@@ -262,6 +262,18 @@ void MaybeApplyMemoryAblation() {
 }
 
 void MaybeApplyGpuMemoryAblation(gpu::GpuChannelManager* channel_manager) {
+  if (channel_manager && !channel_manager->default_offscreen_surface()) {
+    base::WeakPtr<gpu::GpuChannelManager> weak_channel_manager =
+        channel_manager->AsWeakPtr();
+    channel_manager->RunWhenDefaultOffscreenSurfaceReady(base::BindOnce(
+        [](base::WeakPtr<gpu::GpuChannelManager> manager) {
+          if (manager) {
+            MaybeApplyGpuMemoryAblation(manager.get());
+          }
+        },
+        std::move(weak_channel_manager)));
+    return;
+  }
   base::WeakPtr<gpu::GpuChannelManager> weak_channel_manager =
       channel_manager ? channel_manager->AsWeakPtr() : nullptr;
   MaybeApplyGpuMemoryAblationWithAllocator(base::BindOnce(

@@ -825,6 +825,40 @@ void GpuChannelManager::OnBackgroundCleanup() {
   SkGraphics::PurgeAllCaches();
 }
 #elif BUILDFLAG(IS_COBALT)
+void GpuChannelManager::SetDefaultOffscreenSurface(
+    scoped_refptr<gl::GLSurface> surface) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  default_offscreen_surface_ = std::move(surface);
+  if (default_offscreen_surface_ &&
+      !pending_offscreen_surface_ready_callbacks_.empty()) {
+    auto callbacks = std::move(pending_offscreen_surface_ready_callbacks_);
+    pending_offscreen_surface_ready_callbacks_.clear();
+    for (auto& cb : callbacks) {
+      std::move(cb).Run();
+    }
+  }
+}
+
+void GpuChannelManager::UpdateGpuFeatureInfo(
+    const GpuFeatureInfo& gpu_feature_info) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(gpu_channels_.empty());
+  DCHECK(!shared_context_state_);
+  gpu_feature_info_ = gpu_feature_info;
+  gpu_driver_bug_workarounds_ =
+      GpuDriverBugWorkarounds(gpu_feature_info_.enabled_gpu_driver_bug_workarounds);
+}
+
+void GpuChannelManager::RunWhenDefaultOffscreenSurfaceReady(
+    base::OnceClosure callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (default_offscreen_surface_) {
+    std::move(callback).Run();
+    return;
+  }
+  pending_offscreen_surface_ready_callbacks_.push_back(std::move(callback));
+}
+
 void GpuChannelManager::OnBackgroundCleanup() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 

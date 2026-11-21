@@ -273,6 +273,7 @@ test("cobalt_browsertests") {
     sources += [
       "cobalt_browser_tests_main.cc",
       "media_source_browsertest.cc",
+      "preload_egl_deferral_browsertest.cc",
     ]
   }
 
@@ -333,6 +334,7 @@ test("cobalt_browsertests") {
     "//components/services/storage/public/cpp",
     "//components/ukm:test_support",
     "//components/url_formatter",
+    "//components/version_info:version_info",
     "//components/viz/client",
     "//components/viz/host",
     "//components/viz/test:test_support",
@@ -421,6 +423,7 @@ test("cobalt_browsertests") {
     "//ui/gfx/geometry",
     "//ui/gl",
     "//ui/gl:test_support",
+    "//ui/gl/init:init",
     "//ui/latency",
     "//ui/native_theme",
     "//ui/resources",

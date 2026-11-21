@@ -81,6 +81,12 @@ class VIZ_HOST_EXPORT GpuHostImpl : public mojom::GpuHost
     virtual void DidCreateContextSuccessfully() = 0;
     virtual void MaybeShutdownGpuProcess() = 0;
     virtual void DidUpdateGPUInfo(const gpu::GPUInfo& gpu_info) = 0;
+#if BUILDFLAG(IS_COBALT)
+    virtual void DidUpdateGPUInfoAndFeatures(
+        const gpu::GPUInfo& gpu_info,
+        const gpu::GpuFeatureInfo& gpu_feature_info,
+        const gfx::GpuExtraInfo& gpu_extra_info) {}
+#endif  // BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(IS_WIN)
     virtual void DidUpdateOverlayInfo(const gpu::OverlayInfo& overlay_info) = 0;
     virtual void DidUpdateDXGIInfo(gfx::mojom::DXGIInfoPtr dxgi_info) = 0;
@@ -266,6 +272,12 @@ class VIZ_HOST_EXPORT GpuHostImpl : public mojom::GpuHost
                       const GURL& active_url) override;
   void DisableGpuCompositing() override;
   void DidUpdateGPUInfo(const gpu::GPUInfo& gpu_info) override;
+#if BUILDFLAG(IS_COBALT)
+  void DidUpdateGPUInfoAndFeatures(
+      const gpu::GPUInfo& gpu_info,
+      const gpu::GpuFeatureInfo& gpu_feature_info,
+      const gfx::GpuExtraInfo& gpu_extra_info) override;
+#endif
 #if BUILDFLAG(IS_WIN)
   void DidUpdateOverlayInfo(const gpu::OverlayInfo& overlay_info) override;
   void DidUpdateDXGIInfo(gfx::mojom::DXGIInfoPtr dxgi_info) override;

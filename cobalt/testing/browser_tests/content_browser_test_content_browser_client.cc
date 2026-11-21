@@ -17,6 +17,7 @@
 #include <optional>
 #include <string_view>
 
+#include "base/command_line.h"
 #include "base/test/task_environment.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -73,7 +74,10 @@ class ContentBrowserTestBrowserMainParts
     : public cobalt::CobaltBrowserMainParts {
  public:
   ContentBrowserTestBrowserMainParts()
-      : cobalt::CobaltBrowserMainParts("", /*is_visible=*/true) {}
+      : cobalt::CobaltBrowserMainParts(
+            "",
+            /*is_visible=*/!base::CommandLine::ForCurrentProcess()->HasSwitch(
+                ContentBrowserTestContentBrowserClient::kPreloadSwitch)) {}
 
   void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override {
     // In browser tests, do not defer window creation tasks.

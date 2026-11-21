@@ -126,6 +126,11 @@ class GpuProcessHost : public BrowserChildProcessHostDelegate,
 
   CONTENT_EXPORT int GetIDForTesting() const;
 
+#if BUILDFLAG(IS_COBALT)
+  CONTENT_EXPORT scoped_refptr<base::SingleThreadTaskRunner>
+  GetInProcessGpuThreadTaskRunnerForTesting() const;
+#endif  // BUILDFLAG(IS_COBALT)
+
   viz::GpuHostImpl* gpu_host() { return gpu_host_.get(); }
 
 #if BUILDFLAG(IS_MAC)
@@ -174,6 +179,12 @@ class GpuProcessHost : public BrowserChildProcessHostDelegate,
   void DidCreateContextSuccessfully() override;
   void MaybeShutdownGpuProcess() override;
   void DidUpdateGPUInfo(const gpu::GPUInfo& gpu_info) override;
+#if BUILDFLAG(IS_COBALT)
+  void DidUpdateGPUInfoAndFeatures(
+      const gpu::GPUInfo& gpu_info,
+      const gpu::GpuFeatureInfo& gpu_feature_info,
+      const gfx::GpuExtraInfo& gpu_extra_info) override;
+#endif  // BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(IS_WIN)
   void DidUpdateOverlayInfo(const gpu::OverlayInfo& overlay_info) override;
   void DidUpdateDXGIInfo(gfx::mojom::DXGIInfoPtr dxgi_info) override;

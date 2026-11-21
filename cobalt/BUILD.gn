@@ -515,9 +515,12 @@ test("cobalt_unittests") {
     "//content/browser:for_content_tests",
     "//content/public/common:switches",
     "//content/test:test_support",
+    "//gpu/command_buffer/service",
     "//gpu/config",
+    "//gpu/ipc/service",
     "//sandbox/policy",
     "//ui/events/devices",
+    "//ui/gl",
   ]
 
   if (is_starboard || is_androidtv) {
