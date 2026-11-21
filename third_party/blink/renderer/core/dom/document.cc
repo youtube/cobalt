@@ -5758,6 +5758,14 @@ void Document::SendFocusNotification(Element* new_focused_element,
             new_focused_element->FastGetAttribute(html_names::kRoleAttr),
             "textbox");
     is_richly_editable = IsRichlyEditable(*new_focused_element);
+#if BUILDFLAG(IS_COBALT)
+    // [PoC][C6] Skip forced synchronous layout (OutlineRectsInWidget) and
+    // FocusedElementChanged UI-thread IPC when focusing non-editable elements
+    // with accessibility off.
+    if (!is_editable && !ExistingAXObjectCache()) {
+      return;
+    }
+#endif
     gfx::Rect bounds_in_viewport;
 
     if (new_focused_element->IsSVGElement()) {
