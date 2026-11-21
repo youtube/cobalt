@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_resource.h"
 
@@ -39,7 +40,7 @@ class EmptyMediaResource : public MediaResource {
   EmptyMediaResource() = default;
   ~EmptyMediaResource() override = default;
 
-  std::vector<DemuxerStream*> GetAllStreams() override { return {}; }
+  std::vector<raw_ptr<DemuxerStream>> GetAllStreams() override { return {}; }
 };
 
 }  // namespace media

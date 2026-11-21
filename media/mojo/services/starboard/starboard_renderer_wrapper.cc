@@ -18,6 +18,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
 #include "base/synchronization/lock.h"
@@ -100,8 +101,8 @@ class ProxyMediaResource : public MediaResource {
                      std::unique_ptr<ProxyDemuxerStream> video)
       : audio_(std::move(audio)), video_(std::move(video)) {}
 
-  std::vector<DemuxerStream*> GetAllStreams() override {
-    std::vector<DemuxerStream*> streams;
+  std::vector<raw_ptr<DemuxerStream>> GetAllStreams() override {
+    std::vector<raw_ptr<DemuxerStream>> streams;
     if (audio_) {
       streams.push_back(audio_.get());
     }
