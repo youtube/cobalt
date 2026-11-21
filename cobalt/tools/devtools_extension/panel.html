@@ -22,6 +22,17 @@
       </div>
 
       <div class="toolbar-actions">
+        <div class="native-logs-control">
+          <label for="native-log-severity" class="sr-only">Native Log Severity</label>
+          <select id="native-log-severity" class="severity-select" title="Minimum native log severity forwarded to DevTools Console" disabled>
+            <option value="verbose">Verbose</option>
+            <option value="info" selected>Info</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+            <option value="fatal">Fatal</option>
+          </select>
+          <button id="btn-native-logs" class="btn btn-secondary" title="Connect to Cobalt to toggle native C++ logs in DevTools Console" aria-pressed="false" disabled>Native Logs: Off</button>
+        </div>
         <button id="btn-refresh" class="btn btn-secondary" title="Fetch latest snapshot from Cobalt" disabled>🔄 Refresh</button>
       </div>
     </header>

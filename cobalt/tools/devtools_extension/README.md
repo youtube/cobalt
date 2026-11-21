@@ -100,3 +100,13 @@ Tracks maximum memory peaks recorded across elapsed lifecycle time windows and i
 * **4 to 8 min Window** (`Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.4to8min`): Peak PMF reached during continuous browsing.
 * **8 to 16 min Window** (`Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.8to16min`): Peak PMF reached during extended session stability.
 * **Peak GPU (Page Load)** (`Memory.GPU.PeakMemoryUsage2.PageLoad`): Maximum GPU VRAM allocated during initial page navigation and rendering.
+
+---
+
+## Native C++ Logs in DevTools Console
+
+Non-release Cobalt builds can stream in-process native `base::logging` and `SB_LOG` output into any attached Chrome DevTools Console as standard `Log.entryAdded` entries.
+
+* **Interactive toggle:** Use the severity selector (`Verbose`, `Info`, `Warning`, `Error`, `Fatal`) and **Native Logs: Off / On** button in the extension toolbar. The toggle invokes `Cobalt.setNativeLogging` and `Cobalt.getNativeLoggingState` over CDP directly, so it works even while page JavaScript is paused at a breakpoint or before a document loads.
+* **Startup boot logs:** Launch Cobalt with `--enable-devtools-native-logs` to buffer native logs from `PreEarlyInitialization` and replay them as soon as Chrome DevTools Console attaches.
+* **Idle overhead:** When disabled (the default without `--enable-devtools-native-logs`), collection stays inactive and releases its ring buffer automatically when the last DevTools client detaches.
