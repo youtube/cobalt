@@ -35,6 +35,12 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/task/current_thread.h"
+#include "components/discardable_memory/service/discardable_shared_memory_manager.h"
+#include "content/public/browser/browser_main_runner.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 namespace variations {
 class VariationsIdsProvider;
 }
@@ -272,6 +278,16 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
 
   void TearDown() override {
     ::testing::Mock::VerifyAndClearExpectations(mock_delegate_.get());
+#if BUILDFLAG(IS_STARBOARD)
+    // Covers the Starboard browser-test teardown path where ShellMainDelegate
+    // leaks BrowserMainRunner and ContentMain() returns while background
+    // browser threads are still running, verifying that BrowserTaskExecutor
+    // and DiscardableSharedMemoryManager remain alive until process exit.
+    EXPECT_FALSE(BrowserMainRunner::ExitedMainMessageLoop());
+    EXPECT_NE(discardable_memory::DiscardableSharedMemoryManager::Get(),
+              nullptr);
+    EXPECT_TRUE(base::CurrentUIThread::IsSet());
+#endif  // BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
     // ShellMainDelegate::RunProcess leaks BrowserMainRunner on these platforms,
     // leaving background threads running after ContentMain returns with active

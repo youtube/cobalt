@@ -207,6 +207,10 @@
 #include "base/debug/asan_service.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+#include "content/public/browser/browser_main_runner.h"
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+
 namespace content {
 extern int GpuMain(MainFunctionParams);
 #if BUILDFLAG(ENABLE_PPAPI)
@@ -1343,6 +1347,46 @@ void ContentMainRunnerImpl::Shutdown() {
   base::PermanentThreadAllowance::AllowBlocking();
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+  // TODO(b/568023789): Remove once ShellMainDelegate::RunProcess() shuts down
+  // BrowserMainRunner instead of leaking it on Starboard.
+  const bool leaked_browser_main_runner =
+      is_browser_main_loop_started_ &&
+      !BrowserMainRunner::ExitedMainMessageLoop();
+  if (leaked_browser_main_runner) {
+    if (mojo_ipc_support_) {
+      ANNOTATE_LEAKING_OBJECT_PTR(mojo_ipc_support_.get());
+      std::ignore = mojo_ipc_support_.release();
+    }
+  } else {
+    mojo_ipc_support_.reset();
+  }
+
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
+  std::string process_type =
+      command_line.GetSwitchValueASCII(switches::kProcessType);
+  delegate_->ProcessExiting(process_type);
+
+  if (leaked_browser_main_runner) {
+    // When BrowserMainRunner was leaked (for example in
+    // ShellMainDelegate::RunProcess() during browser tests),
+    // BrowserMainLoop::ShutdownThreadsAndCleanUp() never ran and background
+    // threads (Chrome_IOThread, Chrome_InProcGpuThread,
+    // Chrome_InProcRendererThread) remain active until process exit. Keep
+    // BrowserTaskExecutor (which owns CrBrowserMain's SequenceLocalStorageMap
+    // and Mojo SequenceLocalSyncEventWatcher state), MojoIpcSupport, and
+    // DiscardableSharedMemoryManager alive so background threads do not hit
+    // use-after-free during teardown.
+    if (discardable_shared_memory_manager_) {
+      ANNOTATE_LEAKING_OBJECT_PTR(discardable_shared_memory_manager_.get());
+      std::ignore = discardable_shared_memory_manager_.release();
+    }
+  } else {
+    // The BrowserTaskExecutor needs to be destroyed before |exit_manager_|.
+    BrowserTaskExecutor::Shutdown();
+  }
+#else
   mojo_ipc_support_.reset();
 
   const base::CommandLine& command_line =
@@ -1353,6 +1397,7 @@ void ContentMainRunnerImpl::Shutdown() {
 
   // The BrowserTaskExecutor needs to be destroyed before |exit_manager_|.
   BrowserTaskExecutor::Shutdown();
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_WIN)
 #ifdef _CRTDBG_MAP_ALLOC
