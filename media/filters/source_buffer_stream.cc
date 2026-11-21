@@ -817,40 +817,6 @@ bool SourceBufferStream::GarbageCollectIfNeeded(base::TimeDelta media_time,
         ranges_size = GetMemoryUsage();
       }
     }
-    if (ranges_.size() > 1 &&
-        ranges_size + newDataSize > retention_floor_bytes) {
-      const SourceBufferRange* next_append_range =
-          range_for_next_append_ != ranges_.end()
-              ? range_for_next_append_->get()
-              : nullptr;
-      if (ranges_.front().get() != selected_range_ &&
-          ranges_.front().get() != next_append_range) {
-        const size_t orphan_front_bytes =
-            std::min(ranges_.front()->GetMemoryUsage(),
-                     ranges_size + newDataSize - retention_floor_bytes);
-        if (orphan_front_bytes > 0) {
-          FreeBuffers(orphan_front_bytes, media_time,
-                      /*reverse_direction=*/false);
-          ranges_size = GetMemoryUsage();
-        }
-      }
-      next_append_range = range_for_next_append_ != ranges_.end()
-                              ? range_for_next_append_->get()
-                              : nullptr;
-      if (ranges_.size() > 1 &&
-          ranges_size + newDataSize > retention_floor_bytes &&
-          ranges_.back().get() != selected_range_ &&
-          ranges_.back().get() != next_append_range) {
-        const size_t orphan_back_bytes =
-            std::min(ranges_.back()->GetMemoryUsage(),
-                     ranges_size + newDataSize - retention_floor_bytes);
-        if (orphan_back_bytes > 0) {
-          FreeBuffers(orphan_back_bytes, media_time,
-                      /*reverse_direction=*/true);
-          ranges_size = GetMemoryUsage();
-        }
-      }
-    }
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

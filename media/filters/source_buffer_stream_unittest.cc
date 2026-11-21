@@ -5823,6 +5823,56 @@ TEST_F(SourceBufferStreamTest,
   EXPECT_TRUE(GarbageCollect(base::Seconds(16), 0));
   CheckExpectedRangesByTimestamp("{ [4000,20000) }");
 }
+
+TEST_F(SourceBufferStreamTest,
+       MseMemoryOptimizationEnabledKeepsRangeAheadOfPlayheadAfterRewind) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      base::features::kCobaltMseMemoryOptimization);
+
+  SetStreamInfo(10, 1);  // 100ms frames, 1s GOPs.
+  stream_->set_memory_limit(200 * 1024 * 1024);
+  const std::vector<uint8_t> payload(256 * 1024, 0x44);
+
+  // Buffer [33s, 60s) (~67 MiB) and play to 45s.
+  NewCodedFrameGroupAppend(330, 270, payload);
+  Seek(330);
+  CheckExpectedBuffers(330, 450, payload);
+
+  // Rewind to 20s, which is not buffered, and append [20s, 25s) there.
+  Seek(200);
+  NewCodedFrameGroupAppend(200, 50, payload);
+  CheckExpectedBuffers(200, 210, payload);
+
+  // The range ahead of the playhead is under the memory limit and playback
+  // will reach it, so it stays buffered.
+  EXPECT_TRUE(GarbageCollect(base::Seconds(21), 0));
+  CheckExpectedRangesByTimestamp("{ [20000,25000) [33000,60000) }");
+}
+
+TEST_F(SourceBufferStreamTest,
+       MseMemoryOptimizationEnabledAppliesBackHorizonAcrossRanges) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      base::features::kCobaltMseMemoryOptimization);
+
+  SetStreamInfo(10, 1);  // 100ms frames, 1s GOPs.
+  stream_->set_memory_limit(200 * 1024 * 1024);
+  const std::vector<uint8_t> payload(256 * 1024, 0x55);
+
+  // Buffer and play [0s, 20s), then skip ahead to a disjoint [25s, 30s).
+  NewCodedFrameGroupAppend(0, 200, payload);
+  Seek(0);
+  CheckExpectedBuffers(0, 199, payload);
+  NewCodedFrameGroupAppend(250, 50, payload);
+  Seek(250);
+  CheckExpectedBuffers(250, 260, payload);
+
+  // GOPs behind 26s - 12s = 14s evict from the earlier range; the part of it
+  // inside the back horizon stays.
+  EXPECT_TRUE(GarbageCollect(base::Seconds(26), 0));
+  CheckExpectedRangesByTimestamp("{ [14000,20000) [25000,30000) }");
+}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media
