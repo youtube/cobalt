@@ -30,6 +30,10 @@ enable_swiftshader_vulkan = false
 # Overriding the flag from //ui/gl/features.gni
 use_static_angle = true
 
+# Starboard binds directly to native EGL/GLES (not ANGLE), so enable the
+# validating command decoder.
+enable_validating_command_decoder = true
+
 # Disable udev
 use_udev = false
 
