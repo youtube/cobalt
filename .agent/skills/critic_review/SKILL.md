@@ -24,7 +24,6 @@ to verify correctness, robustness, security, style, and project guidelines.
 
 ```text
 skills/critic_review/
-├── .style.yapf              # YAPF config scoped to critic_review
 ├── SKILL.md                 # Main workflow & instructions (this file)
 ├── README.md                # Reference for enabling mandatory critic review
 ├── references/              # Procedural guidelines & context rules

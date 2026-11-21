@@ -22,8 +22,8 @@ Review semantic style, idioms, naming, and design; skip linter-enforced style.
 **Common Style Guide Locations & Discovery**:
 Locate and consult the relevant style guide files using direct path inspection:
 
-1. **Repository Style Guides**:
-   - Check the `styleguide/` directory at the repository root:
+1. **Local Git Repositories (Chromium / Cobalt)**:
+   - Check the `styleguide/` directory at the repository root or adjacent checkout paths (e.g. `styleguide/`, `~/code/chromium/src/styleguide/`, `~/code/cobalt/styleguide/`):
      - `styleguide/styleguide.md`: Main entry point and language guide index.
      - `styleguide/c++/c++.md`: Chromium C++ rules & exceptions to Google style.
      - `styleguide/c++/c++-features.md`: Allowed and banned modern C++ features.
@@ -33,18 +33,17 @@ Locate and consult the relevant style guide files using direct path inspection:
      - `styleguide/java/java.md`: Java and Android guidelines.
      - `styleguide/web/web.md`, `styleguide/markdown/markdown.md`, `styleguide/rust/`: Web, Markdown, and Rust guidelines.
 
-2. **Public Reference URLs**:
+2. **Internal URLs / Shortlinks**:
    - Chromium: `https://chromium.googlesource.com/chromium/src/+/main/styleguide/`
-   - Google: `https://google.github.io/styleguide/` (C++: `cppguide.html`, Python: `pyguide.html`, Java: `javaguide.html`, TypeScript: `tsguide.html`)
 
 **Discovery Best Practices & Performance Guardrails**:
 - Check for the existence of `styleguide/` or relevant doc files using direct `view_file` or targeted `list_dir` on known paths.
-- **Performance Rule**: NEVER run recursive `grep` or `find` across huge repositories. Always inspect targeted directories directly.
+- **Performance Rule**: NEVER run recursive `grep` or `find` across huge repositories (like `~/code/chromium` or `~/code/cobalt`). Always inspect targeted directories directly.
 
 **Styleguide Review Checklist**:
 - [ ] **Identify & Consult Relevant Style Guides**:
     - Identify modified file types (.cc/.h -> `styleguide/c++/`, .py -> `styleguide/python/`, .java -> `styleguide/java/`, .gn/.gni -> GN guide).
-    - Consult the relevant local or public styleguide file using `view_file` or URL tools.
+    - Consult the relevant local or internal styleguide file using `view_file` or URL tools.
 - [ ] **Check Style & Language Idioms**:
     - Verify types, ownership, naming, and language feature restrictions against the consulted guide.
     - Ensure platform-specific code, testing conventions, and component exports follow documented standards.
