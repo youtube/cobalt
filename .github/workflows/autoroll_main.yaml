@@ -66,15 +66,25 @@ jobs:
           git show main:.github/scripts/autoroll.py > "${RUNNER_TEMP}/autoroll.py"
           git show main:.github/scripts/autoroll_lib.py > "${RUNNER_TEMP}/autoroll_lib.py"
 
-          # Use existing branch from remote if it exists, otherwise start from target branch.
-          if git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"; then
-            git checkout --no-recurse-submodules -B "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" FETCH_HEAD
+          # Fetch existing roll branch and conflict branches from remote.
+          AUTOROLL_REFS="refs/heads/autoroll-${SOURCE_BRANCH}-*"
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin \
+            "${AUTOROLL_REFS}:refs/remotes/origin/autoroll-${SOURCE_BRANCH}-*"
+
+          # Use existing branch from remote if it exists, otherwise start
+          # from target branch.
+          ROLL_BRANCH="autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+          if git rev-parse -q --verify "origin/${ROLL_BRANCH}" >/dev/null; then
+            git checkout --no-recurse-submodules -B "${ROLL_BRANCH}" \
+              "origin/${ROLL_BRANCH}" --no-track
           else
-            git checkout --no-recurse-submodules -B "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" "${TARGET_BRANCH}" --no-track
+            git checkout --no-recurse-submodules -B "${ROLL_BRANCH}" \
+              "${TARGET_BRANCH}" --no-track
           fi
 
           # Fetch enough history for source branch.
-          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
+          git fetch --depth="${FETCH_DEPTH}" --no-recurse-submodules origin \
+            "${SOURCE_BRANCH}:${SOURCE_BRANCH}"
 
       - name: Get Existing PR Info
         id: pr_info
@@ -230,3 +240,23 @@ jobs:
           if [[ -n "${PR_COMMENT_FILE}" ]]; then
             gh pr comment "autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}" --body-file "${PR_COMMENT_FILE}"
           fi
+
+      - name: Push Conflict Branches and Create Stacked PRs
+        env:
+          GH_TOKEN: ${{ secrets.CHERRY_PICK_TOKEN }}
+          SOURCE_BRANCH: ${{ matrix.branch.source }}
+          TARGET_BRANCH: ${{ matrix.branch.target }}
+        run: |
+          set -x
+          gh extension list | grep -q 'gh-stack' || \
+            gh extension install github/gh-stack
+          ROLL_BRANCH="autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+          git push origin "${ROLL_BRANCH}"
+          PREFIX="refs/heads/autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
+          for BRANCH in $(git for-each-ref --format='%(refname:short)' \
+            "${PREFIX}-conflict-*"); do
+            gh stack init --base "${ROLL_BRANCH}" "${BRANCH}"
+            gh stack submit --auto
+            gh pr edit "${BRANCH}" \
+              --add-reviewer linxinan-yt,oxve,briantting
+          done
