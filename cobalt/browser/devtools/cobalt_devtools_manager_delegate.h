@@ -37,6 +37,12 @@ namespace cobalt {
 // Cobalt-specific DevToolsManagerDelegate that bridges CobaltLogCollector into
 // stock Chrome DevTools Console sessions via standard Log.entryAdded events and
 // handles Cobalt.setNativeLogging / Cobalt.getNativeLoggingState CDP commands.
+//
+// Owned by content::DevToolsManager (a process-wide base::Singleton): lazily
+// constructed on the browser UI thread when DevTools initializes and destroyed
+// at process exit (not tied to BrowserContext lifetime). All methods are
+// invoked on the browser UI sequence; |collector_| must outlive the delegate
+// (the process-wide base::NoDestructor singleton in production).
 class CobaltDevToolsManagerDelegate
     : public content::ShellDevToolsManagerDelegate {
  public:
@@ -74,7 +80,9 @@ class CobaltDevToolsManagerDelegate
 
  private:
   struct SessionState {
+    bool native_log_sink = true;
     bool log_domain_enabled = false;
+    bool delivered_any = false;
     uint64_t last_sent_seq = 0;
   };
 

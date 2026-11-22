@@ -30,6 +30,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/browser/switches.h"
+#include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/devtools_agent_host_client_channel.h"
 #include "third_party/inspector_protocol/crdtp/dispatch.h"
 #include "third_party/inspector_protocol/crdtp/json.h"
@@ -144,6 +145,23 @@ CobaltLogCollector::ScopedConsumer& GetBootLogConsumer() {
   return *consumer;
 }
 
+base::WeakPtr<CobaltDevToolsManagerDelegate>& GetActiveDelegate() {
+  static base::NoDestructor<base::WeakPtr<CobaltDevToolsManagerDelegate>>
+      delegate;
+  return *delegate;
+}
+
+bool IsNativeLogSink(content::DevToolsAgentHostClientChannel* channel) {
+  content::DevToolsAgentHost* host =
+      channel ? channel->GetAgentHost() : nullptr;
+  if (!host) {
+    return true;
+  }
+  const std::string type = host->GetType();
+  return type == content::DevToolsAgentHost::kTypePage ||
+         type == content::DevToolsAgentHost::kTypeBrowser;
+}
+
 }  // namespace
 
 // static
@@ -157,6 +175,12 @@ void CobaltDevToolsManagerDelegate::InitializeNativeLogging() {
 
 // static
 void CobaltDevToolsManagerDelegate::ShutdownNativeLogging() {
+  if (base::WeakPtr<CobaltDevToolsManagerDelegate> delegate =
+          GetActiveDelegate()) {
+    delegate->SetNativeLoggingEnabled(/*enabled=*/false,
+                                      /*replay_backlog=*/false);
+  }
+  GetActiveDelegate().reset();
   CobaltLogCollector::GetInstance()->SetNotifyCallback(
       nullptr, base::RepeatingClosure());
   GetBootLogConsumer().Reset();
@@ -175,6 +199,9 @@ CobaltDevToolsManagerDelegate::CobaltDevToolsManagerDelegate(
     : content::ShellDevToolsManagerDelegate(browser_context),
       collector_(collector),
       keep_enabled_when_detached_(enable_native_logging_at_startup) {
+  if (collector_ == CobaltLogCollector::GetInstance()) {
+    GetActiveDelegate() = weak_ptr_factory_.GetWeakPtr();
+  }
   if (enable_native_logging_at_startup) {
     SetNativeLoggingEnabled(/*enabled=*/true, /*replay_backlog=*/true);
     if (collector_ == CobaltLogCollector::GetInstance()) {
@@ -187,6 +214,10 @@ CobaltDevToolsManagerDelegate::CobaltDevToolsManagerDelegate(
 
 CobaltDevToolsManagerDelegate::~CobaltDevToolsManagerDelegate() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (collector_ == CobaltLogCollector::GetInstance() &&
+      GetActiveDelegate().get() == this) {
+    GetActiveDelegate().reset();
+  }
   if (collector_) {
     collector_->SetNotifyCallback(nullptr, base::RepeatingClosure());
   }
@@ -199,6 +230,7 @@ void CobaltDevToolsManagerDelegate::ClientAttached(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   content::ShellDevToolsManagerDelegate::ClientAttached(channel);
   SessionState state;
+  state.native_log_sink = IsNativeLogSink(channel);
   state.last_sent_seq = default_session_start_seq_;
   sessions_.insert_or_assign(channel, state);
   if (native_logging_enabled_) {
@@ -231,7 +263,7 @@ void CobaltDevToolsManagerDelegate::HandleCommand(
   const crdtp::span<uint8_t> method = dispatchable.Method();
   if (crdtp::SpanEquals(method, crdtp::SpanFrom(kMethodLogEnable))) {
     auto it = sessions_.find(channel);
-    if (it != sessions_.end()) {
+    if (it != sessions_.end() && it->second.native_log_sink) {
       it->second.log_domain_enabled = true;
       if (native_logging_enabled_) {
         EnsureNotifyCallbackRegistered();
@@ -387,6 +419,9 @@ void CobaltDevToolsManagerDelegate::SetNativeLoggingEnabled(
   if (!enabled) {
     native_logging_enabled_ = false;
     flush_scheduled_ = false;
+    for (auto& [channel, state] : sessions_) {
+      state.delivered_any = false;
+    }
     collector_->SetNotifyCallback(nullptr, base::RepeatingClosure());
     notify_callback_registered_ = false;
     collector_consumer_.Reset();
@@ -403,7 +438,9 @@ void CobaltDevToolsManagerDelegate::SetNativeLoggingEnabled(
   if (replay_backlog) {
     default_session_start_seq_ = 0;
     for (auto& [channel, state] : sessions_) {
-      state.last_sent_seq = 0;
+      if (!state.delivered_any) {
+        state.last_sent_seq = 0;
+      }
     }
     ScheduleFlush();
   } else if (!was_enabled) {
@@ -459,7 +496,7 @@ void CobaltDevToolsManagerDelegate::FlushPendingLogs() {
   std::vector<content::DevToolsAgentHostClientChannel*> target_channels;
   target_channels.reserve(sessions_.size());
   for (const auto& [channel, state] : sessions_) {
-    if (state.log_domain_enabled) {
+    if (state.native_log_sink && state.log_domain_enabled) {
       target_channels.push_back(channel);
     }
   }
@@ -470,7 +507,8 @@ void CobaltDevToolsManagerDelegate::FlushPendingLogs() {
   bool any_truncated = false;
   for (content::DevToolsAgentHostClientChannel* channel : target_channels) {
     auto it = sessions_.find(channel);
-    if (it == sessions_.end() || !it->second.log_domain_enabled) {
+    if (it == sessions_.end() || !it->second.native_log_sink ||
+        !it->second.log_domain_enabled) {
       continue;
     }
 
@@ -483,15 +521,23 @@ void CobaltDevToolsManagerDelegate::FlushPendingLogs() {
     }
 
     for (const CobaltLogCollector::LogEntry& entry : batch.entries) {
+      // Page console.* calls are already delivered natively to DevTools
+      // Console and mirrored into base::logging with file "CONSOLE" by
+      // content::LogConsoleMessage(). Skip them here to prevent duplicates
+      // while keeping CobaltLogCollector general for non-DevTools consumers.
+      if (entry.file == "CONSOLE") {
+        continue;
+      }
       if (!SendLogEntry(channel, entry)) {
-        break;
+        continue;
       }
       // Re-check session presence in case dispatching detached the client.
       it = sessions_.find(channel);
-      if (it == sessions_.end() || !it->second.log_domain_enabled ||
-          !native_logging_enabled_) {
+      if (it == sessions_.end() || !it->second.native_log_sink ||
+          !it->second.log_domain_enabled || !native_logging_enabled_) {
         break;
       }
+      it->second.delivered_any = true;
     }
   }
 
@@ -560,7 +606,7 @@ size_t CobaltDevToolsManagerDelegate::CountLogEnabledSessions() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   size_t count = 0;
   for (const auto& [channel, state] : sessions_) {
-    if (state.log_domain_enabled) {
+    if (state.native_log_sink && state.log_domain_enabled) {
       ++count;
     }
   }

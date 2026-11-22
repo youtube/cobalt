@@ -23,23 +23,84 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/ref_counted_memory.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/test/bind.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "cobalt/browser/logging/cobalt_log_collector.h"
+#include "cobalt/browser/switches.h"
+#include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/devtools_agent_host_client.h"
 #include "content/public/browser/devtools_agent_host_client_channel.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/inspector_protocol/crdtp/json.h"
 #include "third_party/inspector_protocol/crdtp/span.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 namespace {
 
 using LogSeverity = CobaltLogCollector::LogSeverity;
 
+// Minimal DevToolsAgentHost stub returning a configurable target type so tests
+// can verify top-level page/browser vs. child worker target filtering.
+class FakeDevToolsAgentHost : public content::DevToolsAgentHost {
+ public:
+  explicit FakeDevToolsAgentHost(std::string type) : type_(std::move(type)) {}
+
+  std::string CreateIOStreamFromData(
+      scoped_refptr<base::RefCountedMemory>) override {
+    return "";
+  }
+  bool AttachClient(content::DevToolsAgentHostClient* client) override {
+    return false;
+  }
+  bool DetachClient(content::DevToolsAgentHostClient* client) override {
+    return false;
+  }
+  bool IsAttached() override { return false; }
+  void DispatchProtocolMessage(content::DevToolsAgentHostClient* client,
+                               base::span<const uint8_t> message) override {}
+  void InspectElement(content::RenderFrameHost* frame_host,
+                      int x,
+                      int y) override {}
+  std::string GetId() override { return "fake-id"; }
+  std::string GetParentId() override { return ""; }
+  std::string GetOpenerId() override { return ""; }
+  bool CanAccessOpener() override { return false; }
+  std::string GetOpenerFrameId() override { return ""; }
+  content::WebContents* GetWebContents() override { return nullptr; }
+  content::BrowserContext* GetBrowserContext() override { return nullptr; }
+  void DisconnectWebContents() override {}
+  void ConnectWebContents(content::WebContents* web_contents) override {}
+  std::string GetType() override { return type_; }
+  std::string GetTitle() override { return ""; }
+  std::string GetDescription() override { return ""; }
+  GURL GetURL() override { return GURL(); }
+  GURL GetFaviconURL() override { return GURL(); }
+  std::string GetFrontendURL() override { return ""; }
+  bool Activate() override { return false; }
+  void Reload() override {}
+  bool Close() override { return false; }
+  base::TimeTicks GetLastActivityTime() override { return base::TimeTicks(); }
+  void ForceDetachAllSessions() override {}
+  content::RenderProcessHost* GetProcessHost() override { return nullptr; }
+
+ private:
+  ~FakeDevToolsAgentHost() override = default;
+
+  std::string type_;
+};
+
+// No-op DevToolsAgentHostClient backing FakeDevToolsChannel in unit tests.
 class FakeDevToolsAgentHostClient : public content::DevToolsAgentHostClient {
  public:
   void DispatchProtocolMessage(content::DevToolsAgentHost* agent_host,
@@ -47,9 +108,14 @@ class FakeDevToolsAgentHostClient : public content::DevToolsAgentHostClient {
   void AgentHostClosed(content::DevToolsAgentHost* agent_host) override {}
 };
 
+// Captures CBOR-encoded CDP messages dispatched by the delegate as parsed JSON
+// dictionaries and optionally runs a callback on dispatch (e.g., to simulate a
+// client detaching mid-flush).
 class FakeDevToolsChannel : public content::DevToolsAgentHostClientChannel {
  public:
-  FakeDevToolsChannel() = default;
+  explicit FakeDevToolsChannel(
+      scoped_refptr<content::DevToolsAgentHost> agent_host = nullptr)
+      : agent_host_(std::move(agent_host)) {}
   ~FakeDevToolsChannel() override = default;
 
   void DispatchProtocolMessageToClient(std::vector<uint8_t> message) override {
@@ -59,10 +125,20 @@ class FakeDevToolsChannel : public content::DevToolsAgentHostClientChannel {
     std::optional<base::Value::Dict> parsed = base::JSONReader::ReadDict(json);
     ASSERT_TRUE(parsed.has_value()) << "Failed to parse JSON: " << json;
     received_messages_.push_back(std::move(*parsed));
+    if (on_dispatch_) {
+      on_dispatch_.Run(received_messages_.back());
+    }
   }
 
-  content::DevToolsAgentHost* GetAgentHost() override { return nullptr; }
+  content::DevToolsAgentHost* GetAgentHost() override {
+    return agent_host_.get();
+  }
   content::DevToolsAgentHostClient* GetClient() override { return &client_; }
+
+  void SetOnDispatch(
+      base::RepeatingCallback<void(const base::Value::Dict&)> on_dispatch) {
+    on_dispatch_ = std::move(on_dispatch);
+  }
 
   const std::vector<base::Value::Dict>& received_messages() const {
     return received_messages_;
@@ -71,8 +147,10 @@ class FakeDevToolsChannel : public content::DevToolsAgentHostClientChannel {
   void ClearMessages() { received_messages_.clear(); }
 
  private:
+  scoped_refptr<content::DevToolsAgentHost> agent_host_;
   FakeDevToolsAgentHostClient client_;
   std::vector<base::Value::Dict> received_messages_;
+  base::RepeatingCallback<void(const base::Value::Dict&)> on_dispatch_;
 };
 
 std::vector<uint8_t> EncodeCommand(
@@ -197,11 +275,16 @@ TEST_F(CobaltDevToolsManagerDelegateTest,
   EXPECT_EQ(*toggle_result->FindString("minSeverity"), "warning");
   EXPECT_TRUE(collector.SnapshotStats().active);
 
-  // Record INFO (filtered out), WARNING, and FATAL messages.
+  // Record INFO (filtered out), WARNING, and FATAL messages (advancing the
+  // mock clock by 500 ms between WARNING and FATAL to verify millisecond
+  // units).
+  const double expected_warn_ms =
+      base::Time::Now().InMillisecondsFSinceUnixEpoch();
   collector.RecordLogMessage(LogSeverity::kInfo, "cobalt/app.cc", 10,
                              "info filtered");
   collector.RecordLogMessage(LogSeverity::kWarning, "cobalt/player.cc", 42,
                              "buffer underrun");
+  task_environment_.AdvanceClock(base::Milliseconds(500));
   collector.RecordLogMessage(LogSeverity::kFatal, "cobalt/fatal.cc", 99,
                              "unrecoverable fault");
 
@@ -220,6 +303,9 @@ TEST_F(CobaltDevToolsManagerDelegateTest,
   EXPECT_EQ(*warn_entry->FindString("level"), "warning");
   EXPECT_EQ(*warn_entry->FindString("url"), "player.cc");
   EXPECT_EQ(warn_entry->FindInt("lineNumber"), std::optional<int>(41));
+  std::optional<double> warn_timestamp = warn_entry->FindDouble("timestamp");
+  ASSERT_TRUE(warn_timestamp.has_value());
+  EXPECT_DOUBLE_EQ(*warn_timestamp, expected_warn_ms);
   EXPECT_NE(warn_entry->FindString("text")->find("buffer underrun"),
             std::string::npos);
 
@@ -228,6 +314,9 @@ TEST_F(CobaltDevToolsManagerDelegateTest,
       fatal_msg.FindDictByDottedPath("params.entry");
   ASSERT_NE(fatal_entry, nullptr);
   EXPECT_EQ(*fatal_entry->FindString("level"), "error");
+  std::optional<double> fatal_timestamp = fatal_entry->FindDouble("timestamp");
+  ASSERT_TRUE(fatal_timestamp.has_value());
+  EXPECT_NEAR(*fatal_timestamp - *warn_timestamp, 500.0, 0.01);
   EXPECT_NE(fatal_entry->FindString("text")->find("[FATAL]"),
             std::string::npos);
   EXPECT_NE(fatal_entry->FindString("text")->find("unrecoverable fault"),
@@ -347,7 +436,8 @@ TEST_F(CobaltDevToolsManagerDelegateTest,
   EXPECT_EQ(channel.received_messages().size(), 1u);
   channel.ClearMessages();
 
-  // Calling again with replayBacklog=true replays the buffered entry.
+  // Calling again with replayBacklog=true replays the buffered entry once
+  // because nothing has been delivered to this session yet.
   base::Value::Dict with_replay;
   with_replay.Set("enabled", true);
   with_replay.Set("replayBacklog", true);
@@ -360,6 +450,38 @@ TEST_F(CobaltDevToolsManagerDelegateTest,
   EXPECT_NE(channel.received_messages()[1]
                 .FindStringByDottedPath("params.entry.text")
                 ->find("preexisting entry"),
+            std::string::npos);
+  channel.ClearMessages();
+
+  // A subsequent replayBacklog=true toggle while already streaming must not
+  // replay duplicates into an active Console that has already received logs.
+  base::Value::Dict stale_replay;
+  stale_replay.Set("enabled", true);
+  stale_replay.Set("replayBacklog", true);
+  EXPECT_FALSE(SendCommand(&delegate, &channel, 6, "Cobalt.setNativeLogging",
+                           std::move(stale_replay)));
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(channel.received_messages().size(), 1u);
+  channel.ClearMessages();
+
+  // Updating severity live with replayBacklog=false applies immediately to
+  // subsequent logs without replaying earlier entries.
+  base::Value::Dict change_severity;
+  change_severity.Set("enabled", true);
+  change_severity.Set("minSeverity", "error");
+  change_severity.Set("replayBacklog", false);
+  EXPECT_FALSE(SendCommand(&delegate, &channel, 7, "Cobalt.setNativeLogging",
+                           std::move(change_severity)));
+  channel.ClearMessages();
+  collector.RecordLogMessage(LogSeverity::kWarning, "cobalt/live.cc", 1,
+                             "warning suppressed after severity change");
+  collector.RecordLogMessage(LogSeverity::kError, "cobalt/live.cc", 2,
+                             "error passes after severity change");
+  task_environment_.FastForwardBy(base::Milliseconds(20));
+  ASSERT_EQ(channel.received_messages().size(), 1u);
+  EXPECT_NE(channel.received_messages()[0]
+                .FindStringByDottedPath("params.entry.text")
+                ->find("error passes after severity change"),
             std::string::npos);
 
   delegate.ClientDetached(&channel);
@@ -394,16 +516,187 @@ TEST_F(CobaltDevToolsManagerDelegateTest,
   task_environment_.RunUntilIdle();
 
   ASSERT_EQ(console_channel.received_messages().size(), kBurstCount);
-  EXPECT_NE(console_channel.received_messages()[0]
-                .FindStringByDottedPath("params.entry.text")
-                ->find("burst #0"),
-            std::string::npos);
+  const std::string* first_text =
+      console_channel.received_messages()[0].FindStringByDottedPath(
+          "params.entry.text");
+  ASSERT_NE(first_text, nullptr);
+  EXPECT_NE(first_text->find("burst #0"), std::string::npos);
+  // Raw 0xFF 0xFE bytes must be replaced with UTF-8 U+FFFD (\xEF\xBF\xBD).
+  EXPECT_NE(first_text->find("\xEF\xBF\xBD"), std::string::npos);
   EXPECT_NE(console_channel.received_messages()[kBurstCount - 1]
                 .FindStringByDottedPath("params.entry.text")
                 ->find("burst #" + std::to_string(kBurstCount - 1)),
             std::string::npos);
 
   delegate.ClientDetached(&console_channel);
+}
+
+// Covers the developer journey of inspecting a page that emits console.log()
+// while native log streaming is enabled: Chromium mirrors JS console messages
+// into base::logging with file "CONSOLE", so the delegate must skip them to
+// avoid duplicate Console output while leaving them in CobaltLogCollector.
+TEST_F(CobaltDevToolsManagerDelegateTest, SkipsMirroredPageConsoleMessages) {
+  CobaltLogCollector collector(FastConfig());
+  CobaltDevToolsManagerDelegate delegate(
+      /*browser_context=*/nullptr, &collector,
+      /*enable_native_logging_at_startup=*/true);
+
+  FakeDevToolsChannel console_channel;
+  delegate.ClientAttached(&console_channel);
+  EXPECT_TRUE(SendCommand(&delegate, &console_channel, 1, "Log.enable"));
+
+  collector.RecordLogMessage(LogSeverity::kInfo, "CONSOLE", 12,
+                             "\"js hello\", source: https://app/main.js (12)");
+  collector.RecordLogMessage(LogSeverity::kInfo, "cobalt/player.cc", 44,
+                             "native playback started");
+  task_environment_.FastForwardBy(base::Milliseconds(20));
+
+  // Both entries remain buffered in CobaltLogCollector, but only the native
+  // entry is forwarded to DevTools Console.
+  EXPECT_EQ(collector.SnapshotStats().buffered_entries, 2u);
+  ASSERT_EQ(console_channel.received_messages().size(), 1u);
+  const std::string* text =
+      console_channel.received_messages()[0].FindStringByDottedPath(
+          "params.entry.text");
+  ASSERT_NE(text, nullptr);
+  EXPECT_NE(text->find("native playback started"), std::string::npos);
+
+  delegate.ClientDetached(&console_channel);
+}
+
+// Covers the developer journey of inspecting a page with auto-attached Web
+// Workers in Chrome DevTools: only top-level page/browser targets receive
+// Log.entryAdded events so native logs are not duplicated once per worker,
+// while worker sessions still support Cobalt.* commands and detach tracking.
+TEST_F(CobaltDevToolsManagerDelegateTest, SkipsWorkerChildTargetsAsLogSinks) {
+  CobaltLogCollector collector(FastConfig());
+  CobaltDevToolsManagerDelegate delegate(
+      /*browser_context=*/nullptr, &collector,
+      /*enable_native_logging_at_startup=*/false);
+
+  auto page_host = base::MakeRefCounted<FakeDevToolsAgentHost>(
+      content::DevToolsAgentHost::kTypePage);
+  auto worker_host = base::MakeRefCounted<FakeDevToolsAgentHost>(
+      content::DevToolsAgentHost::kTypeDedicatedWorker);
+  FakeDevToolsChannel page_channel(page_host);
+  FakeDevToolsChannel worker_channel(worker_host);
+
+  delegate.ClientAttached(&page_channel);
+  delegate.ClientAttached(&worker_channel);
+  EXPECT_TRUE(SendCommand(&delegate, &page_channel, 1, "Log.enable"));
+  EXPECT_TRUE(SendCommand(&delegate, &worker_channel, 2, "Log.enable"));
+
+  base::Value::Dict enable_params;
+  enable_params.Set("enabled", true);
+  EXPECT_FALSE(SendCommand(&delegate, &worker_channel, 3,
+                           "Cobalt.setNativeLogging",
+                           std::move(enable_params)));
+  worker_channel.ClearMessages();
+
+  EXPECT_FALSE(SendCommand(&delegate, &worker_channel, 4,
+                           "Cobalt.getNativeLoggingState"));
+  ASSERT_EQ(worker_channel.received_messages().size(), 1u);
+  EXPECT_EQ(worker_channel.received_messages()[0].FindDoubleByDottedPath(
+                "result.logEnabledSessions"),
+            std::optional<double>(1.0));
+  worker_channel.ClearMessages();
+
+  collector.RecordLogMessage(LogSeverity::kInfo, "cobalt/media.cc", 7,
+                             "single copy only");
+  task_environment_.FastForwardBy(base::Milliseconds(20));
+
+  ASSERT_EQ(page_channel.received_messages().size(), 1u);
+  EXPECT_TRUE(worker_channel.received_messages().empty());
+
+  // Detaching the page while the worker session remains open keeps collection
+  // active until the final session detaches.
+  delegate.ClientDetached(&page_channel);
+  EXPECT_TRUE(collector.SnapshotStats().active);
+  delegate.ClientDetached(&worker_channel);
+  EXPECT_FALSE(collector.SnapshotStats().active);
+}
+
+// Covers the developer journey of launching with --enable-devtools-native-logs
+// and either explicitly turning logging off interactively or shutting down the
+// browser cleanly via ShutdownNativeLogging(), ensuring ring storage is freed.
+TEST_F(CobaltDevToolsManagerDelegateTest,
+       BootFlagInteractiveDisableAndShutdownSingletonHandoff) {
+  // 1) Injected-collector boot-flag delegate disabled interactively.
+  {
+    CobaltLogCollector collector(FastConfig());
+    CobaltDevToolsManagerDelegate delegate(
+        /*browser_context=*/nullptr, &collector,
+        /*enable_native_logging_at_startup=*/true);
+    FakeDevToolsChannel channel;
+    delegate.ClientAttached(&channel);
+    EXPECT_TRUE(collector.SnapshotStats().active);
+
+    base::Value::Dict disable_params;
+    disable_params.Set("enabled", false);
+    EXPECT_FALSE(SendCommand(&delegate, &channel, 1, "Cobalt.setNativeLogging",
+                             std::move(disable_params)));
+    EXPECT_FALSE(collector.SnapshotStats().active);
+    delegate.ClientDetached(&channel);
+  }
+
+  // 2) Singleton boot-flag handoff and ShutdownNativeLogging() release path.
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      switches::kEnableDevToolsNativeLogs);
+  base::ScopedClosureRunner cleanup(base::BindLambdaForTesting([]() {
+    CobaltDevToolsManagerDelegate::ShutdownNativeLogging();
+    CobaltLogCollector::GetInstance()->UninstallHooksForTesting();
+  }));
+
+  CobaltDevToolsManagerDelegate::InitializeNativeLogging();
+  EXPECT_TRUE(CobaltLogCollector::GetInstance()->SnapshotStats().active);
+
+  CobaltDevToolsManagerDelegate singleton_delegate(/*browser_context=*/nullptr);
+  EXPECT_TRUE(CobaltLogCollector::GetInstance()->SnapshotStats().active);
+
+  // ShutdownNativeLogging() must release the live delegate's consumer even
+  // after the early-boot consumer was handed off on delegate construction.
+  CobaltDevToolsManagerDelegate::ShutdownNativeLogging();
+  EXPECT_FALSE(CobaltLogCollector::GetInstance()->SnapshotStats().active);
+}
+
+// Covers the edge case where a DevTools client disconnects synchronously while
+// FlushPendingLogs() is delivering a batch: remaining entries for the detached
+// client stop cleanly without UAF and sibling Console sessions still receive
+// the full batch.
+TEST_F(CobaltDevToolsManagerDelegateTest,
+       SelfDetachingChannelDuringFlushDoesNotCrash) {
+  CobaltLogCollector collector(FastConfig());
+  CobaltDevToolsManagerDelegate delegate(
+      /*browser_context=*/nullptr, &collector,
+      /*enable_native_logging_at_startup=*/true);
+
+  FakeDevToolsChannel detaching_channel;
+  FakeDevToolsChannel healthy_channel;
+  delegate.ClientAttached(&detaching_channel);
+  delegate.ClientAttached(&healthy_channel);
+  EXPECT_TRUE(SendCommand(&delegate, &detaching_channel, 1, "Log.enable"));
+  EXPECT_TRUE(SendCommand(&delegate, &healthy_channel, 2, "Log.enable"));
+
+  bool detached = false;
+  detaching_channel.SetOnDispatch(
+      base::BindLambdaForTesting([&](const base::Value::Dict&) {
+        if (!detached) {
+          detached = true;
+          delegate.ClientDetached(&detaching_channel);
+        }
+      }));
+
+  collector.RecordLogMessage(LogSeverity::kInfo, "cobalt/flush.cc", 1, "msg 1");
+  collector.RecordLogMessage(LogSeverity::kInfo, "cobalt/flush.cc", 2, "msg 2");
+  collector.RecordLogMessage(LogSeverity::kInfo, "cobalt/flush.cc", 3, "msg 3");
+  task_environment_.FastForwardBy(base::Milliseconds(20));
+
+  EXPECT_TRUE(detached);
+  EXPECT_EQ(detaching_channel.received_messages().size(), 1u);
+  EXPECT_EQ(healthy_channel.received_messages().size(), 3u);
+
+  delegate.ClientDetached(&healthy_channel);
 }
 
 }  // namespace

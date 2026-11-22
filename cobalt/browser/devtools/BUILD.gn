@@ -43,10 +43,12 @@ if (!cobalt_is_release_build) {
       ":devtools",
       "//base",
       "//base/test:test_support",
+      "//cobalt/browser:switches",
       "//cobalt/browser/logging",
       "//content/public/browser",
       "//testing/gtest",
       "//third_party/inspector_protocol:crdtp",
+      "//url",
     ]
   }
 }

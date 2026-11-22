@@ -89,6 +89,7 @@ const MAX_HISTORY_SAMPLES = 60;
 const liveHistory = [];
 
 let ws = null;
+let connectionGeneration = 0;
 let pollInterval = null;
 let nextRequestId = 1;
 let latestMetrics = {};
@@ -266,7 +267,7 @@ function setNativeLogging(enabled, replayBacklog) {
       },
       onError: (err) => {
         console.error("Failed to toggle Cobalt native logging:", err);
-        renderNativeLogsUi({ enabled: nativeLoggingEnabled });
+        queryNativeLoggingState();
       },
     }
   );
@@ -283,11 +284,28 @@ function onNativeLogSeverityChange() {
   }
 }
 
+function setDisconnectedUi(badgeText) {
+  clearPolling();
+  pendingRequests.clear();
+  statusBadge.textContent = badgeText;
+  statusBadge.className = "status-badge disconnected";
+  streamingBadge.textContent = "● 1 Hz Inactive";
+  streamingBadge.className = "streaming-badge inactive";
+  btnConnect.textContent = "Connect";
+  btnConnect.className = "btn btn-primary";
+  btnRefresh.disabled = true;
+  resetNativeLogsUi(
+    "Connect to Cobalt to toggle native C++ logs in DevTools Console"
+  );
+}
+
 async function connectCDP() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    clearPolling();
-    ws.close();
+    connectionGeneration++;
+    const oldSocket = ws;
     ws = null;
+    oldSocket.close();
+    setDisconnectedUi("Disconnected");
     return;
   }
 
@@ -298,14 +316,20 @@ async function connectCDP() {
     return;
   }
 
+  const generation = ++connectionGeneration;
   try {
     statusBadge.textContent = "Connecting...";
     statusBadge.className = "status-badge";
 
     const wsUrl = await resolveWebSocketUrl(targetUrl);
-    ws = new WebSocket(wsUrl);
+    if (generation !== connectionGeneration) {
+      return;
+    }
+    const socket = new WebSocket(wsUrl);
+    ws = socket;
 
-    ws.onopen = () => {
+    socket.onopen = () => {
+      if (generation !== connectionGeneration || ws !== socket) return;
       statusBadge.textContent = "Connected ●";
       statusBadge.className = "status-badge connected";
       streamingBadge.textContent = "● 1 Hz Active";
@@ -327,7 +351,8 @@ async function connectCDP() {
       pollInterval = setInterval(requestMetrics, 1000);
     };
 
-    ws.onmessage = (event) => {
+    socket.onmessage = (event) => {
+      if (generation !== connectionGeneration || ws !== socket) return;
       try {
         const msg = JSON.parse(event.data);
         if (!msg || typeof msg !== "object") return;
@@ -356,46 +381,23 @@ async function connectCDP() {
       }
     };
 
-    ws.onclose = () => {
-      clearPolling();
-      pendingRequests.clear();
-      statusBadge.textContent = "Disconnected";
-      statusBadge.className = "status-badge disconnected";
-      streamingBadge.textContent = "● 1 Hz Inactive";
-      streamingBadge.className = "streaming-badge inactive";
-      btnConnect.textContent = "Connect";
-      btnConnect.className = "btn btn-primary";
-      btnRefresh.disabled = true;
-      resetNativeLogsUi(
-        "Connect to Cobalt to toggle native C++ logs in DevTools Console"
-      );
+    socket.onclose = () => {
+      if (generation !== connectionGeneration || ws !== socket) return;
+      ws = null;
+      setDisconnectedUi("Disconnected");
     };
 
-    ws.onerror = (err) => {
+    socket.onerror = (err) => {
+      if (generation !== connectionGeneration || ws !== socket) return;
       console.error("WebSocket error:", err);
-      clearPolling();
-      pendingRequests.clear();
-      statusBadge.textContent = "Error";
-      statusBadge.className = "status-badge disconnected";
-      streamingBadge.textContent = "● 1 Hz Inactive";
-      streamingBadge.className = "streaming-badge inactive";
-      btnRefresh.disabled = true;
-      resetNativeLogsUi(
-        "Connect to Cobalt to toggle native C++ logs in DevTools Console"
-      );
+      setDisconnectedUi("Error");
     };
   } catch (error) {
+    if (generation !== connectionGeneration) {
+      return;
+    }
     console.error("Connection failed:", error);
-    clearPolling();
-    pendingRequests.clear();
-    statusBadge.textContent = "Failed";
-    statusBadge.className = "status-badge disconnected";
-    streamingBadge.textContent = "● 1 Hz Inactive";
-    streamingBadge.className = "streaming-badge inactive";
-    btnRefresh.disabled = true;
-    resetNativeLogsUi(
-      "Connect to Cobalt to toggle native C++ logs in DevTools Console"
-    );
+    setDisconnectedUi("Failed");
   }
 }
 
