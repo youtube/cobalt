@@ -191,6 +191,7 @@ void CobaltAudioRendererSink::UpdateSourceStatus(int* frames_in_buffer,
 
   *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
 
+  int total_pulled_this_call = 0;
   while ((frames_per_channel_ - *frames_in_buffer) >=
          params_.frames_per_buffer()) {
     int frames_filled =
@@ -206,6 +207,11 @@ void CobaltAudioRendererSink::UpdateSourceStatus(int* frames_in_buffer,
 
     frames_rendered_ += frames_filled;
     *frames_in_buffer += frames_filled;
+    total_pulled_this_call += frames_filled;
+  }
+  if (total_pulled_this_call > params_.frames_per_buffer()) {
+    LOG(INFO) << "KJ: Cobalt Sink Burst: pulled=" << total_pulled_this_call
+              << ", buffer_level=" << *frames_in_buffer;
   }
   *offset_in_frames = frames_consumed_ % frames_per_channel_;
 }

@@ -169,6 +169,21 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
                "WebAudioMediaStreamAudioSink::ProvideInput 2");
 
   lock_.AssertAcquired();
+
+  total_frames_consumed_ += audio_bus->frames();
+  base::TimeTicks now = base::TimeTicks::Now();
+  if (last_rate_log_time_.is_null()) {
+    last_rate_log_time_ = now;
+  }
+  base::TimeDelta elapsed = now - last_rate_log_time_;
+  if (elapsed >= base::Seconds(1)) {
+    double rate = total_frames_consumed_ / elapsed.InSecondsF();
+    LOG(INFO) << "KJ: WebAudio Sink: Consumption Rate: rate=" << rate
+              << ", target=" << sink_params_.sample_rate();
+    total_frames_consumed_ = 0;
+    last_rate_log_time_ = now;
+  }
+
   if (fifo_->frames() >= audio_bus->frames()) {
     fifo_->Consume(audio_bus, 0, audio_bus->frames());
   } else {
@@ -176,6 +191,8 @@ double WebAudioMediaStreamAudioSink::ProvideInput(
     TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("mediastream"),
                  "WebAudioMediaStreamAudioSink::ProvideInput underrun",
                  "frames missing", audio_bus->frames() - fifo_->frames());
+    LOG(INFO) << "KJ: WebAudio Sink Starvation: frames missing="
+              << (audio_bus->frames() - fifo_->frames());
     DVLOG(1) << "WARNING: Underrun, FIFO has data " << fifo_->frames()
              << " samples but " << audio_bus->frames() << " samples are needed";
   }

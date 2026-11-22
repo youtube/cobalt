@@ -116,6 +116,9 @@ class MODULES_EXPORT WebAudioMediaStreamAudioSink
 
   // Used to assert that OnReadyStateChanged() is not accessed concurrently.
   REENTRANCY_CHECKER(ready_state_reentrancy_checker_);
+
+  int total_frames_consumed_ GUARDED_BY(lock_){0};
+  base::TimeTicks last_rate_log_time_ GUARDED_BY(lock_);
 };
 
 }  // namespace blink
