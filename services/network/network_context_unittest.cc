@@ -926,9 +926,9 @@ TEST_F(NetworkContextTest, CobaltExtraRequestHeadersAddedAfterRedirect) {
   client.RunUntilRedirectReceived();
   ASSERT_EQ(final_url, client.redirect_info().new_url);
 
-  // Remove the header on redirect, as MaybeRemoveSecHeaders() does for
-  // Sec-CH-* headers on a secure-to-insecure redirect. The network service
-  // adds it back for the new hop.
+  // Remove the header on FollowRedirect, verifying that the network service
+  // re-attaches it when the redirect target is still potentially trustworthy
+  // (127.0.0.1 -> 127.0.0.1).
   loader->FollowRedirect({kCobaltExtraHeaderName}, {}, {}, std::nullopt);
   client.RunUntilComplete();
   ASSERT_EQ(net::OK, client.completion_status().error_code);
@@ -1091,6 +1091,115 @@ TEST_F(NetworkContextTest,
               observed_hop_headers[2][kCobaltSecChHeaderName]);
     EXPECT_EQ(kCobaltExtraHeaderValue,
               observed_hop_headers[2][kCobaltExtraHeaderName]);
+  }
+}
+
+// Covers the user journey where Cobalt fetches an HTTPS resource (such as an
+// app or media endpoint) and follows a redirect to an untrustworthy cleartext
+// HTTP URL: client-hint headers are sent on the HTTPS hop (exercising the
+// cryptographic-scheme fast path) and stripped on the downgraded HTTP hop.
+TEST_F(NetworkContextTest, CobaltExtraRequestHeadersOverHttpsAndDowngrade) {
+  constexpr char kCobaltSecChHeaderName[] = "Sec-CH-UA-Co-Test";
+
+  base::Lock lock;
+  std::vector<net::test_server::HttpRequest::HeaderMap> observed_hop_headers;
+  auto record_request = [&](const net::test_server::HttpRequest& request) {
+    base::AutoLock auto_lock(lock);
+    observed_hop_headers.push_back(request.headers);
+  };
+
+  net::EmbeddedTestServer https_server(net::EmbeddedTestServer::TYPE_HTTPS);
+  https_server.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
+  https_server.RegisterRequestMonitor(
+      base::BindLambdaForTesting(record_request));
+  net::test_server::RegisterDefaultHandlers(&https_server);
+  ASSERT_TRUE(https_server.Start());
+
+  net::EmbeddedTestServer http_server;
+  http_server.RegisterRequestMonitor(
+      base::BindLambdaForTesting(record_request));
+  net::test_server::RegisterDefaultHandlers(&http_server);
+  ASSERT_TRUE(http_server.Start());
+
+  scoped_refptr<net::RuleBasedHostResolverProc> mock_resolver_proc =
+      base::MakeRefCounted<net::RuleBasedHostResolverProc>(nullptr);
+  mock_resolver_proc->AddRule("*", "127.0.0.1");
+  net::ScopedDefaultHostResolverProc mock_host_resolver(
+      mock_resolver_proc.get());
+
+  mojom::NetworkContextParamsPtr params =
+      CreateNetworkContextParamsForTesting();
+  params->cobalt_extra_request_headers = {
+      {kCobaltSecChHeaderName, kCobaltExtraHeaderValue},
+      {kCobaltExtraHeaderName, kCobaltExtraHeaderValue}};
+  std::unique_ptr<NetworkContext> network_context =
+      CreateContextWithParams(std::move(params));
+
+  // 1. Direct HTTPS fetch exercises effective_url->SchemeIsCryptographic().
+  {
+    ResourceRequest request;
+    request.url = https_server.GetURL(
+        "a.test", base::StrCat({"/echoheader?", kCobaltSecChHeaderName}));
+    std::unique_ptr<TestURLLoaderClient> client =
+        FetchRequest(request, network_context.get());
+    ASSERT_EQ(net::OK, client->completion_status().error_code);
+    std::string response;
+    EXPECT_TRUE(
+        mojo::BlockingCopyToString(client->response_body_release(), &response));
+    EXPECT_EQ(kCobaltExtraHeaderValue, response);
+
+    base::AutoLock auto_lock(lock);
+    ASSERT_EQ(1u, observed_hop_headers.size());
+    EXPECT_EQ(kCobaltExtraHeaderValue,
+              observed_hop_headers[0][kCobaltSecChHeaderName]);
+    EXPECT_EQ(kCobaltExtraHeaderValue,
+              observed_hop_headers[0][kCobaltExtraHeaderName]);
+    observed_hop_headers.clear();
+  }
+
+  // 2. HTTPS -> untrustworthy HTTP redirect strips the headers on hop 2.
+  {
+    mojo::Remote<mojom::URLLoaderFactory> loader_factory;
+    mojom::URLLoaderFactoryParamsPtr factory_params =
+        mojom::URLLoaderFactoryParams::New();
+    factory_params->process_id = mojom::kBrowserProcessId;
+    factory_params->is_orb_enabled = false;
+    network_context->CreateURLLoaderFactory(
+        loader_factory.BindNewPipeAndPassReceiver(), std::move(factory_params));
+
+    const GURL insecure_target = http_server.GetURL(
+        "aia.example.com",
+        base::StrCat({"/echoheader?", kCobaltSecChHeaderName}));
+    ResourceRequest request;
+    request.url = https_server.GetURL(
+        "a.test", "/server-redirect?" +
+                      base::EscapeAllExceptUnreserved(insecure_target.spec()));
+
+    TestURLLoaderClient client;
+    mojo::Remote<mojom::URLLoader> loader;
+    loader_factory->CreateLoaderAndStart(
+        loader.BindNewPipeAndPassReceiver(), /*request_id=*/0,
+        mojom::kURLLoadOptionNone, request, client.CreateRemote(),
+        net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+    client.RunUntilRedirectReceived();
+    ASSERT_EQ(insecure_target, client.redirect_info().new_url);
+    loader->FollowRedirect({}, {}, {}, std::nullopt);
+    client.RunUntilComplete();
+    ASSERT_EQ(net::OK, client.completion_status().error_code);
+
+    std::string response;
+    EXPECT_TRUE(
+        mojo::BlockingCopyToString(client.response_body_release(), &response));
+    EXPECT_EQ("None", response);
+
+    base::AutoLock auto_lock(lock);
+    ASSERT_EQ(2u, observed_hop_headers.size());
+    EXPECT_EQ(kCobaltExtraHeaderValue,
+              observed_hop_headers[0][kCobaltSecChHeaderName]);
+    EXPECT_EQ(kCobaltExtraHeaderValue,
+              observed_hop_headers[0][kCobaltExtraHeaderName]);
+    EXPECT_FALSE(observed_hop_headers[1].contains(kCobaltSecChHeaderName));
+    EXPECT_FALSE(observed_hop_headers[1].contains(kCobaltExtraHeaderName));
   }
 }
 #endif  // BUILDFLAG(IS_COBALT)
