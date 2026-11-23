@@ -31,16 +31,6 @@ Always run the pretty print utility on this file after editing:
 
 <histograms>
 
-<<<<<<< ours
-<variants name="DomStorageBackingStoreLifetime">
-  <variant name="InMemory" summary="in-memory database"/>
-  <variant name="OnDisk" summary="on-disk database"/>
-</variants>
-
-<variants name="DomStorageType">
-  <variant name="LocalStorage" summary="local storage"/>
-  <variant name="SessionStorage" summary="session storage"/>
-=======
 <variants name="AndroidExitReasonToken">
   <variant name="AllExits" summary="aggregate across all exit reasons"/>
   <variant name="Anr" summary="ANR (Application Not Responding)"/>
@@ -65,7 +55,16 @@ Always run the pretty print utility on this file after editing:
   <variant name="UserRequested" summary="explicitly killed by user action"/>
   <variant name="UserStopped"
       summary="stopped as part of user session management"/>
->>>>>>> theirs
+</variants>
+
+<variants name="DomStorageBackingStoreLifetime">
+  <variant name="InMemory" summary="in-memory database"/>
+  <variant name="OnDisk" summary="on-disk database"/>
+</variants>
+
+<variants name="DomStorageType">
+  <variant name="LocalStorage" summary="local storage"/>
+  <variant name="SessionStorage" summary="session storage"/>
 </variants>
 
 <histogram name="Android.MemoryPressureNotification{AndroidProcessType}"
