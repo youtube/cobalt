@@ -103,7 +103,7 @@ void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
       new GeneratedCodeCache(
           path.AppendASCII("wasm"),
 #if BUILDFLAG(IS_COBALT)
-          kGeneratedWasmCodeCacheBytes,
+          max_bytes_wasm_,
 #else
           max_bytes,
 #endif

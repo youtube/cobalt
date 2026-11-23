@@ -960,6 +960,103 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram name="Cobalt.Storage.CacheQuota.AllocationOutcome"
+    enum="CobaltCacheQuotaAllocationOutcome" expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records how the quotas of the caches in Cobalt's cache directory were fitted
+    to the platform's budget for that directory, 10 seconds after browser
+    startup. Recorded once per browser process launch, on Starboard only. One
+    value describes the whole launch; when several apply, the one with the
+    highest number is recorded. &quot;Feature disabled&quot; is recorded when
+    the CobaltCacheQuotas feature is off and each cache chooses its own size.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.PlatformBudgetKB" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the platform's budget in kilobytes for Cobalt's cache directory
+    (kSbMaxSystemPathCacheDirectorySize) as the platform declares it, before it
+    is raised to the 24 MiB minimum. Recorded once per browser process launch,
+    10 seconds after browser startup, on Starboard only, whether or not the
+    CobaltCacheQuotas feature is enabled.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.UncommittedKB" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records how many kilobytes of the budget for Cobalt's cache directory the
+    cache quotas left unassigned: the budget, raised to 24 MiB if it is below
+    that, minus the sum of the configured quotas. It is measured before the
+    CobaltCacheQuotas_uncommitted_policy param hands out the difference, and is
+    0 when the quotas add up to the budget or more; see
+    Cobalt.Storage.CacheQuota.AllocationOutcome for those cases. With the
+    CobaltCacheQuotas feature off it is computed in the same way from the sizes
+    that the caches choose themselves, counting the GPU shader cache only when
+    it is enabled. Recorded once per browser process launch, 10 seconds after
+    browser startup, on Starboard only.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.{Bucket}.EffectiveMaxSizeKB"
+    units="KB" expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the maximum size in kilobytes that Cobalt allows for {Bucket} in its
+    cache directory. Recorded once per browser process launch, 10 seconds after
+    browser startup, on Starboard only. With the CobaltCacheQuotas feature on,
+    this is the quota after the CobaltCacheQuotas_uncommitted_policy param and
+    any command line override were applied. With the feature off, it is the size
+    that the cache chooses itself, including the effect of the
+    CobaltHttpCacheQuota and CobaltCodeCacheOptimization features. 0 means that
+    there is no quota: the GPU shader cache is not counted or not enabled, or
+    the HTTP cache is left to choose its own size.
+  </summary>
+  <token key="Bucket">
+    <variant name="GpuShaderCache" summary="the GPU shader disk cache"/>
+    <variant name="HttpCache" summary="the HTTP cache"/>
+    <variant name="JsCodeCache" summary="the V8 JavaScript code cache"/>
+    <variant name="Other"
+        summary="everything that is not one of the other five caches"/>
+    <variant name="ServiceWorker"
+        summary="one origin's Service Worker scripts and CacheStorage"/>
+    <variant name="WasmCodeCache" summary="the WebAssembly code cache"/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Storage.CacheQuota.{Bucket}.StartupUtilizationPercent"
+    units="%" expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the on-disk size of {Bucket} in Cobalt's cache directory as a
+    percentage of its quota: Cobalt.Storage.DirCache.{Bucket}.StartupSizeKB
+    divided by Cobalt.Storage.CacheQuota.{Bucket}.EffectiveMaxSizeKB, both taken
+    before rounding to kilobytes. Recorded once per browser process launch, 10
+    seconds after browser startup, on Starboard only. It is not recorded when
+    the quota is 0 or the cache directory does not exist. Values above 100 mean
+    that the cache is larger than its quota, which is expected right after the
+    quota was lowered and for caches that do not enforce one.
+  </summary>
+  <token key="Bucket">
+    <variant name="GpuShaderCache"
+        summary="the GPU shader disk caches (the GrShaderCache and
+                 ShaderCache directories)"/>
+    <variant name="HttpCache" summary="the HTTP cache (the Cache directory)"/>
+    <variant name="JsCodeCache"
+        summary="the V8 JavaScript code cache (the Code Cache/js directory)"/>
+    <variant name="Other"
+        summary="everything that is not in one of the other five buckets"/>
+    <variant name="ServiceWorker"
+        summary="the Service Worker directory, which holds CacheStorage"/>
+    <variant name="WasmCodeCache"
+        summary="the WebAssembly code cache (the Code Cache/wasm directory)"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Storage.Cookie.CommitDuration" units="ms"
     expires_after="never">
   <owner>haozheng@google.com</owner>
@@ -1019,6 +1116,39 @@ Always run the pretty print utility on this file after editing:
     earlier sessions plus startup writes; launches that start with an empty
     cache show up as low values.
   </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.DirCache.{Bucket}.StartupSizeKB" units="KB"
+    expires_after="never">
+  <owner>seancuff@google.com</owner>
+  <summary>
+    Records the on-disk size in kilobytes of {Bucket} in Cobalt's evictable
+    cache directory (base::DIR_CACHE), 10 seconds after browser startup, on a
+    BEST_EFFORT background thread. Recorded once per browser process launch, in
+    the same directory walk as Cobalt.Storage.DirCache.StartupTotalSizeKB, on
+    every platform and regardless of any feature. Every file in the cache
+    directory is counted in exactly one bucket, so the byte counts of the
+    buckets add up to the total; each sample is rounded down to whole kilobytes
+    separately, so the sum of the six samples can be up to 5 KB below the total.
+    A bucket whose directory does not exist is recorded as 0; the Service Worker
+    directory is in the cache directory on Starboard only, so ServiceWorker is
+    always 0 on Android. Because the cache persists across launches, this mostly
+    reflects the size left by earlier sessions plus startup writes.
+  </summary>
+  <token key="Bucket">
+    <variant name="GpuShaderCache"
+        summary="the GPU shader disk caches (the GrShaderCache and
+                 ShaderCache directories)"/>
+    <variant name="HttpCache" summary="the HTTP cache (the Cache directory)"/>
+    <variant name="JsCodeCache"
+        summary="the V8 JavaScript code cache (the Code Cache/js directory)"/>
+    <variant name="Other"
+        summary="everything that is not in one of the other five buckets"/>
+    <variant name="ServiceWorker"
+        summary="the Service Worker directory, which holds CacheStorage"/>
+    <variant name="WasmCodeCache"
+        summary="the WebAssembly code cache (the Code Cache/wasm directory)"/>
+  </token>
 </histogram>
 
 <histogram name="Cobalt.Storage.Exit.CookieFlushDuration" units="ms"

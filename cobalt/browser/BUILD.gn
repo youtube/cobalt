@@ -55,6 +55,7 @@ source_set("browser") {
   }
 
   public_deps = [
+    ":cache_quota_allocator",
     ":memory_ablation",
     "//cobalt/browser/h5vcc_memory",
     "//cobalt/browser/h5vcc_metrics",
@@ -113,6 +114,7 @@ source_set("browser") {
     "//components/services/storage/public/cpp",
     "//components/variations/service",
     "//components/viz/common",
+    "//gpu/command_buffer/service",
     "//gpu/config",
     "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//sql",
@@ -211,6 +213,26 @@ source_set("features") {
   deps = [
     "//base",
     "//cobalt/build/configs:buildflags",
+  ]
+}
+
+source_set("cache_quota_allocator") {
+  sources = [
+    "cache_quota_allocator.cc",
+    "cache_quota_allocator.h",
+    "cache_quotas.cc",
+    "cache_quotas.h",
+  ]
+  public = [
+    "cache_quota_allocator.h",
+    "cache_quotas.h",
+  ]
+  public_deps = [ "//base" ]
+  deps = [
+    ":features",
+    ":switches",
+    "//gpu/config",
+    "//starboard:starboard_headers_only",
   ]
 }
 
