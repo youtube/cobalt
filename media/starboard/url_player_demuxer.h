@@ -43,6 +43,10 @@ class MEDIA_EXPORT UrlPlayerDemuxerStream : public DemuxerStream {
   explicit UrlPlayerDemuxerStream(Type type);
   ~UrlPlayerDemuxerStream() override;
 
+  void set_natural_size(const gfx::Size& natural_size) {
+    natural_size_ = natural_size;
+  }
+
   // DemuxerStream implementation.
   void Read(uint32_t count, ReadCB read_cb) override;
   AudioDecoderConfig audio_decoder_config() override;
@@ -52,6 +56,7 @@ class MEDIA_EXPORT UrlPlayerDemuxerStream : public DemuxerStream {
 
  private:
   const Type type_;
+  gfx::Size natural_size_{1, 1};
 };
 
 // Demuxer placeholder for URL player. Carries the media URL and exposes
