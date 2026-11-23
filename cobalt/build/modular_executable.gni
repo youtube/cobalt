@@ -79,6 +79,7 @@ template("loader_final_target") {
 
     shared_library(original_target_name) {
       forward_variables_from(invoker, "*")
+      configs += [ "//starboard/build/config/modular:exports" ]
     }
   } else if (current_toolchain == starboard_toolchain) {
     not_needed(invoker, "*", TESTONLY_AND_VISIBILITY)
@@ -276,6 +277,7 @@ template("evergreen_final_target") {
 
   shared_library(original_target_name) {
     forward_variables_from(invoker, "*", [ "lib_name" ])
+    configs += [ "//starboard/build/config/modular:evergreen_exports" ]
   }
 }
 
