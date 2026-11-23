@@ -1,4 +1,4 @@
-name: linux_rc_11
+name: linux
 
 on:
   pull_request:
