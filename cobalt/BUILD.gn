@@ -397,6 +397,7 @@ test("cobalt_unittests") {
       "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/browser/lifecycle/cobalt_lifecycle_manager_unittest.cc",
+      "//cobalt/renderer/renderer_thread_parker_unittest.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
   }
@@ -452,6 +453,7 @@ test("cobalt_unittests") {
     "//cobalt/common/libc:libc_test",
     "//cobalt/gpu:unit_tests",
     "//cobalt/memory:unit_tests",
+    "//cobalt/renderer",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
     "//components/metrics:test_support",
