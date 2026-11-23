@@ -45,7 +45,7 @@ HardwareDecoderContext GetDirectXForHardwareDecoding() {
   query_display(display, EGL_DEVICE_EXT, &egl_device);
   SB_DCHECK(egl_device != 0);
 
-  intptr_t device = 0;
+  intptr_t device;
   query_device(reinterpret_cast<EGLDeviceEXT>(egl_device),
                EGL_D3D11_DEVICE_ANGLE, &device);
 

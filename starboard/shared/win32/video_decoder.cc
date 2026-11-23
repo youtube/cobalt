@@ -202,10 +202,6 @@ VideoDecoder::VideoDecoder(
   HardwareDecoderContext hardware_context = GetDirectXForHardwareDecoding();
   d3d_device_ = hardware_context.dx_device_out;
   device_manager_ = hardware_context.dxgi_device_manager_out;
-  if (!d3d_device_ || !device_manager_) {
-    return;
-  }
-
   HRESULT hr = d3d_device_.As(&video_device_);
   if (FAILED(hr)) {
     return;
