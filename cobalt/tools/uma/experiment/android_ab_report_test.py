@@ -723,6 +723,46 @@ class HarnessLogicTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 're-capture the golden tar'):
           harness.run()
 
+  def test_single_sample_eliminated_in_one_arm_reports_count(self):
+    pairs = [{
+        'A_phases': {
+            'homefeed': {
+                'Sql.Database.Success.OpenInternalTime.DIPS':
+                    _hist('Sql.Database.Success.OpenInternalTime.DIPS', 1,
+                          6400),
+                'ServiceWorker.Database.OpenResult':
+                    _hist('ServiceWorker.Database.OpenResult', 1, 0),
+                'Cobalt.Storage.UserData.StartupTotalSizeKB':
+                    _hist('Cobalt.Storage.UserData.StartupTotalSizeKB', 1, 683),
+            }
+        },
+        'B_phases': {
+            'homefeed': {
+                'Cobalt.Storage.UserData.StartupTotalSizeKB':
+                    _hist('Cobalt.Storage.UserData.StartupTotalSizeKB', 1, 103),
+            }
+        },
+    } for _ in range(ab_report.MIN_PAIRS)]
+    rows = ab_report.build_rows(
+        pairs, [],
+        'homefeed',
+        boot=ab_report.Bootstrap(100, 1),
+        order_key=ab_report.histogram_order(None),
+        min_rel_effect=0.01)
+    by_name = {(r['name'], r['stat']): r for r in rows}
+    self.assertIn(('Sql.Database.Success.OpenInternalTime.DIPS', 'count'),
+                  by_name)
+    self.assertNotIn(('Sql.Database.Success.OpenInternalTime.DIPS', 'value'),
+                     by_name)
+    dips = by_name[('Sql.Database.Success.OpenInternalTime.DIPS', 'count')]
+    self.assertEqual((dips['n'], dips['median'], dips['tag']),
+                     (ab_report.MIN_PAIRS, -1, '[IMPROVED]'))
+    sw = by_name[('ServiceWorker.Database.OpenResult', 'count')]
+    self.assertEqual((sw['n'], sw['median'], sw['tag']),
+                     (ab_report.MIN_PAIRS, -1, '[IMPROVED]'))
+    size = by_name[('Cobalt.Storage.UserData.StartupTotalSizeKB', 'value')]
+    self.assertEqual(size['tag'], '[IMPROVED]')
+
 
 if __name__ == '__main__':
   unittest.main()

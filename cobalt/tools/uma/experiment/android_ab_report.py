@@ -92,6 +92,7 @@ ENUM_HISTOGRAMS = (
     'WebCore.Scripts.V8CodeCacheMetadata.Set',
     'Gpu.GrShaderCacheLoadHitInCache',
     'GPU.ShaderLoadPrefixOK',
+    'ServiceWorker.Database.OpenResult',
 )
 # Histograms where each sample is a commit, sync or error: fewer is better.
 LOWER_COUNT_IS_BETTER = (
@@ -113,6 +114,10 @@ LOWER_COUNT_IS_BETTER = (
     'Memory.ParkableImage.Read.Latency',
     'Memory.ParkableString.Decompression.Latency',
     'Memory.ParkableString.Read.Latency',
+    'ServiceWorker.Database.OpenResult',
+    'Sql.Database.Success.OpenInternalTime.',
+    'Sql.Statement.ExecutionTime.',
+    'ImportantFile.WriteDuration.',
 )
 # Histograms where a higher value/mean/sum is an intentional improvement
 # (more Code Cache kept across launches once its cap is raised to prevent
@@ -626,17 +631,31 @@ def build_rows(ab_pairs: list, noop_pairs: list, phase: str, *, boot: Bootstrap,
                order_key, min_rel_effect: float) -> list:
   names = set()
   max_count = {}
-  for pair in ab_pairs + noop_pairs:
+  all_pairs = ab_pairs + noop_pairs
+  for pair in all_pairs:
     for side in ('A_phases', 'B_phases'):
       for name, h in pair[side].get(phase, {}).items():
         names.add(name)
         max_count[name] = max(max_count.get(name, 0), h.get('count', 0))
+  min_count = {
+      name:
+          min((pair[side][phase].get(name, {}).get('count', 0)
+               for pair in all_pairs
+               for side in ('A_phases', 'B_phases')
+               if phase in pair[side]),
+              default=0) for name in names
+  }
   rows = []
   for name in sorted(names, key=order_key):
     if is_enum(name):
-      stats = ['count'] + _enum_bucket_stats(ab_pairs + noop_pairs, phase, name)
+      stats = ['count'] + _enum_bucket_stats(all_pairs, phase, name)
     elif max_count.get(name, 0) <= 1:
-      stats = ['value']
+      if min_count.get(name, 0) == 0 and max_count.get(name, 0) > 0:
+        stats = ['count']
+        if paired_values(ab_pairs, phase, name, 'value')[2]:
+          stats.append('value')
+      else:
+        stats = ['value']
     elif is_sampled(name):
       stats = ['mean']
     else:
