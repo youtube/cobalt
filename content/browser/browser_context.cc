@@ -18,12 +18,9 @@
 #include "base/base64.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-<<<<<<< HEAD
 #include "base/containers/span.h"
-=======
 #include "base/feature_list.h"
 #include "base/features.h"
->>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
