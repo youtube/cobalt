@@ -273,8 +273,8 @@ H5vccSystem::getLowMemoryKillDetails(ScriptState* script_state,
   EnsureReceiverIsBound();
 
   remote_h5vcc_system_->GetLowMemoryKillDetails(
-      WTF::BindOnce(&H5vccSystem::OnGetLowMemoryKillDetails,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+      BindOnce(&H5vccSystem::OnGetLowMemoryKillDetails, WrapPersistent(this),
+               WrapPersistent(resolver)));
 
   return resolver->Promise();
 }

@@ -23,7 +23,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #endif
 
 namespace cobalt {
@@ -38,8 +38,8 @@ class H5vccSystemBrowserTest : public content::ContentBrowserTest {
 #if BUILDFLAG(IS_IOS)
     return false;
 #elif BUILDFLAG(IS_ANDROID)
-    return base::android::BuildInfo::GetInstance()->sdk_int() >=
-           base::android::SDK_VERSION_R;
+    return base::android::android_info::sdk_int() >=
+           base::android::android_info::SDK_VERSION_R;
 #else
     return true;
 #endif

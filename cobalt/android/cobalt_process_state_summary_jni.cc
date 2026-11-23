@@ -81,3 +81,5 @@ static void JNI_CobaltProcessStateSummary_SetStartupGuardArmed(JNIEnv* env,
 }
 
 }  // namespace cobalt
+
+DEFINE_JNI(CobaltProcessStateSummary)

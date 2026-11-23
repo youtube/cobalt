@@ -162,19 +162,18 @@ class StarboardRendererTest : public testing::Test {
 
     DemuxerStream::ReadCB read_cb;
     EXPECT_CALL(*streams_[is_audio ? 0 : 1], OnRead(_))
-        .WillOnce(
-            Invoke([&](DemuxerStream::ReadCB& cb) { read_cb = std::move(cb); }))
+        .WillOnce([&](DemuxerStream::ReadCB& cb) { read_cb = std::move(cb); })
         .RetiresOnSaturation();
 
     const void* sample_buffer = nullptr;
     EXPECT_CALL(mock_sbplayer_interface_, WriteSamples(player, sb_type, _, _))
-        .WillOnce(Invoke([&](SbPlayer /*player*/, SbMediaType /*type*/,
-                             const SbPlayerSampleInfo* sample_infos,
-                             int number_of_sample_infos) {
+        .WillOnce([&](SbPlayer /*player*/, SbMediaType /*type*/,
+                      const SbPlayerSampleInfo* sample_infos,
+                      int number_of_sample_infos) {
           ASSERT_EQ(number_of_sample_infos, 1);
           EXPECT_EQ(sample_infos[0].buffer_size, static_cast<int>(size));
           sample_buffer = sample_infos[0].buffer;
-        }))
+        })
         .RetiresOnSaturation();
 
     ASSERT_TRUE(decoder_status_cb_);
@@ -201,12 +200,12 @@ class StarboardRendererTest : public testing::Test {
                      int video_frames_decoded,
                      int video_frames_dropped) {
     EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
-        .WillRepeatedly(Invoke([=](SbPlayer /*player*/, SbPlayerInfo* info) {
+        .WillRepeatedly([=](SbPlayer /*player*/, SbPlayerInfo* info) {
           *info = SbPlayerInfo{};
           info->total_video_frames = video_frames_decoded;
           info->dropped_video_frames = video_frames_dropped;
           info->playback_rate = 1.0;
-        }));
+        });
   }
 
   // Calls GetMediaTime(), which polls SbPlayerBridge and posts statistics
@@ -217,7 +216,7 @@ class StarboardRendererTest : public testing::Test {
     std::vector<PipelineStatistics> stats;
     EXPECT_CALL(renderer_client_, OnStatisticsUpdate(_))
         .WillRepeatedly(
-            Invoke([&](const PipelineStatistics& s) { stats.push_back(s); }));
+            [&](const PipelineStatistics& s) { stats.push_back(s); });
     renderer_->GetMediaTime();
     task_environment_.RunUntilIdle();
     testing::Mock::VerifyAndClearExpectations(&renderer_client_);
@@ -412,11 +411,11 @@ TEST_F(StarboardRendererTest, GetMediaTimeReportsSeekTimeUntilPresenting) {
   constexpr base::TimeDelta kPlayedTime = kSeekTime + base::Milliseconds(500);
   base::TimeDelta platform_media_time = kPreSeekTime;
   EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
-      .WillRepeatedly(Invoke([&](SbPlayer /*player*/, SbPlayerInfo* info) {
+      .WillRepeatedly([&](SbPlayer /*player*/, SbPlayerInfo* info) {
         *info = {};
         info->current_media_timestamp = platform_media_time.InMicroseconds();
         info->duration = SB_PLAYER_NO_DURATION;
-      }));
+      });
   int seek_ticket = SB_PLAYER_INITIAL_TICKET;
   EXPECT_CALL(mock_sbplayer_interface_, Seek(player, kSeekTime, _))
       .WillOnce(SaveArg<2>(&seek_ticket));
@@ -449,11 +448,11 @@ TEST_F(StarboardRendererTest, GetMediaTimeReportsSeekTimeAfterBackwardSeek) {
 
   base::TimeDelta platform_media_time = base::Seconds(40);
   EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
-      .WillRepeatedly(Invoke([&](SbPlayer /*player*/, SbPlayerInfo* info) {
+      .WillRepeatedly([&](SbPlayer /*player*/, SbPlayerInfo* info) {
         *info = {};
         info->current_media_timestamp = platform_media_time.InMicroseconds();
         info->duration = SB_PLAYER_NO_DURATION;
-      }));
+      });
   int ticket = SB_PLAYER_INITIAL_TICKET;
   EXPECT_CALL(mock_sbplayer_interface_, Seek(player, _, _))
       .WillRepeatedly(SaveArg<2>(&ticket));

@@ -647,12 +647,12 @@ TEST_F(AppEventDelegateTest, BlurDuringRevealStopsAtBlurred) {
   SendEvent(kSbEventTypePreload);
 
   bool sent_blur = false;
-  EXPECT_CALL(*runner_, DoReveal()).WillOnce(Invoke([&]() {
+  EXPECT_CALL(*runner_, DoReveal()).WillOnce([&]() {
     // The user leaves again while the reveal runs.
     SbEvent blur_event = {kSbEventTypeBlur, 0, nullptr};
     delegate_->HandleEvent(&blur_event);
     sent_blur = true;
-  }));
+  });
   EXPECT_CALL(*runner_, DoFocus()).Times(0);
   SendEvent(kSbEventTypeFocus);
 
@@ -672,12 +672,12 @@ TEST_F(AppEventDelegateTest, BlurDuringConcealWithoutPlatformWindowIgnored) {
   {
     InSequence s;
     EXPECT_CALL(*runner_, DoStart(_));
-    EXPECT_CALL(*runner_, DoBlur()).WillOnce(Invoke([&]() {
+    EXPECT_CALL(*runner_, DoBlur()).WillOnce([&]() {
       // The platform doesn't know about this conceal and sends a Blur.
       SbEvent blur_event = {kSbEventTypeBlur, 0, nullptr};
       delegate_->HandleEvent(&blur_event);
       sent_blur = true;
-    }));
+    });
     EXPECT_CALL(*runner_, DoConceal());
   }
   SendEvent(kSbEventTypeStart);
@@ -740,12 +740,12 @@ TEST_F(AppEventDelegateTest, FocusDuringFailedRevealRetriesReveal) {
   bool sent_second_focus = false;
   {
     InSequence s;
-    EXPECT_CALL(*runner_, DoReveal()).WillOnce(Invoke([&]() {
+    EXPECT_CALL(*runner_, DoReveal()).WillOnce([&]() {
       // The platform sends another Focus while the first reveal runs.
       SbEvent focus_event = {kSbEventTypeFocus, 0, nullptr};
       delegate_->HandleEvent(&focus_event);
       sent_second_focus = true;
-    }));
+    });
     EXPECT_CALL(*runner_, DoConceal());
     EXPECT_CALL(*runner_, DoReveal());
     EXPECT_CALL(*runner_, DoFocus());

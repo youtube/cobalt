@@ -305,11 +305,11 @@ class SbPlayerBridgeStatisticsTest : public testing::Test {
   // Makes SbPlayerGetInfo() report |video_frames_decoded| for |player|.
   void SetVideoFramesDecoded(SbPlayer player, int video_frames_decoded) {
     EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _))
-        .WillRepeatedly(Invoke([=](SbPlayer /*player*/, SbPlayerInfo* info) {
+        .WillRepeatedly([=](SbPlayer /*player*/, SbPlayerInfo* info) {
           *info = SbPlayerInfo{};
           info->total_video_frames = video_frames_decoded;
           info->duration = SB_PLAYER_NO_DURATION;
-        }));
+        });
   }
 
   base::test::TaskEnvironment task_environment_;

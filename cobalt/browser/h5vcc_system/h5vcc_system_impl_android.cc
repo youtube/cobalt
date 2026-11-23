@@ -14,7 +14,7 @@
 
 #include <optional>
 
-#include "base/android/build_info.h"
+#include "base/android/android_info.h"
 #include "base/android/jni_android.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -129,8 +129,8 @@ void H5vccSystemImpl::HideSplashScreen() {
 void H5vccSystemImpl::GetWasLowMemoryKilled(
     GetWasLowMemoryKilledCallback callback) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_R) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_R) {
     std::move(callback).Run(std::nullopt);
     return;
   }
