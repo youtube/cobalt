@@ -86,8 +86,4 @@ CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
   return metrics_state_manager_.get();
 }
 
-PrefService* CobaltMetricsServicesManagerClient::GetLocalState() {
-  return local_state_;
-}
-
 }  // namespace cobalt
