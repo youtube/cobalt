@@ -1070,7 +1070,8 @@ class TestAutorollIntegration(unittest.TestCase):
   def test_conflict_outside_sparse_cone_missing_from_worktree(self):
     """Conflicted files missing from a sparse worktree are still committed."""
     conflict_path = os.path.join('dir', 'conflict.txt')
-    self.commit_file(conflict_path, 'line 1\nline 2\n', 'Add base conflict file')
+    self.commit_file(conflict_path, 'line 1\nline 2\n',
+                     'Add base conflict file')
     base_sha = self.get_head_sha()
 
     self.git('checkout', '-b', 'staging', base_sha)
@@ -1101,8 +1102,10 @@ class TestAutorollIntegration(unittest.TestCase):
 
     self.assertEqual(result, lib.CommitStatus.CONFLICTED)
     self.assertEqual(unmerged, [conflict_path])
-    self.assertTrue(
-        self.get_branch_commit_titles('staging')[0].startswith('CONFLICTED'))
+    commit_titles = self.get_branch_commit_titles(
+        'staging', 'autoroll-main-to-staging-conflict-101')
+    self.assertEqual(len(commit_titles), 1)
+    self.assertTrue(commit_titles[0].startswith('CONFLICTED'))
     committed = self.git('show', f'HEAD:{conflict_path}').stdout
     self.assertIn('<<<<<<<', committed)
     self.assertIn('staging edit', committed)
