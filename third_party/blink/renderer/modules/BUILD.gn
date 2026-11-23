@@ -903,6 +903,7 @@ source_set("unit_tests") {
       "credentialmanagement/credential_manager_type_converters_unittest.cc",
       "credentialmanagement/digital_identity_credential_protocol_test.cc",
       "credentialmanagement/digital_identity_credential_test.cc",
+      "credentialmanagement/identity_provider_test.cc",
       "credentialmanagement/password_credential_test.cc",
       "credentialmanagement/public_key_credential_unittest.cc",
       "payments/payment_request_secure_payment_confirmation_availability_test.cc",
