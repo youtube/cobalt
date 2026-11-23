@@ -30,7 +30,8 @@ const int64_t kReasonableMinTimeUsec =
 // which the current time is expected to fall. Note that this also implicitly
 // tests that the code handles timestamps past the Unix Epoch wraparound on
 // 03:14:08 UTC on 19 January 2038.
-const time_t kReasonableMaxTimeUsec = std::numeric_limits<time_t>::max();
+const int64_t kReasonableMaxTimeUsec =
+    2'335'219'200'000'000LL;  // 2044-01-01 00:00:00 UTC
 
 TEST(PosixTimeTest, CurrentPosixTimeIsKindOfSane) {
   int64_t now_usec = CurrentPosixTime();

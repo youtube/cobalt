@@ -161,14 +161,6 @@ TEST(AudioRendererPassthroughStaticTest, ParseAc3SyncframeAudioSampleCount) {
 
 class AudioRendererPassthroughTest : public ::testing::Test {
  protected:
-  struct MediaTimeState {
-    int64_t media_time = 0;
-    bool is_playing = false;
-    bool is_eos_played = false;
-    bool is_underflow = false;
-    double playback_rate = -1.0;
-  };
-
   void SetUp() override {
     audio_stream_info_ = CreateAudioStreamInfo();
     pending_audio_track_ = std::make_unique<FakeAudioTrack>(
@@ -219,14 +211,6 @@ class AudioRendererPassthroughTest : public ::testing::Test {
     return condition();
   }
 
-  MediaTimeState GetMediaTimeState() {
-    MediaTimeState state;
-    state.media_time = renderer_->GetCurrentMediaTime(
-        &state.is_playing, &state.is_eos_played, &state.is_underflow,
-        &state.playback_rate);
-    return state;
-  }
-
   JobQueue job_queue_;
   AudioStreamInfo audio_stream_info_;
   std::unique_ptr<FakeAudioTrack> pending_audio_track_;
@@ -249,12 +233,12 @@ TEST_F(AudioRendererPassthroughTest, InitialState) {
             std::numeric_limits<int64_t>::max());
   EXPECT_EQ(renderer_->AdjustTimestampToAudioClock(12345), 12345);
 
-  MediaTimeState state = GetMediaTimeState();
-  EXPECT_EQ(state.media_time, 0);
-  EXPECT_FALSE(state.is_playing);
-  EXPECT_FALSE(state.is_eos_played);
-  EXPECT_FALSE(state.is_underflow);
-  EXPECT_DOUBLE_EQ(state.playback_rate, 1.0);
+  MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  EXPECT_EQ(info.media_time, 0);
+  EXPECT_FALSE(info.is_playing);
+  EXPECT_FALSE(info.is_eos_played);
+  EXPECT_FALSE(info.is_underflow);
+  EXPECT_DOUBLE_EQ(info.playback_rate, 1.0);
 }
 
 TEST_F(AudioRendererPassthroughTest, AudioTrackCreationFailure) {
@@ -369,14 +353,14 @@ TEST_F(AudioRendererPassthroughTest, PlayAndPause) {
     return fake_audio_track_->play_state() == AudioTrack::PlayState::kPlaying;
   }));
 
-  EXPECT_TRUE(GetMediaTimeState().is_playing);
+  EXPECT_TRUE(renderer_->GetCurrentMediaTime().is_playing);
 
   renderer_->Pause();
   ASSERT_TRUE(WaitForCondition([&] {
     return fake_audio_track_->play_state() == AudioTrack::PlayState::kPaused;
   }));
 
-  EXPECT_FALSE(GetMediaTimeState().is_playing);
+  EXPECT_FALSE(renderer_->GetCurrentMediaTime().is_playing);
 }
 
 TEST_F(AudioRendererPassthroughTest, SetVolume) {
@@ -391,11 +375,11 @@ TEST_F(AudioRendererPassthroughTest, SetVolume) {
 
 TEST_F(AudioRendererPassthroughTest, SetPlaybackRate) {
   renderer_->SetPlaybackRate(0.0);
-  EXPECT_DOUBLE_EQ(GetMediaTimeState().playback_rate, 0.0);
+  EXPECT_DOUBLE_EQ(renderer_->GetCurrentMediaTime().playback_rate, 0.0);
 
   // Unsupported rates (> 0 and != 1.0) are clamped to 1.0.
   renderer_->SetPlaybackRate(1.5);
-  EXPECT_DOUBLE_EQ(GetMediaTimeState().playback_rate, 1.0);
+  EXPECT_DOUBLE_EQ(renderer_->GetCurrentMediaTime().playback_rate, 1.0);
 }
 
 TEST_F(AudioRendererPassthroughTest, EndOfStreamWithoutSamples) {
@@ -444,9 +428,9 @@ TEST_F(AudioRendererPassthroughTest, SeekAndReuseAudioTrack) {
   EXPECT_TRUE(renderer_->CanAcceptMoreData());
   EXPECT_EQ(fake_audio_track_->play_state(), AudioTrack::PlayState::kPaused);
 
-  MediaTimeState state = GetMediaTimeState();
-  EXPECT_EQ(state.media_time, kSeekTime);
-  EXPECT_FALSE(state.is_playing);
+  MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  EXPECT_EQ(info.media_time, kSeekTime);
+  EXPECT_FALSE(info.is_playing);
 
   // Resume playback by writing new samples. The existing FakeAudioTrack should
   // be reused.
@@ -477,9 +461,9 @@ TEST_F(AudioRendererPassthroughTest, DropFramesBeforeSeekTime) {
 
   // Once the end of stream is played, the media time is the end of the last
   // frame kept.
-  MediaTimeState state = GetMediaTimeState();
-  EXPECT_TRUE(state.is_eos_played);
-  EXPECT_EQ(state.media_time, kSeekTime + 2 * kFrameDuration);
+  MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  EXPECT_TRUE(info.is_eos_played);
+  EXPECT_EQ(info.media_time, kSeekTime + 2 * kFrameDuration);
 }
 
 TEST_F(AudioRendererPassthroughTest, AudioDeviceCapabilityChanged) {
@@ -523,9 +507,9 @@ TEST_F(AudioRendererPassthroughTest, GetCurrentMediaTimePausedAndPlaying) {
   // When paused, monotonic clock interpolation is not applied.
   // Playback time = audio_start_time (100,000) + 4800 * 1,000,000 / 48000
   // (100,000) = 200,000 us.
-  MediaTimeState state = GetMediaTimeState();
-  EXPECT_EQ(state.media_time, 200'000);
-  EXPECT_FALSE(state.is_playing);
+  MediaTimeInfo info = renderer_->GetCurrentMediaTime();
+  EXPECT_EQ(info.media_time, 200'000);
+  EXPECT_FALSE(info.is_playing);
 }
 
 }  // namespace
