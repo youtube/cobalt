@@ -35,8 +35,7 @@ def main():
   2. Parses arguments and selects the target platform.
   3. Executes an optional init-command.
   4. Resolves paths for runtime dependencies and test runners.
-  5. Configures LD_LIBRARY_PATH for shared library resolution.
-  6. Executes the platform-specific test runner (Android or Linux).
+  5. Executes the platform-specific test runner (Android or Linux).
 
   Returns:
     The exit code of the test runner process.
@@ -76,6 +75,7 @@ def main():
     print("\nAll other arguments are passed to the underlying test runner.")
     sys.exit(0)
 
+  # 3. Init Command
   if args.init_command:
     command_parts = shlex.split(args.init_command)
     # If the command is socat, insert the timeout option before addresses.
@@ -115,14 +115,10 @@ def main():
   target_config = TARGET_MAP[target_name]
   logging.debug("Target config: %s", target_config)
 
-  # 3. Resolve Paths
+  # 4. Resolve Paths
   deps_path = os.path.join(src_dir, target_config["deps"])
   test_runner = os.path.join(src_dir, target_config["runner"])
   logging.info("Resolved test runner to: %s", test_runner)
-
-  # Resolve the specific build root for this target.
-  target_build_root_abs = os.path.join(src_dir, target_config["build_dir"])
-  starboard_dir = os.path.join(target_build_root_abs, "starboard")
 
   if not os.path.isfile(deps_path):
     logging.error("runtime_deps file not found at %s", deps_path)
@@ -132,14 +128,7 @@ def main():
     logging.error("test runner not found at %s", test_runner)
     sys.exit(1)
 
-  # Add build root and starboard dir to LD_LIBRARY_PATH so shared libraries can
-  # be found
-  os.environ["LD_LIBRARY_PATH"] = (
-      target_build_root_abs + os.pathsep + starboard_dir + os.pathsep +
-      os.environ.get("LD_LIBRARY_PATH", ""))
-  logging.info("LD_LIBRARY_PATH set to: %s", os.environ.get("LD_LIBRARY_PATH"))
-
-  # 5. Sanity Checks
+  # Sanity Checks
   logging.info("Checking for vpython3...")
   vpython_path = shutil.which("vpython3")
   if not vpython_path:
@@ -147,7 +136,7 @@ def main():
     sys.exit(1)
   logging.info("Using vpython3 at: %s", vpython_path)
 
-  # 6. Execute
+  # 5. Execute
   logging.info("Executing test runner for '%s': %s", target_name, test_runner)
 
   if test_runner.endswith(".py"):

@@ -203,8 +203,6 @@ config("platform_configuration") {
 
 config("linker_flags") {
   ldflags = [
-    "-Wl,-rpath=\$ORIGIN/lib",
-
     # Cleanup unused sections
     "-Wl,-gc-sections",
   ]

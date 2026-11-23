@@ -114,8 +114,6 @@ fi
 # Ensure log and screenshot directories exist
 mkdir -p "${OUTPUT_DIR}/logs" "${OUTPUT_DIR}/screenshots"
 
-export LD_LIBRARY_PATH="${OUT_DIR}/starboard:${OUT_DIR}:${LD_LIBRARY_PATH:-}"
-
 # Run the test
 echo "Running smoke test..."
 exit_code=0

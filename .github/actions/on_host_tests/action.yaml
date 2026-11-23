@@ -55,17 +55,10 @@ runs:
       id: prepare-test-execution
       shell: bash
       env:
-        PLATFORM: ${{ matrix.platform }}
-        CONFIG: ${{ matrix.config }}
         SHARD: ${{ matrix.shard }}
       run: |
         set -x
         env
-
-        out_dir="${GITHUB_WORKSPACE}/out/${PLATFORM}_${CONFIG}"
-        # TODO: LD_LIBRARY_PATH should not include the starboard subdirectory.
-        LD_LIBRARY_PATH="${out_dir}/starboard:${out_dir}"
-        echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> "${GITHUB_ENV}"
 
         # TODO: b/467135717 - Remove this once tests don't have asan leaks.
         # Don't fail if only asan fails.
