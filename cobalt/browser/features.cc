@@ -156,10 +156,6 @@ BASE_FEATURE(kEnablePictureInPicture,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-BASE_FEATURE(kDisableNetworkDialogDismissButton,
-             "DisableNetworkDialogDismissButton",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCobaltNativeMemoryAblation,
              "CobaltNativeMemoryAblation",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -218,6 +214,10 @@ BASE_FEATURE(kCobaltFreezeOnBackground,
 // is prefixed with the feature name (go/cobalt-finch-setup#naming-style-guide).
 const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs{
     &kCobaltFreezeOnBackground, "CobaltFreezeOnBackground_delay_ms", 0};
+
+BASE_FEATURE(kCobaltFlushStorageOnFreeze,
+             "CobaltFlushStorageOnFreeze",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltProcessStateSummary,

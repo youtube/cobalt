@@ -147,8 +147,6 @@ extern const base::Feature kEnablePictureInPicture;
 
 // Enables native memory ablation study to verify Finch and memory metrics.
 extern const base::Feature kCobaltNativeMemoryAblation;
-// Disables the dismiss button on network error dialogs
-BASE_DECLARE_FEATURE(kDisableNetworkDialogDismissButton);
 
 // Memory ablation size to allocate in Megabytes (default: 0).
 extern const base::FeatureParam<int> kMemoryAblationSizeMBParam;
@@ -204,6 +202,11 @@ BASE_DECLARE_FEATURE(kCobaltFreezeOnBackground);
 // freeze event when kCobaltFreezeOnBackground is enabled. 0 freezes
 // immediately; 1500 matches the Cobalt 25 Conceal -> Freeze delay.
 extern const base::FeatureParam<int> kCobaltFreezeOnBackgroundDelayMs;
+
+// Defers CobaltActivity's cookie and localStorage flush from onStop() to
+// freezeActiveWebContents() when a delayed background freeze (delayMs > 0) is
+// scheduled, so writes performed during visibilitychange:hidden are committed.
+BASE_DECLARE_FEATURE(kCobaltFlushStorageOnFreeze);
 
 #if BUILDFLAG(IS_ANDROID)
 // Android-only: Enables and configures persisting the 16-byte process state

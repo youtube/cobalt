@@ -176,7 +176,12 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
     }
   };
 
-  if (!flag_map.Has(flags::kEnableQuic)) {
+  // An explicit --enable-quic (qa and devel builds pass switches through the
+  // launch intent) wins over the experiment default: the network session
+  // configurator only honours --disable-quic, so appending it here would
+  // silently override the user's switch.
+  if (!flag_map.Has(flags::kEnableQuic) &&
+      !cmd_line->HasSwitch(::switches::kEnableQuic)) {
     AppendSwitchIfAbsent(cmd_line, ::switches::kDisableQuic);
   }
 

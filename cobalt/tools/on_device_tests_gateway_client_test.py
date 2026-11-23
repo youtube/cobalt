@@ -101,7 +101,7 @@ class ProcessTestRequestsTest(unittest.TestCase):
         'artifact_name':
             'Cobalt.apk',
         'cobalt_path':
-            None,
+            'cobalt-artifacts/main/1/android-arm',
     }
     defaults.update(overrides)
     return argparse.Namespace(**defaults)
@@ -396,6 +396,76 @@ class ProcessTestRequestsTest(unittest.TestCase):
     self.assertEqual(token, 'fake-token')
     self.assertEqual(labels, ['chrobalt_on_device_test'])
     self.assertEqual(len(test_requests), 4)
+
+  def test_yts_test_uses_build_apk(self):
+    args = self._make_args(
+        targets=['testing/maneki/cobalt/kimono_tests:yts_dom_test'],
+        test_type='yts_test',
+    )
+    requests = process_test_requests(args)
+    self.assertEqual(len(requests), 1)
+    req = requests[0]
+    self.assertEqual(req['test_type'], 'yts_test')
+    self.assertIn(
+        'build_apk=/bigstore/cobalt-artifacts/main/1/android-arm/Cobalt.apk',
+        req['files'])
+    self.assertFalse(
+        any(f.startswith('client_plugin_jar=') for f in req['files']))
+    self.assertIn('app=dev.cobalt.coat', req['params'])
+    self.assertIn('gcs_log_filename=yts_dom_test_log.txt', req['params'])
+
+  def test_e2e_test_uses_cobalt_path(self):
+    args = self._make_args(
+        targets=['testing/container/wpt:yts_wpt_test_ci_android_arm_devices'],
+        test_type='e2e_test',
+    )
+    requests = process_test_requests(args)
+    self.assertEqual(len(requests), 1)
+    req = requests[0]
+    self.assertEqual(req['test_type'], 'e2e_test')
+    self.assertIn(
+        'cobalt_path=/bigstore/cobalt-artifacts/main/1/android-arm/Cobalt.apk',
+        req['files'])
+    self.assertFalse(any(f.startswith('build_apk=') for f in req['files']))
+    self.assertFalse(
+        any(f.startswith('client_plugin_jar=') for f in req['files']))
+    self.assertIn(
+        'gcs_result_filename='
+        'yts_wpt_test_ci_android_arm_devices_testoutput.xml', req['params'])
+    self.assertIn(
+        'gcs_log_filename=yts_wpt_test_ci_android_arm_devices_log.txt',
+        req['params'])
+
+  def test_internal_test_skips_when_filtered_out_and_passes_attempts(self):
+    self._write_filter('infra_smoke_test_custom_coat_sabrina_filter.json',
+                       {'failing_tests': ['*']})
+    args = self._make_args(
+        targets=[
+            {
+                'target': ('web/living_room/kabuki/testing/end2end/browse:'
+                           'infra_smoke_test_custom_coat_sabrina'),
+                'test_attempts': 6,
+            },
+            {
+                'target': ('web/living_room/kabuki/testing/end2end/browse:'
+                           'infra_smoke_test_custom_coat_kirkwood'),
+                'test_attempts': 6,
+            },
+        ],
+        test_type='e2e_test',
+    )
+    requests = process_test_requests(args)
+    self.assertEqual(len(requests), 1)
+    self.assertEqual(
+        requests[0]['test_target'],
+        'web/living_room/kabuki/testing/end2end/browse:'
+        'infra_smoke_test_custom_coat_kirkwood',
+    )
+    self.assertIn('test_attempts=6', requests[0]['test_args'])
+    self.assertIn(
+        'gcs_log_filename=infra_smoke_test_custom_coat_kirkwood_log.txt',
+        requests[0]['params'],
+    )
 
 
 if __name__ == '__main__':

@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace nplb {
@@ -49,7 +50,7 @@ std::vector<std::string> GetFileTestsFilePaths();
 std::vector<std::string> GetFileTestsDirectoryPaths();
 
 // Gets the expected content in a static data test file.
-std::string GetTestFileExpectedContent(const std::string& path);
+std::string GetTestFileExpectedContent(std::string_view path);
 
 bool RemoveFileOrDirectoryRecursively(const std::string& path);
 

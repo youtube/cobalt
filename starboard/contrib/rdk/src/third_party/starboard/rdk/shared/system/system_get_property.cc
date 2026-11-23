@@ -40,8 +40,6 @@
 #include <algorithm>
 #include <vector>
 
-#include <ctype.h>
-
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/file.h"

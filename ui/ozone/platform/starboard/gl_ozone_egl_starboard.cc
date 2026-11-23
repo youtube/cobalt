@@ -15,9 +15,18 @@
 #include "ui/ozone/platform/starboard/gl_ozone_egl_starboard.h"
 
 #include <memory>
+#include <string_view>
 
+#include "base/strings/string_split.h"
 #include "starboard/egl.h"
 #include "starboard/gles.h"
+#include "ui/ozone/common/egl_util.h"
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+// Implemented by ANGLE's EGL back-end (FunctionsEGLDL.cpp).
+extern "C" void ANGLESetNativeEGLGetProcAddress(
+    void* (*get_proc_address)(const char* name));
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 namespace ui {
 
@@ -230,6 +239,63 @@ gl::GLFunctionPointerType GetGlesInterfaceProcAddress(
   return nullptr;
 }
 
+// static
+bool GLOzoneEGLStarboard::HasAnglePlatformExtension(const char* extensions) {
+  if (!extensions) {
+    return false;
+  }
+  constexpr std::string_view kExtension = "EGL_ANGLE_platform_angle";
+  for (std::string_view extension : base::SplitStringPiece(
+           extensions, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+    if (extension == kExtension) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// static
+gl::GLFunctionPointerType GLOzoneEGLStarboard::ResolveStarboardProcAddress(
+    const char* name,
+    const SbEglInterface* egl,
+    const SbGlesInterface* gles) {
+  if (!name) {
+    return nullptr;
+  }
+  gl::GLFunctionPointerType proc =
+      egl ? GetEglInterfaceProcAddress(name, egl) : nullptr;
+  if (!proc && egl && egl->eglGetProcAddress) {
+    proc = reinterpret_cast<gl::GLFunctionPointerType>(
+        egl->eglGetProcAddress(name));
+  }
+  if (!proc && gles) {
+    proc = GetGlesInterfaceProcAddress(name, gles);
+  }
+  return proc;
+}
+
+// static
+gl::GLFunctionPointerType GLOzoneEGLStarboard::GetStarboardProcAddress(
+    const char* name) {
+  return ResolveStarboardProcAddress(name, SbGetEglInterface(),
+                                     SbGetGlesInterface());
+}
+
+// static
+void* GLOzoneEGLStarboard::GetStarboardProcAddressForANGLE(const char* name) {
+  return reinterpret_cast<void*>(GetStarboardProcAddress(name));
+}
+
+// static
+bool GLOzoneEGLStarboard::IsStarboardEglANGLE() {
+  const SbEglInterface* egl = SbGetEglInterface();
+  if (!egl || !egl->eglQueryString) {
+    return false;
+  }
+  return HasAnglePlatformExtension(
+      egl->eglQueryString(SB_EGL_NO_DISPLAY, SB_EGL_EXTENSIONS));
+}
+
 GLOzoneEGLStarboard::GLOzoneEGLStarboard() = default;
 
 GLOzoneEGLStarboard::~GLOzoneEGLStarboard() = default;
@@ -269,42 +335,33 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
     const gl::GLImplementationParts& implementation) {
   DCHECK_EQ(implementation.gl, gl::kGLImplementationEGLANGLE)
       << "Not supported: " << implementation.ToString();
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  gl::GLGetProcAddressProc gl_proc =
-      [](const char* name) -> gl::GLFunctionPointerType {
-    // Retrieve EGL core functions from the SbEglInterface, since
-    // some EGL functions might be overridden by the Starboard
-    // implementation. If that fails then fallback on direct call to
-    // eglGetProcAddress.
-    const SbEglInterface* egl = SbGetEglInterface();
-    gl::GLFunctionPointerType proc = GetEglInterfaceProcAddress(name, egl);
-    if (proc) {
-      return proc;
-    }
-
-    proc = reinterpret_cast<gl::GLFunctionPointerType>(
-        SbGetEglInterface()->eglGetProcAddress(name));
-    if (proc) {
-      return proc;
-    }
-
-    // If still not found, try to retrieve GLES2 functions directly from the
-    // SbGlesInterface as a fallback.
-    const SbGlesInterface* gles = SbGetGlesInterface();
-    return GetGlesInterfaceProcAddress(name, gles);
-  };
-#else
-  gl::GLGetProcAddressProc gl_proc = reinterpret_cast<gl::GLGetProcAddressProc>(
-      SbGetEglInterface()->eglGetProcAddress);
-#endif
-
-  if (!gl_proc) {
-    LOG(ERROR) << "GLOzoneEglStarboard::LoadGLES2Bindings no gl_proc";
+  const SbEglInterface* egl = SbGetEglInterface();
+  if (!egl || !egl->eglGetProcAddress) {
+    LOG(ERROR) << "GLOzoneEGLStarboard::LoadGLES2Bindings missing "
+                  "SbEglInterface";
     return false;
   }
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  if (IsStarboardEglANGLE()) {
+    // Starboard's EGL is ANGLE already, so bind to it directly rather than
+    // running Cobalt's ANGLE on top of it.
+    gl::SetGLGetProcAddressProc(&GetStarboardProcAddress);
+    return true;
+  }
+  // Load EGL and GLES through Cobalt's ANGLE, which runs on top of the native
+  // driver. ANGLE can't dlopen() the platform's EGL library in hermetic builds,
+  // so give it the native EGL and GLES entry points from Starboard.
+  ANGLESetNativeEGLGetProcAddress(&GetStarboardProcAddressForANGLE);
+  return LoadDefaultEGLGLES2Bindings(implementation);
+#else
+  // In non-hermetic builds Cobalt and Starboard share one ANGLE, which is
+  // already Starboard's EGL/GLES implementation, so bind to it directly.
+  gl::GLGetProcAddressProc gl_proc =
+      reinterpret_cast<gl::GLGetProcAddressProc>(egl->eglGetProcAddress);
 
   gl::SetGLGetProcAddressProc(gl_proc);
   return true;
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 void GLOzoneEGLStarboard::CreateDisplayTypeIfNeeded() {

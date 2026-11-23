@@ -194,7 +194,6 @@ def main():
           'deps': str(runtime_deps_path),
           'runner': os.path.join(build_dir, test_runner_rel),
           'is_android': is_android,
-          'build_dir': build_dir
       }
 
       logging.info('Copying files from %s...', runtime_deps_path)

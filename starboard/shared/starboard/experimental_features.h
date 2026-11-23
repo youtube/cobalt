@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 #define STARBOARD_SHARED_STARBOARD_EXPERIMENTAL_FEATURES_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -191,6 +192,14 @@ inline const char* ToString(NdkAudioMode mode) {
 // keep-sorted start by_regex=k\w+ newline_separated=yes
 inline constexpr ExperimentalFeatureKey<bool> kMediaAllowAudioWritingOnPause(
     "Media.AllowAudioWritingOnPause");
+
+// Bitfield controlling Android video decoder improvements. Non-positive values
+// (<= 0) are treated as disabled/placebo. Follow-up changes will expand the
+// supported bits.
+// TODO: b/588129850 - Remove this flag once the experiment is complete.
+inline constexpr ExperimentalFeatureKey<int>
+    kMediaAndroidVideoDecoderImprovements(
+        "Media.AndroidVideoDecoderImprovements");
 
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaEnableAv1StartupOptimization("Media.EnableAv1StartupOptimization");
