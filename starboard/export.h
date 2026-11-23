@@ -29,7 +29,7 @@
 // entirely of the Starboard implementation and will provide the Starboard API,
 // with all client applications being built separately.
 
-#if defined(COMPONENT_BUILD) || SB_IS(EVERGREEN)
+#if defined(COMPONENT_BUILD) || SB_IS(EVERGREEN) || SB_IS(CAST_API)
 
 // STARBOARD_IMPLEMENTATION is defined when building the Starboard library
 // sources, and shouldn't be defined when building sources that are clients of
