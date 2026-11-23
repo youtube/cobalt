@@ -9,11 +9,8 @@
 
 #include <memory>
 
-<<<<<<< HEAD
 #include "base/containers/span.h"
-=======
 #include "build/build_config.h"
->>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_export.h"
 
