@@ -71,6 +71,10 @@
 #include "base/android/pre_freeze_background_memory_trimmer.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "third_party/blink/renderer/platform/graphics/parkable_image_manager.h"
+#endif
+
 namespace base {
 class LazyNow;
 }  // namespace base
@@ -999,6 +1003,9 @@ void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
   UpdatePolicy();
 
   ParkableStringManager::Instance().SetRendererBackgrounded(backgrounded);
+#if BUILDFLAG(IS_COBALT)
+  ParkableImageManager::Instance().SetRendererBackgrounded(backgrounded);
+#endif
   memory_purge_manager_.SetRendererBackgrounded(backgrounded);
 }
 

@@ -21,6 +21,7 @@
 #include <optional>
 
 #include "base/memory/memory_pressure_listener.h"
+#include "base/timer/timer.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -50,8 +51,11 @@ class PLATFORM_EXPORT ParkableImageManager
   }
 
 #if BUILDFLAG(IS_COBALT)
+  static constexpr base::TimeDelta kCobaltBackgroundParkingDelay =
+      base::Seconds(10);
   static bool IsUnparkedBudgetEnabled();
   static size_t UnparkedBudgetBytes();
+  void SetRendererBackgrounded(bool backgrounded) LOCKS_EXCLUDED(lock_);
 #endif  // BUILDFLAG(IS_COBALT)
 
   void MaybeParkImagesForTesting() { MaybeParkImages(); }
@@ -93,6 +97,7 @@ class PLATFORM_EXPORT ParkableImageManager
       const WTF::Vector<ParkableImageImpl*>& unparked_images,
       size_t budget_bytes,
       bool* should_reschedule) LOCKS_EXCLUDED(lock_);
+  void ParkAllImages() LOCKS_EXCLUDED(lock_);
   void OnMemoryPressure(base::MemoryPressureListener::MemoryPressureLevel level)
       LOCKS_EXCLUDED(lock_);
 #endif  // BUILDFLAG(IS_COBALT)
@@ -161,6 +166,8 @@ class PLATFORM_EXPORT ParkableImageManager
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   std::unique_ptr<DiskDataAllocator> allocator_for_testing_;
 #if BUILDFLAG(IS_COBALT)
+  bool renderer_backgrounded_ = false;
+  base::OneShotTimer background_parking_timer_;
   std::optional<base::MemoryPressureListener> memory_pressure_listener_;
 #endif  // BUILDFLAG(IS_COBALT)
 };

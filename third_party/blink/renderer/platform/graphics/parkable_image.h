@@ -148,6 +148,9 @@ class PLATFORM_EXPORT ParkableImageImpl final
   size_t lock_depth_ GUARDED_BY(lock_) = 0;
   bool background_task_in_progress_ GUARDED_BY(lock_) = false;
   bool used_ GUARDED_BY(lock_) = false;
+#if BUILDFLAG(IS_COBALT)
+  base::TimeTicks last_used_time_ GUARDED_BY(lock_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   THREAD_CHECKER(thread_checker_);
 };

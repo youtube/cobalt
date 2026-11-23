@@ -1192,6 +1192,67 @@ TEST_F(ParkableImageCobaltBudgetTest, CriticalMemoryPressureParksAll) {
   EXPECT_TRUE(is_on_disk(pi1));
   EXPECT_TRUE(is_on_disk(pi2));
 }
+
+TEST_F(ParkableImageCobaltBudgetTest, UnparkRefreshesLruOrder) {
+  auto pi1 = MakeFrozenImage();
+  WaitForParking();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  auto pi3 = MakeFrozenImage();
+  WaitForParking();
+  RunPostedTasks();
+  ASSERT_TRUE(is_on_disk(pi1));
+  ASSERT_FALSE(is_on_disk(pi2));
+  ASSERT_FALSE(is_on_disk(pi3));
+
+  // Scrolling back to pi1 unparks it and refreshes its last-used timestamp, so
+  // the 2s budget pass parks pi2 (now least recently used) instead of pi1.
+  Unpark(pi1);
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_TRUE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+}
+
+TEST_F(ParkableImageCobaltBudgetTest,
+       BackgroundedRendererParksAllAfterDelayAndCancelsOnResume) {
+  auto& manager = ParkableImageManager::Instance();
+  auto pi1 = MakeFrozenImage();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  RunPostedTasks();
+  ASSERT_FALSE(is_on_disk(pi1));
+  ASSERT_FALSE(is_on_disk(pi2));
+
+  // Immediate onPause/background transition does not trigger a write burst, and
+  // resuming before the 10s delay cancels the background purge.
+  manager.SetRendererBackgrounded(true);
+  WaitForParking();
+  WaitForParking();
+  RunPostedTasks();
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+
+  manager.SetRendererBackgrounded(false);
+  for (int i = 0; i < 5; ++i) {
+    WaitForParking();
+  }
+  RunPostedTasks();
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+
+  // Staying in the background past 10s parks all images even on Android where
+  // MemoryPurgeManager::kPurgeEnabled is false.
+  manager.SetRendererBackgrounded(true);
+  for (int i = 0; i < 5; ++i) {
+    WaitForParking();
+  }
+  RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_TRUE(is_on_disk(pi2));
+}
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink
