@@ -80,6 +80,8 @@ std::string GetTestSuffix(
       return "kWalletDataSharingPromotion";
     case AutofillAiAction::kAmbientAutofill:
       return "kAmbientAutofill";
+    case AutofillAiAction::kShowAmbientAutofillInSettings:
+      return "kShowAmbientAutofillInSettings";
     case AutofillAiAction::kTypeSupportsAmbientAutofillData:
       return "kTypeSupportsAmbientAutofillData";
   }
@@ -118,9 +120,6 @@ class AutofillAiPermissionUtilsTest : public ::testing::Test {
           {{"autofill_ai_model_use_cache_results", "true"}}}},
         {});
 
-    // Pref and identity state.
-    subscription_eligibility::prefs::RegisterProfilePrefs(
-        client().GetPrefs()->registry());
     client().GetPrefs()->SetInteger(
         subscription_eligibility::prefs::kAiSubscriptionTier, 1);
 
@@ -155,6 +154,27 @@ class AutofillAiPermissionUtilsTest : public ::testing::Test {
   NiceMock<MockSyncService> sync_service_;
   TestAutofillClient client_;
 };
+
+// Tests that IsAutofillAiEntityTypeBlockedByPolicy correctly maps entity
+// schemas to enterprise policy categories.
+TEST_F(AutofillAiPermissionUtilsTest, IsAutofillAiEntityTypeBlockedByPolicy) {
+  const GURL kUrl("https://example.com");
+
+  EXPECT_FALSE(IsAutofillAiEntityTypeBlockedByPolicy(
+      client(), kUrl, EntityType(EntityTypeName::kPassport)));
+
+  client().SetAutofillTypeBlockedByPolicy(
+      AutofillClient::AutofillPolicyDataCategory::kIdentityDocs, true);
+  EXPECT_TRUE(IsAutofillAiEntityTypeBlockedByPolicy(
+      client(), kUrl, EntityType(EntityTypeName::kPassport)));
+  EXPECT_FALSE(IsAutofillAiEntityTypeBlockedByPolicy(
+      client(), kUrl, EntityType(EntityTypeName::kVehicle)));
+
+  client().SetAutofillTypeBlockedByPolicy(
+      AutofillClient::AutofillPolicyDataCategory::kTravel, true);
+  EXPECT_TRUE(IsAutofillAiEntityTypeBlockedByPolicy(
+      client(), kUrl, EntityType(EntityTypeName::kVehicle)));
+}
 
 class AutofillAiMayPerformActionTest
     : public AutofillAiPermissionUtilsTest,
@@ -556,14 +576,14 @@ TEST_P(AutofillAiMayPerformActionTest,
 TEST_F(AutofillAiPermissionUtilsTest, kTypeSupportsAmbientAutofillData) {
   client().set_personal_context_enablement_state(
       personal_context::PersonalContextEnablementState::kEnabled);
-  for (const EntityTypeName type : {kPassport, kDriversLicense, kNationalIdCard,
-                                    kFlightReservation, kShipment, kOrder}) {
+  for (const EntityTypeName type :
+       {kPassport, kDriversLicense, kNationalIdCard, kFlightReservation,
+        kShipment, kOrder, kVehicle}) {
     EXPECT_TRUE(MayPerformAutofillAiAction(
         client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
         EntityType(type)));
   }
-  for (const EntityTypeName type :
-       {kVehicle, kRedressNumber, kKnownTravelerNumber}) {
+  for (const EntityTypeName type : {kRedressNumber, kKnownTravelerNumber}) {
     EXPECT_FALSE(MayPerformAutofillAiAction(
         client(), AutofillAiAction::kTypeSupportsAmbientAutofillData,
         EntityType(type)));

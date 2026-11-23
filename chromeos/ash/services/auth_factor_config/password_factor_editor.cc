@@ -37,58 +37,6 @@ using policy::local_auth_factors::PasswordComplexityResult;
 
 const std::size_t kLocalPasswordMinimumLength = 8;
 
-using ConfigureResultCallback =
-    base::OnceCallback<void(mojom::ConfigureResult)>;
-using CheckLocalPasswordComplexityCallback =
-    PasswordFactorEditor::CheckLocalPasswordComplexityCallback;
-
-void FailWithInvalidTokenError(base::Location from_here,
-                               ConfigureResultCallback result_callback) {
-  LOG(ERROR) << "Invalid auth token: " << from_here.ToString();
-
-  std::move(result_callback).Run(mojom::ConfigureResult::kInvalidTokenError);
-}
-
-void FailWithInvalidTokenError(
-    base::Location from_here,
-    CheckLocalPasswordComplexityCallback result_callback) {
-  LOG(ERROR) << "Invalid auth token: " << from_here.ToString();
-
-  std::move(result_callback)
-      .Run(base::unexpected(mojom::ConfigureResult::kInvalidTokenError));
-}
-
-template <typename ResultCallback, typename Continuation>
-void OnContextBorrowed(base::Location from_here,
-                       ResultCallback result_callback,
-                       Continuation continuation_callback,
-                       std::unique_ptr<UserContext> context) {
-  if (!context) {
-    FailWithInvalidTokenError(from_here, std::move(result_callback));
-    return;
-  }
-  std::move(continuation_callback)
-      .Run(std::move(result_callback), std::move(context));
-}
-
-template <typename ResultCallback, typename Continuation>
-void ObtainContextOrFailImpl(base::Location from_here,
-                             const std::string& auth_token,
-                             ResultCallback result_callback,
-                             Continuation continuation_callback) {
-  if (!ash::AuthSessionStorage::Get()->IsValid(auth_token)) {
-    FailWithInvalidTokenError(from_here, std::move(result_callback));
-    return;
-  }
-  ash::AuthSessionStorage::Get()->BorrowAsync(
-      from_here, auth_token,
-      base::BindOnce(&OnContextBorrowed<ResultCallback, Continuation>,
-                     from_here, std::move(result_callback),
-                     std::move(continuation_callback)));
-}
-
-#define ObtainContextOrFail(...) ObtainContextOrFailImpl(FROM_HERE, __VA_ARGS__)
-
 // The synchronous implementation of `CheckLocalPasswordComplexity`. The
 // provided `password` string must be valid UTF-8.
 // Note: Mojo strings are valid UTF-8.

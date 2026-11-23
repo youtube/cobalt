@@ -1077,6 +1077,20 @@ suite('NewTabPageRealboxNextTest', () => {
       assertFalse(composeButton.hasAttribute('has-user-input'));
     });
 
+    test('onInputStateChanged updates inputState_', async () => {
+      const newInputState = new MockInputState({
+        allowedTools: [ToolMode.kDeepSearch],
+        allowedModels: [ModelMode.kGeminiPro],
+      });
+      testProxy.callbackRouterRemote.onInputStateChanged(newInputState);
+      await testProxy.callbackRouterRemote.$.flushForTesting();
+      await microtasksFinished();
+      const inputState = realbox['inputState_'];
+      assertTrue(!!inputState);
+      assertEquals(ToolMode.kDeepSearch, inputState.allowedTools[0]);
+      assertEquals(ModelMode.kUnspecified, inputState.activeModel);
+    });
+
   suite('DynamicAiModeButton', () => {
     test('dynamic attribute is set correctly', async () => {
       loadTimeData.overrideValues({ntpRealboxDynamicAiModeButton: true});

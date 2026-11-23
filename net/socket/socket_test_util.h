@@ -368,6 +368,8 @@ class SocketDataProvider {
   virtual MockWriteResult OnWrite(const std::string& data) = 0;
   virtual bool AllReadDataConsumed() const = 0;
   virtual bool AllWriteDataConsumed() const = 0;
+  virtual bool IsNextReadAsyncOrPause() const;
+  virtual bool IsReadReady() const;
   virtual void CancelPendingRead() {}
 
   // Returns the last set receive buffer size, or -1 if never set.
@@ -553,6 +555,7 @@ class StaticSocketDataHelper {
 
   bool AllReadDataConsumed() const { return read_index() >= read_count(); }
   bool AllWriteDataConsumed() const { return write_index() >= write_count(); }
+  bool IsNextReadAsyncOrPause() const;
 
   void ExpectAllReadDataConsumed(SocketDataPrinter* printer) const;
   void ExpectAllWriteDataConsumed(SocketDataPrinter* printer) const;
@@ -594,6 +597,8 @@ class StaticSocketDataProvider : public SocketDataProvider {
   MockWriteResult OnWrite(const std::string& data) override;
   bool AllReadDataConsumed() const override;
   bool AllWriteDataConsumed() const override;
+  bool IsNextReadAsyncOrPause() const override;
+  bool IsReadReady() const override;
 
   size_t read_index() const { return helper_.read_index(); }
   size_t write_index() const { return helper_.write_index(); }
@@ -712,6 +717,8 @@ class SequencedSocketData : public SocketDataProvider {
   MockWriteResult OnWrite(const std::string& data) override;
   bool AllReadDataConsumed() const override;
   bool AllWriteDataConsumed() const override;
+  bool IsNextReadAsyncOrPause() const override;
+  bool IsReadReady() const override;
   bool IsIdle() const override;
   void CancelPendingRead() override;
 
@@ -822,7 +829,7 @@ class SocketDataProviderArray {
   size_t next_index_ = 0;
 
   // SocketDataProviders to be returned.
-  std::vector<T*> data_providers_;
+  std::vector<raw_ptr<T, DanglingUntriaged>> data_providers_;
 };
 
 class MockUDPClientSocket;
@@ -1214,9 +1221,18 @@ class MockUDPClientSocket : public DatagramClientSocket, public AsyncSocket {
 
  private:
   int CompleteRead();
+  void ClearPendingReadState();
 
   void RunCallbackAsync(CompletionOnceCallback callback, int result);
   void RunCallback(CompletionOnceCallback callback, int result);
+  void RunDatagramsCallback(
+      base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+          callback,
+      base::expected<DatagramsMetadata, Error> result);
+  void RunDatagramsCallbackAsync(
+      base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+          callback,
+      base::expected<DatagramsMetadata, Error> result);
 
   bool connected_ = false;
   raw_ptr<SocketDataProvider> data_;
@@ -1236,6 +1252,9 @@ class MockUDPClientSocket : public DatagramClientSocket, public AsyncSocket {
   scoped_refptr<IOBuffer> pending_read_buf_ = nullptr;
   int pending_read_buf_len_ = 0;
   CompletionOnceCallback pending_read_callback_;
+  base::OnceCallback<void(base::expected<DatagramsMetadata, Error>)>
+      pending_read_datagrams_callback_;
+  size_t pending_max_packet_size_ = 0;
   CompletionOnceCallback pending_write_callback_;
 
   NetLogWithSource net_log_;

@@ -1,0 +1,11 @@
+include_rules = [
+  "+absl",
+  "+base/path_service.h",
+  "+base/base_paths.h",
+  "+base/files/file_path.h",
+  "+iamf",
+]
+
+skip_child_includes = [
+  "src",
+]

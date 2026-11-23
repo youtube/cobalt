@@ -68,6 +68,7 @@ class CORE_EXPORT NodeTraversal {
   static Node* NextSkippingChildren(const Node&, const Node* stay_within);
 
   static Node* FirstWithin(const Node& current) { return current.firstChild(); }
+  static Node& FirstWithinOrSelf(Node&);
 
   static Node* LastWithin(const ContainerNode&);
   static Node& LastWithinOrSelf(Node&);

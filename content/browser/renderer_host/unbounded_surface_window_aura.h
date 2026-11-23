@@ -44,6 +44,7 @@ class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
   ~UnboundedSurfaceWindowAura() override;
 
   // UnboundedSurfaceWindow overrides:
+  base::WeakPtr<UnboundedSurfaceWindow> GetWeakPtr() override;
   bool is_valid() const override;
   gfx::NativeWindow GetNativeWindow() const override;
   void SetBounds(const gfx::Rect& bounds_in_screen) override;
@@ -121,6 +122,7 @@ class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
   std::unique_ptr<aura::Window> window_;
   raw_ptr<aura::Window> root_window_ = nullptr;
   ui::MotionEventAura pointer_state_;
+  base::WeakPtrFactory<UnboundedSurfaceWindow> weak_ptr_factory_{this};
 };
 
 }  // namespace content

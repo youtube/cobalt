@@ -33,6 +33,7 @@
 #include "rtc_base/byte_order.h"
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/copy_on_write_buffer.h"
+#include "rtc_base/network_route.h"
 #include "rtc_base/ssl_stream_adapter.h"
 #include "test/create_test_environment.h"
 #include "test/gtest.h"
@@ -412,6 +413,67 @@ TEST_F(SrtpTransportTest, RemoveSrtpReceiveStream) {
   EXPECT_EQ(rtp_sink.rtp_count(), 2);
   // Clear the sink to clean up.
   srtp_transport->UnregisterRtpDemuxerSink(&rtp_sink);
+}
+
+TEST(SrtpTransportTestWithFieldTrialEnabled,
+     NetworkRouteOverheadUpdatedWhenSrtpActivated) {
+  const Environment env = CreateTestEnvironment(
+      {.field_trials = "WebRTC-UpdateNetworkRouteOnSrtpActivation/Enabled/"});
+  auto rtp_transport = std::make_unique<FakePacketTransport>(env, "fake");
+  auto srtp_transport =
+      std::make_unique<SrtpTransport>(true, env.field_trials());
+  srtp_transport->SetRtpPacketTransport(rtp_transport.get());
+
+  std::optional<NetworkRoute> current_route;
+  srtp_transport->SubscribeNetworkRouteChanged(
+      rtp_transport.get(),
+      [&](std::optional<NetworkRoute> r) { current_route = r; });
+
+  NetworkRoute route;
+  route.connected = true;
+  route.packet_overhead = 28;
+  rtp_transport->SetNetworkRoute(std::optional<NetworkRoute>(route));
+
+  ASSERT_TRUE(current_route.has_value());
+  EXPECT_EQ(current_route->packet_overhead, 28);
+
+  // Activate SRTP.
+  EXPECT_TRUE(srtp_transport->SetRtpParams(
+      kSrtpAeadAes128Gcm, kTestKeyGcm128_1, std::vector<RtpHeaderExtensionId>(),
+      kSrtpAeadAes128Gcm, kTestKeyGcm128_1,
+      std::vector<RtpHeaderExtensionId>()));
+
+  ASSERT_TRUE(current_route.has_value());
+  EXPECT_EQ(current_route->packet_overhead, 28 + 16);
+}
+
+TEST(SrtpTransportTestDefault, NetworkRouteOverheadUnchangedWhenSrtpActivated) {
+  const Environment env = CreateTestEnvironment();
+  auto rtp_transport = std::make_unique<FakePacketTransport>(env, "fake");
+  auto srtp_transport =
+      std::make_unique<SrtpTransport>(true, env.field_trials());
+  srtp_transport->SetRtpPacketTransport(rtp_transport.get());
+
+  std::optional<NetworkRoute> current_route;
+  srtp_transport->SubscribeNetworkRouteChanged(
+      rtp_transport.get(),
+      [&](std::optional<NetworkRoute> r) { current_route = r; });
+
+  NetworkRoute route;
+  route.connected = true;
+  route.packet_overhead = 28;
+  rtp_transport->SetNetworkRoute(std::optional<NetworkRoute>(route));
+
+  ASSERT_TRUE(current_route.has_value());
+  EXPECT_EQ(current_route->packet_overhead, 28);
+
+  EXPECT_TRUE(srtp_transport->SetRtpParams(
+      kSrtpAeadAes128Gcm, kTestKeyGcm128_1, std::vector<RtpHeaderExtensionId>(),
+      kSrtpAeadAes128Gcm, kTestKeyGcm128_1,
+      std::vector<RtpHeaderExtensionId>()));
+
+  ASSERT_TRUE(current_route.has_value());
+  EXPECT_EQ(current_route->packet_overhead, 28);
 }
 
 }  // namespace webrtc

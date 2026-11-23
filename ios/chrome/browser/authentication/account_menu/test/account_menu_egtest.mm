@@ -405,10 +405,13 @@ id<GREYMatcher> identityDiscMatcher() {
                                           kAccountMenuSecondaryAccountButtonId)]
       performAction:grey_tap()];
 
+  // Wait for profile switching and capability fetching to settle.
+  base::test::ios::SpinRunLoopWithMinDelay(base::Milliseconds(500));
+
+  [SigninEarlGrey verifySignedInWithFakeIdentity:kPrimaryIdentity];
   [SigninEarlGreyUI
       dismissSigninConfirmationSnackbarForIdentity:kPrimaryIdentity
                                      assertVisible:YES];
-  [SigninEarlGrey verifySignedInWithFakeIdentity:kPrimaryIdentity];
   [self assertAccountMenuIsNotShown];
 }
 

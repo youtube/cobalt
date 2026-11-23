@@ -712,6 +712,9 @@ void RenderViewHostImpl::SetIsFrozen(bool frozen) {
 }
 
 void RenderViewHostImpl::OnBackForwardCacheTimeout() {
+  if (!frame_tree_->is_primary()) {
+    return;
+  }
   auto entries = frame_tree_->controller()
                      .GetBackForwardCache()
                      .GetEntriesForRenderViewHostImpl(this);
@@ -722,6 +725,9 @@ void RenderViewHostImpl::OnBackForwardCacheTimeout() {
 }
 
 void RenderViewHostImpl::MaybeEvictFromBackForwardCache() {
+  if (!frame_tree_->is_primary()) {
+    return;
+  }
   auto entries = frame_tree_->controller()
                      .GetBackForwardCache()
                      .GetEntriesForRenderViewHostImpl(this);
@@ -731,6 +737,9 @@ void RenderViewHostImpl::MaybeEvictFromBackForwardCache() {
 }
 
 void RenderViewHostImpl::EnforceBackForwardCacheSizeLimit() {
+  if (!frame_tree_->is_primary()) {
+    return;
+  }
   frame_tree_->controller().GetBackForwardCache().EnforceCacheSizeLimit();
 }
 
@@ -951,28 +960,31 @@ std::vector<viz::SurfaceId> RenderViewHostImpl::CollectSurfaceIdsForEviction() {
       }
     }
 
-    auto entries = frame_tree_->controller()
-                       .GetBackForwardCache()
-                       .GetEntriesForRenderViewHostImpl(this);
-    for (auto* entry : entries) {
-      auto* rfh = entry->render_frame_host();
-      if (!rfh) {
-        continue;
+    if (frame_tree_->is_primary()) {
+      auto entries = frame_tree_->controller()
+                         .GetBackForwardCache()
+                         .GetEntriesForRenderViewHostImpl(this);
+      for (auto* entry : entries) {
+        auto* rfh = entry->render_frame_host();
+        if (!rfh) {
+          continue;
+        }
+        // While `is_in_back_forward_cache_` there is no
+        // `main_frame_routing_id_` so there is no `GetMainRenderFrameHost`.
+        // Furthermore the root of the `FrameTree` is now associated to the
+        // foreground `RenderWidgetHostView*`. Due to this
+        // `NodesIncludingInnerTreeNodes` does not find the children nodes
+        // associated with the BFCache entry.
+        //
+        // Instead we build a `FrameTree::NodeRange` that starts with the
+        // children of `rfh`. This will also be equivalent to
+        // `should_descend_into_inner_trees=true`. Thus finding all the
+        // compositor surfaces in the BFCache.
+        FrameTree::NodeRange node_range = FrameTree::SubtreeAndInnerTreeNodes(
+            rfh,
+            /*include_delegate_nodes_for_inner_frame_trees=*/true);
+        CollectSurfaceIdsForEvictionForFrameTreeNodeRange(node_range, ids);
       }
-      // While `is_in_back_forward_cache_` there is no `main_frame_routing_id_`
-      // so there is no `GetMainRenderFrameHost`. Furthermore the root of the
-      // `FrameTree` is now associated to the foreground
-      // `RenderWidgetHostView*`. Due to this `NodesIncludingInnerTreeNodes`
-      // does not find the children nodes associated with the BFCache entry.
-      //
-      // Instead we build a `FrameTree::NodeRange` that starts with the children
-      // of `rfh`. This will also be equivalent to
-      // `should_descend_into_inner_trees=true`. Thus finding all the compositor
-      // surfaces in the BFCache.
-      FrameTree::NodeRange node_range = FrameTree::SubtreeAndInnerTreeNodes(
-          rfh,
-          /*include_delegate_nodes_for_inner_frame_trees=*/true);
-      CollectSurfaceIdsForEvictionForFrameTreeNodeRange(node_range, ids);
     }
   }
 

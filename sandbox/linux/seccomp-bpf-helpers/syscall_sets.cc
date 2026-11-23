@@ -612,6 +612,14 @@ bool SyscallSets::IsAllowedGeneralIo(int sysno) {
     case __NR_recvfrom:  // Could specify source.
     case __NR_recvmsg:   // Could specify source.
 #endif
+    // recvmmsg is used by QUIC to read multiple packets at once.
+    // recvmmsg_time64 is the 64-bit time version used implicitly by glibc
+    // on 32-bit systems for Y2038 safety.
+    case __NR_recvmmsg:  // Could specify source.
+#if defined(__i386__) || defined(__arm__) || \
+    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_32_BITS))
+    case __NR_recvmmsg_time64:  // Could specify source.
+#endif
 #if defined(__i386__) || defined(__x86_64__)
     case __NR_select:
 #endif
@@ -628,11 +636,6 @@ bool SyscallSets::IsAllowedGeneralIo(int sysno) {
     case __NR_splice:
     case __NR_tee:
     case __NR_vmsplice:
-    case __NR_recvmmsg:  // Could specify source.
-#if defined(__i386__) || defined(__arm__) || \
-    (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_32_BITS))
-    case __NR_recvmmsg_time64:  // Could specify source.
-#endif
 // send* syscalls need their flags filtered.
 #if defined(__arm__) || \
     (defined(ARCH_CPU_MIPS_FAMILY) && defined(ARCH_CPU_32_BITS))

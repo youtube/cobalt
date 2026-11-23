@@ -97,7 +97,7 @@ base::Version ReadEvergreenVersion(base::FilePath installation_dir);
 #endif  // BUILDFLAG(IS_STARBOARD)
 
 // Returns true if the actual SHA-256 hash of the |filepath| matches the
-// |expected_hash|.
+// |expected_hash|. Does not follow symbolic links.
 bool VerifyFileHash256(const base::FilePath& filepath,
                        const std::string& expected_hash);
 

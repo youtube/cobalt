@@ -23,6 +23,8 @@
 #include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profiles_state.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/browser/search/search.h"
 #include "chrome/browser/spellchecker/spellcheck_factory.h"
 #include "chrome/browser/spellchecker/spellcheck_hunspell_dictionary.h"
 #include "components/language/core/browser/pref_names.h"
@@ -392,12 +394,18 @@ void SpellcheckService::StartRecordingMetrics(bool spellcheck_enabled) {
 }
 
 void SpellcheckService::InitForRenderer(content::RenderProcessHost* host) {
-  // Skip initialization of the spellcheck service for top chrome web UI pages
-  // when Initial WebUI feature is enabled for optimizing browser startup.
-  if (host->IsForTopChromeWebUI() &&
-      base::FeatureList::IsEnabled(features::kInitialWebUI) &&
-      features::kInitialWebUIWithoutSpellCheck.Get()) {
-    return;
+  // Skip initialization of the spellcheck service for top chrome and NTP web UI
+  // pages when Initial WebUI feature is enabled for optimizing browser startup.
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    if (host->IsForTopChromeWebUI() &&
+        features::kInitialWebUIWithoutSpellCheck.Get()) {
+      return;
+    }
+  }
+  if (base::FeatureList::IsEnabled(features::kInitialWebUIWithoutSpellCheckForNtp)) {
+    if (host->GetUserData(search::kIsNTPProcessKey)) {
+      return;
+    }
   }
 
   DCHECK_CURRENTLY_ON(BrowserThread::UI);

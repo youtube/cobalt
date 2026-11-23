@@ -217,8 +217,11 @@ def _gen_boringssl(import_channel: str, output_dir: str):
         string.Template(boringssl_androidbp_template_contents).substitute(
             GN2BP_IMPORT_CHANNEL=import_channel,
             GN2BP_MODULE_PREFIX=module_prefix))
-    cmd = f'cd {_BORINGSSL_PATH} && python3 {_BORINGSSL_SCRIPT} --target-prefix={module_prefix} android'
-    cronet_utils.run(cmd, shell=True)
+    cronet_utils.run([
+        'python3', _BORINGSSL_SCRIPT, f'--target-prefix={module_prefix}',
+        'android'
+    ],
+                     cwd=_BORINGSSL_PATH)
     # Move generated files to output_dir
     for filename in ['sources.bp', 'sources.mk']:
         src = os.path.join(_BORINGSSL_PATH, filename)

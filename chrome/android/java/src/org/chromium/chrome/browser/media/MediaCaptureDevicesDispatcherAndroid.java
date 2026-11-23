@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.media;
 import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ObserverList;
@@ -52,7 +53,8 @@ public class MediaCaptureDevicesDispatcherAndroid {
     }
 
     @CalledByNative
-    private static void onIsCapturingTabChanged(WebContents webContents, boolean isCapturing) {
+    private static void onIsCapturingTabChanged(
+            @JniType("content::WebContents*") WebContents webContents, boolean isCapturing) {
         for (Observer observer : sObservers) {
             observer.onIsCapturingTabChanged(webContents, isCapturing);
         }
@@ -88,21 +90,28 @@ public class MediaCaptureDevicesDispatcherAndroid {
         MediaCaptureDevicesDispatcherAndroidJni.get().notifyDisplayMediaStopped(webContents);
     }
 
+    public static void notifyTabCapturingStopped(@Nullable WebContents webContents) {
+        if (webContents == null) return;
+        MediaCaptureDevicesDispatcherAndroidJni.get().notifyTabCapturingStopped(webContents);
+    }
+
     @VisibleForTesting
     @NativeMethods
     public interface Natives {
-        boolean isCapturingAudio(WebContents webContents);
+        boolean isCapturingAudio(@JniType("content::WebContents*") WebContents webContents);
 
-        boolean isCapturingVideo(WebContents webContents);
+        boolean isCapturingVideo(@JniType("content::WebContents*") WebContents webContents);
 
-        boolean isCapturingTab(WebContents webContents);
+        boolean isCapturingTab(@JniType("content::WebContents*") WebContents webContents);
 
-        boolean isCapturingWindow(WebContents webContents);
+        boolean isCapturingWindow(@JniType("content::WebContents*") WebContents webContents);
 
-        boolean isCapturingScreen(WebContents webContents);
+        boolean isCapturingScreen(@JniType("content::WebContents*") WebContents webContents);
 
-        void notifyStopped(WebContents webContents);
+        void notifyStopped(@JniType("content::WebContents*") WebContents webContents);
 
-        void notifyDisplayMediaStopped(WebContents webContents);
+        void notifyDisplayMediaStopped(@JniType("content::WebContents*") WebContents webContents);
+
+        void notifyTabCapturingStopped(@JniType("content::WebContents*") WebContents webContents);
     }
 }

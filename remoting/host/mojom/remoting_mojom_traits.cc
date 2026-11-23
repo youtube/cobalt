@@ -98,6 +98,7 @@ bool mojo::StructTraits<remoting::mojom::DesktopEnvironmentOptionsDataView,
   out_options->set_enable_notifications(data_view.enable_notifications());
   out_options->set_terminate_upon_input(data_view.terminate_upon_input());
   out_options->set_enable_remote_webauthn(data_view.enable_remote_webauthn());
+  out_options->set_enable_security_key(data_view.enable_security_key());
 
   if (!data_view.ReadDesktopCaptureOptions(
           out_options->desktop_capture_options())) {

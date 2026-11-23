@@ -22,6 +22,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/message_loop/message_pump_type.h"
+#include "base/message_loop/message_pump_wakeup_counter.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
@@ -302,6 +303,8 @@ scoped_refptr<base::SequencedTaskRunner>& GetNetworkTaskRunnerStorage() {
   return *storage;
 }
 
+const char kNetworkServiceSuffix[] = "NetworkService";
+
 void CreateInProcessNetworkService(
     mojo::PendingReceiver<network::mojom::NetworkService> receiver) {
   TRACE_EVENT0("loading", "CreateInProcessNetworkService");
@@ -329,10 +332,12 @@ void CreateInProcessNetworkService(
     task_runner->PostTask(
         FROM_HERE, base::BindOnce([]() {
           mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics(
-              "NetworkService");
+              kNetworkServiceSuffix);
+          base::MessagePumpWakeupCounter::InitializeForCurrentThread(
+              kNetworkServiceSuffix);
 #if BUILDFLAG(IS_ANDROID)
           base::PlatformThreadPriorityMonitor::Get().RegisterCurrentThread(
-              "NetworkService");
+              kNetworkServiceSuffix);
 #endif  // BUILDFLAG(IS_ANDROID)
         }));
   } else {

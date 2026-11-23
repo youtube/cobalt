@@ -190,13 +190,44 @@ suite('AppContent', () => {
     chrome.readingMode.isLineFocusEnabled = true;
     assertFalse(lineFocusController.isEnabled());
 
+    // 'l' toggle
     keyDownOn(app, 0, undefined, 'l');
     await microtasksFinished();
     assertTrue(lineFocusController.isEnabled());
 
-    keyDownOn(app, 0, undefined, 'l');
+    // 'L' toggle
+    keyDownOn(app, 0, undefined, 'L');
     await microtasksFinished();
     assertFalse(lineFocusController.isEnabled());
+
+    // Modifier check: Ctrl+l should not toggle
+    keyDownOn(app, 0, ['ctrl'], 'l');
+    await microtasksFinished();
+    assertFalse(lineFocusController.isEnabled());
+  });
+
+  test('read aloud shortcut toggles playback', async () => {
+    let playPauseCalled = false;
+    speechController.onPlayPauseKeyPress = () => {
+      playPauseCalled = true;
+    };
+
+    // 'k' press
+    keyDownOn(app, 0, undefined, 'k');
+    await microtasksFinished();
+    assertTrue(playPauseCalled);
+
+    // 'K' press
+    playPauseCalled = false;
+    keyDownOn(app, 0, undefined, 'K');
+    await microtasksFinished();
+    assertTrue(playPauseCalled);
+
+    // Modifier check: Alt+k should not toggle
+    playPauseCalled = false;
+    keyDownOn(app, 0, ['alt'], 'k');
+    await microtasksFinished();
+    assertFalse(playPauseCalled);
   });
 
   test('line focus shortcut updates padding', async () => {
@@ -1280,7 +1311,7 @@ suite('AppContent', () => {
         });
 
     test(
-        'click handler intercepts same-page hash links and scrolls',
+        'click handler intercepts same-page hash links and does not scroll immediately',
         async () => {
           const linkId = 10;
           const textId = 11;
@@ -1349,10 +1380,16 @@ suite('AppContent', () => {
           assertTrue(!!linkElement);
           linkElement.click();
 
+          // Clicking should notify C++ (onLinkClicked) but not scroll yet.
+          assertEquals(linkId, linkClickedId);
+          assertFalse(scrollIntoViewCalled);
+
+          // Triggering the callback from C++ navigation should execute the
+          // scroll.
+          chrome.readingMode.onMainFrameSameDocumentNavigation(targetUrl);
           assertTrue(scrollIntoViewCalled);
           assertTrue(!!scrollOptions);
           assertEquals('smooth', scrollOptions.behavior);
-          assertEquals(linkId, linkClickedId);
         });
 
     test('click handler falls back to default for external links', async () => {
@@ -1677,5 +1714,142 @@ suite('AppContent', () => {
         app.$.container.removeChild(target);
       });
     });
+
+    test('onMainFrameSameDocumentNavigation scrolls to target', async () => {
+      const targetId = 12;
+      const textId = 13;
+      const documentUrl = 'https://www.example.com/page.html';
+      const targetUrl = 'https://www.example.com/page.html#footnote-1';
+
+      readingMode.rootId = 1;
+      readingMode.getChildren = (id) => {
+        if (id === 1) {
+          return [targetId];
+        }
+        if (id === targetId) {
+          return [textId];
+        }
+        return [];
+      };
+      readingMode.getHtmlTag = (id) => {
+        if (id === 1) {
+          return 'div';
+        }
+        if (id === targetId) {
+          return 'p';
+        }
+        return '';
+      };
+      readingMode.getTextContent = (id) =>
+          (id === textId) ? 'Footnote Target Content' : '';
+      readingMode.htmlIds.set(targetId, 'footnote-1');
+      readingMode.documentUrl = documentUrl;
+
+      app.updateContent();
+      await microtasksFinished();
+
+      // Find the target element and mock its scrollIntoView
+      const targetElement =
+          app.$.container.querySelector<HTMLElement>('#footnote-1');
+      assertTrue(!!targetElement);
+      let scrollIntoViewCalled = false;
+      let scrollOptions: ScrollIntoViewOptions|undefined;
+      targetElement.scrollIntoView = (options) => {
+        scrollIntoViewCalled = true;
+        scrollOptions = options as ScrollIntoViewOptions;
+      };
+
+      // Trigger same document navigation
+      chrome.readingMode.onMainFrameSameDocumentNavigation(targetUrl);
+
+      assertTrue(scrollIntoViewCalled);
+      assertTrue(!!scrollOptions);
+      assertEquals('smooth', scrollOptions.behavior);
+    });
+
+    test(
+        'onMainFrameSameDocumentNavigation scrolls to top on empty hash',
+        async () => {
+          const documentUrl = 'https://www.example.com/page.html';
+          const targetUrl = 'https://www.example.com/page.html';  // empty hash
+
+          readingMode.rootId = 1;
+          readingMode.getChildren = () => [];
+          readingMode.getHtmlTag = (id) => (id === 1) ? 'div' : '';
+          readingMode.getTextContent = (id) => (id === 1) ? 'Some content' : '';
+          readingMode.documentUrl = documentUrl;
+
+          app.updateContent();
+          await microtasksFinished();
+
+          // Mock scrollTo on containerScroller
+          const scroller = app.$.containerScroller;
+          assertTrue(!!scroller);
+          let scrollToCalled = false;
+          let scrollOptions: ScrollToOptions|undefined;
+          scroller.scrollTo = (options) => {
+            scrollToCalled = true;
+            scrollOptions = options as ScrollToOptions;
+          };
+
+          // Trigger same document navigation back to top
+          chrome.readingMode.onMainFrameSameDocumentNavigation(targetUrl);
+
+          assertTrue(scrollToCalled);
+          assertTrue(!!scrollOptions);
+          assertEquals(0, scrollOptions.top);
+          assertEquals('smooth', scrollOptions.behavior);
+        });
+
+    test(
+        'onMainFrameSameDocumentNavigation ignores different page URLs',
+        async () => {
+          const targetId = 12;
+          const textId = 13;
+          const documentUrl = 'https://www.example.com/page.html';
+          const targetUrl =
+              'https://www.different-domain.com/page.html#footnote-1';
+
+          readingMode.rootId = 1;
+          readingMode.getChildren = (id) => {
+            if (id === 1) {
+              return [targetId];
+            }
+            if (id === targetId) {
+              return [textId];
+            }
+            return [];
+          };
+          readingMode.getHtmlTag = (id) => {
+            if (id === 1) {
+              return 'div';
+            }
+            if (id === targetId) {
+              return 'p';
+            }
+            return '';
+          };
+          readingMode.getTextContent = (id) =>
+              (id === textId) ? 'Footnote Target Content' : '';
+          readingMode.htmlIds.set(targetId, 'footnote-1');
+          readingMode.documentUrl = documentUrl;
+
+          app.updateContent();
+          await microtasksFinished();
+
+          // Find the target element and mock its scrollIntoView
+          const targetElement =
+              app.$.container.querySelector<HTMLElement>('#footnote-1');
+          assertTrue(!!targetElement);
+          let scrollIntoViewCalled = false;
+          targetElement.scrollIntoView = () => {
+            scrollIntoViewCalled = true;
+          };
+
+          // Trigger same document navigation for different page
+          chrome.readingMode.onMainFrameSameDocumentNavigation(targetUrl);
+
+          assertFalse(scrollIntoViewCalled);
+        });
   });
 });

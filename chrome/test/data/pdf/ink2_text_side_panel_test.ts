@@ -117,7 +117,7 @@ chrome.test.runTests([
         Ink2Manager.getInstance().getCurrentTextAttributes().color);
     chrome.test.assertTrue(buttons[0]!.checked);
 
-    // Confirm we passed all the right colors to the color selector.
+    // Confirm all the right colors are passed to the color selector.
     chrome.test.assertEq(TEXT_COLORS.length, colorSelector.colors.length);
     for (let i = 0; i < TEXT_COLORS.length; i++) {
       chrome.test.assertEq(

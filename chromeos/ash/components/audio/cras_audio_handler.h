@@ -346,12 +346,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Removes an audio observer.
   void RemoveAudioObserver(AudioObserver* observer);
 
-  // Returns true if keyboard mic exists.
-  bool HasKeyboardMic();
-
-  // Returns true if hotword input device exists.
-  bool HasHotwordDevice();
-
   // Returns true if audio output is muted for the system.
   bool IsOutputMuted();
 
@@ -592,10 +586,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Adjusts all active output devices' volume lower by one volume step
   void DecreaseOutputVolumeByOneStep(int one_step_percent);
 
-  // Adjusts all active output devices' volume to a minimum audible level if it
-  // is too low.
-  void AdjustOutputVolumeToAudibleLevel();
-
   // Mutes or unmutes audio output device.
   void SetOutputMute(bool mute_on);
 
@@ -640,9 +630,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
                         bool mute_on,
                         CrasAudioHandler::AudioSettingsChangeSource source);
 
-  // Activates or deactivates keyboard mic if there's one.
-  void SetKeyboardMicActive(bool active);
-
   // Enables or disables the speak-on-mute detection.
   void SetSpeakOnMuteDetection(bool som_on);
 
@@ -668,17 +655,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Handles dbus callback for GetNodes.
   void HandleGetSidetoneSupported(std::optional<bool> available);
 
-  // Changes the active nodes to the nodes specified by |new_active_ids|.
-  // The caller can pass in the "complete" active node list of either input
-  // nodes, or output nodes, or both. If only input nodes are passed in,
-  // it will only change the input nodes' active status, output nodes will NOT
-  // be changed; similarly for the case if only output nodes are passed.
-  // If the nodes specified in |new_active_ids| are already active, they will
-  // remain active. Otherwise, the old active nodes will be de-activated before
-  // we activate the new nodes with the same type(input/output).
-  // DEPRECATED in favor of |SetActiveInputNodes| and |SetActiveOutputNodes|.
-  void ChangeActiveNodes(const NodeIdList& new_active_ids);
-
   // Sets the set of active input nodes. Empty |node_ids| will deactivate all
   // input devices.
   // |node_ids| is expected to contain only existing input node IDs - the
@@ -692,15 +668,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // method will fail if this is not the case.
   // Returns whether the acive nodes were successfully set.
   bool SetActiveOutputNodes(const NodeIdList& node_ids);
-
-  // Sets |hotword_model| to the given |node_id|.
-  // |hotword_model| is expected to be in format <language>_<region> with lower
-  // cases. E.g., "en_us".
-  // The callback will receive a boolean which indicates if the hotword model is
-  // successfully set.
-  void SetHotwordModel(uint64_t node_id,
-                       const std::string& hotword_model,
-                       VoidCrasAudioHandlerCallback callback);
 
   // Swaps the left and right channel of the internal speaker.
   // Swap the left and right channel if |swap| is true; otherwise, swap the left
@@ -773,16 +740,10 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   // Returns if spatial audio is supported in CRAS or not.
   bool spatial_audio_supported() const;
 
-  // Asks  CRAS to resend BluetoothBatteryChanged signal, used in cases when
-  // Chrome cleans up the stored battery information but still has the device
-  // connected afterward. For example: User logout.
-  void ResendBluetoothBattery();
-
   void SetPrefHandlerForTesting(
       scoped_refptr<AudioDevicesPrefHandler> audio_pref_handler);
 
   int32_t NumberOfNonChromeOutputStreams() const;
-  int32_t NumberOfChromeOutputStreams() const;
   int32_t NumberOfArcStreams() const;
 
   // Simulate number of ARC streams changing in a test.
@@ -880,10 +841,6 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) CrasAudioHandler
   const AudioDevice* GetDeviceFromStableDeviceId(
       bool is_input,
       uint64_t stable_device_id) const;
-
-  const AudioDevice* GetKeyboardMic() const;
-
-  const AudioDevice* GetHotwordDevice() const;
 
   // Initializes audio state, which should only be called when CrasAudioHandler
   // is created or cras audio client is restarted.

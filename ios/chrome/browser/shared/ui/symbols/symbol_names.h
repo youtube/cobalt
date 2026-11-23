@@ -94,6 +94,8 @@ extern NSString* const kPlusCircleFillSymbol;
 extern NSString* const kPDFFillSymbol;
 extern NSString* const kLineThreeSparkSymbol;
 extern NSString* const kDocumentBadgeSpark;
+extern NSString* const kBagSparkSymbol;
+extern NSString* const kTruckBoxSparkSymbol;
 extern NSString* const kDeepSearchSymbol;
 
 // Use custom symbol for camera because the default video icon in iOS should
@@ -164,6 +166,8 @@ extern NSString* const kSuitcaseSymbol;
 extern NSString* const kCarSymbol;
 extern NSString* const kCreditCardSymbol;
 extern NSString* const kWalletBifoldSymbol;
+extern NSString* const kBagSymbol;
+extern NSString* const kTruckBoxSymbol;
 extern NSString* const kMicrophoneFillSymbol;
 extern NSString* const kMicrophoneSymbol;
 extern NSString* const kMagnifyingglassSymbol;

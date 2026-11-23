@@ -147,15 +147,15 @@ namespace perfetto::trace_processor::stats {
        "Duplicated interning ID seen. Should never happen."),                  \
   F(kernel_wakelock_unknown_id,           kSingle,  kError,    kAnalysis, Scope::kMachineAndTrace,      \
        "Interning ID not found. Should never happen."),                        \
-  F(kernel_wakelock_zero_value_reported,  kSingle,  kDataLoss, kTrace, Scope::kMachineAndTrace,         \
+  F(kernel_wakelock_zero_value_reported,  kSingle,  kInfo, kTrace, Scope::kMachineAndTrace,             \
        "Zero value received from SuspendControlService. Indicates a transient "\
        "error in SuspendControlService."),                                     \
   F(kernel_wakelock_non_monotonic_value_reported,                              \
-                                          kSingle,  kDataLoss, kTrace, Scope::kMachineAndTrace,         \
+                                          kSingle,  kInfo, kTrace, Scope::kMachineAndTrace,             \
        "Decreased value received from SuspendControlService. Indicates a "     \
        "transient error in SuspendControlService."),                           \
   F(kernel_wakelock_implausibly_large_value_reported,                          \
-                                          kSingle,  kDataLoss, kTrace, Scope::kMachineAndTrace,         \
+                                          kSingle,  kInfo, kTrace, Scope::kMachineAndTrace,             \
        "Implausibly large increment to value received from "                   \
        "SuspendControlService. Indicates a transient error in "                \
        "SuspendControlService."),                                              \
@@ -365,6 +365,15 @@ namespace perfetto::trace_processor::stats {
       "time clock. Both clocks exist in snapshots, but never together or "     \
       "via a common intermediate clock. Ensure ClockSnapshots link all used "  \
       "clocks to the trace time clock."),                                      \
+  F(clock_sync_unrelatable_clock_domains, kSingle, kError, kAnalysis, Scope::kMachineAndTrace,         \
+      "A file's clock domain could not be related to the trace time clock, so "\
+      "its events were dropped. The two are different real clock domains (the "\
+      "args record the source and trace-time clock ids, e.g. BOOTTIME=6 "      \
+      "against a REALTIME=1 trace time) with nothing connecting them, and "    \
+      "trace_processor does not assume different real clocks are aligned. "    \
+      "Provide a relationship - a ClockSnapshot, a remote_clock_sync, or a "   \
+      "perfetto_manifest clock anchor - or attribute the file to a machine "   \
+      "that shares a clock with the rest of the trace."),                      \
   F(clock_sync_mixed_clock_sources,         kSingle,  kError,    kAnalysis, Scope::kMachineAndTrace,      \
       "A non-primary trace file used both the primary trace's clock "          \
       "snapshots and its own for timestamp conversion. Timestamps "            \

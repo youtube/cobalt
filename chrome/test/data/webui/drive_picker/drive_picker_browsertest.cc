@@ -28,3 +28,23 @@ IN_PROC_BROWSER_TEST_F(DrivePickerHostTest, App) {
 IN_PROC_BROWSER_TEST_F(DrivePickerHostTest, Sanitizer) {
   RunTest("drive_picker/drive_picker_sanitizer_test.js", "mocha.run()");
 }
+
+class DrivePickerHostUntrustedMochaTest : public WebUIMochaBrowserTest {
+ protected:
+  DrivePickerHostUntrustedMochaTest() {
+    set_test_loader_host(chrome::kChromeUIDrivePickerHostHost);
+    set_test_loader_scheme(content::kChromeUIUntrustedScheme);
+    scoped_feature_list_.InitAndEnableFeature(
+        omnibox::kComposeboxDriveContextMenuOption);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+using DrivePickerHostUntrustedMochaBrowserTest =
+    DrivePickerHostUntrustedMochaTest;
+
+IN_PROC_BROWSER_TEST_F(DrivePickerHostUntrustedMochaBrowserTest, UntrustedApp) {
+  RunTest("drive_picker/drive_picker_untrusted_app_test.js", "mocha.run()");
+}

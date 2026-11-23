@@ -143,21 +143,10 @@ found in the LICENSE file.
                 android:src="@drawable/ic_fit_page_height_24dp"
                 app:tint="@color/default_icon_color_tint_list" />
 
-            <org.chromium.ui.widget.ChromeImageButton
-                android:id="@+id/rotate_button"
-                style="@style/ToolbarButton"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:src="@drawable/ic_rotate_page_24dp"
-                app:tint="@color/default_icon_color_tint_list" />
 
-            <!-- rotate_edit_divider -->
+            <!-- fit_edit_divider -->
             <View
-                android:id="@+id/rotate_edit_divider"
+                android:id="@+id/fit_edit_divider"
                 android:layout_width="1dp"
                 android:layout_height="24dp"
                 android:background="@color/divider_color"
@@ -204,6 +193,16 @@ found in the LICENSE file.
                 android:paddingEnd="12dp"
                 android:src="@drawable/ic_download"
                 app:tint="@color/default_icon_color_tint_list" />
+
+            <org.chromium.ui.widget.ButtonCompat
+                android:id="@+id/done_button"
+                style="@style/TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="@string/done"
+                app:buttonColor="?attr/colorPrimary"
+                app:buttonTextColor="?attr/colorOnPrimary"
+                android:visibility="gone" />
 
             <org.chromium.ui.widget.ChromeImageButton
                 android:id="@+id/print_button"

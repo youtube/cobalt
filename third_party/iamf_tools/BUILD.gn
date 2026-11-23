@@ -1,0 +1,264 @@
+import("//build_overrides/build.gni")
+import("//testing/test.gni")
+iamf_tools_sources = [
+  ## api sources
+  # api/conversion sources
+  "src/iamf/api/conversion/channel_reorderer.cc",
+  "src/iamf/api/conversion/mix_presentation_conversion.cc",
+  "src/iamf/api/conversion/profile_conversion.cc",
+
+  # api/decoder sources
+  "src/iamf/api/decoder/iamf_decoder.cc",
+
+  ## cli sources
+  "src/iamf/cli/audio_frame_decoder.cc",
+  "src/iamf/cli/channel_label.cc",
+  "src/iamf/cli/cli_util.cc",
+
+  # cli/codec
+  "src/iamf/cli/codec/lpcm_decoder.cc",
+  "src/iamf/cli/codec/opus_decoder.cc",
+  "src/iamf/cli/codec/opus_utils.cc",
+  "src/iamf/cli/demixing_module.cc",
+  "src/iamf/cli/descriptor_obu_parser.cc",
+  "src/iamf/cli/global_timing_module.cc",
+  "src/iamf/cli/loudness_calculator_base.cc",
+  "src/iamf/cli/loudness_calculator_factory_base.cc",
+  "src/iamf/cli/obu_processor.cc",
+  "src/iamf/cli/obu_processor_utils.cc",
+  "src/iamf/cli/obu_with_data_generator.cc",
+  "src/iamf/cli/parameters_manager.cc",
+  "src/iamf/cli/profile_filter.cc",
+  "src/iamf/cli/recon_gain_generator.cc",
+  "src/iamf/cli/renderer/audio_element_renderer_ambisonics_to_channel.cc",
+  "src/iamf/cli/renderer/audio_element_renderer_base.cc",
+  "src/iamf/cli/renderer/audio_element_renderer_channel_to_channel.cc",
+  "src/iamf/cli/renderer/audio_element_renderer_passthrough.cc",
+  "src/iamf/cli/renderer/gains/get_gains.cc",
+  "src/iamf/cli/renderer/gains/precomputed_compressed_gains.cc",
+  "src/iamf/cli/renderer/gains/precomputed_compressed_gains_decoder.cc",
+  "src/iamf/cli/renderer/loudspeakers_renderer.cc",
+  "src/iamf/cli/renderer/renderer_utils.cc",
+  "src/iamf/cli/renderer_factory.cc",
+  "src/iamf/cli/rendering_mix_presentation_finalizer.cc",
+  "src/iamf/cli/sample_processor_base.cc",
+  "src/iamf/cli/temporal_unit_view.cc",
+
+  ## common sources
+  "src/iamf/common/leb_generator.cc",
+  "src/iamf/common/q_format_or_floating_point.cc",
+  "src/iamf/common/read_bit_buffer.cc",
+
+  # common/utils sources
+  "src/iamf/common/utils/numeric_utils.cc",
+  "src/iamf/common/utils/sample_processing_utils.cc",
+  "src/iamf/common/write_bit_buffer.cc",
+
+  ## include sources
+  "src/iamf/include/iamf_tools/iamf_decoder_factory.cc",
+  "src/iamf/include/iamf_tools/iamf_tools_api_types.cc",
+
+  ## obu sources
+  "src/iamf/obu/ambisonics_config.cc",
+  "src/iamf/obu/arbitrary_obu.cc",
+  "src/iamf/obu/audio_element.cc",
+  "src/iamf/obu/audio_frame.cc",
+  "src/iamf/obu/cart16_parameter_data.cc",
+  "src/iamf/obu/cart8_parameter_data.cc",
+  "src/iamf/obu/codec_config.cc",
+  "src/iamf/obu/decoder_config/aac_decoder_config.cc",
+  "src/iamf/obu/decoder_config/flac_decoder_config.cc",
+
+  # obu/decoder_config sources
+  "src/iamf/obu/decoder_config/lpcm_decoder_config.cc",
+  "src/iamf/obu/decoder_config/opus_decoder_config.cc",
+  "src/iamf/obu/demixing_info_parameter_data.cc",
+  "src/iamf/obu/dual_cart16_parameter_data.cc",
+  "src/iamf/obu/dual_cart8_parameter_data.cc",
+  "src/iamf/obu/dual_polar_parameter_data.cc",
+  "src/iamf/obu/element_gain_offset_config.cc",
+  "src/iamf/obu/extension_parameter_data.cc",
+  "src/iamf/obu/ia_sequence_header.cc",
+  "src/iamf/obu/metadata_obu.cc",
+  "src/iamf/obu/mix_gain_parameter_data.cc",
+  "src/iamf/obu/mix_presentation.cc",
+  "src/iamf/obu/obu_base.cc",
+  "src/iamf/obu/obu_header.cc",
+
+  # additional obu sources from v2 stuff
+  "src/iamf/obu/param_definitions/cart16_param_definition.cc",
+  "src/iamf/obu/param_definitions/cart8_param_definition.cc",
+  "src/iamf/obu/param_definitions/demixing_param_definition.cc",
+  "src/iamf/obu/param_definitions/dual_cart16_param_definition.cc",
+  "src/iamf/obu/param_definitions/dual_cart8_param_definition.cc",
+  "src/iamf/obu/param_definitions/dual_polar_param_definition.cc",
+  "src/iamf/obu/param_definitions/extended_param_definition.cc",
+  "src/iamf/obu/param_definitions/mix_gain_param_definition.cc",
+  "src/iamf/obu/param_definitions/param_definition_base.cc",
+  "src/iamf/obu/param_definitions/polar_param_definition.cc",
+  "src/iamf/obu/param_definitions/recon_gain_param_definition.cc",
+  "src/iamf/obu/parameter_block.cc",
+  "src/iamf/obu/polar_parameter_data.cc",
+  "src/iamf/obu/recon_gain_info_parameter_data.cc",
+  "src/iamf/obu/rendering_config.cc",
+  "src/iamf/obu/substream_channel_count.cc",
+]
+iamf_tools_headers = [
+  "strip_errors.h",
+
+  ## api headers
+  # api/conversion headers
+  "src/iamf/api/conversion/channel_reorderer.h",
+  "src/iamf/api/conversion/mix_presentation_conversion.h",
+  "src/iamf/api/conversion/profile_conversion.h",
+
+  # api/decoder headers
+  "src/iamf/api/decoder/iamf_decoder.h",
+
+  ## cli headers
+  "src/iamf/cli/audio_element_with_data.h",
+  "src/iamf/cli/audio_frame_decoder.h",
+  "src/iamf/cli/audio_frame_with_data.h",
+  "src/iamf/cli/channel_label.h",
+  "src/iamf/cli/cli_util.h",
+  "src/iamf/cli/demixing_module.h",
+  "src/iamf/cli/descriptor_obu_parser.h",
+  "src/iamf/cli/global_timing_module.h",
+  "src/iamf/cli/loudness_calculator_base.h",
+  "src/iamf/cli/loudness_calculator_factory_base.h",
+  "src/iamf/cli/obu_processor.h",
+  "src/iamf/cli/obu_processor_utils.h",
+  "src/iamf/cli/obu_with_data_generator.h",
+  "src/iamf/cli/parameters_manager.h",
+  "src/iamf/cli/profile_filter.h",
+  "src/iamf/cli/recon_gain_generator.h",
+  "src/iamf/cli/renderer_factory.h",
+  "src/iamf/cli/renderer/audio_element_renderer_ambisonics_to_channel.h",
+  "src/iamf/cli/renderer/audio_element_renderer_passthrough.h",
+  "src/iamf/cli/renderer/audio_element_renderer_channel_to_channel.h",
+  "src/iamf/cli/renderer/audio_element_renderer_base.h",
+  "src/iamf/cli/renderer/renderer_utils.h",
+  "src/iamf/cli/renderer/loudspeakers_renderer.h",
+  "src/iamf/cli/renderer/gains/compressed_gains_codebook.h",
+  "src/iamf/cli/renderer/gains/get_gains.h",
+  "src/iamf/cli/renderer/gains/precomputed_compressed_gains_decoder.h",
+  "src/iamf/cli/renderer/gains/precomputed_compressed_gains.h",
+  "src/iamf/cli/rendering_mix_presentation_finalizer.h",
+  "src/iamf/cli/sample_processor_base.h",
+  "src/iamf/cli/substream_frames.h",
+  "src/iamf/cli/temporal_unit_view.h",
+
+  # cli/codec
+  "src/iamf/cli/codec/decoder_base.h",
+  "src/iamf/cli/codec/lpcm_decoder.h",
+  "src/iamf/cli/codec/opus_decoder.h",
+  "src/iamf/cli/codec/opus_utils.h",
+
+  ## common headers
+  "src/iamf/common/leb_generator.h",
+  "src/iamf/common/read_bit_buffer.h",
+  "src/iamf/common/write_bit_buffer.h",
+
+  # common/utils headers
+  "src/iamf/common/utils/macros.h",
+  "src/iamf/common/utils/map_utils.h",
+  "src/iamf/common/utils/numeric_utils.h",
+  "src/iamf/common/utils/obu_util.h",
+  "src/iamf/common/utils/sample_processing_utils.h",
+  "src/iamf/common/utils/validation_utils.h",
+
+  ## include headers
+  "src/iamf/include/iamf_tools/iamf_decoder_factory.h",
+  "src/iamf/include/iamf_tools/iamf_decoder_interface.h",
+  "src/iamf/include/iamf_tools/iamf_tools_api_types.h",
+
+  ## obu headers
+  "src/iamf/obu/arbitrary_obu.h",
+  "src/iamf/obu/audio_element.h",
+  "src/iamf/obu/audio_frame.h",
+  "src/iamf/obu/codec_config.h",
+  "src/iamf/obu/demixing_info_parameter_data.h",
+  "src/iamf/obu/param_definitions/demixing_param_definition.h",
+  "src/iamf/obu/extension_parameter_data.h",
+  "src/iamf/obu/ia_sequence_header.h",
+  "src/iamf/obu/mix_gain_parameter_data.h",
+  "src/iamf/obu/mix_presentation.h",
+  "src/iamf/obu/obu_base.h",
+  "src/iamf/obu/obu_header.h",
+  "src/iamf/obu/param_definitions/param_definition_variant.h",
+  "src/iamf/obu/param_definitions/param_definition_base.h",
+  "src/iamf/obu/parameter_block.h",
+  "src/iamf/obu/parameter_data.h",
+  "src/iamf/obu/recon_gain_info_parameter_data.h",
+  "src/iamf/obu/temporal_delimiter.h",
+  "src/iamf/obu/types.h",
+
+  # additional obu headers from v2 stuff
+  "src/iamf/obu/param_definitions/cart16_param_definition.h",
+  "src/iamf/obu/param_definitions/cart8_param_definition.h",
+  "src/iamf/obu/param_definitions/dual_cart16_param_definition.h",
+  "src/iamf/obu/param_definitions/dual_cart8_param_definition.h",
+  "src/iamf/obu/param_definitions/dual_polar_param_definition.h",
+  "src/iamf/obu/param_definitions/polar_param_definition.h",
+  "src/iamf/obu/cart16_parameter_data.h",
+  "src/iamf/obu/cart8_parameter_data.h",
+  "src/iamf/obu/dual_cart16_parameter_data.h",
+  "src/iamf/obu/dual_cart8_parameter_data.h",
+  "src/iamf/obu/dual_polar_parameter_data.h",
+  "src/iamf/obu/polar_parameter_data.h",
+
+  # obu/decoder_config headers
+  "src/iamf/obu/decoder_config/lpcm_decoder_config.h",
+  "src/iamf/obu/decoder_config/opus_decoder_config.h",
+]
+test("iamf_tools_lib_fuzz_tests") {
+  sources = [
+    "fuzz/get_test_path.cc",
+    "src/iamf/api/decoder/tests/iamf_decoder_fuzz_test.cc",
+  ]
+  include_dirs = [
+    ".",
+    "src",
+    "src/iamf/cli/tests/portable",
+    "//third_party/abseil-cpp",
+    "//third_party/opus/src",
+  ]
+  deps = [
+    ":iamf_tools_lib",
+    "//base/test:test_support",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/fuzztest",
+    "//third_party/fuzztest:fuzztest_gtest_main",
+  ]
+}
+config("strip_errors_config") {
+  cflags_cc = [
+    "-include",
+    rebase_path("strip_errors.h", root_build_dir),
+  ]
+}
+
+static_library("iamf_tools_lib") {
+  sources = iamf_tools_sources + iamf_tools_headers
+  include_dirs = [
+    "src",
+    "//third_party/abseil-cpp",
+    "//third_party/opus/src",
+  ]
+  deps = [
+    "//third_party/abseil-cpp:absl",
+    "//third_party/opus",
+  ]
+  defines = [
+    "IAMF_TOOLS_DISABLE_AAC_DECODER",
+    "IAMF_TOOLS_DISABLE_FLAC_DECODER",
+    "IAMF_TOOLS_DISABLE_BINAURAL_RENDERING",
+  ]
+  if (!is_debug) {
+    configs += [ ":strip_errors_config" ]
+  }
+  visibility = [
+    ":*",
+    "//media/filters:*",
+  ]
+}

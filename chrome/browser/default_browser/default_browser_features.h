@@ -72,6 +72,10 @@ BASE_DECLARE_FEATURE_PARAM(DefaultBrowserSetterType,
 #if BUILDFLAG(IS_WIN)
 // Parameter for the URL used by the visual guided setter.
 BASE_DECLARE_FEATURE_PARAM(std::string, kDefaultBrowserVisualGuideUrlParam);
+
+// Parameter for the maximum amount of time we should wait for the Settings
+// window.
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kFindSettingsTimeout);
 #endif
 
 }  // namespace default_browser

@@ -57,6 +57,7 @@ export class TestSyncBrowserProxy extends TestBrowserProxy implements
       'signOut',
       'startSignIn',
       'recordSigninPendingOffered',
+      'recordSigninOffered',
       // </if>
 
       // <if expr="is_chromeos">
@@ -128,6 +129,10 @@ export class TestSyncBrowserProxy extends TestBrowserProxy implements
 
   recordSigninPendingOffered(): void {
     this.methodCalled('recordSigninPendingOffered');
+  }
+
+  recordSigninOffered(accessPoint: ChromeSigninAccessPoint): void {
+    this.methodCalled('recordSigninOffered', accessPoint);
   }
   // </if>
 

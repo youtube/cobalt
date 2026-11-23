@@ -65,11 +65,9 @@ struct BASE_I18N_EXPORT DateTimeFormatterOptions {
   // Predefined lengths for date and time components.
   enum class ItemLength {
     kNone,
-    kFull,    // e.g., "Monday, May 25, 2026" / "10:30:00 AM Pacific Daylight
-              // Time"
-    kLong,    // e.g., "May 25, 2026" / "10:30:00 AM PDT"
-    kMedium,  // e.g., "May 25, 2026" / "10:30:00 AM"
     kShort,   // e.g., "5/25/26" / "10:30 AM"
+    kMedium,  // e.g., "May 25, 2026" / "10:30:00 AM"
+    kLong,    // e.g., "May 25, 2026" / "10:30:00 AM PDT"
   };
 
   // Specific format identifiers for targeted components.
@@ -140,8 +138,8 @@ class BASE_I18N_EXPORT DateTimeFormatterOptions::Builder {
   // Returns the constructed DateTimeFormatterOptions object.
   DateTimeFormatterOptions Get() const {
     static_assert(length != DateTimeFormatterOptions::ItemLength::kNone,
-                  "A length must be specified (Short(), Medium(), Long(), or "
-                  "Full()) before converting to Options.");
+                  "A length must be specified (Short(), Medium() or Long() "
+                  "before converting to Options.");
     DateTimeFormatterOptions options;
     options.format_identifier = component_type_value;
     options.year_style = year_style_;
@@ -187,13 +185,9 @@ class BASE_I18N_EXPORT DateTimeFormatterOptions::Builder {
   static auto Medium() {
     return Builder<component_type_value, ItemLength::kMedium>();
   }
-  // e.g., "May 25, 2026, 10:30:00 AM PDT"
+  // e.g., "Tuesday, May 25, 2026, 10:30:00 AM"
   static auto Long() {
     return Builder<component_type_value, ItemLength::kLong>();
-  }
-  // e.g., "Monday, May 25, 2026, 10:30:00 AM Pacific Daylight Time"
-  static auto Full() {
-    return Builder<component_type_value, ItemLength::kFull>();
   }
 
  private:
@@ -207,7 +201,7 @@ class BASE_I18N_EXPORT DateTimeFormatterOptions::Builder {
 //
 // These shorthand builders provide a fluent interface to specify the components
 // (e.g., YMDT for Year, Month, Day, Time) and their length (Short, Medium,
-// Long, Full).
+// Long).
 //
 // All `DateTimeFormatterOptions` should be initiated from this namespace.
 //

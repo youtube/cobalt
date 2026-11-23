@@ -34,6 +34,10 @@ namespace content {
 class WebContents;
 }  // namespace content
 
+namespace enterprise_data_protection {
+class DataProtectionNavigationController;
+}  // namespace enterprise_data_protection
+
 namespace glic {
 class GlicInstanceHelper;
 class GlicSidePanelCoordinator;
@@ -62,6 +66,11 @@ class TabFeatures {
     return new_tab_page_preload_pipeline_manager_.get();
   }
 
+  enterprise_data_protection::DataProtectionNavigationController*
+  data_protection_controller() {
+    return data_protection_tab_controller_.get();
+  }
+
  private:
   // Returns the factory used to create owned components.
   static ui::UserDataFactoryWithOwner<TabInterface>& GetUserDataFactory();
@@ -84,6 +93,10 @@ class TabFeatures {
       contextual_tasks_tab_visit_tracker_;
   std::unique_ptr<lens::TabContextualizationController>
       tab_contextualization_controller_;
+
+  std::unique_ptr<
+      enterprise_data_protection::DataProtectionNavigationController>
+      data_protection_tab_controller_;
 
   std::unique_ptr<glic::GlicInstanceHelper> glic_instance_helper_;
   std::unique_ptr<glic::GlicSidePanelCoordinator> glic_side_panel_coordinator_;

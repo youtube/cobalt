@@ -27,9 +27,17 @@ namespace base::internal {
 
 #define ASAN_BRP_PROTECTED(x) "MiraclePtr Status: PROTECTED\\n.*" x
 #define ASAN_BRP_NOT_PROTECTED(x) "MiraclePtr Status: NOT PROTECTED\\n.*" x
+#define ASAN_BRP_UNPROTECTED_IN_RELEASE(x) \
+  "MiraclePtr Status: NOT PROTECTED IN RELEASE BUILD\\n.*" x
 
 const char kAsanBrpNotProtected_DataRace[] =
     ASAN_BRP_NOT_PROTECTED("quarantined allocation was accessed from a thread");
+#if PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
+const char kAsanBrpUnprotectedInRelease_Quarantine[] =
+    ASAN_BRP_UNPROTECTED_IN_RELEASE(
+        "only kept quarantined by raw_ptr<T> objects marked "
+        "kUnprotectedInRelease");
+#endif  // PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
 
 struct AsanStruct {
   int x;
@@ -170,6 +178,76 @@ TEST_F(AsanBackupRefPtrTest, RawPtrQuarantineWorks) {
                             "pointer laundering");
 }
 
+#if PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
+// A raw_ptr<T, kUnprotectedInRelease> keeps its allocation quarantined (so the
+// dangling access is still detected), but the allocation is classified as
+// unprotected-in-release rather than protected: such a field uses the no-op
+// impl (no protection) in a release build.
+TEST_F(AsanBackupRefPtrTest, RawPtrUnprotectedInReleaseQuarantine) {
+  RawPtrAsanService& service = RawPtrAsanService::GetInstance();
+
+  char* ptr = static_cast<char*>(malloc(1));
+  raw_ptr<char, ::kUnprotectedInRelease> unprotected_ptr(ptr);
+  free(ptr);
+
+  uintptr_t address = reinterpret_cast<uintptr_t>(unprotected_ptr.get());
+  // Quarantined for detection, but reported as unprotected-in-release only.
+  EXPECT_TRUE(service.IsQuarantined(address));
+  EXPECT_FALSE(service.IsFreed(address));
+  EXPECT_TRUE(service.IsUnprotectedInReleaseOnly(address));
+
+  // Dropping the last (unprotected-in-release) reference frees the allocation.
+  unprotected_ptr = nullptr;
+  EXPECT_FALSE(service.IsQuarantined(reinterpret_cast<uintptr_t>(ptr)));
+  EXPECT_TRUE(service.IsFreed(reinterpret_cast<uintptr_t>(ptr)));
+}
+
+// When an allocation has at least one protective (normal) raw_ptr reference, it
+// is genuinely protected -- not unprotected-in-release -- even if it also has
+// unprotected-in-release references. The classification only flips once the
+// last protective reference is gone.
+TEST_F(AsanBackupRefPtrTest, RawPtrUnprotectedInReleaseMixedIsProtected) {
+  RawPtrAsanService& service = RawPtrAsanService::GetInstance();
+
+  char* ptr = static_cast<char*>(malloc(1));
+  raw_ptr<char> protected_ptr(ptr);
+  raw_ptr<char, ::kUnprotectedInRelease> unprotected_ptr(ptr);
+  free(ptr);
+
+  uintptr_t address = reinterpret_cast<uintptr_t>(ptr);
+  EXPECT_TRUE(service.IsQuarantined(address));
+  EXPECT_FALSE(service.IsUnprotectedInReleaseOnly(address));
+
+  // Dropping the protective reference leaves only the unprotected-in-release
+  // one: still quarantined for detection, but now unprotected-in-release.
+  protected_ptr = nullptr;
+  EXPECT_TRUE(service.IsQuarantined(address));
+  EXPECT_TRUE(service.IsUnprotectedInReleaseOnly(address));
+
+  unprotected_ptr = nullptr;
+  EXPECT_TRUE(service.IsFreed(address));
+}
+
+// The exit-time aggregate report -- the output read by the automatic bug
+// classifier -- must show "MiraclePtr Status: NOT PROTECTED IN RELEASE BUILD"
+// for an allocation kept quarantined only by unprotected-in-release pointers.
+TEST_F(AsanBackupRefPtrTest, RawPtrUnprotectedInReleaseReportedNotProtected) {
+  // Aliased to avoid the template comma being parsed as a macro arg separator.
+  using UnprotectedInReleaseCharPtr = raw_ptr<char, ::kUnprotectedInRelease>;
+
+  char* ptr = static_cast<char*>(malloc(1));
+  UnprotectedInReleaseCharPtr unprotected_ptr(ptr);
+  free(ptr);  // Quarantined: count == 0, unprotected_in_release_count == 1.
+
+  // Assigning the dangling (quarantined) pointer to another unprotected-in-
+  // release raw_ptr logs a quarantine event that the exit-time report
+  // classifies. `unprotected_ptr` keeps the allocation quarantined until exit.
+  EXPECT_DEATH_AT_EXIT_IF_SUPPORTED(
+      [[maybe_unused]] UnprotectedInReleaseCharPtr unprotected_ptr2 = ptr,
+      kAsanBrpUnprotectedInRelease_Quarantine);
+}
+#endif  // PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
+
 TEST_F(AsanBackupRefPtrTest, DataRaceQuarantineFreeThreadToThread) {
   char* ptr = static_cast<char*>(malloc(1));
   raw_ptr<char> protected_ptr(ptr);
@@ -202,6 +280,8 @@ struct AsanStruct {
 #define ASAN_BRP_MANUAL_ANALYSIS(x) \
   "MiraclePtr Status: MANUAL ANALYSIS REQUIRED\\n.*" x
 #define ASAN_BRP_NOT_PROTECTED(x) "MiraclePtr Status: NOT PROTECTED\\n.*" x
+#define ASAN_BRP_UNPROTECTED_IN_RELEASE(x) \
+  "MiraclePtr Status: NOT PROTECTED IN RELEASE BUILD\\n.*" x
 
 const char kAsanBrpProtected_Dereference[] =
     ASAN_BRP_PROTECTED("dangling pointer was being dereferenced");
@@ -219,6 +299,14 @@ const char kAsanBrpMaybeProtected_Race[] =
     ASAN_BRP_MANUAL_ANALYSIS("\\nThe \"use\" and \"free\" threads don't match");
 const char kAsanBrpMaybeProtected_ThreadPool[] =
     ASAN_BRP_MANUAL_ANALYSIS("\\nThis crash occurred in the thread pool");
+#if PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
+const char kAsanBrpUnprotectedInRelease_Dereference[] =
+    ASAN_BRP_UNPROTECTED_IN_RELEASE(
+        "dereferencing a raw_ptr<T> marked kUnprotectedInRelease");
+const char kAsanBrpUnprotectedInRelease_Extraction[] =
+    ASAN_BRP_UNPROTECTED_IN_RELEASE(
+        "extracted from a raw_ptr<T> marked kUnprotectedInRelease");
+#endif  // PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
 
 // Instantiation failure message format is special.
 const char kAsanBrp_Instantiation[] =
@@ -227,6 +315,7 @@ const char kAsanBrp_Instantiation[] =
 #undef ASAN_BRP_PROTECTED
 #undef ASAN_BRP_MANUAL_ANALYSIS
 #undef ASAN_BRP_NOT_PROTECTED
+#undef ASAN_BRP_UNPROTECTED_IN_RELEASE
 
 class AsanBackupRefPtrTest : public testing::Test {
  protected:
@@ -294,6 +383,55 @@ TEST_F(AsanBackupRefPtrTest, Extraction) {
       },
       kAsanBrpMaybeProtected_Extraction);
 }
+
+#if PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
+// A `raw_ptr<T, kUnprotectedInRelease>` is instrumented in this build, but it
+// uses the no-op impl (no protection) in release builds. A dangling access must
+// therefore be reported as unprotected-in-release rather than protected. These
+// tests only apply when such pointers are instrumented in the current build.
+TEST_F(AsanBackupRefPtrTest, UnprotectedInReleaseDereference) {
+  raw_ptr<AsanStruct, ::kUnprotectedInRelease> ptr = new AsanStruct;
+
+  ptr->x = 1;  // Shouldn't crash while the allocation is valid.
+
+  delete ptr.get();
+
+  EXPECT_DEATH_IF_SUPPORTED(ptr->func(),
+                            kAsanBrpUnprotectedInRelease_Dereference);
+}
+
+TEST_F(AsanBackupRefPtrTest, UnprotectedInReleaseExtraction) {
+  raw_ptr<AsanStruct, ::kUnprotectedInRelease> ptr = new AsanStruct;
+
+  AsanStruct* ptr1 = ptr;  // Shouldn't crash.
+  ptr1->x = 0;
+
+  delete ptr.get();
+
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        AsanStruct* ptr2 = ptr;
+        ptr2->x = 1;
+      },
+      kAsanBrpUnprotectedInRelease_Extraction);
+}
+
+// The core guarantee: an unprotected-in-release pointer must never be reported
+// as protected -- including when bound into a callback. The bound-arg tracker
+// would otherwise claim protection (it only records the address), but the bound
+// pointer's own extraction carries the unprotected-in-release status, which
+// takes precedence in the report.
+TEST_F(AsanBackupRefPtrTest, BoundUnprotectedInReleaseNotProtected) {
+  raw_ptr<AsanStruct, ::kUnprotectedInRelease> ptr = new AsanStruct;
+  auto callback =
+      base::BindOnce([](AsanStruct* p) { p->func(); }, base::Unretained(ptr));
+  delete ptr.get();
+  ptr = nullptr;
+
+  EXPECT_DEATH_IF_SUPPORTED(std::move(callback).Run(),
+                            kAsanBrpUnprotectedInRelease_Extraction);
+}
+#endif  // PA_BUILDFLAG(ENABLE_BRP_FOR_UNPROTECTED_IN_RELEASE_RAW_PTR)
 
 TEST_F(AsanBackupRefPtrTest, Instantiation) {
   AsanStruct* ptr = new AsanStruct;

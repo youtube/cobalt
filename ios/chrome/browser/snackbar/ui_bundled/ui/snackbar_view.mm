@@ -5,9 +5,11 @@
 #import "ios/chrome/browser/snackbar/ui_bundled/ui/snackbar_view.h"
 
 #import "base/check.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
+#import "ios/chrome/browser/shared/ui/util/layout_constants.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/snackbar/ui_bundled/ui/snackbar_view_delegate.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -31,7 +33,8 @@ const CGFloat kHorizontalPadding = 16.0;
 const CGFloat kVerticalPadding = 16.0;
 const CGFloat kInterItemSpacing = 16.0;
 const CGFloat kAccessoryViewSize = 32.0;
-const CGFloat kSnackbarMargin = 8.0;
+const CGFloat kSnackbarMarginLegacy = 8.0;
+const CGFloat kSnackbarMarginNext = 4.0;
 const CGFloat kSnackbarMinWidthRegular = 288.0;
 const CGFloat kSnackbarMaxWidthRegular = 568.0;
 
@@ -150,7 +153,9 @@ const CGFloat kTextSpacing = 2.0;
 
 - (void)setBottomOffset:(CGFloat)bottomOffset {
   _bottomOffset = bottomOffset;
-  _bottomConstraint.constant = -(self.bottomOffset + kSnackbarMargin);
+  const CGFloat margin =
+      IsChromeNextIaEnabled() ? kSnackbarMarginNext : kSnackbarMarginLegacy;
+  _bottomConstraint.constant = -(self.bottomOffset + margin);
 }
 
 - (void)didMoveToSuperview {
@@ -184,7 +189,11 @@ const CGFloat kTextSpacing = 2.0;
 - (void)setupView {
   _contentView.accessibilityIdentifier = kSnackbarAccessibilityId;
   _contentView.isAccessibilityElement = NO;
-  _contentView.layer.cornerRadius = kSnackbarCornerRadius;
+  if (IsChromeNextIaEnabled()) {
+    _contentView.layer.cornerRadius = kAppBarCornerRadius - kSnackbarMarginNext;
+  } else {
+    _contentView.layer.cornerRadius = kSnackbarCornerRadius;
+  }
   _contentView.clipsToBounds = YES;
 
   UIBlurEffect* blurEffect =
@@ -296,7 +305,12 @@ const CGFloat kTextSpacing = 2.0;
   config.baseBackgroundColor =
       [[UIColor colorNamed:kInvertedPrimaryBackgroundColor]
           colorWithAlphaComponent:kButtonBackgroundAlpha];
-  config.background.cornerRadius = kButtonCornerRadius;
+  if (IsChromeNextIaEnabled()) {
+    config.background.cornerRadius =
+        _contentView.layer.cornerRadius - kButtonMargin;
+  } else {
+    config.background.cornerRadius = kButtonCornerRadius;
+  }
   _button = [UIButton buttonWithConfiguration:config primaryAction:nil];
   _button.accessibilityLabel =
       _message.action.accessibilityLabel ?: _message.action.title;
@@ -400,28 +414,40 @@ const CGFloat kTextSpacing = 2.0;
           constraintEqualToConstant:kAccessoryViewSize],
     ]];
   }
+
+  // Ensure the height is at least twice the corner radius to maintain a capsule
+  // look when chromeNext is enabled.
+  if (IsChromeNextIaEnabled()) {
+    [_contentView.heightAnchor
+        constraintGreaterThanOrEqualToConstant:2 *
+                                               _contentView.layer.cornerRadius]
+        .active = YES;
+  }
 }
 
 // Sets up the constraints with the superview.
 - (void)setupSuperviewConstraints {
   UILayoutGuide* safeAreaLayoutGuide = self.safeAreaLayoutGuide;
+  const CGFloat margin =
+      IsChromeNextIaEnabled() ? kSnackbarMarginNext : kSnackbarMarginLegacy;
   _bottomConstraint = [_contentView.bottomAnchor
       constraintLessThanOrEqualToAnchor:self.bottomAnchor
-                               constant:-(self.bottomOffset + kSnackbarMargin)];
+                               constant:-(self.bottomOffset + margin)];
   _bottomConstraint.active = YES;
+
   [_contentView.bottomAnchor
       constraintLessThanOrEqualToAnchor:safeAreaLayoutGuide.bottomAnchor
-                               constant:-kSnackbarMargin]
+                               constant:-margin]
       .active = YES;
 
   // On iPhone portrait, pin to the edges of the safe area.
   _compactWidthConstraints = @[
     [_contentView.leadingAnchor
         constraintEqualToAnchor:safeAreaLayoutGuide.leadingAnchor
-                       constant:kSnackbarMargin],
+                       constant:margin],
     [_contentView.trailingAnchor
         constraintEqualToAnchor:safeAreaLayoutGuide.trailingAnchor
-                       constant:-kSnackbarMargin],
+                       constant:-margin],
   ];
 
   // On iPad or iPhone landscape, center the snackbar with a min and max width.
@@ -433,10 +459,10 @@ const CGFloat kTextSpacing = 2.0;
         constraintGreaterThanOrEqualToConstant:kSnackbarMinWidthRegular],
     [_contentView.leadingAnchor
         constraintGreaterThanOrEqualToAnchor:safeAreaLayoutGuide.leadingAnchor
-                                    constant:kSnackbarMargin],
+                                    constant:margin],
     [_contentView.trailingAnchor
         constraintLessThanOrEqualToAnchor:safeAreaLayoutGuide.trailingAnchor
-                                 constant:-kSnackbarMargin],
+                                 constant:-margin],
   ];
 }
 

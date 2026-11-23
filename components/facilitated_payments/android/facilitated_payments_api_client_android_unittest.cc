@@ -13,6 +13,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/functional/bind.h"
+#include "components/facilitated_payments/core/browser/account_linking_result.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_utils.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "content/public/test/test_renderer_host.h"
@@ -39,6 +40,13 @@ void CaptureByteArray(bool* was_callback_invoked,
 void CaptureResultEnum(bool* was_callback_invoked,
                        PurchaseActionResult* output,
                        PurchaseActionResult input) {
+  *was_callback_invoked = true;
+  *output = input;
+}
+
+void CaptureLinkingResult(bool* was_callback_invoked,
+                          AccountLinkingResult* output,
+                          AccountLinkingResult input) {
   *was_callback_invoked = true;
   *output = input;
 }
@@ -97,6 +105,27 @@ TEST_F(FacilitatedPaymentsApiClientAndroidTest,
   EXPECT_EQ(PurchaseActionResult::kCouldNotInvoke, purchase_action_result);
 }
 
+TEST_F(FacilitatedPaymentsApiClientAndroidTest,
+       InvokeInstrumentManagerResultIsFalseByDefault) {
+  FacilitatedPaymentsApiClientAndroid apiClient(main_rfh());
+  bool was_callback_invoked = false;
+  AccountLinkingResult invoke_instrument_manager_result{
+      true, 0, AccountLinkingResultCode::kResultOk};
+  signin::IdentityTestEnvironment identity_test_environment;
+  std::vector<uint8_t> action_token = {'A', 'c', 't', 'i', 'o', 'n'};
+
+  apiClient.InvokeInstrumentManager(
+      identity_test_environment.MakeAccountAvailable("test@example.test"),
+      action_token,
+      base::BindOnce(&CaptureLinkingResult, &was_callback_invoked,
+                     &invoke_instrument_manager_result));
+
+  EXPECT_TRUE(was_callback_invoked);
+  EXPECT_FALSE(invoke_instrument_manager_result.is_successful);
+  EXPECT_EQ(invoke_instrument_manager_result.error_code,
+            AccountLinkingResultCode::kCouldNotInvoke);
+}
+
 // Java bridge should invoke exactly one callback per method, but if it does
 // not, then the Android API client should not crash.
 TEST_F(FacilitatedPaymentsApiClientAndroidTest,
@@ -108,6 +137,7 @@ TEST_F(FacilitatedPaymentsApiClientAndroidTest,
   apiClient.OnGetClientToken(env, nullptr);
   apiClient.OnPurchaseActionResultEnum(
       env, static_cast<int32_t>(PurchaseActionResult::kResultOk));
+  apiClient.OnInvokeInstrumentManagerResult(env, nullptr);
 }
 
 }  // namespace

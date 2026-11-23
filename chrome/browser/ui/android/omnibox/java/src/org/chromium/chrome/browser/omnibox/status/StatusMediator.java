@@ -67,6 +67,8 @@ import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServiceObserver;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.content_public.browser.BrowserContextHandle;
+import org.chromium.content_public.browser.NavigationController;
+import org.chromium.content_public.browser.NavigationEntry;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
@@ -509,6 +511,7 @@ public class StatusMediator
                         && mInputSessionState.getAutocompleteInput().getAutocompleteState()
                                 == AutocompleteInput.AutocompleteState.STANDBY_NO_FOCUS;
         return isNtpVisible()
+                && !hasPendingNonNtpNavigation()
                 && (!mUrlHasFocus || isStandbyNoFocus)
                 && !DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext)
                 && FuseboxFeatureUtils.shouldShowNtpPlusButton(
@@ -688,11 +691,32 @@ public class StatusMediator
             return false;
         }
 
+        // Immediately hide the search engine logo if we have started navigating away from the NTP.
+        if (hasPendingNonNtpNavigation()) {
+            return false;
+        }
+
         if (mUrlHasFocus) {
             return true;
         }
 
         return (isNtpVisible() || isIncognitoNtpVisible()) && mProfileSupplier.get() != null;
+    }
+
+    private boolean hasPendingNonNtpNavigation() {
+        Tab tab = mLocationBarDataProvider.getTab();
+        if (tab == null) return false;
+
+        WebContents webContents = tab.getWebContents();
+        if (webContents == null) return false;
+
+        NavigationController navigationController = webContents.getNavigationController();
+        if (navigationController == null) return false;
+
+        NavigationEntry pendingEntry = navigationController.getPendingEntry();
+        if (pendingEntry == null) return false;
+
+        return !UrlUtilities.isNtpUrl(pendingEntry.getUrl());
     }
 
     /** Returns status icon resource for the user-selected default search engine. */

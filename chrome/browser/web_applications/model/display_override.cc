@@ -15,47 +15,14 @@
 #include "base/containers/to_value_list.h"
 #include "base/strings/to_string.h"
 #include "base/values.h"
+#include "chrome/browser/web_applications/model/safe_url_pattern_to_value.h"
 #include "chrome/browser/web_applications/proto/web_app.pb.h"
 #include "chrome/browser/web_applications/web_app_proto_utils.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
 #include "third_party/blink/public/common/safe_url_pattern.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom.h"
-#include "third_party/liburlpattern/options.h"
-#include "third_party/liburlpattern/part.h"
-#include "third_party/liburlpattern/pattern.h"
 
 namespace web_app {
-
-namespace {
-
-base::DictValue UrlPatternDebugValue(const blink::SafeUrlPattern& pattern) {
-  base::DictValue dict;
-  auto set_if_not_empty = [&dict](
-                              std::string_view field,
-                              const std::vector<liburlpattern::Part>& parts) {
-    if (parts.empty()) {
-      return;
-    }
-    liburlpattern::Options options = {.delimiter_list = "/",
-                                      .prefix_list = "/",
-                                      .sensitive = true,
-                                      .strict = false};
-    liburlpattern::Pattern lib_pattern(parts, options, "[^/]+?");
-    dict.Set(field, lib_pattern.GeneratePatternString());
-  };
-
-  set_if_not_empty("protocol", pattern.protocol);
-  set_if_not_empty("username", pattern.username);
-  set_if_not_empty("password", pattern.password);
-  set_if_not_empty("hostname", pattern.hostname);
-  set_if_not_empty("port", pattern.port);
-  set_if_not_empty("pathname", pattern.pathname);
-  set_if_not_empty("search", pattern.search);
-  set_if_not_empty("hash", pattern.hash);
-  return dict;
-}
-
-}  // namespace
 
 // static
 DisplayOverride DisplayOverride::Create(
@@ -124,8 +91,7 @@ base::Value DisplayOverride::ToDebugValue() const {
   }
   base::DictValue item_dict;
   item_dict.Set("display", blink::DisplayModeToString(display_mode_));
-  item_dict.Set("url_patterns",
-                base::ToValueList(url_patterns_, UrlPatternDebugValue));
+  item_dict.Set("url_patterns", base::ToValueList(url_patterns_, ToValue));
   return base::Value(std::move(item_dict));
 }
 

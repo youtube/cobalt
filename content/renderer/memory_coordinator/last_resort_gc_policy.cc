@@ -46,18 +46,15 @@ LastResortGCPolicy::LastResortGCPolicy(MemoryCoordinatorPolicyManager& manager)
             return traits.has_value() &&
                    traits->release_gc_references ==
                        base::MemoryConsumerTraits::ReleaseGCReferences::kYes;
-          })) {
+          })),
+      policy_registration_(manager, *this) {
   CHECK(!g_instance);
   g_instance = this;
-  manager.AddPolicy(this);
-  manager.AddObserver(this);
 }
 
 LastResortGCPolicy::~LastResortGCPolicy() {
   CHECK_EQ(g_instance, this);
   g_instance = nullptr;
-  manager().RemoveObserver(this);
-  manager().RemovePolicy(this);
 }
 
 void LastResortGCPolicy::OnV8HeapLastResortGC() {

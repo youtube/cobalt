@@ -12,6 +12,7 @@
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/diagnostic_routine_converters.h"
 #include "chrome/browser/chromeos/extensions/telemetry/api/routines/diagnostic_routine_info.h"
 #include "chrome/common/chromeos/extensions/api/diagnostics.h"
+#include "chromeos/ash/components/telemetry_extension/routines/routine_converters.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 #include "content/public/browser/browser_context.h"
 #include "extensions/browser/event_router.h"
@@ -30,9 +31,9 @@ CreateEventForLegacyFinishedVolumeButtonRoutine(
     bool has_passed,
     base::Uuid uuid,
     content::BrowserContext* browser_context) {
-  auto finished_info = converters::routines::ConvertPtr(
-      crosapi::TelemetryDiagnosticVolumeButtonRoutineDetail::New(), uuid,
-      has_passed);
+  cx_diag::LegacyVolumeButtonRoutineFinishedInfo finished_info;
+  finished_info.uuid = uuid.AsLowercaseString();
+  finished_info.has_passed = has_passed;
   return std::make_unique<extensions::Event>(
       extensions::events::OS_DIAGNOSTICS_ON_VOLUME_BUTTON_ROUTINE_FINISHED,
       cx_diag::OnVolumeButtonRoutineFinished::kEventName,
@@ -69,13 +70,6 @@ std::unique_ptr<extensions::Event> GetEventForLegacyFinishedRoutine(
           cx_diag::OnMemoryRoutineFinished::kEventName,
           base::ListValue().Append(finished_info.ToValue()), browser_context);
     }
-    case crosapi::TelemetryDiagnosticRoutineDetail::Tag::kVolumeButton: {
-      // Though unexpected, we should handle it gracefully because the input is
-      // from another service.
-      LOG(WARNING)
-          << "Got volume button routine detail for non-volume-button routine";
-      return nullptr;
-    }
     case crosapi::TelemetryDiagnosticRoutineDetail::Tag::kFan: {
       auto finished_info = converters::routines::ConvertPtr(
           std::move(finished->detail->get_fan()), uuid, finished->has_passed);
@@ -110,7 +104,7 @@ std::unique_ptr<extensions::Event> GetEventForFinishedRoutine(
 DiagnosticRoutineObservation::DiagnosticRoutineObservation(
     DiagnosticRoutineInfo info,
     OnRoutineFinished on_routine_finished,
-    mojo::PendingReceiver<crosapi::TelemetryDiagnosticRoutineObserver>
+    mojo::PendingReceiver<ash::cros_healthd::mojom::RoutineObserver>
         pending_receiver)
     : info_(info),
       on_routine_finished_(std::move(on_routine_finished)),
@@ -119,7 +113,10 @@ DiagnosticRoutineObservation::DiagnosticRoutineObservation(
 DiagnosticRoutineObservation::~DiagnosticRoutineObservation() = default;
 
 void DiagnosticRoutineObservation::OnRoutineStateChange(
-    crosapi::TelemetryDiagnosticRoutineStatePtr state) {
+    ash::cros_healthd::mojom::RoutineStatePtr healthd_state) {
+  // TODO(crbug.com/510951937): Remove the crosapi struct use.
+  auto state = ash::converters::ConvertRoutinePtr(std::move(healthd_state));
+
   std::unique_ptr<extensions::Event> event;
   std::unique_ptr<extensions::Event> legacy_finished_event;
   switch (state->state_union->which()) {

@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/core/dom/events/event_listener.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/html/html_permission_element_test_helper.h"
 #include "third_party/blink/renderer/core/html/html_user_media_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
@@ -23,7 +24,9 @@
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
 #include "third_party/blink/renderer/modules/mediastream/user_media_element_constraints.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
+#include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 
 namespace blink {
 
@@ -51,7 +54,6 @@ TEST_F(UserMediaRequestProviderImplTest, StartRequestEarlyExitNoClient) {
   auto* provider = UserMediaRequestProvider::From(*GetDocument().domWindow());
 
   auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
-  element->setAttribute(html_names::kTypeAttr, AtomicString("camera"));
 
   HTMLMediaStreamConstraints* constraints = HTMLMediaStreamConstraints::Create();
   constraints->setVideo(MediaTrackConstraintSet::Create());
@@ -68,13 +70,13 @@ TEST_F(UserMediaRequestProviderImplTest, StartRequestActiveStreamExists) {
   auto* provider = UserMediaRequestProvider::From(*GetDocument().domWindow());
 
   auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
-  element->setAttribute(html_names::kTypeAttr, AtomicString("camera"));
 
   HTMLMediaStreamConstraints* constraints = HTMLMediaStreamConstraints::Create();
   constraints->setVideo(MediaTrackConstraintSet::Create());
   UserMediaElementConstraints::setConstraints(*element, constraints);
 
   auto* stream = MediaStream::Create(GetDocument().GetExecutionContext());
+  stream->Descriptor()->SetActive(true);
   HTMLUserMediaElementMediaStream::From(*element).SetMediaStream(stream);
 
   provider->StartRequest(element, element->GetPermissionDescriptors());
@@ -105,6 +107,8 @@ TEST_F(UserMediaRequestProviderImplTest, CallbacksOnSuccessWithStream) {
   // The stream should have been set on the element.
   EXPECT_EQ(HTMLUserMediaElementMediaStream::stream(*element), stream);
 
+  test::RunPendingTasks();
+
   // Verify events
   EXPECT_TRUE(stream_listener->fired());
   EXPECT_FALSE(error_listener->fired());
@@ -132,6 +136,8 @@ TEST_F(UserMediaRequestProviderImplTest, CallbacksOnError) {
           dom_exception);
   callbacks->OnError(nullptr, error, nullptr,
                      UserMediaRequestResult::kNotFoundError);
+
+  test::RunPendingTasks();
 
   // Check that the error event was fired and the stream event was not
   EXPECT_TRUE(error_listener->fired());
@@ -167,6 +173,8 @@ TEST_F(UserMediaRequestProviderImplTest, CallbacksOnCancel) {
   callbacks->OnError(nullptr, error, nullptr,
                      UserMediaRequestResult::kNotAllowedByUserError);
 
+  test::RunPendingTasks();
+
   // Check that the cancel event was fired and others were not
   EXPECT_TRUE(cancel_listener->fired());
   EXPECT_FALSE(error_listener->fired());
@@ -184,10 +192,6 @@ TEST_F(UserMediaRequestProviderImplTest, StartRequestNoConstraintsError) {
   auto* provider = UserMediaRequestProvider::From(*GetDocument().domWindow());
 
   auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
-  element->setAttribute(html_names::kTypeAttr, AtomicString("camera microphone"));
-
-  HTMLMediaStreamConstraints* constraints = HTMLMediaStreamConstraints::Create();
-  UserMediaElementConstraints::setConstraints(*element, constraints);
 
   // Set up event listeners
   auto* error_listener = MakeGarbageCollected<TestEventListener>();
@@ -195,7 +199,14 @@ TEST_F(UserMediaRequestProviderImplTest, StartRequestNoConstraintsError) {
   element->addEventListener(event_type_names::kError, error_listener);
   element->addEventListener(event_type_names::kStream, stream_listener);
 
-  provider->StartRequest(element, element->GetPermissionDescriptors());
+  Vector<mojom::blink::PermissionDescriptorPtr> descriptors;
+  auto descriptor = mojom::blink::PermissionDescriptor::New();
+  descriptor->name = mojom::blink::PermissionName::VIDEO_CAPTURE;
+  descriptors.push_back(std::move(descriptor));
+
+  provider->StartRequest(element, descriptors);
+
+  test::RunPendingTasks();
 
   // Verify events
   EXPECT_TRUE(error_listener->fired());

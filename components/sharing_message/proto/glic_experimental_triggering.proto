@@ -61,10 +61,19 @@ message GlicExperimentalTriggering {
       optional string triggering_source = 1;
     }
 
+    message GetScreenshotRequest {
+      // Ephemeral public key.
+      optional bytes public_key = 1;
+
+      // Ephemeral auth secret.
+      optional bytes auth_secret = 2;
+    }
+
     oneof payload {
       TriggerActuationRequest trigger_actuation_request = 1;
       StopActuationRequest stop_actuation_request = 2;
       DeviceOptInRequest device_opt_in_request = 3;
+      GetScreenshotRequest get_screenshot_request = 4;
     }
   }
 

@@ -17,6 +17,7 @@
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/metrics/user_action_tester.h"
 #import "base/test/scoped_feature_list.h"
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/download/model/confirm_download_closing_overlay.h"
 #import "ios/chrome/browser/download/model/confirm_download_replacing_overlay.h"
 #import "ios/chrome/browser/download/model/document_download_tab_helper.h"
@@ -47,6 +48,8 @@
 #import "ios/chrome/browser/shared/ui/util/file_size_util.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/fakes/fake_contained_presenter.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -75,7 +78,6 @@ const int64_t kTestReceivedBytes = 0;
 const base::FilePath::CharType kTestSuggestedFileName[] =
     FILE_PATH_LITERAL("file.zip");
 
-
 }  // namespace
 
 // Test fixture for testing DownloadManagerCoordinator class.
@@ -87,6 +89,8 @@ class DownloadManagerCoordinatorTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     profile_ = std::move(builder).Build();
     scene_state_ = [[SceneState alloc] initWithAppState:nil];
     LayoutGuideSceneAgent* layout_guide_scene_agent =

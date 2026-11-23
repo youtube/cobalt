@@ -20,7 +20,9 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
-import org.chromium.chrome.browser.tabmodel.TabGroupColorUtils;
+import org.chromium.base.test.util.Features.DisableFeatures;
+import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
+import org.chromium.components.tab_groups.TabGroupsFeatureMap;
 import org.chromium.ui.modelutil.PropertyModel;
 
 import java.util.ArrayList;
@@ -29,6 +31,7 @@ import java.util.List;
 /** Tests for the ColorPickerMediator. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+@DisableFeatures({TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS})
 public class ColorPickerMediatorUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -40,7 +43,7 @@ public class ColorPickerMediatorUnitTest {
     @Before
     public void setUp() {
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
-        mColorIds = TabGroupColorUtils.getTabGroupColorIdList();
+        mColorIds = TabGroupColorPickerUtils.getTabGroupColorIdList();
 
         for (int i = 0; i < mColorIds.size(); i++) {
             int color = mColorIds.get(i);

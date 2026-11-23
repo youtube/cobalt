@@ -41,10 +41,6 @@ enum class FileSuggestionType {
 
 // The reason the file is suggested.
 enum class FileSuggestionJustificationType {
-  // Used only for deprecated suggestions from drive's ItemSuggest API, for
-  // which the exact justification type is obscured.
-  kUnknown,
-
   // The user recently viewed the file.
   kViewed,
 

@@ -99,7 +99,7 @@ static HTMLQuoteElement* TopBlockquoteOf(const Position& start) {
   // exceptions to this, see |doApply|).
   const Position& position = MostForwardCaretPosition(start);
   return To<HTMLQuoteElement>(
-      HighestEnclosingNodeOfType(position, IsMailHTMLBlockquoteElement));
+      HighestEnclosingNodeOfType(position, IsMailHtmlBlockquoteElement));
 }
 
 void BreakBlockquoteCommand::DoApply(EditingState* editing_state) {
@@ -200,7 +200,7 @@ void BreakBlockquoteCommand::DoApply(EditingState* editing_state) {
   // Adjust the position so we don't split at the beginning of a quote.
   while (IsFirstVisiblePositionInNode(CreateVisiblePosition(pos),
                                       To<HTMLQuoteElement>(EnclosingNodeOfType(
-                                          pos, IsMailHTMLBlockquoteElement)))) {
+                                          pos, IsMailHtmlBlockquoteElement)))) {
     pos = PreviousPositionOf(pos, PositionMoveType::kGraphemeCluster);
   }
 

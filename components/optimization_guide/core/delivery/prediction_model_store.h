@@ -6,7 +6,6 @@
 #define COMPONENTS_OPTIMIZATION_GUIDE_CORE_DELIVERY_PREDICTION_MODEL_STORE_H_
 
 #include "base/files/file_path.h"
-#include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
@@ -37,7 +36,7 @@ class PredictionModelStore {
 
   explicit PredictionModelStore(PrefService& local_state);
 
-  // Initializes the model store with |base_store_dir|. Model store will be
+  // Initializes the model store with `base_store_dir`. Model store will be
   // usable only after it is initialized.
   void Initialize(const base::FilePath& base_store_dir);
 
@@ -45,39 +44,39 @@ class PredictionModelStore {
   PredictionModelStore& operator=(const PredictionModelStore&) = delete;
   virtual ~PredictionModelStore();
 
-  // Initializes the model store with |local_state| and the |base_store_dir|, if
+  // Initializes the model store with `local_state` and the `base_store_dir`, if
   // initialization hasn't happened already. Model store will be usable only
   // after it is initialized.
 
-  // Returns whether the model represented by |optimization_target| and
-  // |model_cache_key| is available in the store.
+  // Returns whether the model represented by `optimization_target` and
+  // `model_cache_key` is available in the store.
   bool HasModel(proto::OptimizationTarget optimization_target,
                 const ClientCacheKey& model_cache_key) const;
 
-  // Returns whether the model represented by |optimization_target| and
-  // |model_cache_key| with |version| is available in the store.
+  // Returns whether the model represented by `optimization_target` and
+  // `model_cache_key` with `version` is available in the store.
   bool HasModelWithVersion(proto::OptimizationTarget optimization_target,
                            const ClientCacheKey& model_cache_key,
                            int64_t version);
 
-  // Loads the model represented by |optimization_target| and
-  // |model_cache_key|. Once the model is loaded and validated |callback|
+  // Loads the model represented by `optimization_target` and
+  // `model_cache_key`. Once the model is loaded and validated `callback`
   // is invoked. On any failures, callback is run with nullptr.
   void LoadModel(proto::OptimizationTarget optimization_target,
                  const ClientCacheKey& model_cache_key,
                  scoped_refptr<base::SequencedTaskRunner> model_task_runner,
                  PredictionModelLoadedCallback callback);
 
-  // Update the model metadata for |model_info| if the model represented by
-  // |optimization_target| and |model_cache_key| exists.
+  // Update the model metadata for `model_info` if the model represented by
+  // `optimization_target` and `model_cache_key` exists.
   void UpdateMetadataForExistingModel(
       proto::OptimizationTarget optimization_target,
       const ClientCacheKey& model_cache_key,
       const proto::ModelInfo& model_info);
 
-  // Update the model for |model_info| in the store represented by
-  // |optimization_target| and |model_cache_key|. The model files are stored in
-  // |base_model_dir|. |callback| is invoked on completion. This will schedule
+  // Update the model for `model_info` in the store represented by
+  // `optimization_target` and `model_cache_key`. The model files are stored in
+  // `base_model_dir`. `callback` is invoked on completion. This will schedule
   // the old model files to be removed.
   void UpdateModel(proto::OptimizationTarget optimization_target,
                    const ClientCacheKey& model_cache_key,
@@ -86,21 +85,21 @@ class PredictionModelStore {
                    base::OnceClosure callback);
 
   // Returns the base model dir where the model files, full modelinfo, etc
-  // should be stored, for the model represented by |optimization_target| and
-  // |model_cache_key|.
+  // should be stored, for the model represented by `optimization_target` and
+  // `model_cache_key`.
   base::FilePath GetBaseModelDirForModelCacheKey(
       proto::OptimizationTarget optimization_target,
       const ClientCacheKey& model_cache_key);
 
-  // Updates the mapping of |client_model_cache_key| to |server_model_cache_key|
-  // for |optimization_target|.
+  // Updates the mapping of `client_model_cache_key` to `server_model_cache_key`
+  // for `optimization_target`.
   void UpdateModelCacheKeyMapping(
       proto::OptimizationTarget optimization_target,
       const ClientCacheKey& client_model_cache_key,
       const proto::ModelCacheKey& server_model_cache_key);
 
-  // Removes the model represented by |optimization_target| and
-  // |model_cache_key| from the store if it exists. The model metadata will be
+  // Removes the model represented by `optimization_target` and
+  // `model_cache_key` from the store if it exists. The model metadata will be
   // removed immediately while the model directories will be slated for removal
   // at next startup, by CleanUpOldModelFiles.
   void RemoveModel(proto::OptimizationTarget optimization_target,
@@ -111,16 +110,6 @@ class PredictionModelStore {
 
  private:
   friend class PredictionModelStoreBrowserTestBase;
-  // Declared as friend only to access `LoadAndVerifyModelOffThread`.
-  // TODO: b/515762868 - refactor `LoadAndVerifyModelOffThread` out of
-  //       `PredictionModelStore` and remove this friend declaration.
-  friend class PredictionModelComponentUpdateListener;
-
-  // Loads the model and verifies if the model files exist and returns the
-  // model. Otherwise nullptr is returned on any failures.
-  static std::unique_ptr<proto::PredictionModel> LoadAndVerifyModelOffThread(
-      proto::OptimizationTarget optimization_target,
-      const base::FilePath& base_model_dir);
 
   // Invoked when the model loaded.
   void OnModelLoaded(proto::OptimizationTarget optimization_target,
@@ -138,7 +127,7 @@ class PredictionModelStore {
   void ScheduleModelDirRemoval(const base::FilePath& base_model_dir);
 
   // Removes all models that are considered inactive, such as expired models,
-  // models unused for a long time. When models' |keep_beyond_valid_duration| is
+  // models unused for a long time. When models' `keep_beyond_valid_duration` is
   // set they are not treated as expired. This is called on startup, so the
   // model files can be deleted instantaneously.
   // TODO(b/244649670): Remove models that are unused for a long time.

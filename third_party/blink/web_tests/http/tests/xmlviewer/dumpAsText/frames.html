@@ -1,34 +1,55 @@
+<!DOCTYPE html>
 <html>
 <head>
 <script>
-
-function onload()
-{
-    if (window.testRunner)
-        testRunner.waitUntilDone();
+if (window.testRunner) {
+    testRunner.dumpAsText();
+    testRunner.waitUntilDone();
 }
 
-var iframesOpened = 0;
+let framesLoaded = 0;
 
-function iframeLoaded()
+function log(message)
 {
-    if (++iframesOpened === 2) {
-        if (window.testRunner) {
-            testRunner.dumpAsText();
-            testRunner.dumpChildFrames();
-            testRunner.notifyDone();
-        }
+    document.getElementById('console').appendChild(
+        document.createTextNode(message + '\n'));
+}
+
+function checkFrame(label, frameElement, expectViewer)
+{
+    const doc = frameElement.contentDocument;
+    const root = doc.documentElement;
+    log(label + ' root: ' + root.localName);
+    log(label + ' textContent: ' + root.textContent.trim());
+
+    const viewer = internals.shadowRoot(root);
+    log(label + ' has XML viewer: ' + !!viewer);
+    if (viewer) {
+        log(label + ' viewer header: ' + viewer.querySelector('.header').textContent.trim());
+        log(label + ' viewer shows source text: ' + viewer.textContent.includes('SUCCESS'));
     }
+
+    if (!!viewer !== expectViewer)
+        log('FAIL: unexpected XML viewer state for ' + label);
 }
 
+function frameLoaded()
+{
+    if (++framesLoaded !== 2)
+        return;
+
+    checkFrame('iframe', document.getElementById('iframeFrame'), true);
+    checkFrame('object', document.getElementById('objectFrame'), false);
+
+    if (window.testRunner)
+        testRunner.notifyDone();
+}
 </script>
 </head>
-
 <body>
-<div>
-This tests that XML Viewer is not used when XML is opened in frame.
-</div>
-<iframe name="iframeFrame" onload="iframeLoaded()" style="border:10px solid gray;padding:25px" width="300" height="200" src="resources/frames-helper.xml"></iframe>
-<object name="objectFrame" onload="iframeLoaded()" style="border:10px solid gray;padding:25px; width:300px; height:200px" data="resources/frames-helper.xml"></object>
+<p>This tests XML Viewer behavior when XML is opened in a frame.</p>
+<pre id="console"></pre>
+<iframe id="iframeFrame" onload="frameLoaded()" width="300" height="200" src="resources/frames-helper.xml"></iframe>
+<object id="objectFrame" onload="frameLoaded()" style="width:300px; height:200px" data="resources/frames-helper.xml"></object>
 </body>
 </html>

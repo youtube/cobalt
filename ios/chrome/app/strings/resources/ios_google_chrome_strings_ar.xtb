@@ -61,6 +61,7 @@
 <translation id="2120238739383482109">‏فتح الإشارات المرجعية في Chrome.</translation>
 <translation id="2147651015520127414">‏لقد تحقق Chrome من أن <ph name="ISSUER" /> أصدر شهادة الموقع الإلكتروني.</translation>
 <translation id="2199719347983604670">‏البيانات من مزامنة Chrome</translation>
+<translation id="2212318912894837281">‏يُرجى إدخال عبارة المرور لحفظ كلمة المرور هذه ومزامنة بيانات Chrome على جميع أجهزتك</translation>
 <translation id="2213327331203157297">‏لإيقاف "وضع التأمين" (Lockdown Mode) في Chrome، عليك إيقافه على جهاز iPhone.</translation>
 <translation id="2242467532204595597">‏يمكنك فتح Chrome عند النقر على الروابط في الرسائل والمستندات والتطبيقات الأخرى.</translation>
 <translation id="2256384876478573507">‏أصبح فتح Chrome على هاتف iPhone أسرع متى أردت تصفُّح الإنترنت.</translation>
@@ -371,6 +372,7 @@
 <translation id="9068336935206019333">‏الفتح في وضع "التصفُّح المتخفي" في Chrome</translation>
 <translation id="9082304295862405388">‏قد يستخدم Gemini موقعك الجغرافي الدقيق، وذلك استنادًا إلى الإذن الذي منحته لمتصفّح Chrome</translation>
 <translation id="909127538042363610">‏أعلى مستوى أمان في Chrome بين يديك</translation>
+<translation id="9113725809421872108">‏يُرجى إثبات هويتك لحفظ كلمة المرور هذه ومزامنة بيانات Chrome على جميع أجهزتك</translation>
 <translation id="9122931302567044771">‏يعني هذا أنّ Chrome سيطلب دائمًا استخدام الموقع الإلكتروني المتوافق مع الكمبيوتر المكتبي.</translation>
 <translation id="9176561303811134420">‏إدارة "طرق الدفع" في Chrome</translation>
 <translation id="9181628561061032322">‏فتح علامات التبويب الأخيرة في Chrome</translation>

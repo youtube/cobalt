@@ -74,9 +74,9 @@ class PersonalContextFirstRunBottomSheetBridge
     }
 
     @Override
-    public void onInfoAcknowledged() {
+    public void onNoticeAcknowledged() {
         if (mNativeBridge != 0) {
-            PersonalContextFirstRunBottomSheetBridgeJni.get().onInfoAcknowledged(mNativeBridge);
+            PersonalContextFirstRunBottomSheetBridgeJni.get().onNoticeAcknowledged(mNativeBridge);
         }
     }
 
@@ -96,15 +96,15 @@ class PersonalContextFirstRunBottomSheetBridge
     }
 
     @Override
-    public void onInfoDismissed() {
+    public void onNoticeDismissed() {
         if (mNativeBridge != 0) {
-            PersonalContextFirstRunBottomSheetBridgeJni.get().onInfoDismissed(mNativeBridge);
+            PersonalContextFirstRunBottomSheetBridgeJni.get().onNoticeDismissed(mNativeBridge);
         }
     }
 
     @NativeMethods
     interface Natives {
-        void onInfoAcknowledged(
+        void onNoticeAcknowledged(
                 @JniType("personal_context::PersonalContextFirstRunBottomSheetBridge*")
                         long nativePersonalContextFirstRunBottomSheetBridge);
 
@@ -116,7 +116,7 @@ class PersonalContextFirstRunBottomSheetBridge
                 @JniType("personal_context::PersonalContextFirstRunBottomSheetBridge*")
                         long nativePersonalContextFirstRunBottomSheetBridge);
 
-        void onInfoDismissed(
+        void onNoticeDismissed(
                 @JniType("personal_context::PersonalContextFirstRunBottomSheetBridge*")
                         long nativePersonalContextFirstRunBottomSheetBridge);
     }

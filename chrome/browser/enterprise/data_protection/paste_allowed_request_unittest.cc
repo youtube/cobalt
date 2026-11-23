@@ -27,6 +27,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/navigation_simulator.h"
+#include "content/public/test/test_renderer_host.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/clipboard/clipboard_monitor.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
@@ -158,6 +159,25 @@ class PasteAllowedRequestTest : public testing::Test {
         main_rfh());
   }
 
+  content::RenderFrameHost& child_rfh() {
+    if (!child_rfh_) {
+      content::RenderFrameHostTester::For(&main_rfh())
+          ->InitializeRenderFrameIfNeeded();
+      child_rfh_ = content::RenderFrameHostTester::For(&main_rfh())
+                       ->AppendChild("child");
+    }
+    return *child_rfh_;
+  }
+
+  content::ClipboardEndpoint child_endpoint() {
+    return content::ClipboardEndpoint(
+        ui::DataTransferEndpoint(GURL("https://google.com")),
+        base::BindLambdaForTesting([this]() -> content::BrowserContext* {
+          return static_cast<content::BrowserContext*>(profile_);
+        }),
+        child_rfh());
+  }
+
   content::WebContents* secondary_web_contents() {
     if (!secondary_web_contents_) {
       content::WebContents::CreateParams params(profile_);
@@ -182,10 +202,12 @@ class PasteAllowedRequestTest : public testing::Test {
  protected:
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  content::RenderViewHostTestEnabler rvh_test_enabler_;
   TestingProfileManager profile_manager_;
   raw_ptr<TestingProfile> profile_;
   std::unique_ptr<content::WebContents> main_web_contents_;
   std::unique_ptr<content::WebContents> secondary_web_contents_;
+  raw_ptr<content::RenderFrameHost> child_rfh_ = nullptr;
 #if BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<ash::network_config::CrosNetworkConfigTestHelper>
       network_config_helper_;
@@ -427,6 +449,39 @@ TEST_F(PasteAllowedRequestTest,
   ASSERT_FALSE(future.Get());
 
   EXPECT_EQ(1u, PasteAllowedRequest::requests_count_for_testing());
+}
+
+TEST_F(PasteAllowedRequestTest, ChildFrameDestinationCreatesSeparateRequest) {
+  auto seqno = ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+      ui::ClipboardBuffer::kCopyPaste);
+
+  // Seed a completed request for the main frame so that a paste targeting it
+  // would resolve to `kCachedText`.
+  const std::u16string kCachedText = u"cached";
+  content::ClipboardPasteData cached_data;
+  cached_data.text = kCachedText;
+  PasteAllowedRequest cached_request;
+  cached_request.Complete(cached_data);
+  PasteAllowedRequest::AddRequestToCacheForTesting(
+      main_rfh().GetGlobalId(), seqno, std::move(cached_request));
+  EXPECT_EQ(1u, PasteAllowedRequest::requests_count_for_testing());
+
+  // A paste into a child frame of the same page must not be coalesced into the
+  // main frame's request, so it should be evaluated independently and resolve
+  // to its own data rather than the main frame's cached result.
+  const std::u16string kChildText = u"child";
+  content::ClipboardPasteData child_data;
+  child_data.text = kChildText;
+
+  base::test::TestFuture<std::optional<content::ClipboardPasteData>> future;
+  PasteAllowedRequest::StartPasteAllowedRequest(
+      /*source*/ secondary_endpoint(), /*destination*/ child_endpoint(),
+      {.seqno = seqno}, child_data, future.GetCallback());
+
+  ASSERT_TRUE(future.Get());
+  EXPECT_EQ(future.Get()->text, kChildText);
+
+  EXPECT_EQ(2u, PasteAllowedRequest::requests_count_for_testing());
 }
 
 TEST_F(PasteAllowedRequestTest, UnknownSource) {

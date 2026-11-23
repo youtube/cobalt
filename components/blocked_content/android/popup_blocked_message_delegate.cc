@@ -52,7 +52,7 @@ bool PopupBlockedMessageDelegate::ShowMessage(
       messages::MessageDispatcherBridge::Get();
   DCHECK(message_dispatcher_bridge->IsMessagesEnabledForEmbedder());
   message->SetIconResourceId(message_dispatcher_bridge->MapToJavaDrawableId(
-      IDR_ANDROID_INFOBAR_BLOCKED_POPUPS));
+      IDR_ANDROID_MESSAGE_BLOCKED_POPUPS));
 
   // On rare occasions, such as the moment when activity is being recreated
   // or destroyed, popup blocked message will not be displayed and the

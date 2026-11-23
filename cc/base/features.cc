@@ -66,6 +66,9 @@ const base::FeatureParam<int> kReclaimDelayInSeconds{&kSmallerInterestArea,
 
 BASE_FEATURE(kTileOOMFreezeMitigation, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kStopDeferringCommitsInCompositeForTest,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kClearCanvasResourcesInBackground,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -78,7 +81,7 @@ BASE_FEATURE(kPreserveDiscardableImageMapQuality,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kScrollEndRepaintFollowsScrollUpdate,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCCSlimming, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -97,10 +100,13 @@ constexpr const char kScrollEventDispatchModeUseScrollPredictorForEmptyQueue[] =
     "UseScrollPredictorForEmptyQueue";
 constexpr const char kScrollEventDispatchModeUseScrollPredictorForDeadline[] =
     "UseScrollPredictorForDeadline";
+constexpr const char
+    kScrollEventDispatchModeDispatchScrollEventsUntilDeadline[] =
+        "DispatchScrollEventsUntilDeadline";
 const base::FeatureParam<std::string> kScrollEventDispatchMode(
     &kWaitForLateScrollEvents,
     "mode",
-    kScrollEventDispatchModeDispatchScrollEventsImmediately);
+    kScrollEventDispatchModeDispatchScrollEventsUntilDeadline);
 
 BASE_FEATURE(kTreesInViz, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -132,6 +138,26 @@ BASE_FEATURE(kInitImageDecodeLastUseTime, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kThrottleRepeatedNoDamageFrames,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kThrottleRepeatedNoDamageFramesThreshold1(
+    &kThrottleRepeatedNoDamageFrames,
+    "repeated_no_damage_frame_throttling_threshold1",
+    90);
+
+const base::FeatureParam<int> kThrottleRepeatedNoDamageFramesThreshold2(
+    &kThrottleRepeatedNoDamageFrames,
+    "repeated_no_damage_frame_throttling_threshold2",
+    90);
+
+const base::FeatureParam<int> kThrottleRepeatedNoDamageFramesIntervalFactor1(
+    &kThrottleRepeatedNoDamageFrames,
+    "repeated_no_damage_frame_throttling_factor1",
+    2);
+
+const base::FeatureParam<int> kThrottleRepeatedNoDamageFramesIntervalFactor2(
+    &kThrottleRepeatedNoDamageFrames,
+    "repeated_no_damage_frame_throttling_factor2",
+    2);
 
 // Enabled on Android, after a field trial showed improvements.
 BASE_FEATURE(kThrottleMainFrameTo60Hz,
@@ -235,7 +261,7 @@ BASE_FEATURE_PARAM(double,
                    0.2);
 
 BASE_FEATURE(kUseScrollIdToCalculateScrollJankV4FrameStages,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kManualBeginFrame, base::FEATURE_DISABLED_BY_DEFAULT);
 

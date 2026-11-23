@@ -26,6 +26,7 @@
 #include "extensions/browser/api/web_request/web_request_api_helpers.h"
 #include "extensions/browser/extension_event_histogram_value.h"
 #include "extensions/buildflags/buildflags.h"
+#include "extensions/common/api/web_request/web_request_filter_constants.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/url_pattern_set.h"
 #include "net/base/completion_once_callback.h"
@@ -50,12 +51,6 @@ enum class WebRequestResourceType : uint8_t;
 class WebRequestRulesRegistry;
 class WebRequestEventDetails;
 struct WebRequestInfo;
-
-inline constexpr int kWebRequestFilterValidSchemes =
-    URLPattern::SCHEME_HTTP | URLPattern::SCHEME_HTTPS |
-    URLPattern::SCHEME_FTP | URLPattern::SCHEME_FILE |
-    URLPattern::SCHEME_EXTENSION | URLPattern::SCHEME_WS |
-    URLPattern::SCHEME_WSS | URLPattern::SCHEME_UUID_IN_PACKAGE;
 
 class WebRequestEventRouter : public KeyedService {
  public:

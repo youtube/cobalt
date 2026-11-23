@@ -5,6 +5,8 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_PERFORMANCE_METRICS_FOR_REPORTING_H_
 #define THIRD_PARTY_BLINK_PUBLIC_WEB_WEB_PERFORMANCE_METRICS_FOR_REPORTING_H_
 
+#include <unicode/uscript.h>
+
 #include <array>
 #include <optional>
 #include <vector>
@@ -43,6 +45,15 @@ struct LargestContentfulPaintDetailsForReporting {
   // The offset of the corresponding soft navigation; 0 otherwise.
   // See SoftNavigationMetricsForReporting.soft_navigation_offset.
   uint64_t soft_navigation_offset = 0;
+};
+
+struct ScriptFontFallbackDetailsForReporting {
+  // The Unicode script code (UScriptCode) of the character.
+  UScriptCode script_code;
+  // The number of fallback events for this script.
+  size_t fallback_count;
+  // Whether the fallback was for an Emoji.
+  bool is_emoji;
 };
 
 struct SoftNavigationMetricsForReporting {
@@ -170,6 +181,9 @@ class BLINK_EXPORT WebPerformanceMetricsForReporting {
   base::TimeDelta SystemFallbackFontInitialDuration() const;
   uint32_t ShapeCacheHitCount() const;
   uint32_t ShapeCacheMissCount() const;
+
+  std::vector<ScriptFontFallbackDetailsForReporting>
+  GetScriptFontFallbackDetails() const;
 
   std::optional<std::tuple<std::string, base::TimeDelta>> CustomUserTimingMark()
       const;

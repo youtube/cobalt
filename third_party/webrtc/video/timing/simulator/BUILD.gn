@@ -60,6 +60,8 @@ if (rtc_enable_protobuf) {
       "../../../api/video:frame_buffer",
       "../../../api/video:video_frame",
       "../../../api/video:video_rtp_headers",
+      "../../../api/video/timing:video_jitter_timing_factory",
+      "../../../api/video/timing:video_jitter_timing_interface",
       "../../../call:rtp_interfaces",
       "../../../call:rtp_receiver",
       "../../../call:video_receive_stream_api",

@@ -27,3 +27,8 @@ if (!is_chrome_branded) {
     TAST_CONTROL_DISABLED_TESTS_PUBLIC_BUILDERS
   ]
 }
+
+# Specify flaky tests at src/chromeos/tast_control_flaky_tests.txt
+tast_flaky_tests_from_chrome_all = [
+  TAST_CONTROL_FLAKY_TESTS
+]

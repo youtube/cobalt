@@ -208,6 +208,25 @@ suite('SidePanelPowerBookmarkDragManagerTest', () => {
     assertEquals(200, calledY);
   });
 
+  test('TouchInteractionPreventsDrag', () => {
+    let calledIds;
+    chrome.bookmarkManagerPrivate.startDrag = (ids: string[]) => {
+      calledIds = ids;
+    };
+
+    const draggableBookmark = getBookmarkRow('5')!;
+    // Simulate touch interaction
+    draggableBookmark.dispatchEvent(new PointerEvent(
+        'pointerdown', {bubbles: true, composed: true, pointerType: 'touch'}));
+
+    draggableBookmark.dispatchEvent(new DragEvent(
+        'dragstart',
+        {bubbles: true, composed: true, clientX: 100, clientY: 200}));
+
+    // startDrag should NOT have been called
+    assertEquals(undefined, calledIds);
+  });
+
   test('DragOverUpdatesAttributes', () => {
     chrome.bookmarkManagerPrivate.startDrag = () => {};
     const draggedBookmark = getBookmarkRow('4')!;

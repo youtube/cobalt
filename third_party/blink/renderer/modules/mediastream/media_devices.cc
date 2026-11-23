@@ -268,7 +268,8 @@ enum class ProduceTargetFunctionResult {
   kDuplicateCallBeforePromiseResolution = 3,
   kDuplicateCallAfterPromiseResolution = 4,
   kElementAndMediaDevicesNotInSameExecutionContext = 5,
-  kMaxValue = kElementAndMediaDevicesNotInSameExecutionContext
+  kFencedFrameNotAllowed = 6,
+  kMaxValue = kFencedFrameNotAllowed
 };
 
 void RecordUma(SubCaptureTarget::Type type,
@@ -1662,6 +1663,17 @@ bool MediaDevices::MayProduceSubCaptureTarget(ScriptState* script_state,
   if (!element) {
     exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
                                       "Invalid element.");
+    return false;
+  }
+
+  if (window->GetFrame() && window->GetFrame()->IsInFencedFrameTree()) {
+    RecordUma(type, ProduceTargetFunctionResult::kFencedFrameNotAllowed);
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kNotAllowedError,
+        type == SubCaptureTarget::Type::kCropTarget
+            ? "CropTarget.fromElement is not allowed in a fenced frame tree."
+            : "RestrictionTarget.fromElement is not allowed in a fenced frame "
+              "tree.");
     return false;
   }
 

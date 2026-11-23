@@ -4,11 +4,11 @@
 
 #include "components/private_verification_tokens/common/private_verification_tokens_database.h"
 
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -16,6 +16,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "base/threading/sequence_bound.h"
+#include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
 #include "components/private_verification_tokens/common/private_verification_tokens_token.h"
 #include "sql/database.h"
@@ -23,11 +24,13 @@
 #include "sql/meta_table.h"
 #include "sql/statement.h"
 #include "sql/transaction.h"
+#include "url/gurl.h"
+#include "url/origin.h"
 
 namespace {
 
 // Version number of the database.
-const int kCurrentVersionNumber = 2;
+const int kCurrentVersionNumber = 3;
 
 static constexpr char kDatabaseTag[] = "PrivateVerificationTokens";
 
@@ -35,7 +38,7 @@ static constexpr char kDatabaseTag[] = "PrivateVerificationTokens";
 static constexpr char kCreateTokensTableSql[] =
   "CREATE TABLE IF NOT EXISTS tokens("
       "id INTEGER PRIMARY KEY,"
-      "etld_plus_one TEXT NOT NULL,"
+      "issuer TEXT NOT NULL,"
       "key_id INTEGER NOT NULL,"
       "expiration INTEGER NOT NULL,"
       "token BLOB NOT NULL,"
@@ -45,17 +48,17 @@ static constexpr char kCreateTokensTableSql[] =
 
 static constexpr char kInsertTokenSql[] =
   "INSERT INTO tokens("
-      "etld_plus_one,key_id,expiration,token,version,creation_time) "
+      "issuer,key_id,expiration,token,version,creation_time) "
       "VALUES(?,?,?,?,?,?)";
 
 static constexpr char kGetTokenSql[] =
-    "SELECT id,etld_plus_one,key_id,expiration,token,version,creation_time "
-    "FROM tokens WHERE redeemed = 0 AND etld_plus_one = ?";
+    "SELECT id,issuer,key_id,expiration,token,version,creation_time "
+    "FROM tokens WHERE redeemed = 0 AND issuer = ?";
 
 static constexpr char kGetAllTokensSql[] =
-    "SELECT id,etld_plus_one,key_id,expiration,token,version,creation_time "
+    "SELECT id,issuer,key_id,expiration,token,version,creation_time "
     "FROM tokens WHERE redeemed = 0 "
-    "GROUP BY etld_plus_one";
+    "GROUP BY issuer";
 
 static constexpr char kSetTokenRedeemedSql[] =
     "UPDATE tokens "
@@ -67,27 +70,32 @@ static constexpr char kDeleteRedeemedTokensSql[] =
 
 static constexpr char kCreatePublicKeyTableSql[] =
   "CREATE TABLE IF NOT EXISTS keys("
-      "etld_plus_one TEXT NOT NULL,"
+      "issuer TEXT NOT NULL,"
       "public_key BLOB NOT NULL,"
       "key_id INTEGER NOT NULL,"
       "expiration INTEGER NOT NULL,"
       "version INTEGER NOT NULL,"
-      "PRIMARY KEY(etld_plus_one, key_id))";
+      "PRIMARY KEY(issuer, key_id))";
 
 static constexpr char kInsertPublicKeySql[] =
   "INSERT OR REPLACE INTO keys("
-      "etld_plus_one,public_key,key_id,expiration,version) "
+      "issuer,public_key,key_id,expiration,version) "
       "VALUES(?,?,?,?,?)";
 
 static constexpr char kGetAllKeysSql[] =
-    "SELECT etld_plus_one,public_key,key_id,expiration,version "
+    "SELECT issuer,public_key,key_id,expiration,version "
     "FROM keys";
 
 static constexpr char kDeleteKeysForSql[] =
-    "DELETE FROM keys WHERE etld_plus_one = ?";
+    "DELETE FROM keys WHERE issuer = ?";
 
 static constexpr char kDeleteKeySql[] =
-    "DELETE FROM keys WHERE etld_plus_one = ? AND key_id = ?";
+    "DELETE FROM keys WHERE issuer = ? AND key_id = ?";
+
+// SQLite in Chromium has a limit of 32k placeholders per query. We use
+// anywhere between 0-2 placeholders for the time range, plus one for
+// each origin in the filter. Setting to a conservative 16k should be safe.
+static constexpr size_t kDeleteMaximumOriginsPerQuery = 16384;
 
 // clang-format on
 
@@ -169,7 +177,7 @@ bool PrivateVerificationTokensDatabase::StoreTokens(
   DCHECK(statement.is_valid());
   for (const auto& token : tokens) {
     statement.Reset(true);
-    statement.BindString(0, token.etld_plus_one());
+    statement.BindString(0, token.issuer().Serialize());
     statement.BindInt64(1, token.key_id());
     statement.BindInt64(
         2, (token.expiration() - base::Time::UnixEpoch()).InSeconds());
@@ -186,7 +194,7 @@ bool PrivateVerificationTokensDatabase::StoreTokens(
 }
 
 std::optional<TokenWithId> PrivateVerificationTokensDatabase::GetToken(
-    const std::string& etld_plus_one) {
+    const url::Origin& issuer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!EnsureDBInitialized()) {
     return std::nullopt;
@@ -195,20 +203,22 @@ std::optional<TokenWithId> PrivateVerificationTokensDatabase::GetToken(
   sql::Statement statement(
       database_->GetCachedStatement(SQL_FROM_HERE, kGetTokenSql));
   DCHECK(statement.is_valid());
-  statement.BindString(0, etld_plus_one);
+  statement.BindString(0, issuer.Serialize());
 
   if (statement.Step()) {
     int64_t id = statement.ColumnInt64(0);
-    std::string etld_plus_one_str = statement.ColumnString(1);
+    std::string issuer_str = statement.ColumnString(1);
     uint32_t key_id = static_cast<uint32_t>(statement.ColumnInt64(2));
     int64_t expiration = statement.ColumnInt64(3);
     SerializedToken token = statement.ColumnBlobAsVector(4);
     uint32_t version = static_cast<uint32_t>(statement.ColumnInt64(5));
     int64_t creation_time = statement.ColumnInt64(6);
 
+    url::Origin read_issuer = url::Origin::Create(GURL(issuer_str));
+
     return TokenWithId{
         id, PrivateVerificationTokensToken(
-                std::move(etld_plus_one_str), std::move(token), key_id,
+                std::move(read_issuer), std::move(token), key_id,
                 base::Time::UnixEpoch() + base::Seconds(expiration), version,
                 base::Time::UnixEpoch() + base::Seconds(creation_time))};
   }
@@ -218,7 +228,7 @@ std::optional<TokenWithId> PrivateVerificationTokensDatabase::GetToken(
   return std::nullopt;
 }
 
-std::map<std::string, TokenWithId>
+std::map<url::Origin, TokenWithId>
 PrivateVerificationTokensDatabase::GetTokensFromEach() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!EnsureDBInitialized()) {
@@ -229,20 +239,21 @@ PrivateVerificationTokensDatabase::GetTokensFromEach() {
       database_->GetCachedStatement(SQL_FROM_HERE, kGetAllTokensSql));
   DCHECK(statement.is_valid());
 
-  std::map<std::string, TokenWithId> tokens;
+  std::map<url::Origin, TokenWithId> tokens;
   while (statement.Step()) {
     int64_t id = statement.ColumnInt64(0);
-    std::string etld_plus_one = statement.ColumnString(1);
+    std::string issuer_str = statement.ColumnString(1);
     uint32_t key_id = static_cast<uint32_t>(statement.ColumnInt64(2));
     int64_t expiration = statement.ColumnInt64(3);
     SerializedToken token = statement.ColumnBlobAsVector(4);
     uint32_t version = static_cast<uint32_t>(statement.ColumnInt64(5));
     int64_t creation_time = statement.ColumnInt64(6);
 
+    url::Origin issuer = url::Origin::Create(GURL(issuer_str));
     tokens.try_emplace(
-        etld_plus_one, id,
+        issuer, id,
         PrivateVerificationTokensToken(
-            etld_plus_one, std::move(token), key_id,
+            issuer, std::move(token), key_id,
             base::Time::UnixEpoch() + base::Seconds(expiration), version,
             base::Time::UnixEpoch() + base::Seconds(creation_time)));
   }
@@ -264,19 +275,46 @@ bool PrivateVerificationTokensDatabase::DeleteRedeemedTokens() {
 }
 
 bool PrivateVerificationTokensDatabase::DeleteTokens(
-    std::optional<base::Time> delete_begin,
-    std::optional<std::string> etld_plus_one) {
+    base::Time delete_begin,
+    base::Time delete_end,
+    base::optional_ref<const std::vector<url::Origin>> issuers) {
+  if (!issuers.has_value()) {
+    return DeleteTokenBatch(delete_begin, delete_end, {});
+  }
+
+  base::span<const url::Origin> issuers_span(*issuers);
+  bool result = true;
+  for (size_t i = 0; i < issuers_span.size();
+       i += kDeleteMaximumOriginsPerQuery) {
+    size_t current_chunk_size =
+        std::min(kDeleteMaximumOriginsPerQuery, issuers_span.size() - i);
+    result &= DeleteTokenBatch(delete_begin, delete_end,
+                               issuers_span.subspan(i, current_chunk_size));
+  }
+  return result;
+}
+
+bool PrivateVerificationTokensDatabase::DeleteTokenBatch(
+    base::Time delete_begin,
+    base::Time delete_end,
+    base::span<const url::Origin> issuers) {
+  DCHECK(issuers.size() <= kDeleteMaximumOriginsPerQuery);
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!EnsureDBInitialized()) {
     return false;
   }
 
   std::vector<std::string> where_clauses;
-  if (delete_begin.has_value()) {
+  if (!delete_begin.is_null() && delete_begin != base::Time::Min()) {
     where_clauses.push_back("creation_time >= ?");
   }
-  if (etld_plus_one.has_value()) {
-    where_clauses.push_back("etld_plus_one = ?");
+  if (!delete_end.is_null() && delete_end != base::Time::Max()) {
+    where_clauses.push_back("creation_time < ?");
+  }
+  if (!issuers.empty()) {
+    std::vector<std::string> placeholders(issuers.size(), "?");
+    where_clauses.push_back("issuer IN (" +
+                            base::JoinString(placeholders, ", ") + ")");
   }
 
   std::string sql = "DELETE FROM tokens";
@@ -288,13 +326,16 @@ bool PrivateVerificationTokensDatabase::DeleteTokens(
   DCHECK(statement.is_valid());
 
   int param_index = 0;
-  if (delete_begin.has_value()) {
-    statement.BindInt64(
-        param_index++,
-        (delete_begin.value() - base::Time::UnixEpoch()).InSeconds());
+  if (!delete_begin.is_null() && delete_begin != base::Time::Min()) {
+    statement.BindInt64(param_index++,
+                        (delete_begin - base::Time::UnixEpoch()).InSeconds());
   }
-  if (etld_plus_one.has_value()) {
-    statement.BindString(param_index++, etld_plus_one.value());
+  if (!delete_end.is_null() && delete_end != base::Time::Max()) {
+    statement.BindInt64(param_index++,
+                        (delete_end - base::Time::UnixEpoch()).InSeconds());
+  }
+  for (const url::Origin& issuer : issuers) {
+    statement.BindString(param_index++, issuer.Serialize());
   }
 
   DCHECK_EQ(static_cast<size_t>(param_index),
@@ -332,7 +373,7 @@ bool PrivateVerificationTokensDatabase::StoreKeys(
   DCHECK(statement.is_valid());
   for (auto const& pk : keys) {
     statement.Reset(true);
-    statement.BindString(0, pk.etld_plus_one());
+    statement.BindString(0, pk.issuer().Serialize());
     statement.BindBlob(1, pk.public_key());
     statement.BindInt64(2, pk.key_id());
     statement.BindInt64(
@@ -357,12 +398,13 @@ PrivateVerificationTokensDatabase::GetKeys() {
   DCHECK(statement.is_valid());
   std::vector<PrivateVerificationTokensPublicKey> keys;
   while (statement.Step()) {
-    std::string etld_plus_one = statement.ColumnString(0);
+    std::string issuer_str = statement.ColumnString(0);
     std::vector<uint8_t> public_key = statement.ColumnBlobAsVector(1);
     uint32_t key_id = static_cast<uint32_t>(statement.ColumnInt64(2));
     int64_t expiration = statement.ColumnInt64(3);
     uint32_t version = static_cast<uint32_t>(statement.ColumnInt64(4));
-    keys.emplace_back(std::move(etld_plus_one), std::move(public_key), key_id,
+    url::Origin issuer = url::Origin::Create(GURL(issuer_str));
+    keys.emplace_back(std::move(issuer), std::move(public_key), key_id,
                       base::Time::UnixEpoch() + base::Seconds(expiration),
                       version);
   }
@@ -370,7 +412,7 @@ PrivateVerificationTokensDatabase::GetKeys() {
 }
 
 bool PrivateVerificationTokensDatabase::RemoveKeysFor(
-    const std::string& etld_plus_one) {
+    const url::Origin& issuer) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!EnsureDBInitialized()) {
     return false;
@@ -378,13 +420,12 @@ bool PrivateVerificationTokensDatabase::RemoveKeysFor(
   sql::Statement statement(
       database_->GetCachedStatement(SQL_FROM_HERE, kDeleteKeysForSql));
   DCHECK(statement.is_valid());
-  statement.BindString(0, etld_plus_one);
+  statement.BindString(0, issuer.Serialize());
   return statement.Run();
 }
 
-bool PrivateVerificationTokensDatabase::RemoveKey(
-    const std::string& etld_plus_one,
-    uint32_t key_id) {
+bool PrivateVerificationTokensDatabase::RemoveKey(const url::Origin& issuer,
+                                                  uint32_t key_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!EnsureDBInitialized()) {
     return false;
@@ -392,7 +433,7 @@ bool PrivateVerificationTokensDatabase::RemoveKey(
   sql::Statement statement(
       database_->GetCachedStatement(SQL_FROM_HERE, kDeleteKeySql));
   DCHECK(statement.is_valid());
-  statement.BindString(0, etld_plus_one);
+  statement.BindString(0, issuer.Serialize());
   statement.BindInt64(1, key_id);
   return statement.Run();
 }

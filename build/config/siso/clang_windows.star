@@ -82,6 +82,8 @@ def __step_config(ctx, step_config):
         use_thin_lto = gn_logs.read(ctx).get("use_thin_lto") == "true"
         remote_link_timeout = "80m" if use_thin_lto else "10m"
 
+        remote_link = config.get(ctx, "remote-link") or config.get(ctx, "default-remote")
+
         rewrapper_config_inputs = []
         rewrapper_config_inputs.extend(rewrapper_config.get("inputs", []))
         rewrapper_config_inputs.extend(rewrapper_config.get("toolchain_inputs", []))
@@ -198,7 +200,7 @@ def __step_config(ctx, step_config):
                     "*.pak",
                     "*.py",
                 ],
-                "remote": config.get(ctx, "remote-link"),
+                "remote": remote_link,
                 "remote_wrapper": remote_wrapper,
                 "platform_ref": "lld-link",
                 "input_root_absolute_path": input_root_absolute_path,
@@ -217,7 +219,7 @@ def __step_config(ctx, step_config):
                     "*.pak",
                     "*.py",
                 ],
-                "remote": config.get(ctx, "remote-link"),
+                "remote": remote_link,
                 "remote_wrapper": remote_wrapper,
                 "platform_ref": "lld-link",
                 "input_root_absolute_path": input_root_absolute_path,
@@ -236,7 +238,7 @@ def __step_config(ctx, step_config):
                     "*.pak",
                     "*.py",
                 ],
-                "remote": config.get(ctx, "remote-link"),
+                "remote": remote_link,
                 "remote_wrapper": remote_wrapper,
                 "platform_ref": "lld-link",
                 "input_root_absolute_path": input_root_absolute_path,

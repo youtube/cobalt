@@ -100,7 +100,8 @@ cbor::Value COMPONENT_EXPORT(DEVICE_FIDO) BuildMakeCredentialCommand(
     scoped_refptr<JSONRequest> request,
     std::unique_ptr<ClaimedPIN> claimed_pin,
     std::optional<std::vector<uint8_t>> wrapped_secret,
-    std::optional<std::vector<uint8_t>> secret);
+    std::optional<std::vector<uint8_t>> secret,
+    UserPresentAndVerifiedBits up_and_uv_bits);
 
 // Returns a CBOR value with the provided AddUVKey command to the enclave.
 // It must precede a credential registration or assertion request in the

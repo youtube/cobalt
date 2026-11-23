@@ -68,7 +68,6 @@ class DragSession {
   private lastDragOverElements_: HTMLElement[] = [];
   private lastDropTargetBookmark_: BookmarksTreeNode|null = null;
   private lastBookmarkRowElement_: HTMLElement|null = null;
-  private lastPointerWasTouch_ = false;
   private bookmarksApi_: BookmarksApiProxy =
       BookmarksApiProxyImpl.getInstance();
 
@@ -81,8 +80,8 @@ class DragSession {
 
   start(e: DragEvent) {
     chrome.bookmarkManagerPrivate.startDrag(
-        this.dragData_.elements!.map(bookmark => bookmark.id), 0,
-        this.lastPointerWasTouch_, e.clientX, e.clientY);
+        this.dragData_.elements!.map(bookmark => bookmark.id), 0, false,
+        e.clientX, e.clientY);
   }
 
   update(e: DragEvent) {
@@ -222,6 +221,7 @@ export class PowerBookmarksDragManager {
   private delegate_: PowerBookmarksDragDelegate;
   private dragSession_: DragSession|null = null;
   private eventTracker_: EventTracker = new EventTracker();
+  private lastPointerWasTouch_ = false;
 
   constructor(delegate: PowerBookmarksDragDelegate) {
     this.delegate_ = delegate;
@@ -229,6 +229,10 @@ export class PowerBookmarksDragManager {
 
   startObserving() {
     this.eventTracker_.removeAll();
+    this.eventTracker_.add(
+        this.delegate_, 'pointerdown',
+        (e: Event) => this.lastPointerWasTouch_ =
+            (e as PointerEvent).pointerType === 'touch');
     this.eventTracker_.add(
         this.delegate_, 'dragstart',
         (e: Event) => this.onDragStart_(e as DragEvent));
@@ -278,7 +282,8 @@ export class PowerBookmarksDragManager {
 
   private onDragStart_(e: DragEvent) {
     e.preventDefault();
-    if (!loadTimeData.getBoolean('editBookmarksEnabled')) {
+    if (!loadTimeData.getBoolean('editBookmarksEnabled') ||
+        this.lastPointerWasTouch_) {
       return;
     }
 

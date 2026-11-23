@@ -1071,7 +1071,8 @@
     "quiche/quic/tools/quic_default_client.h",
     "quiche/quic/tools/quic_epoll_client_factory.h",
     "quiche/quic/tools/quic_event_loop_tools.h",
-    "quiche/quic/tools/quic_server.h"
+    "quiche/quic/tools/quic_server.h",
+    "quiche/quic/tools/web_transport_only_client.h"
   ],
   "io_tool_support_srcs": [
     "quiche/quic/core/io/event_loop_connecting_client_socket.cc",
@@ -1092,7 +1093,8 @@
     "quiche/quic/tools/quic_client_default_network_helper.cc",
     "quiche/quic/tools/quic_default_client.cc",
     "quiche/quic/tools/quic_epoll_client_factory.cc",
-    "quiche/quic/tools/quic_server.cc"
+    "quiche/quic/tools/quic_server.cc",
+    "quiche/quic/tools/web_transport_only_client.cc"
   ],
   "io_test_support_hdrs": [
     "quiche/quic/test_tools/quic_mock_syscall_wrapper.h",
@@ -1424,7 +1426,8 @@
     "quiche/quic/tools/quic_server_test.cc",
     "quiche/quic/tools/quic_simple_server_session_test.cc",
     "quiche/quic/tools/quic_simple_server_stream_test.cc",
-    "quiche/quic/tools/quic_url_test.cc"
+    "quiche/quic/tools/quic_url_test.cc",
+    "quiche/quic/tools/web_transport_only_client_test.cc"
   ],
   "fuzzers_hdrs": [
 

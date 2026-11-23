@@ -39,6 +39,10 @@ inline const ExtensionId& GenerateExtensionIdFromHostId(
   return host_id.id;
 }
 
+// Returns true if the extension is allowlisted to bypass API permissions via
+// the `kAllowlistedExtensionID` command line switch.
+bool IsExtensionAllowlistedByCommandLine(const Extension& extension);
+
 }  // namespace extensions
 
 #endif  // EXTENSIONS_COMMON_UTILS_EXTENSION_UTILS_H_

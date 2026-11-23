@@ -369,7 +369,7 @@ void VariationsIdsProvider::MaybeUpdateVariationIDsAndHeaders() {
   }
 
   // Notify observers that the variation IDs header has been updated.
-  for (auto* observer : observer_list_) {
+  for (variations::VariationsIdsProvider::Observer* observer : observer_list_) {
     observer->VariationIdsHeaderUpdated();
   }
 }

@@ -17,11 +17,12 @@ DEFINE_PROTO_FUZZER(const web::ScriptMessageProto& proto_js_message) {
       ImageFetchJavaScriptFeature::GetInstance());
   std::unique_ptr<web::ScriptMessage> script_message =
       web::fuzzer::ProtoToScriptMessage(proto_js_message);
-  if (script_message->body() && script_message->body()->is_dict()) {
+  if (script_message->legacy_body() &&
+      script_message->legacy_body()->is_dict()) {
     // At 20% rate, ensure data field is a encoded string to avoid early return.
     if (base::RandDouble() < 0.2) {
       std::string encoded = base::Base64Encode("some raw data");
-      script_message->body()->GetDict().Set("data", encoded);
+      script_message->legacy_body()->GetDict().Set("data", encoded);
     }
   }
   env.InvokeScriptMessageReceived(*script_message);

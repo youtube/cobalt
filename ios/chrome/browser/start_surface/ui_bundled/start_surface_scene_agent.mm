@@ -392,10 +392,6 @@ bool IsEmptyNTP(const web::WebState* web_state) {
 // Shows the active tab group in tab grid view if chrome becomes active during a
 // specific time interval since last activation.
 - (void)showTabGroupInGridIfNecessary {
-  if (!IsShowTabGroupInGridOnStartEnabled()) {
-    return;
-  }
-
   if (self.sceneState.profileState.initStage < ProfileInitStage::kFinal) {
     // Do not show if the app is not yet ready to present normal UI that is
     // required by tab group in grid.

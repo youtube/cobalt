@@ -56,7 +56,6 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.browser.IntentHandler.ExternalAppId;
 import org.chromium.chrome.browser.app.tabmodel.AsyncTabParamsManagerSingleton;
 import org.chromium.chrome.browser.customtabs.CustomTabsConnection;
@@ -609,11 +608,7 @@ public class IntentHandlerRobolectricTest {
         Assert.assertNull(IntentHandler.getUrlFromShareIntent(intent));
         for (Object[] shareCase : SHARE_INTENT_CASES) {
             intent.putExtra(Intent.EXTRA_TEXT, (String) shareCase[0]);
-            var histogramWatcher =
-                    HistogramWatcher.newSingleRecordWatcher(
-                            IntentHandler.SHARE_INTENT_HISTOGRAM, (int) shareCase[2]);
             Assert.assertEquals((String) shareCase[1], IntentHandler.getUrlFromShareIntent(intent));
-            histogramWatcher.assertExpected((String) shareCase[0]);
         }
     }
 

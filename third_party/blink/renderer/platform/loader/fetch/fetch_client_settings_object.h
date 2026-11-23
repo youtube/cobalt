@@ -72,7 +72,10 @@ class PLATFORM_EXPORT FetchClientSettingsObject
 
   // "referrerURL" used in the "Determine request's Referrer" algorithm:
   // https://w3c.github.io/webappsec-referrer-policy/#determine-requests-referrer
-  virtual const String GetOutgoingReferrer() const = 0;
+  virtual const String GetOutgoingReferrer() const {
+    return GetOutgoingReferrerUrl().GetString();
+  }
+  virtual KURL GetOutgoingReferrerUrl() const = 0;
 
   // https://html.spec.whatwg.org/C/#https-state
   virtual HttpsState GetHttpsState() const = 0;

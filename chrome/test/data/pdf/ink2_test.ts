@@ -4,10 +4,10 @@
 
 import {AnnotationMode, PluginController, PluginControllerEventType, UserAction} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
+import {eventToPromise, isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {getNewTestBeforeUnloadProxy} from './test_before_unload_proxy.js';
-import {createTextBox, getTextBox, setupMockMetricsPrivate, setupTestMockPluginForInk} from './test_util.js';
+import {createTextBox, getRequiredElement, getTextBox, setupMockMetricsPrivate, setupTestMockPluginForInk} from './test_util.js';
 
 const viewer = document.body.querySelector('pdf-viewer')!;
 const viewerToolbar = viewer.$.toolbar;
@@ -385,6 +385,50 @@ chrome.test.runTests([
     chrome.test.assertNe(-1, setTextIndex);
     chrome.test.assertNe(-1, printIndex);
     chrome.test.assertTrue(setTextIndex < printIndex);
+
+    chrome.test.succeed();
+  },
+
+  async function testFocusAfterCommit() {
+    mockPlugin.clearMessages();
+    await enableTextAnnotations(true);
+    await setAnnotationMode(AnnotationMode.TEXT);
+
+    createTextBox();
+    await microtasksFinished();
+    const textbox = getTextBox(viewer);
+    chrome.test.assertTrue(!!textbox);
+    chrome.test.assertTrue(isVisible(textbox));
+
+    // Edit the textbox.
+    const textarea = textbox.$.textbox;
+    textarea.value = 'Focus test';
+    textarea.dispatchEvent(new CustomEvent('input'));
+    await microtasksFinished();
+
+    // Press Escape to focus the outer box.
+    const escapePromise =
+        eventToPromise('ink-text-box-focused-for-test', textbox);
+    textarea.dispatchEvent(new KeyboardEvent(
+        'keydown', {key: 'Escape', bubbles: true, composed: true}));
+    await escapePromise;
+
+    // Verify textbox has focus.
+    const annotations = getRequiredElement(viewer, 'ink-text-annotations');
+    chrome.test.assertEq(textbox, annotations.shadowRoot.activeElement);
+
+    // Press Escape again to commit.
+    document.dispatchEvent(new KeyboardEvent(
+        'keydown', {key: 'Escape', bubbles: true, composed: true}));
+    await microtasksFinished();
+
+    // Verify textbox is committed, hidden, and no longer has focus.
+    chrome.test.assertFalse(isVisible(textbox));
+    chrome.test.assertNe(textbox, annotations.shadowRoot.activeElement);
+
+    // Verify that the PDF content embed now has focus.
+    const embed = getRequiredElement(viewer, 'embed');
+    chrome.test.assertEq(embed, viewer.shadowRoot.activeElement);
 
     chrome.test.succeed();
   },

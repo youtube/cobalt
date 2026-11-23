@@ -320,6 +320,14 @@ BASE_DECLARE_FEATURE(kWebRequestSecurityInfo);
 // optimizations like preconnect.
 BASE_DECLARE_FEATURE(kOptimizeWebRequestProxy);
 
+// When enabled, the browser dispatches blocking webRequest events once per
+// renderer context (using the parent event name) instead of once per listener
+// (using per-listener synthetic sub-event names). The renderer matches
+// listeners itself, reports each blocking listener's response via the
+// `webRequestInternal.eventHandled` function, and signals completion with a
+// single `webRequestInternal.eventHandlingDone` per context.
+BASE_DECLARE_FEATURE(kWebRequestPerContextEventDispatch);
+
 }  // namespace extensions_features
 
 #endif  // EXTENSIONS_COMMON_EXTENSION_FEATURES_H_

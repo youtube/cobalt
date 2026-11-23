@@ -227,6 +227,9 @@ std::string WebUIToolbarLayoutCssHelper::GenerateLayoutConstantsCss() {
   AddInsets("--location-bar-icon-interior-padding",
             GetLayoutInsets(LOCATION_BAR_ICON_INTERIOR_PADDING), css_string);
 
+  AddInsets("--app-menu-chip-padding",
+            GetLayoutInsets(BROWSER_APP_MENU_CHIP_PADDING), css_string);
+
   AddInsets("--avatar-chip-padding", GetLayoutInsets(AVATAR_CHIP_PADDING),
             css_string);
   AddInsets("--toolbar-button-padding", GetLayoutInsets(TOOLBAR_BUTTON),
@@ -247,6 +250,9 @@ std::string WebUIToolbarLayoutCssHelper::GenerateLayoutConstantsCss() {
                    views::style::STYLE_BODY_4_EMPHASIS, typography_provider,
                    css_string);
   AddFontVariables("--permission-chip", views::style::CONTEXT_BUTTON_MD,
+                   views::style::STYLE_PRIMARY, typography_provider,
+                   css_string);
+  AddFontVariables("--toolbar-button", CONTEXT_TOOLBAR_BUTTON,
                    views::style::STYLE_PRIMARY, typography_provider,
                    css_string);
 

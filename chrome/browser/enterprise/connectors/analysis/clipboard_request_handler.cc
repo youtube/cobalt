@@ -100,8 +100,15 @@ void ClipboardRequestHandler::ReportWarningBypass(
       /*destination*/ url_.spec(),
       type_ == Type::kText ? "Text data" : "Image data",
       /*download_digest_sha256*/ "", type_ == Type::kText ? "text/plain" : "",
-      kWebContentUploadDataTransferEventTrigger, content_transfer_method_,
-      content_size_, response_, user_justification);
+      access_point_string(), content_transfer_method_, content_size_, response_,
+      user_justification);
+}
+
+std::string ClipboardRequestHandler::access_point_string() const {
+  if (access_point() == DeepScanAccessPoint::COPY) {
+    return kClipboardCopyDataTransferEventTrigger;
+  }
+  return kWebContentUploadDataTransferEventTrigger;
 }
 
 void ClipboardRequestHandler::UploadForDeepScanning(
@@ -121,7 +128,11 @@ bool ClipboardRequestHandler::UploadDataImpl() {
 
   content_analysis_info_->InitializeRequest(
       request.get(), /*include_enterprise_only_fields=*/true);
-  request->set_analysis_connector(BULK_DATA_ENTRY);
+  if (access_point() == DeepScanAccessPoint::COPY) {
+    request->set_analysis_connector(DATA_COPIED);
+  } else {
+    request->set_analysis_connector(BULK_DATA_ENTRY);
+  }
   if (type_ == Type::kImage) {
     request->set_image_paste(true);
   }
@@ -177,7 +188,7 @@ void ClipboardRequestHandler::OnContentAnalysisResponse(
       /*destination*/ url_.spec(),
       type_ == Type::kText ? "Text data" : "Image data",
       /*download_digest_sha256*/ "", type_ == Type::kText ? "text/plain" : "",
-      kWebContentUploadDataTransferEventTrigger, content_transfer_method_,
+      access_point_string(), content_transfer_method_,
       source_content_area_email_, content_size_, result, response_,
       CalculateEventResult(content_analysis_info_->settings(),
                            request_handler_result.complies, should_warn,

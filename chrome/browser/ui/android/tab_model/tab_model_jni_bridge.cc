@@ -662,8 +662,8 @@ std::unique_ptr<content::WebContents> TabModelJniBridge::DetachWebContents(
   Java_TabModelJniBridge_removeTabWithoutDestroy(env, jobj, tab_android);
 
   // Now properly release the WebContents and destroy the remaining tab object.
-  return tab_android->TakeWebContentsAndDestroyTab(
-      base::PassKey<TabModelJniBridge>());
+  return TabAndroid::TakeWebContentsAndDestroyTab(
+      tab_android, base::PassKey<TabModelJniBridge>());
 }
 
 std::vector<tabs::TabInterface*> TabModelJniBridge::GetAllTabs() {

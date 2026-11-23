@@ -23,7 +23,24 @@ namespace {
 
 class SnapshotPlatform final : public blink::Platform {
  public:
+  explicit SnapshotPlatform(
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner)
+      : task_runner_(std::move(task_runner)) {}
+
   bool IsTakingV8ContextSnapshot() override { return true; }
+
+  // Required for binders to work, to ensure deterministic snapshot generation
+  // we have everything operate on a single thread.
+  scoped_refptr<base::SequencedTaskRunner> MediaThreadTaskRunner() override {
+    return task_runner_;
+  }
+
+  scoped_refptr<base::SingleThreadTaskRunner> GetIOTaskRunner() const override {
+    return task_runner_;
+  }
+
+ private:
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 };
 
 }  // namespace
@@ -70,7 +87,7 @@ int main(int argc, char** argv) {
   v8::V8::SetFlagsFromString(kPredictableFlag, sizeof(kPredictableFlag) - 1);
 
   // Take a snapshot.
-  SnapshotPlatform platform;
+  SnapshotPlatform platform(main_thread_task_executor.task_runner());
   mojo::BinderMap binders;
   blink::CreateMainThreadAndInitialize(&platform, &binders);
   auto* isolate = blink::CreateMainThreadIsolate();

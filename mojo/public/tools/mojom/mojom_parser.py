@@ -182,9 +182,13 @@ def _CollectAllowedImportsFromBuildMetadata(build_metadata_filename):
 
 
 # multiprocessing helper.
-def _ParseAstHelper(mojom_abspath, enabled_features):
+def _ParseAstHelper(mojom_abspath, mojom_path, enabled_features):
   with open(mojom_abspath, encoding='utf-8') as f:
-    ast = parser.Parse(f.read(), mojom_abspath)
+    # Label the AST with the relative mojom_path, not the absolute path. This
+    # filename is baked into the serialized .mojom-module (via source
+    # locations), so an abspath would make the module vary by build root and
+    # break remote-cache hits for downstream bindings actions.
+    ast = parser.Parse(f.read(), mojom_path)
     conditional_features.RemoveDisabledDefinitions(ast, enabled_features)
     return mojom_abspath, ast
 
@@ -304,8 +308,8 @@ def _ParseMojoms(mojom_files,
       (path, abs_path) for abs_path, path in mojom_files_to_parse.items())
 
   logging.info('Parsing %d .mojom into ASTs', len(mojom_files_to_parse))
-  map_args = ((mojom_abspath, enabled_features)
-              for mojom_abspath in mojom_files_to_parse)
+  map_args = ((mojom_abspath, mojom_path, enabled_features)
+              for mojom_abspath, mojom_path in mojom_files_to_parse.items())
   for mojom_abspath, ast in _Shard(_ParseAstHelper, map_args):
     loaded_mojom_asts[mojom_abspath] = ast
 

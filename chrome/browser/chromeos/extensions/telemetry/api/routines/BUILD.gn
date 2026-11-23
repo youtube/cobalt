@@ -19,6 +19,7 @@ source_set("routines") {
     "//base",
     "//chrome/common/chromeos/extensions/api",
     "//chromeos/ash/components/telemetry_extension/routines",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//chromeos/crosapi/mojom",
     "//content/public/browser",
     "//extensions/common",
@@ -26,27 +27,6 @@ source_set("routines") {
   ]
 
   public_deps = [ "//extensions/browser" ]
-}
-
-source_set("test_support") {
-  testonly = true
-  sources = [
-    "fake_diagnostic_routine_control.cc",
-    "fake_diagnostic_routine_control.h",
-    "fake_diagnostic_routines_service.cc",
-    "fake_diagnostic_routines_service.h",
-    "fake_diagnostic_routines_service_factory.cc",
-    "fake_diagnostic_routines_service_factory.h",
-  ]
-
-  deps = [ "//base/test:test_support" ]
-
-  public_deps = [
-    "//chromeos/crosapi/mojom",
-    "//mojo/public/cpp/bindings",
-  ]
-
-  public_deps += [ "//chromeos/ash/components/telemetry_extension/routines" ]
 }
 
 source_set("routine_manager") {
@@ -61,6 +41,7 @@ source_set("routine_manager") {
     "//chrome/browser/chromeos/extensions/telemetry/api/common",
     "//chrome/browser/chromeos/extensions/telemetry/api/common:util",
     "//chrome/common/chromeos/extensions/api",
+    "//chromeos/ash/components/telemetry_extension/routines",
     "//chromeos/crosapi/mojom",
     "//content/public/browser",
   ]
@@ -81,13 +62,14 @@ source_set("unit_tests") {
   deps = [
     ":routine_manager",
     ":routines",
-    ":test_support",
     "//chrome/browser/ui",
     "//chrome/browser/ui/tabs:tab_enums",
     "//chrome/common/chromeos/extensions",
     "//chrome/common/chromeos/extensions/api",
     "//chrome/test:test_support",
+    "//chromeos/ash/components/mojo_service_manager:test_support",
     "//chromeos/ash/components/telemetry_extension/routines",
+    "//chromeos/ash/services/cros_healthd/public/cpp:fakes",
     "//chromeos/crosapi/mojom",
     "//extensions:test_support",
     "//extensions/common",

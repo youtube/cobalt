@@ -314,8 +314,11 @@ void ChromeWebViewPermissionHelperDelegate::RequestMediaPermission(
     base::OnceCallback<void(bool)> callback) {
   CHECK(type == ContentSettingsType::MEDIASTREAM_MIC ||
         type == ContentSettingsType::MEDIASTREAM_CAMERA);
-  if (web_view_guest()->attached() &&
-      web_view_guest()->IsOwnedByControlledFrameEmbedder()) {
+  if (web_view_guest()->IsOwnedByControlledFrameEmbedder()) {
+    if (!web_view_guest()->attached()) {
+      std::move(callback).Run(false);
+      return;
+    }
     const network::mojom::PermissionsPolicyFeature feature =
         (type == ContentSettingsType::MEDIASTREAM_MIC)
             ? network::mojom::PermissionsPolicyFeature::kMicrophone
@@ -372,14 +375,18 @@ void ChromeWebViewPermissionHelperDelegate::RequestGeolocationPermission(
   // Controlled Frame embedders have permissions policy. Permission can
   // only be granted if the embedder's permissions policy allows for both the
   // requesting origin and the embedder origin.
-  if (web_view_guest()->attached() &&
-      web_view_guest()->IsOwnedByControlledFrameEmbedder() &&
-      !IsFeatureEnabledByEmbedderPermissionsPolicy(
-          web_view_guest(),
-          network::mojom::PermissionsPolicyFeature::kGeolocation,
-          url::Origin::Create(requesting_frame))) {
-    std::move(callback).Run(false);
-    return;
+  if (web_view_guest()->IsOwnedByControlledFrameEmbedder()) {
+    if (!web_view_guest()->attached()) {
+      std::move(callback).Run(false);
+      return;
+    }
+    if (!IsFeatureEnabledByEmbedderPermissionsPolicy(
+            web_view_guest(),
+            network::mojom::PermissionsPolicyFeature::kGeolocation,
+            url::Origin::Create(requesting_frame))) {
+      std::move(callback).Run(false);
+      return;
+    }
   }
 
   base::DictValue request_info;
@@ -420,13 +427,17 @@ void ChromeWebViewPermissionHelperDelegate::RequestHidPermission(
   // Controlled Frame embedders have permissions policy. Permission can
   // only be granted if the embedder's permissions policy allows for both the
   // requesting origin and the embedder origin.
-  if (web_view_guest()->attached() &&
-      web_view_guest()->IsOwnedByControlledFrameEmbedder() &&
-      !IsFeatureEnabledByEmbedderPermissionsPolicy(
-          web_view_guest(), network::mojom::PermissionsPolicyFeature::kHid,
-          url::Origin::Create(requesting_frame_url))) {
-    std::move(callback).Run(false);
-    return;
+  if (web_view_guest()->IsOwnedByControlledFrameEmbedder()) {
+    if (!web_view_guest()->attached()) {
+      std::move(callback).Run(false);
+      return;
+    }
+    if (!IsFeatureEnabledByEmbedderPermissionsPolicy(
+            web_view_guest(), network::mojom::PermissionsPolicyFeature::kHid,
+            url::Origin::Create(requesting_frame_url))) {
+      std::move(callback).Run(false);
+      return;
+    }
   }
 
   auto request_info =
@@ -473,14 +484,18 @@ void ChromeWebViewPermissionHelperDelegate::OnFileSystemPermissionResponse(
 void ChromeWebViewPermissionHelperDelegate::RequestFullscreenPermission(
     const url::Origin& requesting_origin,
     WebViewPermissionHelper::PermissionResponseCallback callback) {
-  if (web_view_guest()->attached() &&
-      web_view_guest()->IsOwnedByControlledFrameEmbedder() &&
-      !IsFeatureEnabledByEmbedderPermissionsPolicy(
-          web_view_guest(),
-          network::mojom::PermissionsPolicyFeature::kFullscreen,
-          requesting_origin)) {
-    std::move(callback).Run(/*allow=*/false, /*user_input=*/"");
-    return;
+  if (web_view_guest()->IsOwnedByControlledFrameEmbedder()) {
+    if (!web_view_guest()->attached()) {
+      std::move(callback).Run(/*allow=*/false, /*user_input=*/"");
+      return;
+    }
+    if (!IsFeatureEnabledByEmbedderPermissionsPolicy(
+            web_view_guest(),
+            network::mojom::PermissionsPolicyFeature::kFullscreen,
+            requesting_origin)) {
+      std::move(callback).Run(/*allow=*/false, /*user_input=*/"");
+      return;
+    }
   }
 
   base::DictValue request_info;
@@ -497,12 +512,18 @@ void ChromeWebViewPermissionHelperDelegate::RequestClipboardReadWritePermission(
   // Supported only if all cases true:
   // 1. Owned by controlled Frame.
   // 2. Permissions policy is present for embedder and requesting origin.
-  if (!web_view_guest()->IsOwnedByControlledFrameEmbedder() ||
-      (web_view_guest()->attached() &&
-       !IsFeatureEnabledByEmbedderPermissionsPolicy(
-           web_view_guest(),
-           network::mojom::PermissionsPolicyFeature::kClipboardRead,
-           url::Origin::Create(requesting_frame_url)))) {
+  if (!web_view_guest()->IsOwnedByControlledFrameEmbedder()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  if (!web_view_guest()->attached()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  if (!IsFeatureEnabledByEmbedderPermissionsPolicy(
+          web_view_guest(),
+          network::mojom::PermissionsPolicyFeature::kClipboardRead,
+          url::Origin::Create(requesting_frame_url))) {
     std::move(callback).Run(false);
     return;
   }
@@ -548,12 +569,18 @@ void ChromeWebViewPermissionHelperDelegate::
   // Supported only if all cases true:
   // 1. Owned by controlled Frame.
   // 2. Permissions policy is present for embedder and requesting origin.
-  if (!web_view_guest()->IsOwnedByControlledFrameEmbedder() ||
-      (web_view_guest()->attached() &&
-       !IsFeatureEnabledByEmbedderPermissionsPolicy(
-           web_view_guest(),
-           network::mojom::PermissionsPolicyFeature::kClipboardWrite,
-           url::Origin::Create(requesting_frame_url)))) {
+  if (!web_view_guest()->IsOwnedByControlledFrameEmbedder()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  if (!web_view_guest()->attached()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  if (!IsFeatureEnabledByEmbedderPermissionsPolicy(
+          web_view_guest(),
+          network::mojom::PermissionsPolicyFeature::kClipboardWrite,
+          url::Origin::Create(requesting_frame_url))) {
     std::move(callback).Run(false);
     return;
   }

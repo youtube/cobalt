@@ -10,7 +10,6 @@
 #include <string>
 
 #include "base/memory/weak_ptr.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "extensions/common/constants.h"
 #include "ui/base/page_transition_types.h"

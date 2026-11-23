@@ -130,6 +130,10 @@ class GlicInstance {
 
   // Exposes basic pinning controls to external Chrome consumers.
   virtual GlicSharingManager* GetSharingManager() = 0;
+
+  // Triggers sending skill previews to the web client.
+  virtual void UpdateSkillPreviews(
+      std::optional<tabs::TabInterface*> updated_tab) = 0;
 };
 
 }  // namespace glic

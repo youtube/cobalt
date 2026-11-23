@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/tab_search_overlay_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:visibility="gone"
+    android:background="@android:color/transparent">
+
+    <!-- The left-anchored search panel elevated over SideUi containers -->
+    <LinearLayout
+        android:id="@+id/tab_search_overlay_panel"
+        android:layout_width="264dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/tab_search_overlay_panel_bg"
+        android:clipToOutline="true"
+        android:elevation="8dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingTop="48dp">
+
+        <include
+            android:id="@+id/search_activity_container"
+            layout="@layout/search_activity"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+    </LinearLayout>
+
+    <!-- The transparent scrim area covering the rest of the screen -->
+    <View
+        android:id="@+id/tab_search_overlay_scrim"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@android:color/transparent"
+        android:clickable="true"
+        android:focusable="true" />
+
+</LinearLayout>

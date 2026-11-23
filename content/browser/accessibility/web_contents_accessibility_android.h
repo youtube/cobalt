@@ -194,8 +194,10 @@ class CONTENT_EXPORT WebContentsAccessibilityAndroid
                             int32_t id,
                             int32_t start_node_id,
                             int32_t start_node_offset,
+                            int32_t start_offset_type,
                             int32_t end_node_id,
-                            int32_t end_node_offset);
+                            int32_t end_node_offset,
+                            int32_t end_offset_type);
   void ClearExtendedSelection(JNIEnv* env, int32_t id);
   bool AdjustSlider(JNIEnv* env, int32_t id, bool increment);
   void ShowContextMenu(JNIEnv* env, int32_t id);

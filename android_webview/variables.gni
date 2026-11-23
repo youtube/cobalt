@@ -12,7 +12,10 @@ declare_args() {
   webview_devui_show_icon = android_channel != "stable"
 }
 
-upstream_only_webview_deps = [ "//android_webview/nonembedded:icon_resources" ]
+upstream_only_webview_deps = [
+  "//android_webview/nonembedded:devui_banner_resources",
+  "//android_webview/nonembedded:icon_resources",
+]
 
 webview_product_config_java_package = "org.chromium.android_webview"
 

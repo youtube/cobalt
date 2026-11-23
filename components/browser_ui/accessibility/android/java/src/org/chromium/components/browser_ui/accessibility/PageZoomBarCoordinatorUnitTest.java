@@ -145,4 +145,26 @@ public class PageZoomBarCoordinatorUnitTest {
         // Verify early dismissal was evaluated
         verify(mockController).isSheetOpen();
     }
+
+    @Test
+    public void testTranslationAdjustment_withBottomSheetAnchored() {
+        mCoordinator.show(mWebContentsMock);
+
+        // Scenario 1: Anchored, but NOT acting as browser controls.
+        // Should sum the offsets: bottom controls (100) + sheet offset (50) = 150.
+        mCoordinator.onBottomControlsHeightChanged(100);
+        when(mBottomSheetControllerMock.getCurrentOffset()).thenReturn(50);
+        when(mBottomSheetControllerMock.isAnchoredToBottomControls()).thenReturn(true);
+        when(mDelegateMock.isSheetActingAsBrowserControls()).thenReturn(false);
+
+        mObserverCaptor.getValue().onSheetOffsetChanged(0.5f, 50.0f);
+        assertEquals(-150.0f, mRealView.getTranslationY(), 0.0f);
+
+        // Scenario 2: Anchored, AND acting as browser controls.
+        // Should only use bottom controls offset: bottom controls (100).
+        // (sheet offset is ignored/already included in bottom controls).
+        when(mDelegateMock.isSheetActingAsBrowserControls()).thenReturn(true);
+        mObserverCaptor.getValue().onSheetOffsetChanged(0.5f, 50.0f);
+        assertEquals(-100.0f, mRealView.getTranslationY(), 0.0f);
+    }
 }

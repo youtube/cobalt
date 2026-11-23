@@ -227,6 +227,8 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
 
   gfx::Size VisibleSize() const override;
 
+  media::VideoSpatialFormat GetSpatialFormat() const override;
+
   // Getters of playback state.
   bool Paused() const override;
   bool Seeking() const override;

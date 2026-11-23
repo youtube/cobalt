@@ -56,6 +56,8 @@ class UsedFont {
   LayoutUnit FixedAscent(FontBaseline baseline) const;
   // Returns descent of this font, scaled by `text_fit_scaling_factor_`.
   LayoutUnit FixedDescent() const;
+  // Returns descent of this font, scaled by `text_fit_scaling_factor_`.
+  LayoutUnit FixedDescent(FontBaseline baseline) const;
 
   // Get the underline thickness from the font if available, scaled by
   // `text_fit_scaling_factor_`.

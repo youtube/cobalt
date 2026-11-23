@@ -55,7 +55,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest,
   const auto identifier = InfoBarDelegate::TEST_INFOBAR;
   auto spec = InfoBarSpec::Builder(identifier)
                   .SetMessageText(u"Test Message")
-                  .SetScope(InfoBarScope::kCurrentTab)
+                  .SetScope(InfoBarScope::kTab)
                   .Build();
 
   manager()->Register(std::move(spec));
@@ -65,7 +65,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest,
   auto* infobar_manager = ContentInfoBarManager::FromWebContents(web_contents);
   ASSERT_EQ(0u, infobar_manager->infobars().size());
 
-  manager()->Show(identifier);
+  manager()->Show(web_contents, identifier);
 
   // Now one infobar should be present.
   EXPECT_EQ(1u, infobar_manager->infobars().size());
@@ -80,7 +80,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest,
   const auto identifier = InfoBarDelegate::TEST_INFOBAR;
   auto spec = InfoBarSpec::Builder(identifier)
                   .SetMessageText(u"Test Message")
-                  .SetScope(InfoBarScope::kCurrentTab)
+                  .SetScope(InfoBarScope::kTab)
                   .Build();
 
   manager()->Register(std::move(spec));
@@ -89,7 +89,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest,
       browser()->tab_strip_model()->GetActiveWebContents();
   auto* infobar_manager = ContentInfoBarManager::FromWebContents(web_contents);
 
-  manager()->Show(identifier);
+  manager()->Show(web_contents, identifier);
   EXPECT_EQ(1u, infobar_manager->infobars().size());
 
   manager()->Hide(identifier);
@@ -102,7 +102,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest, ButtonConfiguration) {
   auto spec =
       InfoBarSpec::Builder(identifier)
           .SetMessageText(u"Test Message")
-          .SetScope(InfoBarScope::kCurrentTab)
+          .SetScope(InfoBarScope::kTab)
           .AddOkButton(u"Custom OK",
                        base::BindLambdaForTesting(
                            [&](content::WebContents*) { ok_called = true; }))
@@ -115,7 +115,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest, ButtonConfiguration) {
       browser()->tab_strip_model()->GetActiveWebContents();
   auto* infobar_manager = ContentInfoBarManager::FromWebContents(web_contents);
 
-  manager()->Show(identifier);
+  manager()->Show(web_contents, identifier);
   ASSERT_EQ(1u, infobar_manager->infobars().size());
 
   auto* delegate =
@@ -149,7 +149,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest,
       ContentInfoBarManager::FromWebContents(web_contents1);
   ASSERT_EQ(0u, infobar_manager1->infobars().size());
 
-  manager()->Show(identifier);
+  manager()->ShowGlobally(identifier);
   EXPECT_EQ(1u, infobar_manager1->infobars().size());
 
   // 2. Open a new browser window.
@@ -178,7 +178,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest,
   manager()->Register(std::move(spec));
 
   // Show the infobar.
-  manager()->Show(identifier);
+  manager()->ShowGlobally(identifier);
 
   content::WebContents* web_contents1 =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -213,7 +213,7 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest,
 
   manager()->Register(std::move(spec));
 
-  manager()->Show(identifier);
+  manager()->ShowGlobally(identifier);
 
   // Open a second browser.
   Browser* browser2 = CreateBrowser(browser()->profile());
@@ -257,8 +257,10 @@ IN_PROC_BROWSER_TEST_F(BrowserInfoBarManagerBrowserTest, FullscreenHiding) {
   manager()->Register(std::move(spec_show));
 
   // 3. Show them.
-  manager()->Show(InfoBarDelegate::TEST_INFOBAR);
-  manager()->Show(InfoBarDelegate::DEV_TOOLS_INFOBAR_DELEGATE);
+  content::WebContents* web_contents1 =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  manager()->Show(web_contents1, InfoBarDelegate::TEST_INFOBAR);
+  manager()->Show(web_contents1, InfoBarDelegate::DEV_TOOLS_INFOBAR_DELEGATE);
 
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();

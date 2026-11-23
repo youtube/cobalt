@@ -104,6 +104,9 @@ bool ContextMenuContentType::SupportsGroupInternal(int group) {
       // Image menu items imply glic share image item.
       return SupportsGroupInternal(ITEM_GROUP_MEDIA_IMAGE);
 
+    case ITEM_GROUP_GLIC:
+      return true;
+
     case ITEM_GROUP_MEDIA_VIDEO:
       return params_.media_type == ContextMenuDataMediaType::kVideo;
 

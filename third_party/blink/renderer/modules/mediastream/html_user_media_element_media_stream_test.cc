@@ -11,12 +11,14 @@
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
 class HTMLUserMediaElementMediaStreamTest : public PageTestBase {};
 
 TEST_F(HTMLUserMediaElementMediaStreamTest, StreamInitializationAndRetrieval) {
+  ScopedUserMediaElementLegacyForTest legacy_disabled{false};
   auto* element = MakeGarbageCollected<HTMLUserMediaElement>(GetDocument());
 
   // Should lazily initialize and return nullptr stream initially

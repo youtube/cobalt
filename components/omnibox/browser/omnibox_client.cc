@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "ui/gfx/image/image.h"
@@ -169,4 +170,22 @@ bool OmniboxClient::IsAimPopupEnabled() const {
 
 omnibox::InputState OmniboxClient::GetInputState() const {
   return omnibox::InputState();
+}
+
+int OmniboxClient::ExecuteAction(OmniboxAction* action,
+                                 WindowOpenDisposition disposition,
+                                 base::TimeTicks match_selection_timestamp,
+                                 AutocompleteProviderClient& provider_client) {
+  if (!action) {
+    return 0;
+  }
+  OmniboxAction::ExecutionContext context(
+      provider_client,
+      base::BindOnce(&OmniboxClient::OnAutocompleteAccept, AsWeakPtr()),
+      match_selection_timestamp, disposition);
+  base::UmaHistogramMicrosecondsTimes(
+      "Omnibox.InputToExecuteAction",
+      base::TimeTicks::Now() - match_selection_timestamp);
+  action->Execute(context);
+  return context.enter_starter_pack_id_;
 }

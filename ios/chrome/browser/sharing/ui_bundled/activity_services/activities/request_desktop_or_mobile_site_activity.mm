@@ -76,7 +76,6 @@ NSString* const kRequestDesktopOrMobileSiteActivityType =
 }
 
 - (void)performActivity {
-  [self activityDidFinish:YES];
   if (!_agent) {
     return;
   }
@@ -91,6 +90,7 @@ NSString* const kRequestDesktopOrMobileSiteActivityType =
         base::UserMetricsAction("MobileShareActionRequestMobile"));
     _agent->RequestMobileSite();
   }
+  [self activityDidFinish:YES];
 }
 
 #pragma mark - ChromeActivity

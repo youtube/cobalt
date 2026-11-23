@@ -52,6 +52,8 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   AssistantAIMState _state;
   AssistantAIMState _previousState;
   NSString* _greetingMessage;
+  // Whether the asisstant view is fully mimimized.
+  BOOL _isMinimized;
 }
 
 @synthesize delegate = _delegate;
@@ -144,7 +146,8 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   _inputViewController.view.alpha = effectPercentage;
   _webStateView.alpha = effectPercentage;
   _inputViewFade.alpha = effectPercentage;
-  _inputViewController.view.hidden = (effectPercentage == 0);
+  _isMinimized = effectPercentage == 0;
+  _inputViewController.view.hidden = _isMinimized;
 
   [_headerView adjustForPercentage:effectPercentage];
 }
@@ -245,6 +248,11 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   [defaultCenter addObserver:self
                     selector:@selector(keyboardDidHide:)
                         name:UIKeyboardDidHideNotification
+                      object:nil];
+
+  [defaultCenter addObserver:self
+                    selector:@selector(textViewDidBeginEditing:)
+                        name:UITextViewTextDidBeginEditingNotification
                       object:nil];
 }
 
@@ -487,6 +495,23 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
                                       curve:curve];
 }
 
+// Called when the text view begins editing.
+- (void)textViewDidBeginEditing:(NSNotification*)notification {
+  if (![notification.object isKindOfClass:[UITextView class]]) {
+    return;
+  }
+  UITextView* textView = (UITextView*)notification.object;
+  if (![textView isDescendantOfView:self.view]) {
+    return;
+  }
+
+  // If the software keyboard is showing, `keyboardWillShow:` handles the
+  // synced animation. We only fallback if the hardware keyboard is used.
+  if (CGRectGetHeight(_keyboardFrameInWindow) == 0) {
+    [self keyboardWillShow:notification];
+  }
+}
+
 // Called when the keyboard is hidden.
 - (void)keyboardDidHide:(NSNotification*)notification {
   _keyboardFrameInWindow = CGRectZero;
@@ -564,6 +589,11 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
   _headerView = [[AssistantAIMHeaderView alloc] init];
   _headerView.translatesAutoresizingMaskIntoConstraints = NO;
   _headerView.delegate = self;
+
+  UITapGestureRecognizer* tapGesture = [[UITapGestureRecognizer alloc]
+      initWithTarget:self
+              action:@selector(handleTapOnHeader)];
+  [_headerView addGestureRecognizer:tapGesture];
   [self.view addSubview:_headerView];
 
   _headerTopMargin =
@@ -576,6 +606,13 @@ constexpr CGFloat kThresholdForCompleteVisibility = 0.3;
         constraintEqualToAnchor:self.view.trailingAnchor],
     [_headerView.heightAnchor constraintEqualToConstant:40],
   ]];
+}
+
+// Called when tapping the header.
+- (void)handleTapOnHeader {
+  if (_isMinimized) {
+    [_mutator didTapOnMinimizedHeader];
+  }
 }
 
 #pragma mark - AssistantAIMHeaderViewDelegate

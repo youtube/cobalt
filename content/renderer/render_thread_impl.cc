@@ -820,8 +820,8 @@ void RenderThreadImpl::InitializeWebKit(mojo::BinderMap* binders) {
     gin::Debug::SetJitCodeEventHandler(vTune::GetVtuneCodeEventHandler());
 #endif
 
-  blink_platform_impl_ =
-      std::make_unique<RendererBlinkPlatformImpl>(main_thread_scheduler_.get());
+  blink_platform_impl_ = std::make_unique<RendererBlinkPlatformImpl>(
+      main_thread_scheduler_.get(), GetIOTaskRunner());
   // This, among other things, enables any feature marked "test" in
   // runtime_enabled_features. It is run before
   // SetRuntimeFeaturesDefaultsAndUpdateFromArgs() so that command line

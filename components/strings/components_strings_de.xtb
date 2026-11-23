@@ -477,6 +477,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="173080396488393970">Dieser Kartentyp wird nicht unterstützt</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">Stattdessen persönlich fragen</translation>
+<translation id="1732796940245838248">Redress Number in Google Wallet aktualisieren</translation>
 <translation id="1733064249834771892">Schriftarten</translation>
 <translation id="1733631169686303142">Audiogeräte</translation>
 <translation id="1733762317901693627">Selbst Websites, die normalerweise sicher sind, werden manchmal gehackt. Besuche diese <ph name="BEGIN_LINK" />unsichere Website<ph name="END_LINK" /> nur, wenn du dir über die Risiken im Klaren bist.</translation>
@@ -581,6 +582,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="1902576642799138955">Gültigkeitsdauer</translation>
 <translation id="1908217026282415406">Kamera verwenden und bewegen</translation>
 <translation id="1908690643053136980">Dein Administrator erlaubt die Berechtigung „<ph name="PERMISSION" />“ für diese Website nicht</translation>
+<translation id="1912750443952232242">Personalausweis in Google Wallet speichern</translation>
 <translation id="1913037223029790376">CVC für diese virtuelle Karte verwenden</translation>
 <translation id="191374271204266022">Als JSON kopieren</translation>
 <translation id="1914326953223720820">Dienst entpacken</translation>
@@ -711,6 +713,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="2122165854541876335">Verbraucherressourcen</translation>
 <translation id="2122214041802369259">Der Preis ist hoch</translation>
 <translation id="2122719317867821810">Diese Richtlinie funktioniert wie beabsichtigt, an anderer Stelle ist jedoch ein widersprüchlicher Wert festgelegt, der von dieser Richtlinie überschrieben wird.</translation>
+<translation id="2124081665399116863">Fahrzeug in Google Wallet aktualisieren</translation>
 <translation id="2126374524350484896">PDF-Erstellungsprogramm:</translation>
 <translation id="2127090458081644412">Passwort auf diesem Gerät gespeichert</translation>
 <translation id="2127747486437921899">Kursiv</translation>
@@ -993,6 +996,7 @@ Du wirst sonst gemäß deinen Datenschutzeinstellungen blockiert. Wenn Cookies u
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />Inhalte von der Zahlungsseite werden an Google weitergegeben, um diese Optionen anzubieten.<ph name="END_BOLD" /> Die Verfügbarkeit von Ratenzahlungen hängt von der Erfüllung bestimmter Voraussetzungen ab. Du kannst die Option „Später bezahlen“ in den <ph name="BEGIN_LINK" />Zahlungseinstellungen<ph name="END_LINK" /> ausblenden.</translation>
 <translation id="2526062290525841862">Wenn du diese App ausführen möchtest, aktiviere den Entwicklermodus für isolierte Web-Apps wieder</translation>
 <translation id="2526280916094749336">Du kannst gespeicherte Adressen in verschiedenen Google-Produkten verwenden. Diese Adresse wird in deinem Google-Konto <ph name="ACCOUNT" /> gespeichert.</translation>
+<translation id="2526590354069164005">Desktop</translation>
 <translation id="2527451058878391043">Der CVC befindet sich auf der Vorderseite deiner Karte. Er ist der vierstellige Code rechts oben über der Kartennummer.</translation>
 <translation id="2529899080962247600">Dieses Feld sollte nicht mehr als <ph name="MAX_ITEMS_LIMIT" /> Einträge enthalten. Alle weiteren Einträge werden ignoriert.</translation>
 <translation id="2530042584066815841">Maussperre und ‑nutzung</translation>
@@ -1493,6 +1497,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="3325568918769906282">in absteigender Reihenfolge</translation>
 <translation id="3325662270238538525">Letzte Zugriffe auf Dateien und Änderungen, einschließlich Dateinamen, digitale Fingerabdrücke des Dateiinhalts, Downloadquelle und Metadaten</translation>
 <translation id="3329013043687509092">Sättigung</translation>
+<translation id="3330483197654063678">Wenn diese Option aktiviert ist, teilt Chrome geöffnete Tabs in diesem Fenster, damit du relevantere Antworten erhältst.</translation>
 <translation id="3333762389743153920">Virtuelle Karte wird nicht unterstützt</translation>
 <translation id="3338095232262050444">Sicher</translation>
 <translation id="333839153442689579">Intervalltraining mit hoher Intensität</translation>
@@ -1546,6 +1551,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="3422472998109090673"><ph name="HOST_NAME" /> ist momentan nicht erreichbar.</translation>
 <translation id="3422794267539320056">Tippe auf den Dino oder drücke die Leertaste, um das Spiel zu starten</translation>
 <translation id="3423742043356668186">Vom System angegeben</translation>
+<translation id="3426672782316020729">Reisepass in Google Wallet aktualisieren</translation>
 <translation id="3427342743765426898">&amp;Bearbeiten wiederholen</translation>
 <translation id="342781501876943858">Chromium empfiehlt, dein Passwort zurückzusetzen, wenn du es auf anderen Websites verwendet hast.</translation>
 <translation id="3428151540071562330">Einer oder mehrere der "DnsOverHttpsTemplates"-Servervorlagen-URIs sind ungültig und werden nicht verwendet.</translation>
@@ -2404,6 +2410,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="4766713847338118463">Zwei Heftklammern unten</translation>
 <translation id="4768816584204270288">Wenn du in Raten bezahlst, wird eine einmalige virtuelle Kartennummer ausgefüllt. Du kannst klicken, um die Kartendetails für diesen Kauf zu kopieren und einzufügen.</translation>
 <translation id="4768864802656530630">Detaillierte Systemprotokolle. <ph name="BEGIN_LINK" />Weitere Informationen<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">KTN in Google Wallet aktualisieren</translation>
 <translation id="4771249073710170730">Funkfernsteuerungen und Modellbau</translation>
 <translation id="4771973620359291008">Ein unbekannter Fehler ist aufgetreten.</translation>
 <translation id="4774055414220872623">Künstlerbedarf</translation>
@@ -2844,6 +2851,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> und <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> weiterer}other{<ph name="CONTACT_PREVIEW" /> und <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> weitere}}</translation>
 <translation id="5463625433003343978">Geräte werden gesucht…</translation>
 <translation id="5464236009658034488">Bürobedarf</translation>
+<translation id="5465128270485645058">Wenn du geöffnete Tabs in diesem Fenster automatisch teilst, wenn sie mit diesem Thread zusammenhängen, erhältst du besser auf dich zugeschnittene Antworten.</translation>
 <translation id="5465724643247062031">Glas (opak)</translation>
 <translation id="5466018172325111652">Du hast keinen Code erhalten? <ph name="BEGIN_LINK" />Neuen Code anfordern<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">Zahlungs-Apps</translation>
@@ -3126,6 +3134,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="5911020115933784199">Veranstaltungen und Freizeitangebote</translation>
 <translation id="5911110632211230665">Öffnen blockiert</translation>
 <translation id="5912796581727968237">Google Wallet öffnen</translation>
+<translation id="5914185423510719251">Known Traveler Number (KTN) in Google Wallet speichern</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> hat diesen Tab hinzugefügt</translation>
 <translation id="5915189366813702112">Flexible Arbeits(-zeit-)modelle</translation>
 <translation id="59174027418879706">Aktiviert</translation>
@@ -3649,6 +3658,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="6702851555558236418">Audio- und Musik-Software</translation>
 <translation id="6702919718839027939">Präsentieren</translation>
 <translation id="6704458454638854812">Die Eigenschaft „custom_size“ wurde festgelegt, der erwartete Name ist daher „Benutzerdefiniert“.</translation>
+<translation id="670477556876354552">Neustart erforderlich</translation>
 <translation id="6706005862292023715">Gardinen, Vorhänge, Jalousien und Rollläden</translation>
 <translation id="6706210727756204531">Umfang</translation>
 <translation id="6706678697074905703">Diese IBAN konnte nicht in deinem Google-Konto gespeichert werden. Sie wurde stattdessen in Chrome auf diesem Gerät gespeichert.</translation>
@@ -3906,6 +3916,7 @@ Wenn du die Optionen für „Später bezahlen“ ausblenden möchtest, rufe die 
 <translation id="7110116949943042888">Aushilfsjobs und Saisonarbeit</translation>
 <translation id="7110368079836707726">Hochschulen und Universitäten</translation>
 <translation id="7111507312244504964">Immobiliengutachten und ‑schätzungen</translation>
+<translation id="7117290130383718594">Textanmerkungen</translation>
 <translation id="7118618213916969306">Nach URL aus Zwischenablage suchen, <ph name="SHORT_URL" /></translation>
 <translation id="7118852830504022370">Du siehst diese Warnung, weil diese Website kein HTTPS unterstützt. <ph name="BEGIN_LEARN_MORE_LINK" />Weitere Informationen zu dieser Warnung<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7119063404975271297">Fernsehdramen</translation>
@@ -4215,6 +4226,7 @@ Weitere Details:
 <translation id="7569490014721427265">Golf</translation>
 <translation id="7569952961197462199">Kreditkarte aus Chrome entfernen?</translation>
 <translation id="7569983096843329377">Schwarz</translation>
+<translation id="7570524564113479209">Personalausweis in Google Wallet aktualisieren</translation>
 <translation id="7570862164055912832">Redress Control Number</translation>
 <translation id="7571813784389228510">„Google AI“-Modus</translation>
 <translation id="7574998639136359461">Wintersportausrüstung</translation>
@@ -4736,6 +4748,7 @@ Weitere Details:
 <translation id="8389940864052787379">Autotuning</translation>
 <translation id="8390725133630534698">Die Administratorrichtlinie blockiert das Teilen von <ph name="ORIGIN_NAME" /> mit <ph name="VM_NAME" /></translation>
 <translation id="8392783408127179588">Richtlinien werden neu geladen</translation>
+<translation id="8393948304336153065">Führerschein in Google Wallet aktualisieren</translation>
 <translation id="8396522675989118466">Dies ist der <ph name="NUMBER_OF_DIGITS" />-stellige Code auf der <ph name="SIDE_OF_CARD" /></translation>
 <translation id="8398335999901363925">Die Liste mit den Zahlungsmethoden, deren Daten bei Berührung ausgefüllt werden, ist vollständig geöffnet.</translation>
 <translation id="8398446215576328011">Angewandte Richtlinien wiederherstellen</translation>
@@ -4898,7 +4911,6 @@ Weitere Details:
 <translation id="8671519637524426245">Der <ph name="SECURE_DNS_SALT" />-Wert erfüllt nicht die Größenanforderungen.</translation>
 <translation id="867224526087042813">Signatur</translation>
 <translation id="8672535691554698269">Computernetzwerke</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{Details zur Tabfreigabe anzeigen. 1 Tab von {WEBSITE_LIST_STR} wird geteilt.}other{Details zur Tabfreigabe anzeigen. {NUM_TABS} Tabs von {WEBSITE_LIST_STR} werden geteilt.}}</translation>
 <translation id="8675446170353411473">Deine Dateien werden in <ph name="CLOUD_PROVIDER" /> hochgeladen</translation>
 <translation id="8676424191133491403">Keine Verzögerung</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, Antwort, <ph name="ANSWER" /></translation>

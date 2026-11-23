@@ -116,7 +116,16 @@ id<GREYMatcher> CardNumberIconView(NSString* icon_type) {
 - (void)setUp {
   [super setUp];
   [ChromeEarlGreyUI openSettingsMenu];
-  [ChromeEarlGreyUI tapSettingsMenuButton:PaymentMethodsButton()];
+  if ([ChromeEarlGrey isYourSavedInfoSettingsPageIosEnabled]) {
+    [ChromeEarlGreyUI
+        tapSettingsMenuButton:grey_accessibilityID(
+                                  @"kSettingsAutofillAndPasswordsCellId")];
+    [[EarlGrey
+        selectElementWithMatcher:PaymentMethodsButton()]
+        performAction:grey_tap()];
+  } else {
+    [ChromeEarlGreyUI tapSettingsMenuButton:PaymentMethodsButton()];
+  }
   [[EarlGrey selectElementWithMatcher:SettingsToolbarAddButton()]
       performAction:grey_tap()];
 }

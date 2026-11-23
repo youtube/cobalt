@@ -10,6 +10,7 @@ import("//build/symlink.gni")
 import("//build/util/process_version.gni")
 import("//chrome/updater/branding.gni")
 import("//chrome/updater/mac/signing/signing_sources.gni")
+import("//chrome/updater/updater.gni")
 import("//chrome/updater/zip.gni")
 import("//chrome/version.gni")
 
@@ -69,6 +70,7 @@ mac_app_bundle("updater_bundle") {
     "//chrome/updater:base",
     "//chrome/updater:constants_prod",
   ]
+  assert_no_deps = updater_assert_no_deps
 }
 
 mac_app_bundle("updater_bundle_test") {
@@ -158,6 +160,7 @@ executable("privileged_helper") {
     "//base",
     "//chrome/updater:constants_prod",
   ]
+  assert_no_deps = updater_assert_no_deps
 
   frameworks = [
     "Foundation.framework",
@@ -273,6 +276,7 @@ executable("launcher") {
     ":launcher_plist",
     ":launcher_sources",
   ]
+  assert_no_deps = updater_assert_no_deps
 
   inputs = [ "$target_gen_dir/launcher_plist.plist" ]
 
@@ -359,6 +363,7 @@ executable("ksadmin") {
     "//base",
     "//chrome/updater:constants_prod",
   ]
+  assert_no_deps = updater_assert_no_deps
 
   frameworks = [ "CoreFoundation.framework" ]
 

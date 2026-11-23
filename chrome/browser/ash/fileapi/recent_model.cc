@@ -119,13 +119,6 @@ RecentModel::CallContext::CallContext(const SearchCriteria& criteria,
       build_start_time(base::TimeTicks::Now()),
       accumulator(criteria.max_files) {}
 
-RecentModel::CallContext::CallContext(CallContext&& context)
-    : search_criteria(context.search_criteria),
-      callback(std::move(context.callback)),
-      build_start_time(context.build_start_time),
-      accumulator(std::move(context.accumulator)),
-      active_sources(std::move(context.active_sources)) {}
-
 RecentModel::CallContext::~CallContext() = default;
 
 // static

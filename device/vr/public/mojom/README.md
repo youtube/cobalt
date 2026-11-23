@@ -8,15 +8,16 @@ service.
 
 # Supported Session types
 
-## Magic-window:
-Magic window sessions are requested by sites that request poses, but render
+## Inline:
+Inline sessions are requested by sites that request poses, but render
 through the normal Chrome compositor pipeline.
 It serves as a basic mode that requires only some way to get orientation poses.
 
 ## Immersive:
 Immersive sessions are where the site wishes to request poses, then render
 content back to a display other than chrome. The common case for this is Head
-Mounted Displays (HMD), like Vive, Oculus, or Daydream.
+Mounted Displays (HMD), like HTC Vive or Oculus/Meta devices. Or standalone
+devices running e.g. AndroidXR.
 
 ## Environment Integration
 This type of session allows for environment integration by providing functions
@@ -25,23 +26,22 @@ Integration session may also supply data in addition to the pose, such as a
 camera frame.
 
 # Renderer <-> Browser interfaces (defined in vr_service.mojom)
-VRService - lives in the browser process, corresponds to a single frame.  Root
-object to obtain other XR objects.
+VRService - Lives in the browser process (implemented by `VRServiceImpl` in
+`content/`). It is the main entry point for WebXR, corresponding to a single
+document/frame. It is used to request sessions and check support.
 
-XRDevice - lives in the browser process, implemented as XRDeviceImpl. Allows a
-client to start a session (either immersive/exclusive/presenting or
-non-immersive).
+VRServiceClient - Lives in the renderer process. It is notified of top-level XR
+events, such as when the set of available physical device runtimes changes
+(e.g., via `OnDeviceChanged`).
 
-VRServiceClient - lives in the renderer process.  Is notified when VRDisplays
-are connected.
-
-VRDisplayClient - lives in the renderer process.  Is notified when display
-settings change.
+XRSessionClient - Lives in the renderer process. It is notified of
+session-specific events, such as visibility state changes
+(`OnVisibilityStateChanged`) or when the session is ended by the browser
+(`OnExitPresent`).
 
 # Renderer <-> Device interfaces (defined in vr_service.mojom)
-These interfaces allow communication betwee an XRRuntime and the renderer
-process.  They may live in the browser process or may live in the isolated
-service.
+These interfaces allow communication between an XRRuntime and the renderer
+process. They may live in the browser process or in the isolated service.
 
 
 ## Data related:
@@ -67,9 +67,9 @@ The XRDevice process may be the browser process or an isolated service for
 different devices implementations.  A device provider in the browser will choose
 to start the isolated device service when appropriate.
 
-XRRuntime - an abstraction over a XR API.  Lives in the XRDevice process.
-Exposes a way for the browser to register for events, and start sessions (Magic
-Window or Presentation).
+XRRuntime - An abstraction over an XR API. Lives in the XRDevice process.
+Exposes a way for the browser to register for events and start sessions (Inline
+or Immersive).
 
 XRSessionController - Lives in the XRDevice process.  Allows the browser to
 pause or stop a session (MagicWindow or Presentation).

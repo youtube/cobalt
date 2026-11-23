@@ -31,7 +31,6 @@
 #include "media/base/media_engine.h"
 #include "pc/codec_configuration.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/containers/flat_map.h"
 #include "rtc_base/containers/flat_set.h"
 #include "rtc_base/logging.h"
 
@@ -220,7 +219,8 @@ Codecs CodecsFromConfigurations(
   for (const auto& config : configurations) {
     out.push_back(config.codec);
     if (type == MediaType::AUDIO) {
-      if (config.resiliency.red && shared_added.insert(kRedCodecName).second) {
+      if (config.resiliency.red &&
+          shared_added.insert(std::string(kRedCodecName)).second) {
         out.push_back(CreateAudioCodec({kRedCodecName, 48000, 2}));
       }
     } else {

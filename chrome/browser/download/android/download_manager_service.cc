@@ -340,22 +340,6 @@ void DownloadManagerService::GetAllDownloadsInternal(ProfileKey* profile_key) {
       profile_key->GetProfileKeyAndroid()->GetJavaObject());
 }
 
-void DownloadManagerService::CheckForExternallyRemovedDownloads(
-    JNIEnv* env,
-    const JavaRef<jobject>& j_profile_key) {
-  // Once the DownloadManager is initlaized, DownloadHistory will check for the
-  // removal of history files. If the history query is not yet complete, ignore
-  // requests to check for externally removed downloads.
-  if (!is_manager_initialized_)
-    return;
-
-  content::DownloadManager* manager = GetDownloadManager(
-      ProfileKeyAndroid::FromProfileKeyAndroid(j_profile_key));
-  if (!manager)
-    return;
-  manager->CheckForHistoryFilesRemoval();
-}
-
 void DownloadManagerService::UpdateLastAccessTime(
     JNIEnv* env,
     const std::string& download_guid,

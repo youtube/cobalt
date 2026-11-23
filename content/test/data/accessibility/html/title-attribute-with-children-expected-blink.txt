@@ -1,0 +1,10 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++genericContainer name='AC/DC' nameFrom=title
+++++++++paragraph
+++++++++++staticText name='Westinghouse championed AC current'
+++++++++++++inlineTextBox name='Westinghouse championed AC current'
+++++++++paragraph
+++++++++++staticText name='Edison championed DC current'
+++++++++++++inlineTextBox name='Edison championed DC current'

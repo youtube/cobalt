@@ -354,4 +354,32 @@ void IntroUI::ToggleAnimations(bool active) {
   }
 }
 
+void IntroUI::SetFinishOrContinueCallback(
+    base::OnceCallback<void(FinishOrContinueChoice)> callback) {
+  CHECK(callback);
+  finish_or_continue_callback_ = std::move(callback);
+}
+
+void IntroUI::BindInterface(
+    mojo::PendingReceiver<intro::mojom::FinishOrContinuePageHandlerFactory>
+        receiver) {
+  finish_or_continue_factory_receiver_.reset();
+  finish_or_continue_factory_receiver_.Bind(std::move(receiver));
+}
+
+void IntroUI::CreateFinishOrContinuePageHandler(
+    mojo::PendingReceiver<intro::mojom::FinishOrContinuePageHandler> receiver) {
+  CHECK(receiver);
+  finish_or_continue_handler_ = std::make_unique<FinishOrContinueHandler>(
+      base::BindOnce(&IntroUI::OnFinishOrContinueChoice,
+                     weak_ptr_factory_.GetWeakPtr()),
+      std::move(receiver));
+}
+
+void IntroUI::OnFinishOrContinueChoice(FinishOrContinueChoice choice) {
+  if (finish_or_continue_callback_) {
+    std::move(finish_or_continue_callback_).Run(choice);
+  }
+}
+
 WEB_UI_CONTROLLER_TYPE_IMPL(IntroUI)

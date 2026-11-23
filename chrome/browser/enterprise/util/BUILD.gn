@@ -7,14 +7,12 @@ import("//third_party/jni_zero/jni_zero.gni")
 
 _jni_sources = [
   "android/java/src/org/chromium/chrome/browser/enterprise/util/DataProtectionBridge.java",
-  "android/java/src/org/chromium/chrome/browser/enterprise/util/EnterpriseInfo.java",
   "android/java/src/org/chromium/chrome/browser/enterprise/util/ManagedBrowserUtils.java",
 ]
 
 android_library("java") {
   srcjar_deps = [ ":jni_headers" ]
   sources = _jni_sources
-  sources += [ "android/java/src/org/chromium/chrome/browser/enterprise/util/EnterpriseInfoImpl.java" ]
 
   deps = [
     "//base:base_java",
@@ -32,10 +30,7 @@ generate_jni("jni_headers") {
 }
 
 robolectric_library("junit") {
-  sources = [
-    "android/java/src/org/chromium/chrome/browser/enterprise/util/DataProtectionBridgeUnitTest.java",
-    "android/java/src/org/chromium/chrome/browser/enterprise/util/EnterpriseInfoImplTest.java",
-  ]
+  sources = [ "android/java/src/org/chromium/chrome/browser/enterprise/util/DataProtectionBridgeUnitTest.java" ]
 
   deps = [
     ":java",
@@ -51,11 +46,3 @@ robolectric_library("junit") {
   ]
 }
 
-android_library("test_support_java") {
-  sources = [ "android/java/src/org/chromium/chrome/browser/enterprise/util/FakeEnterpriseInfo.java" ]
-  deps = [
-    ":java",
-    "//base:base_java",
-    "//content/public/android:content_main_dex_java",
-  ]
-}

@@ -137,8 +137,8 @@ class UrlBarProperties {
             new WritableObjectPropertyKey<>();
 
     /** The callback to be notified on focus changes. */
-    public static final ReadableObjectPropertyKey<Callback<Boolean>> FOCUS_CHANGE_CALLBACK =
-            new ReadableObjectPropertyKey<>();
+    public static final ReadableObjectPropertyKey<Callback<UrlBarFocusChangeInfo>>
+            FOCUS_CHANGE_CALLBACK = new ReadableObjectPropertyKey<>();
 
     /** Specifies whether suggestions are showing below the URL bar. */
     public static final WritableBooleanPropertyKey HAS_URL_SUGGESTIONS =

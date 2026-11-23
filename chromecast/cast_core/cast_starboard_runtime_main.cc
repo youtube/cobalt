@@ -133,7 +133,8 @@ int main(int argc, const char** argv) {
   base::CommandLine temp_cmd(args.argc(), args.argv());
   std::string home_override = temp_cmd.GetSwitchValueASCII(kHomeEnvOverride);
   if (!home_override.empty()) {
-    LOG(INFO) << "HOME variable was previously \"" << getenv("HOME")
+    const char * maybe_home = getenv("HOME");
+    LOG(INFO) << "HOME variable was previously \"" << (maybe_home ? maybe_home : "[UNSET]")
               << "\"; overriding to \"" << home_override << "\".";
     setenv("HOME", home_override.c_str(), 1);
 

@@ -33,12 +33,10 @@ class CORE_EXPORT PhysicalAnchorReference
  public:
   PhysicalAnchorReference(const Element& element,
                           const TransformState& transform_state,
-                          const PhysicalRect& rect_without_transforms,
                           bool is_out_of_flow,
                           bool has_running_transform_animation,
                           GCedHeapHashSet<Member<Element>>* display_locks)
       : transform_state_(transform_state),
-        rect_without_transforms_(rect_without_transforms),
         element_(&element),
         display_locks_(display_locks),
         is_out_of_flow_(is_out_of_flow),
@@ -54,13 +52,6 @@ class CORE_EXPORT PhysicalAnchorReference
   PhysicalRect TransformedBoundingRect() const {
     gfx::RectF rect_f = transform_state_.MappedQuad().BoundingBox();
     return PhysicalRect::EnclosingRect(rect_f);
-  }
-
-  PhysicalRect RectWithoutTransforms() const {
-    return rect_without_transforms_;
-  }
-  void UniteRectWithoutTransforms(const PhysicalRect& rect) {
-    rect_without_transforms_.Unite(rect);
   }
 
   const TransformState& GetTransformState() const { return transform_state_; }
@@ -82,13 +73,7 @@ class CORE_EXPORT PhysicalAnchorReference
   }
 
  private:
-  // For now, store both the transform state (to provide the bounding box after
-  // applying transforms), and also the raw border box rectangle of the anchor
-  // (without transforms). It may be possible that we can drop the latter, once
-  // the CSSAnchorWithTransforms runtime feature sticks, but there are spec
-  // discussions to be had first, if nothing else.
   TransformState transform_state_;
-  PhysicalRect rect_without_transforms_;
 
   Member<const Element> element_;
   // A singly linked list in the reverse tree order. There can be at most one
@@ -216,7 +201,6 @@ class CORE_EXPORT AnchorMap : public GarbageCollected<AnchorMap> {
   void Set(const AnchorKey&,
            const LayoutObject& layout_object,
            const TransformState& transform_state,
-           const PhysicalRect& rect_without_transforms,
            SetOptions,
            Element* element_for_display_lock);
   void Set(const AnchorKey&, PhysicalAnchorReference* reference);

@@ -1127,6 +1127,9 @@ void ShapeResult::ApplyTrailingExpansion(LayoutUnit expansion) {
 bool ShapeResult::HasAutoSpacingAfter(unsigned offset) const {
   if (!character_position_.empty() && offset >= StartIndex() &&
       offset < EndIndex()) {
+    if (character_position_.size() == 1 && NumCharacters() > 1) [[unlikely]] {
+      return false;
+    }
     return CharacterData(offset).has_auto_spacing_after;
   }
   return false;
@@ -1151,7 +1154,7 @@ void ShapeResult::ApplyTextAutoSpacing(
   DCHECK_LE(offsets_with_spacing.back().offset, EndIndex());
 #endif
 
-  EnsurePositionData();
+  EnsurePositionData(/*allow_compaction=*/false);
   if (IsLtr()) [[likely]] {
     ApplyTextAutoSpacingCore<TextDirection::kLtr>(offsets_with_spacing.begin(),
                                                   offsets_with_spacing.end());
@@ -1159,7 +1162,7 @@ void ShapeResult::ApplyTextAutoSpacing(
     ApplyTextAutoSpacingCore<TextDirection::kRtl>(offsets_with_spacing.rbegin(),
                                                   offsets_with_spacing.rend());
   }
-  RecalcCharacterPositions();
+  RecalcCharacterPositions(/*allow_compaction=*/false);
 }
 
 template <TextDirection direction, class Iterator>
@@ -2106,10 +2109,17 @@ std::ostream& operator<<(std::ostream& ostream,
 }
 
 template <bool rtl>
-void ShapeResult::ComputePositionData() const {
+void ShapeResult::ComputePositionData(bool allow_compaction) const {
   unsigned next_character_index = 0;
   InlineLayoutUnit total_advance;
   LayoutUnit last_x_position;
+  enum class AdvanceType {
+    kUnknown,
+    kVariable,
+    kMono
+  } advance_type = rtl ? AdvanceType::kVariable : AdvanceType::kUnknown;
+  TextRunLayoutUnit mono_advance;
+  unsigned mono_glyph_count = 0;
 
   // Iterate runs/glyphs in the visual order; i.e., from the left edge
   // regardless of the directionality, so that |x_position| is always in
@@ -2163,6 +2173,32 @@ void ShapeResult::ComputePositionData() const {
             last_x_position, true, glyph_data.IsSafeToBreakBefore());
       }
 
+      // Track whether this result is "monospace": every glyph maps 1:1 to a
+      // character in identity order (glyph N at character N) and all glyphs
+      // share a single advance. Only then can positions be reconstructed
+      // analytically as `advance * offset`. Ligatures, clusters, or characters
+      // without glyphs put glyph N at some other character, so they keep the
+      // full per-character table.
+      switch (advance_type) {
+        case AdvanceType::kUnknown:
+          if (character_index == mono_glyph_count) {
+            mono_advance = glyph_data.advance;
+            advance_type = AdvanceType::kMono;
+          } else {
+            advance_type = AdvanceType::kVariable;
+          }
+          break;
+        case AdvanceType::kMono:
+          if (mono_advance != glyph_data.advance ||
+              character_index != mono_glyph_count) {
+            advance_type = AdvanceType::kVariable;
+          }
+          break;
+        [[likely]] case AdvanceType::kVariable:
+          break;
+      }
+      ++mono_glyph_count;
+
       total_advance += glyph_data.advance;
       next_character_index = character_index + 1;
     }
@@ -2178,25 +2214,43 @@ void ShapeResult::ComputePositionData() const {
     }
   }
 
+  if (allow_compaction && advance_type == AdvanceType::kMono && !rtl &&
+      NumCharacters() > 1 && mono_glyph_count == num_characters_) {
+    // Every glyph shares one advance and maps 1:1 to a character in identity
+    // order, so positions are `advance * offset`. Keep only that advance (in
+    // element 0's union slot) and drop the per-character table; read paths
+    // reconstruct positions analytically when `character_position_.size() == 1
+    // && NumCharacters() > 1`.
+    character_position_.front().advance = mono_advance;
+    character_position_.Shrink(1);
+    character_position_.shrink_to_fit();
+  }
+
   width_ = total_advance;
 }
 
-void ShapeResult::EnsurePositionData() const {
-  if (!character_position_.empty()) {
+void ShapeResult::EnsurePositionData(bool allow_compaction) const {
+  // `character_position_` holds either the full per-character table or, for a
+  // constant-advance (monospace) result, a single compacted entry. Callers that
+  // only read positions accept either form. Callers that read or write
+  // per-character data (e.g. auto-spacing) pass `allow_compaction = false` and
+  // need the full table rebuilt if only the compacted form is present.
+  if (!character_position_.empty() &&
+      (allow_compaction || character_position_.size() == num_characters_)) {
     return;
   }
 
   character_position_ = HeapVector<ShapeResultCharacterData>(num_characters_);
-  RecalcCharacterPositions();
+  RecalcCharacterPositions(allow_compaction);
 }
 
-void ShapeResult::RecalcCharacterPositions() const {
+void ShapeResult::RecalcCharacterPositions(bool allow_compaction) const {
   DCHECK(!character_position_.empty());
 
   if (IsLtr()) {
-    ComputePositionData<false>();
+    ComputePositionData<false>(allow_compaction);
   } else {
-    ComputePositionData<true>();
+    ComputePositionData<true>(allow_compaction);
   }
 }
 
@@ -2209,11 +2263,39 @@ unsigned ShapeResult::CachedOffsetForPosition(LayoutUnit x) const {
   // At or before start, return offset *of* the first character.
   // At or beyond the end, return offset *after* the last character.
   const bool rtl = IsRtl();
-  const unsigned length = character_position_.size();
+  const unsigned length = NumCharacters();
   if (x <= 0)
     return !rtl ? 0 : length;
   if (x >= width_)
     return !rtl ? length : 0;
+
+  if (character_position_.size() == 1 && NumCharacters() > 1) [[unlikely]] {
+    // Monospace fast path: invert `position = advance * offset`. Estimate the
+    // offset, then adjust by at most one step so the result matches what the
+    // binary search below would return: the largest offset whose position
+    // (per `CachedPositionForOffset`) is <= x.
+    const int64_t advance_raw = character_position_.front().advance.RawValue();
+    if (advance_raw <= 0) [[unlikely]] {
+      return 0;
+    }
+    static_assert(InlineLayoutUnit::kFractionalBits >=
+                  LayoutUnit::kFractionalBits);
+    const int64_t x_raw_16 =
+        int64_t{x.RawValue()}
+        << (InlineLayoutUnit::kFractionalBits - LayoutUnit::kFractionalBits);
+    unsigned offset = static_cast<unsigned>(x_raw_16 / advance_raw);
+    if (offset >= length) {
+      offset = length - 1;
+    }
+    while (offset + 1 < length && CachedPositionForOffset(offset + 1) <= x) {
+      ++offset;
+    }
+    while (offset > 0 && CachedPositionForOffset(offset) > x) {
+      --offset;
+    }
+    return offset;
+  }
+  DCHECK_EQ(character_position_.size(), length);
 
   // Do a binary search to find the largest x-position that is less than or
   // equal to the supplied x value.
@@ -2245,9 +2327,20 @@ LayoutUnit ShapeResult::CachedPositionForOffset(unsigned offset) const {
   DCHECK(!character_position_.empty());
 
   const bool rtl = IsRtl();
-  const unsigned length = character_position_.size();
+  const unsigned length = NumCharacters();
   if (!rtl) {
     if (offset < length) {
+      if (character_position_.size() == 1 && NumCharacters() > 1) [[unlikely]] {
+        // Monospace fast path: positions were collapsed to a single shared
+        // advance. `advance * offset` equals the accumulated table value (`+=`
+        // accumulates raw values without intermediate rounding), so this is
+        // bit-identical to the per-character table. 64-bit math avoids overflow
+        // on long runs.
+        const InlineLayoutUnit position = InlineLayoutUnit::FromRawValue(
+            int64_t{character_position_.front().advance.RawValue()} * offset);
+        return position.ToCeil<LayoutUnit>();
+      }
+      DCHECK_EQ(character_position_.size(), length);
       return character_position_[offset].x_position;
     }
   } else {
@@ -2288,8 +2381,12 @@ unsigned ShapeResult::CachedNextSafeToBreakOffset(unsigned offset) const {
   DCHECK_LE(start_index_, offset);
 
   const unsigned adjusted_offset = offset - start_index_;
-  const unsigned length = character_position_.size();
+  const unsigned length = NumCharacters();
   DCHECK_LT(adjusted_offset, length);
+
+  if (character_position_.size() == 1 && NumCharacters() > 1) [[unlikely]] {
+    return start_index_ + adjusted_offset;
+  }
 
   for (unsigned i = adjusted_offset; i < length; i++) {
     if (character_position_[i].safe_to_break_before) {
@@ -2310,12 +2407,16 @@ unsigned ShapeResult::CachedPreviousSafeToBreakOffset(unsigned offset) const {
   DCHECK_LE(start_index_, offset);
 
   const unsigned adjusted_offset = offset - start_index_;
-  const unsigned length = character_position_.size();
+  const unsigned length = NumCharacters();
   DCHECK_LE(adjusted_offset, length);
 
   // Assume it is always safe to break at the end of the run.
   if (adjusted_offset >= length) {
     return start_index_ + length;
+  }
+
+  if (character_position_.size() == 1 && NumCharacters() > 1) [[unlikely]] {
+    return start_index_ + adjusted_offset;
   }
 
   for (unsigned i = adjusted_offset + 1; i > 0; i--) {

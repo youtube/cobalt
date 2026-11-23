@@ -926,11 +926,9 @@ TEST_F(LayoutSelectionTest, InvalidateSlot) {
       DumpSelectionInfo());
 }
 
-class NGLayoutSelectionTest
-    : public LayoutSelectionTestBase,
-      private ScopedPaintUnderInvalidationCheckingForTest {
+class NGLayoutSelectionTest : public LayoutSelectionTestBase {
  public:
-  NGLayoutSelectionTest() : ScopedPaintUnderInvalidationCheckingForTest(true) {}
+  NGLayoutSelectionTest() = default;
 
  protected:
   const Text* GetFirstTextNode() {
@@ -975,6 +973,10 @@ class NGLayoutSelectionTest
     Selection().SetSelection(selection, SetSelectionOptions());
     Selection().CommitAppearanceIfNeeded();
   }
+
+ private:
+  ScopedPaintUnderInvalidationCheckingForTest
+      scoped_paint_under_invalidation_checking_{true};
 };
 
 std::ostream& operator<<(std::ostream& ostream,

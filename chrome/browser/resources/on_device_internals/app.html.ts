@@ -9,8 +9,7 @@ import type {OnDeviceInternalsAppElement} from './app.js';
 export function getHtml(this: OnDeviceInternalsAppElement) {
   return html`
 <h1>On-Device Internals</h1>
-<cr-tabs id="tabs" .tabNames="${
-          ['Tools', 'Event Logs', 'Model Status', 'Broker State']}"
+<cr-tabs id="tabs" .tabNames="${this.getTabNames_()}"
     .selected="${this.selectedTabIndex_}"
     @selected-changed="${this.onSelectedChanged_}">
 </cr-tabs>
@@ -18,9 +17,13 @@ export function getHtml(this: OnDeviceInternalsAppElement) {
   <on-device-internals-tools class="tab-contents"></on-device-internals-tools>
   <on-device-internals-event-log class="tab-contents">
   </on-device-internals-event-log>
+  ${this.isManifestBrokerEnabled_ ? '' : html`
   <on-device-internals-model-status class="tab-contents">
-  </on-device-internals-model-status>
+  </on-device-internals-model-status>`}
+  ${
+      this.isManifestBrokerEnabled_ ? html`
   <on-device-internals-broker-state class="tab-contents">
-  </on-device-internals-broker-state>
+  </on-device-internals-broker-state>` :
+                                      ''}
 </cr-page-selector>`;
 }

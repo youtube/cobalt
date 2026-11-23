@@ -24,10 +24,13 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.CancelableRunnable;
 import org.chromium.base.ContentUriUtils;
 import org.chromium.base.Log;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.input.InputFeatureMap;
@@ -63,6 +66,10 @@ public class EventForwarder {
 
     // The mime type for a URL.
     private static final String URL_MIME_TYPE = "text/x-moz-url";
+    // The delay is determined by heuristics to debounce transient hover exit events that occur
+    // during tool transitions (e.g., stylus lift-offs or mouse click sequences), preventing
+    // accidental dismissal of hover UI (like URL previews) while keeping response time short.
+    private static final int HOVER_EXIT_DELAY_MS = 50;
 
     private long mNativeEventForwarder;
 
@@ -78,6 +85,10 @@ public class EventForwarder {
 
     // Track the last tool type of touch sequence.
     private int mLastToolType;
+
+    private @Nullable MotionEvent mPendingHoverExitEvent;
+    private @Nullable CancelableRunnable mPendingHoverExitRunnable;
+    private boolean mIsHovering;
 
     // Tracks the starting position of the last trackpad scroll.
     // Only used when isTrackpadScrollEventFromAtLeastU() is true.
@@ -156,6 +167,7 @@ public class EventForwarder {
     @CalledByNative
     @VisibleForTesting
     public void destroy() {
+        cancelPendingHoverExit();
         if (mNativeEventForwarder != 0) {
             var oldValue = sEventForwarders.remove(mNativeEventForwarder);
             assert oldValue == this;
@@ -214,6 +226,7 @@ public class EventForwarder {
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
             mLastToolType = event.getToolType(0);
             logActionDown(event);
+            cancelPendingHoverExit();
         }
 
         if (touchEventRequiresSpecialHandling(event)) {
@@ -462,14 +475,36 @@ public class EventForwarder {
                                     event.getToolType(0));
                 }
                 mLastMouseButtonState = 0;
+
+                if (mPendingHoverExitEvent != null) {
+                    cancelPendingHoverExit();
+                    return false;
+                } else if (!mIsHovering) {
+                    mIsHovering = true;
+                    return sendNativeMouseEventInternal(event, /* forceSend= */ true);
+                }
+                return false;
             }
-            // If trackpad scrolls are converted to mousewheel scrolls, so do touchpad flings, and
-            // trackpad movements to stop fling need to be handled here too.
-            if (isTrackpadToMouseEventConversionEnabled()
-                    && event.isFromSource(InputDevice.SOURCE_MOUSE)
-                    && event.getToolType(0) == MotionEvent.TOOL_TYPE_FINGER
-                    && eventAction == MotionEvent.ACTION_HOVER_MOVE) {
-                cancelFling(event.getEventTime(), true);
+
+            if (eventAction == MotionEvent.ACTION_HOVER_EXIT) {
+                if (mIsHovering && mPendingHoverExitEvent == null) {
+                    mPendingHoverExitEvent = MotionEvent.obtain(event);
+                    mPendingHoverExitRunnable = new CancelableRunnable(this::sendPendingHoverExit);
+                    PostTask.postDelayedTask(
+                            TaskTraits.UI_DEFAULT, mPendingHoverExitRunnable, HOVER_EXIT_DELAY_MS);
+                }
+                return false;
+            }
+
+            if (eventAction == MotionEvent.ACTION_HOVER_MOVE) {
+                cancelPendingHoverExit();
+                // If trackpad scrolls are converted to mousewheel scrolls, so do touchpad flings,
+                // and trackpad movements to stop fling need to be handled here too.
+                if (isTrackpadToMouseEventConversionEnabled()
+                        && event.isFromSource(InputDevice.SOURCE_MOUSE)
+                        && event.getToolType(0) == MotionEvent.TOOL_TYPE_FINGER) {
+                    cancelFling(event.getEventTime(), true);
+                }
             }
             return sendNativeMouseEvent(event);
         } finally {
@@ -497,20 +532,38 @@ public class EventForwarder {
         }
     }
 
+    private void sendPendingHoverExit() {
+        if (mPendingHoverExitEvent != null) {
+            mIsHovering = false;
+            sendNativeMouseEventInternal(mPendingHoverExitEvent, /* forceSend= */ true);
+            cancelPendingHoverExit();
+        }
+    }
+
     /**
      * Sends mouse event to native. Hover event is also converted to mouse event, only
      * differentiated by an internal flag.
      */
     private boolean sendNativeMouseEvent(MotionEvent event) {
+        return sendNativeMouseEventInternal(event, /* forceSend= */ false);
+    }
+
+    private boolean sendNativeMouseEventInternal(MotionEvent event, boolean forceSend) {
         assert mNativeEventForwarder != 0;
 
         int eventAction = event.getActionMasked();
 
+        if (eventAction == MotionEvent.ACTION_DOWN
+                || eventAction == MotionEvent.ACTION_BUTTON_PRESS) {
+            cancelPendingHoverExit();
+        }
+
         // Ignore ACTION_HOVER_ENTER & ACTION_HOVER_EXIT because every mouse-down on Android
         // follows a hover-exit and is followed by a hover-enter.  https://crbug.com/715114
         // filed on distinguishing actual hover enter/exit from these bogus ones.
-        if (eventAction == MotionEvent.ACTION_HOVER_ENTER
-                || eventAction == MotionEvent.ACTION_HOVER_EXIT) {
+        if (!forceSend
+                && (eventAction == MotionEvent.ACTION_HOVER_ENTER
+                        || eventAction == MotionEvent.ACTION_HOVER_EXIT)) {
             return false;
         }
 
@@ -596,6 +649,17 @@ public class EventForwarder {
                         deltaY);
     }
 
+    private void cancelPendingHoverExit() {
+        if (mPendingHoverExitEvent != null) {
+            mPendingHoverExitEvent.recycle();
+            mPendingHoverExitEvent = null;
+        }
+        if (mPendingHoverExitRunnable != null) {
+            mPendingHoverExitRunnable.cancel();
+            mPendingHoverExitRunnable = null;
+        }
+    }
+
     /**
      * Manages internal state to work around a device-specific issue. Needs to be called per every
      * mouse event to update the state.
@@ -624,14 +688,16 @@ public class EventForwarder {
      */
     public static boolean isTrackpadToMouseConversionEvent(MotionEvent event) {
         if (MotionEventUtils.isTrackpadEvent(event)) {
+            int action = event.getActionMasked();
             // Click or click-and-drag.
-            if (event.getAction() == MotionEvent.ACTION_BUTTON_RELEASE
-                    || event.getButtonState() != 0) {
+            if (action == MotionEvent.ACTION_BUTTON_RELEASE || event.getButtonState() != 0) {
                 return true;
             }
 
             // Hover.
-            if (event.getAction() == MotionEvent.ACTION_HOVER_MOVE) {
+            if (action == MotionEvent.ACTION_HOVER_MOVE
+                    || action == MotionEvent.ACTION_HOVER_ENTER
+                    || action == MotionEvent.ACTION_HOVER_EXIT) {
                 return true;
             }
         }

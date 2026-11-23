@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_host.h"
 #include "chrome/test/base/testing_profile.h"
@@ -23,9 +24,11 @@
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/picture_in_picture_window_options/picture_in_picture_window_options.mojom.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/test/test_views_delegate.h"
+#include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/dialog_delegate.h"
 
@@ -129,6 +132,16 @@ class DocumentPipDialogManagerDelegateTest : public ChromeViewsTestBase {
         content::WebContentsTester::CreateTestWebContents(&profile_, nullptr);
     content::WebContentsTester::For(child.get())
         ->NavigateAndCommit(GURL("https://pip.example/"));
+    // Seed the PictureInPictureWindowManager's opener display, which production
+    // sets via CalculateInitialPictureInPictureWindowBounds() before the host
+    // is created (see
+    // PictureInPictureWindowManager::EnterDocumentPictureInPicture).
+    // DocumentPipFrameView::UpdateWindowBoundsForRequestedInnerSize(), run
+    // during CreateAndShowPipWindow() below, CHECK()s that it is set.
+    PictureInPictureWindowManager::GetInstance()
+        ->CalculateInitialPictureInPictureWindowBounds(
+            MakeDefaultPipOptions(),
+            display::Screen::Get()->GetPrimaryDisplay());
     host->CreateAndShowPipWindow(std::move(child), MakeDefaultPipOptions(),
                                  initial_bounds);
     return host;
@@ -338,11 +351,14 @@ TEST_F(DocumentPipDialogManagerDelegateTest,
   EXPECT_GE(grown_bounds.height(), original_bounds.height());
   EXPECT_NE(grown_bounds.size(), original_bounds.size());
 
-  // Closing the dialog restores the PiP window to its pre-dialog bounds.
+  // Closing the dialog restores the PiP window to its pre-dialog size. The
+  // production restore path intentionally preserves the current origin, since
+  // the user may have moved the window while the dialog was open.
+  views::test::WidgetDestroyedWaiter dialog_waiter(dialog_widget);
   dialog_widget->widget_delegate()->AsDialogDelegate()->AcceptDialog();
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return host->GetWidget()->GetWindowBoundsInScreen() == original_bounds;
-  }));
+  dialog_waiter.Wait();
+  EXPECT_EQ(original_bounds.size(),
+            host->GetWidget()->GetWindowBoundsInScreen().size());
 }
 
 // Tearing down the PiP window while a dialog is open closes the dialog cleanly

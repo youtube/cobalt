@@ -29,6 +29,8 @@
 
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
 
+#include <unicode/uscript.h>
+
 #include <limits>
 #include <memory>
 
@@ -46,6 +48,7 @@
 #include "skia/ext/font_utils.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_font_prewarmer.h"
 #include "third_party/blink/renderer/platform/font_family_names.h"
 #include "third_party/blink/renderer/platform/fonts/alternate_font_family.h"
 #include "third_party/blink/renderer/platform/fonts/font_cache_client.h"
@@ -67,6 +70,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/code_point_iterator.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
+#include "third_party/blink/renderer/platform/wtf/wtf.h"
 #include "ui/gfx/font_list.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -90,6 +94,29 @@ float FontCache::device_scale_factor_ = 1.0;
 bool FontCache::antialiased_text_enabled_ = false;
 bool FontCache::lcd_text_enabled_ = false;
 #endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+WebFontPrewarmer* FontCache::prewarmer_ = nullptr;
+
+// static
+void FontCache::PrewarmFamily(const AtomicString& family_name) {
+  DCHECK(IsMainThread());
+  TRACE_EVENT1("fonts", "FontCache::PrewarmFamily", "family",
+               family_name.Utf8());
+
+  if (!prewarmer_) {
+    return;
+  }
+
+  DEFINE_STATIC_LOCAL(HashSet<AtomicString>, prewarmed_families, ());
+  const auto result = prewarmed_families.insert(family_name);
+  if (!result.is_new_entry) {
+    return;
+  }
+
+  prewarmer_->PrewarmFamily(family_name);
+}
+#endif
 
 FontCache& FontCache::Get() {
   return FontGlobalContext::GetFontCache();
@@ -218,7 +245,14 @@ const SimpleFontData* FontCache::FallbackFontForCharacter(
   base::ElapsedTimer timer;
   const SimpleFontData* result = PlatformFallbackFontForCharacter(
       description, lookup_char, font_data_to_substitute, fallback_priority);
-  FontPerformance::AddSystemFallbackFontTime(timer.Elapsed());
+  base::TimeDelta elapsed = timer.Elapsed();
+  bool is_emoji = IsNonTextFallbackPriority(fallback_priority);
+  UErrorCode err = U_ZERO_ERROR;
+  UScriptCode script = uscript_getScript(lookup_char, &err);
+  if (U_FAILURE(err)) {
+    script = USCRIPT_INVALID_CODE;
+  }
+  FontPerformance::AddSystemFallbackFontTime(script, is_emoji, elapsed);
   return result;
 }
 

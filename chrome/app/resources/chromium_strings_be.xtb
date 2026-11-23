@@ -32,6 +32,7 @@
 <translation id="126567311906253476">Калі вы ўваходзіце ў сэрвісы Google (напрыклад, Gmail ці YouTube) праз уліковы запіс <ph name="USER_EMAIL" />, то можаце аўтаматычна ўвайсці ў Chromium пад тым жа ўліковым запісам</translation>
 <translation id="1287534462498555020">Усталюйце Chromium на тэлефон</translation>
 <translation id="1290883685122687410">Памылка наладжвання: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
+<translation id="1312200348844120300">Ілюстрацыя, якая паказвае, як выкарыстоўваць пошук відарысаў для пошуку тавару</translation>
 <translation id="1315551408014407711">Наладзьце свой профіль Chromium</translation>
 <translation id="132092532143527429">Паспрабаваць з Gemini ў Chromium</translation>
 <translation id="1324107359134968521">Браўзеру Chromium неабходны доступ да Bluetooth для пошуку прылад з Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
@@ -41,6 +42,7 @@
 <translation id="1345251407431278948">Замацавана! Цяпер пошук відарысаў можна запускаць з дапамогай новай кнопкі панэлі інструментаў.</translation>
 <translation id="1356661055722410047">Навінка! Вы можаце перакладаць тэкст і відарысы на экране</translation>
 <translation id="1383876407941801731">Пошук</translation>
+<translation id="1388276868779258475">Выкарыстоўвайце праграму Chromium, каб праглядаць вэб-старонкі ў любым месцы</translation>
 <translation id="1397530502368084401">&amp;Кіраваць профілямі Chromium</translation>
 <translation id="1404026649028693342">Заўсёды паказваць рэжым AI</translation>
 <translation id="141901961143729572">Што вы думаеце</translation>
@@ -56,6 +58,7 @@
 <translation id="1574377791422810894">Інструменты бяспекі браўзера Chromium</translation>
 <translation id="1594928384848033697">Chromium збіраецца выдаліць вашы даныя з Менеджара пароляў. Каб дазволіць гэта, увядзіце пароль Windows.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Ваш адміністратар патрабуе перазапусціць Chromium для ўсталявання абнаўлення}=1{Ваш адміністратар патрабуе перазапусціць Chromium для ўсталявання абнаўлення. Акно ў рэжыме інкогніта не будзе адкрыта паўторна.}one{Ваш адміністратар патрабуе перазапусціць Chromium для ўсталявання абнаўлення. # акно ў рэжыме інкогніта не будзе адкрыта паўторна.}few{Ваш адміністратар патрабуе перазапусціць Chromium для ўсталявання абнаўлення. # акны ў рэжыме інкогніта не будуць адкрыты паўторна.}many{Ваш адміністратар патрабуе перазапусціць Chromium для ўсталявання абнаўлення. # вокнаў у рэжыме інкогніта не будуць адкрыты паўторна.}other{Ваш адміністратар патрабуе перазапусціць Chromium для ўсталявання абнаўлення. # акна ў рэжыме інкогніта не будуць адкрыты паўторна.}}</translation>
+<translation id="1623563412065267963">Усё найлепшае ад Google – у праграме Chromium на тэлефоне</translation>
 <translation id="1625909126243026060">Праверка ключавых налад бяспекі і прыватнасці ў Chromium</translation>
 <translation id="1640672724030957280">Ідзе спампоўванне…</translation>
 <translation id="1680687534629375545">Спытаць пра гэту старонку з дапамогай функцыі "Пошук відарысаў"</translation>
@@ -91,6 +94,7 @@
 <translation id="1951406923938785464">Браўзер Chromium заблакіраваў спампоўку, бо гэты тып файлаў спампоўваюць рэдка і ён можа быць небяспечным</translation>
 <translation id="1953553007165777902">Ідзе спампоўванне… Застаецца <ph name="MINUTE" /> хв</translation>
 <translation id="1966382378801805537">Chromium не можа вызначыць або задаць стандартны браўзер</translation>
+<translation id="197326043290947695">Пошук відарысаў дапаможа вам праглядаць старонкі больш эфектыўна</translation>
 <translation id="1990262977744080398">Даведацца, чаму Chromium блакіруе некаторыя файлы, інфармацыя адкрыецца ў новай укладцы</translation>
 <translation id="1999715455684970349">Гэты сэрвіс падтрымлівае праграмнае забеспячэнне Chromium у актуальным стане. Калі сэрвіс адключыць ці спыніць, праграмнае забеспячэнне Chromium не будзе абнаўляцца. Гэта азначае, што пагрозы для бяспекі, якія могуць узнікнуць, немагчыма будзе ўстараніць і функцыі могуць перастаць працаваць. Гэты сэрвіс сам сябе выдаляе, калі адсутнічае праграмнае забеспячэнне Chromium, якое выкарыстоўвае яго.</translation>
 <translation id="2008474315282236005">Будзе выдалены 1 элемент з гэтай прылады. Каб потым атрымаць свае даныя, увайдзіце ва ўліковы запіс Chromium як <ph name="USER_EMAIL" />.</translation>
@@ -113,6 +117,7 @@
 <translation id="2185166961232948079">Chromium – Уваход у сетку – <ph name="PAGE_TITLE" /></translation>
 <translation id="2190166659037789668">Не ўдалося праверыць наяўнасць абнаўленняў: <ph name="UPDATE_CHECK_ERROR" />.</translation>
 <translation id="2199210295479376551">Выдаліць уліковы запіс з Chromium</translation>
+<translation id="2201788217099588893">Усталюйце праграму Chromium, каб выкарыстоўваць найлепшыя інструменты для куплі тавараў у любым месцы</translation>
 <translation id="2210502920229141283">Дзякуючы Палепшанаму Бяспечнаму прагляду ў Chromium для iOS выкарыстанне прылады ў дарозе становіцца больш бяспечным</translation>
 <translation id="2210682093923538346">Небяспечны сайт. Chromium адклікаў дазвол на апавяшчэнні.</translation>
 <translation id="2236949375853147973">Мае дзеянні</translation>
@@ -146,6 +151,7 @@
 <translation id="2572494885440352020">Памочнік Chromium</translation>
 <translation id="2575822587468774919">Паспрабуйце знайсці што-небудзь з дапамогай пошуку відарысаў</translation>
 <translation id="2576118232315942160">Каб выкарыстоўваць свае паролі і іншыя даныя на ўсіх сваіх прыладах, увайдзіце ў Chromium</translation>
+<translation id="2587622539943955767">Адсканіруйце QR-код з дапамогай тэлефона, спампуйце Chromium і ўвайдзіце ва Уліковы запіс Google.</translation>
 <translation id="2592940277904433508">Працягнуць работу ў Chromium</translation>
 <translation id="259935314519650377">Не ўдалося кэшаваць спампаваны ўсталёўшчык. Памылка: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
 <translation id="2620436844016719705">Сістэма</translation>
@@ -167,6 +173,7 @@
 <translation id="2799223571221894425">Перазапусціць</translation>
 <translation id="2803971713792056305">Ваш Chromium</translation>
 <translation id="2816462166102338036">Шукаць гэта відэа з дапамогай функцыі "Пошук відарысаў"</translation>
+<translation id="282591729717417030">Знаходзьце тавары з дапамогай камеры, адсочвайце зніжэнне цэн і карыстайцеся іншымі функцыямі ў Chromium для iOS.</translation>
 <translation id="2841525013647267359">Перакласці з наступнай мовы:</translation>
 <translation id="2846251086934905009">Адбылася памылка. Усталёўшчык не завяршыў працу. Усталяванне перарвана.</translation>
 <translation id="2847479871509788944">Выдаліць з Chromium...</translation>
@@ -192,6 +199,7 @@
 <translation id="3068187312562070417">Іншыя профілі Chromium</translation>
 <translation id="3068290154869370196">Пашырэнні – гэта дадатковыя кампаненты для карыстальніцкага наладжвання Chromium. Пашырэнні дапамагаюць упарадкоўваць змесціва, спрашчаюць выкананне штодзённых задач і павышаюць зручнасць Chromium.</translation>
 <translation id="3068515742935458733">Дапамагаць палепшыць Chromium, адпраўляючы ў Google справаздачы аб збоях і <ph name="UMA_LINK" /></translation>
+<translation id="3071024987058544609">Усталюйце праграму Chromium, каб бяспечна выкарыстоўваць сэрвісы Google ў любым месцы</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{Адно або некалькі пашырэнняў Chromium мелі доступ да 1 прылады USB}=1{Адно або некалькі пашырэнняў Chromium маюць доступ да 1 прылады USB}one{Адно або некалькі пашырэнняў Chromium маюць доступ да # прылады USB}few{Адно або некалькі пашырэнняў Chromium маюць доступ да # прылад USB}many{Адно або некалькі пашырэнняў Chromium маюць доступ да # прылад USB}other{Адно або некалькі пашырэнняў Chromium маюць доступ да # прылады USB}}</translation>
 <translation id="3095811995836568724">Гісторыя Chromium</translation>
 <translation id="3103660991484857065">Усталёўшчык не змог распакаваць архіў. Спампуйце Chromium зноў.</translation>
@@ -216,6 +224,7 @@
 <translation id="3258596308407688501">Chromium не можа чытаць з каталога даных і запісваць у яго:
 
 <ph name="USER_DATA_DIRECTORY" /></translation>
+<translation id="3263249950597659484">Выкарыстоўвайце любімыя інструменты на аснове AI ад Google ў любым месцы дзякуючы Chromium на iOS.</translation>
 <translation id="3286538390144397061">Перазапусціць</translation>
 <translation id="328888136576916638">Адсутнічаюць ключы Google API. Некаторыя функцыі Chromium будуць выключаны.</translation>
 <translation id="3296368748942286671">Працягваць выконваць фонавыя праграмы, калі Chromium закрыты</translation>
@@ -228,6 +237,7 @@
 <translation id="3387527074123400161">Chromium OS</translation>
 <translation id="3406848076815591792">Пераключыцца на існуючы профіль Chromium?</translation>
 <translation id="3412460710772753638">У Менеджары пароляў на гэтай прыладзе</translation>
+<translation id="3423442168617177595">Праграма ўбудавана ў Chromium, каб з яе дапамогай вы маглі ствараць, захоўваць і аўтаматычна запаўняць надзейныя паролі. Дадайце ярлык для зручнага доступу</translation>
 <translation id="3455907671758333080">Падоўжыце дзеянне Палепшанага Бяспечнага прагляду ў Chromium на тэлефоне</translation>
 <translation id="3461644266919055473">Ідзе персаналізацыя Chromium…</translation>
 <translation id="3474745554856756813">З гэтай прылады будзе выдалена наступная колькасць элементаў: <ph name="ITEMS_COUNT" />. Каб потым атрымаць свае даныя, увайдзіце ў Chromium як <ph name="USER_EMAIL" />.</translation>
@@ -236,6 +246,7 @@
 <translation id="3522404737534491619">Каб абагуліць акно, у сістэмных наладах дазвольце браўзеру Chromium запіс экрана.</translation>
 <translation id="3530103706039034513">Карыстальнік <ph name="EXISTING_USER" /> ужо ўвайшоў.  Каб аддзяліць сваю працу ў інтэрнэце ад працы іншых карыстальнікаў, увайдзіце ў Chromium ва ўласны профіль як <ph name="USER_EMAIL_ADDRESS" />.</translation>
 <translation id="3531741627422851418">QR-код для спампоўвання браўзера Chromium на мабільныя прылады</translation>
+<translation id="354621070532799440">Напамін: найлепшыя функцыі бяспекі Google заўсёды з вамі</translation>
 <translation id="3561853857681580870">Каб абагуліць экран, у сістэмных наладах дазвольце браўзеру Chromium запіс экрана.</translation>
 <translation id="3588112919289558122">Пры выкарыстанні палепшанай абароны аптымізацыя JavaScript адключаецца для сайтаў, якія не распазнаюцца Chromium</translation>
 <translation id="3597003331831379823">Не ўдалося запусціць наладжванне з пашыранымі правамі. <ph name="METAINSTALLER_ERROR" /></translation>
@@ -276,6 +287,7 @@
 <translation id="3975724895399328945">Пра &amp;Google Chrome for Testing</translation>
 <translation id="3997429360543082038">Пра Chromium OS</translation>
 <translation id="4010059961270896984">Калі вы наведваеце сайт, Chromium адпраўляе абфускаваную частку URL-адраса ў сэрвіс <ph name="BEGIN_LINK" />Google Бяспечны прагляд<ph name="END_LINK" /> праз сервер прыватнасці, які хавае ваш IP-адрас. Калі сайт робіць нешта падазронае, таксама адпраўляюцца поўныя URL-адрасы і фрагменты змесціва на старонцы.</translation>
+<translation id="4016217212818346953">Заставайцеся ў бяспецы дзякуючы Менеджару пароляў</translation>
 <translation id="4019629340646866719">Chromium OS, як і <ph name="BEGIN_LINK_LINUX_OSS" />асяроддзе распрацоўкі Linux<ph name="END_LINK_LINUX_OSS" />, працуе дзякуючы дадатковаму <ph name="BEGIN_LINK_CROS_OSS" />праграмнаму забеспячэнню з адкрытым зыходным кодам<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="4022972681110646219">Перакласці экран</translation>
 <translation id="4023601594785368013">Мова арыгінала: <ph name="LANGUAGE" /></translation>
@@ -361,11 +373,14 @@
 <translation id="4987820182225656817">Госці могуць выкарыстоўваць Chromium, не пакідаючы нічога пасля сябе.</translation>
 <translation id="4992938037305302429">Ваш уліковы запіс у Chromium</translation>
 <translation id="4994636714258228724">Дадаць мяне ў Chromium</translation>
+<translation id="504699503110800016">Адкрыйце меню з пашырэннем</translation>
+<translation id="5074496654342756568">Атрымлівайце доступ да ўсіх абраных сэрвісаў Google з дапамогай Chromium на прыладзе "<ph name="DEVICE_TYPE" />"</translation>
 <translation id="5123973130450702873">Chromium запытвае дазвол на адсочванне рухаў рук</translation>
 <translation id="5141988424377517949">Вы даўно не наведвалі сайт. Браўзер Chromium адклікаў наступныя дазволы: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> і <ph name="PERMISSION_3" />.</translation>
 <translation id="5174969993834422967">Звычайна вы блакіруеце апавяшчэнні. Каб даць дазвол гэтаму сайту на паказ апавяшчэнняў, націсніце значок апавяшчэнняў у правым вугле панэлі месцазнаходжання.</translation>
 <translation id="5174983315706567306">Недастаткова месца на дыску.</translation>
 <translation id="5187123684706427865">Патрабуецца паўторная аўтэнтыфікацыя ўліковага запісу Chromium</translation>
+<translation id="5223510345050543907">Працягвайце працу ў Chromium на iOS з таго месца, дзе спыніліся.</translation>
 <translation id="5231355151045086930">Выйсці з Chromium</translation>
 <translation id="5234764350956374838">Адхіліць</translation>
 <translation id="5249261924633168472">Адкрыць спасылку ў акне інко&amp;гніта ў Chromium</translation>
@@ -398,6 +413,7 @@
 <translation id="5480860683791598150">Chromium патрабуецца доступ да геаданых, каб абагуліць звесткі аб вашым месцазнаходжанні з гэтым сайтам</translation>
 <translation id="549669000822060376">Пачакайце, пакуль Chromium усталюе апошнія абнаўленні сістэмы.</translation>
 <translation id="5496810170689441661">Chromium спрабуе змяніць паролі. Каб дазволіць гэта, увядзіце пароль Windows.</translation>
+<translation id="549975168243349205">Дзякуючы Chromium вы можаце бесперашкодна працаваць у любімых праграмах, у прыватнасці Google Дыску і YouTube, у любым месцы.</translation>
 <translation id="5524890928877629608">верхні левы вугал поля пошуку: <ph name="LEFT" />% злева, <ph name="TOP" />% зверху</translation>
 <translation id="5527463683072221100">Адкрываць PDF-файлы ў Chromium</translation>
 <translation id="5536164441519929134">Задайце пытанне<ph name="LINE_BREAK" />пра гэту ўкладку</translation>
@@ -443,6 +459,7 @@
 <translation id="6003112304606738118">Ідзе спампоўванне… Застаецца <ph name="HOURS" /> гадз</translation>
 <translation id="6009821354356307391">Задайце дадатковае пытанне</translation>
 <translation id="6040143037577758943">Закрыць</translation>
+<translation id="6044357424127037044">Выкарыстоўвайце праграму Chromium на прыладзе "<ph name="DEVICE_TYPE" />", каб атрымліваць больш магчымасцей ад куплі тавараў у інтэрнэце</translation>
 <translation id="6058380562449900225">Каб абараніць свае даныя, дазвольце Chromium адклікаць дазволы ў сайтаў, якія вы не наведвалі ў апошні час. Апавяшчэнні пры гэтым не адключаюцца.</translation>
 <translation id="6063093106622310249">&amp;Адкрыць у Chromium</translation>
 <translation id="6069027071882229820">Скапіраваць як відарыс</translation>
@@ -470,6 +487,7 @@
 <translation id="6245734527075554892">Правярае, ці знаходзяцца URL-адрасы ў спісе небяспечных сайтаў, захаваным у Chromium</translation>
 <translation id="6248213926982192922">Зрабіць Chromium стандартным браўзерам</translation>
 <translation id="6248988683584659830">Налады пошуку</translation>
+<translation id="6261803579884938625">Усталюйце праграму Chromium на тэлефон і карыстайцеся ў дарозе найлепшымі функцыямі бяспекі ад Google</translation>
 <translation id="6268381023930128611">Выйсці з уліковага запісу ў браўзеры Chromium?</translation>
 <translation id="6270547683008298381">Гэтыя ўкладкі выкарыстоўваюць дадатковыя рэсурсы. Дазвольце Chromium адключыць іх, каб павысіць прадукцыйнасць працы.</translation>
 <translation id="6281746429495226318">Наладзьце свой профіль Chromium</translation>
@@ -489,6 +507,7 @@
 <translation id="6400112897226594999">Лагатып Chromium на экране камп’ютара.</translation>
 <translation id="6403826409255603130">Chromium – гэта вэб-браўзер, які апрацоўвае вэб-старонкі і запускае праграмы з неймавернай хуткасцю: хуткі, стабільны і просты ў выкарыстанні. Павышаная бяспека прагляду вэб-старонак забяспечваецца ўбудаванай у Chromium аховай ад шкодных праграм і фішынгу.</translation>
 <translation id="6414624068245092115">Каб заўсёды мець магчымасць выкарыстоўваць і захоўваць даныя Chromium ва Уліковым запісе Google, пацвердзіце сваю асобу</translation>
+<translation id="6417332166651156371">Спрошчаны відарыс, які паказвае кропку ўваходу ў Менеджар пароляў у Chromium</translation>
 <translation id="642132557830635295">Павышаецца хуткасць Chromium, і правільна працуюць функцыі, якія выкарыстоўваюць JavaScript</translation>
 <translation id="6436260184216827876">Пошук відарысаў недаступны. Паўтарыце спробу пазней.</translation>
 <translation id="6442900851116057561">Перазапусціце Chromium OS</translation>
@@ -508,6 +527,7 @@
 <translation id="6564039629497156115">Змяненне гэтай налады будзе прыменена пасля перазапуску Chromium.</translation>
 <translation id="6567032987737689854">Каб кіраваць пашырэннямі, націсніце "Пашырэнні" ў галоўным меню Chromium.</translation>
 <translation id="656935081669708576">Вы можаце пераключыцца на прагляд пароляў з іншага профілю Chromium</translation>
+<translation id="6569556444379005948">Усталюйце праграму Chromium, каб выкарыстоўваць найлепшыя інструменты на аснове штучнага інтэлекту ў любым месцы</translation>
 <translation id="6570579332384693436">Для выпраўлення арфаграфічных памылак Chromium адпраўляе ў Google тэкст, які вы набіраеце ў тэкставых палях</translation>
 <translation id="6598877126913850652">Перайсці ў налады апавяшчэнняў Chromium</translation>
 <translation id="6600016381025017075">Шукайце на гэтай старонцы любое змесціва</translation>
@@ -540,6 +560,7 @@
 <translation id="6873893289264747459">Браўзер Chromium выявіў, што пашырэнне "<ph name="EXTENSION_NAME" />" змяшчае шкоднае ПЗ</translation>
 <translation id="6877155553248388166">ніжні правы вугал поля пошуку: <ph name="RIGHT" />% справа, <ph name="BOTTOM" />% знізу</translation>
 <translation id="6896758677409633944">Капіраваць</translation>
+<translation id="6898028264630240901">Замацуйце панэль "Кантэкстныя задачы", каб задаваць пытанні падчас прагляду вэб-старонак</translation>
 <translation id="6901631050894301805">Усталюйце Chromium у якасці стандартнага браўзера і замацуйце яго на панэлі задач</translation>
 <translation id="6909503629704372277">&amp;Кіраваць профілямі Chromium</translation>
 <translation id="6919942714452658456">У выніку гэтага дзеяння будуць:
@@ -568,6 +589,8 @@
 <translation id="7047386856539490735">Ці карысныя гэтыя вынікі?</translation>
 <translation id="705851970750939768">Абнавіць Chromium</translation>
 <translation id="7067091210845072982">Калі відарыс не мае прыдатнага апісання, Chromium паспрабуе дадаць яго для вас. Каб стварыць апісанні, відарысы адпраўляюцца ў Google.</translation>
+<translation id="7074836723476134809">Выкарыстоўвайце магчымасці штучнага інтэлекту ў праграме Chromium на прыладзе "<ph name="DEVICE_TYPE" />"</translation>
+<translation id="7134687062119989071">Зручны доступ у дарозе да пароляў, укладак і іншых даных у праграме Chromium на тэлефоне</translation>
 <translation id="7141270731789036260">Наладзіць Chrome for Testing</translation>
 <translation id="7147227333672430807">Вы можаце выкарыстоўваць Chromium, каб пры націсканні на спасылкі ў паведамленнях, дакументах або іншых праграмах яны адкрываліся ў гэтым браўзеры</translation>
 <translation id="7163519456498498587">Выдаліць <ph name="EXTENSION_NAME" /> з Chromium</translation>
@@ -576,6 +599,7 @@
 <translation id="7196312274710523067">Не атрымалася запусціць Chromium. Паўтарыце спробу.</translation>
 <translation id="7213008767289637091">Замацуйце Chromium на панэлі Dock для хуткага доступу да праграмы</translation>
 <translation id="7213407614656404070">Выкарыстоўвайце Chromium кожны раз, калі націскаеце на спасылкі ў паведамленнях, дакументах або іншых праграмах</translation>
+<translation id="7216228761061470870">Калі вы выкарыстоўваеце пошук відарысаў на камп’ютары, загаловак старонкі, URL-адрас і змесціва, у тым ліку файлы PDF, адпраўляюцца на сервер</translation>
 <translation id="7223968959479464213">Менеджар заданняў – Chromium</translation>
 <translation id="7252276985725323153">Пачынайце праглядаць вэб-старонкі адразу: Chromium цяпер можа запускацца пры запуску Windows.</translation>
 <translation id="7274695763216404502">Замацавана! Цяпер пошук відарысаў можна запускаць з панэлі інструментаў.</translation>
@@ -607,6 +631,7 @@
 <translation id="7461356015007898716">Каб атрымліваць наступныя абнаўленні Chromium, вам патрэбная версія Windows 10 ці пазнейшая. На гэтым камп’ютары выкарыстоўваецца Windows 7.</translation>
 <translation id="7467949745582939695">Перазапусціць Chromium?</translation>
 <translation id="7483335560992089831">Немагчыма ўсталяваць тую ж версію Chromium, што зараз працуе. Закрыйце Chromium і паўтарыце спробу.</translation>
+<translation id="7510190804000607802">Напамін: найлепшыя функцыі Google заўсёды з вамі</translation>
 <translation id="751935028865900641">Верагодна, сайты будуць працаваць правільна. Калі вы закрыеце ўсе вокны Chromium, вы выйдзеце з большасці сайтаў, але застаняцеся ва Уліковым запісе Google, калі раней выканалі ўваход у Chromium.</translation>
 <translation id="753534427205733210">{0,plural, =1{Chromium будзе перазапушчаны праз 1 хвіліну}one{Chromium будзе перазапушчаны праз # хвіліну}few{Chromium будзе перазапушчаны праз # хвіліны}many{Chromium будзе перазапушчаны праз # хвілін}other{Chromium будзе перазапушчаны праз # хвіліны}}</translation>
 <translation id="7565444033145385702">Каб абараніць свае даныя, дазвольце Chromium адклікаць дазволы ў сайтаў, якія вы не наведвалі ў апошні час.</translation>
@@ -648,6 +673,7 @@
 <translation id="7937630085815544518">Вы ўваходзілі ва ўліковы запіс Chromium як <ph name="USER_EMAIL_ADDRESS" />. Для паўторнага ўваходу выкарыстоўвайце той жа самы ўліковы запіс.</translation>
 <translation id="7975919845073681630">Гэта другасны ўсталяваны экзэмпляр Chromium – яго нельга зрабіць стандартным браўзерам.</translation>
 <translation id="7997934263947464652">Пашырэнні, праграмы і тэмы з невядомых крыніц могуць прычыніць шкоду вашай прыладзе. Chromium рэкамендуе ўсталёўваць іх толькі з наступнай крыніцы: <ph name="IDS_EXTENSION_WEB_STORE_TITLE" />.</translation>
+<translation id="8000759043835159571">Усё найлепшае ад Google – у праграме Chromium на прыладзе "<ph name="DEVICE_TYPE" />"</translation>
 <translation id="8004582292198964060">Браўзер</translation>
 <translation id="8010081455002666927">Аўтавызначэнне</translation>
 <translation id="8013436988911883588">Як толькі Chromium атрымае дазвол, вэб-сайты змогуць запытваць у вас доступ.</translation>
@@ -661,7 +687,9 @@
 <translation id="8096472344908884505"><ph name="PAGE_TITLE" /> – Google Chrome for Testing</translation>
 <translation id="8105840573057009683">Chromium запытвае дазвол на вызначэнне месцазнаходжання для гэтага сайта</translation>
 <translation id="8107060931443639922">Пры наступным адкрыцці Chromium на прыладзе "<ph name="DEVICE_TYPE" />" вы ўбачыце запрашэнне ўключыць абвесткі функцыі адсочвання цэн.</translation>
+<translation id="8117908349476699973">Атрымлівайце абвесткі пра зніжэнне цэн на цікавыя вам тавары – у праграме Chromium на тэлефоне</translation>
 <translation id="8118331347066725040">Адправіць водгук на пошук з дапамогай Аб’ектыва</translation>
+<translation id="8130609355518033382">Персаналізацыя Chromium</translation>
 <translation id="8133124826068723441">Сістэме Chromium OS не ўдалося сінхранізаваць вашы даныя: для вашага дамена сінхранізацыя недаступная.</translation>
 <translation id="813913629614996137">Ідзе ініцыялізацыя...</translation>
 <translation id="8161503455832158203">Адкрываць Gemini ў Chromium з дапамогай спалучэння клавіш.</translation>
@@ -705,6 +733,7 @@
 <translation id="850264194101621529">Дзякуй, што зрабілі Chromium стандартным браўзерам!</translation>
 <translation id="8522801943730206384">Chromium можа правяраць толькі захаваныя паролі</translation>
 <translation id="8525579356836940628">Усталяванне спынена</translation>
+<translation id="8545729292258443488">Зручны доступ у дарозе да пароляў, укладак і іншых даных у праграме Chromium на прыладзе "<ph name="DEVICE_TYPE" />"</translation>
 <translation id="8548787790260785208">Калі Chromium выявіць, што адзін з вашых пароляў аказаўся сярод агульнадаступных даных у выніку ўцечкі, вы атрымаеце папярэджанне</translation>
 <translation id="8555465886620020932">Памылка службы: <ph name="SERVICE_ERROR" />.</translation>
 <translation id="8556055872671007529">Для некаторых функцый і пашырэнняў Chromium наладжаны хуткія каманды. Вы можаце зноў уключыць іх.</translation>
@@ -746,6 +775,7 @@
             <ph name="LINE_BREAKS" />
             Гэта дзеянне не закране закладкі, гісторыю і захаваныя паролі.</translation>
 <translation id="897581876605952338">Лагатып Chromium Enterprise</translation>
+<translation id="8980139959902937527">Доступ да бяспекі ад Google ў любым месцы дзякуючы праграме Chromium на прыладзе "<ph name="DEVICE_TYPE" />"</translation>
 <translation id="8981150672034878610">Не ўдалося запусціць Chromium: падчас адкрыцця профілю адбылася памылка. Паспрабуйце перазапусціць Chromium.</translation>
 <translation id="8988036198400390003">Кіраваць профілямі Chromium</translation>
 <translation id="9018218886431812662">Усталяванне завершана</translation>
@@ -753,6 +783,7 @@
 <translation id="9022552996538154597">Увайдзіце ў Chromium</translation>
 <translation id="904366664621834601">Браўзер Chromium заблакіраваў спампоўку, бо ў гэтым архіве ёсць файлы, якія могуць хаваць шкоднае ПЗ</translation>
 <translation id="9053882453960391422">Паролі, закладкі і гісторыя будуць сінхранізавацца на ўсіх прыладах. Зрабіце Chromium стандартным браўзерам, каб мець лёгкі доступ да знаёмых і любімых функцый. Для хуткага доступу Chromium будзе замацаваны на панэлі задач.</translation>
+<translation id="9056398481763999048">Выкарыстоўвайце лепшыя інструменты на аснове AI ад Google – у праграме Chromium на тэлефоне</translation>
 <translation id="9062666675513499497">Уваходзіць у Chromium пры ўваходзе ў іншыя сэрвісы Google</translation>
 <translation id="9078733879136747090">Chromium аўтаматычна закрыты</translation>
 <translation id="9089354809943900324">Chromium састарэў</translation>
@@ -769,6 +800,7 @@
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>
 <translation id="924957577793602335">Дастасуйце Chromium да сваіх мэт</translation>
 <translation id="93478295209880648">Браўзер Chromium больш не падтрымліваецца на Windows XP і Windows Vista, таму можа працаваць няправільна</translation>
+<translation id="945098430667185067">Дзякуючы Chromium вы можаце карыстацца найлепшымі функцыямі бяспекі ад Google ў любым месцы.</translation>
 <translation id="945522503751344254">Адправіць водгук</translation>
 <translation id="965162752251293939">Хто выкарыстоўвае Chromium?</translation>
 <translation id="967427899662692980">Засцеражыце браўзер Chromium ад небяспек</translation>

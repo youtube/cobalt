@@ -36,6 +36,13 @@ void FakeRoutineControl::GetState(GetStateCallback callback) {
 
 void FakeRoutineControl::Start() {
   start_called_ = true;
+
+  if (routine_observer_.is_bound()) {
+    auto state = mojom::RoutineState::New();
+    state->state_union =
+        mojom::RoutineStateUnion::NewRunning(mojom::RoutineStateRunning::New());
+    routine_observer_->OnRoutineStateChange(std::move(state));
+  }
 }
 
 void FakeRoutineControl::ReplyInquiry(mojom::RoutineInquiryReplyPtr reply) {

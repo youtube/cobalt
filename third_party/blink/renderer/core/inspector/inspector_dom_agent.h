@@ -369,6 +369,7 @@ class CORE_EXPORT InspectorDOMAgent final
   void NotifyDidAddDocument(Document*);
   void NotifyWillRemoveDOMNode(Node*);
   void NotifyDidModifyDOMAttr(Element*);
+  void ForEachDOMListener(base::FunctionRef<void(const Member<DOMListener>&)>);
 
   // Node-related methods.
   using NodeToIdMap = GCedHeapHashMap<Member<Node>, int>;

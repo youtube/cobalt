@@ -2155,8 +2155,9 @@ void ShellSurfaceBase::UpdateShadow() {
       // Manually control occlusion, but do not make the window
       // opaque as the host window may not be at the same size unless the
       // window state is either in fullscreen or maximized.
-      window->SetOpaqueRegionsForOcclusion(
-          {gfx::Rect(window->bounds().size())});
+      gfx::Rect opaque_in_widget = host_window()->bounds();
+      opaque_in_widget.Intersect(gfx::Rect(window->bounds().size()));
+      window->SetOpaqueRegionsForOcclusion({opaque_in_widget});
     } else {
       window->SetOpaqueRegionsForOcclusion({});
     }

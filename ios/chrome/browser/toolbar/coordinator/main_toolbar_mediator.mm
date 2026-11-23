@@ -10,7 +10,17 @@
 #import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_backed_boolean.h"
 #import "ios/chrome/browser/shared/model/utils/observable_boolean.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+
+namespace layout_state {
+class MainToolbarMediatorPassKeyFactory {
+ public:
+  static base::PassKey<MainToolbarMediatorPassKeyFactory> CreateKey() {
+    return base::PassKey<MainToolbarMediatorPassKeyFactory>();
+  }
+};
+}  // namespace layout_state
 
 namespace {
 
@@ -52,6 +62,10 @@ void LogOmniboxPosition(PrefService* local_state) {
   });
 }
 
+// Helper function to return the domain passkey used to mutate the layout state.
+inline LayoutStateToolbarPassKey PassKey() {
+  return layout_state::MainToolbarMediatorPassKeyFactory::CreateKey();
+}
 }  // namespace
 
 @interface MainToolbarMediator () <BooleanObserver>
@@ -77,10 +91,13 @@ void LogOmniboxPosition(PrefService* local_state) {
     // Log the initial startup metrics.
     LogOmniboxPosition(prefService);
 
-    // Set the initial toolbar position.
-    _layoutState.toolbarPosition = [self isOmniboxInBottomPosition]
-                                       ? ToolbarPosition::kBottom
-                                       : ToolbarPosition::kTop;
+    if (IsChromeNextIaEnabled()) {
+      // Set the initial toolbar position.
+      [_layoutState setToolbarPosition:[self isBottomOmniboxPrefEnabled]
+                                           ? ToolbarPosition::kBottom
+                                           : ToolbarPosition::kTop
+                               passKey:PassKey()];
+    }
   }
   return self;
 }
@@ -90,18 +107,24 @@ void LogOmniboxPosition(PrefService* local_state) {
   _bottomOmniboxPref = nil;
 }
 
-- (BOOL)isOmniboxInBottomPosition {
-  return IsBottomOmniboxAvailable() && _bottomOmniboxPref.value;
-}
-
 #pragma mark - BooleanObserver
 
 - (void)booleanDidChange:(id<ObservableBoolean>)observableBoolean {
   if (observableBoolean == _bottomOmniboxPref) {
-    _layoutState.toolbarPosition = [self isOmniboxInBottomPosition]
-                                       ? ToolbarPosition::kBottom
-                                       : ToolbarPosition::kTop;
+    if (IsChromeNextIaEnabled()) {
+      [_layoutState setToolbarPosition:[self isBottomOmniboxPrefEnabled]
+                                           ? ToolbarPosition::kBottom
+                                           : ToolbarPosition::kTop
+                               passKey:PassKey()];
+    }
   }
+}
+
+#pragma mark - Private
+
+// Returns whether the bottom omnibox preference is enabled.
+- (BOOL)isBottomOmniboxPrefEnabled {
+  return IsBottomOmniboxAvailable() && _bottomOmniboxPref.value;
 }
 
 @end

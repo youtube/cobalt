@@ -78,6 +78,8 @@ public class QuickDeleteDialogDelegateTest {
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
                     .setBugComponent(ChromeRenderTestRule.Component.PRIVACY)
+                    .setRevision(1)
+                    .setDescription("Add Time range label to spinner")
                     .build();
 
     @Mock private SyncService mMockSyncService;

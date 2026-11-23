@@ -4,6 +4,7 @@ Version: 4.38.2
 Revision: 488a7a069c8d7405696fd8171ec8fc369834158b
 Update Mechanism: Manual
 License: MPL-2.0
+License Android Compatible: yes
 License File: LICENSE
 Security Critical: yes
 Shipped: yes

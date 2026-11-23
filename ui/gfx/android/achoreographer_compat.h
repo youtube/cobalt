@@ -49,6 +49,8 @@ namespace gfx {
 
 struct COMPONENT_EXPORT(GFX) AChoreographerCompat {
   static COMPONENT_EXPORT(GFX) const AChoreographerCompat& Get();
+  static COMPONENT_EXPORT(GFX) void SetForTesting(
+      const AChoreographerCompat* test_instance);
 
   bool supported = true;
   pAChoreographer_getInstance AChoreographer_getInstanceFn = nullptr;
@@ -60,11 +62,14 @@ struct COMPONENT_EXPORT(GFX) AChoreographerCompat {
       AChoreographer_unregisterRefreshRateCallbackFn = nullptr;
 
  private:
+  friend class FakeAChoreographerCompat;
   AChoreographerCompat();
 };
 
 struct COMPONENT_EXPORT(GFX) AChoreographerCompat33 {
   static COMPONENT_EXPORT(GFX) const AChoreographerCompat33& Get();
+  static COMPONENT_EXPORT(GFX) void SetForTesting(
+      const AChoreographerCompat33* test_instance);
 
   bool supported = true;
   pAChoreographer_postVsyncCallback AChoreographer_postVsyncCallbackFn =
@@ -85,6 +90,7 @@ struct COMPONENT_EXPORT(GFX) AChoreographerCompat33 {
       AChoreographerFrameCallbackData_getFrameTimelineDeadlineNanosFn = nullptr;
 
  private:
+  friend class FakeAChoreographerCompat;
   AChoreographerCompat33();
 };
 

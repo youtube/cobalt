@@ -175,8 +175,10 @@ void FakeGpuHostForTesting::RequestWebNNCompilerContext(
     webnn::mojom::CreateContextOptionsPtr context_options,
     const webnn::ContextProperties& context_properties,
     const webnn::EpDeviceInfo& target_device,
-    RequestWebNNCompilerContextCallback callback) {
-  std::move(callback).Run(mojo::NullRemote(), mojo::NullReceiver());
+    mojo::PendingReceiver<webnn::mojom::WebNNCompilerContext>
+        compiler_context_receiver,
+    mojo::PendingRemote<webnn::mojom::WebNNModelLoader> model_loader_remote) {
+  // No-op for testing; drop the endpoints so the peer endpoints disconnect.
 }
 #endif
 

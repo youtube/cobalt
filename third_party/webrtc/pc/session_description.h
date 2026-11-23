@@ -353,7 +353,7 @@ class MediaContentDescription {
   bool remote_estimate_ = false;
   bool rtcp_fb_ack_ccfb_ = false;
   int bandwidth_ = kAutoBandwidth;
-  std::string bandwidth_type_ = kApplicationSpecificBandwidth;
+  std::string bandwidth_type_{kApplicationSpecificBandwidth};
 
   std::vector<RtpExtension> rtp_header_extensions_;
   StreamParamsVec send_streams_;

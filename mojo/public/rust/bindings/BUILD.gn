@@ -10,6 +10,7 @@ rust_static_library("bindings") {
     "message_header.rs",
     "message_pipe_watcher.rs",
     "multiplex_router/arc_or_weak.rs",
+    "multiplex_router/control_messages.rs",
     "multiplex_router/endpoint_registry.rs",
     "multiplex_router/handle.rs",
     "multiplex_router/mod.rs",

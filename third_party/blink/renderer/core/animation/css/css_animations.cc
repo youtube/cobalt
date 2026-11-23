@@ -3054,7 +3054,7 @@ void CSSAnimations::CalculateTransitionUpdate(
       if (!any_transition_had_transition_all && !animation_style_recalc &&
           !listed_properties.Contains(property)) {
         update.CancelTransition(property);
-      } else if (entry.value->animation->FinishedInternal()) {
+      } else if (entry.value->animation->Inactive()) {
         update.FinishTransition(property);
       }
     }

@@ -35,7 +35,9 @@ class AtMemoryBottomSheetDelegateAndroid : public AtMemoryBottomSheetDelegate {
   // AtMemoryBottomSheetDelegate:
   void OnDismissed() override;
   void OnQuerySubmitted(const std::u16string& query) override;
+  void OnQueryTextChanged(const std::u16string& query) override;
   void OnSuggestionSelected(int position) override;
+  bool IsSearching() const override;
 
  private:
   raw_ptr<AutofillClient> client_;

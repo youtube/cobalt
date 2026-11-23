@@ -12,6 +12,7 @@
 #include "base/scoped_observation.h"
 #include "chrome/browser/devtools/devtools_contents_resizing_strategy.h"
 #include "chrome/browser/ui/views/frame/tab_modal_dialog_host.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/focus/external_focus_tracker.h"
 #include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/view.h"
@@ -138,6 +139,10 @@ class ContentsContainerView : public views::View,
   void SetTargetContentBounds(
       std::optional<gfx::Outsets> target_contents_bounds);
 
+  void SetRoundedCorners(const gfx::RoundedCornersF& corner_radii);
+
+  views::View* GetToastAnchorView() { return toast_anchor_view_; }
+
  private:
   void UpdateContentsClip();
 
@@ -147,7 +152,7 @@ class ContentsContainerView : public views::View,
   void UpdateDevToolsDockedPlacement();
 
   void UpdateBorderRoundedCorners();
-  void ClearBorderRoundedCorners();
+  void SetBorderRoundedCornersFrom(const gfx::RoundedCornersF& corner_radii);
 
   // views::View:
   void ChildVisibilityChanged(View* child) override;
@@ -164,6 +169,11 @@ class ContentsContainerView : public views::View,
   bool is_in_split_ = false;
 
   raw_ptr<BrowserView> browser_view_ = nullptr;
+
+  // An invisible view used to anchor tab toasts to the top of the contents
+  // view, while being before the contents view in the focus order.
+  raw_ptr<views::View> toast_anchor_view_ = nullptr;
+
   raw_ptr<ContentsWebView> contents_view_ = nullptr;
 
   TabModalDialogHost web_contents_modal_dialog_host_;
@@ -226,6 +236,9 @@ class ContentsContainerView : public views::View,
   // It is non-empty when the contents are larger than the visible region during
   // browser animations (see `SetTargetContentWidth()`).
   mutable gfx::Rect contents_clip_rect_;
+
+  // This is rounded corner radii that will be used.
+  gfx::RoundedCornersF rounded_corner_radii_;
 
   DevToolsContentsResizingStrategy strategy_;
   base::ScopedObservation<View, ViewObserver> view_bounds_observer_{this};

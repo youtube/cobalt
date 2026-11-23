@@ -304,7 +304,7 @@ TEST_F(PersonalContextFetcherTest, FetchPiiOAuthTokenFailure) {
   fetcher_->FetchPiiEntities(pii_request, std::nullopt, future.GetCallback());
 
   identity_test_env_.WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
-      GoogleServiceAuthError(GoogleServiceAuthError::State::CONNECTION_FAILED));
+      GoogleServiceAuthError::FromConnectionError(net::ERR_FAILED));
 
   EXPECT_EQ(test_url_loader_factory_.NumPending(), 0);
   ASSERT_FALSE(future.Get().has_value());

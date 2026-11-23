@@ -78,7 +78,7 @@ class QueryManagerTest : public GpuServiceTest {
         gl_.get(), extension_expectations);
     EXPECT_CALL(*decoder_.get(), GetGLContext())
       .WillRepeatedly(Return(GetGLContext()));
-    scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+    auto feature_info = base::MakeRefCounted<FeatureInfo>();
     feature_info->InitializeForTesting();
     manager_ =
         std::make_unique<GLES2QueryManager>(decoder_.get(), feature_info.get());
@@ -672,7 +672,7 @@ TEST_F(QueryManagerTest, GetErrorQuery) {
   const base::subtle::Atomic32 kSubmitCount = 123;
 
   TestHelper::SetupFeatureInfoInitExpectations(gl_.get(), "");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   std::unique_ptr<GLES2QueryManager> manager(
       new GLES2QueryManager(decoder_.get(), feature_info.get()));
@@ -713,7 +713,7 @@ TEST_F(QueryManagerTest, OcclusionQuery) {
 
   TestHelper::SetupFeatureInfoInitExpectations(gl_.get(),
                                                "GL_EXT_occlusion_query");
-  scoped_refptr<FeatureInfo> feature_info(new FeatureInfo());
+  auto feature_info = base::MakeRefCounted<FeatureInfo>();
   feature_info->InitializeForTesting();
   std::unique_ptr<GLES2QueryManager> manager(
       new GLES2QueryManager(decoder_.get(), feature_info.get()));

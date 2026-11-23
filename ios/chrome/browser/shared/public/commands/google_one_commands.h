@@ -7,6 +7,9 @@
 
 #import "ios/chrome/browser/google_one/shared/google_one_entry_point.h"
 
+class GURL;
+@protocol SystemIdentity;
+
 // Commands related to GoogleOne.
 @protocol GoogleOneCommands
 
@@ -15,6 +18,9 @@
 - (void)showGoogleOneForIdentity:(id<SystemIdentity>)identity
                       entryPoint:(GoogleOneEntryPoint)entryPoint
               baseViewController:(UIViewController*)baseViewController;
+
+// Launches the Google One screen with `inputURL`.
+- (void)showGoogleOneForURL:(const GURL&)inputURL;
 
 // Hides the Google One controller and stop the coordinator.
 - (void)hideGoogleOne;

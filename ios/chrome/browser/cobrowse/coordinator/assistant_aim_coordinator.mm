@@ -6,6 +6,7 @@
 
 #import <vector>
 
+#import "base/ios/block_types.h"
 #import "ios/chrome/browser/assistant/coordinator/assistant_container_commands.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_delegate.h"
 #import "ios/chrome/browser/assistant/ui/assistant_container_detent.h"
@@ -26,6 +27,7 @@
 #import "ios/chrome/browser/composebox/public/composebox_focus_params.h"
 #import "ios/chrome/browser/composebox/public/composebox_theme.h"
 #import "ios/chrome/browser/composebox/public/features.h"
+#import "ios/chrome/browser/metrics/model/activity_reporter.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -51,6 +53,9 @@
                                        AssistantAIMViewControllerDelegate,
                                        AssistantContainerDelegate,
                                        TabGridStateObserving>
+
+// Block to execute when the 'Undo' snackbar dismisses.
+@property(nonatomic, strong) ProceduralBlock undoSnackbarDismissCompletion;
 
 // Returns whether the tab grid is currently visible.
 - (BOOL)isTabGridVisible;
@@ -84,12 +89,18 @@ class AssistantAIMUIStateProvider
 
   // Handler for container related interactions.
   __weak id<AssistantContainerCommands> _containerHandler;
+  ActivityReporter* _activityReporter;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser {
   CHECK(IsAimCobrowseEligible(browser->GetProfile()));
-  return [super initWithBaseViewController:viewController browser:browser];
+  self = [super initWithBaseViewController:viewController browser:browser];
+  if (self) {
+    _activityReporter =
+        [[ActivityReporter alloc] initWithDomain:ActivityReportDomainCobrowse];
+  }
+  return self;
 }
 
 - (void)start {
@@ -101,6 +112,7 @@ class AssistantAIMUIStateProvider
   if (self.browser->GetProfile()->IsOffTheRecord()) {
     return;
   }
+  [_activityReporter reportActive];
 
   [self.browser->GetSceneState().tabGridState addObserver:self];
 
@@ -160,6 +172,8 @@ class AssistantAIMUIStateProvider
   [_viewController
       addInputViewController:_inputPlateCoordinator.inputViewController];
 
+  [self dismissSnackbars];
+
   // This must be called AFTER the view controller and its children (like the
   // input plate) are fully set up. This is because the initial layout and
   // percentage updates need to be applied to the fully constructed content.
@@ -198,10 +212,12 @@ class AssistantAIMUIStateProvider
     _viewController = nil;
     [self dismissAssistantContainerAnimated:NO];
   }
+  [_activityReporter reportInactive];
 }
 
 - (void)setVisible:(BOOL)visible {
   if (visible) {
+    [self dismissSnackbars];
     if (_viewController) {
       AssistantContainerDetent targetDetent = _currentDetent;
       [_containerHandler showAssistantContainerWithContent:_viewController
@@ -209,6 +225,9 @@ class AssistantAIMUIStateProvider
       // Restore `_currentDetent` in case `showAssistantContainerWithContent:`
       // triggered intermediate layout passes that incorrectly reset it.
       _currentDetent = targetDetent;
+
+      [_activityReporter reportActive];
+
       [_containerHandler
           animateAssistantContainerToDetent:_currentDetent
                                    duration:kSheetDetentAnimationDuration
@@ -217,6 +236,7 @@ class AssistantAIMUIStateProvider
   } else {
     _isHiding = YES;
     [self dismissAssistantContainerAnimated:YES];
+    [_activityReporter reportInactive];
   }
 }
 
@@ -348,14 +368,29 @@ class AssistantAIMUIStateProvider
     didUndo = YES;
     [weakSelf revealAssistant];
   };
-  message.completionHandler = ^(BOOL success) {
+
+  self.undoSnackbarDismissCompletion = ^{
     if (!didUndo) {
       [weakSelf closeAssistant];
+    }
+  };
+  message.completionHandler = ^(BOOL success) {
+    if (weakSelf.undoSnackbarDismissCompletion) {
+      weakSelf.undoSnackbarDismissCompletion();
+      weakSelf.undoSnackbarDismissCompletion = nil;
     }
   };
 
   [HandlerForProtocol(self.browser->GetCommandDispatcher(), SnackbarCommands)
       showSnackbarMessage:message];
+}
+
+// Dismisses the presented snackbars without triggering the elapsed time side
+// effects.
+- (void)dismissSnackbars {
+  self.undoSnackbarDismissCompletion = nil;
+  [HandlerForProtocol(self.browser->GetCommandDispatcher(), SnackbarCommands)
+      dismissAllSnackbars];
 }
 
 #pragma mark - AssistantContainerDelegate
@@ -407,6 +442,18 @@ class AssistantAIMUIStateProvider
 
 - (void)assistantAIMMediatorDidStartNewThread:(AssistantAIMMediator*)mediator {
   [self dismissKeyboard];
+}
+
+- (void)assistantAIMMediatorDidFocusFromMinimized:
+    (AssistantAIMMediator*)mediator {
+  [_inputPlateCoordinator focusComposebox];
+}
+
+- (void)assistantAIMMediator:(AssistantAIMMediator*)mediator
+    didReceiveContextLibraryWebpageSignalWithURL:(const GURL&)url
+                                           title:(NSString*)title {
+  [_inputPlateCoordinator processContextLibraryWebpageSignalWithURL:url
+                                                              title:title];
 }
 
 - (BOOL)assistantContainer:(AssistantContainerViewController*)container

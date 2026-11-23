@@ -79,7 +79,7 @@ void PersonalContextFirstRunBottomSheetBridge::Hide() {
   }
 }
 
-void PersonalContextFirstRunBottomSheetBridge::OnInfoAcknowledged(JNIEnv* env) {
+void PersonalContextFirstRunBottomSheetBridge::OnNoticeAcknowledged(JNIEnv* env) {
   if (callback_) {
     std::move(callback_).Run(NoticeResult::kAcknowledged);
     base::UmaHistogramEnumeration(kNoticeInteractionsHistogramName,
@@ -98,7 +98,7 @@ void PersonalContextFirstRunBottomSheetBridge::OnLearnMoreClicked(JNIEnv* env) {
       base::UserMetricsAction("PersonalContext.Notice.LearnMoreLinkClick"));
 }
 
-void PersonalContextFirstRunBottomSheetBridge::OnInfoDismissed(JNIEnv* env) {
+void PersonalContextFirstRunBottomSheetBridge::OnNoticeDismissed(JNIEnv* env) {
   if (callback_) {
     std::move(callback_).Run(NoticeResult::kNotAcknowledged);
     base::UmaHistogramEnumeration(kNoticeInteractionsHistogramName,

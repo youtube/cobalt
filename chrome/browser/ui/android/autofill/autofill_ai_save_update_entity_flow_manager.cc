@@ -134,6 +134,7 @@ AutofillAiSaveUpdateEntityFlowManager::CreateMessageModel(
   const bool is_server_wallet =
       entity.record_type() == EntityInstance::RecordType::kServerWallet;
   message->SetTitle(GetPromptTitle(entity.type().name(), !old_entity,
+                                   /*is_banner_prompt=*/true,
                                    is_server_wallet));
   message->SetDescription(
       GetMessageDescription(web_contents_, is_server_wallet));

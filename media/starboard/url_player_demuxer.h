@@ -62,7 +62,7 @@ class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer {
   ~UrlPlayerDemuxer() override;
 
   // MediaResource implementation.
-  std::vector<DemuxerStream*> GetAllStreams() override;
+  std::vector<raw_ptr<DemuxerStream>> GetAllStreams() override;
   GURL GetMediaUrl() const override;
 
   // Demuxer implementation.

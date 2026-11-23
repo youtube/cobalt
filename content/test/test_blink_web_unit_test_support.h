@@ -56,6 +56,9 @@ class TestBlinkWebUnitTestSupport : public BlinkPlatformImpl {
       const blink::WebString& value1,
       const blink::WebString& value2) override;
   blink::WebString DefaultLocale() override;
+  scoped_refptr<base::SequencedTaskRunner> MediaThreadTaskRunner() override;
+  scoped_refptr<base::SequencedTaskRunner>
+  GetMediaStreamVideoSourceVideoTaskRunner() const override;
   scoped_refptr<base::SingleThreadTaskRunner> GetIOTaskRunner() const override;
   bool IsThreadedAnimationEnabled() override;
 

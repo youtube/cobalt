@@ -9,6 +9,8 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/ui/webui/webui_toolbar/webui_toolbar_test_utils.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
+#include "components/omnibox/browser/location_bar_model_util.h"
+#include "components/security_state/core/security_state.h"
 #include "components/vector_icons/vector_icons.h"
 #include "testing/gmock/include/gmock/gmock-matchers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -305,6 +307,40 @@ TEST_F(IconTableTest, Colors) {
       icon_table_.GetFullState(),
       testing::UnorderedElementsAre(MatchesIconUpdate(std::ref(expected_i1)),
                                     MatchesIconUpdate(std::ref(expected_i2))));
+}
+
+TEST_F(IconTableTest, AllSecurityIconsAreMapped) {
+  const security_state::SecurityLevel levels[] = {
+      security_state::NONE,
+      security_state::WARNING,
+      security_state::SECURE,
+      security_state::DANGEROUS,
+  };
+
+  for (auto level : levels) {
+    security_state::VisibleSecurityState state;
+
+    // Standard icon
+    const gfx::VectorIcon& standard_icon =
+        location_bar_model::GetSecurityVectorIcon(level, &state);
+    EXPECT_TRUE(icon_table_.RegisterVectorIcon(standard_icon).has_value())
+        << "Missing standard icon for SecurityLevel: " << level;
+
+    // HTTPS Upgraded (WARNING triggers no_encryption)
+    state.is_https_only_mode_upgraded = true;
+    const gfx::VectorIcon& https_upgraded_icon =
+        location_bar_model::GetSecurityVectorIcon(level, &state);
+    EXPECT_TRUE(icon_table_.RegisterVectorIcon(https_upgraded_icon).has_value())
+        << "Missing HTTPS upgraded icon for SecurityLevel: " << level;
+
+    // Enterprise block (DANGEROUS triggers domain/business)
+    state.malicious_content_status =
+        security_state::MALICIOUS_CONTENT_STATUS_MANAGED_POLICY_BLOCK;
+    const gfx::VectorIcon& enterprise_icon =
+        location_bar_model::GetSecurityVectorIcon(level, &state);
+    EXPECT_TRUE(icon_table_.RegisterVectorIcon(enterprise_icon).has_value())
+        << "Missing enterprise block icon for SecurityLevel: " << level;
+  }
 }
 
 }  // namespace

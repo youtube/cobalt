@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/modules/mediastream/media_stream_utils.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_source.h"
+#include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -91,9 +92,27 @@ void ApplyConstraintsProcessor::ProcessAudioRequest() {
     return;
   }
 
-  blink::AudioCaptureSettings settings =
-      SelectSettingsAudioCapture(audio_source, current_request_->Constraints());
+  MediaStreamAudioTrack* current_track =
+      MediaStreamAudioTrack::From(current_request_->Track());
+  blink::AudioCaptureSettings settings = SelectSettingsAudioCapture(
+      audio_source, current_request_->Constraints(), current_track);
   if (settings.HasValue()) {
+    if (current_track) {
+      std::optional<bool> voice_isolation_exact;
+      // According to the W3C Media Capture spec (SelectSettings algorithm),
+      // constraints in `advanced` constraint sets are best-effort and discarded
+      // if unsatisfied. Only `Basic` exact constraints are mandatory; thus,
+      // only `Basic` exact constraints are recorded for sibling track conflict
+      // checking.
+      if (IsVoiceIsolationSupported() &&
+          current_request_->Constraints().Basic().voice_isolation.HasExact()) {
+        voice_isolation_exact =
+            current_request_->Constraints().Basic().voice_isolation.Exact();
+      }
+      current_track->SetVoiceIsolationExactConstraint(voice_isolation_exact);
+    }
+    audio_source->SetAudioProcessingProperties(
+        settings.audio_processing_properties());
     ApplyConstraintsSucceeded();
   } else {
     ApplyConstraintsFailed(settings.failed_constraint_name());

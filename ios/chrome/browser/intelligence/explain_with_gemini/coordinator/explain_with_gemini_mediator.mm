@@ -63,7 +63,8 @@ typedef void (^ProceduralBlockWithBlockWithItemArray)(
   GeminiTabHelper* geminiTabHelper = GeminiTabHelper::FromWebState(webState);
   const BOOL geminiAvailable =
       geminiService && geminiService->IsProfileEligibleForGemini() &&
-      geminiTabHelper && geminiTabHelper->IsGeminiAvailableForWebState();
+      geminiTabHelper && geminiTabHelper->IsGeminiAvailableForWebState() &&
+      geminiTabHelper->IsContextualEntryPointAllowed();
   if (!geminiAvailable) {
     return NO;
   }

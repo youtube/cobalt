@@ -18,6 +18,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 
 import androidx.annotation.ColorInt;
@@ -295,6 +296,7 @@ class BottomSheet extends FrameLayout
         mSheetBgColor = getNonModalBottomSheetBgColor(context);
         mGestureDetector = new BottomSheetSwipeDetector(context, this);
         mIsTouchEnabled = true;
+        setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
     }
 
     /** @param reporter A means of reporting an exception without crashing. */
@@ -765,7 +767,8 @@ class BottomSheet extends FrameLayout
         mIsSheetOpen = true;
 
         for (BottomSheetObserver o : mObservers) o.onSheetOpened(reason);
-        sendPaneChangeAccessibilityEvent(true);
+        setFocusable(true);
+        setFocusableInTouchMode(true);
     }
 
     /**
@@ -1260,8 +1263,9 @@ class BottomSheet extends FrameLayout
         if (mCurrentState == SheetState.HALF || mCurrentState == SheetState.FULL) {
             assumeNonNull(getCurrentSheetContent());
 
-            // TalkBack will announce the content description if it has changed, so wait to set the
-            // content description until after announcing full/half height.
+            // TalkBack will announce the pane title and shift focus when the state settles.
+            // We set the focusability and content description here so they are ready when
+            // the pane change event is dispatched below.
             setFocusable(true);
             setFocusableInTouchMode(true);
             String contentDescription =
@@ -1276,6 +1280,7 @@ class BottomSheet extends FrameLayout
 
             setContentDescription(contentDescription);
             if (getFocusedChild() == null) requestFocus();
+            sendPaneChangeAccessibilityEvent(true);
         }
 
         for (BottomSheetObserver o : mObservers) {
@@ -1809,11 +1814,16 @@ class BottomSheet extends FrameLayout
     }
 
     private void updateA11yPaneTitle(CharSequence msg) {
-        // Set the pane title for the container. The bottom sheet view is not always
-        // accessible e.g. when sheet is dismissed.
-        ViewCompat.setAccessibilityPaneTitle(mSheetContainer, msg);
+        // Set the pane title for the bottom sheet view.
+        ViewCompat.setAccessibilityPaneTitle(this, msg);
     }
 
+    // Suppressing AccessibilityFocus: The bottom sheet uses translationY for animations rather than
+    // standard visibility changes, which causes the Android accessibility framework to fail at
+    // automatically shifting focus to the newly opened pane. We must force focus here to ensure
+    // screen readers don't get stuck on background elements (e.g. the toolbar) when the sheet
+    // opens.
+    @SuppressWarnings("AccessibilityFocus")
     private void sendPaneChangeAccessibilityEvent(boolean isShowing) {
         AccessibilityEvent event =
                 AccessibilityEvent.obtain(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
@@ -1822,7 +1832,19 @@ class BottomSheet extends FrameLayout
         } else {
             event.setContentChangeTypes(AccessibilityEvent.CONTENT_CHANGE_TYPE_PANE_DISAPPEARED);
         }
+        CharSequence paneTitle = ViewCompat.getAccessibilityPaneTitle(this);
+        if (paneTitle != null) {
+            event.getText().add(paneTitle);
+        }
+        event.setSource(this);
         AccessibilityState.sendAccessibilityEvent(event);
+        if (isShowing) {
+            this.post(
+                    () -> {
+                        this.performAccessibilityAction(
+                                AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null);
+                    });
+        }
     }
 
     private void resetCachedKeyboardState() {

@@ -36,7 +36,8 @@ public class WideDisplayPadding {
     private final int mMinWidePaddingPixels;
     private final UiConfig mUiConfig;
 
-    private WideDisplayPadding(Fragment fragment, SettingsActivity settingsActivity) {
+    private WideDisplayPadding(
+            Fragment fragment, SettingsActivity settingsActivity, int minPaddingPx) {
         mContext = fragment.requireContext();
         mContent = fragment.getView();
 
@@ -58,6 +59,12 @@ public class WideDisplayPadding {
             mUiConfig.addObserver(
                     (newDisplayStyle) -> {
                         recyclerView.invalidateItemDecorations();
+                    });
+            recyclerView.addOnLayoutChangeListener(
+                    (v, l, t, r, b, oldL, oldT, oldR, oldB) -> {
+                        if (r - l != oldR - oldL) {
+                            recyclerView.invalidateItemDecorations();
+                        }
                     });
         }
 
@@ -93,7 +100,7 @@ public class WideDisplayPadding {
                 fragment instanceof CustomDividerFragment ? (CustomDividerFragment) fragment : null;
 
         PaddedItemDecorationWithDivider itemDecoration =
-                getPaddedItemDecorationWithDivider(settingsActivity, recyclerView);
+                getPaddedItemDecorationWithDivider(settingsActivity, recyclerView, minPaddingPx);
         Drawable dividerDrawable = getDividerDrawable();
 
         // Early return if (a)Fragment implements CustomDividerFragment and explicitly don't
@@ -121,18 +128,29 @@ public class WideDisplayPadding {
     }
 
     private PaddedItemDecorationWithDivider getPaddedItemDecorationWithDivider(
-            SettingsActivity settingsActivity, RecyclerView recyclerView) {
+            SettingsActivity settingsActivity, RecyclerView recyclerView, int minPaddingPx) {
         Supplier<Integer> itemOffsetSupplier =
                 () -> {
-                    boolean applyHorizontalPadding = !settingsActivity.isTwoColumnSettingsVisible();
-
-                    return applyHorizontalPadding
-                            ? getItemOffset(mUiConfig.getCurrentDisplayStyle(), recyclerView)
-                            : 0;
+                    if (settingsActivity.isTwoColumnSettingsVisible()) {
+                        return computeMultiColumnSearchPadding(recyclerView, minPaddingPx);
+                    } else {
+                        return getItemOffset(mUiConfig.getCurrentDisplayStyle(), recyclerView);
+                    }
                 };
         PaddedItemDecorationWithDivider itemDecoration =
                 new PaddedItemDecorationWithDivider(itemOffsetSupplier);
         return itemDecoration;
+    }
+
+    private int computeMultiColumnSearchPadding(RecyclerView recyclerView, int minPaddingPx) {
+        int widthPx = recyclerView.getWidth();
+        if (widthPx == 0) return minPaddingPx;
+
+        int maxDetailWidthPx =
+                mContext.getResources()
+                        .getDimensionPixelSize(R.dimen.settings_min_multi_column_screen_width);
+        int excessPx = widthPx - maxDetailWidthPx - minPaddingPx * 2;
+        return minPaddingPx + (excessPx > 0 ? excessPx / 2 : 0);
     }
 
     /**
@@ -142,9 +160,11 @@ public class WideDisplayPadding {
      *
      * @param fragment The fragment to apply padding to.
      * @param settingsActivity The settings activity to observe for configuration changes.
+     * @param minPaddingPx Minimum horizontal padding to apply to the fragment in pixels.
      */
-    public static void apply(Fragment fragment, SettingsActivity settingsActivity) {
-        new WideDisplayPadding(fragment, settingsActivity);
+    public static void apply(
+            Fragment fragment, SettingsActivity settingsActivity, int minPaddingPx) {
+        new WideDisplayPadding(fragment, settingsActivity, minPaddingPx);
     }
 
     private Integer getItemOffset(DisplayStyle displayStyle, View view) {

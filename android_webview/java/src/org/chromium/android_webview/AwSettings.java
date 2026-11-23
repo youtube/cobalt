@@ -201,8 +201,6 @@ public class AwSettings {
     private boolean mEnableSupportedHardwareAcceleratedFeatures;
     private int mMixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW;
     private int mAttributionBehavior = AttributionBehavior.APP_SOURCE_AND_WEB_TRIGGER;
-    private boolean mIgnoreDuplicateNavEnabled;
-    private long mIgnoreDuplicateNavThresholdMs = -1;
 
     @SpeculativeLoadingAllowedFlags
     private int mSpeculativeLoadingAllowedFlags =
@@ -832,52 +830,6 @@ public class AwSettings {
     public boolean getGeolocationEnabled() {
         synchronized (mAwSettingsLock) {
             return mGeolocationEnabled;
-        }
-    }
-
-    /**
-     * Sets whether WebView should ignore duplicate navigations. A navigation is considered a
-     * duplicate if it matches the URL, method, and initiator of an ongoing navigation. This helps
-     * prevent unintended multiple navigations from rapid user interactions, such as double clicks.
-     *
-     * @param enable whether to ignore duplicate navigations.
-     */
-    public void setIgnoreDuplicateNavEnabled(boolean enable) {
-        synchronized (mAwSettingsLock) {
-            if (mIgnoreDuplicateNavEnabled != enable) {
-                mIgnoreDuplicateNavEnabled = enable;
-                mEventHandler.updateWebkitPreferencesLocked();
-            }
-        }
-    }
-
-    @CalledByNative
-    public boolean getIgnoreDuplicateNavEnabled() {
-        synchronized (mAwSettingsLock) {
-            return mIgnoreDuplicateNavEnabled;
-        }
-    }
-
-    /**
-     * Sets the threshold in milliseconds for ignoring duplicate navigations. This threshold is only
-     * applied if {@link #setIgnoreDuplicateNavEnabled(boolean)} is set to true. When enabled, a
-     * value of -1 indicates that the system default threshold (3 seconds) should be used.
-     *
-     * @param thresholdMs the threshold in milliseconds.
-     */
-    public void setIgnoreDuplicateNavThreshold(long thresholdMs) {
-        synchronized (mAwSettingsLock) {
-            if (mIgnoreDuplicateNavThresholdMs != thresholdMs) {
-                mIgnoreDuplicateNavThresholdMs = thresholdMs;
-                mEventHandler.updateWebkitPreferencesLocked();
-            }
-        }
-    }
-
-    @CalledByNative
-    public long getIgnoreDuplicateNavThreshold() {
-        synchronized (mAwSettingsLock) {
-            return mIgnoreDuplicateNavThresholdMs;
         }
     }
 
@@ -2138,17 +2090,6 @@ public class AwSettings {
         return false;
     }
 
-    @CalledByNative
-    private boolean getIgnoreDuplicateNavEnabledLocked() {
-        assert Thread.holdsLock(mAwSettingsLock);
-        return mIgnoreDuplicateNavEnabled;
-    }
-
-    @CalledByNative
-    private long getIgnoreDuplicateNavThresholdLocked() {
-        assert Thread.holdsLock(mAwSettingsLock);
-        return mIgnoreDuplicateNavThresholdMs;
-    }
 
     public boolean getOffscreenPreRaster() {
         synchronized (mAwSettingsLock) {

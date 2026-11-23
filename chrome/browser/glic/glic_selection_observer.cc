@@ -14,6 +14,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "build/build_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_clipboard_utils.h"
@@ -31,19 +32,26 @@
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
+#include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/feature_engagement/public/tracker.h"
+#include "components/optimization_guide/content/browser/page_context_eligibility_observer.h"
+#include "components/optimization_guide/content/browser/page_context_eligibility.h"
+#include "components/prefs/pref_service.h"
 #include "components/shared_highlighting/core/common/disabled_sites.h"
 #include "components/shared_highlighting/core/common/fragment_directives_utils.h"
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
+#include "components/signin/public/identity_manager/account_info.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/clipboard_types.h"
 #include "content/public/browser/render_frame_host.h"
@@ -200,6 +208,7 @@ class GlicSelectionObserver::WidgetActionDelegate
   }
   void OnHideForThisSite() override { observer_->OnHideForThisSite(); }
   void OnSettings() override { observer_->OnSettings(); }
+  void OnWidgetClose() override { observer_->OnWidgetClose(); }
 
  private:
   raw_ptr<GlicSelectionObserver> observer_;
@@ -220,6 +229,18 @@ GlicSelectionObserver::GlicSelectionObserver(content::WebContents* web_contents)
                                 weak_ptr_factory_.GetWeakPtr()));
   }
 
+  std::string account;
+  if (profile) {
+    auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
+    if (identity_manager) {
+      account =
+          identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+              .email;
+    }
+  }
+
+  CreatePageContextEligibilityAPI(std::move(account));
+
   web_contents->ForEachRenderFrameHost(
       [this](content::RenderFrameHost* render_frame_host) {
         RenderFrameCreated(render_frame_host);
@@ -233,13 +254,6 @@ bool GlicSelectionObserver::IsSelectionPromptEnabled() const {
 }
 
 GlicSelectionObserver::~GlicSelectionObserver() {
-  if (selection_widget_) {
-    selection_widget_->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
-  }
-  // Explicitly destroy the widget first, then the bubble delegate to ensure the
-  // delegate outlives its widget. This is required under the CLIENT_OWNS_WIDGET
-  // ownership model.
-  selection_widget_.reset();
   widget_delegate_.reset();
 
   base::flat_set<content::RenderWidgetHost*> unique_rwhs;
@@ -301,15 +315,15 @@ void GlicSelectionObserver::RenderFrameDeleted(
 }
 void GlicSelectionObserver::OnVisibilityChanged(
     content::Visibility visibility) {
-  if (visibility == content::Visibility::HIDDEN && selection_widget_) {
-    selection_widget_->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
+  if (visibility == content::Visibility::HIDDEN && widget_delegate_) {
+    widget_delegate_->CloseWidget();
   }
 }
 
 void GlicSelectionObserver::PrimaryPageChanged(content::Page& page) {
   is_hidden_on_current_page_ = false;
-  if (selection_widget_) {
-    selection_widget_->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
+  if (widget_delegate_) {
+    widget_delegate_->CloseWidget();
   }
 }
 
@@ -500,8 +514,8 @@ void GlicSelectionObserver::OnTextSelectionChanged(
 }
 
 void GlicSelectionObserver::DismissUI(bool keep_nudge) {
-  if (selection_widget_ && !selection_widget_->IsClosed()) {
-    selection_widget_->CloseWithReason(views::Widget::ClosedReason::kLostFocus);
+  if (widget_delegate_) {
+    widget_delegate_->CloseWidget();
   }
   // Only dismiss the nudge if this is NOT a scroll event.
   // The nudge lives in the toolbar and doesn't need to be hidden when
@@ -596,9 +610,8 @@ void GlicSelectionObserver::UpdateSelectionState(
   BrowserWindowInterface* bwi = tab_interface->GetBrowserWindowInterface();
 
   if (selected_text.empty()) {
-    if (selection_widget_) {
-      selection_widget_->CloseWithReason(
-          views::Widget::ClosedReason::kLostFocus);
+    if (widget_delegate_) {
+      widget_delegate_->CloseWidget();
     }
 
     if (!features::kGlicSelectionPromptUpdatesOnly.Get()) {
@@ -627,9 +640,8 @@ void GlicSelectionObserver::UpdateSelectionState(
       if (!features::kGlicSelectionPromptUpdatesOnly.Get()) {
         ShowSelectionAffordance(selected_text, bwi);
       }
-    } else if (selection_widget_) {
-      selection_widget_->CloseWithReason(
-          views::Widget::ClosedReason::kLostFocus);
+    } else if (widget_delegate_) {
+      widget_delegate_->CloseWidget();
     }
 
     // TODO(b/508916357): Use the invoke API.
@@ -697,9 +709,8 @@ void GlicSelectionObserver::ShowSelectionAffordance(
       std::optional<gfx::Rect> bounds =
           web_contents()->GetTextSelectionBounds(selected_frame);
       if (bounds.has_value() && !bounds->IsEmpty()) {
-        if (selection_widget_) {
-          selection_widget_->CloseWithReason(
-              views::Widget::ClosedReason::kLostFocus);
+        if (widget_delegate_) {
+          widget_delegate_->CloseWidget();
         }
 
         base::UmaHistogramEnumeration(
@@ -711,11 +722,7 @@ void GlicSelectionObserver::ShowSelectionAffordance(
             std::u16string(selected_text), is_widget_pinned_);
         widget_delegate_->set_parent_window(platform_util::GetViewForWindow(
             web_contents()->GetTopLevelNativeWindow()));
-        selection_widget_ = views::BubbleDialogDelegate::CreateBubble(
-            widget_delegate_.get(),
-            base::BindOnce(&GlicSelectionObserver::OnWidgetClosed,
-                           weak_ptr_factory_.GetWeakPtr()));
-        selection_widget_->ShowInactive();
+        widget_delegate_->ShowWidget();
         RequestLinkGeneration(selected_frame);
       } else if (bounds_retry_count_ < 5) {
         // Retry showing the widget, bounds might not be available yet due
@@ -793,14 +800,17 @@ void GlicSelectionObserver::OnHideForThisSite() {
 }
 
 void GlicSelectionObserver::OnSettings() {
+  if (!features::kGlicSelectionEnableSiteSettings.Get()) {
+    return;
+  }
   auto* tab_interface =
       tabs::TabInterface::MaybeGetFromContents(web_contents());
   if (tab_interface) {
     BrowserWindowInterface* browser_window_interface =
         tab_interface->GetBrowserWindowInterface();
     if (browser_window_interface) {
-      chrome::ShowSettingsSubPage(browser_window_interface,
-                                  "content?search=site+settings");
+      chrome::ShowContentSettingsExceptions(
+          browser_window_interface, ContentSettingsType::INLINE_CUE_MENU);
     }
   }
 }
@@ -898,11 +908,54 @@ void GlicSelectionObserver::SendAdditionalContextToPanel(
   if (!glic_keyed_service_) {
     return;
   }
+
+  // If the page is not eligible, do not send the additional context.
+  if (page_context_tracker_ && !selected_text.empty() &&
+      !page_context_tracker_->IsPageContextEligible()) {
+    return;
+  }
+
   if (auto* instance = glic_keyed_service_->GetInstanceForTab(tab_interface)) {
     // TODO(b/508916357): Use the invoke API.
     instance->SendAdditionalContext(
         CreateAdditionalContext(web_contents(), selected_text));
   }
+}
+
+void GlicSelectionObserver::OnPageContextEligibilityChanged(bool is_eligible) {
+  // If the page becomes ineligible and we've already sent selection context,
+  // we should clear it.
+  if (!is_eligible && has_sent_selection_context_) {
+    auto* tab_interface =
+        tabs::TabInterface::MaybeGetFromContents(web_contents());
+    if (tab_interface) {
+      SendAdditionalContextToPanel(tab_interface, std::u16string());
+      has_sent_selection_context_ = false;
+    }
+  }
+}
+
+void GlicSelectionObserver::CreatePageContextEligibilityAPI(std::string account) {
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
+      base::BindOnce(&optimization_guide::PageContextEligibility::Get),
+      base::BindOnce(
+          &GlicSelectionObserver::OnPageContextEligibilityAPILoaded,
+          weak_ptr_factory_.GetWeakPtr(), std::move(account)));
+}
+
+void GlicSelectionObserver::OnPageContextEligibilityAPILoaded(
+    std::string account,
+    optimization_guide::PageContextEligibility* page_context_eligibility) {
+  if (!page_context_eligibility) {
+    return;
+  }
+  page_context_tracker_ =
+      optimization_guide::PageContextEligibilityObserver::Create(
+          web_contents(), std::move(account),
+          base::BindRepeating(
+              &GlicSelectionObserver::OnPageContextEligibilityChanged,
+              weak_ptr_factory_.GetWeakPtr()));
 }
 
 void GlicSelectionObserver::CopyLinkToHighlight(
@@ -944,15 +997,14 @@ void GlicSelectionObserver::OnCopyLink() {
   }
 }
 
-void GlicSelectionObserver::OnWidgetClosed(views::Widget::ClosedReason reason) {
-  // Under the CLIENT_OWNS_WIDGET ownership model, the
-  // GlicSelectionWidgetDelegate (the delegate) must outlive the views::Widget.
-  // To guarantee this asynchronously, we post tasks to delete the widget first,
-  // followed by the delegate.
-  base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
-      FROM_HERE, selection_widget_.release());
-  base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
-      FROM_HERE, widget_delegate_.release());
+void GlicSelectionObserver::OnWidgetClose() {
+  if (widget_delegate_) {
+    // Defer the destruction of the delegate to ensure the views::Widget is
+    // destroyed first, and then the delegate. This is required under the
+    // CLIENT_OWNS_WIDGET ownership model.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, std::move(widget_delegate_));
+  }
 }
 
 }  // namespace glic

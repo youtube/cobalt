@@ -1,0 +1,17 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("sensor") {
+  sources = [
+    "chrome_sensor_delegate.cc",
+    "chrome_sensor_delegate.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/content_settings/browser",
+    "//components/content_settings/core/common",
+    "//content/public/browser",
+  ]
+}

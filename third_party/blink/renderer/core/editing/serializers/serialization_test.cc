@@ -23,7 +23,7 @@ using ::testing::MatchesRegex;
 
 class SerializationTest : public EditingTestBase {
  protected:
-  std::string SerailizeToHTMLText(const Node& node) {
+  std::string SerializeToHtmlText(const Node& node) {
     // We use same |CreateMarkupOptions| used in
     // |FrameSelection::SelectedHTMLForClipboard()|
     return CreateMarkup(Position::BeforeNode(node), Position::AfterNode(node),
@@ -150,7 +150,7 @@ TEST_F(SerializationTest, Link) {
               Color::FromRGB(1, 1, 1))
       << "should not be :visited/:link color";
   EXPECT_THAT(
-      SerailizeToHTMLText(a1),
+      SerializeToHtmlText(a1),
       MatchesRegex(
           R"re(<a id="a1" style=".*;? ?color: rgb\(1, 1, 1\);.*">text</a>)re"));
 
@@ -163,7 +163,7 @@ TEST_F(SerializationTest, Link) {
               Color::FromRGB(3, 3, 3))
       << "should be :visited color";
   EXPECT_THAT(
-      SerailizeToHTMLText(a2),
+      SerializeToHtmlText(a2),
       MatchesRegex(
           R"re(<a id="a2" href="" style=".*;? ?color: rgb\(2, 2, 2\);.*">visited</a>)re"));
 
@@ -173,7 +173,7 @@ TEST_F(SerializationTest, Link) {
               Color::FromRGB(2, 2, 2))
       << "should be :link color";
   EXPECT_THAT(
-      SerailizeToHTMLText(a3),
+      SerializeToHtmlText(a3),
       MatchesRegex(
           R"re(<a id="a3" href="https://1.1.1.1/" style=".*;? ?color: rgb\(2, 2, 2\);.*">unvisited</a>)re"));
 }
@@ -250,7 +250,7 @@ TEST_F(SerializationTest, MathML_EntireMathElement) {
       "<mrow><mi>x</mi><mo>+</mo><mi>y</mi></mrow>"
       "</math>");
   const auto& original_math_element = *GetDocument().body()->firstChild();
-  std::string serialized_markup = SerailizeToHTMLText(original_math_element);
+  std::string serialized_markup = SerializeToHtmlText(original_math_element);
 
   SetBodyContent(serialized_markup);
 
@@ -361,7 +361,7 @@ TEST_F(SerializationTest, MathML_FractionWithSuperscript) {
       "</mfrac>"
       "</math>");
   const auto& math_root = *GetDocument().body()->firstChild();
-  std::string serialized_markup = SerailizeToHTMLText(math_root);
+  std::string serialized_markup = SerializeToHtmlText(math_root);
   SetBodyContent(serialized_markup);
 
   const auto& parsed_math = *GetDocument().body()->firstChild();

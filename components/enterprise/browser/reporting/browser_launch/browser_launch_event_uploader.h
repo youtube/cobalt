@@ -16,6 +16,9 @@ class BrowserLaunchEventUploader {
  public:
   virtual ~BrowserLaunchEventUploader() = default;
 
+  // Returns the metric suffix for histograms ("Browser" or "Profile").
+  virtual std::string_view GetMetricSuffix() const = 0;
+
   // Uploads the captured browser launch event.
   virtual void UploadEvent(
       const ::chrome::cros::reporting::proto::BrowserLaunchEvent& event,

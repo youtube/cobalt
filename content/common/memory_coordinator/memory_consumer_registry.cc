@@ -67,7 +67,8 @@ MemoryConsumerRegistry::MemoryConsumerRegistry(
     : process_type_(process_type),
       child_process_id_(child_process_id),
       controller_(controller) {
-  controller_->AddMemoryConsumerGroupHost(child_process_id_, this);
+  controller_->AddMemoryConsumerGroupHost(process_type_, child_process_id_,
+                                          this);
 }
 
 MemoryConsumerRegistry::~MemoryConsumerRegistry() {
@@ -119,7 +120,7 @@ void MemoryConsumerRegistry::OnMemoryConsumerAdded(
     consumer_group = std::make_unique<ConsumerGroup>(traits, consumer_name);
 
     controller_->OnConsumerGroupAdded(consumer_id, consumer_name, traits,
-                                      process_type_, child_process_id_);
+                                      child_process_id_);
   }
 
   CHECK(consumer_group->traits() == traits);

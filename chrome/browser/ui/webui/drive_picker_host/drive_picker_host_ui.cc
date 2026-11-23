@@ -226,4 +226,11 @@ void DrivePickerHostUI::BindInterface(
   receiver_.Bind(std::move(receiver));
 }
 
+void DrivePickerHostUI::LoadConsentKitUrl(const GURL& consent_kit_url) {
+  if (untrusted_bridge_remote_.is_bound() &&
+      untrusted_bridge_remote_.is_connected()) {
+    untrusted_bridge_remote_->LoadConsentKitUrl(consent_kit_url);
+  }
+}
+
 WEB_UI_CONTROLLER_TYPE_IMPL(DrivePickerHostUI)

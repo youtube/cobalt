@@ -22,3 +22,39 @@ source_set("battery") {
     deps += [ "//chrome/browser/battery/android:jni_headers" ]
   }
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "battery_saver_unittest.cc" ]
+
+  deps = [
+    ":battery",
+    "//base",
+    "//base/test:test_support",
+    "//content/test:test_support",
+    "//testing/gtest",
+  ]
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "battery_metrics_browsertest.cc" ]
+
+    deps = [
+      ":battery",
+      "//base",
+      "//chrome/browser:browser_process",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/metrics:content",
+      "//content/test:test_support",
+      "//services/device/public/mojom",
+      "//testing/gtest",
+    ]
+  }
+}

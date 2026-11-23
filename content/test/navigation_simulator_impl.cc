@@ -446,8 +446,9 @@ void NavigationSimulatorImpl::RegisterTestThrottle() {
   DCHECK(request_);
 
   // Page activating navigations don't run throttles so we don't need to
-  // register it in that case.
-  if (request_->IsPageActivation()) {
+  // register it in that case. Initial WebUI navigations must not run throttles,
+  // so we must not register them in that case.
+  if (request_->IsPageActivation() || request_->IsInitialWebUINavigation()) {
     return;
   }
 
@@ -1732,10 +1733,11 @@ bool NavigationSimulatorImpl::NeedsThrottleChecks() const {
 
   // Back/forward cache restores and prerendering page activations do not run
   // NavigationThrottles since they were already run when the page was first
-  // loaded.
+  // loaded. Initial WebUI navigations must not run throttles, so we must not
+  // register them in that case.
   DCHECK(request_);
   if (request_->is_running_potential_prerender_activation_checks() ||
-      request_->IsPageActivation()) {
+      request_->IsPageActivation() || request_->IsInitialWebUINavigation()) {
     return false;
   }
 

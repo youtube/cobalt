@@ -19,7 +19,7 @@
 #include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/pending_task_safety_flag.h"
-#include "media/base/adapted_video_track_source.h"
+#include "api/video/adapted_video_track_source.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/timestamp_aligner.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"

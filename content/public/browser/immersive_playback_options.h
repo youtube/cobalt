@@ -32,6 +32,7 @@ enum class ImmersiveProjectionType {
 struct ImmersiveOptions {
   ImmersiveStereoMode stereo_mode;
   ImmersiveProjectionType projection_type;
+  bool is_recommended = false;
 };
 
 // Represents the result status of an immersive Picture-in-Picture playback

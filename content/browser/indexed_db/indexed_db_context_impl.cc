@@ -218,7 +218,8 @@ class MissingBucketErrorEndpoint : public blink::mojom::IDBFactory {
             mojo::PendingAssociatedReceiver<blink::mojom::IDBTransaction>
                 transaction_receiver,
             int64_t transaction_id,
-            int scheduling_priority) override {
+            int scheduling_priority,
+            bool request_shared_connection) override {
     mojo::AssociatedRemote<blink::mojom::IDBFactoryClient> remote(
         std::move(factory_client));
     remote->Error(blink::mojom::IDBException::kUnknownError,

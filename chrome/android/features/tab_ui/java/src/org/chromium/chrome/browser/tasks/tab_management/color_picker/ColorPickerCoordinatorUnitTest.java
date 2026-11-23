@@ -22,8 +22,10 @@ import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.tab_groups.TabGroupColorId;
+import org.chromium.components.tab_groups.TabGroupsFeatureMap;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,24 +33,27 @@ import java.util.List;
 /** Tests for ColorPickerCoordinator. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
+@Features.DisableFeatures({TabGroupsFeatureMap.UPDATE_TAB_GROUP_COLORS})
 public class ColorPickerCoordinatorUnitTest {
     private Activity mActivity;
     private ColorPickerCoordinator mCoordinator;
     private ColorPickerContainer mContainerView;
-    private List<Integer> mColors =
+    private final List<Integer> mColors =
             Arrays.asList(TabGroupColorId.GREY, TabGroupColorId.BLUE, TabGroupColorId.RED);
 
     @Before
     public void setUp() {
         mActivity = Robolectric.buildActivity(Activity.class).setup().get();
-        View view =
+        mActivity.setTheme(R.style.Theme_BrowserUI_DayNight);
+        View root =
                 LayoutInflater.from(mActivity)
                         .inflate(R.layout.tab_group_color_picker_container, null);
+        ColorPickerContainer container = root.findViewById(R.id.color_picker_container);
         mCoordinator =
                 new ColorPickerCoordinator(
                         mActivity,
                         mColors,
-                        view,
+                        container,
                         ColorPickerType.TAB_GROUP,
                         /* isIncognito= */ false,
                         ColorPickerCoordinator.ColorPickerLayoutType.DYNAMIC,

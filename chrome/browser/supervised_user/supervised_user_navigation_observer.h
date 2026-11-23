@@ -123,6 +123,10 @@ class SupervisedUserNavigationObserver
   // Filters the RenderFrameHost if render frame is live.
   void FilterRenderFrame(content::RenderFrameHost* render_frame_host);
 
+  // Returns the active (showing) interstitial for the current frame, or nullptr
+  // if there is no active interstitial.
+  supervised_user::SupervisedUserInterstitial* GetInterstitialForFrame();
+
   // supervised_user::mojom::SupervisedUserCommands implementation. Should not
   // be called when an interstitial is no longer showing. This should be
   // enforced by the mojo caller.
@@ -144,8 +148,6 @@ class SupervisedUserNavigationObserver
   void MaybeUpdateRequestedHosts();
 
   void RecordPageLoadUKM(content::RenderFrameHost* render_frame_host);
-
-  content::FrameTreeNodeId frame_tree_node_id();
 
   supervised_user::SupervisedUserService* supervised_user_service() const;
   supervised_user::SupervisedUserUrlFilteringService*

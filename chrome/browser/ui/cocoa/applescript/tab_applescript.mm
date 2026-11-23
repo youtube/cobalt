@@ -374,6 +374,11 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
     return nil;
   }
 
+  if (!DevToolsWindow::AllowDevToolsFor(self.profile, _webContents.get())) {
+    AppleScript::SetError(AppleScript::Error::kDevToolsUnsupported);
+    return nil;
+  }
+
   content::RenderFrameHost* frame = _webContents->GetPrimaryMainFrame();
   if (!frame) {
     return nil;

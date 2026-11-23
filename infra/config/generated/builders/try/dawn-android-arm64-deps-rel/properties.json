@@ -39,6 +39,42 @@
           {
             "builder_id": {
               "bucket": "ci",
+              "builder": "Dawn Android arm64 DEPS Release (Pixel 10)",
+              "project": "chromium"
+            },
+            "builder_spec": {
+              "builder_group": "chromium.dawn",
+              "execution_mode": "TEST",
+              "legacy_android_config": {
+                "config": "base_config"
+              },
+              "legacy_chromium_config": {
+                "apply_configs": [
+                  "mb"
+                ],
+                "build_config": "Release",
+                "config": "main_builder",
+                "target_arch": "arm",
+                "target_bits": 64,
+                "target_platform": "android"
+              },
+              "legacy_gclient_config": {
+                "apply_configs": [
+                  "android"
+                ],
+                "config": "chromium"
+              },
+              "parent": {
+                "bucket": "ci",
+                "builder": "Dawn Android arm64 DEPS Builder",
+                "project": "chromium"
+              },
+              "run_tests_serially": true
+            }
+          },
+          {
+            "builder_id": {
+              "bucket": "ci",
               "builder": "Dawn Android arm64 DEPS Release (Pixel 6)",
               "project": "chromium"
             },
@@ -82,6 +118,11 @@
         }
       ],
       "builder_ids_in_scope_for_testing": [
+        {
+          "bucket": "ci",
+          "builder": "Dawn Android arm64 DEPS Release (Pixel 10)",
+          "project": "chromium"
+        },
         {
           "bucket": "ci",
           "builder": "Dawn Android arm64 DEPS Release (Pixel 6)",

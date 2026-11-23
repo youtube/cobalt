@@ -108,8 +108,7 @@ class AutofillExternalDelegate : public AutofillSuggestionDelegate {
   virtual void OnQuery(const FormData& form,
                        const FormFieldData& field,
                        const gfx::Rect& caret_bounds,
-                       AutofillSuggestionTriggerSource trigger_source,
-                       bool update_datalist);
+                       AutofillSuggestionTriggerSource trigger_source);
 
   // Records query results and correctly formats them before sending them off
   // to be displayed. Called when an Autofill query result is available.

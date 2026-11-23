@@ -2452,30 +2452,25 @@ void CrostiniManager::GetContainerAppIcons(
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
 }
 
-bool CrostiniManager::GetCrostiniDialogStatus(DialogType dialog_type) const {
-  return open_crostini_dialogs_.count(dialog_type) == 1;
+bool CrostiniManager::IsCrostiniInstallerOpen() const {
+  return crostini_installer_open_;
 }
 
-void CrostiniManager::SetCrostiniDialogStatus(DialogType dialog_type,
-                                              bool open) {
-  if (open) {
-    open_crostini_dialogs_.insert(dialog_type);
-  } else {
-    open_crostini_dialogs_.erase(dialog_type);
-  }
-  for (auto& observer : crostini_dialog_status_observers_) {
-    observer.OnCrostiniDialogStatusChanged(dialog_type, open);
+void CrostiniManager::SetCrostiniInstallerOpen(bool open) {
+  crostini_installer_open_ = open;
+  for (auto& observer : crostini_installer_status_observers_) {
+    observer.OnCrostiniInstallerStatusChanged(open);
   }
 }
 
-void CrostiniManager::AddCrostiniDialogStatusObserver(
-    CrostiniDialogStatusObserver* observer) {
-  crostini_dialog_status_observers_.AddObserver(observer);
+void CrostiniManager::AddCrostiniInstallerStatusObserver(
+    CrostiniInstallerStatusObserver* observer) {
+  crostini_installer_status_observers_.AddObserver(observer);
 }
 
-void CrostiniManager::RemoveCrostiniDialogStatusObserver(
-    CrostiniDialogStatusObserver* observer) {
-  crostini_dialog_status_observers_.RemoveObserver(observer);
+void CrostiniManager::RemoveCrostiniInstallerStatusObserver(
+    CrostiniInstallerStatusObserver* observer) {
+  crostini_installer_status_observers_.RemoveObserver(observer);
 }
 void CrostiniManager::AddContainerShutdownObserver(
     ContainerShutdownObserver* observer) {
@@ -2500,7 +2495,7 @@ CrostiniManager::RestartId CrostiniManager::RestartCrostiniWithOptions(
     RestartOptions options,
     CrostiniResultCallback callback,
     RestartObserver* observer) {
-  if (GetCrostiniDialogStatus(DialogType::INSTALLER)) {
+  if (IsCrostiniInstallerOpen()) {
     base::UmaHistogramBoolean("Crostini.Setup.Started", true);
   } else {
     base::UmaHistogramBoolean("Crostini.Restarter.Started", true);

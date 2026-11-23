@@ -53,7 +53,7 @@ public class AutofillExpirationDateFixFlowPrompt extends AutofillSaveCardPromptB
      * @param confirmButtonLabel Label for the confirm button.
      * @return The prompt to confirm expiration data.
      */
-    public static AutofillExpirationDateFixFlowPrompt createAsInfobarFixFlowPrompt(
+    public static AutofillExpirationDateFixFlowPrompt createAsMessageFixFlowPrompt(
             Context context,
             AutofillExpirationDateFixFlowPromptDelegate delegate,
             String title,

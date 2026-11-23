@@ -55,6 +55,7 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/separator.h"
+#include "ui/views/controls/webview/webview.h"
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout.h"
@@ -63,6 +64,7 @@
 #include "ui/views/view_observer.h"
 
 namespace {
+
 constexpr BrowserAnimationGroup kAnimationGroup =
     SidePanelAnimations::kSidePanel;
 
@@ -236,65 +238,66 @@ class ContentParentView : public views::View, public views::ViewObserver {
 BEGIN_METADATA(ContentParentView)
 END_METADATA
 
+// Clips `view` and `depth` levels of descendents to the region `clip_to`, or
+// clears the clipping if `clip_to` is null.
+//
+// This is heavy-handed; theoretically, if layers all played nice and web view
+// layers were parented to the appropriate layers in the Views hierarchy, we
+// might not have to do this. (There may still be optimizations to do WRT only
+// clipping top-level layers.)
+void SetClipToVisibleAreaRecursive(views::View& view,
+                                   const std::optional<gfx::Rect>& clip_to,
+                                   int depth) {
+  if (!clip_to) {
+    if (auto* const layer = view.layer()) {
+      layer->SetClipRect(gfx::Rect());
+      if (!layer->rounded_corner_radii().IsEmpty()) {
+        layer->SetIsFastRoundedCorner(true);
+      }
+    } else {
+      view.SetClipPath(SkPath());
+    }
+    if (auto* const web_view = views::AsViewClass<views::WebView>(&view)) {
+      if (auto* const layer = web_view->holder()->GetUILayer()) {
+        layer->SetClipRect(gfx::Rect());
+        if (!layer->rounded_corner_radii().IsEmpty()) {
+          layer->SetIsFastRoundedCorner(true);
+        }
+      }
+    }
+  } else {
+    gfx::Rect mirrored = view.GetMirroredRect(*clip_to);
+    if (auto* const layer = view.layer()) {
+      layer->SetClipRect(mirrored);
+      layer->SetIsFastRoundedCorner(false);
+    } else {
+      view.SetClipPath(SkPath::Rect(gfx::RectToSkRect(mirrored)));
+    }
+    if (auto* const web_view = views::AsViewClass<views::WebView>(&view)) {
+      if (auto* const layer = web_view->holder()->GetUILayer()) {
+        layer->SetClipRect(mirrored);
+        layer->SetIsFastRoundedCorner(false);
+      }
+    }
+  }
+  if (depth > 0) {
+    for (auto& child : view.children()) {
+      const std::optional<gfx::Rect> in_child_bounds =
+          clip_to ? std::make_optional(views::View::ConvertRectToTarget(
+                        &view, child.get(), *clip_to))
+                  : std::nullopt;
+      SetClipToVisibleAreaRecursive(*child, in_child_bounds, depth - 1);
+    }
+  }
+}
+
 }  // namespace
 
 DEFINE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(SidePanel, kOpenAnimationCompletedEvent);
 DEFINE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(SidePanel,
                                        kCloseAnimationCompletedEvent);
 
-// Ensures immediate children of the SidePanel have their layers clipped to
-// their visible bounds to prevent incorrect clipping during animation.
-// TODO: 344626785 - Remove this once WebView layer behavior has been fixed.
-class SidePanel::VisibleBoundsViewClipper : public views::ViewObserver {
- public:
-  explicit VisibleBoundsViewClipper(SidePanel* side_panel)
-      : side_panel_(side_panel) {
-    view_observations_.AddObservation(side_panel);
-  }
-  VisibleBoundsViewClipper(const VisibleBoundsViewClipper&) = delete;
-  VisibleBoundsViewClipper& operator=(const VisibleBoundsViewClipper&) = delete;
-  ~VisibleBoundsViewClipper() override = default;
-
-  // views::ViewObserver:
-  void OnChildViewAdded(View* observed_view, View* child) override {
-    if (observed_view == side_panel_) {
-      view_observations_.AddObservation(child);
-    }
-  }
-  void OnViewBoundsChanged(views::View* observed_view) override {
-    ui::Layer* layer = observed_view->layer();
-    if (observed_view != side_panel_ && layer) {
-      gfx::Rect clip_bounds = observed_view->GetVisibleBounds();
-      // Let side panel grow slightly taller so that it overlaps the divider
-      // into the toolbar or bookmarks bar above it.
-      // TODO: Explore extending the side panel bounds directly in
-      // BrowserViewLayout.
-      clip_bounds.Inset(
-          gfx::Insets::TLBR(-views::Separator::kThickness, 0, 0, 0));
-      // Only clip the bounds while animating. This makes sure we don't
-      // incorrectly clip things like focus rings for header buttons or the
-      // resize handle.
-      layer->SetClipRect(side_panel_->GetAnimationValue() < 1 ? clip_bounds
-                                                              : gfx::Rect());
-      layer->SetVisible(clip_bounds.width() != 0);
-    }
-  }
-  void OnViewIsDeleting(views::View* observed_view) override {
-    view_observations_.RemoveObservation(observed_view);
-  }
-
- private:
-  // Owns this.
-  const raw_ptr<SidePanel> side_panel_;
-
-  base::ScopedMultiSourceObservation<views::View, views::ViewObserver>
-      view_observations_{this};
-};
-
-SidePanel::SidePanel(BrowserView* browser_view)
-    : browser_view_(browser_view),
-      visible_bounds_view_clipper_(
-          std::make_unique<VisibleBoundsViewClipper>(this)) {
+SidePanel::SidePanel(BrowserView* browser_view) : browser_view_(browser_view) {
   horizontal_alignment_ = GetHorizontalAlignment(
       browser_view->GetProfile()->GetPrefs(), std::nullopt);
 
@@ -639,6 +642,14 @@ void SidePanel::ResetSidePanelAnimationContent() {
 
 views::View* SidePanel::GetContentParentView() {
   return content_parent_view_;
+}
+
+void SidePanel::SetClipToVisibleArea(
+    const std::optional<gfx::Rect>& clip_to_visible_area) {
+  // Clip this view, through its grandchildren; this should catch any
+  // `NativeViewHost` parented to a `WebView`. (This is an optimization; all
+  // descendants could be clipped).
+  SetClipToVisibleAreaRecursive(*this, clip_to_visible_area, 2);
 }
 
 void SidePanel::UpdateVisibility(bool should_be_open, bool animate_transition) {

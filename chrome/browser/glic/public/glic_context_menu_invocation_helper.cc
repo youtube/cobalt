@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 #include "chrome/browser/glic/public/glic_context_menu_invocation_helper.h"
 
+#include "base/containers/span.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
@@ -13,20 +15,23 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/base/big_buffer.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace glic {
 
 // static
 void GlicContextMenuInvocationHelper::HandleContextualMenuClick(
-    tabs::TabInterface* tab) {
+    tabs::TabInterface* tab, const std::u16string& selection_text,
+    content::GlobalRenderFrameHostId rfh_id) {
   if (!tab || !tab->GetContents()) {
     return;
   }
 
   auto* browser_context = tab->GetContents()->GetBrowserContext();
   Profile* profile = Profile::FromBrowserContext(browser_context);
-  if (!glic::GlicEnabling::IsContextualMenuItemEnabled(profile)) {
+  if (!glic::GlicEnabling::IsContextualMenuItemEnabled(profile,
+                                                       selection_text)) {
     return;
   }
 
@@ -36,6 +41,30 @@ void GlicContextMenuInvocationHelper::HandleContextualMenuClick(
     glic::GlicInvokeOptions options(
         glic::Target(*tab),
         glic::mojom::InvocationSource::kWebContentsContextMenu);
+
+    if (base::FeatureList::IsEnabled(features::kGlicTextSelectionContextMenu) &&
+        !selection_text.empty()) {
+      auto context = glic::mojom::AdditionalContext::New();
+      context->source = glic::mojom::AdditionalContextSource::kTextSelection;
+      context->tab_id = tab->GetHandle().raw_value();
+
+      auto data = glic::mojom::ContextData::New();
+      data->mime_type = kMimeTypeGlicSelection;
+
+      std::string utf8_text = base::UTF16ToUTF8(selection_text);
+      data->data = mojo_base::BigBuffer(base::as_byte_span(utf8_text));
+
+      auto part = glic::mojom::AdditionalContextPart::NewData(std::move(data));
+      context->parts.push_back(std::move(part));
+
+      options.additional_context = glic::AdditionalTabContext(
+          std::move(context), rfh_id, glic::PolicyCheck::kClipboard);
+      options.fre_override = glic::mojom::FreOverride::kTrustFirstClick;
+
+      glic_service->Invoke(std::move(options));
+      return;
+    }
+
     std::string arm = features::kGlicContextMenuArm.Get();
     if (arm == "arm3") {
       options.fre_override = glic::mojom::FreOverride::kTrustFirstClick;

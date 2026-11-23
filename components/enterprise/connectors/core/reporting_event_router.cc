@@ -906,6 +906,9 @@ std::string ReportingEventRouter::GetClipboardSourceString(
     case enterprise_connectors::ContentMetaData::CopiedTextSource::
         OTHER_PROFILE:
       return "OTHER_PROFILE";
+    case enterprise_connectors::ContentMetaData::CopiedTextSource::
+        GEMINI_IN_CHROME:
+      return "GEMINI_IN_CHROME";
   }
 }
 

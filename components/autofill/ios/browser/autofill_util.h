@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_AUTOFILL_IOS_BROWSER_AUTOFILL_UTIL_H_
 #define COMPONENTS_AUTOFILL_IOS_BROWSER_AUTOFILL_UTIL_H_
 
+#import <map>
 #import <optional>
 #import <set>
 

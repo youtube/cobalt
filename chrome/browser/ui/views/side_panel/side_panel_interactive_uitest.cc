@@ -802,3 +802,43 @@ IN_PROC_BROWSER_TEST_F(SidePanelAnimationPerfUiTest,
              testing::Gt(0), "Check fps is nonzero.")),
          Else(Log("Compositor failed to render during test."))));
 }
+
+IN_PROC_BROWSER_TEST_F(PinnedSidePanelInteractiveTest,
+                       PinActiveItemHighlightsButton) {
+  auto* registry = SidePanelRegistry::From(browser());
+  auto* entry = registry->GetEntryForKey(SidePanelEntry::Key(SidePanelEntryId::kReadingList));
+  ASSERT_TRUE(entry);
+  entry->set_should_show_ephemerally_in_toolbar(false);
+
+  RunTestSequence(
+      // Ensure the side panel isn't open and action is not pinned.
+      EnsureNotPresent(kSidePanelElementId),
+      CheckActionPinnedToToolbar(kActionSidePanelShowReadingList, false),
+
+      // Open reading list side panel.
+      ShowSidePanelForKey(SidePanelEntryKey(SidePanelEntry::Id::kReadingList)),
+      WaitForShow(kSidePanelElementId),
+
+      // Since ephemeral is disabled, no button for reading list should be added yet.
+      CheckActionPinnedToToolbar(kActionSidePanelShowReadingList, false),
+
+      // Pin reading list action.
+      Do(([&]() {
+        PinnedToolbarActionsModel::Get(browser()->profile())
+            ->UpdatePinnedState(kActionSidePanelShowReadingList, true);
+      })),
+
+      // Verify it is pinned and highlighted immediately.
+      CheckActionPinnedToToolbar(kActionSidePanelShowReadingList, true),
+      CheckPinnedToolbarActionsContainerChildInkDropState(0, true),
+
+      // Unpin reading list action while open.
+      Do(([&]() {
+        PinnedToolbarActionsModel::Get(browser()->profile())
+            ->UpdatePinnedState(kActionSidePanelShowReadingList, false);
+      })),
+
+      // Verify it is no longer pinned and is removed from the toolbar.
+      CheckActionPinnedToToolbar(kActionSidePanelShowReadingList, false)
+  );
+}

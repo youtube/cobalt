@@ -93,6 +93,7 @@ class IOSChromePasswordReuseDetectionManagerClient
   // InputEventObserver:
   void OnKeyPressed(std::string text) override;
   void OnPaste(std::string text) override;
+  void OnPasteKeyDetected() override;
   web::WebState* web_state() const override;
 
   __weak id<IOSChromePasswordReuseDetectionManagerClientBridge> bridge_;

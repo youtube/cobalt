@@ -5,7 +5,7 @@
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_ISOLATED_WEB_APPS_TEST_INTEGRITY_BLOCK_DATA_MATCHER_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_ISOLATED_WEB_APPS_TEST_INTEGRITY_BLOCK_DATA_MATCHER_H_
 
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
 #include "components/web_package/signed_web_bundles/ecdsa_p256_public_key.h"
 #include "components/web_package/signed_web_bundles/ed25519_public_key.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_signature_stack_entry.h"
@@ -34,7 +34,7 @@ inline auto SignatureInfoMatcher(
 
 inline auto IntegrityBlockDataPublicKeysAre(const auto&... public_key) {
   return testing::Optional(testing::Property(
-      &IsolatedWebAppIntegrityBlockData::signatures,
+      &IntegrityBlockData::signatures,
       testing::ElementsAre(internal::SignatureInfoMatcher(public_key)...)));
 }
 

@@ -205,6 +205,7 @@ class ContextualTasksUI
   contextual_search::ContextualSearchSessionHandle*
   GetOrCreateContextualSessionHandle() override;
   GURL GetWebUiUrl() override;
+  bool IsContextualTasksEligibleOnInit() const override;
   bool IsInitComplete() override;
   void OnInitComplete() override;
   void AddObserver(contextual_tasks::ContextualTasksUIInterface::Observer*
@@ -238,6 +239,10 @@ class ContextualTasksUI
 
   void OnRestoredTabsFetched(
       std::vector<searchbox::mojom::TabInfoPtr> tabs) override;
+
+  // ContextualTasksUIInterface overrides:
+  bool is_history_thread_loading() const override;
+  void set_is_history_thread_loading(bool loading) override;
 
   // Returns true if two URLs are equal. Unlike GURL::operator==, this method
   // ignores the order of query parameters.
@@ -430,6 +435,7 @@ class ContextualTasksUI
   bool was_ai_page_ = false;
   bool is_lens_overlay_showing_ = false;
   bool is_contextual_tasks_eligible_on_init_ = false;
+  bool is_history_thread_loading_ = false;
 
   // Scoped observation for contextual_tasks_service_.
   base::ScopedObservation<contextual_tasks::ContextualTasksService,

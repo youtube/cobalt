@@ -24,6 +24,7 @@
 #include "api/transport/bitrate_settings.h"
 #include "api/transport/network_control.h"
 #include "api/units/time_delta.h"
+#include "api/video/timing/video_jitter_timing_factory.h"
 #include "call/audio_state.h"
 #include "call/rtp_transport_config.h"
 
@@ -89,6 +90,8 @@ struct CallConfig {
 
   // NetEq factory to use for this call.
   NetEqFactory* neteq_factory = nullptr;
+
+  VideoJitterTimingFactory* video_jitter_timing_factory = nullptr;
 
   TaskQueueBase* network_task_queue_ = nullptr;
   TaskQueueBase* worker_task_queue = nullptr;

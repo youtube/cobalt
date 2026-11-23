@@ -16,7 +16,7 @@ AXWebArea AXTitle='Table example with rowspan and colspan'
 ++++++++AXStaticText AXValue='BC'
 ++++++AXCell AXColumnIndexRange={loc: 1, len: 1} AXRowIndexRange={loc: 1, len: 1}
 ++++++++AXStaticText AXValue='EF'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup
 ++AXTable
 ++++AXRow AXIndex=0
 ++++++AXCell AXColumnIndexRange={loc: 0, len: 1} AXRowIndexRange={loc: 0, len: 2}
@@ -41,4 +41,4 @@ AXWebArea AXTitle='Table example with rowspan and colspan'
 ++++++++AXStaticText AXValue='BC'
 ++++++AXCell AXColumnIndexRange={loc: 2, len: 1} AXRowIndexRange={loc: 1, len: 1}
 ++++++++AXStaticText AXValue='GH'
-++++AXGroup
+++++AXGroup AXSubrole=AXEmptyGroup

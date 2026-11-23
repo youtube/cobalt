@@ -17,9 +17,9 @@ class FakeIOSPasskeyClient : public IOSPasskeyClient {
   // IOSPasskeyClient:
   void SetIOSPasskeyClientCommandsHandler(
       id<IOSPasskeyClientCommands> handler) override;
-  bool PerformUserVerification() override;
   void FetchKeys(ReauthenticatePurpose purpose,
-                 KeysFetchedCallback callback) override;
+                 PasskeyUserVerificationStatus user_verification_status,
+                 FetchKeysCallback callback) override;
   void ShowSuggestionBottomSheet(RequestInfo request_info) override;
   void ShowCreationBottomSheet(RequestInfo request_info) override;
   void ShowInterstitial(InterstitialCallback callback) override;
@@ -27,9 +27,11 @@ class FakeIOSPasskeyClient : public IOSPasskeyClient {
 
   void AllowPasskeyCreationInfobar(bool allowed) override;
   bool IsGpmPasskeySavingEnabled() const override;
+  bool IsBiometricsEnabled() const override;
 
   bool DidShowSuggestionBottomSheet() const;
   void SetGpmPasskeySavingEnabled(bool enabled);
+  void SetBiometricsEnabled(bool enabled);
   bool DidShowCreationBottomSheet() const;
   bool DidFetchKeys() const;
   bool DidShowInterstitial() const;
@@ -42,6 +44,7 @@ class FakeIOSPasskeyClient : public IOSPasskeyClient {
   bool show_interstitial_called_ = false;
   bool interstitial_proceeds_ = true;
   bool gpm_passkey_saving_enabled_ = true;
+  bool biometrics_enabled_ = true;
 };
 
 }  // namespace webauthn

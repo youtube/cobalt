@@ -260,3 +260,21 @@ struct NavigationConfirmationRequest {
 struct NavigationConfirmationResponse {
   ConfirmationRequestResult result;
 };
+
+// LINT.IfChange(GmailOtpOptInErrorReason)
+// Error reasons for why showing the Gmail OTP Opt-in dialog failed.
+[Extensible]
+enum GmailOtpOptInErrorReason {
+  // The hosting WebUI received the request, but the web client has not
+  // subscribed to the request yet. We couldn't show the dialog in this case.
+  [Default] kRequestPromiseNoSubscriber = 0,
+};
+// LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/actor/actor_types.ts:GmailOtpOptInErrorReason)
+
+union GmailOtpOptInResult {
+  bool permission_granted;
+  GmailOtpOptInErrorReason error_reason;
+};
+
+
+

@@ -34,10 +34,8 @@ TEST_F(ArcOverlayControllerImplTest, OverlayComesOnTop) {
   controller.AttachOverlay(overlay_widget->GetNativeWindow());
 
   // Make sure that the overlay is at the top of the stack i.e. the last child
-  // of `host_window`. Note that an extra window `NativeViewHostAuraClip` is
-  // added as parent of the overlay so we compare with the parent.
-  EXPECT_EQ(host_window->children().back(),
-            overlay_widget->GetNativeWindow()->parent());
+  // of `host_window`.
+  EXPECT_EQ(host_window->children().back(), overlay_widget->GetNativeWindow());
 }
 
 TEST_F(ArcOverlayControllerImplTest,

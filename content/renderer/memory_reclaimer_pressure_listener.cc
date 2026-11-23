@@ -33,9 +33,7 @@ MemoryReclaimerPressureListener::MemoryReclaimerPressureListener()
           "MemoryReclaimerPressureListener",
           kMemoryReclaimerTraits,
           this,
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled,
-          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled) {}
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled) {}
 
 MemoryReclaimerPressureListener::~MemoryReclaimerPressureListener() = default;
 

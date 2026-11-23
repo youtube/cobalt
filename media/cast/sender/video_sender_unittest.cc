@@ -79,7 +79,7 @@ void SaveOperationalStatus(std::vector<OperationalStatus>* statuses,
 
 void IgnorePlayoutDelayChanges(base::TimeDelta unused_playout_delay) {}
 
-int GetVideoNetworkBandwidth() {
+uint32_t GetVideoNetworkBandwidth() {
   return openscreen::cast::kDefaultVideoMinBitRate;
 }
 
@@ -400,7 +400,7 @@ TEST_F(VideoSenderTest, GettersReturnValidValues) {
   ASSERT_EQ(STATUS_INITIALIZED, status_changes().front());
 
   // They should have some default values or zeroes
-  EXPECT_GE(video_sender().GetEncoderBitrate(), 0);
+  EXPECT_GE(video_sender().GetEncoderBitrate(), 0u);
   EXPECT_GE(video_sender().GetEncoderUtilization(), -1.0);  // Defaults to -1.0
   EXPECT_GE(video_sender().GetLossiness(), -1.0);           // Defaults to -1.0
   EXPECT_GE(video_sender().GetFramesInserted(), 0);
@@ -411,7 +411,7 @@ TEST_F(VideoSenderTest, GettersReturnValidValues) {
   RunTasksAndAdvanceClock();
 
   EXPECT_EQ(video_sender().GetFramesInserted(), 1);
-  EXPECT_GE(video_sender().GetEncoderBitrate(), 0);
+  EXPECT_GE(video_sender().GetEncoderBitrate(), 0u);
 }
 
 }  // namespace media::cast

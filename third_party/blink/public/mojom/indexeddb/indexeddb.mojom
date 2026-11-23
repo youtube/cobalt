@@ -260,6 +260,12 @@ interface IDBFactoryClient {
   UpgradeNeeded(pending_associated_remote<IDBDatabase> pending_database,
                 int64 old_version, IDBDataLoss data_loss,
                 string data_loss_message, IDBDatabaseMetadata db_metadata);
+
+  // Called during Open operations. `pending_database` may be null if:
+  // 1. The connection pipe was already established through `UpgradeNeeded`
+  //    (during database upgrade), or
+  // 2. The request is sharing an existing connection (connection
+  //    deduplication).
   OpenSuccess(pending_associated_remote<IDBDatabase>? pending_database,
               IDBDatabaseMetadata metadata);
 
@@ -472,12 +478,15 @@ interface IDBFactory {
   // higher priority. This can determine relative execution order for open
   // requests from different clients, but requests from a single client (window,
   // worker, etc) will always execute in order.
+  // If `request_shared_connection` is true, the browser may share an existing
+  // connection to the database if available, to reduce overhead.
   Open(pending_associated_remote<IDBFactoryClient> client,
        pending_associated_remote<IDBDatabaseCallbacks> database_callbacks,
        mojo_base.mojom.String16 name,
        int64 version,
        pending_associated_receiver<IDBTransaction> version_change_transaction_receiver,
-       int64 transaction_id, int32 priority);
+       int64 transaction_id, int32 priority,
+       bool request_shared_connection);
 
   // Deletes a database |name| in the frame's origin. If |force_close|
   // is true, any existing connections to that database will be closed

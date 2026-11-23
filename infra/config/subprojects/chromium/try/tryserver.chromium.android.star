@@ -396,25 +396,12 @@ try_.builder(
     mirrors = [
         "ci/android-16-x64-leakcanary-rel",
     ],
+    builder_config_settings = builder_config.try_settings(
+        retry_failed_shards = False,
+    ),
     gn_args = gn_args.config(
         configs = [
             "ci/android-16-x64-leakcanary-rel",
-            "release_try_builder",
-        ],
-    ),
-    contact_team_email = "clank-engprod@google.com",
-    siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
-)
-
-try_.builder(
-    name = "android-16-x64-leakcanary-fyi-rel",
-    description_html = "FYI try builder mirroring android-16-x64-leakcanary-fyi-rel CI builder.",
-    mirrors = [
-        "ci/android-16-x64-leakcanary-fyi-rel",
-    ],
-    gn_args = gn_args.config(
-        configs = [
-            "ci/android-16-x64-leakcanary-fyi-rel",
             "release_try_builder",
         ],
     ),
@@ -501,6 +488,7 @@ try_.orchestrator_builder(
         "chromium.add_one_test_shard": 10,
         # crbug/940930
         "chromium.enable_cleandead": 100,
+        "luci.buildbucket.run_in_turboci": 100,
     },
     main_list_view = "try",
     # TODO(crbug.com/40241638): Use orchestrator pool once overloaded test pools
@@ -666,6 +654,9 @@ try_.builder(
             "third_party/jni_zero/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     main_list_view = "try",
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
@@ -751,6 +742,9 @@ try_.builder(
             "third_party/jni_zero/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
 
@@ -834,6 +828,9 @@ try_.builder(
             "build/config/android/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     main_list_view = "try",
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
     use_clang_coverage = True,
@@ -956,6 +953,9 @@ try_.builder(
             "build/config/android/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     main_list_view = "try",
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
     use_clang_coverage = True,
@@ -1131,13 +1131,9 @@ try_.orchestrator_builder(
         "chromium.add_one_test_shard": 10,
         # crbug/940930
         "chromium.enable_cleandead": 100,
-        # TODO(https://crbug.com/521401232): Increase to 100
-        "luci.buildbucket.run_in_turboci": 50,
+        "luci.buildbucket.run_in_turboci": 100,
     },
     main_list_view = "try",
-    # TODO(crbug.com/20485794): Experimentally disabled. Enable after getting
-    # data from experiment.
-    siso_remote_linking = False,
     # TODO(crbug.com/40241638): Use orchestrator pool once overloaded test pools
     # are addressed
     # use_orchestrator_pool = True,
@@ -1178,6 +1174,9 @@ try_.orchestrator_builder(
         "chromium.add_one_test_shard": 10,
         # crbug/940930
         "chromium.enable_cleandead": 100,
+        "luci.buildbucket.run_in_turboci": 100,
+        # go/rts-project-proposal
+        "chromium_rts.filter_file_analysis": 10,
     },
     main_list_view = "try",
     # TODO(crbug.com/40241638): Use orchestrator pool once overloaded test pools
@@ -1265,6 +1264,9 @@ try_.builder(
             "third_party/openscreen/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
 )
 
 try_.builder(
@@ -1288,6 +1290,9 @@ try_.builder(
             "third_party/openscreen/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
 )
 
 try_.builder(
@@ -1312,6 +1317,9 @@ try_.builder(
             "third_party/openscreen/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
 )
 
 try_.builder(
@@ -1336,6 +1344,9 @@ try_.builder(
             "third_party/openscreen/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
 )
 
 try_.builder(
@@ -1368,6 +1379,7 @@ try_.builder(
     experiments = {
         # crbug/940930
         "chromium.enable_cleandead": 100,
+        "luci.buildbucket.run_in_turboci": 100,
     },
     main_list_view = "try",
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
@@ -1423,6 +1435,9 @@ try_.builder(
             "third_party/xnnpack/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     main_list_view = "try",
 )
 
@@ -1460,6 +1475,9 @@ try_.builder(
             "third_party/gvr-android-sdk/.+",
         ],
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     main_list_view = "try",
 )
 
@@ -1572,6 +1590,9 @@ gpu.try_.optional_tests_builder(
     cq_settings = try_.cq_settings(
         location_filters = gpu.try_.optional_trybot_location_filters.ANDROID,
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     main_list_view = "try",
     max_concurrent_builds = 10,
 )
@@ -1598,6 +1619,9 @@ gpu.try_.optional_tests_builder(
     cq_settings = try_.cq_settings(
         location_filters = gpu.try_.optional_trybot_location_filters.ANDROID,
     ),
+    experiments = {
+        "luci.buildbucket.run_in_turboci": 100,
+    },
     main_list_view = "try",
     max_concurrent_builds = 10,
 )

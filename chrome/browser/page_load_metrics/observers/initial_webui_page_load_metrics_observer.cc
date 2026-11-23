@@ -76,11 +76,10 @@ void InitialWebUIPageLoadMetricsObserver::OnFirstContentfulPaintInPage(
   if (!timing.paint_timing || !timing.paint_timing->first_contentful_paint) {
     return;
   }
-  if (!page_load_metrics::WasStartedInForegroundOptionalEventInForeground(
-          timing.paint_timing->first_contentful_paint, GetDelegate())) {
-    return;
-  }
-
+  // TODO(crbug.com/527276743): consider moving this to the
+  // `OnMonotonicFirstContentfulPaintInPage()` so that the paint time is more
+  // accurate, see the comments from
+  // https://chromium-review.git.corp.google.com/c/chromium/src/+/7991315/comment/5d8434b4_4546404c/
   ukm::builders::InitialWebUIPageLoad(GetDelegate().GetPageUkmSourceId())
       .SetPaintTiming_NavigationToFirstContentfulPaint(
           timing.paint_timing->first_contentful_paint.value().InMilliseconds())
@@ -128,13 +127,13 @@ InitialWebUIPageLoadMetricsObserver::OnStart(
     last_time_shown_ = navigation_handle->NavigationStart();
   }
   currently_in_foreground_ = started_in_foreground;
+  navigation_start_time_ = base::Time::Now();
   if (!started_in_foreground) {
     was_hidden_ = true;
     return CONTINUE_OBSERVING;
   }
 
   page_transition_ = navigation_handle->GetPageTransition();
-  navigation_start_time_ = base::Time::Now();
   return CONTINUE_OBSERVING;
 }
 
@@ -214,14 +213,14 @@ InitialWebUIPageLoadMetricsObserver::ShouldObserveScheme(
 void InitialWebUIPageLoadMetricsObserver::OnComplete(
     const page_load_metrics::mojom::PageLoadTiming& timing) {
   base::TimeTicks current_time = base::TimeTicks::Now();
-  if (!was_hidden_) {
+
+  if (!metrics_recorded_ && GetDelegate().DidCommit()) {
     RecordNavigationTimingMetrics();
     RecordPageLoadMetrics(current_time /* no app_background_time */);
     RecordRendererUsageMetrics();
+    metrics_recorded_ = true;
   }
-  if (GetDelegate().StartedInForeground()) {
-    RecordTimingMetrics(timing);
-  }
+  RecordTimingMetrics(timing);
   RecordPageEndMetrics(&timing, current_time,
                        /* app_entered_background */ false);
 }
@@ -230,18 +229,18 @@ void InitialWebUIPageLoadMetricsObserver::OnFailedProvisionalLoad(
     const page_load_metrics::FailedProvisionalLoadInfo& failed_load_info) {
   RecordPageEndMetrics(nullptr, base::TimeTicks(),
                        /* app_entered_background */ false);
-  if (was_hidden_) {
-    return;
+  if (!metrics_recorded_) {
+    RecordPageLoadMetrics(base::TimeTicks() /* no app_background_time */);
+    RecordRendererUsageMetrics();
+    metrics_recorded_ = true;
   }
-
-  RecordPageLoadMetrics(base::TimeTicks() /* no app_background_time */);
-  RecordRendererUsageMetrics();
 
   // Error codes have negative values, however we log net error code enum values
   // for UMA histograms using the equivalent positive value. For consistency in
   // UKM, we convert to a positive value here.
   int64_t net_error_code = static_cast<int64_t>(failed_load_info.error) * -1;
   DCHECK_GE(net_error_code, 0);
+
   ukm::builders::InitialWebUIPageLoad(GetDelegate().GetPageUkmSourceId())
       .SetNet_ErrorCode_OnFailedProvisionalLoad(net_error_code)
       .SetPageTiming_NavigationToFailedProvisionalLoad(
@@ -265,12 +264,13 @@ InitialWebUIPageLoadMetricsObserver::OnHidden(
     total_foreground_duration_ += base::TimeTicks::Now() - last_time_shown_;
   }
   currently_in_foreground_ = false;
-  if (!was_hidden_) {
+  if (!metrics_recorded_ && GetDelegate().DidCommit()) {
     RecordNavigationTimingMetrics();
     RecordPageLoadMetrics(base::TimeTicks() /* no app_background_time */);
     RecordRendererUsageMetrics();
-    was_hidden_ = true;
+    metrics_recorded_ = true;
   }
+  was_hidden_ = true;
 
   return CONTINUE_OBSERVING;
 }
@@ -286,14 +286,14 @@ page_load_metrics::PageLoadMetricsObserver::ObservePolicy
 InitialWebUIPageLoadMetricsObserver::FlushMetricsOnAppEnterBackground(
     const page_load_metrics::mojom::PageLoadTiming& timing) {
   base::TimeTicks current_time = base::TimeTicks::Now();
-  if (!was_hidden_) {
+
+  if (!metrics_recorded_ && GetDelegate().DidCommit()) {
     RecordNavigationTimingMetrics();
     RecordPageLoadMetrics(current_time);
     RecordRendererUsageMetrics();
+    metrics_recorded_ = true;
   }
-  if (GetDelegate().StartedInForeground()) {
-    RecordTimingMetrics(timing);
-  }
+  RecordTimingMetrics(timing);
   // Assume that page ends on this method, as the app could be evicted right
   // after.
   RecordPageEndMetrics(&timing, current_time,
@@ -362,28 +362,24 @@ void InitialWebUIPageLoadMetricsObserver::RecordTimingMetrics(
   ukm::builders::InitialWebUIPageLoad builder(
       GetDelegate().GetPageUkmSourceId());
 
-  if (page_load_metrics::WasStartedInForegroundOptionalEventInForeground(
-          timing.parse_timing->parse_start, GetDelegate())) {
+  if (timing.parse_timing && timing.parse_timing->parse_start) {
     builder.SetParseTiming_NavigationToParseStart(
         timing.parse_timing->parse_start.value().InMilliseconds());
   }
 
-  if (page_load_metrics::WasStartedInForegroundOptionalEventInForeground(
-          timing.document_timing->dom_content_loaded_event_start,
-          GetDelegate())) {
+  if (timing.document_timing &&
+      timing.document_timing->dom_content_loaded_event_start) {
     builder.SetDocumentTiming_NavigationToDOMContentLoadedEventFired(
         timing.document_timing->dom_content_loaded_event_start.value()
             .InMilliseconds());
   }
 
-  if (page_load_metrics::WasStartedInForegroundOptionalEventInForeground(
-          timing.document_timing->load_event_start, GetDelegate())) {
+  if (timing.document_timing && timing.document_timing->load_event_start) {
     builder.SetDocumentTiming_NavigationToLoadEventFired(
         timing.document_timing->load_event_start.value().InMilliseconds());
   }
 
-  if (page_load_metrics::WasStartedInForegroundOptionalEventInForeground(
-          timing.paint_timing->first_paint, GetDelegate())) {
+  if (timing.paint_timing && timing.paint_timing->first_paint) {
     builder.SetPaintTiming_NavigationToFirstPaint(
         timing.paint_timing->first_paint.value().InMilliseconds());
   }

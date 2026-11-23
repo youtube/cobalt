@@ -173,7 +173,11 @@ source_set("test_support") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler_unittest.cc" ]
+  sources = [
+    "modules/file_suggestion/drive_service_unittest.cc",
+    "modules/v2/calendar/google_calendar_page_handler_unittest.cc",
+    "modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler_unittest.cc",
+  ]
   deps = [
     ":impl",
     ":new_tab_page",
@@ -206,11 +210,9 @@ source_set("unit_tests") {
   if (!is_android) {
     sources += [
       "microsoft_auth/microsoft_auth_service_unittest.cc",
-      "modules/file_suggestion/drive_service_unittest.cc",
       "modules/file_suggestion/microsoft_files_page_handler_unittest.cc",
       "modules/new_tab_page_modules_unittest.cc",
       "modules/v2/authentication/microsoft_auth_page_handler_unittest.cc",
-      "modules/v2/calendar/google_calendar_page_handler_unittest.cc",
       "modules/v2/calendar/outlook_calendar_page_handler_unittest.cc",
       "modules/v2/tab_groups/tab_groups_page_handler_unittest.cc",
       "one_google_bar/one_google_bar_loader_impl_unittest.cc",
@@ -260,12 +262,10 @@ if (!is_android) {
   source_set("interactive_ui_tests") {
     testonly = true
 
+    # Some of these interactive uitests have file-scope statics of
+    # non-trivial-destructor types, which -Wexit-time-destructors rejects.
     configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
-    # These tests pre-date strict sign-comparison warnings; relax to the warning
-    # posture they had while compiled in //chrome/test.
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [

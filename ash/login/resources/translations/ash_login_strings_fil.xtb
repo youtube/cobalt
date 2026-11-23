@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Maaari mo ring subukang <ph name="GUEST_SIGNIN_LINK_START" />mag-browse bilang bisita<ph name="GUEST_SIGNIN_LINK_END" /> upang ayusin ang error sa network na ito.</translation>
 <translation id="1201402288615127009">Susunod</translation>
 <translation id="1222835797152767346">Magtakda ng PIN para mas maging madali ang pag-sign in</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Mga Feature ng Pag-debug<ph name="END_H3" />
+          <ph name="BR" />
+          Puwede mong i-enable ang mga feature ng pag-debug sa iyong ChromeOS Device para ma-install at masubukan ang custom na code sa device mo.  Magbibigay-daan ito sa iyo na:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Alisin ang pag-verify ng rootfs para mabago mo ang mga OS file
+            <ph name="LIST_ITEM" />I-enable ang SSH access sa device gamit ang mga karaniwang pansubok na key para makagamit ka ng mga tool gaya ng <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> para ma-access ang device
+            <ph name="LIST_ITEM" />I-enable ang pag-boot mula sa USB para makapag-install ka ng OS image mula sa isang USB drive
+            <ph name="LIST_ITEM" />Parehong itakda ang dev at ang password ng pag-log in sa system root sa isang custom na value para manual kang makapag-SSH sa device
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Kapag naka-enable na, mananatiling naka-enable ang karamihan ng mga feature ng pag-debug kahit na pagkatapos magsagawa ng powerwash o pag-wipe ng data sa isang device na pinamamahalaan ng enterprise.  Para ganap na ma-disable ang lahat ng feature ng pag-debug, tapusin ang proseso ng pag-recover ng ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Para sa higit pang impormasyon tungkol sa mga feature ng pag-debug, tingnan ang:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Tandaan:<ph name="END_BOLD" />  Mare-reboot ang system sa panahon ng proseso.</translation>
 <translation id="1347625331607114917">I-verify ang code sa iyong Android phone</translation>
 <translation id="1347975661240122359">Magsisimula ang pag-update kapag umabot na ang baterya sa <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Tapos na ang pag-set up! Sunod na ihanda ang iyong device para sa gaming</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Dina-download ang mga app</translation>
 <translation id="5045550434625856497">Hindi wastong password</translation>
 <translation id="5062930723426326933">Nabigo ang pag-sign in, mangyaring kumonekta sa internet at subukan ulit.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Makipag-chat sa Gemini para magsimulang magsulat, magplano, matuto, at iba pa gamit ang Google AI.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Pagkatapos ng pag-set up, magsimulang gamitin ang Gemini sa pamamagitan ng pagpili sa Gemini app sa iyong shelf, sa ibaba ng screen mo.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Isaksak ang iyong <ph name="DEVICE_TYPE" /> sa isang pinagmumulan ng kuryente.</translation>
 <translation id="5147516217412920887">Sundin ang mga tagubilin sa iyong telepono para i-verify ang code</translation>
 <translation id="5160857336552977725">Mag-sign in sa iyong <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Mga Feature ng Pag-debug<ph name="END_H3" />
+          <ph name="BR" />
+          Puwede mong i-enable ang mga feature ng pag-debug sa iyong ChromeOS Flex Device para ma-install at masubukan ang custom na code sa device mo.  Magbibigay-daan ito sa iyo na:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Alisin ang pag-verify ng rootfs para mabago mo ang mga OS file
+            <ph name="LIST_ITEM" />I-enable ang SSH access sa device gamit ang mga karaniwang pansubok na key para makagamit ka ng mga tool gaya ng <ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" /> para ma-access ang device
+            <ph name="LIST_ITEM" />I-enable ang pag-boot mula sa USB para makapag-install ka ng OS image mula sa isang USB drive
+            <ph name="LIST_ITEM" />Parehong itakda ang dev at ang password ng pag-log in sa system root sa isang custom na value para manual kang makapag-SSH sa device
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          OKapag naka-enable na, mananatiling naka-enable ang karamihan ng mga feature ng pag-debug kahit na pagkatapos magsagawa ng powerwash o pag-wipe ng data sa isang device na pinamamahalaan ng enterprise.  Para ganap na ma-disable ang lahat ng feature ng pag-debug, tapusin ang proseso ng pag-recover ng ChromeOS (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Para sa higit pang impormasyon tungkol sa mga feature ng pag-debug, tingnan ang:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Tandaan:<ph name="END_BOLD" />  Mare-reboot ang system sa panahon ng proseso.</translation>
 <translation id="523505283826916779">Mga setting ng accessibility</translation>
 <translation id="5240931875940563122">Mag-sign in gamit ang Android phone</translation>
 <translation id="5255859108402770436">Muling mag-sign in</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Ie-enable mo ang mga feature ng pag-debug ng ChromeOS na magse-set up ng sshd daemon at mag-e-enable ng pag-boot mula sa mga USB drive.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Accessibility</translation>
+<translation id="6984652455487792101">Kung gumagamit ka ng proxy server, tingnan ang iyong mga setting ng proxy o
+        makipag-ugnayan sa administrator ng network mo para matiyak na
+        gumagana ang proxy server. Kung hindi ka naniniwalang dapat kang gumamit
+        ng proxy server, i-adjust ang iyong <ph name="LINK_START" />mga setting ng proxy<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">I-on ang Bluetooth at Wi-Fi ng iyong telepono</translation>
 <translation id="7077829361966535409">Nabigong ma-load ang pahina sa pag-sign in gamit ang mga kasalukuyang setting ng proxy. Mangyaring <ph name="GAIA_RELOAD_LINK_START" />subukang mag-sign in muli<ph name="GAIA_RELOAD_LINK_END" />, o gumamit ng ibang <ph name="PROXY_SETTINGS_LINK_START" />mga setting ng proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Hindi magkatugma ang mga password</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Kumpirmahin ang iyong password</translation>
 <translation id="7352651011704765696">Nagkaroon ng problema</translation>
 <translation id="7476454130948140105">Masyadong kaunti ang baterya (<ph name="BATTERY_PERCENT" />%) para sa pag-update</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Bago mag-enroll, kailangan mong i-clear ang TPM para ang <ph name="DEVICE_OS" /> na ang magmay-ari sa device.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Puwede mo ring tuluyang i-off ang TPM device. Ligtas na maso-store ang iyong data sa tulong ng pag-encrypt ng software, pero madi-disable ang ilang partikular na panseguridad na feature gaya ng mga hardware-backed na certificate.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Puwede mong baguhin ang mga setting ng iyong TPM sa pamamagitan ng pag-reboot at paglalagay ng mga setting ng BIOS/UEFI ng system. Nag-iiba ang mga hakbang batay sa model ng device. Para sa higit pang impormasyon, buksan ang dokumentasyon ng <ph name="DEVICE_OS" /> sa hiwalay na device bago ka mag-reboot: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">I-enable ang mga feature para sa pagde-debug sa <ph name="IDS_SHORT_PRODUCT_NAME" /> device na ito</translation>
 <translation id="7553242001898162573">Ilagay ang iyong password</translation>
 <translation id="7556242789364317684">Sa kasamaang palad, hindi mabawi ng <ph name="SHORT_PRODUCT_NAME" /> ang iyong mga setting. Upang maayos ang error, dapat i-reset ng <ph name="SHORT_PRODUCT_NAME" /> ang iyong device gamit ang Powerwash.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Inililipat ang impormasyon ng Google Account mula sa iyong Android phone</translation>
 <translation id="8524841856047224176">I-personalize ang iyong mga background sa camera para sa mga video call at higit pa</translation>
 <translation id="8569673829373920831">Higit pa tungkol sa <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Sundin ang mga tagubilin sa iyong telepono para i-scan ang QR code. Tiyaking naka-on ang Bluetooth ng iyong telepono.
+        <ph name="BR" />
+        <ph name="BR" />
+        Nakikita ng mga kalapit na device bilang <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">Hindi nakapag-sign in dahil hindi ma-verify ang iyong password. Mangyaring makipag-ugnayan sa iyong administrator o subukan ulit.</translation>
 <translation id="8674903726754070732">Sa kasamaang-palad, na-configure ang iyong computer gamit ang isang hardware ID na mali ang pagkakabuo. Pinipigilan nito ang ChromeOS na mag-update sa mga pinakabagong pag-aayos sa seguridad at <ph name="BEGIN_BOLD" />posibleng maging mahina sa mga nakakapinsalang pag-atake<ph name="END_BOLD" /> ang iyong computer.</translation>
 <translation id="8695139659682234808">Magdagdag ng parental controls pagkatapos mag-set up</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Nabigo ang pagsusuri sa update gamit ang mga kasalukuyang setting ng proxy. Mangyaring isaayos ang iyong <ph name="PROXY_SETTINGS_LINK_START" />mga setting ng proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Magagamit ang iyong mga naka-save na kagustuhan at aktibidad sa anumang ChromeOS device kapag magsa-sign in ka gamit ang Google Account mo. Mapipili mo kung ano ang isi-sync sa Mga Setting.</translation>
 <translation id="8875221558267407626">Magbuod ng content, pasimplehin ang mga pahayag na hindi madaling maunawaan, o magtanong</translation>
+<translation id="8913163265790894442">Madaling i-set up ang iyong <ph name="DEVICE_TYPE" /> gamit ang telepono mo. Puwede mong idagdag ang iyong Wi-Fi at Google Account nang hindi manual na inilalagay ang mga password mo.
+        <ph name="BR" />
+        <ph name="BR" />
+        Makikita bilang <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Ang mga feature para sa pagde-debug ay hindi ganap na na-enable sa <ph name="IDS_SHORT_PRODUCT_NAME" /> device na ito.</translation>
 <translation id="8965037249707889821">Ilagay ang lumang password</translation>
 <translation id="8975396729541388937">Mag-unsubscribe anumang oras sa pamamagitan ng pag-click sa link sa mga email na natatanggap mo.</translation>
 <translation id="9033765790910064284">Magpatuloy pa rin</translation>
 <translation id="903480517321259405">I-type ulit ang PIN</translation>
 <translation id="9076523132036239772">Paumanhin, hindi ma-verify ang iyong email o password. Subukan munang kumonekta sa network.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Eksklusibo para sa <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Pang-eksperimento ang Generative AI, na nasa maagang pag-develop, at kasalukuyang may limitadong availability.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Madaling i-set up ang iyong <ph name="DEVICE_TYPE" /> gamit ang telepono mo. Puwede mong idagdag ang iyong Google Account nang hindi manual na inilalagay ang password mo.
+        <ph name="BR" />
+        <ph name="BR" />
+        Makikita bilang <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

@@ -111,7 +111,7 @@ UserInfoRequest::UserInfoRequest(
 }
 
 void UserInfoRequest::SetCallbackAndStart(
-    blink::mojom::FederatedAuthRequest::RequestUserInfoCallback callback) {
+    blink::mojom::FederatedRequestService::RequestUserInfoCallback callback) {
   TRACE_EVENT_BEGIN("content.fedcm", "FedCM getUserInfo", perfetto_track_);
   callback_ = std::move(callback);
 
@@ -288,8 +288,9 @@ void UserInfoRequest::MaybeReturnAccounts(
   user_info.insert(user_info.end(),
                    std::make_move_iterator(not_returning_accounts.begin()),
                    std::make_move_iterator(not_returning_accounts.end()));
-  Complete(blink::mojom::RequestUserInfoStatus::kSuccess, std::move(user_info),
-           UserInfoRequestResult::kSuccess);
+  Complete(
+      blink::mojom::RequestUserInfoResult::NewUserInfo(std::move(user_info)),
+      UserInfoRequestResult::kSuccess);
 }
 
 bool UserInfoRequest::IsReturningAccount(
@@ -314,10 +315,8 @@ bool UserInfoRequest::IsReturningAccount(
       api_permission_delegate_);
 }
 
-void UserInfoRequest::Complete(
-    blink::mojom::RequestUserInfoStatus status,
-    std::optional<std::vector<blink::mojom::IdentityUserInfoPtr>> user_info,
-    UserInfoRequestResult request_status) {
+void UserInfoRequest::Complete(blink::mojom::RequestUserInfoResultPtr result,
+                               UserInfoRequestResult request_status) {
   if (!callback_) {
     return;
   }
@@ -326,7 +325,7 @@ void UserInfoRequest::Complete(
 
   base::UmaHistogramEnumeration("Blink.FedCm.UserInfo.Status", request_status);
 
-  std::move(callback_).Run(status, std::move(user_info));
+  std::move(callback_).Run(std::move(result));
 }
 
 void UserInfoRequest::CompleteWithError(UserInfoRequestResult error) {
@@ -338,7 +337,9 @@ void UserInfoRequest::CompleteWithError(UserInfoRequestResult error) {
         GetConsoleErrorMessage(error));
     AddDevToolsIssue(error);
   }
-  Complete(blink::mojom::RequestUserInfoStatus::kError, std::nullopt, error);
+  Complete(blink::mojom::RequestUserInfoResult::NewStatus(
+               blink::mojom::RequestUserInfoStatus::kError),
+           error);
 }
 
 void UserInfoRequest::AddDevToolsIssue(UserInfoRequestResult error) {

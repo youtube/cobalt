@@ -697,6 +697,51 @@ TEST_P(QuicProxyDatagramClientSocketTest,
 }
 
 TEST_P(QuicProxyDatagramClientSocketTest,
+       Http3GoAwayThenDatagramAfterSocketDestroyed) {
+  int packet_number = 1;
+  mock_quic_data_.AddWrite(SYNCHRONOUS,
+                           ConstructSettingsPacket(packet_number++));
+  mock_quic_data_.AddWrite(SYNCHRONOUS,
+                           ConstructConnectRequestPacket(packet_number++));
+  mock_quic_data_.AddRead(
+      ASYNC, ConstructServerConnectReplyPacket(/*packet_number=*/1, !kFin));
+  mock_quic_data_.AddReadPause();
+
+  mock_quic_data_.AddRead(
+      ASYNC, ConstructServerDatagramPacket(
+                 2, std::string(1, '\0') /* quarter_stream_id */ +
+                        std::string(1, '\0') /* context_id */ +
+                        std::string(base::as_string_view(kDatagramPayload))));
+  mock_quic_data_.AddWrite(
+      SYNCHRONOUS, ConstructAckPacket(packet_number++, /*largest_received=*/2,
+                                      /*smallest_received=*/1));
+  mock_quic_data_.AddReadPauseForever();
+
+  InitializeSession();
+
+  quic::test::QuicSpdySessionPeer::SetHttpDatagramSupport(
+      session_.get(), quic::HttpDatagramSupport::kRfc);
+
+  InitializeClientSocket();
+
+  AssertConnectSucceeds();
+
+  // The proxy sends GOAWAY, which detaches the stream handle without closing
+  // the underlying stream.
+  session_->OnHttp3GoAway(/*id=*/0);
+
+  // The socket goes away while the underlying stream is still active.
+  sock_.reset();
+
+  // A datagram arriving on the still-active stream must be safely dropped.
+  ResumeAndRun();
+  // GOAWAY left the underlying stream active in the session; close the session
+  // so that it can be destroyed cleanly.
+  session_->CloseSessionOnError(ERR_ABORTED, quic::QUIC_INTERNAL_ERROR,
+                                quic::ConnectionCloseBehavior::SILENT_CLOSE);
+}
+
+TEST_P(QuicProxyDatagramClientSocketTest,
        SocketConnectionSetupBlocksOnConnectResponse) {
   int packet_number = 1;
   mock_quic_data_.AddWrite(SYNCHRONOUS,

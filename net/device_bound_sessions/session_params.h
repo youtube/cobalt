@@ -55,6 +55,14 @@ struct NET_EXPORT SessionParams final {
   // TODO(crbug.com/501306421): Consider making this a std::optional, so that
   // forgetting to set it won't result in a random key id.
   unexportable_keys::UnexportableSigningKeyId key_id;
+  // Only present for sessions that require attestation keys, e.g. when
+  // `aik_required` is true in the registration payload. For registrations
+  // without this payload or sessions created via OAML this will not be set.
+  // TODO(crbug.com/501306421): Consider using a more expressive type allowing
+  // us to distinguish a key is not present, for example sessions that don't
+  // need a key at all vs sessions where the key wasn't loaded yet.
+  std::optional<unexportable_keys::UnexportableAttestationKeyId>
+      attestation_key_id;
   std::vector<std::string> allowed_refresh_initiators;
 };
 // LINT.ThenChange(//services/network/public/mojom/device_bound_sessions.mojom:DeviceBoundSessionParams)

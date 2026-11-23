@@ -14,6 +14,7 @@ per-file chromeos_strings.grd=*
 per-file recorder_strings.grdp=file://ash/webui/recorder_app_ui/OWNERS
 # Tast test control
 per-file tast_control_disabled_tests.txt=*
+per-file tast_control_flaky_tests.txt=*
 per-file tast_control_additional_cq_tests.txt=fqj@chromium.org
 per-file tast_control_additional_cq_tests.txt=yoshiki@chromium.org
 

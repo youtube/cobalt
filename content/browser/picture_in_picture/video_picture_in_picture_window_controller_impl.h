@@ -14,6 +14,7 @@
 #include "content/public/browser/video_picture_in_picture_window_controller.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "media/base/video_spatial_format.h"
 #include "media/mojo/mojom/media_player.mojom.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -156,6 +157,7 @@ class CONTENT_EXPORT VideoPictureInPictureWindowControllerImpl
 
   // Requests user confirmation to enter immersive Picture-in-Picture session.
   void RequestImmersivePlaybackConfirmation(
+      const content::ImmersiveOptions& default_options,
       RequestImmersivePlaybackConfirmationCallback callback);
 
   // Called by PictureInPictureServiceImpl when the service is about to be

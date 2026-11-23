@@ -30,6 +30,8 @@
 
 #include "third_party/blink/public/web/web_element.h"
 
+#include "third_party/blink/public/common/metrics/document_update_reason.h"
+#include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/scroll/scroll_into_view_params.mojom-blink.h"
 #include "third_party/blink/public/web/web_label_element.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_element.h"
@@ -41,7 +43,9 @@
 #include "third_party/blink/renderer/core/css/css_computed_style_declaration.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
 #include "third_party/blink/renderer/core/dom/focus_params.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
@@ -55,6 +59,7 @@
 #include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/geometry/dom_rect_list.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_label_element.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
@@ -63,6 +68,7 @@
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
+#include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image.h"
 #include "third_party/blink/renderer/core/svg/graphics/svg_image_for_container.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -75,6 +81,54 @@
 #include "ui/gfx/geometry/vector2d_f.h"
 
 namespace blink {
+namespace {
+
+String AriaAttr(const Element& element, const QualifiedName& attribute) {
+  // Authors sometimes add stray whitespace around ARIA-like attribute values.
+  // Normalize that here while keeping role matching intentionally exact.
+  return String(element.FastGetAttribute(attribute)).StripWhiteSpace();
+}
+
+bool AriaBoolAttr(const Element& element,
+                  const QualifiedName& attribute,
+                  bool default_value = false) {
+  const String value = AriaAttr(element, attribute);
+  if (EqualIgnoringAsciiCase(value, keywords::kTrue)) {
+    return true;
+  }
+  if (EqualIgnoringAsciiCase(value, keywords::kFalse)) {
+    return false;
+  }
+  return default_value;
+}
+
+bool HasPresentationalRole(const Element& element) {
+  const String role = AriaAttr(element, html_names::kRoleAttr);
+
+  // Trim whitespace, but intentionally do not split multiple ARIA roles.
+  // Fallback roles are not used in practice or supported industry-wide. Exact
+  // matching keeps this actor-facing helper simple.
+  return EqualIgnoringAsciiCase(role, keywords::kNone) ||
+         EqualIgnoringAsciiCase(role, keywords::kPresentation);
+}
+
+bool HasUnavailableAriaAncestorInclusive(const Element& element) {
+  for (const Node* node = &element; node;
+       node = node->ParentOrShadowHostNode()) {
+    const Element* ancestor = DynamicTo<Element>(node);
+    if (!ancestor) {
+      continue;
+    }
+    if (AriaBoolAttr(*ancestor, html_names::kAriaDisabledAttr) ||
+        AriaBoolAttr(*ancestor, html_names::kAriaHiddenAttr)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+}  // namespace
 
 WebElement WebElement::FromV8Value(v8::Isolate* isolate,
                                    v8::Local<v8::Value> value) {
@@ -224,6 +278,96 @@ void WebElement::SelectText(bool select_all) {
 void WebElement::Click() {
   auto* element = Unwrap<Element>();
   element->DispatchSimulatedClick(nullptr);
+}
+
+bool WebElement::IsEffectivelyDisabledOrInert() {
+  Element* element = Unwrap<Element>();
+  if (const auto* form_control =
+          blink::DynamicTo<HTMLFormControlElement>(element)) {
+    if (form_control->IsDisabledFormControl()) {
+      return true;
+    }
+  }
+
+  // Target availability depends on computed style, including inherited inert
+  // state from native modal dialogs and pointer event handling, so refresh the
+  // style tree before reading it.
+  element->GetDocument().UpdateStyleAndLayoutTree();
+  if (!element->GetLayoutObject()) {
+    return true;
+  }
+
+  if (const ComputedStyle* style = element->GetComputedStyle()) {
+    if (style->IsInert()) {
+      return true;
+    }
+    if (style->UsedPointerEvents() == EPointerEvents::kNone) {
+      return true;
+    }
+  }
+
+  // Note: this helper does not currently scan for ARIA modal dialogs.
+  // Enforcing that here would require scanning the whole document for all
+  // elements with role=dialog or role=alertdialog and aria-modal=true, then
+  // rejecting targets outside any visible dialog's flat-tree subtree. Clicking
+  // outside native modal dialogs is already handled by checking for inertness.
+  // See https://crrev.com/c/8007486 for a prototype implementation.
+  return HasUnavailableAriaAncestorInclusive(*element) ||
+         HasPresentationalRole(*element);
+}
+
+bool WebElement::SimulateAccessibilityClick() {
+  auto* element = Unwrap<Element>();
+  Document& document = element->GetDocument();
+
+  LocalFrame* frame = document.GetFrame();
+  if (!frame) {
+    return false;
+  }
+
+  if (!element->isConnected()) {
+    return false;
+  }
+
+  if (IsEffectivelyDisabledOrInert()) {
+    return false;
+  }
+
+  // This is a target-scoped lifecycle update. The availability preflight above
+  // only needs current style-tree state, but content-visibility and display
+  // locks can still leave this element without current layout data.
+  // Accessibility-style activation needs current target layout before it sends
+  // trusted simulated input events.
+  document.UpdateStyleAndLayoutTreeForElement(element,
+                                              DocumentUpdateReason::kInput);
+
+  if (!element->isConnected() || element->GetDocument().GetFrame() != frame) {
+    // Lifecycle updates can detach or move the element. Accessibility-style
+    // activation is only supported while the original frame still owns the
+    // target.
+    return false;
+  }
+
+  // Do not call LocalFrame::NotifyUserActivation() here. Blink uses the
+  // "transient user activation" term for the short-lived state that means "a
+  // real user gesture happened recently", which unlocks privileged page APIs
+  // such as popup, media, clipboard, and file-picker flows. This helper
+  // dispatches a trusted click sequence, but that click should not also unlock
+  // gesture-gated APIs. If a future caller needs that behavior, consider an
+  // explicit option or a separately named helper whose call site says that it
+  // grants a user gesture.
+
+  // Match Blink's accessibility activation behavior for sequential focus
+  // navigation. This changes where the next Tab search starts, not
+  // activeElement.
+  document.SetSequentialFocusNavigationStartingPoint(element);
+
+  // This sends pointerdown, mousedown, pointerup, mouseup, and click. It also
+  // avoids AccessKeyAction(), which focuses some controls as part of access-key
+  // activation. Simulated accessibility clicks must not change activeElement.
+  element->DispatchSimulatedClick(
+      nullptr, SimulatedClickCreationScope::kFromAccessibility);
+  return true;
 }
 
 void WebElement::PasteText(const WebString& text, bool replace_all) {

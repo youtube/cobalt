@@ -28,12 +28,12 @@
 #include "components/actor/core/actor_util.h"
 #include "components/actor/core/aggregated_journal.h"
 #include "components/actor/core/journal_details_builder.h"
-#include "components/actor/core/origin_gating_cache.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/optimization_guide/core/filters/optimization_hints_component_update_listener.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/hints.pb.h"
+#include "components/origin_gating/core/origin_gating_cache.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/variations/service/variations_service.h"
@@ -134,13 +134,14 @@ void OnOptimizationGuideDecision(
   }
 }
 
-void MayActOnUrlInternal(const GURL& url,
-                         bool allow_insecure_http,
-                         Profile* profile,
-                         const OriginGatingCache& origin_gating_cache,
-                         const EnterprisePolicyChecker& policy_checker,
-                         bool apply_sensitive_origin_check,
-                         std::unique_ptr<DecisionWrapper> decision_wrapper) {
+void MayActOnUrlInternal(
+    const GURL& url,
+    bool allow_insecure_http,
+    Profile* profile,
+    const origin_gating::OriginGatingCache& origin_gating_cache,
+    const EnterprisePolicyChecker& policy_checker,
+    bool apply_sensitive_origin_check,
+    std::unique_ptr<DecisionWrapper> decision_wrapper) {
   if ((net::IsLocalhost(url) && url.SchemeIsHTTPOrHTTPS()) ||
       url.IsAboutBlank()) {
     decision_wrapper->Accept();
@@ -305,7 +306,7 @@ void InitActionBlocklist(Profile* profile) {
 void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const OriginGatingCache& origin_gating_cache,
+                 const origin_gating::OriginGatingCache& origin_gating_cache,
                  const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback) {
   content::WebContents& web_contents = *tab.GetContents();
@@ -347,7 +348,7 @@ void MayActOnUrl(const GURL& url,
                  Profile* profile,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 const OriginGatingCache& origin_gating_cache,
+                 const origin_gating::OriginGatingCache& origin_gating_cache,
                  const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback) {
   std::unique_ptr<DecisionWrapper> decision_wrapper =

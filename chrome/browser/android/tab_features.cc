@@ -11,6 +11,8 @@
 #include "chrome/browser/actor/android/ui/actor_ui_tab_controller_android.h"
 #include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_tab_visit_tracker.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -35,6 +37,7 @@
 #include "chrome/common/chrome_features.h"
 #include "components/actor/core/actor_features.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/enterprise/data_protection/features.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/security_interstitials/core/features.h"
 #include "components/tabs/public/tab_interface.h"
@@ -111,6 +114,14 @@ TabFeatures::TabFeatures(content::WebContents* web_contents, Profile* profile) {
   tab_contextualization_controller_ =
       GetUserDataFactory().CreateInstance<lens::TabContextualizationController>(
           *tab, tab);
+
+  if (base::FeatureList::IsEnabled(
+          enterprise_data_protection::
+              kEnableAndroidEnterpriseScreenshotProtection) &&
+      enterprise_util::IsBrowserManaged(profile)) {
+    data_protection_tab_controller_ = std::make_unique<
+        enterprise_data_protection::DataProtectionNavigationController>(tab);
+  }
 
   glic_instance_helper_ =
       GetUserDataFactory().CreateInstance<glic::GlicInstanceHelper>(*tab, tab);

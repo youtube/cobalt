@@ -36,9 +36,6 @@ gfx::NativeViewAccessible& GetPopupFocusOverrideValue() {
 }
 
 // static
-bool AXPlatformNode::allow_ax_mode_changes_ = true;
-
-// static
 AXPlatformNode* AXPlatformNode::FromNativeWindow(
     gfx::NativeWindow native_window) {
   if (GetNativeWindowHandlerCallbackValue()) {
@@ -59,11 +56,6 @@ AXPlatformNode* AXPlatformNode::FromNativeViewAccessible(
 void AXPlatformNode::RegisterNativeWindowHandler(
     AXPlatformNode::NativeWindowHandlerCallback handler) {
   GetNativeWindowHandlerCallbackValue() = handler;
-}
-
-// static
-void AXPlatformNode::SetAXModeChangeAllowed(bool allow) {
-  allow_ax_mode_changes_ = allow;
 }
 
 AXPlatformNodeId AXPlatformNode::GetUniqueId() const {

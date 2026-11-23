@@ -103,6 +103,7 @@ MemoryDataType StringToMemoryDataType(std::string_view intent_str) {
       {"kRedressNumberFull", MemoryDataType::kRedressNumberFull},
       {"kRedressNumberName", MemoryDataType::kRedressNumberName},
       {"kRedressNumberNumber", MemoryDataType::kRedressNumberNumber},
+      {"kShipmentShippedDate", MemoryDataType::kShipmentShippedDate},
       {"kVehicle", MemoryDataType::kVehicle},
       {"kVehicleMake", MemoryDataType::kVehicleMake},
       {"kVehicleModel", MemoryDataType::kVehicleModel},

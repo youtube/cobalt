@@ -63,7 +63,7 @@ class CORE_EXPORT PerformanceMark final : public PerformanceEntry {
                   scoped_refptr<SerializedScriptValue>,
                   ExceptionState& exception_state,
                   DOMWindow* source,
-                  uint32_t navigation_id);
+                  uint64_t navigation_id);
 
   ~PerformanceMark() override = default;
 

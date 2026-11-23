@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/memory/weak_ptr.h"
+#include "base/values.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -53,7 +54,8 @@ class HttpHeaderInjectionClient : public network::mojom::TrustedHeaderClient {
       const GURL& request_url,
       const net::HttpRequestHeaders& original_headers,
       int32_t result,
-      const std::optional<net::HttpRequestHeaders>& headers);
+      const std::optional<net::HttpRequestHeaders>& headers,
+      std::optional<base::DictValue> extended_net_log_events);
 
   base::WeakPtr<HttpHeaderInjectionService> service_;
   mojo::Remote<network::mojom::TrustedHeaderClient> target_client_;

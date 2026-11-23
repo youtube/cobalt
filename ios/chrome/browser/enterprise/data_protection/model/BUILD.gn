@@ -44,6 +44,7 @@ source_set("model") {
     "//ios/chrome/browser/tabs/model:dependency_installer",
     "//ios/public/provider/chrome/browser/screenshot_protection:screenshot_protection_api",
     "//ios/web/public",
+    "//net",
     "//url",
   ]
 }

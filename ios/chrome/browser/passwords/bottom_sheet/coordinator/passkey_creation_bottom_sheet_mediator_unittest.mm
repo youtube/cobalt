@@ -120,6 +120,7 @@ TEST_F(PasskeyCreationBottomSheetMediatorTest,
 
   // Mock reauth module to say biometrics is NOT available.
   OCMStub([mock_reauth_module_ canAttemptReauthWithBiometrics]).andReturn(NO);
+  fake_client_->SetBiometricsEnabled(false);
   // Expect NO reauth attempt.
   [[mock_reauth_module_ reject] attemptReauthWithLocalizedReason:[OCMArg any]
                                             canReusePreviousAuth:YES
@@ -161,7 +162,7 @@ TEST_F(PasskeyCreationBottomSheetMediatorTest,
   __block void (^completionHandler)(ReauthenticationResult);
   OCMExpect([mock_reauth_module_
       attemptReauthWithLocalizedReason:[OCMArg any]
-                  canReusePreviousAuth:YES
+                  canReusePreviousAuth:NO
                                handler:[OCMArg checkWithBlock:^BOOL(id obj) {
                                  completionHandler = [obj copy];
                                  return YES;
@@ -207,7 +208,7 @@ TEST_F(PasskeyCreationBottomSheetMediatorTest, CreatePasskeyReauthFailure) {
   __block void (^completionHandler)(ReauthenticationResult);
   OCMExpect([mock_reauth_module_
       attemptReauthWithLocalizedReason:[OCMArg any]
-                  canReusePreviousAuth:YES
+                  canReusePreviousAuth:NO
                                handler:[OCMArg checkWithBlock:^BOOL(id obj) {
                                  completionHandler = [obj copy];
                                  return YES;

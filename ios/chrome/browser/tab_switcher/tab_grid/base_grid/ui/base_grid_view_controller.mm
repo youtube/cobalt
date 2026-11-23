@@ -1786,13 +1786,7 @@ typedef NS_ENUM(NSInteger, DragEntrySide) {
   cell.delegate = self;
   cell.theme = self.theme;
   cell.itemIdentifier = groupItemIdentifier;
-  // TODO(crbug.com/481997646): Cleanup this groupColor flow once feature hits
-  // stable.
-  if (!IsTabGroupColorOnSurfaceEnabled()) {
-    cell.groupColor = item.groupColor;
-  } else {
-    cell.tabGroupColorPalette = item.tabGroupColorPalette;
-  }
+  cell.tabGroupColorPalette = item.tabGroupColorPalette;
   cell.tabsCount = item.numberOfTabsInGroup;
   cell.title = item.title;
   cell.accessibilityIdentifier = GroupGridCellAccessibilityIdentifier(index);

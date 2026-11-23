@@ -27,7 +27,7 @@ chrome.test.getConfig(function(config) {
       const functionThatThrows = function() {
         chrome.debugger;
       };
-      chrome.test.assertThrows(functionThatThrows, [], expectedError);
+      chrome.test.assertThrows(functionThatThrows, expectedError);
     }
     chrome.test.succeed();
   }]);

@@ -8,20 +8,22 @@
  *
  * Example:
  *
- *   <settings-dropdown-menu pref="{{prefs.foo}}">
+ *   <settings-dropdown-menu pref-key="foo.bar">
  *   </settings-dropdown-menu>
  */
 import '//resources/cr_elements/cr_shared_vars.css.js';
-import '//resources/cr_elements/md_select.css.js';
 import '/shared/settings/controls/cr_policy_pref_indicator.js';
 
 import {assert} from '//resources/js/assert.js';
-import {microTask, PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
-import {CrPolicyPrefMixin} from '/shared/settings/controls/cr_policy_pref_mixin.js';
-import {PrefControlMixin} from '/shared/settings/controls/pref_control_mixin.js';
+import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
+import {CrPolicyPrefMixinLit} from '/shared/settings/controls/cr_policy_pref_mixin_lit.js';
 import {prefToString, stringToPrefValue} from '/shared/settings/prefs/pref_util.js';
+import {PrefService} from '/shared/settings/prefs2/pref_service.js';
+import {PrefServiceObserverMixinLit} from '/shared/settings/prefs2/pref_service_observer_mixin_lit.js';
 
-import {getTemplate} from './settings_dropdown_menu.html.js';
+import {getCss} from './settings_dropdown_menu.css.js';
+import {getHtml} from './settings_dropdown_menu.html.js';
 
 /**
  * |name| is shown in the UI. |value| is used to set or compare with the
@@ -44,7 +46,7 @@ export interface SettingsDropdownMenuElement {
 }
 
 const SettingsDropdownMenuElementBase =
-    CrPolicyPrefMixin(PrefControlMixin(PolymerElement));
+    CrPolicyPrefMixinLit(PrefServiceObserverMixinLit(CrLitElement));
 
 export class SettingsDropdownMenuElement extends
     SettingsDropdownMenuElementBase {
@@ -52,78 +54,77 @@ export class SettingsDropdownMenuElement extends
     return 'settings-dropdown-menu';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      /**
-       * List of options for the drop-down menu.
-       */
-      menuOptions: Array,
+      /** List of options for the drop-down menu. */
+      menuOptions: {type: Array},
 
       /** Whether the dropdown menu should be disabled. */
       disabled: {
         type: Boolean,
-        reflectToAttribute: true,
-        value: false,
+        reflect: true,
       },
 
-      /**
-         If this is a dictionary pref, this is the key for the item
-          we are interested in.
-       */
-      prefKey: {
-        type: String,
-        value: null,
-      },
+      prefKey: {type: String},
+      pref: {type: Object},
 
       /**
        * If true, do not automatically set the preference value. This allows the
        * container to confirm the change first then call either sendPrefChange
        * or resetToPrefValue accordingly.
        */
-      noSetPref: {
-        type: Boolean,
-        value: false,
-      },
+      noSetPref: {type: Boolean},
 
-      /**
-       * The value of the "custom" item.
-       */
-      notFoundValue: {
-        type: String,
-        value: 'SETTINGS_DROPDOWN_NOT_FOUND_ITEM',
-        readOnly: true,
-      },
+      notFoundValue: {type: String},
 
       /** Label for a11y purposes */
-      label: String,
+      label: {type: String},
 
-      /**
-       * The value of the element if not using |pref|.
-       */
-      value: {
-        type: String,
-      },
+      /** The value of the element if not using |pref|. */
+      value: {type: String},
     };
   }
 
-  static get observers() {
-    return [
-      'updateSelected_(menuOptions, value)',
-      'updateSelected_(menuOptions, pref.value.*, prefKey)',
-    ];
+
+  accessor menuOptions: DropdownMenuOption[] = [];
+  accessor disabled: boolean = false;
+  accessor prefKey: string = '';
+  override accessor pref: chrome.settingsPrivate.PrefObject|undefined =
+      undefined;
+  accessor noSetPref: boolean = false;
+  accessor notFoundValue: string = 'SETTINGS_DROPDOWN_NOT_FOUND_ITEM';
+  accessor label: string = '';
+  accessor value: string|undefined = undefined;
+
+  override willUpdate(changedProperties: PropertyValues) {
+    super.willUpdate(changedProperties as PropertyValues<this>);
+
+    if (changedProperties.has('prefKey')) {
+      const oldValue = changedProperties.get('prefKey');
+      // Disallow re-assigning the prefKey after initial assignment.
+      assert(oldValue === undefined || oldValue === '');
+      if (this.prefKey !== '') {
+        this.mirrorPref(this.prefKey, 'pref');
+      }
+    }
   }
 
-  declare menuOptions: DropdownMenuOptionList;
-  declare disabled: boolean;
-  declare prefKey: string|null;
-  declare noSetPref: boolean;
-  declare notFoundValue: string;
-  declare label: string;
-  declare value: string;
+  override updated(changedProperties: PropertyValues) {
+    super.updated(changedProperties as PropertyValues<this>);
+
+    if (changedProperties.has('menuOptions') ||
+        changedProperties.has('value') || changedProperties.has('pref')) {
+      this.updateSelected_();
+    }
+  }
 
   override focus() {
     this.$.dropdownMenu.focus();
@@ -134,13 +135,9 @@ export class SettingsDropdownMenuElement extends
     assert(this.pref);
 
     const selected = this.$.dropdownMenu.value;
-    if (this.prefKey) {
-      this.set(`pref.value.${this.prefKey}`, selected);
-    } else {
-      const prefValue = stringToPrefValue(selected, this.pref);
-      if (prefValue !== undefined) {
-        this.set('pref.value', prefValue);
-      }
+    const prefValue = stringToPrefValue(selected, this.pref);
+    if (prefValue !== undefined) {
+      PrefService.getInstance().setPrefValue(this.prefKey, prefValue);
     }
   }
 
@@ -148,36 +145,31 @@ export class SettingsDropdownMenuElement extends
    * Allow access to the selected value without having to go through the shadow
    * dom.
    */
-  getSelectedValue() {
+  getSelectedValue(): string {
     return this.$.dropdownMenu.value;
   }
 
   /**
    * Pass the selection change to the pref value.
    */
-  private onChange_() {
+  protected onChange_() {
     if (this.$.dropdownMenu.value === this.notFoundValue) {
       return;
     }
 
-    if (!this.noSetPref && this.pref) {
+    if (!this.noSetPref && this.prefKey) {
       this.sendPrefChange();
     }
 
     // settings-control-change only fires when the selection is changed to
     // a valid property.
-    this.dispatchEvent(new CustomEvent(
-        'settings-control-change', {bubbles: true, composed: true}));
+    this.fire('settings-control-change');
   }
 
   /**
    * Updates the selected item when the pref or menuOptions change.
    */
   private updateSelected_() {
-    if (this.menuOptions === undefined) {
-      return;
-    }
-
     if (!this.menuOptions.length) {
       return;
     }
@@ -186,7 +178,7 @@ export class SettingsDropdownMenuElement extends
     if (this.value !== undefined) {
       prefValue = this.value;
     } else {
-      if (this.pref === undefined || this.prefKey === undefined) {
+      if (this.pref === undefined) {
         return;
       }
       prefValue = this.prefStringValue_();
@@ -196,48 +188,37 @@ export class SettingsDropdownMenuElement extends
       return menuItem.value.toString() === prefValue;
     });
 
-    // Wait for the dom-repeat to populate the <select> before setting
-    // <select>#value so the correct option gets selected.
-    microTask.run(() => {
-      this.$.dropdownMenu.value =
-          option === undefined ? this.notFoundValue : prefValue;
-    });
+    this.$.dropdownMenu.value =
+        option === undefined ? this.notFoundValue : prefValue;
   }
 
   /**
    * Gets the current value of the preference as a string.
    */
   private prefStringValue_(): string {
-    if (this.prefKey) {
-      // Dictionary pref, values are always strings.
-      return this.pref!.value[this.prefKey];
-    } else {
-      assert(this.pref);
-      return prefToString(this.pref);
-    }
+    assert(this.pref);
+    return prefToString(this.pref);
   }
 
-  private showNotFoundValue_(
-      menuOptions: DropdownMenuOptionList|null|undefined,
-      prefValue: string): boolean {
-    if (menuOptions === undefined || prefValue === undefined) {
+  protected showNotFoundValue_(): boolean {
+    if (this.pref === undefined) {
       return false;
     }
 
     // Don't show "Custom" before the options load.
-    if (menuOptions === null || menuOptions.length === 0) {
+    if (this.menuOptions.length === 0) {
       return false;
     }
 
-    const option = menuOptions.find((menuItem) => {
+    const option = this.menuOptions.find((menuItem) => {
       return menuItem.value.toString() === this.prefStringValue_();
     });
     return !option;
   }
 
-  private shouldDisableMenu_(): boolean {
+  protected shouldDisableMenu_(): boolean {
     return this.disabled || this.isPrefEnforced() ||
-        this.menuOptions === undefined || this.menuOptions.length === 0;
+        this.menuOptions.length === 0;
   }
 }
 

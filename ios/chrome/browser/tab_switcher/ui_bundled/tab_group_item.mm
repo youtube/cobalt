@@ -9,7 +9,6 @@
 #import "ios/chrome/browser/saved_tab_groups/ui/tab_group_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group_range.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/util/color_palette/tab_group_color_palette.h"
 
 @implementation TabGroupItem {
@@ -44,16 +43,7 @@
   return _tabGroup->GetTitle();
 }
 
-- (UIColor*)groupColor {
-  CHECK(!IsTabGroupColorOnSurfaceEnabled());
-  if (!_tabGroup) {
-    return nil;
-  }
-  return tab_groups::ColorForTabGroupColorId(_tabGroup->GetColor());
-}
-
 - (TabGroupColorPalette*)tabGroupColorPalette {
-  CHECK(IsTabGroupColorOnSurfaceEnabled());
   if (!_tabGroup) {
     return nil;
   }
@@ -88,10 +78,7 @@
 }
 
 - (UIColor*)tabStripColor {
-  if (IsTabGroupColorOnSurfaceEnabled()) {
-    return self.tabGroupColorPalette.commonColor;
-  }
-  return self.groupColor;
+  return self.tabGroupColorPalette.commonColor;
 }
 
 #pragma mark - Debugging

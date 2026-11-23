@@ -140,7 +140,7 @@ class AILanguageModel : public AIContextBoundObject,
 
   ~AILanguageModel() override;
 
-  // Returns the the metadata parsed to the `PromptApiMetadata` from `any`.
+  // Returns the metadata parsed to the `PromptApiMetadata` from `any`.
   static PromptApiMetadata ParseMetadata(
       const optimization_guide::proto::Any& any);
 

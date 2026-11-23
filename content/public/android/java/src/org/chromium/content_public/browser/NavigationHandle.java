@@ -222,6 +222,30 @@ public class NavigationHandle {
         mIgnoredDuplicateNavigationCount = ignoredDuplicateNavigationCount;
     }
 
+    public void callDidFinishForTesting(GURL url) {
+        callDidFinishForTesting(url, true);
+    }
+
+    public void callDidFinishForTesting(GURL url, boolean hasCommitted) {
+        didFinish(
+                url,
+                /* isErrorPage= */ false,
+                hasCommitted,
+                /* isPrimaryMainFrameFragmentNavigation= */ false,
+                /* isDownload= */ false,
+                /* isValidSearchFormUrl= */ false,
+                /* transition= */ PageTransition.LINK,
+                /* errorCode= */ NetError.OK,
+                /* errorDescription= */ "",
+                /* httpStatuscode= */ 200,
+                /* isExternalProtocol= */ false,
+                /* isPdf= */ false,
+                /* mimeType= */ "",
+                Page.createForTesting(),
+                /* isSameOrigin= */ true,
+                /* ignoredDuplicateNavigationCount= */ 0);
+    }
+
     /** Release the C++ pointer. */
     @CalledByNative
     private void release() {

@@ -7,6 +7,8 @@
 #import "ios/chrome/browser/level_up/model/task_info.h"
 #import "ios/chrome/browser/level_up/model/tasks/task_factories.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util.h"
 
 class PaymentMethodsTaskInfo : public TaskInfo {
  public:
@@ -28,6 +30,10 @@ class PaymentMethodsTaskInfo : public TaskInfo {
   }
   std::string GetTriggerUserAction() const override {
     return "AutofillCreditCardsViewed";
+  }
+  std::string GetCompletionSnackbarMessage() const override {
+    return l10n_util::GetStringUTF8(
+        IDS_IOS_LEVEL_UP_TASK_COMPLETED_PAYMENT_METHODS);
   }
   TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();

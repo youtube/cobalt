@@ -241,6 +241,11 @@ class GLES2InterfaceForTests : public gpu::gles2::GLES2InterfaceStub,
     return texture_id;
   }
 
+  GLenum GetGraphicsResetStatusKHR() override {
+    return context_lost_ ? GL_GUILTY_CONTEXT_RESET_ARB : GL_NO_ERROR;
+  }
+  void SetContextLost(bool lost) { context_lost_ = lost; }
+
   MOCK_METHOD1(WaitSyncTokenCHROMIUMMock, void(const GLbyte* sync_token));
   void WaitSyncTokenCHROMIUM(const GLbyte* sync_token) override {
     UNSAFE_TODO(memcpy(&most_recently_waited_sync_token_, sync_token,
@@ -402,6 +407,7 @@ class GLES2InterfaceForTests : public gpu::gles2::GLES2InterfaceStub,
   HashMap<GLuint, gfx::Size> image_sizes_;
   HashMap<GLuint, GLuint> image_to_texture_map_;
   gpu::Mailbox last_imported_shared_image_;
+  bool context_lost_ = false;
 };
 
 class DrawingBufferForTests : public DrawingBuffer {
@@ -453,7 +459,6 @@ class DrawingBufferForTests : public DrawingBuffer {
                       Platform::kWebGL1ContextType,
                       false /* wantDepth */,
                       false /* wantStencil */,
-                      false /* is_offscreen_canvas */,
                       PredefinedColorSpace::kSRGB,
                       gl::GpuPreference::kHighPerformance),
         live_(nullptr) {}
@@ -476,6 +481,10 @@ class DrawingBufferForTests : public DrawingBuffer {
 
   int RecycledSoftwareResourceCount() {
     return recycled_software_resources_.size();
+  }
+
+  bool HasBackColorBufferForTesting() const {
+    return DrawingBuffer::HasBackColorBufferForTesting();
   }
 };
 

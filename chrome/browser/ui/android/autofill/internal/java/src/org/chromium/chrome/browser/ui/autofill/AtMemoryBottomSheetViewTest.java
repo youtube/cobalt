@@ -7,6 +7,8 @@ package org.chromium.chrome.browser.ui.autofill;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import android.content.Context;
 import android.view.ContextThemeWrapper;
@@ -122,5 +124,45 @@ public class AtMemoryBottomSheetViewTest {
         // We must idle the main looper to ensure these tasks complete before verifying the view
         // hierarchy, avoiding flaky test failures.
         ShadowLooper.idleMainLooper();
+    }
+
+    @Test
+    public void testNoticeVisibleProperty() {
+        View contentView = mView.getContentView();
+        View noticeContainer = contentView.findViewById(R.id.notice_container);
+        assertNotNull(noticeContainer);
+
+        PropertyModel model =
+                new PropertyModel.Builder(AtMemoryBottomSheetProperties.ALL_KEYS)
+                        .with(AtMemoryBottomSheetProperties.IS_NOTICE_VISIBLE, true)
+                        .build();
+        AtMemoryBottomSheetViewBinder.bind(
+                model, mView, AtMemoryBottomSheetProperties.IS_NOTICE_VISIBLE);
+
+        assertEquals(View.VISIBLE, noticeContainer.getVisibility());
+
+        model.set(AtMemoryBottomSheetProperties.IS_NOTICE_VISIBLE, false);
+        AtMemoryBottomSheetViewBinder.bind(
+                model, mView, AtMemoryBottomSheetProperties.IS_NOTICE_VISIBLE);
+
+        assertEquals(View.GONE, noticeContainer.getVisibility());
+    }
+
+    @Test
+    public void testNoticeOkClickListenerProperty() {
+        View contentView = mView.getContentView();
+        View noticeOkButton = contentView.findViewById(R.id.notice_ok_button);
+        assertNotNull(noticeOkButton);
+
+        Runnable clicked = mock(Runnable.class);
+        PropertyModel model =
+                new PropertyModel.Builder(AtMemoryBottomSheetProperties.ALL_KEYS)
+                        .with(AtMemoryBottomSheetProperties.NOTICE_OK_CLICK_LISTENER, clicked)
+                        .build();
+        AtMemoryBottomSheetViewBinder.bind(
+                model, mView, AtMemoryBottomSheetProperties.NOTICE_OK_CLICK_LISTENER);
+
+        noticeOkButton.performClick();
+        verify(clicked).run();
     }
 }

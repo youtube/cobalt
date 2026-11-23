@@ -239,9 +239,20 @@ Color StyleColor::UnresolvedAlphaColor::Resolve(
   }
   // else: new_alpha stays nullopt (none keyword)
 
-  return Color::FromColorSpace(
+  Color result = Color::FromColorSpace(
       resolved_origin.GetColorSpace(), resolved_origin.Param0(),
       resolved_origin.Param1(), resolved_origin.Param2(), new_alpha);
+
+  // The alpha() function preserves the origin's color space, but a legacy color
+  // space (rgb()/hsl()/hwb()) cannot represent a missing ("none") alpha in its
+  // serialization (it would collapse to 0, e.g. "rgba(255, 0, 0, 0)"). When the
+  // resolved alpha is "none" and the origin is legacy, convert to the modern
+  // sRGB color space so the "none" survives serialization.
+  if (!new_alpha.has_value() &&
+      Color::IsLegacyColorSpace(result.GetColorSpace())) {
+    result.ConvertToColorSpace(Color::ColorSpace::kSRGB);
+  }
+  return result;
 }
 
 CSSValue* StyleColor::UnresolvedAlphaColor::ToCSSValue() const {

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/file_system_provider/cloud_file_system.h"
 
+#include "ash/constants/ash_extension_constants.h"
 #include "base/base64.h"
 #include "base/files/file_util.h"
 #include "base/test/bind.h"
@@ -13,7 +14,6 @@
 #include "chrome/browser/ash/file_system_provider/fake_provided_file_system.h"
 #include "chrome/browser/ash/file_system_provider/service.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "content/public/test/browser_test.h"

@@ -10,6 +10,7 @@
 #include <memory>
 
 #import "base/memory/raw_ptr.h"
+#import "base/types/optional_ref.h"
 #import "components/autofill/core/browser/logging/log_manager.h"
 #import "components/password_manager/core/browser/password_feature_manager.h"
 #import "components/password_manager/core/browser/password_form_manager_for_ui.h"
@@ -40,6 +41,7 @@ namespace ios_web_view {
 class WebViewPasswordManagerClient
     : public password_manager::PasswordManagerClient {
  public:
+  using password_manager::PasswordManagerClient::IsSavingAndFillingEnabled;
   // Convenience factory method for creating a WebViewPasswordManagerClient.
   static std::unique_ptr<WebViewPasswordManagerClient> Create(
       web::WebState* web_state,
@@ -117,7 +119,9 @@ class WebViewPasswordManagerClient
   void NotifyUserCredentialsWereLeaked(
       password_manager::LeakedPasswordDetails details) override;
   void NotifyKeychainError() override;
-  bool IsSavingAndFillingEnabled(const GURL& url) const override;
+  bool IsSavingAndFillingEnabled(
+      const url::Origin& origin,
+      base::optional_ref<const GURL> url) const override;
   bool IsCommittedMainFrameSecure() const override;
   const GURL& GetLastCommittedURL() const override;
   url::Origin GetLastCommittedOrigin() const override;

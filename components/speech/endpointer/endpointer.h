@@ -47,7 +47,13 @@ class Endpointer {
   explicit Endpointer(int sample_rate);
 
   // Start the endpointer. This should be called at the beginning of a session.
-  void StartSession();
+  // If |reset_environment| is true (the default), the underlying energy
+  // endpointer's adaptive threshold and learned noise/speech levels are reset.
+  // Pass false to start a new utterance within an ongoing session while
+  // preserving the learned acoustic environment, avoiding a re-adaptation
+  // delay before the next utterance's onset can be detected. Per-utterance
+  // state (e.g. the speech-complete latch) is always reset regardless.
+  void StartSession(bool reset_environment = true);
 
   // Stop the endpointer.
   void EndSession();

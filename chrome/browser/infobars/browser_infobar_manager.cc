@@ -169,52 +169,61 @@ void BrowserInfoBarManager::Register(InfoBarSpec spec) {
 }
 
 void BrowserInfoBarManager::Show(
+    content::WebContents* contents,
     infobars::InfoBarDelegate::InfoBarIdentifier identifier) {
   auto it = registered_specs_.find(identifier);
   if (it == registered_specs_.end()) {
     return;
   }
+  CHECK(contents);
+  CHECK(it->second.scope() == InfoBarScope::kTab);
+
+  auto* manager = ContentInfoBarManager::FromWebContents(contents);
+  if (!manager) {
+    return;
+  }
+  manager->AddInfoBar(CreateConfirmInfoBar(
+      std::make_unique<RegistryInfoBarDelegate>(it->second)));
+}
+
+void BrowserInfoBarManager::ShowGlobally(
+    infobars::InfoBarDelegate::InfoBarIdentifier identifier) {
+  auto it = registered_specs_.find(identifier);
+  if (it == registered_specs_.end()) {
+    return;
+  }
+  CHECK(it->second.scope() == InfoBarScope::kGlobal);
 
   const InfoBarSpec& spec = it->second;
 
-  if (spec.scope() == InfoBarScope::kCurrentTab) {
-    auto* manager = GetActiveTabInfoBarManager();
-    if (!manager) {
-      return;
-    }
+  if (active_global_infobars_.contains(identifier)) {
+    return;
+  }
+  active_global_infobars_[identifier] = GlobalInfoBarContext{.spec = spec};
 
-    manager->AddInfoBar(
-        CreateConfirmInfoBar(std::make_unique<RegistryInfoBarDelegate>(spec)));
-  } else if (spec.scope() == InfoBarScope::kGlobal) {
-    if (active_global_infobars_.contains(identifier)) {
-      return;
-    }
-    active_global_infobars_[identifier] = GlobalInfoBarContext{.spec = spec};
-
-    GlobalBrowserCollection::GetInstance()->ForEach(
-        [this, &spec, identifier](BrowserWindowInterface* browser) {
-          tabs::TabInterface* active_tab = browser->GetActiveTabInterface();
-          content::WebContents* active_contents =
-              active_tab ? active_tab->GetContents() : nullptr;
-          if (active_contents) {
-            auto* manager =
-                ContentInfoBarManager::FromWebContents(active_contents);
-            if (manager) {
-              auto infobar = CreateConfirmInfoBar(
-                  std::make_unique<RegistryInfoBarDelegate>(spec));
-              auto* added_infobar = manager->AddInfoBar(std::move(infobar));
-              if (added_infobar) {
-                active_global_infobars_[identifier].active_instances[manager] =
-                    added_infobar;
-                if (!infobar_manager_observations_.IsObservingSource(manager)) {
-                  infobar_manager_observations_.AddObservation(manager);
-                }
+  GlobalBrowserCollection::GetInstance()->ForEach(
+      [this, &spec, identifier](BrowserWindowInterface* browser) {
+        tabs::TabInterface* active_tab = browser->GetActiveTabInterface();
+        content::WebContents* active_contents =
+            active_tab ? active_tab->GetContents() : nullptr;
+        if (active_contents) {
+          auto* manager =
+              ContentInfoBarManager::FromWebContents(active_contents);
+          if (manager) {
+            auto infobar = CreateConfirmInfoBar(
+                std::make_unique<RegistryInfoBarDelegate>(spec));
+            auto* added_infobar = manager->AddInfoBar(std::move(infobar));
+            if (added_infobar) {
+              active_global_infobars_[identifier].active_instances[manager] =
+                  added_infobar;
+              if (!infobar_manager_observations_.IsObservingSource(manager)) {
+                infobar_manager_observations_.AddObservation(manager);
               }
             }
           }
-          return true;
-        });
-  }
+        }
+        return true;
+      });
 }
 
 void BrowserInfoBarManager::Hide(
@@ -226,7 +235,7 @@ void BrowserInfoBarManager::Hide(
 
   const InfoBarSpec& spec = it->second;
 
-  if (spec.scope() == InfoBarScope::kCurrentTab) {
+  if (spec.scope() == InfoBarScope::kTab) {
     auto* manager = GetActiveTabInfoBarManager();
     if (!manager) {
       return;

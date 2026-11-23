@@ -6,7 +6,10 @@
 
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
 
-MockBrowserWindowInterface::MockBrowserWindowInterface() = default;
+MockBrowserWindowInterface::MockBrowserWindowInterface() {
+  ON_CALL(*this, GetUnownedUserDataHost())
+      .WillByDefault(testing::ReturnRef(unowned_user_data_host_));
+}
 MockBrowserWindowInterface::~MockBrowserWindowInterface() = default;
 
 ui::UnownedUserDataHost& MockBrowserWindowInterface::GetUnownedUserDataHost() {

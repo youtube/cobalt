@@ -40,7 +40,7 @@ SessionStorageMetadata::~SessionStorageMetadata() = default;
 
 void SessionStorageMetadata::Initialize(DomStorageDatabase::Metadata source) {
   namespace_storage_key_map_.clear();
-  next_map_id_ = source.next_map_id.value();
+  next_map_id_ = 0;
 
   for (DomStorageDatabase::MapMetadata& source_map : source.map_metadata) {
     int64_t map_id = source_map.map_locator.map_id().value();

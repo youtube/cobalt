@@ -2211,7 +2211,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -2248,7 +2249,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -2277,7 +2279,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -2316,7 +2319,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -2357,7 +2361,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -2395,7 +2400,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -2441,7 +2447,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -2506,7 +2513,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -2548,7 +2556,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceEnabledBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(search_terms), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -4038,7 +4047,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceNavigationPrefetchBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(user_input), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -4087,7 +4097,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceNavigationPrefetchBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(user_input), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -4142,7 +4153,8 @@ IN_PROC_BROWSER_TEST_F(SearchPrefetchServiceNavigationPrefetchBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(user_input), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 
@@ -4365,7 +4377,8 @@ IN_PROC_BROWSER_TEST_P(SearchNavigationPrefetchDefaultMatchBrowserTest,
   AutocompleteInput input(
       base::ASCIIToUTF16(user_input), metrics::OmniboxEventProto::BLANK,
       ChromeAutocompleteSchemeClassifier(browser()->profile()));
-  LocationBar* location_bar = browser()->window()->GetLocationBar();
+  LocationBar* location_bar =
+      BrowserWindow::FromBrowser(browser())->GetLocationBar();
   AutocompleteController* autocomplete_controller =
       location_bar->GetOmniboxController()->autocomplete_controller();
 

@@ -1,4 +1,5 @@
 include_rules = [
+  "+chrome/browser/contextual_cueing",
   "+chrome/browser/favicon",
   "+chrome/browser/ui/browser_window",
   "+chrome/browser/ui/page_action",
@@ -8,6 +9,8 @@ include_rules = [
   "+chrome/browser/sync",
   "+components/multistep_filter/content",
   "+components/multistep_filter/core",
+  "+components/prefs",
+  "+components/pref_registry",
   "+components/keyed_service/core",
   "+components/tabs",
   "+components/unified_consent",

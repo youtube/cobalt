@@ -36,7 +36,7 @@
 #pragma mark AppRefreshProvider
 
 // This provider runs on the main thread.
-- (scoped_refptr<base::SingleThreadTaskRunner>)taskThread {
+- (scoped_refptr<base::SequencedTaskRunner>)taskRunner {
   return web::GetUIThreadTaskRunner({});
 }
 

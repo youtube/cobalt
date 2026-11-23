@@ -5,7 +5,7 @@
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
 import {LinkStatus, MetricsBrowserProxyImpl, ReadAloudSettingsChange, ReadAnythingLogger, ReadAnythingSettingsChange, ReadAnythingVoiceType, SpeechControls, TimeFrom} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
-import {assertEquals, assertGT, assertLE} from 'chrome-untrusted://webui-test/chai_assert.js';
+import {assertEquals, assertGT, assertLE, assertNotEquals, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 
 import {createSpeechSynthesisVoice} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
@@ -290,9 +290,62 @@ suite('Logger', () => {
     // The playback length should be at least the amount of time we waited above
     // and less than the starting time (i.e. we should be recording length of
     // time, not timestamp).
-    const recordedTime = await metrics.whenCalled('recordSpeechPlaybackLength');
+    const recordedTime =
+        await metrics.whenCalled('recordSpeechPlaybackLengthLegacy');
     assertLE(expectedTime, recordedTime);
     assertGT(startTime, recordedTime);
+  });
+
+  test(
+      'logSpeechPlaySession records time with page type and view mode',
+      async () => {
+        chrome.readingMode.isImmersiveEnabled = true;
+        const startTime = Date.now();
+
+        chrome.readingMode.isPdf = false;
+        chrome.readingMode.activePresentationState =
+            chrome.readingMode.inImmersiveOverlayPresentationState;
+        logger.logSpeechPlaySession(startTime, null);
+        let args = await metrics.whenCalled('recordSpeechPlaybackLength');
+        assertEquals(
+            'Accessibility.ReadAnything.SpeechPlaybackSession.WebPageInFullPage',
+            args[0]);
+
+        metrics.reset();
+        chrome.readingMode.activePresentationState =
+            chrome.readingMode.inSidePanelPresentationState;
+        logger.logSpeechPlaySession(startTime, null);
+        args = await metrics.whenCalled('recordSpeechPlaybackLength');
+        assertEquals(
+            'Accessibility.ReadAnything.SpeechPlaybackSession.WebPageInSidePanel',
+            args[0]);
+
+        metrics.reset();
+        chrome.readingMode.isPdf = true;
+        logger.logSpeechPlaySession(startTime, null);
+        args = await metrics.whenCalled('recordSpeechPlaybackLength');
+        assertEquals(
+            'Accessibility.ReadAnything.SpeechPlaybackSession.PDFInSidePanel',
+            args[0]);
+
+        metrics.reset();
+        chrome.readingMode.activePresentationState =
+            chrome.readingMode.inImmersiveOverlayPresentationState;
+        logger.logSpeechPlaySession(startTime, null);
+        args = await metrics.whenCalled('recordSpeechPlaybackLength');
+        assertEquals(
+            'Accessibility.ReadAnything.SpeechPlaybackSession.PDFInFullPage',
+            args[0]);
+      });
+
+  test('logSpeechPlaySession does not record with invalid page type', () => {
+    const startTime = Date.now();
+    chrome.readingMode.isPdf = false;
+    chrome.readingMode.activePresentationState = 10000;
+
+    logger.logSpeechPlaySession(startTime, null);
+
+    assertEquals(0, metrics.getCallCount('recordSpeechPlaybackLength'));
   });
 
   test('logTimeFrom uses correct uma name', () => {
@@ -515,6 +568,64 @@ suite('Logger', () => {
           'Accessibility.ReadAnything.DistilledPageStructure.TopTwoHeadersHaveMinimumTwoItems',
           booleanCalls[0][0]);
       assertEquals(false, booleanCalls[0][1]);
+    });
+
+    test('logs pdf structure for pdfs', () => {
+      chrome.readingMode.isPdf = true;
+      for (let i = 0; i < 5; i++) {
+        container.appendChild(document.createElement('h1'));
+        container.appendChild(document.createElement('h2'));
+      }
+      container.appendChild(document.createElement('h3'));
+      for (let i = 0; i < 30; i++) {
+        container.appendChild(document.createElement('p'));
+      }
+
+      logger.logDistilledPageStructure(container);
+
+      assertNotEquals(0, metrics.getCallCount('recordCount'));
+      const countCalls = metrics.getArgs('recordCount');
+      const h1Metric = countCalls.find(
+          args => args[0] === 'Accessibility.ReadAnything.Pdf.Headings.H1');
+      assertTrue(!!h1Metric);
+      assertEquals(5, h1Metric[1]);
+
+      const h2Metric = countCalls.find(
+          args => args[0] === 'Accessibility.ReadAnything.Pdf.Headings.H2');
+      assertTrue(!!h2Metric);
+      assertEquals(5, h2Metric[1]);
+
+      const h3Metric = countCalls.find(
+          args => args[0] === 'Accessibility.ReadAnything.Pdf.Headings.H3');
+      assertTrue(!!h3Metric);
+      assertEquals(1, h3Metric[1]);
+
+      const h4Metric = countCalls.find(
+          args => args[0] === 'Accessibility.ReadAnything.Pdf.Headings.H4');
+      assertTrue(!!h4Metric);
+      assertEquals(0, h4Metric[1]);
+
+      const h5Metric = countCalls.find(
+          args => args[0] === 'Accessibility.ReadAnything.Pdf.Headings.H5');
+      assertTrue(!!h5Metric);
+      assertEquals(0, h5Metric[1]);
+
+      const h6Metric = countCalls.find(
+          args => args[0] === 'Accessibility.ReadAnything.Pdf.Headings.H6');
+      assertTrue(!!h6Metric);
+      assertEquals(0, h6Metric[1]);
+
+      const pMetric = countCalls.find(
+          args =>
+              args[0] === 'Accessibility.ReadAnything.Pdf.NumberParagraphs');
+      assertTrue(!!pMetric);
+      assertEquals(30, pMetric[1]);
+
+      const ratioMetric = countCalls.find(
+          args => args[0] ===
+              'Accessibility.ReadAnything.Pdf.HeadingToParagraphRatio');
+      assertTrue(!!ratioMetric);
+      assertNotEquals(0, ratioMetric[1]);
     });
   });
 });

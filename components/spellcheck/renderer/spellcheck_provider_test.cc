@@ -17,6 +17,7 @@
 #include "components/spellcheck/renderer/spellcheck.h"
 #include "components/spellcheck/renderer/spellcheck_language.h"
 #include "components/spellcheck/spellcheck_buildflags.h"
+#include "third_party/blink/public/platform/web_runtime_features.h"
 #include "third_party/blink/public/web/web_text_check_client.h"
 
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(USE_BROWSER_SPELLCHECKER)
@@ -252,3 +253,13 @@ base::WeakPtr<SpellCheckProvider> TestingSpellCheckProvider::GetWeakPtr() {
 SpellCheckProviderTest::SpellCheckProviderTest()
     : provider_(&embedder_provider_) {}
 SpellCheckProviderTest::~SpellCheckProviderTest() = default;
+
+void SpellCheckProviderTest::SetUp() {
+  custom_dictionary_api_enabled_ =
+      blink::WebRuntimeFeatures::IsSpellCheckCustomDictionaryAPIEnabled();
+}
+
+void SpellCheckProviderTest::TearDown() {
+  blink::WebRuntimeFeatures::EnableSpellCheckCustomDictionaryAPI(
+      custom_dictionary_api_enabled_);
+}

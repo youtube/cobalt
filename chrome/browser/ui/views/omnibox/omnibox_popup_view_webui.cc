@@ -107,8 +107,7 @@ void OmniboxPopupViewWebUI::UpdatePopupAppearance() {
       controller()->popup_state_manager()->popup_state() !=
           OmniboxPopupState::kAim &&
       (has_results_or_chips ||
-       ((base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) ||
-         base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) &&
+       (base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) &&
         controller()->edit_model()->has_focus())) &&
       !omnibox_view_->IsImeShowingPopup();
 

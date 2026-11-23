@@ -19,7 +19,6 @@
 #include "chromeos/services/assistant/public/shared/constants.h"
 #include "google_apis/google_api_keys.h"
 #include "net/base/url_util.h"
-#include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/test/test_url_loader_factory.h"
@@ -88,7 +87,6 @@ class TranslationResultLoaderTest : public testing::Test {
   base::test::TaskEnvironment task_environment_;
   std::unique_ptr<TranslationResultLoader> loader_;
   std::unique_ptr<MockResultLoaderDelegate> mock_delegate_;
-  data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
   FakeQuickAnswersState fake_quick_answers_state_;

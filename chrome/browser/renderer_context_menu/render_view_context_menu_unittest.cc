@@ -2192,6 +2192,26 @@ TEST_P(RenderViewContextMenuReadAnythingTest, MAYBE_AppendPageItems) {
   }
 }
 
+TEST_P(RenderViewContextMenuReadAnythingTest, GlicNotPresentInReadingMode) {
+  base::test::ScopedFeatureList features;
+  features.InitAndEnableFeature(features::kGlicContextMenu);
+
+  glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
+
+  // Simulate a context menu request with page level options.
+  content::ContextMenuParams params = CreateParams(MenuItem::PAGE);
+  params.page_url = GURL(chrome::kChromeUIUntrustedReadAnythingSidePanelURL);
+
+  TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
+                                 params);
+  menu.SetBrowser(GetBrowser());
+  menu.Init();
+
+  EXPECT_FALSE(menu.IsItemPresent(IDC_CONTENT_CONTEXT_GLIC));
+
+  glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
+}
+
 INSTANTIATE_TEST_SUITE_P(All,
                          RenderViewContextMenuReadAnythingTest,
                          testing::Values("MenuShuffleDefault",

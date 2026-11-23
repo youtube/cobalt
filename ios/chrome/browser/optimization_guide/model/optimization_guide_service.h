@@ -18,6 +18,7 @@
 #include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/optimization_guide/core/hints/optimization_metadata.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features_controller.h"
+#include "components/optimization_guide/core/model_execution/model_execution_manager.h"
 #include "components/optimization_guide/core/model_execution/remote_model_executor.h"
 #import "components/optimization_guide/optimization_guide_buildflags.h"
 #include "components/optimization_guide/proto/hints.pb.h"
@@ -75,7 +76,9 @@ class OptimizationGuideService
       PrefService* pref_service,
       BrowserList* browser_list,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      signin::IdentityManager* identity_manager);
+      signin::IdentityManager* identity_manager,
+      std::unique_ptr<optimization_guide::ModelExecutionManager::Delegate>
+          delegate);
   ~OptimizationGuideService() override;
 
   OptimizationGuideService(const OptimizationGuideService&) = delete;

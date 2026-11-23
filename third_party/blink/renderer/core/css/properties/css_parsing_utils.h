@@ -234,7 +234,9 @@ CORE_EXPORT CSSURLPatternValue* ConsumeUrlPattern(CSSParserTokenStream&,
                                                   const CSSParserContext&);
 
 // Some properties accept non-standard colors, like rgb values without a
-// preceding hash, in quirks mode.
+// preceding hash, in quirks mode. This corresponds to the <quirky-color>
+// production.
+// https://drafts.csswg.org/css-color-4/#quirky-color
 CORE_EXPORT CSSValue* ConsumeColorMaybeQuirky(CSSParserTokenStream&,
                                               const CSSParserContext&,
                                               CSSParserLocalContext&);

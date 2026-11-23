@@ -34,6 +34,10 @@ class HEADLESS_EXPORT HeadlessBrowserContextImpl final
     : public HeadlessBrowserContext,
       public content::BrowserContext {
  public:
+  HeadlessBrowserContextImpl(
+      HeadlessBrowserImpl* browser,
+      std::unique_ptr<HeadlessBrowserContextOptions> context_options);
+
   HeadlessBrowserContextImpl(const HeadlessBrowserContextImpl&) = delete;
   HeadlessBrowserContextImpl& operator=(const HeadlessBrowserContextImpl&) =
       delete;
@@ -46,10 +50,14 @@ class HEADLESS_EXPORT HeadlessBrowserContextImpl final
       content::BrowserContext* browser_context);
 
   static std::unique_ptr<HeadlessBrowserContextImpl> Create(
-      HeadlessBrowserContext::Builder* builder);
+      HeadlessBrowserImpl* browser,
+      HeadlessBrowserContext::CreateParams params);
 
   // HeadlessBrowserContext implementation:
-  HeadlessWebContents::Builder CreateWebContentsBuilder() override;
+  HeadlessWebContents* CreateWebContents(
+      const HeadlessWebContents::CreateParams& params) override;
+  HeadlessWebContents* CreateWebContents(const GURL& initial_url) override;
+  HeadlessWebContents* CreateWebContents() override;
   std::vector<HeadlessWebContents*> GetAllWebContents() override;
   void Close() override;
   const std::string& Id() override;
@@ -80,7 +88,6 @@ class HEADLESS_EXPORT HeadlessBrowserContextImpl final
   content::OriginTrialsControllerDelegate* GetOriginTrialsControllerDelegate()
       override;
 
-  HeadlessWebContents* CreateWebContents(HeadlessWebContents::Builder* builder);
   // Register web contents which were created not through Headless API
   // (calling window.open() is a best example for this).
   void RegisterWebContents(
@@ -100,10 +107,6 @@ class HEADLESS_EXPORT HeadlessBrowserContextImpl final
           cert_verifier_creation_params);
 
  private:
-  HeadlessBrowserContextImpl(
-      HeadlessBrowserImpl* browser,
-      std::unique_ptr<HeadlessBrowserContextOptions> context_options);
-
   // Performs initialization of the HeadlessBrowserContextImpl while IO is still
   // allowed on the current thread.
   void InitWhileIOAllowed();

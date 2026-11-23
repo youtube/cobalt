@@ -410,12 +410,12 @@ int RectsClient::Run(const ClientBase::InitParams& params,
       }
 
       // Draw rotating rects.
-      SkScalar half_width = SkScalarHalf(size_.width());
-      SkScalar half_height = SkScalarHalf(size_.height());
-      SkIRect rect = SkIRect::MakeXYWH(-SkScalarHalf(half_width),
-                                       -SkScalarHalf(half_height), half_width,
-                                       half_height);
-      SkScalar rotation = schedule.time * kRotationSpeed / 1000;
+      float half_width = size_.width() / 2.f;
+      float half_height = size_.height() / 2.f;
+      SkIRect rect = SkIRect::MakeXYWH(static_cast<int>(-half_width / 2.f),
+                                       static_cast<int>(-half_height / 2.f),
+                                       half_width, half_height);
+      float rotation = schedule.time * kRotationSpeed / 1000;
       canvas->save();
       canvas->translate(half_width, half_height);
       for (size_t i = 0; i < num_rects; ++i) {

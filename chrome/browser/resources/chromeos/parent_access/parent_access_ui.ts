@@ -70,7 +70,17 @@ export class ParentAccessUi extends PolymerElement {
     this.shadowRoot!.querySelector('webview')!.addEventListener(
         'contentload', () => {
           this.webviewLoading = false;
+          if (this.checkVisibility()) {
+            this.$.webview.focus();
+          }
         });
+    this.addEventListener(ParentAccessEvent.ON_SCREEN_SWITCHED, () => {
+      if (this.webviewLoading) {
+        this.shadowRoot!.querySelector<HTMLElement>('#webviewDiv')!.focus();
+      } else {
+        this.$.webview.focus();
+      }
+    });
     this.configureUi().then(
         () => {/* success */},
         () => {

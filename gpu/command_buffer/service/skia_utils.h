@@ -142,9 +142,6 @@ CreateVulkanYcbcrConversionInfo(
     const viz::SharedImageFormat& si_format,
     const gfx::ColorSpace& color_space,
     const std::optional<VulkanYCbCrInfo>& ycbcr_info);
-
-GPU_GLES2_EXPORT std::string VulkanYcbcrConversionInfoToString(
-    const skgpu::VulkanYcbcrConversionInfo& info);
 #endif  // BUILDFLAG(ENABLE_VULKAN)
 
 // Helper that returns true when Vulkan memory usage is high enough

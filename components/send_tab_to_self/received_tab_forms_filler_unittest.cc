@@ -235,6 +235,131 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillUserClearedPrefilledField) {
       FormFieldMatchOutcome::kMatchedByIdNameAndType, 1);
 }
 
+TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillIncomingSensitiveField) {
+  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
+  PageContext::FormFieldInfo form_field_info;
+  form_field_info.fields.push_back(
+      MakeFormField(u"id1", u"name1", "password", u"shared_value"));
+
+  const FormData form = autofill::test::GetFormData(
+      {.fields = {{.renderer_id = autofill::FieldRendererId(1),
+                   .label = u"label1",
+                   .name_attribute = u"name1",
+                   .id_attribute = u"id1",
+                   .value = u"",
+                   .form_control_type =
+                       autofill::FormControlType::kInputPassword,
+                   .origin = kOrigin}},
+       .url = "https://example.com"});
+
+  EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
+
+  base::HistogramTester histogram_tester;
+  base::RunLoop run_loop;
+  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
+                                run_loop.QuitClosure());
+
+  autofill_manager().OnFormsSeen({form}, {});
+
+  run_loop.Run();
+
+  histogram_tester.ExpectTotalCount(
+      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome", 0);
+}
+
+// Tests that local fields of a sensitive type (e.g. "password") are not filled,
+// even if the sent field matches.
+TEST_F(ReceivedTabFormsFillerTest, ShouldNotFillLocalSensitiveField) {
+  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
+
+  // The sent field is "text"/USERNAME (not sensitive).
+  PageContext::FormFieldInfo form_field_info;
+  PageContext::FormField pending_field =
+      MakeFormField(u"id1", u"name1", "text", u"shared_value");
+  pending_field.autofill_types = {
+      sync_pb::FormField_AutofillFieldType_USERNAME};
+  form_field_info.fields.push_back(pending_field);
+
+  // The receiver field is "password" (sensitive). It has a different name and
+  // ID than the sent field, so the matching algorithm will fall back to a
+  // semantic match (by autofill type).
+  const FormData form_receiver = autofill::test::GetFormData(
+      {.fields = {{.renderer_id = autofill::FieldRendererId(2),
+                   .name_attribute = u"name_diff",
+                   .id_attribute = u"id_diff",
+                   .form_control_type =
+                       autofill::FormControlType::kInputPassword,
+                   .origin = kOrigin}},
+       .url = "https://example.com"});
+
+  ActivateAutofillDriver(autofill_driver());
+
+  // The *autofill* type of the local field is USERNAME, so it'll match the
+  // pending field by semantic type.
+  auto form_structure =
+      std::make_unique<autofill::FormStructure>(form_receiver);
+  form_structure->field(0)->SetTypeTo(
+      autofill::AutofillType(autofill::FieldType::USERNAME), std::nullopt);
+  autofill::test_api(autofill_manager())
+      .AddSeenFormStructure(std::move(form_structure));
+
+  EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
+
+  base::HistogramTester histogram_tester;
+  base::RunLoop run_loop;
+  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
+                                run_loop.QuitClosure());
+
+  run_loop.Run();
+
+  // Since the field type was "password" (sensitive), it should not have been
+  // filled.
+  histogram_tester.ExpectTotalCount(
+      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome", 0);
+}
+
+// Tests that if the sender sent a sensitive field value, it does not get
+// filled. (The sender should not have sent such a value in the first place;
+// this test covers the receiving side in case of a bug on the sender side.)
+TEST_F(ReceivedTabFormsFillerTest,
+       ShouldNotFillIncomingSensitiveFieldToLocalNonSensitiveField) {
+  const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
+
+  // The sent field is of type "password" (sensitive).
+  PageContext::FormFieldInfo form_field_info;
+  PageContext::FormField pending_field =
+      MakeFormField(u"id1", u"name1", "password", u"shared_value");
+  pending_field.autofill_types = {
+      sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
+  form_field_info.fields.push_back(pending_field);
+
+  // Local field is "text" (non-sensitive).
+  const FormData form_receiver = autofill::test::GetFormData(
+      {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
+                   .renderer_id = autofill::FieldRendererId(2),
+                   .name_attribute = u"name_diff",
+                   .id_attribute = u"id_diff",
+                   .form_control_type = autofill::FormControlType::kInputText,
+                   .origin = kOrigin}},
+       .url = "https://example.com"});
+
+  ActivateAutofillDriver(autofill_driver());
+
+  EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
+
+  base::HistogramTester histogram_tester;
+  base::RunLoop run_loop;
+  ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
+                                run_loop.QuitClosure());
+
+  autofill_manager().OnFormsSeen({form_receiver}, {});
+
+  run_loop.Run();
+
+  histogram_tester.ExpectTotalCount(
+      "Sharing.SendTabToSelf.ReceivedTabFormFieldMatchOutcome", 0);
+}
+
 // Tests that fallback signature matching works when names/IDs are dynamic
 // but the signature is unique.
 TEST_F(ReceivedTabFormsFillerTest, ShouldFillFieldsByUniqueSignatureFallback) {
@@ -452,24 +577,18 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldFillFieldsBySemanticMatchFallback) {
   PageContext::FormField pending_field =
       MakeFormField(u"id1", u"name1", "text", u"shared_value");
   pending_field.autofill_types = {
-      sync_pb::FormField_AutofillFieldType_USERNAME};
+      sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
   form_field_info.fields.push_back(pending_field);
 
   const FormData form_receiver = autofill::test::GetFormData(
-      {.fields = {{.renderer_id = autofill::FieldRendererId(2),
+      {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
+                   .renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff",
                    .id_attribute = u"id_diff",
                    .origin = kOrigin}},
        .url = "https://example.com"});
 
   ActivateAutofillDriver(autofill_driver());
-
-  auto form_structure =
-      std::make_unique<autofill::FormStructure>(form_receiver);
-  form_structure->field(0)->SetTypeTo(
-      autofill::AutofillType(autofill::FieldType::USERNAME), std::nullopt);
-  autofill::test_api(autofill_manager())
-      .AddSeenFormStructure(std::move(form_structure));
 
   const autofill::FieldGlobalId field_id =
       form_receiver.fields()[0].global_id();
@@ -482,6 +601,8 @@ TEST_F(ReceivedTabFormsFillerTest, ShouldFillFieldsBySemanticMatchFallback) {
   base::RunLoop run_loop;
   ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
                                 run_loop.QuitClosure());
+
+  autofill_manager().OnFormsSeen({form_receiver}, {});
 
   run_loop.Run();
 
@@ -500,17 +621,18 @@ TEST_F(ReceivedTabFormsFillerTest,
   PageContext::FormField pending_field1 =
       MakeFormField(u"id1", u"name1", "text", u"val1");
   pending_field1.autofill_types = {
-      sync_pb::FormField_AutofillFieldType_USERNAME};
+      sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
   form_field_info.fields.push_back(pending_field1);
 
   PageContext::FormField pending_field2 =
       MakeFormField(u"id2", u"name2", "text", u"val2");
   pending_field2.autofill_types = {
-      sync_pb::FormField_AutofillFieldType_USERNAME};
+      sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
   form_field_info.fields.push_back(pending_field2);
 
   const FormData form_receiver = autofill::test::GetFormData(
-      {.fields = {{.renderer_id = autofill::FieldRendererId(2),
+      {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
+                   .renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff",
                    .id_attribute = u"id_diff",
                    .origin = kOrigin}},
@@ -518,19 +640,14 @@ TEST_F(ReceivedTabFormsFillerTest,
 
   ActivateAutofillDriver(autofill_driver());
 
-  auto form_structure =
-      std::make_unique<autofill::FormStructure>(form_receiver);
-  form_structure->field(0)->SetTypeTo(
-      autofill::AutofillType(autofill::FieldType::USERNAME), std::nullopt);
-  autofill::test_api(autofill_manager())
-      .AddSeenFormStructure(std::move(form_structure));
-
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
   base::HistogramTester histogram_tester;
   base::RunLoop run_loop;
   ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
                                 run_loop.QuitClosure());
+
+  autofill_manager().OnFormsSeen({form_receiver}, {});
 
   run_loop.Run();
 
@@ -549,15 +666,17 @@ TEST_F(ReceivedTabFormsFillerTest,
   PageContext::FormField pending_field =
       MakeFormField(u"id1", u"name1", "text", u"shared_value");
   pending_field.autofill_types = {
-      sync_pb::FormField_AutofillFieldType_USERNAME};
+      sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
   form_field_info.fields.push_back(pending_field);
 
   const FormData form_receiver = autofill::test::GetFormData(
-      {.fields = {{.renderer_id = autofill::FieldRendererId(2),
+      {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
+                   .renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff1",
                    .id_attribute = u"id_diff1",
                    .origin = kOrigin},
-                  {.renderer_id = autofill::FieldRendererId(3),
+                  {.role = autofill::FieldType::EMAIL_ADDRESS,
+                   .renderer_id = autofill::FieldRendererId(3),
                    .name_attribute = u"name_diff2",
                    .id_attribute = u"id_diff2",
                    .origin = kOrigin}},
@@ -565,21 +684,14 @@ TEST_F(ReceivedTabFormsFillerTest,
 
   ActivateAutofillDriver(autofill_driver());
 
-  auto form_structure =
-      std::make_unique<autofill::FormStructure>(form_receiver);
-  form_structure->field(0)->SetTypeTo(
-      autofill::AutofillType(autofill::FieldType::USERNAME), std::nullopt);
-  form_structure->field(1)->SetTypeTo(
-      autofill::AutofillType(autofill::FieldType::USERNAME), std::nullopt);
-  autofill::test_api(autofill_manager())
-      .AddSeenFormStructure(std::move(form_structure));
-
   EXPECT_CALL(autofill_driver(), ApplyFieldAction).Times(0);
 
   base::HistogramTester histogram_tester;
   base::RunLoop run_loop;
   ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
                                 run_loop.QuitClosure());
+
+  autofill_manager().OnFormsSeen({form_receiver}, {});
 
   run_loop.Run();
 
@@ -641,41 +753,36 @@ TEST_F(ReceivedTabFormsFillerTest,
   const url::Origin kOrigin = url::Origin::Create(GURL("https://example.com"));
 
   PageContext::FormFieldInfo form_field_info;
-  // Field 1 and Field 2 in the incoming fields share the same type (USERNAME).
+  // Field 1 and Field 2 in the incoming fields share the same type
+  // (EMAIL_ADDRESS).
   PageContext::FormField pending_field1 =
       MakeFormField(u"id1", u"name1", "text", u"val1");
   pending_field1.autofill_types = {
-      sync_pb::FormField_AutofillFieldType_USERNAME};
+      sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
   form_field_info.fields.push_back(pending_field1);
 
   PageContext::FormField pending_field2 =
       MakeFormField(u"id2", u"name2", "text", u"val2");
   pending_field2.autofill_types = {
-      sync_pb::FormField_AutofillFieldType_USERNAME};
+      sync_pb::FormField_AutofillFieldType_EMAIL_ADDRESS};
   form_field_info.fields.push_back(pending_field2);
 
-  // The receiver form has two distinct fields, both matching the USERNAME type.
+  // The receiver form has two distinct fields, both matching the EMAIL_ADDRESS
+  // type.
   const FormData form_receiver = autofill::test::GetFormData(
-      {.fields = {{.renderer_id = autofill::FieldRendererId(2),
+      {.fields = {{.role = autofill::FieldType::EMAIL_ADDRESS,
+                   .renderer_id = autofill::FieldRendererId(2),
                    .name_attribute = u"name_diff1",
                    .id_attribute = u"id_diff1",
                    .origin = kOrigin},
-                  {.renderer_id = autofill::FieldRendererId(3),
+                  {.role = autofill::FieldType::EMAIL_ADDRESS,
+                   .renderer_id = autofill::FieldRendererId(3),
                    .name_attribute = u"name_diff2",
                    .id_attribute = u"id_diff2",
                    .origin = kOrigin}},
        .url = "https://example.com"});
 
   ActivateAutofillDriver(autofill_driver());
-
-  auto form_structure =
-      std::make_unique<autofill::FormStructure>(form_receiver);
-  form_structure->field(0)->SetTypeTo(
-      autofill::AutofillType(autofill::FieldType::USERNAME), std::nullopt);
-  form_structure->field(1)->SetTypeTo(
-      autofill::AutofillType(autofill::FieldType::USERNAME), std::nullopt);
-  autofill::test_api(autofill_manager())
-      .AddSeenFormStructure(std::move(form_structure));
 
   // Since the type is not unique in incoming fields, no autofill action should
   // be applied.
@@ -684,6 +791,8 @@ TEST_F(ReceivedTabFormsFillerTest,
   base::RunLoop run_loop;
   ReceivedTabFormsFiller::Start(autofill_client(), kOrigin, form_field_info,
                                 run_loop.QuitClosure());
+
+  autofill_manager().OnFormsSeen({form_receiver}, {});
 
   run_loop.Run();
 }

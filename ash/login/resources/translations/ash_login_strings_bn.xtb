@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">এছাড়াও, এই নেটওয়ার্ক ত্রুটি সমাধান করতে আপনি <ph name="GUEST_SIGNIN_LINK_START" />অতিথি হিসেবে ব্রাউজ করতে পারেন<ph name="GUEST_SIGNIN_LINK_END" />।</translation>
 <translation id="1201402288615127009">পরের</translation>
 <translation id="1222835797152767346">সাইন-ইন করা আরও সহজ করতে পিন সেট করুন</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />ডিবাগিং ফিচার<ph name="END_H3" />
+          <ph name="BR" />
+          আপনার ChromeOS ডিভাইসে কাস্টম কোড ইনস্টল এবং পরীক্ষা করার জন্য ডিবাগিং ফিচার চালু করতে পারেন।  এতে আপনি:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />OS ফাইলে পরিবর্তন করার জন্য rootfs যাচাইকরণের ধাপটি সরিয়ে দিতে পারেন
+            <ph name="LIST_ITEM" /><ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" />-এর মতো টুলের মাধ্যমে ডিভাইস অ্যাক্সেস করার জন্য স্ট্যান্ডার্ড টেস্ট কী ব্যবহার করে ডিভাইসে SSH অ্যাক্সেস চালু করতে পারেন
+            <ph name="LIST_ITEM" />ইউএসবি ড্রাইভ থেকে OS ইমেজ ইনস্টল করার জন্য ইউএসবি থেকে বুট করার কাজটি চালু করতে পারেন
+            <ph name="LIST_ITEM" />ডিভাইসে ম্যানুয়ালি SSH করার জন্য ডেভেলপার এবং সিস্টেম রুট লগ-ইন পাসওয়ার্ড দুটিকেই কাস্টম ভ্যালুতে সেট করতে পারেন
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          একবার চালু করা হলে, পাওয়ারওয়াশ করা অথবা এন্টারপ্রাইজ দ্বারা পরিচালিত কোনও ডিভাইস থেকে ডেটা মুছে দেওয়ার পরেও বেশিরভাগ ডিবাগিং ফিচার চালু রয়ে যাবে।  সমস্ত ডিবাগিং ফিচার বন্ধ করার জন্য ChromeOS রিকভারি প্রসেসটি সম্পূর্ণ করুন (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          ডিবাগিং ফিচারের বিষয়ে আরও তথ্যের জন্য এখানে যান:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />মনে রাখবেন:<ph name="END_BOLD" />    এই প্রসেসটি চলাকালীন সিস্টেম রিবুট করবে।</translation>
 <translation id="1347625331607114917">আপনার Android ফোনে কোডটি যাচাই করুন</translation>
 <translation id="1347975661240122359">ব্যাটারি <ph name="BATTERY_LEVEL" />% চার্জ হলে আপডেট শুরু হবে।</translation>
 <translation id="1375938286942050085">সেট-আপ সম্পূর্ণ হয়েছে! পরবর্তী গেমিংয়ের জন্য আপনার ডিভাইস তৈরি করুন</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">অ্যাপ ডাউনলোড করা হচ্ছে</translation>
 <translation id="5045550434625856497">ভুল পাসওয়ার্ড</translation>
 <translation id="5062930723426326933">সাইন-ইন করা যায়নি, অনুগ্রহ করে ইন্টারনেটে কানেক্ট করে আবার চেষ্টা করুন৷</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Google AI-এর সাহায্যে লেখা, প্ল্যান করা, শেখা এবং আরও অনেক কিছু করার জন্য Gemini-র সাথে চ্যাট করুন।<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />সেট-আপ করার পরে, স্ক্রিনের নিচে থাকা শেল্ফ থেকে Gemini অ্যাপ বেছে নিয়ে Gemini ব্যবহার করা শুরু করুন।<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">অনুগ্রহ করে আপনার <ph name="DEVICE_TYPE" /> এ চার্জ দিন।</translation>
 <translation id="5147516217412920887">কোড যাচাই করার জন্য আপনার ফোনের নির্দেশাবলী ফলো করুন</translation>
 <translation id="5160857336552977725">আপনার <ph name="DEVICE_TYPE" />-এ সাইন-ইন করুন</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />ডিবাগিং ফিচার<ph name="END_H3" />
+          <ph name="BR" />
+          আপনার ChromeOS Flex ডিভাইসে কাস্টম কোড ইনস্টল এবং পরীক্ষা করার জন্য ডিবাগিং ফিচার চালু করতে পারেন।  এতে আপনি:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />OS ফাইলে পরিবর্তন করার জন্য rootfs যাচাইকরণের ধাপটি সরিয়ে দিতে পারেন
+            <ph name="LIST_ITEM" /><ph name="BEGIN_CODE" />'cros flash'<ph name="END_CODE" />-এর মতো টুলের মাধ্যমে ডিভাইস অ্যাক্সেস করার জন্য স্ট্যান্ডার্ড টেস্ট কী ব্যবহার করে ডিভাইসে SSH অ্যাক্সেস চালু করতে পারেন
+            <ph name="LIST_ITEM" />ইউএসবি ড্রাইভ থেকে OS ইমেজ ইনস্টল করার জন্য ইউএসবি থেকে বুট করার কাজটি চালু করতে পারেন
+            <ph name="LIST_ITEM" />ডিভাইসে ম্যানুয়ালি SSH করার জন্য ডেভেলপার এবং সিস্টেম রুট লগ-ইন পাসওয়ার্ড দুটিকেই কাস্টম ভ্যালুতে সেট করতে পারেন
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          একবার চালু করা হলে, পাওয়ারওয়াশ করা অথবা এন্টারপ্রাইজ দ্বারা পরিচালিত কোনও ডিভাইস থেকে ডেটা মুছে দেওয়ার পরেও বেশিরভাগ ডিবাগিং ফিচার চালু রয়ে যাবে।  সমস্ত ডিবাগিং ফিচার বন্ধ করার জন্য ChromeOS রিকভারি প্রসেসটি সম্পূর্ণ করুন (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          ডিবাগিং ফিচারের বিষয়ে আরও তথ্যের জন্য এখানে যান:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />মনে রাখবেন:<ph name="END_BOLD" />  এই প্রসেসটি চলাকালীন সিস্টেম রিবুট করবে।</translation>
 <translation id="523505283826916779">অ্যাক্সেসিবিলিটি সেটিংস</translation>
 <translation id="5240931875940563122">Android ফোন দিয়ে সাইন-ইন করুন</translation>
 <translation id="5255859108402770436">আবার সাইন-ইন করুন</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">আপনি ChromeOS ডিবাগিং ফিচার চালু করছেন যা sshd daemon সেট-আপ করবে এবং ইউএসবি ড্রাইভ থেকে বুট করা চালু করবে।</translation>
 <translation id="6965382102122355670">ঠিক আছে</translation>
 <translation id="6981982820502123353">ব্যবহারযোগ্যতা</translation>
+<translation id="6984652455487792101">আপনি যদি কোনও প্রক্সি সার্ভার ব্যবহার করেন, তাহলে আপনার প্রক্সি সেটিংস চেক
+        করুন অথবা প্রক্সি সার্ভার কাজ করছে কিনা চেক করার জন্য আপনার নেটওয়ার্ক
+অ্যাডমিনিস্ট্রেটরের সাথে যোগাযোগ করুন৷ আপনার যদি মনে হয় যে প্রক্সি সার্ভারের প্রয়োজন নেই,
+        তাহলে আপনার <ph name="LINK_START" />প্রক্সি সেটিংস<ph name="LINK_END" /> অ্যাডজাস্ট করুন৷</translation>
 <translation id="6996245928508281884">আপনার ফোনের ব্লুটুথ ও ওয়াই-ফাই চালু করুন</translation>
 <translation id="7077829361966535409">সাইন-ইন পৃষ্ঠাটি বর্তমান প্রক্সি সেটিংস ব্যবহার করে লোড করা যায়নি৷ অনুগ্রহ করে <ph name="GAIA_RELOAD_LINK_START" />আবার সাইন-ইনের চেষ্টা করুন<ph name="GAIA_RELOAD_LINK_END" /> অথবা অন্য কোনও <ph name="PROXY_SETTINGS_LINK_START" />প্রক্সি সেটিংস<ph name="PROXY_SETTINGS_LINK_END" /> ব্যবহার করুন৷</translation>
 <translation id="7114054701490058191">পাসওয়ার্ডগুলি মিলছে না</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">আপনার পাসওয়ার্ড নিশ্চিত করুন</translation>
 <translation id="7352651011704765696">কিছু সমস্যা হয়েছে</translation>
 <translation id="7476454130948140105">চার্জ খুব কম (<ph name="BATTERY_PERCENT" />%), আপডেট করা যাবে না</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />এনরোল করার আগে TPM মুছতে হবে যাতে <ph name="DEVICE_OS" /> ডিভাইসের মালিকানা পেতে পারে।<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />এছাড়াও আপনি সরাসরি TPM ডিভাইস সম্পূর্ণভাবে বন্ধ করতে পারেন। আপনার ডেটা সুরক্ষিতভাবে সফ্টওয়্যার এনক্রিপশন সহ সেভ করা হবে তবে হার্ডওয়্যার-ব্যাকড সার্টিফিকেটের মতো নির্দিষ্ট কিছু নিরাপত্তা ফিচার বন্ধ হয়ে যাবে।<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />সিস্টেম BIOS/UEFI সেটিংস এন্টার করে এবং রিবুট করার মাধ্যমে আপনার TPM সেটিং পরিবর্তন করতে পারবেন। ডিভাইস মডেলের উপর ভিত্তি করে ধাপ আলাদা হতে পারে। আরও তথ্যের জন্য, রিবুট করার আগে আলাদা কোনও ডিভাইসে <ph name="DEVICE_OS" /> ডকুমেন্টেশন খুলুন: g.co/flex/TPMHelp<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">এই <ph name="IDS_SHORT_PRODUCT_NAME" /> ডিভাইসে ডিবাগিং বৈশিষ্ট্যগুলি চালু করুন৷</translation>
 <translation id="7553242001898162573">আপনার পাসওয়ার্ডটি লিখুন</translation>
 <translation id="7556242789364317684"><ph name="SHORT_PRODUCT_NAME" /> আপনার সেটিংস পুনরুদ্ধার করা যায়নি। ত্রুটি ঠিক করতে, <ph name="SHORT_PRODUCT_NAME" /> অবশ্যই পাওয়ারওয়াশের সাথে আপনার ডিভাইস রিসেট করবে৷</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">আপনার Android ফোন থেকে Google অ্যাকাউন্টের তথ্য ট্রান্সফার করা হচ্ছে</translation>
 <translation id="8524841856047224176">ভিডিও কল ও আরও অনেক কিছুর জন্য আপনার ক্যামেরা ব্যাকগ্রাউন্ড পছন্দমতো করুন</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" /> সম্পর্কে আরও দেখুন</translation>
+<translation id="8628232294964836490">QR কোড স্ক্যান করতে ফোনে দেখানো নির্দেশাবলী ফলো করুন। ফোনে ব্লুটুথ চালু আছে কিনা তা ভালোভাবে দেখে নিন।
+        <ph name="BR" />
+        <ph name="BR" />
+        আশেপাশের ডিভাইসে <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> নামে দেখা যাচ্ছে...</translation>
 <translation id="8655972064210167941">আপনার পাসওয়ার্ড যাচাই করতে না পারায় সাইন-ইন করা যায়নি। অনুগ্রহ করে আপনার অ্যাডমিনিস্ট্রেটরের সাথে যোগাযোগ করুন অথবা আবার চেষ্টা করুন।</translation>
 <translation id="8674903726754070732">আপনার কম্পিউটার একটি ত্রুটিপূর্ণ হার্ডওয়্যার আইডির মাধ্যমে কনফিগার করা হয়েছে। এটি ChromeOS-কে সাম্প্রতিক সুরক্ষা সমাধানে আপডেট করা থেকে বাধা দেয় এবং আপনার কম্পিউটার <ph name="BEGIN_BOLD" />ক্ষতিকর আক্রমণের ফলে সুরক্ষিত নাও হতে পারে<ph name="END_BOLD" />।</translation>
 <translation id="8695139659682234808">সেট আপ করা হয়ে গেলে অভিভাবকীয় নিয়ন্ত্রণ যোগ করুন</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">বর্তমান প্রক্সি সেটিংস ব্যবহার করে আপডেট চেক ব্যর্থ হয়েছে৷ অনুগ্রহ করে আপনার <ph name="PROXY_SETTINGS_LINK_START" />প্রক্সি সেটিংস<ph name="PROXY_SETTINGS_LINK_END" /> অ্যাডজাস্ট করুন৷</translation>
 <translation id="885746075120788020">Google অ্যাকাউন্টে সাইন-ইন করে থাকলে আপনার সেভ করা সব পছন্দ ও অ্যাক্টিভিটি যেকোনও ChromeOS ডিভাইসে ব্যবহার করার জন্য প্রস্তুত থাকবে। সেটিংসে কী সিঙ্ক করা হবে তা আপনি বেছে নিতে পারবেন।</translation>
 <translation id="8875221558267407626">কন্টেন্টের সারাংশ তৈরি করুন, জটিল ভাষা সহজ অথবা প্রশ্ন জিজ্ঞাসা করুন</translation>
+<translation id="8913163265790894442">ফোনের মাধ্যমে সহজেই আপনার <ph name="DEVICE_TYPE" /> সেট-আপ করুন। ম্যানুয়ালি পাসওয়ার্ড না লিখেই আপনার ওয়াই-ফাই ও Google অ্যাকাউন্ট যোগ করতে পারবেন।
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="DEVICE_TYPE" /> হিসেবে দেখা যাচ্ছে...</translation>
 <translation id="8946359700442089734">এই <ph name="IDS_SHORT_PRODUCT_NAME" /> ডিভাইসে ডিবাগিং বৈশিষ্ট্যগুলি সম্পূর্ণরূপে চালু করা নেই৷</translation>
 <translation id="8965037249707889821">পুরানো পাসওয়ার্ড লিখুন</translation>
 <translation id="8975396729541388937">আপনাকে যে ইমেল পাঠানো হয়েছে সেখানে দেওয়া লিঙ্কে ক্লিক করে আপনি যেকোনও সময় আনসাবস্ক্রাইব করতে পারবেন।</translation>
 <translation id="9033765790910064284">যাই হোক, চালিয়ে যান</translation>
 <translation id="903480517321259405">পিন আবার টাইপ করুন</translation>
 <translation id="9076523132036239772">আপনার ইমেল আইডি বা পাসওয়ার্ড যাচাই করা যায়নি৷ প্রথমে একটি নেটওয়ার্কের সঙ্গে সংযোগ করার চেষ্টা করুন৷</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" /><ph name="DEVICE_TYPE" /> ডিভাইসের জন্য এক্সক্লুসিভ।<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />জেনারেটিভ AI পরীক্ষামূলক অবস্থায়, প্রাথমিক ডেভেলপমেন্টের পর্যায়ে এবং বর্তমানে সীমিতভাবে উপলভ্য রয়েছে।<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">ফোনের মাধ্যমে সহজেই আপনার <ph name="DEVICE_TYPE" /> সেট-আপ করুন। ম্যানুয়ালি পাসওয়ার্ড না লিখেই আপনি Google অ্যাকাউন্ট যোগ করতে পারবেন।
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="DEVICE_TYPE" /> হিসেবে দেখা যাচ্ছে...</translation>
 </translationbundle>

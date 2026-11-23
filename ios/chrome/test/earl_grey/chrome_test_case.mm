@@ -131,6 +131,9 @@ bool IsAppInAllowedCrashState() {
 }
 
 bool IsMockAuthenticationSetUp() {
+  if (![[AppLaunchManager sharedManager] appIsLaunched]) {
+    return false;
+  }
   // `SetUpMockAuthentication` enables the fake sync server so checking
   // `isFakeSyncServerSetUp` here is sufficient to determine mock authentication
   // state.
@@ -372,6 +375,15 @@ void ResetAuthentication() {
 
 + (BOOL)isStartupTest {
   return gStartupTest;
+}
+
+- (void)backgroundAndForegroundApp {
+  // Dismiss the keyboard.
+  NSError* keyboardError = nil;
+  [EarlGrey dismissKeyboardWithError:&keyboardError];
+
+  // Close the tab we opened, returning the browser to its previous state.
+  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
 }
 
 #pragma mark - Private methods

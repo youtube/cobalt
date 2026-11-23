@@ -79,10 +79,24 @@ class ColorInputType final : public InputType,
   bool ShouldRespectListAttribute() override;
   void WarnIfValueIsInvalid(const String&) const override;
   void UpdateView() override;
+  void ColorSpaceOrAlphaAttributeChanged() override;
   AXObject* PopupRootAXObject() override;
 
   Color ValueAsColor() const;
   HTMLElement* ShadowColorSwatch() const;
+
+  // Returns true if the `colorspace` attribute selects "display-p3". Only
+  // honored when the InputTypeColorEnhancements feature is enabled.
+  bool IsDisplayP3ColorSpace() const;
+  // Returns true if the serialized value should carry an alpha component, i.e.
+  // the `alpha` attribute is present. Only honored when the
+  // InputTypeColorEnhancements feature is enabled.
+  bool HasAlphaComponent() const;
+  // Implements the "serialize a color well control color" algorithm, which is
+  // the part of the type=color value sanitization algorithm that serializes
+  // `color` according to the element's `colorspace`/`alpha` attributes.
+  // https://html.spec.whatwg.org/multipage/input.html#serialize-a-color-well-control-color
+  String SerializeColorForColorSpaceAndAlpha(Color color) const;
 
   Member<ColorChooser> chooser_;
 };

@@ -529,11 +529,13 @@ class GlicSelectionContentsView : public views::View,
             GlicSelectionWidgetDelegate::MenuCommand::kHideForSite),
         IDS_GLIC_SELECTION_MENU_HIDE_FOR_SITE);
 
-    auto settings_label = gfx::LocateAndRemoveAcceleratorChar(
-        l10n_util::GetStringUTF16(IDS_SETTINGS), nullptr, nullptr);
-    menu_model_->AddItem(
-        static_cast<int>(GlicSelectionWidgetDelegate::MenuCommand::kSettings),
-        settings_label);
+    if (features::kGlicSelectionEnableSiteSettings.Get()) {
+      auto settings_label = gfx::LocateAndRemoveAcceleratorChar(
+          l10n_util::GetStringUTF16(IDS_SETTINGS), nullptr, nullptr);
+      menu_model_->AddItem(
+          static_cast<int>(GlicSelectionWidgetDelegate::MenuCommand::kSettings),
+          settings_label);
+    }
 
     int visual_top_of_chip = control_pill_->GetBoundsInScreen().y() +
                              control_pill_->GetInsets().top();
@@ -607,6 +609,32 @@ GlicSelectionWidgetDelegate::GlicSelectionWidgetDelegate(
 }
 
 GlicSelectionWidgetDelegate::~GlicSelectionWidgetDelegate() = default;
+
+void GlicSelectionWidgetDelegate::ShowWidget() {
+  widget_ = views::BubbleDialogDelegate::CreateBubble(
+      this, base::BindOnce(&GlicSelectionWidgetDelegate::OnWidgetClose,
+                           weak_ptr_factory_.GetWeakPtr()));
+  widget_->ShowInactive();
+}
+
+void GlicSelectionWidgetDelegate::CloseWidget() {
+  OnWidgetClose(views::Widget::ClosedReason::kUnspecified);
+}
+
+void GlicSelectionWidgetDelegate::OnWidgetClose(
+    views::Widget::ClosedReason reason) {
+  if (widget_) {
+    // Hide the widget immediately to provide instant visual feedback to the
+    // user.
+    widget_->Hide();
+    // The widget cannot be destroyed synchronously here because this callback
+    // is often called from within a Widget observer iteration (e.g., inside
+    // OnWidgetActivationChanged). Doing so would destroy the observer list.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(
+        FROM_HERE, std::move(widget_));
+  }
+  action_delegate_->OnWidgetClose();
+}
 
 void GlicSelectionWidgetDelegate::TogglePinState() {
   is_pinned_ = !is_pinned_;

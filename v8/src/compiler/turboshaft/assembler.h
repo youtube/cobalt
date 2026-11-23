@@ -2365,14 +2365,12 @@ class AssemblerOpInterface : public Next {
         TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt));
   }
 
-  V<Word> TruncateJSPrimitiveToUntaggedOrDeopt(
+  V<Word32> TruncateJSPrimitiveToWord32OrDeopt(
       V<JSPrimitive> object, V<EagerFrameState> frame_state,
-      TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
-      TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
-          input_requirement,
+      TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement input_requirement,
       const FeedbackSource& feedback) {
-    return ReduceIfReachableTruncateJSPrimitiveToUntaggedOrDeopt(
-        object, frame_state, kind, input_requirement, feedback);
+    return ReduceIfReachableTruncateJSPrimitiveToWord32OrDeopt(
+        object, frame_state, input_requirement, feedback);
   }
 
   V<Object> ConvertJSPrimitiveToObject(V<JSPrimitive> value,
@@ -3386,15 +3384,19 @@ class AssemblerOpInterface : public Next {
     return StoreElement(object, access, index, value, true);
   }
   template <typename Base>
-  void StoreNonArrayBufferElement(V<Base> object, const ElementAccess& access,
-                                  V<WordPtr> index, V<Any> value) {
-    return StoreElement(object, access, index, value, false);
+  void StoreNonArrayBufferElement(
+      V<Base> object, const ElementAccess& access, V<WordPtr> index,
+      V<Any> value, bool maybe_initializing_or_transitioning = false) {
+    return StoreElement(object, access, index, value, /*is_array_buffer*/ false,
+                        maybe_initializing_or_transitioning);
   }
 
   template <typename Class, typename T>
   void StoreElement(V<Class> object, const ElementAccessTS<Class, T>& access,
-                    ConstOrV<WordPtr> index, V<T> value) {
-    StoreElement(object, access, index, value, access.is_array_buffer_load);
+                    ConstOrV<WordPtr> index, V<T> value,
+                    bool maybe_initializing_or_transitioning = false) {
+    StoreElement(object, access, index, value, access.is_array_buffer_load,
+                 maybe_initializing_or_transitioning);
   }
 
   template <typename Class, typename T>
@@ -3402,7 +3404,8 @@ class AssemblerOpInterface : public Next {
                          const ElementAccessTS<Class, T>& access,
                          ConstOrV<WordPtr> index, V<T> value) {
     StoreElement(object.object(), access, index, value,
-                 access.is_array_buffer_load);
+                 access.is_array_buffer_load,
+                 /*maybe_initializing_or_transitioning*/ true);
   }
 
   // TODO(nicohartmann): Remove `InitializeArrayBufferElement` once fully
@@ -3413,13 +3416,14 @@ class AssemblerOpInterface : public Next {
                                     V<WordPtr> index, V<Any> value) {
     StoreArrayBufferElement(object.object(), access, index, value);
   }
-  // TODO(nicohartmann): Remove `InitializeNoneArrayBufferElement` once fully
+  // TODO(nicohartmann): Remove `InitializeNonArrayBufferElement` once fully
   // transitioned to `ElementAccess`.
   template <typename Base>
   void InitializeNonArrayBufferElement(Uninitialized<Base>& object,
                                        const ElementAccess& access,
                                        V<WordPtr> index, V<Any> value) {
-    StoreNonArrayBufferElement(object.object(), access, index, value);
+    StoreNonArrayBufferElement(object.object(), access, index, value,
+                               /*maybe_initializing_or_transitioning*/ true);
   }
 
 #if V8_STATIC_ROOTS_BOOL
@@ -3845,20 +3849,22 @@ class AssemblerOpInterface : public Next {
   // Wasm-into-JS), there is no Wasm jump table, so it dispatches to
   // CallBuiltin, which emits a direct call to the builtin's code object loaded
   // as a heap constant.
-  template <typename Descriptor>
-  detail::index_type_for_t<typename Descriptor::results_t> CallWasmBuiltin(
-      const typename Descriptor::arguments_t& args) {
+  template <typename Desc>
+  detail::index_type_for_t<typename Desc::returns_t> CallWasmBuiltin(
+      const typename Desc::Arguments& args) {
+    static_assert(!Desc::kNeedsContext,
+                  "Wasm builtins cannot require a context");
+    static_assert(!Desc::kCanTriggerLazyDeopt,
+                  "Wasm builtins cannot trigger lazy deoptimization");
     const bool is_wasm_in_js_inlining = !Asm().data()->is_wasm();
     if (is_wasm_in_js_inlining) {
       // We are in the JS pipeline. Wasm nodes are compiled within the JS
       // compiler, so there is no Wasm jump table. We use regular builtin
       // calls instead.
-      Isolate* isolate = Asm().data()->isolate();
-      DCHECK_NOT_NULL(isolate);
-      return CallBuiltin<Descriptor>(isolate, args);
+      return CallBuiltin<Desc>(args);
     } else {
       // Wasm pipeline: go through the jump table.
-      return WasmCallBuiltinThroughJumptable<Descriptor>(args);
+      return WasmCallBuiltinThroughJumptable<Desc>(args);
     }
   }
 
@@ -3960,22 +3966,21 @@ class AssemblerOpInterface : public Next {
   detail::index_type_for_t<typename Desc::returns_t>
   WasmCallBuiltinThroughJumptable(const typename Desc::Arguments& args) {
     static_assert(!Desc::kCanTriggerLazyDeopt);
+    // The Wasm jump table is only available when compiling with the regular
+    // Wasm pipeline, not when we are e.g. inlining Wasm-in-JS.
+    DCHECK(Asm().data()->is_wasm());
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
     }
     auto arguments = builtin::ArgumentsToVector(args);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    auto result = Call(call_target, OptionalV<LazyFrameState>::Nullopt(),
-                       base::VectorOf(arguments),
-                       Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                                    Asm().output_graph().graph_zone()),
-                       Desc::kEffects);
-    if constexpr (requires { result_t::Cast(result); }) {
-      return result_t::CastIfNeeded(result);
-    } else {
-      return result;
-    }
+    return Call<typename result_t::type>(
+        call_target, OptionalV<LazyFrameState>::Nullopt(),
+        base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                     Asm().output_graph().graph_zone()),
+        Desc::kEffects);
   }
 
   template <typename Desc>
@@ -3984,6 +3989,9 @@ class AssemblerOpInterface : public Next {
   WasmCallBuiltinThroughJumptable(V<Context> context,
                                   const typename Desc::Arguments& args) {
     static_assert(!Desc::kCanTriggerLazyDeopt);
+    // The Wasm jump table is only available when compiling with the regular
+    // Wasm pipeline, not when we are e.g. inlining Wasm-in-JS.
+    DCHECK(Asm().data()->is_wasm());
     using result_t = detail::index_type_for_t<typename Desc::returns_t>;
     if (V8_UNLIKELY(Asm().generating_unreachable_operations())) {
       return result_t::Invalid();
@@ -3991,12 +3999,12 @@ class AssemblerOpInterface : public Next {
     auto arguments = builtin::ArgumentsToVector(args);
     arguments.push_back(context);
     V<WordPtr> call_target = RelocatableWasmBuiltinCallTarget(Desc::kFunction);
-    return result_t::CastIfNeeded(
-        Call(call_target, OptionalV<LazyFrameState>::Nullopt(),
-             base::VectorOf(arguments),
-             Desc::Create(StubCallMode::kCallWasmRuntimeStub,
-                          Asm().output_graph().graph_zone()),
-             Desc::kEffects));
+    return Call<typename result_t::type>(
+        call_target, OptionalV<LazyFrameState>::Nullopt(),
+        base::VectorOf(arguments),
+        Desc::Create(StubCallMode::kCallWasmRuntimeStub,
+                     Asm().output_graph().graph_zone()),
+        Desc::kEffects);
   }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5268,10 +5276,10 @@ class AssemblerOpInterface : public Next {
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
                  std::optional<AtomicMemoryOrder> memory_order,
-                 WriteBarrierKind write_barrier) {
+                 WriteBarrierKind write_barrier, StructSetOp::Kind kind) {
     ReduceIfReachableStructSet(object, value, OptionalV<EagerFrameState>{},
                                type, type_index, field_index, null_check,
-                               memory_order, write_barrier);
+                               memory_order, write_barrier, kind);
   }
 
   void StructSet(V<WasmStructNullable> object,
@@ -5279,10 +5287,10 @@ class AssemblerOpInterface : public Next {
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
                  int field_index, CheckForNull null_check,
                  std::optional<AtomicMemoryOrder> memory_order,
-                 WriteBarrierKind write_barrier) {
+                 WriteBarrierKind write_barrier, StructSetOp::Kind kind) {
     ReduceIfReachableStructSet(object, value, frame_state, type, type_index,
                                field_index, null_check, memory_order,
-                               write_barrier);
+                               write_barrier, kind);
   }
 
   V<Any> StructAtomicRMW(V<WasmStructNullable> object, V<Any> value,
@@ -5316,9 +5324,9 @@ class AssemblerOpInterface : public Next {
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
                 wasm::ValueType element_type,
                 std::optional<AtomicMemoryOrder> memory_order,
-                WriteBarrierKind write_barrier) {
+                WriteBarrierKind write_barrier, ArraySetOp::Kind kind) {
     ReduceIfReachableArraySet(array, index, value, element_type, memory_order,
-                              write_barrier);
+                              write_barrier, kind);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {
@@ -5336,7 +5344,7 @@ class AssemblerOpInterface : public Next {
   void WasmBoundsCheckArray(V<WasmArrayNullable> array, V<Word32> index,
                             wasm::ValueType array_type,
                             OptionalV<EagerFrameState> frame_state = {}) {
-    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+    if (V8_UNLIKELY(v8_flags.wasm_skip_bounds_checks)) {
       if (array_type.is_nullable()) {
         __ AssertNotNull(array, frame_state, array_type,
                          TrapId::kTrapNullDereference);
@@ -5573,9 +5581,19 @@ class AssemblerOpInterface : public Next {
 #endif  // V8_ENABLE_SIMD128
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  V<WasmTrustedInstanceData> WasmInstanceDataParameter() {
-    return Parameter(wasm::kWasmInstanceDataParameterIndex,
-                     RegisterRepresentation::Tagged());
+  // Retrieves the Wasm trusted instance data.
+  // - In the regular Wasm pipeline, this is passed as a function parameter.
+  // - In the JS pipeline (during Wasm-in-JS inlining), the JS function does not
+  //   receive the Wasm instance as a parameter. Instead, we use the
+  //   compile-time constant instance from the PipelineData and embed it.
+  V<WasmTrustedInstanceData> WasmInstanceData() {
+    if (Asm().data()->is_wasm()) {
+      return Parameter(wasm::kWasmInstanceDataParameterIndex,
+                       RegisterRepresentation::Tagged());
+    } else {
+      DCHECK(!Asm().data()->wasm_instance().is_null());
+      return HeapConstant(Asm().data()->wasm_instance());
+    }
   }
 
   OpIndex LoadStackPointer() { return ReduceIfReachableLoadStackPointer(); }
@@ -5870,8 +5888,8 @@ class AssemblerOpInterface : public Next {
   // instead of StoreElement.
   template <typename Base>
   void StoreElement(V<Base> object, const ElementAccess& access,
-                    ConstOrV<WordPtr> index, V<Any> value,
-                    bool is_array_buffer) {
+                    ConstOrV<WordPtr> index, V<Any> value, bool is_array_buffer,
+                    bool maybe_initializing_or_transitioning = false) {
     if constexpr (is_taggable_v<Base>) {
       DCHECK_EQ(access.base_is_tagged, BaseTaggedness::kTaggedBase);
     } else {
@@ -5883,7 +5901,8 @@ class AssemblerOpInterface : public Next {
     MemoryRepresentation rep =
         MemoryRepresentation::FromMachineType(access.machine_type);
     Store(object, resolve(index), value, kind, rep, access.write_barrier_kind,
-          access.header_size, rep.SizeInBytesLog2());
+          access.header_size, rep.SizeInBytesLog2(),
+          maybe_initializing_or_transitioning);
   }
 
   // BranchAndBind should be called from GotoIf/GotoIfNot. It will insert a

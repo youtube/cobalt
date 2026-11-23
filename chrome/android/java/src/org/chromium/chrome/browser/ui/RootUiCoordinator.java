@@ -148,6 +148,7 @@ import org.chromium.chrome.browser.quick_delete.QuickDeleteDelegateImpl;
 import org.chromium.chrome.browser.readaloud.ReadAloudController;
 import org.chromium.chrome.browser.readaloud.ReadAloudControllerSupplier;
 import org.chromium.chrome.browser.recent_tabs.RestoreTabsFeatureHelper;
+import org.chromium.chrome.browser.searchwidget.SearchActivityUtils;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareDelegate.ShareOrigin;
 import org.chromium.chrome.browser.share.qrcode.QrCodeDialog;
@@ -162,17 +163,14 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
 import org.chromium.chrome.browser.tab.TabObscuringHandlerSupplier;
-import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabSwitcher;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
-import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
-import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabstrip.StripVisibilityState;
 import org.chromium.chrome.browser.tabwindow.TabWindowInfo;
 import org.chromium.chrome.browser.theme.AdjustedTopUiThemeColorProvider;
@@ -779,6 +777,16 @@ public class RootUiCoordinator
                                 ViewStub viewStub =
                                         mActivity.findViewById(R.id.page_zoom_container);
                                 return viewStub.inflate();
+                            }
+
+                            @Override
+                            public boolean isSheetActingAsBrowserControls() {
+                                BottomSheetController controller =
+                                        mBottomSheetControllerSupplier.get();
+                                return controller != null
+                                        && BottomSheetUtils.isContentActingAsBrowserControls(
+                                                controller)
+                                        && controller.isFullWidth();
                             }
                         },
                         mPageZoomManager,
@@ -2799,25 +2807,12 @@ public class RootUiCoordinator
     }
 
     private void bringTabToFront(TabWindowInfo tabWindowInfo, GURL url) {
-        TabModel tabModel = tabWindowInfo.tabModel;
-        int tabId = tabWindowInfo.tab.getId();
-
-        // Switch to the tab directly if it is in same TabModel.
-        if (assumeNonNull(mTabModelSelectorSupplier.get()).getCurrentModel() == tabModel) {
-            int tabIndex = TabModelUtils.getTabIndexById(tabModel, tabId);
-            // In the event the user deleted the tab as part during the interaction with the
-            // Omnibox, reject the switch to tab action.
-            if (tabIndex == TabModel.INVALID_TAB_INDEX) return;
-            tabModel.setIndex(tabIndex, TabSelectionType.FROM_OMNIBOX);
-            return;
-        }
-
-        Intent intent =
-                IntentHandler.createTrustedBringTabToFrontIntent(
-                        tabId, IntentHandler.BringToFrontSource.ACTIVATE_TAB);
-        intent.setData(Uri.parse(url.getSpec()));
-        IntentHandler.setTabLaunchType(intent, TabLaunchType.FROM_OMNIBOX);
-        MultiWindowUtils.launchIntentInMaybeClosedWindow(mActivity, intent, tabWindowInfo.windowId);
+        SearchActivityUtils.bringTabToFront(
+                mActivity,
+                mTabModelSelectorSupplier.get(),
+                tabWindowInfo,
+                url,
+                /* onTabSwitched= */ null);
     }
 
     // Testing methods

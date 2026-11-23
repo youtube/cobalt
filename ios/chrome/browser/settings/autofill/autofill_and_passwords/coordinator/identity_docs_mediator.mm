@@ -87,7 +87,7 @@ static constexpr autofill::DenseSet<autofill::EntityTypeName> kIdentityDocs = {
   }
 }
 
-#pragma mark - Private
+#pragma mark - Protected
 
 - (void)updateConsumerToggleState {
   if (!self.consumer) {
@@ -97,9 +97,11 @@ static constexpr autofill::DenseSet<autofill::EntityTypeName> kIdentityDocs = {
       _autofillProfileEnabled ? _autofillProfileEnabled.value : YES;
   BOOL identityDocsEnabled =
       _identityDocsEnabled ? _identityDocsEnabled.value : YES;
+  BOOL managed = [self isAutofillAiDisabledByEnterprisePolicy];
   [self.consumer
       setIdentityDocsToggleState:identityDocsEnabled && profileEnabled
-                         enabled:profileEnabled];
+                         enabled:profileEnabled
+                         managed:managed];
 }
 
 #pragma mark - IdentityDocsMutator

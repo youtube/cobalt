@@ -3698,8 +3698,9 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   int new_h264_pl_type = updated_vcd->codecs()[0].id;
   EXPECT_NE(used_pl_type, new_h264_pl_type);
   Codec rtx = updated_vcd->codecs()[1];
-  int pt_referenced_by_rtx =
-      FromString<int>(rtx.params[kCodecParamAssociatedPayloadType]);
+  int pt_referenced_by_rtx;
+  EXPECT_TRUE(
+      rtx.GetParam(kCodecParamAssociatedPayloadType, &pt_referenced_by_rtx));
   EXPECT_EQ(new_h264_pl_type, pt_referenced_by_rtx);
 }
 
@@ -5145,11 +5146,11 @@ TEST_F(MediaSessionDescriptionFactoryTest,
   // Create two H264 codecs with the same profile level ID and different
   // packetization modes.
   Codec h264_pm0 = CreateVideoCodec(96, "H264");
-  h264_pm0.params[kH264FmtpProfileLevelId] = "42c01f";
-  h264_pm0.params[kH264FmtpPacketizationMode] = "0";
+  h264_pm0.SetParam(kH264FmtpProfileLevelId, "42c01f");
+  h264_pm0.SetParam(kH264FmtpPacketizationMode, "0");
   Codec h264_pm1 = CreateVideoCodec(97, "H264");
-  h264_pm1.params[kH264FmtpProfileLevelId] = "42c01f";
-  h264_pm1.params[kH264FmtpPacketizationMode] = "1";
+  h264_pm1.SetParam(kH264FmtpProfileLevelId, "42c01f");
+  h264_pm1.SetParam(kH264FmtpPacketizationMode, "1");
 
   // Offerer will send both codecs, answerer should choose the one with matching
   // packetization mode (and not the first one it sees).

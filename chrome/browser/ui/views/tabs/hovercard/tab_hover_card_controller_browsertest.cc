@@ -15,11 +15,11 @@
 #include "chrome/browser/ui/thumbnails/thumbnail_image.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/tabs/common/tab_view.h"
 #include "chrome/browser/ui/views/tabs/hovercard/hover_card_anchor_target.h"
 #include "chrome/browser/ui/views/tabs/hovercard/tab_hover_card_thumbnail_observer.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_view.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
@@ -28,9 +28,7 @@
 
 class TabHoverCardControllerTest : public InProcessBrowserTest {
  public:
-  TabHoverCardControllerTest() {
-    feature_list_.InitAndEnableFeature(features::kTabHoverCardImages);
-  }
+  TabHoverCardControllerTest() = default;
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
@@ -56,7 +54,7 @@ class TabHoverCardControllerTest : public InProcessBrowserTest {
         GetBrowserView()->tab_strip_view()->GetTabAnchorViewAt(index);
 
     if (is_vertical) {
-      return AsViewClass<VerticalTabView>(tab_view);
+      return AsViewClass<TabView>(tab_view);
     } else {
       return AsViewClass<Tab>(tab_view);
     }
@@ -66,7 +64,7 @@ class TabHoverCardControllerTest : public InProcessBrowserTest {
 
  private:
   raw_ptr<TabHoverCardController> controller_;
-  base::test::ScopedFeatureList feature_list_;
+  base::test::ScopedFeatureList feature_list_{features::kTabHoverCardImages};
 };
 
 IN_PROC_BROWSER_TEST_F(TabHoverCardControllerTest,
@@ -198,12 +196,14 @@ IN_PROC_BROWSER_TEST_F(TabHoverCardControllerTest, ShowPreviewsForCrashedTab) {
 
 class TabHoverCardPreviewsEnabledPrefTest : public TabHoverCardControllerTest {
  public:
-  TabHoverCardPreviewsEnabledPrefTest() {
-    feature_list_.InitAndDisableFeature(features::kTabHoverCardImages);
-  }
+  TabHoverCardPreviewsEnabledPrefTest() = default;
 
  private:
-  base::test::ScopedFeatureList feature_list_;
+  base::test::ScopedFeatureList feature_list_ = []() {
+    base::test::ScopedFeatureList list;
+    list.InitAndDisableFeature(features::kTabHoverCardImages);
+    return list;
+  }();
 };
 
 IN_PROC_BROWSER_TEST_F(TabHoverCardPreviewsEnabledPrefTest, DefaultState) {

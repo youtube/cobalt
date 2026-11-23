@@ -550,6 +550,8 @@ constexpr bool CanTriggerGC(T... properties) {
   F(ArrayBufferDetachForceWasm, 1, 1)                                    \
   F(ArrayIteratorProtector, 0, 1)                                        \
   F(ArraySpeciesProtector, 0, 1)                                         \
+  F(AssertNotPeeled, 0, 1)                                               \
+  F(AssertPeeled, 0, 1)                                                  \
   F(BaselineOsr, -1, 1)                                                  \
   F(BenchMaglev, 2, 1)                                                   \
   F(BenchTurbofan, 2, 1)                                                 \
@@ -756,7 +758,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmAllocateContinuation, 3, 1)                              \
   F(ClearWasmSuspenderResumeField, 1, 1)                         \
   F(WasmCastToSpecialPrimitiveArray, 2, 1)                       \
-  F(WasmStringAdd_CheckNone_Shared, 2, 1)                        \
+  F(WasmStringAdd_NoMapCheck_Shared, 2, 1)                       \
   F(WasmStringNewSegmentWtf8, 5, 1)                              \
   F(WasmStringNewWtf8, 5, 1)                                     \
   F(WasmStringNewWtf8Array, 5, 1)                                \

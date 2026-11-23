@@ -46,6 +46,8 @@ void PointerPropertiesFromPointerData(
   pointer_properties->is_raw_movement_event =
       pointer_data->is_raw_movement_event;
   pointer_properties->device_id = pointer_data->device_id;
+  pointer_properties->SetPositionInWidget(pointer_data->widget_position);
+  pointer_properties->SetPositionInScreen(pointer_data->screen_position);
 }
 
 void TouchPointPropertiesFromPointerData(
@@ -56,23 +58,6 @@ void TouchPointPropertiesFromPointerData(
   touch_point->radius_x = mojo_touch_point->radius_x;
   touch_point->radius_y = mojo_touch_point->radius_y;
   touch_point->rotation_angle = mojo_touch_point->rotation_angle;
-  touch_point->SetPositionInWidget(
-      mojo_touch_point->pointer_data->widget_position.x(),
-      mojo_touch_point->pointer_data->widget_position.y());
-  touch_point->SetPositionInScreen(
-      mojo_touch_point->pointer_data->screen_position.x(),
-      mojo_touch_point->pointer_data->screen_position.y());
-}
-
-// TODO(dtapuska): Remove once SetPositionInXXX moves to WebPointerProperties.
-void MouseEventPropertiesFromPointerData(
-    const blink::mojom::PointerDataPtr& pointer_data,
-    blink::WebMouseEvent* mouse_event) {
-  PointerPropertiesFromPointerData(pointer_data, mouse_event);
-  mouse_event->SetPositionInWidget(pointer_data->widget_position.x(),
-                                   pointer_data->widget_position.y());
-  mouse_event->SetPositionInScreen(pointer_data->screen_position.x(),
-                                   pointer_data->screen_position.y());
 }
 
 }  // namespace
@@ -329,7 +314,7 @@ bool StructTraits<blink::mojom::EventDataView,
     blink::WebMouseEvent* mouse_event =
         static_cast<blink::WebMouseEvent*>(input_event.get());
 
-    MouseEventPropertiesFromPointerData(pointer_data, mouse_event);
+    PointerPropertiesFromPointerData(pointer_data, mouse_event);
     if (pointer_data->mouse_data) {
       mouse_event->click_count = pointer_data->mouse_data->click_count;
 

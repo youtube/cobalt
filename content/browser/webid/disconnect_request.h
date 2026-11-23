@@ -46,7 +46,7 @@ class CONTENT_EXPORT DisconnectRequest {
   // on having a pointer to this object, hence cannot be passed in the
   // constructor. Once the callback is set, start fetching.
   void SetCallbackAndStart(
-      blink::mojom::FederatedAuthRequest::DisconnectCallback callback,
+      blink::mojom::FederatedRequestService::DisconnectCallback callback,
       FederatedIdentityApiPermissionContextDelegate* api_permission_delegate);
 
  private:
@@ -86,7 +86,7 @@ class CONTENT_EXPORT DisconnectRequest {
   url::Origin origin_;
   url::Origin embedding_origin_;
 
-  blink::mojom::FederatedAuthRequest::DisconnectCallback callback_;
+  blink::mojom::FederatedRequestService::DisconnectCallback callback_;
 
   // The time when this class is created. Approximates the time in which the
   // disconnect() call begins.

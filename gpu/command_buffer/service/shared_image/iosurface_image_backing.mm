@@ -173,6 +173,9 @@ IOSurfaceImageBacking::DawnBufferCopyRepresentation::
 
 wgpu::Buffer IOSurfaceImageBacking::DawnBufferCopyRepresentation::BeginAccess(
     wgpu::BufferUsage usage) {
+  CHECK(this->usage().HasAll(SHARED_IMAGE_USAGE_WEBGPU_READ |
+                             SHARED_IMAGE_USAGE_WEBGPU_WRITE));
+
   auto scoped_access = dawn_image_representation_->BeginScopedAccess(
       wgpu::TextureUsage::CopySrc, wgpu::TextureUsage::None,
       /*allow_uncleared=*/AllowUnclearedAccess::kYes);
@@ -219,7 +222,8 @@ wgpu::Buffer IOSurfaceImageBacking::DawnBufferCopyRepresentation::BeginAccess(
   // 3. Create the final packed destination buffer
   wgpu::BufferDescriptor final_buffer_desc;
   final_buffer_desc.size = packed_bytes_per_row * size().height();
-  final_buffer_desc.usage = usage | wgpu::BufferUsage::CopySrc;
+  final_buffer_desc.usage =
+      usage | wgpu::BufferUsage::CopySrc | wgpu::BufferUsage::CopyDst;
   buffer_ = device_.CreateBuffer(&final_buffer_desc);
 
   // 4. Copy from the staging buffer to the final packed buffer, row by row.
@@ -290,6 +294,10 @@ void IOSurfaceImageBacking::DawnBufferCopyRepresentation::EndAccess() {
 
   wgpu::CommandBuffer command_buffer = encoder.Finish();
   device_.GetQueue().Submit(1, &command_buffer);
+
+  // We no longer need the buffer (which was created in BeginAccess).
+  buffer_.Destroy();
+  buffer_ = {};
 }
 
 WebNNIOSurfaceTensorRepresentation::WebNNIOSurfaceTensorRepresentation(

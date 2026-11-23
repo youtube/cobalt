@@ -8,6 +8,7 @@ source_set("state") {
     "incognito_state.mm",
     "layout_state.h",
     "layout_state.mm",
+    "layout_state_passkey.h",
     "layout_transition_coordinating.h",
     "scene_ui_blocker_state.h",
     "scene_ui_blocker_state.mm",
@@ -25,6 +26,15 @@ source_set("state") {
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid:tab_grid_paging",
     "//ios/chrome/common/ui/util",
+  ]
+}
+
+source_set("test_support") {
+  testonly = true
+  sources = [ "layout_state_test_passkey_factory.h" ]
+  deps = [
+    ":state",
+    "//base",
   ]
 }
 

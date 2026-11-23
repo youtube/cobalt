@@ -94,14 +94,35 @@ void SchemaRegistryTrackingPolicyProvider::OnUpdatePolicy(
     state_ = READY;
 
   PolicyBundle bundle;
+  const PolicyNamespace chrome_ns(POLICY_DOMAIN_CHROME, "");
+
   if (state_ == READY) {
-    bundle = delegate_->policies().Clone();
+    const PolicyBundle& source = delegate_->policies();
+
+    // Chrome policies pass through FilterBundle unmodified, so clone them
+    // directly without cloning the entire bundle.
+    bundle.Get(chrome_ns) = source.Get(chrome_ns).Clone();
+
+    // Every non-chrome namespace must be present in the bundle so that
+    // PolicyServiceImpl::NotifyPoliciesUpdated can detect it appearing or
+    // disappearing (it diffs by namespace key and does not skip empty maps).
+    // Insert a deep-cloned PolicyMap only when a valid schema is registered;
+    // otherwise insert an empty map. FilterBundle (called with
+    // drop_invalid_component_policies=true) would Clear() namespaces that have
+    // no schema or an invalid schema anyway, so cloning them is wasted work.
+    for (const auto& [ns, map] : source) {
+      if (ns.domain == POLICY_DOMAIN_CHROME) {
+        continue;
+      }
+      const Schema* schema = schema_map()->GetSchema(ns);
+      bundle.Get(ns) = (schema && schema->valid()) ? map.Clone() : PolicyMap();
+    }
+
     schema_map()->FilterBundle(bundle,
                                /*drop_invalid_component_policies=*/true);
   } else {
     // Always pass on the Chrome policy, even if the components are not ready
     // yet.
-    const PolicyNamespace chrome_ns(POLICY_DOMAIN_CHROME, "");
     bundle.Get(chrome_ns) = delegate_->policies().Get(chrome_ns).Clone();
   }
 

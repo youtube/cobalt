@@ -1,0 +1,38 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//testing/test.gni")
+
+source_set("core") {
+  sources = [
+    "origin_gating_cache.cc",
+    "origin_gating_cache.h",
+    "origin_gating_checker.cc",
+    "origin_gating_checker.h",
+    "types.h",
+  ]
+
+  deps = [
+    "//base",
+    "//net",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "origin_gating_cache_unittest.cc",
+    "origin_gating_checker_unittest.cc",
+  ]
+
+  deps = [
+    ":core",
+    "//base",
+    "//base/test:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//url",
+  ]
+}

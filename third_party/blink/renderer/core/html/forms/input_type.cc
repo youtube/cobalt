@@ -800,6 +800,8 @@ bool InputType::ShouldRespectAlignAttribute() {
 
 void InputType::SanitizeValueInResponseToMinOrMaxAttributeChange() {}
 
+void InputType::ColorSpaceOrAlphaAttributeChanged() {}
+
 bool InputType::CanBeSuccessfulSubmitButton() {
   return false;
 }

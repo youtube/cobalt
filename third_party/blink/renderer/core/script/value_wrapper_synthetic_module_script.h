@@ -38,6 +38,10 @@ class CORE_EXPORT ValueWrapperSyntheticModuleScript final
   CreateJSONWrapperSyntheticModuleScript(const ModuleScriptCreationParams&,
                                          Modulator* settings_object);
 
+  static ValueWrapperSyntheticModuleScript*
+  CreateTextWrapperSyntheticModuleScript(const ModuleScriptCreationParams&,
+                                         Modulator* settings_object);
+
   static ValueWrapperSyntheticModuleScript* CreateWithDefaultExport(
       v8::Local<v8::Value> value,
       Modulator* settings_object,

@@ -437,7 +437,6 @@ class CORE_EXPORT MutableCSSPropertyValueSet : public CSSPropertyValueSet {
   // TODO (crbug.com/488310961): We may want to refactor these functions
   // including the logic about shorthand.
   void RemoveEquivalentProperties(const CSSPropertyValueSet*);
-  void RemoveEquivalentProperties(const CSSStyleDeclaration*);
   // Instead of comparing isolated longhand properties,
   // RemoveEquivalentPropertiesPreservingShorthands evaluates a serialized
   // shorthand so it's only removed if all its associated longhand properties

@@ -14,7 +14,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/bind.h"
@@ -30,6 +29,7 @@
 #include "components/prefs/testing_pref_service.h"
 #include "components/update_client/update_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace updater {
 
@@ -107,7 +107,7 @@ TEST_F(AutoRunOnOsUpgradeTaskTest, RunOnOsUpgradeForApp) {
   const std::wstring os_upgrade_string = [&] {
     std::string versions;
     for (const auto& version : {last_os_version, current_os_version.value()}) {
-      versions += base::StringPrintf(
+      versions += absl::StrFormat(
           "%lu.%lu.%lu.%u.%u%s", version.dwMajorVersion, version.dwMinorVersion,
           version.dwBuildNumber, version.wServicePackMajor,
           version.wServicePackMinor, versions.empty() ? "-" : "");

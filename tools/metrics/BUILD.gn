@@ -7,11 +7,11 @@ import("//tools/json_to_struct/json_to_struct.gni")
 import("//tools/metrics/histograms/histograms_xml_files.gni")
 
 # Only include histograms_xml if we have access to dirmd data, which
-# is used to populate ownership information. This is only set to false
-# for non-git checkouts.
+# is used to populate ownership information.
+# dirmd doesn't work in non-git checkout.
 # TODO(crbug.com/329080012): Remove this once dirmd works in non-git
 # checkouts.
-if (generate_location_tags) {
+if (path_exists("//.git")) {
   action("histograms_xml") {
     script = "histograms/merge_xml.py"
     output = "$root_out_dir/histograms.xml"

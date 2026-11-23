@@ -14,6 +14,7 @@
 #import "components/feature_engagement/test/mock_tracker.h"
 #import "components/language/ios/browser/language_detection_java_script_feature.h"
 #import "components/optimization_guide/proto/hints.pb.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/translate/core/browser/translate_pref_names.h"
 #import "ios/chrome/browser/dom_distiller/model/distiller_service_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
@@ -30,6 +31,8 @@
 #import "ios/chrome/browser/safe_browsing/model/safe_browsing_client_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_source_tab_helper.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/components/security_interstitials/safe_browsing/fake_safe_browsing_client.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
@@ -72,6 +75,8 @@ void ReaderModeTest::SetUp() {
   builder.AddTestingFactory(
       feature_engagement::TrackerFactory::GetInstance(),
       base::BindRepeating(&BuildFeatureEngagementMockTracker));
+  builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                            base::BindRepeating(&CreateTestSyncService));
   profile_ = std::move(builder).Build();
 
   // Ensure that kOfferTranslateEnabled is enabled.
@@ -207,11 +212,10 @@ bool ReaderModeTest::WaitForAvailableReaderModeContentInWebState(
   constexpr base::TimeDelta timeout =
       base::test::ios::kWaitForJSCompletionTimeout +
       base::test::ios::kWaitForPageLoadTimeout;
-  return base::test::ios::WaitUntilConditionOrTimeout(
-      timeout, true, ^{
-        return ReaderModeTabHelper::FromWebState(web_state)
-                   ->GetReaderModeWebState() != nullptr;
-      });
+  return base::test::ios::WaitUntilConditionOrTimeout(timeout, true, ^{
+    return ReaderModeTabHelper::FromWebState(web_state)
+               ->GetReaderModeWebState() != nullptr;
+  });
 }
 
 void ReaderModeTest::OnDomFeaturesRetrieved(

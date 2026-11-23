@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/accessibility/facegaze_test_utils.h"
 
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/shell.h"
 #include "base/base_paths.h"
@@ -15,7 +16,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/browser/browsertest_util.h"

@@ -108,6 +108,9 @@ TabSearchUI::TabSearchUI(content::WebUI* web_ui)
                      features::IsTabGroupColorRefreshEnabled());
   source->AddBoolean("splitViewTabRestoreEnabled",
                      base::FeatureList::IsEnabled(tabs::kSplitViewTabRestore));
+  source->AddBoolean(
+      "cjkWordBoundaryEnabled",
+      base::FeatureList::IsEnabled(tabs::kTabSearchCjkWordBoundary));
 
   source->AddLocalizedString("close", IDS_CLOSE);
 

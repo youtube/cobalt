@@ -1073,6 +1073,7 @@ io_tool_support_hdrs = [
     "quic/tools/quic_epoll_client_factory.h",
     "quic/tools/quic_event_loop_tools.h",
     "quic/tools/quic_server.h",
+    "quic/tools/web_transport_only_client.h",
 ]
 io_tool_support_srcs = [
     "quic/core/io/event_loop_connecting_client_socket.cc",
@@ -1094,6 +1095,7 @@ io_tool_support_srcs = [
     "quic/tools/quic_default_client.cc",
     "quic/tools/quic_epoll_client_factory.cc",
     "quic/tools/quic_server.cc",
+    "quic/tools/web_transport_only_client.cc",
 ]
 io_test_support_hdrs = [
     "quic/test_tools/quic_mock_syscall_wrapper.h",
@@ -1424,6 +1426,7 @@ io_tests_srcs = [
     "quic/tools/quic_simple_server_session_test.cc",
     "quic/tools/quic_simple_server_stream_test.cc",
     "quic/tools/quic_url_test.cc",
+    "quic/tools/web_transport_only_client_test.cc",
 ]
 fuzzers_hdrs = [
 ]

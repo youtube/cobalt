@@ -366,7 +366,6 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 // TODO(crbug.com/404074032): Implement them back.
                 var transaction = fragmentManager.beginTransaction();
                 mMultiColumnSettings = new MultiColumnSettings();
-                mMultiColumnSettings.setProfile(assertNonNull(mProfile));
                 mMultiColumnSettings.setPendingFragmentIntent(getIntent());
                 transaction.replace(R.id.content, mMultiColumnSettings, MULTI_COLUMN_FRAGMENT_TAG);
                 transaction.commit();
@@ -674,6 +673,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         if (recyclerView == null) return;
 
         ContainmentItemController controller = new ContainmentItemController(SettingsActivity.this);
+        if (isTwoColumnSettingsVisible()) controller.setHorizontalMargin(0);
         ContainmentItemDecoration itemDecoration = mItemDecorations.get(fragment);
         if (itemDecoration == null) {
             itemDecoration = new ContainmentItemDecoration(controller);
@@ -1305,6 +1305,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 Fragment fragment,
                 View view,
                 @Nullable Bundle savedInstanceState) {
+            int minGapPx =
+                    getResources().getDimensionPixelSize(R.dimen.settings_multi_column_pane_gap);
+            int paddingPx = (fragment instanceof MainSettings) ? 0 : minGapPx;
             if (fragment instanceof PreferenceFragmentCompat
                     || MAIN_FRAGMENT_TAG.equals(fragment.getTag())) {
                 // TODO(crbug.com/439911511): Have this logic in the same place as other layout
@@ -1318,7 +1321,8 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                                         fragment.getView()
                                                 .getViewTreeObserver()
                                                 .removeOnGlobalLayoutListener(this);
-                                        WideDisplayPadding.apply(fragment, SettingsActivity.this);
+                                        WideDisplayPadding.apply(
+                                                fragment, SettingsActivity.this, paddingPx);
                                     }
                                 });
             }

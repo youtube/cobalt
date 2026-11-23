@@ -213,27 +213,7 @@ std::vector<const EntityInstance*> GetFillableEntityInstances(
   const GURL url = client.GetLastCommittedPrimaryMainFrameURL();
   DenseSet<EntityType> enabled_types;
   for (EntityType type : DenseSet(all_entities, &EntityInstance::type)) {
-    bool policy_enabled = true;
-    switch (type.name()) {
-      case EntityTypeName::kNationalIdCard:
-      case EntityTypeName::kPassport:
-      case EntityTypeName::kDriversLicense:
-        policy_enabled = !client.IsAutofillTypeBlockedByPolicy(
-            url, AutofillClient::AutofillPolicyDataCategory::kIdentityDocs);
-        break;
-      case EntityTypeName::kVehicle:
-      case EntityTypeName::kFlightReservation:
-      case EntityTypeName::kRedressNumber:
-      case EntityTypeName::kKnownTravelerNumber:
-        policy_enabled = !client.IsAutofillTypeBlockedByPolicy(
-            url, AutofillClient::AutofillPolicyDataCategory::kTravel);
-        break;
-      case EntityTypeName::kOrder:
-      case EntityTypeName::kShipment:
-        policy_enabled = true;
-        break;
-    }
-    if (policy_enabled &&
+    if (!IsAutofillAiEntityTypeBlockedByPolicy(client, url, type) &&
         MayPerformAutofillAiAction(client, AutofillAiAction::kFilling, type)) {
       enabled_types.insert(type);
     }

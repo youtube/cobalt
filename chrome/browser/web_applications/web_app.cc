@@ -32,8 +32,9 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/model/display_override.h"
+#include "chrome/browser/web_applications/model/isolation_data.h"
+#include "chrome/browser/web_applications/model/safe_url_pattern_to_value.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/proto/web_app.equal.h"
 #include "chrome/browser/web_applications/proto/web_app.ostream.h"
@@ -69,9 +70,6 @@
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
-#include "third_party/blink/public/common/safe_url_pattern.h"
-#include "third_party/liburlpattern/options.h"
-#include "third_party/liburlpattern/pattern.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/gfx/geometry/size.h"
@@ -147,18 +145,6 @@ base::DictValue ImageResourceDebugDict(
   return root;
 }
 
-base::DictValue UrlPatternDebugValue(const blink::SafeUrlPattern& pattern) {
-  liburlpattern::Options options = {.delimiter_list = "/",
-                                    .prefix_list = "/",
-                                    .sensitive = true,
-                                    .strict = false};
-  liburlpattern::Pattern pathname(pattern.pathname, options, "[^/]+?");
-
-  base::DictValue pattern_dict;
-  pattern_dict.Set("pathname", pathname.GeneratePatternString());
-  return pattern_dict;
-}
-
 base::Value OptTabStripToDebugValue(
     std::optional<blink::Manifest::TabStrip> tab_strip) {
   if (!tab_strip.has_value()) {
@@ -190,9 +176,9 @@ base::Value OptTabStripToDebugValue(
     }
 
     home_tab_json.Set("icons", std::move(icons_json));
-    home_tab_json.Set("scope_patterns",
-                      base::ToValueList(home_tab_params.scope_patterns,
-                                        UrlPatternDebugValue));
+    home_tab_json.Set(
+        "scope_patterns",
+        base::ToValueList(home_tab_params.scope_patterns, ToValue));
     result.Set("home_tab", std::move(home_tab_json));
   }
   return base::Value(std::move(result));

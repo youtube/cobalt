@@ -96,10 +96,10 @@ void PageSpecificSiteDataDialogController::ShowCollectedCookiesInfoBar(
     content::WebContents* web_contents) {
   auto* browser_infobar_manager =
       infobars::BrowserInfoBarManager::From(g_browser_process);
-  if (browser_infobar_manager) {
-    browser_infobar_manager->Show(
-        infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE);
-  }
+  CHECK(browser_infobar_manager);
+  browser_infobar_manager->Show(
+      web_contents,
+      infobars::InfoBarDelegate::COLLECTED_COOKIES_INFOBAR_DELEGATE);
 }
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(PageSpecificSiteDataDialogController);

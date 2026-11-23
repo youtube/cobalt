@@ -462,6 +462,7 @@ class CORE_EXPORT HTMLSelectElement final
 
   bool ChildrenChangedAllChildrenRemovedNeedsList() const override;
   void ParseAttribute(const AttributeModificationParams&) override;
+  void DisabledAttributeChanged(DisabledChangedReason) override;
   bool IsPresentationAttribute(const QualifiedName&) const override;
 
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
@@ -562,7 +563,8 @@ class CORE_EXPORT HTMLSelectElement final
   // the shadow root and to determine which slot each child node is slotted
   // into. The number of descendant inputs and options is used instead of just a
   // flag so that we know if there are any descendants of each type or not when
-  // multiple are inserted or removed.
+  // multiple are inserted or removed. As an optimization, children which
+  // themselves are option or input elements are not included in this map.
   HeapHashMap<Member<Node>, DescendantCounts> children_descendant_counts_map_;
 
   TreeOrderedList<HTMLSelectedContentElement> descendant_selectedcontents_;

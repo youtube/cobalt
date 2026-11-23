@@ -26,7 +26,7 @@ import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.url.GURL;
 
 @NullMarked
-class SearchBoxDataProvider implements LocationBarDataProvider {
+public class SearchBoxDataProvider implements LocationBarDataProvider {
     private final NonNullObservableSupplier<@ControlsPosition Integer> mToolbarPosition =
             ObservableSuppliers.createNonNull(ControlsPosition.TOP);
     private final FuseboxSessionState mFuseboxSessionState = new FuseboxSessionState();
@@ -44,7 +44,7 @@ class SearchBoxDataProvider implements LocationBarDataProvider {
      *
      * @param context current context
      */
-    /* package */ void initialize(Context context, boolean isIncognito) {
+    public void initialize(Context context, boolean isIncognito) {
         mPrimaryColor = ChromeColors.getPrimaryBackgroundColor(context, isIncognito);
         mIsIncognito = isIncognito;
     }
@@ -163,7 +163,7 @@ class SearchBoxDataProvider implements LocationBarDataProvider {
         return 0;
     }
 
-    void setPageClassification(int pageClassification) {
+    public void setPageClassification(int pageClassification) {
         mPageClassification = pageClassification;
     }
 

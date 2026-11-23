@@ -181,10 +181,11 @@ bool MaybeAddDevicesAndShowPicker(
   IntentPickerTabHelper::ShowOrHideIcon(
       web_contents,
       bubble_type == apps::IntentPickerBubbleType::kExternalProtocol);
-  browser->GetBrowser().window()->ShowIntentPickerBubble(
-      std::move(app_info), stay_in_chrome, show_remember_selection, bubble_type,
-      initiating_origin,
-      base::BindOnce(std::move(callback), std::move(devices), bubble_type));
+  BrowserWindow::FromBrowser(&browser->GetBrowser())
+      ->ShowIntentPickerBubble(
+          std::move(app_info), stay_in_chrome, show_remember_selection,
+          bubble_type, initiating_origin,
+          base::BindOnce(std::move(callback), std::move(devices), bubble_type));
 
   if (controller) {
     controller->OnIntentPickerShown(has_devices, has_apps);

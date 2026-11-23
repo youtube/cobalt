@@ -7,7 +7,10 @@ source_set("constants") {
     "app_bar_constants.h",
     "app_bar_constants.mm",
   ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/shared/public/features",
+  ]
 }
 
 source_set("ui") {
@@ -56,10 +59,13 @@ source_set("unit_tests") {
   testonly = true
   sources = [ "app_bar_view_controller_unittest.mm" ]
   deps = [
+    ":constants",
     ":ui",
     "//base",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/shared/coordinator/scene/state",
+    "//ios/chrome/browser/shared/coordinator/scene/state:test_support",
+    "//ios/chrome/browser/shared/public/features",
     "//testing/gtest",
     "//ui/base",
   ]

@@ -848,11 +848,11 @@ void FileSystemAccessManagerImpl::SetDefaultPathAndShowPicker(
       std::move(title), std::move(default_directory),
       std::move(suggested_name_path));
 
-  if (auto_file_picker_result_for_test_) {
+  if (!auto_file_picker_results_for_test_.empty()) {
     DidChooseEntries(
         context, file_system_chooser_options, options->starting_directory_id,
         request_directory_write_access, std::move(callback),
-        file_system_access_error::Ok(), {*auto_file_picker_result_for_test_});
+        file_system_access_error::Ok(), auto_file_picker_results_for_test_);
     return;
   }
 
@@ -1679,24 +1679,85 @@ void FileSystemAccessManagerImpl::DidChooseEntries(
     return;
   }
 
-  // It is enough to only verify access to the first path, as multiple
-  // file selection is only supported if all files are in the same
-  // directory.
-  PathInfo first_entry = entries.front();
-  const bool is_directory =
-      options.type() == ui::SelectFileDialog::SELECT_FOLDER;
-  permission_context_->ConfirmSensitiveEntryAccess(
-      binding_context.storage_key.origin(), first_entry,
-      is_directory ? HandleType::kDirectory : HandleType::kFile,
-      options.type() == ui::SelectFileDialog::SELECT_SAVEAS_FILE
-          ? UserAction::kSave
-          : UserAction::kOpen,
-      binding_context.frame_id,
-      base::BindOnce(
-          &FileSystemAccessManagerImpl::DidVerifySensitiveDirectoryAccess,
-          weak_factory_.GetWeakPtr(), binding_context, options,
-          starting_directory_id, request_directory_write_access,
-          std::move(callback), std::move(entries)));
+  // Since user can choose multiple files spanning different directories, we
+  // need to check all the files' sensitivity.
+  // `ConfirmSensitiveEntryAccessForEntries` recursively checks all the files in
+  // `entries`.
+  ConfirmSensitiveEntryAccessForEntries(
+      binding_context, options, starting_directory_id,
+      request_directory_write_access, std::move(callback), std::move(entries),
+      /*current_entry_index=*/0);
+}
+
+void FileSystemAccessManagerImpl::ConfirmSensitiveEntryAccessForEntries(
+    const BindingContext& binding_context,
+    const FileSystemChooser::Options& options,
+    const std::string& starting_directory_id,
+    bool request_directory_write_access,
+    ChooseEntriesCallback callback,
+    std::vector<PathInfo> entries,
+    size_t current_entry_index) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (current_entry_index >= entries.size()) {
+    // All the entries have passed the check with `kAllowed`.
+    DidVerifySensitiveDirectoryAccess(
+        binding_context, options, starting_directory_id,
+        request_directory_write_access, std::move(callback), std::move(entries),
+        SensitiveEntryResult::kAllowed);
+  } else {
+    const bool is_directory =
+        options.type() == ui::SelectFileDialog::SELECT_FOLDER;
+    PathInfo entry = entries[current_entry_index];
+    // Calculate the sensitivity of `entries[current_entry_index]`.
+    permission_context_->ConfirmSensitiveEntryAccess(
+        binding_context.storage_key.origin(), entry,
+        is_directory ? HandleType::kDirectory : HandleType::kFile,
+        options.type() == ui::SelectFileDialog::SELECT_SAVEAS_FILE
+            ? UserAction::kSave
+            : UserAction::kOpen,
+        binding_context.frame_id,
+        base::BindOnce(&FileSystemAccessManagerImpl::
+                           DidVerifySensitiveDirectoryAccessForIndex,
+                       weak_factory_.GetWeakPtr(), binding_context, options,
+                       starting_directory_id, request_directory_write_access,
+                       std::move(callback), std::move(entries),
+                       current_entry_index));
+  }
+}
+
+void FileSystemAccessManagerImpl::DidVerifySensitiveDirectoryAccessForIndex(
+    const BindingContext& binding_context,
+    const FileSystemChooser::Options& options,
+    const std::string& starting_directory_id,
+    bool request_directory_write_access,
+    ChooseEntriesCallback callback,
+    std::vector<PathInfo> entries,
+    size_t current_entry_index,
+    FileSystemAccessPermissionContext::SensitiveEntryResult result) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (result == SensitiveEntryResult::kAbort) {
+    std::move(callback).Run(
+        file_system_access_error::FromStatus(
+            FileSystemAccessStatus::kOperationAborted),
+        std::vector<blink::mojom::FileSystemAccessEntryPtr>());
+    return;
+  } else if (result == SensitiveEntryResult::kTryAgain) {
+    ShowFilePickerOnUIThread(
+        permission_context(), binding_context.storage_key.origin(),
+        binding_context.frame_id, options,
+        base::BindOnce(&FileSystemAccessManagerImpl::DidChooseEntries,
+                       weak_factory_.GetWeakPtr(), binding_context, options,
+                       starting_directory_id, request_directory_write_access,
+                       std::move(callback)));
+    return;
+  } else {
+    CHECK_EQ(result, SensitiveEntryResult::kAllowed);
+    // Check the next entry's sensitivity.
+    ConfirmSensitiveEntryAccessForEntries(
+        binding_context, options, starting_directory_id,
+        request_directory_write_access, std::move(callback), std::move(entries),
+        current_entry_index + 1);
+  }
 }
 
 void FileSystemAccessManagerImpl::DidVerifySensitiveDirectoryAccess(

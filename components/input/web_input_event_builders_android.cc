@@ -7,6 +7,8 @@
 #include <android/input.h>
 
 #include "base/check.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversion_utils.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "ui/events/android/key_event_utils.h"
@@ -144,14 +146,19 @@ WebKeyboardEvent WebKeyboardEventBuilder::Build(
   result.dom_code = static_cast<int>(dom_code);
   result.dom_key = GetDomKeyFromEvent(env, android_key_event, keycode,
                                       modifiers, unicode_character);
-  result.unmodified_text[0] = unicode_character;
+  std::u16string unmodified_text_str;
+  if (unicode_character) {
+    base::WriteUnicodeCharacter(unicode_character, &unmodified_text_str);
+  }
   if (result.windows_key_code == ui::VKEY_RETURN) {
     // This is the same behavior as GTK:
     // We need to treat the enter key as a key press of character \r. This
     // is apparently just how webkit handles it and what it expects.
-    result.unmodified_text[0] = '\r';
+    unmodified_text_str = u"\r";
   }
-  result.text[0] = result.unmodified_text[0];
+  base::u16cstrlcpy(result.unmodified_text.data(), unmodified_text_str.c_str(),
+                    result.unmodified_text.size());
+  result.text = result.unmodified_text;
   result.is_system_key = is_system_key;
   result.is_confirmed_physical_keyboard_input =
       IsConfirmedPhysicalKeyboardEvent(env, android_key_event);

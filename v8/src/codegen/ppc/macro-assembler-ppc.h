@@ -98,7 +98,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void AllocateStackSpace(int bytes) {
     DCHECK_GE(bytes, 0);
     if (bytes == 0) return;
-    AddS64(sp, sp, Operand(-bytes), r0);
+    AddS64(sp, sp, Operand(-bytes));
   }
 
   void AllocateStackSpace(Register bytes) { sub(sp, sp, bytes); }
@@ -133,8 +133,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #endif
   }
 
-  void LoadDoubleLiteral(DoubleRegister result, base::Double value,
-                         Register scratch);
+  void LoadDoubleLiteral(DoubleRegister result, base::Double value);
 
   // load a literal signed int value <value> to GPR <dst>
   void LoadIntLiteral(Register dst, int value);
@@ -145,17 +144,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadPC(Register dst);
   void ComputeCodeStartAddress(Register dst);
 
-  void CmpS64(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr0);
+  void CmpS64(Register src1, const Operand& src2, CRegister cr = cr0);
   void CmpS64(Register src1, Register src2, CRegister cr = cr0);
-  void CmpU64(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr0);
+  void CmpU64(Register src1, const Operand& src2, CRegister cr = cr0);
   void CmpU64(Register src1, Register src2, CRegister cr = cr0);
-  void CmpS32(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr0);
+  void CmpS32(Register src1, const Operand& src2, CRegister cr = cr0);
   void CmpS32(Register src1, Register src2, CRegister cr = cr0);
-  void CmpU32(Register src1, const Operand& src2, Register scratch,
-              CRegister cr = cr0);
+  void CmpU32(Register src1, const Operand& src2, CRegister cr = cr0);
   void CmpU32(Register src1, Register src2, CRegister cr = cr0);
   void CompareTagged(Register src1, Register src2, CRegister cr = cr0) {
     if (COMPRESS_POINTERS_BOOL) {
@@ -165,7 +160,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     }
   }
 
-  void Cmp(Register dst, int32_t src) { CmpS32(dst, Operand(src), r0); }
+  void Cmp(Register dst, int32_t src) { CmpS32(dst, Operand(src)); }
 
   void CmpTagged(const Register& src1, const Register& src2) {
     CompareTagged(src1, src2);
@@ -183,34 +178,34 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ResetRoundingMode();
 
   void AddS64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
+              OEBit s = LeaveOE, RCBit r = LeaveRC);
   void AddS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
-  void AddS64(Register dst, Register src, int32_t imm, Register scratch = r0,
-              OEBit s = LeaveOE, RCBit r = LeaveRC) {
-    AddS64(dst, src, Operand(imm), scratch, s, r);
+  void AddS64(Register dst, Register src, int32_t imm, OEBit s = LeaveOE,
+              RCBit r = LeaveRC) {
+    AddS64(dst, src, Operand(imm), s, r);
   }
 
   void SubS64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
-  void SubS64(Register dst, Register src, int32_t imm, Register scratch = r0,
-              OEBit s = LeaveOE, RCBit r = LeaveRC) {
-    SubS64(dst, src, Operand(imm), scratch, s, r);
+              OEBit s = LeaveOE, RCBit r = LeaveRC);
+  void SubS64(Register dst, Register src, int32_t imm, OEBit s = LeaveOE,
+              RCBit r = LeaveRC) {
+    SubS64(dst, src, Operand(imm), s, r);
   }
   void SubS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
   void AddS32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = LeaveRC);
+              RCBit r = LeaveRC);
   void AddS32(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void SubS32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = LeaveRC);
+              RCBit r = LeaveRC);
   void SubS32(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void MulS64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
+              OEBit s = LeaveOE, RCBit r = LeaveRC);
   void MulS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
   void MulS32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, OEBit s = LeaveOE, RCBit r = LeaveRC);
+              OEBit s = LeaveOE, RCBit r = LeaveRC);
   void MulS32(Register dst, Register src, Register value, OEBit s = LeaveOE,
               RCBit r = LeaveRC);
   void DivS64(Register dst, Register src, Register value, OEBit s = LeaveOE,
@@ -227,22 +222,20 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void ModU32(Register dst, Register src, Register value);
 
   void AndU64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = SetRC);
+              RCBit r = SetRC);
   void AndU64(Register dst, Register src, Register value, RCBit r = SetRC);
-  void OrU64(Register dst, Register src, const Operand& value,
-             Register scratch = r0, RCBit r = SetRC);
+  void OrU64(Register dst, Register src, const Operand& value, RCBit r = SetRC);
   void OrU64(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void XorU64(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = SetRC);
+              RCBit r = SetRC);
   void XorU64(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void AndU32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = SetRC);
+              RCBit r = SetRC);
   void AndU32(Register dst, Register src, Register value, RCBit r = SetRC);
-  void OrU32(Register dst, Register src, const Operand& value,
-             Register scratch = r0, RCBit r = SetRC);
+  void OrU32(Register dst, Register src, const Operand& value, RCBit r = SetRC);
   void OrU32(Register dst, Register src, Register value, RCBit r = LeaveRC);
   void XorU32(Register dst, Register src, const Operand& value,
-              Register scratch = r0, RCBit r = SetRC);
+              RCBit r = SetRC);
   void XorU32(Register dst, Register src, Register value, RCBit r = LeaveRC);
 
   void ShiftLeftU64(Register dst, Register src, const Operand& value,
@@ -276,13 +269,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CountTrailingZerosU64(Register dst, Register src, RCBit r = LeaveRC);
 
   void ClearByteU64(Register dst, int byte_idx);
-  void ReverseBitsU64(Register dst, Register src, Register scratch1,
-                      Register scratch2);
-  void ReverseBitsU32(Register dst, Register src, Register scratch1,
-                      Register scratch2);
-  void ReverseBitsInSingleByteU64(Register dst, Register src,
-                                  Register scratch1, Register scratch2,
-                                  int byte_idx);
+  void ReverseBitsU64(Register dst, Register src);
+  void ReverseBitsU32(Register dst, Register src);
+  void ReverseBitsInSingleByteU64(Register dst, Register src, int byte_idx);
 
   void AddF64(DoubleRegister dst, DoubleRegister lhs, DoubleRegister rhs,
               RCBit r = LeaveRC);
@@ -396,11 +385,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   template <class _type>
   void AtomicCompareExchange(MemOperand dst, Register old_value,
-                             Register new_value, Register output,
-                             Register scratch) {
+                             Register new_value, Register output) {
+    UseScratchRegisterScope temps(this);
     Label loop;
     Label exit;
     if (sizeof(_type) != 8) {
+      Register scratch = temps.Acquire();
       ExtendValue<_type>(scratch, old_value);
       old_value = scratch;
     }
@@ -571,16 +561,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void MultiPushDoubles(DoubleRegList dregs, Register location = sp);
   void MultiPopDoubles(DoubleRegList dregs, Register location = sp);
 
-  void MultiPushV128(Simd128RegList dregs, Register scratch,
-                     Register location = sp);
-  void MultiPopV128(Simd128RegList dregs, Register scratch,
-                    Register location = sp);
+  void MultiPushV128(Simd128RegList dregs, Register location = sp);
+  void MultiPopV128(Simd128RegList dregs, Register location = sp);
 
   void MultiPushF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
-                           Register scratch1, Register scratch2,
                            Register location = sp);
   void MultiPopF64AndV128(DoubleRegList dregs, Simd128RegList simd_regs,
-                          Register scratch1, Register scratch2,
                           Register location = sp);
   void PushAll(RegList registers);
   void PopAll(RegList registers);
@@ -596,14 +582,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Push caller saved registers on the stack, and return the number of bytes
   // stack pointer is adjusted.
-  int PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
-                      Register scratch2, Register exclusion1 = no_reg,
+  int PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
                       Register exclusion2 = no_reg,
                       Register exclusion3 = no_reg);
   // Restore caller saved registers from the stack, and return the number of
   // bytes stack pointer is adjusted.
-  int PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
-                     Register scratch2, Register exclusion1 = no_reg,
+  int PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
                      Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
@@ -614,10 +598,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadRoot(Register destination, RootIndex index, Condition cond);
   void LoadTaggedRoot(Register destination, RootIndex index);
 
-  void SwapP(Register src, Register dst, Register scratch);
-  void SwapP(Register src, MemOperand dst, Register scratch);
-  void SwapP(MemOperand src, MemOperand dst, Register scratch_0,
-             Register scratch_1);
+  void SwapP(Register src, Register dst);
+  void SwapP(Register src, MemOperand dst);
+  void SwapP(MemOperand src, MemOperand dst);
   void SwapFloat32(DoubleRegister src, DoubleRegister dst,
                    DoubleRegister scratch);
   void SwapFloat32(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
@@ -631,13 +614,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void SwapSimd128(Simd128Register src, Simd128Register dst,
                    Simd128Register scratch);
   void SwapSimd128(Simd128Register src, MemOperand dst,
-                   Simd128Register scratch1, Register scratch2);
+                   Simd128Register scratch);
   void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch1,
-                   Simd128Register scratch2, Register scratch3);
+                   Simd128Register scratch2);
 
-  void ByteReverseU16(Register dst, Register val, Register scratch);
-  void ByteReverseU32(Register dst, Register val, Register scratch);
-  void ByteReverseU64(Register dst, Register val, Register = r0);
+  void ByteReverseU16(Register dst, Register val);
+  void ByteReverseU32(Register dst, Register val);
+  void ByteReverseU64(Register dst, Register val);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, non-register arguments must be stored in
@@ -735,7 +718,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
             Condition cond = al);
   void Call(Label* target);
 
-  void GetLabelAddress(Register dst, Label* target, Register scratch);
+  void GetLabelAddress(Register dst, Label* target);
 
   // Load the builtin given by the Smi in |builtin_index| into |target|.
   void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
@@ -743,8 +726,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
 
   void LoadEntrypointFromJSDispatchTable(Register destination,
-                                         Register dispatch_handle,
-                                         Register scratch);
+                                         Register dispatch_handle);
 
   // Load the code entry point from the Code object.
   void LoadCodeInstructionStart(Register destination, Register code_object,
@@ -784,20 +766,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                    Register scratch, Label* ok);
 
   // Move values between integer and floating point registers.
-  void MovIntToDouble(DoubleRegister dst, Register src, Register scratch);
-  void MovUnsignedIntToDouble(DoubleRegister dst, Register src,
-                              Register scratch);
+  void MovIntToDouble(DoubleRegister dst, Register src);
+  void MovUnsignedIntToDouble(DoubleRegister dst, Register src);
   void MovInt64ToDouble(DoubleRegister dst,
                         Register src);
   void MovInt64ComponentsToDouble(DoubleRegister dst, Register src_hi,
-                                  Register src_lo, Register scratch);
-  void InsertDoubleLow(DoubleRegister dst, Register src, Register scratch);
-  void InsertDoubleHigh(DoubleRegister dst, Register src, Register scratch);
+                                  Register src_lo);
+  void InsertDoubleLow(DoubleRegister dst, Register src);
+  void InsertDoubleHigh(DoubleRegister dst, Register src);
   void MovDoubleLowToInt(Register dst, DoubleRegister src);
   void MovDoubleHighToInt(Register dst, DoubleRegister src);
   void MovDoubleToInt64(
       Register dst, DoubleRegister src);
-  void MovIntToFloat(DoubleRegister dst, Register src, Register scratch);
+  void MovIntToFloat(DoubleRegister dst, Register src);
   void MovFloatToInt(Register dst, DoubleRegister src, DoubleRegister scratch);
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Tagged<Smi> smi) { LoadSmiLiteral(dst, smi); }
@@ -807,16 +788,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadIsolateField(Register dst, IsolateFieldId id);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
-  void Move(Register dst, const MemOperand& src) {
-    // TODO(johnyan): Use scratch register scope instead of r0.
-    LoadU64(dst, src, r0);
-  }
+  void Move(Register dst, const MemOperand& src) { LoadU64(dst, src); }
   // Loads a field containing smi value and untags it.
-  void SmiUntagField(Register dst, const MemOperand& src, RCBit rc = LeaveRC,
-                     Register scratch = r0);
+  void SmiUntagField(Register dst, const MemOperand& src, RCBit rc = LeaveRC);
 
-  void SmiUntag(Register dst, const MemOperand& src, RCBit rc = LeaveRC,
-                Register scratch = no_reg);
+  void SmiUntag(Register dst, const MemOperand& src, RCBit rc = LeaveRC);
   void SmiUntag(Register reg, RCBit rc = LeaveRC) { SmiUntag(reg, reg, rc); }
 
   void SmiUntag(Register dst, Register src, RCBit rc = LeaveRC) {
@@ -954,11 +930,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Switch(Register scrach, Register reg, int case_base_value,
               Label** labels, int num_labels);
 
-  void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
+  void JumpIfCodeIsMarkedForDeoptimization(Register code,
                                            Label* if_marked_for_deoptimization);
 
-  void JumpIfCodeIsTurbofanned(Register code, Register scratch,
-                               Label* if_turbofanned);
+  void JumpIfCodeIsTurbofanned(Register code, Label* if_turbofanned);
 
   void LoadMap(Register destination, Register object);
   void LoadCompressedMap(Register dst, Register object);
@@ -1003,7 +978,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads the constant pool pointer (kConstantPoolRegister).
   void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
-      Register code_target_address, Register scratch1, Register scratch2);
+      Register code_target_address);
   void AbortConstantPoolBuilding() {
 #ifdef DEBUG
     // Avoid DCHECK(!is_linked()) failure in ~Label()
@@ -1013,7 +988,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
   void CallJSFunction(Register function_object, uint16_t argument_count);
-  void JumpJSFunction(Register function_object, Register scratch,
+  void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
                            uint16_t argument_count);
@@ -1057,18 +1032,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadTaggedField(const Register& destination,
-                       const MemOperand& field_operand,
-                       const Register& scratch = r0);
-  void LoadTaggedSignedField(Register destination, MemOperand field_operand,
-                             Register scratch = r0);
+                       const MemOperand& field_operand);
+  void LoadTaggedSignedField(Register destination, MemOperand field_operand);
   void LoadTaggedFieldWithoutDecompressing(const Register& destination,
-                                           const MemOperand& field_operand,
-                                           const Register& scratch = r0);
+                                           const MemOperand& field_operand);
 
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
-                        const MemOperand& dst_field_operand,
-                        const Register& scratch = r0);
+                        const MemOperand& dst_field_operand);
 
   void Zero(const MemOperand& dest);
   void Zero(const MemOperand& dest1, const MemOperand& dest2);
@@ -1085,26 +1056,22 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void StoreF32(DoubleRegister src, const MemOperand& mem);
   void StoreF64(DoubleRegister src, const MemOperand& mem);
 
-  void LoadF32WithUpdate(DoubleRegister dst, const MemOperand& mem,
-                         Register scratch = no_reg);
-  void LoadF64WithUpdate(DoubleRegister dst, const MemOperand& mem,
-                         Register scratch = no_reg);
+  void LoadF32WithUpdate(DoubleRegister dst, const MemOperand& mem);
+  void LoadF64WithUpdate(DoubleRegister dst, const MemOperand& mem);
 
-  void StoreF32WithUpdate(DoubleRegister src, const MemOperand& mem,
-                          Register scratch = no_reg);
-  void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem,
-                          Register scratch = no_reg);
+  void StoreF32WithUpdate(DoubleRegister src, const MemOperand& mem);
+  void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem);
 
-  void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadU64(Register dst, const MemOperand& mem);
   void LoadU32(Register dst, const MemOperand& mem);
-  void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadS32(Register dst, const MemOperand& mem);
   void LoadS32(Register dst, Register src) { extsw(dst, src); }
   void LoadU16(Register dst, const MemOperand& mem);
   void LoadS16(Register dst, const MemOperand& mem);
   void LoadU8(Register dst, const MemOperand& mem);
-  void LoadS8(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadS8(Register dst, const MemOperand& mem);
 
-  void StoreU64(Register src, const MemOperand& mem, Register scratch = no_reg);
+  void StoreU64(Register src, const MemOperand& mem);
   void StoreU32(Register src, const MemOperand& mem);
   void StoreU16(Register src, const MemOperand& mem);
   void StoreU8(Register src, const MemOperand& mem);
@@ -1112,25 +1079,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadU64WithUpdate(Register dst, const MemOperand& mem);
   void StoreU64WithUpdate(Register src, const MemOperand& mem);
 
-  void LoadU64LE(Register dst, const MemOperand& mem, Register scratch);
-  void LoadU32LE(Register dst, const MemOperand& mem, Register scratch);
-  void LoadU16LE(Register dst, const MemOperand& mem, Register scratch);
-  void StoreU64LE(Register src, const MemOperand& mem, Register scratch);
-  void StoreU32LE(Register src, const MemOperand& mem, Register scratch);
-  void StoreU16LE(Register src, const MemOperand& mem, Register scratch);
+  void LoadU64LE(Register dst, const MemOperand& mem);
+  void LoadU32LE(Register dst, const MemOperand& mem);
+  void LoadU16LE(Register dst, const MemOperand& mem);
+  void StoreU64LE(Register src, const MemOperand& mem);
+  void StoreU32LE(Register src, const MemOperand& mem);
+  void StoreU16LE(Register src, const MemOperand& mem);
 
-  void LoadS32LE(Register dst, const MemOperand& mem, Register scratch);
-  void LoadS16LE(Register dst, const MemOperand& mem, Register scratch);
+  void LoadS32LE(Register dst, const MemOperand& mem);
+  void LoadS16LE(Register dst, const MemOperand& mem);
 
-  void LoadF64LE(DoubleRegister dst, const MemOperand& mem, Register scratch,
-                 Register scratch2);
-  void LoadF32LE(DoubleRegister dst, const MemOperand& mem, Register scratch,
-                 Register scratch2);
+  void LoadF64LE(DoubleRegister dst, const MemOperand& mem);
+  void LoadF32LE(DoubleRegister dst, const MemOperand& mem);
 
-  void StoreF32LE(DoubleRegister src, const MemOperand& mem, Register scratch,
-                  Register scratch2);
-  void StoreF64LE(DoubleRegister src, const MemOperand& mem, Register scratch,
-                  Register scratch2);
+  void StoreF32LE(DoubleRegister src, const MemOperand& mem);
+  void StoreF64LE(DoubleRegister src, const MemOperand& mem);
 
   // Simd Support.
 #define SIMD_BINOP_LIST(V) \
@@ -1375,70 +1338,52 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #undef PROTOTYPE_SIMD_EXT_ADD_PAIRWISE
 #undef SIMD_EXT_ADD_PAIRWISE_LIST
 
-  void LoadSimd128(Simd128Register dst, const MemOperand& mem,
-                   Register scratch);
-  void StoreSimd128(Simd128Register src, const MemOperand& mem,
-                    Register scratch);
-  void LoadSimd128LE(Simd128Register dst, const MemOperand& mem,
-                     Register scratch);
+  void LoadSimd128(Simd128Register dst, const MemOperand& mem);
+  void StoreSimd128(Simd128Register src, const MemOperand& mem);
+  void LoadSimd128LE(Simd128Register dst, const MemOperand& mem);
   void StoreSimd128LE(Simd128Register src, const MemOperand& mem,
-                      Register scratch1, Simd128Register scratch2);
-  void LoadSimd128Uint64(Simd128Register reg, const MemOperand& mem,
-                         Register scratch);
-  void LoadSimd128Uint32(Simd128Register reg, const MemOperand& mem,
-                         Register scratch);
-  void LoadSimd128Uint16(Simd128Register reg, const MemOperand& mem,
-                         Register scratch);
-  void LoadSimd128Uint8(Simd128Register reg, const MemOperand& mem,
-                        Register scratch);
-  void StoreSimd128Uint64(Simd128Register reg, const MemOperand& mem,
-                          Register scratch);
-  void StoreSimd128Uint32(Simd128Register reg, const MemOperand& mem,
-                          Register scratch);
-  void StoreSimd128Uint16(Simd128Register reg, const MemOperand& mem,
-                          Register scratch);
-  void StoreSimd128Uint8(Simd128Register reg, const MemOperand& mem,
-                         Register scratch);
+                      Simd128Register scratch);
+  void LoadSimd128Uint64(Simd128Register reg, const MemOperand& mem);
+  void LoadSimd128Uint32(Simd128Register reg, const MemOperand& mem);
+  void LoadSimd128Uint16(Simd128Register reg, const MemOperand& mem);
+  void LoadSimd128Uint8(Simd128Register reg, const MemOperand& mem);
+  void StoreSimd128Uint64(Simd128Register reg, const MemOperand& mem);
+  void StoreSimd128Uint32(Simd128Register reg, const MemOperand& mem);
+  void StoreSimd128Uint16(Simd128Register reg, const MemOperand& mem);
+  void StoreSimd128Uint8(Simd128Register reg, const MemOperand& mem);
   void LoadLane64LE(Simd128Register dst, const MemOperand& mem, int lane,
-                    Register scratch1, Simd128Register scratch2);
+                    Simd128Register scratch);
   void LoadLane32LE(Simd128Register dst, const MemOperand& mem, int lane,
-                    Register scratch1, Simd128Register scratch2);
+                    Simd128Register scratch);
   void LoadLane16LE(Simd128Register dst, const MemOperand& mem, int lane,
-                    Register scratch1, Simd128Register scratch2);
+                    Simd128Register scratch);
   void LoadLane8LE(Simd128Register dst, const MemOperand& mem, int lane,
-                   Register scratch1, Simd128Register scratch2);
+                   Simd128Register scratch);
   void StoreLane64LE(Simd128Register src, const MemOperand& mem, int lane,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void StoreLane32LE(Simd128Register src, const MemOperand& mem, int lane,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void StoreLane16LE(Simd128Register src, const MemOperand& mem, int lane,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void StoreLane8LE(Simd128Register src, const MemOperand& mem, int lane,
-                    Register scratch1, Simd128Register scratch2);
-  void LoadAndSplat64x2LE(Simd128Register dst, const MemOperand& mem,
-                          Register scratch);
-  void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem,
-                          Register scratch);
-  void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& me,
-                          Register scratch);
-  void LoadAndSplat8x16LE(Simd128Register dst, const MemOperand& mem,
-                          Register scratch);
-  void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem,
-                            Register scratch);
+                    Simd128Register scratch);
+  void LoadAndSplat64x2LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndSplat32x4LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndSplat16x8LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndSplat8x16LE(Simd128Register dst, const MemOperand& mem);
+  void LoadAndExtend32x2SLE(Simd128Register dst, const MemOperand& mem);
   void LoadAndExtend32x2ULE(Simd128Register dst, const MemOperand& mem,
                             Register scratch1, Simd128Register scratch2);
-  void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem,
-                            Register scratch);
+  void LoadAndExtend16x4SLE(Simd128Register dst, const MemOperand& mem);
   void LoadAndExtend16x4ULE(Simd128Register dst, const MemOperand& mem,
                             Register scratch1, Simd128Register scratch2);
-  void LoadAndExtend8x8SLE(Simd128Register dst, const MemOperand& mem,
-                           Register scratch);
+  void LoadAndExtend8x8SLE(Simd128Register dst, const MemOperand& mem);
   void LoadAndExtend8x8ULE(Simd128Register dst, const MemOperand& mem,
                            Register scratch1, Simd128Register scratch2);
   void LoadV64ZeroLE(Simd128Register dst, const MemOperand& mem,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void LoadV32ZeroLE(Simd128Register dst, const MemOperand& mem,
-                     Register scratch1, Simd128Register scratch2);
+                     Simd128Register scratch);
   void F64x2Splat(Simd128Register dst, DoubleRegister src, Register scratch);
   void F32x4Splat(Simd128Register dst, DoubleRegister src,
                   DoubleRegister scratch1, Register scratch2);
@@ -1451,7 +1396,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                         Register scratch2);
   void F32x4ExtractLane(DoubleRegister dst, Simd128Register src,
                         uint8_t imm_lane_idx, Simd128Register scratch1,
-                        Register scratch2, Register scratch3);
+                        Register scratch2);
   void I64x2ExtractLane(Register dst, Simd128Register src, uint8_t imm_lane_idx,
                         Simd128Register scratch);
   void I32x4ExtractLane(Register dst, Simd128Register src, uint8_t imm_lane_idx,
@@ -1572,16 +1517,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // load a literal double value <value> to FPR <result>
 
-  void AddSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
-                     Register scratch);
-  void SubSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
-                     Register scratch);
-  void CmpSmiLiteral(Register src1, Tagged<Smi> smi, Register scratch,
-                     CRegister cr = cr0);
-  void CmplSmiLiteral(Register src1, Tagged<Smi> smi, Register scratch,
-                      CRegister cr = cr0);
+  void AddSmiLiteral(Register dst, Register src, Tagged<Smi> smi);
+  void SubSmiLiteral(Register dst, Register src, Tagged<Smi> smi);
+  void CmpSmiLiteral(Register src1, Tagged<Smi> smi, CRegister cr = cr0);
+  void CmplSmiLiteral(Register src1, Tagged<Smi> smi, CRegister cr = cr0);
   void AndSmiLiteral(Register dst, Register src, Tagged<Smi> smi,
-                     Register scratch, RCBit rc = LeaveRC);
+                     RCBit rc = LeaveRC);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
@@ -1631,10 +1572,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     static_assert(LAST_TYPE <= 0xFFFF);
     if (use_unsigned_cmp) {
       LoadU16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
-      CmpU64(type_reg, Operand(type), r0);
+      CmpU64(type_reg, Operand(type));
     } else {
       LoadS16(type_reg, FieldMemOperand(map, offsetof(Map, instance_type_)));
-      CmpS64(type_reg, Operand(type), r0);
+      CmpS64(type_reg, Operand(type));
     }
   }
   // Compare object type for heap object.  heap_object contains a non-Smi
@@ -1769,8 +1710,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void StackOverflowCheck(Register num_args, Register scratch,
                           Label* stack_overflow);
-  void LoadStackLimit(Register destination, StackLimitKind kind,
-                      Register scratch);
+  void LoadStackLimit(Register destination, StackLimitKind kind);
 
   // ---------------------------------------------------------------------------
   // Smi utilities
@@ -1832,8 +1772,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     DecodeField<Field>(reg, reg, rc);
   }
 
-  void TestCodeIsMarkedForDeoptimization(Register code, Register scratch1,
-                                         Register scratch2);
+  void TestCodeIsMarkedForDeoptimization(Register code);
   Operand ClearedValue() const;
 
  private:

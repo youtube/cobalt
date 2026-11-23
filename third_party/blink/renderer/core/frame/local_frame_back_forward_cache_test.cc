@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <tuple>
+
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
@@ -162,6 +164,39 @@ TEST_F(LocalFrameBackForwardCacheTest, EvictionHookOnDisposedContext) {
   // this does not force-initialize the context (which would crash due to the
   // stale Document wrapper in inline storage).
   frame->HookBackForwardCacheEviction();
+}
+
+TEST_F(LocalFrameBackForwardCacheTest,
+       WindowProxyReinitializationOnDisposedContext) {
+  frame_test_helpers::TestWebFrameClient web_frame_client;
+  frame_test_helpers::WebViewHelper web_view_helper;
+  web_view_helper.Initialize(&web_frame_client);
+  web_view_helper.Resize(gfx::Size(640, 480));
+
+  LocalFrame* frame = web_view_helper.GetWebView()->MainFrameImpl()->GetFrame();
+
+  auto* script_state = ToScriptStateForMainWorld(frame);
+  ASSERT_TRUE(script_state);
+  ASSERT_TRUE(script_state->ContextIsValid());
+
+  // Initialize the main world's JS context and create a JavaScript wrapper
+  // for the Document to populate its inline storage.
+  {
+    ScriptState::Scope scope(script_state);
+    v8::Local<v8::Value> document_wrapper =
+        ToV8Traits<Document>::ToV8(script_state, frame->GetDocument());
+    ASSERT_FALSE(document_wrapper.IsEmpty());
+  }
+
+  // Dispose the context, simulating context disposal on navigation.
+  frame->WindowProxy(DOMWrapperWorld::MainWorld(script_state->GetIsolate()))
+      ->ClearForNavigation();
+
+  // Access WindowProxy before UpdateDocument() installs the next page's
+  // Document. Verify that reinitializing a context against an existing Document
+  // whose inline storage already contains a wrapper completes cleanly.
+  std::ignore = frame->WindowProxy(
+      DOMWrapperWorld::MainWorld(script_state->GetIsolate()));
 }
 
 }  // namespace blink

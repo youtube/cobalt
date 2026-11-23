@@ -20,6 +20,7 @@
 #include "components/performance_manager/public/graph/page_node.h"
 #include "components/performance_manager/public/graph/worker_node.h"
 #include "components/performance_manager/public/performance_manager.h"
+#include "components/performance_manager/public/process_priority_policy_settings.h"
 #include "components/performance_manager/public/render_process_host_proxy.h"
 #include "content/public/browser/browsing_instance_id.h"
 #include "content/public/browser/site_instance.h"
@@ -52,7 +53,11 @@ class PerformanceManagerImpl : public PerformanceManager {
 
   // Creates, initializes and registers an instance. Valid to call from the main
   // thread only.
-  static std::unique_ptr<PerformanceManagerImpl> Create();
+  static std::unique_ptr<PerformanceManagerImpl> Create(
+      ProcessPriorityPolicySettings process_priority_policy_settings = {});
+
+  // Returns the global process priority policy settings configured on creation.
+  static ProcessPriorityPolicySettings GetProcessPriorityPolicySettings();
 
   // Unregisters |instance| and arranges for its deletion.
   static void Destroy(std::unique_ptr<PerformanceManager> instance);
@@ -104,12 +109,15 @@ class PerformanceManagerImpl : public PerformanceManager {
  private:
   friend class PerformanceManager;
 
-  PerformanceManagerImpl();
+  explicit PerformanceManagerImpl(
+      ProcessPriorityPolicySettings process_priority_policy_settings);
 
   template <typename NodeType, typename... Args>
   static std::unique_ptr<NodeType> CreateNodeImpl(Args&&... constructor_args);
 
   GraphImpl graph_ GUARDED_BY_CONTEXT(sequence_checker_);
+
+  const ProcessPriorityPolicySettings process_priority_policy_settings_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

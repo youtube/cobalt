@@ -17,9 +17,9 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/tabs/vertical/root_tab_collection_node.h"
-#include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_controller.h"
+#include "chrome/browser/ui/views/tabs/common/root_tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/common/tab_collection_node.h"
+#include "chrome/browser/ui/views/tabs/common/tab_strip_collection_controller.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -58,16 +58,17 @@ class VerticalTabsBrowserTestMixin : public T {
     return tabs::VerticalTabStripStateController::From(T::browser());
   }
 
-  VerticalTabStripController* vertical_tab_strip_controller() {
+  TabStripCollectionController* vertical_tab_strip_controller() {
     VerticalTabStripRegionView* const region_view =
         T::browser()
             ->GetBrowserView()
             .vertical_tab_strip_region_view_for_testing();
-    return region_view ? region_view->GetVerticalTabStripController() : nullptr;
+    return region_view ? region_view->GetTabStripCollectionController()
+                       : nullptr;
   }
 
   TabHoverCardController* hover_card_controller() {
-    if (VerticalTabStripController* controller =
+    if (TabStripCollectionController* controller =
             vertical_tab_strip_controller()) {
       return controller->GetHoverCardController();
     }

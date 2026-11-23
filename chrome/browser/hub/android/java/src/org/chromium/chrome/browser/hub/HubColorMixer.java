@@ -101,6 +101,9 @@ public interface HubColorMixer {
     /** Registers a {@link HubViewColorBlend} to receive color scheme updates. */
     void registerBlend(HubViewColorBlend colorBlend);
 
+    /** Unregisters a {@link HubViewColorBlend} to cease receiving color scheme updates. */
+    void unregisterBlend(HubViewColorBlend colorBlend);
+
     /** Gets the observer for overview mode alpha changes. */
     OverviewModeAlphaObserver getOverviewModeAlphaObserver();
 }

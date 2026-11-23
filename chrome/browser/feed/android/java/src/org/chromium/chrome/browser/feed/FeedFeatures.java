@@ -9,7 +9,6 @@ import org.chromium.base.DeviceInfo;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.prefs.PrefService;
@@ -27,7 +26,7 @@ public final class FeedFeatures {
      *     enterprise policy, or by flag. The value returned should not be cached as it may change.
      */
     public static boolean isFeedEnabled(Profile profile) {
-        return (!ChromeFeatureList.sNtpSimplification.isEnabled() || !DeviceInfo.isDesktop())
+        return !DeviceInfo.isDesktop()
                 && FeedServiceBridge.isEnabled()
                 && isFeedEnabledByDse(profile);
     }

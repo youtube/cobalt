@@ -25,6 +25,7 @@ import android.widget.FrameLayout;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,7 +44,9 @@ import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.glic.GlicEnabling;
 import org.chromium.chrome.browser.glic.GlicEnablingJni;
+import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.ui.actions.ActionId;
@@ -52,6 +55,7 @@ import org.chromium.chrome.browser.ui.actions.ActionRegistry;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -73,9 +77,11 @@ public class BottomBarCoordinatorUnitTest {
     @Mock private ThemeColorProvider mThemeColorProvider;
     @Mock private BottomBarMediator.VisibilityDelegate mVisibilityDelegate;
     @Mock private Profile mProfile;
+    @Mock private TemplateUrlService mTemplateUrlService;
     @Mock private ModalDialogManager mModalDialogManager;
     @Mock private Tracker mTracker;
     @Mock private Tab mTab;
+    @Mock private LayoutStateProvider mLayoutStateProvider;
 
     private final SettableNullableObservableSupplier<Tab> mTabSupplier =
             ObservableSuppliers.createNullable();
@@ -89,6 +95,8 @@ public class BottomBarCoordinatorUnitTest {
             ObservableSuppliers.createNullable();
     private final SettableNullableObservableSupplier<PropertyModel> mGlicActionSupplier =
             ObservableSuppliers.createNullable();
+    private final SettableNullableObservableSupplier<PropertyModel> mAiModeActionSupplier =
+            ObservableSuppliers.createNullable();
     private final SettableNullableObservableSupplier<Profile> mProfileSupplier =
             ObservableSuppliers.createNullable();
 
@@ -101,12 +109,14 @@ public class BottomBarCoordinatorUnitTest {
 
     @Before
     public void setUp() {
+        BottomBarActionEligibility.setCountrySupplier(() -> "us");
         TrackerFactory.setTrackerForTests(mTracker);
         when(mActionRegistry.get(ActionId.NEW_TAB)).thenReturn(mActionSupplier);
         when(mActionRegistry.get(ActionId.HOME_BUTTON)).thenReturn(mHomeActionSupplier);
         when(mActionRegistry.get(ActionId.APP_MENU)).thenReturn(mMenuActionSupplier);
         when(mActionRegistry.get(ActionId.TAB_SWITCHER)).thenReturn(mTabSwitcherActionSupplier);
         when(mActionRegistry.get(ActionId.GLIC)).thenReturn(mGlicActionSupplier);
+        when(mActionRegistry.get(ActionId.AI_MODE)).thenReturn(mAiModeActionSupplier);
 
         mActivityScenarioRule.getScenario().onActivity(this::onActivity);
     }
@@ -118,6 +128,8 @@ public class BottomBarCoordinatorUnitTest {
         mOmniboxFocusStateSupplier = ObservableSuppliers.createNonNull(false);
         mModalDialogManagerSupplier = ObservableSuppliers.createNonNull(mModalDialogManager);
         mProfileSupplier.set(mProfile);
+        TemplateUrlServiceFactory.setInstanceForTesting(mTemplateUrlService);
+        when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(true);
         mCoordinator =
                 new BottomBarCoordinator(
                         mParent,
@@ -128,7 +140,13 @@ public class BottomBarCoordinatorUnitTest {
                         mVisibilityDelegate,
                         mProfileSupplier,
                         mOmniboxFocusStateSupplier,
-                        mModalDialogManagerSupplier);
+                        mModalDialogManagerSupplier,
+                        mLayoutStateProvider);
+    }
+
+    @After
+    public void tearDown() {
+        BottomBarActionEligibility.setCountrySupplier(null);
     }
 
     @Test

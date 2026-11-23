@@ -426,6 +426,13 @@ public class WebContentsAccessibilityTreeTest {
 
     @Test
     @SmallTest
+    @DisabledTest(message = "Mac-only test for fieldset description fallback")
+    public void test_ariaFieldsetDescribedby() {
+        performAriaTest("aria-fieldset-describedby.html");
+    }
+
+    @Test
+    @SmallTest
     public void test_ariaDescription() {
         performAriaTest("aria-description.html");
     }

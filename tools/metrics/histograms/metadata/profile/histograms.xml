@@ -955,6 +955,52 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="ProfilePicker.FREFlow.FeatureShowcase.StartBrowsing"
+    enum="FeatureShowcaseStep" expires_after="2026-12-31">
+  <owner>ernn@google.com</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
+  <summary>
+    Records the Feature Showcase step the user was looking at when they clicked
+    the 'Start Browsing' button.
+  </summary>
+</histogram>
+
+<histogram name="ProfilePicker.FREFlow.FeatureShowcase.StepEligible"
+    enum="FeatureShowcaseStep" expires_after="2026-12-31">
+  <owner>ernn@google.com</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
+  <summary>
+    Records the Feature Showcase step when it is eligible to be shown to the
+    user during the first run experience. Recorded when the user first enter the
+    Feature Showcase step. Records each step the user is eligible for.
+  </summary>
+</histogram>
+
+<histogram name="ProfilePicker.FREFlow.FeatureShowcase.StepShown"
+    enum="FeatureShowcaseStep" expires_after="2026-12-31">
+  <owner>ernn@google.com</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
+  <summary>
+    Records the Feature Showcase step when it is shown to the user during the
+    first run experience. Recorded every time a step is shown.
+  </summary>
+</histogram>
+
+<histogram name="ProfilePicker.FREFlow.MediaEffects.{Action}"
+    enum="ProfileManagementFlowStep" expires_after="2026-12-31">
+  <owner>ernn@google.com</owner>
+  <owner>chrome-signin-desktop-team@google.com</owner>
+  <summary>
+    Records the step every time the user clicks on the media effects action
+    button in the First Run Experience flow to {Action} media effects, i.e.
+    sound and animations (if applicable).
+  </summary>
+  <token key="Action">
+    <variant name="Disable" summary="disable"/>
+    <variant name="Enable" summary="enable"/>
+  </token>
+</histogram>
+
 <histogram name="ProfilePicker.ReauthResult" enum="ProfilePickerReauthResult"
     expires_after="2024-05-17">
   <owner>rsult@google.com</owner>

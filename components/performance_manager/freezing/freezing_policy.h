@@ -120,7 +120,7 @@ class FreezingPolicy : public PageNodeObserver,
     // Pages that have frames in this browsing instance (typically only 1 page,
     // but may contain an unbounded amount of pages connected via opener
     // relationship).
-    base::flat_set<const PageNode*> pages;
+    base::flat_set<raw_ptr<const PageNode>> pages;
     // Highest CPU measurement for a group of same-origin frames/workers
     // associated with this browsing instance, over the last measurement period.
     // (1.0 = 100% of 1 core)

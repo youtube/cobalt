@@ -63,6 +63,7 @@ class ActorLoginDelegateImpl
       bool should_store_permission,
       base::WeakPtr<ActorLoginQualityLoggerInterface> mqls_logger,
       base::TimeTicks attempt_login_tool_start_time,
+      FrameFillingStartedCallback frame_filling_started_cb,
       LoginStatusResultOrErrorReply done_callback,
       base::WeakPtr<ActionSequenceDelegate> action_sequence_delegate) override;
 

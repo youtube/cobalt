@@ -200,7 +200,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreInteractiveTest,
   // Minimize the window.
   views::test::PropertyWaiter minimize_waiter(
       base::BindRepeating(&ui::BaseWindow::IsMinimized,
-                          base::Unretained(browser()->window())),
+                          base::Unretained(browser()->GetWindow())),
       true);
   browser()->GetWindow()->Minimize();
   EXPECT_TRUE(minimize_waiter.Wait());
@@ -231,7 +231,7 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreInteractiveTest,
   // Minimize the first browser window.
   views::test::PropertyWaiter minimize_waiter(
       base::BindRepeating(&ui::BaseWindow::IsMinimized,
-                          base::Unretained(browser()->window())),
+                          base::Unretained(browser()->GetWindow())),
       true);
   browser()->GetWindow()->Minimize();
   EXPECT_TRUE(minimize_waiter.Wait());

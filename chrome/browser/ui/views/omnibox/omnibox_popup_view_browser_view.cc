@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_browser_view.h"
 
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
@@ -70,7 +71,7 @@ void EmbeddedWebView::ResizeDueToAutoResize(content::WebContents* source,
 
 OmniboxPopupViewBrowserView::OmniboxPopupViewBrowserView(
     LocationBarView* location_bar_view,
-    Browser* browser)
+    BrowserWindowInterface* browser)
     : OmniboxPopupView(location_bar_view->GetOmniboxController()),
       location_bar_view_(location_bar_view),
       browser_(browser) {
@@ -158,7 +159,7 @@ void OmniboxPopupViewBrowserView::UpdateLayout() {
     // early construction, and passing 0 to EnableSizingFromWebContents
     // triggers a crash.
     auto web_view = std::make_unique<EmbeddedWebView>(
-        browser_->profile(),
+        browser_->GetProfile(),
         base::BindRepeating(&OmniboxPopupViewBrowserView::OnWebViewResize,
                             base::Unretained(this)));
     web_view->LoadInitialURL(GURL("chrome://omnibox-popup.top-chrome/"));

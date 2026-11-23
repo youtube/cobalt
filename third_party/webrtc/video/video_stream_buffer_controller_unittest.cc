@@ -82,20 +82,6 @@ std::unique_ptr<test::FakeEncodedFrame> WithReceiveTimeFromRtpTimestamp(
   return frame;
 }
 
-class VCMTimingTest : public VCMTiming {
- public:
-  using VCMTiming::VCMTiming;
-  void OnCompleteTemporalUnit(uint32_t rtp_timestamp, Timestamp now) override {
-    OnCompleteTemporalUnitMocked(rtp_timestamp, now);
-    VCMTiming::OnCompleteTemporalUnit(rtp_timestamp, now);
-  }
-
-  MOCK_METHOD(void,
-              OnCompleteTemporalUnitMocked,
-              (uint32_t rtp_timestamp, Timestamp now),
-              ());
-};
-
 class VideoStreamBufferControllerStatsObserverMock
     : public VideoStreamBufferControllerStatsObserver {
  public:
@@ -228,7 +214,7 @@ class VideoStreamBufferControllerFixture
   test::FakeMetronome fake_metronome_;
   DecodeSynchronizer decode_sync_;
 
-  ::testing::NiceMock<VCMTimingTest> timing_;
+  VCMTiming timing_;
   ::testing::NiceMock<VideoStreamBufferControllerStatsObserverMock>
       stats_callback_;
   std::unique_ptr<VideoStreamBufferController> buffer_;
@@ -621,6 +607,17 @@ TEST_P(VideoStreamBufferControllerTest, SameFrameNotScheduledTwice) {
   EXPECT_EQ(dropped_frames(), 1);
 }
 
+TEST_P(VideoStreamBufferControllerTest, InsertFrameUpdatesMinimumDelay) {
+  StartNextDecodeForceKeyframe();
+  buffer_->InsertFrame(test::FakeFrameBuilder().Id(0).Time(0).AsLast().Build());
+  EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()), Frame(test::WithId(0)));
+
+  EXPECT_GT(timing_.GetTimings().minimum_delay, TimeDelta::Zero());
+
+  // Flush stats posted on the decode queue.
+  time_controller_.AdvanceTime(TimeDelta::Zero());
+}
+
 TEST_P(VideoStreamBufferControllerTest, TestStatsCallback) {
   EXPECT_CALL(stats_callback_,
               OnCompleteFrame(true, kFrameSize, VideoContentType::UNSPECIFIED));
@@ -916,33 +913,5 @@ INSTANTIATE_TEST_SUITE_P(
             "WebRTC-ZeroPlayoutDelay/min_pacing:16ms,max_decode_queue_size:5/",
             "WebRTC-ZeroPlayoutDelay/"
             "min_pacing:16ms,max_decode_queue_size:5/")));
-
-class IncomingTimestampVideoStreamBufferControllerTest
-    : public ::testing::Test,
-      public VideoStreamBufferControllerFixture {};
-
-TEST_P(IncomingTimestampVideoStreamBufferControllerTest,
-       IncomingTimestampOnMarkerBitOnly) {
-  StartNextDecodeForceKeyframe();
-  EXPECT_CALL(timing_, OnCompleteTemporalUnitMocked)
-      .Times(field_trials_.IsDisabled("WebRTC-IncomingTimestampOnMarkerBitOnly")
-                 ? 3
-                 : 1);
-  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
-      test::FakeFrameBuilder().Id(0).SpatialLayer(0).Time(0).Build()));
-  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
-      test::FakeFrameBuilder().Id(1).SpatialLayer(1).Time(0).Build()));
-  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
-      test::FakeFrameBuilder().Id(2).SpatialLayer(2).Time(0).AsLast().Build()));
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    VideoStreamBufferController,
-    IncomingTimestampVideoStreamBufferControllerTest,
-    ::testing::Combine(
-        ::testing::Bool(),
-        ::testing::Values(
-            "WebRTC-IncomingTimestampOnMarkerBitOnly/Enabled/",
-            "WebRTC-IncomingTimestampOnMarkerBitOnly/Disabled/")));
 
 }  // namespace webrtc

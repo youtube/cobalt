@@ -110,20 +110,13 @@ void AssertSnackbarNotShownForIdentity(FakeSystemIdentity* identity) {
 
 // Verifies identity confirmation snackbar shows on startup with multiple
 // identities on device after 1 day.
-// TODO(crbug.com/443199219): Test disabled on simulator.
+- (void)testMultipleIdentities_IdentityConfirmationToast {
 #if TARGET_OS_SIMULATOR
-#define MAYBE_testMultipleIdentities_IdentityConfirmationToast \
-  DISABLED_testMultipleIdentities_IdentityConfirmationToast
-#else
-#define MAYBE_testMultipleIdentities_IdentityConfirmationToast \
-  testMultipleIdentities_IdentityConfirmationToast
-#endif
-- (void)MAYBE_testMultipleIdentities_IdentityConfirmationToast {
   // TODO(crbug.com/433726717): Test disabled on iPhones.
-  if (![ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_DISABLED(@"Fails on iPhones.");
+  if (![ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Fails on iPhones simulators.");
   }
-
+#endif
   [self prepareStartSurface];
   // Add multiple identities and sign in with one of them.
   [SigninEarlGrey signinWithFakeIdentity:kPrimaryIdentity];
@@ -131,7 +124,7 @@ void AssertSnackbarNotShownForIdentity(FakeSystemIdentity* identity) {
   [self prepareSnackbarParamsForNextDisplayWithLastCount:0];
 
   // Background then foreground the app.
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
 
   // Confirm the snackbar shows after 1 day of signing in with multi identities
   // on device.
@@ -142,35 +135,27 @@ void AssertSnackbarNotShownForIdentity(FakeSystemIdentity* identity) {
 
 // Verifies no identity confirmation snackbar shows on startup with only one
 // identity on device.
-// TODO(crbug.com/443199219): Test disabled on simulator.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testSingleIdentity_IdentityConfirmationToast \
-  DISABLED_testSingleIdentity_IdentityConfirmationToast
-#else
-#define MAYBE_testSingleIdentity_IdentityConfirmationToast \
-  testSingleIdentity_IdentityConfirmationToast
-#endif
-- (void)MAYBE_testSingleIdentity_IdentityConfirmationToast {
+- (void)testSingleIdentity_IdentityConfirmationToast {
   [self prepareStartSurface];
   // Add multiple identities and sign in with one of them.
   [SigninEarlGrey signinWithFakeIdentity:kPrimaryIdentity];
   [self prepareSnackbarParamsForNextDisplayWithLastCount:0];
 
   // Background then foreground the app.
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
 
   AssertSnackbarNotShownForIdentity(kPrimaryIdentity);
 }
 
 // Verifies no identity confirmation snackbar shows on startup when there is an
 // identity on the device but the user is signed-out.
-// TODO(crbug.com/443199219): Flaky on iPad.
-- (void)DISABLED_testNoIdentity_IdentityConfirmationToast {
-  // TODO(crbug.com/441260415): Re-enable the test on iOS26.
-  if (base::ios::IsRunningOnIOS26OrLater()) {
-    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+- (void)testNoIdentity_IdentityConfirmationToast {
+#if TARGET_OS_SIMULATOR
+  // TODO(crbug.com/433726717): Test disabled on iPhones.
+  if (![ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Fails on iPhones simulators.");
   }
-
+#endif
   [self prepareStartSurface];
   [SigninEarlGrey signinWithFakeIdentity:kPrimaryIdentity];
 
@@ -185,34 +170,26 @@ void AssertSnackbarNotShownForIdentity(FakeSystemIdentity* identity) {
 
 // Verifies identity confirmation snackbar on startup does not show after a
 // recent sign-in.
-// TODO(crbug.com/443199219): Test disabled on simulator.
-#if TARGET_OS_SIMULATOR
-#define MAYBE_testRecentSignin_IdentityConfirmationToast \
-  DISABLED_testRecentSignin_IdentityConfirmationToast
-#else
-#define MAYBE_testRecentSignin_IdentityConfirmationToast \
-  testRecentSignin_IdentityConfirmationToast
-#endif
-- (void)MAYBE_testRecentSignin_IdentityConfirmationToast {
+- (void)testRecentSignin_IdentityConfirmationToast {
   [self prepareStartSurface];
   // Add multiple identities and sign in with one of them.
   [SigninEarlGrey signinWithFakeIdentity:kPrimaryIdentity];
   [SigninEarlGrey addFakeIdentity:kSecondaryIdentity];
 
   // Background then foreground the app.
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
   AssertSnackbarNotShownForIdentity(kPrimaryIdentity);
 }
 
 // Verifies identity confirmation snackbar shows on startup with multiple
 // identities on device with frequency limitations.
-// TODO(crbug.com/443199219): Flaky on iPad.
-- (void)DISABLED_testFrequencyLimitation_IdentityConfirmationToast {
+- (void)testFrequencyLimitation_IdentityConfirmationToast {
+#if TARGET_OS_SIMULATOR
   // TODO(crbug.com/433726717): Test disabled on iPhones.
-  if (![ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_DISABLED(@"Fails on iPhones.");
+  if (![ChromeEarlGrey isIPadIdiom] && !base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Fails on iPhones simulators.");
   }
-
+#endif
   [self prepareStartSurface];
   // Add multiple identities and sign in with one of them.
   [SigninEarlGrey signinWithFakeIdentity:kPrimaryIdentity];
@@ -220,24 +197,24 @@ void AssertSnackbarNotShownForIdentity(FakeSystemIdentity* identity) {
 
   // Snackbar shows after 1 day of signing in.
   [self prepareSnackbarParamsForNextDisplayWithLastCount:0];
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
   [SigninEarlGreyUI
       dismissSigninConfirmationSnackbarForIdentity:kPrimaryIdentity
                                      assertVisible:YES];
 
   // Background then foreground the app again.
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
   AssertSnackbarNotShownForIdentity(kPrimaryIdentity);
 
   // Update params to be ready for a second display after 7 days.
   [self prepareSnackbarParamsForNextDisplayWithLastCount:1];
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
   [SigninEarlGreyUI
       dismissSigninConfirmationSnackbarForIdentity:kPrimaryIdentity
                                      assertVisible:YES];
 
   // Background then foreground the app again.
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
   AssertSnackbarNotShownForIdentity(kPrimaryIdentity);
 
   // Update params to be ready for a third display after 30 days.
@@ -252,7 +229,7 @@ void AssertSnackbarNotShownForIdentity(FakeSystemIdentity* identity) {
 
   // Background then foreground the app again, the snackbar does not show after
   // third display.
-  [[AppLaunchManager sharedManager] backgroundAndForegroundApp];
+  [self backgroundAndForegroundApp];
   AssertSnackbarNotShownForIdentity(kPrimaryIdentity);
 }
 

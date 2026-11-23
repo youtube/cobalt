@@ -310,16 +310,24 @@
         "name": "assertThrows",
         "type": "function",
         "nocompile": true,
+        "description": "Asserts that a given function throws an error. If it does not, or if the thrown error doesn't match expectedError (if defined), the test fails.",
         "parameters": [
           {"type": "function", "name": "fn"},
           {
-            "type": "object",
-            "name": "self",
-            "additionalProperties": {"type": "any"},
-            "optional": true
+            "choices": [
+              {"type": "string"},
+              {"type": "object", "isInstanceOf": "RegExp"}
+            ],
+            "name": "expectedError",
+            "optional": true,
+            "description": "Expected error message or RegExp."
           },
-          {"type": "array", "items": {"type": "any"}, "name": "args"},
-          {"choices": [ {"type": "string"}, {"type": "object", "isInstanceOf": "RegExp"} ], "name": "message", "optional": true}
+          {
+            "type": "string",
+            "name": "message",
+            "optional": true,
+            "description": "Custom failure message."
+          }
         ]
       },
       {

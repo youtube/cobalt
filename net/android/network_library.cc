@@ -223,6 +223,9 @@ bool GetCurrentDnsServers(std::vector<IPEndPoint>* dns_servers,
                           bool* dns_over_tls_active,
                           std::string* dns_over_tls_hostname,
                           std::vector<std::string>* search_suffixes) {
+  if (!base::android::IsJavaAvailable()) {
+    return false;
+  }
   JNIEnv* env = AttachCurrentThread();
   // Get the DNS status for the current default network.
   ScopedJavaLocalRef<jobject> result =
@@ -241,6 +244,9 @@ bool GetDnsServersForNetwork(std::vector<IPEndPoint>* dns_servers,
   DCHECK_GE(base::android::android_info::sdk_int(),
             base::android::android_info::SDK_VERSION_P);
 
+  if (!base::android::IsJavaAvailable()) {
+    return false;
+  }
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jobject> result =
       Java_AndroidNetworkLibrary_getDnsStatusForNetwork(env, network);
@@ -251,6 +257,9 @@ bool GetDnsServersForNetwork(std::vector<IPEndPoint>* dns_servers,
 }
 
 bool ReportBadDefaultNetwork() {
+  if (!base::android::IsJavaAvailable()) {
+    return false;
+  }
   return Java_AndroidNetworkLibrary_reportBadDefaultNetwork(
       AttachCurrentThread());
 }

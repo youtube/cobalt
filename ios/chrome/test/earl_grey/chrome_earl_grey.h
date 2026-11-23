@@ -840,11 +840,17 @@ id<GREYAction> grey_longPressWithDuration(base::TimeDelta duration);
 // Returns whether the UseLensToSearchForImage feature is enabled;
 - (BOOL)isUseLensToSearchForImageEnabled;
 
+// Returns whether the YourSavedInfoSettingsPageIos feature is enabled.
+- (BOOL)isYourSavedInfoSettingsPageIosEnabled;
+
 // Returns whether the unfocused omnibox is at the bottom.
 - (BOOL)isUnfocusedOmniboxAtBottom;
 
 // Returns whether Chrome Next is enabled.
 - (BOOL)isChromeNextEnabled;
+
+// Returns whether overflow menu refactoring on the NTP is enabled.
+- (BOOL)isOverflowMenuNTPRefactorEnabled;
 
 // Returns whether the Chrome Next Share Icon is visible.
 - (BOOL)isChromeNextShareIconVisible;

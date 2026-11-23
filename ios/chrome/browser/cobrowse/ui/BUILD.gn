@@ -47,6 +47,7 @@ source_set("eg2_tests") {
     ":constants",
     "//components/omnibox/browser:aim_eligibility_service_features",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/assistant/ui:constants",
     "//ios/chrome/browser/assistant/ui:detent",
     "//ios/chrome/browser/composebox/eg_tests:eg_test_support+eg2",
     "//ios/chrome/browser/composebox/public:features",

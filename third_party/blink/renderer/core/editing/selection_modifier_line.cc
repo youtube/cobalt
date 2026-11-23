@@ -73,9 +73,7 @@ class AbstractLineBox {
         // Pseudo-elements (like ::before/::after) don't have DOM nodes that
         // can be used for caret positioning. Skip lines that only contain
         // pseudo-elements to ensure we find a valid caret position.
-        if (!RuntimeEnabledFeatures::
-                SkipPseudoOnlyLinesInLineNavigationEnabled() ||
-            current.GetLayoutObject()->NonPseudoNode()) {
+        if (current.GetLayoutObject()->NonPseudoNode()) {
           return true;
         }
       }

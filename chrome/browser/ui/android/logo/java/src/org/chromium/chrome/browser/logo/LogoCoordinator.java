@@ -108,6 +108,7 @@ public class LogoCoordinator {
 
         mMediator =
                 new LogoMediator(
+                        context,
                         logoClickedCallback,
                         mLogoModel,
                         onLogoAvailableCallback,

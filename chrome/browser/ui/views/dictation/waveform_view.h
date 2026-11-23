@@ -1,0 +1,92 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef CHROME_BROWSER_UI_VIEWS_DICTATION_WAVEFORM_VIEW_H_
+#define CHROME_BROWSER_UI_VIEWS_DICTATION_WAVEFORM_VIEW_H_
+
+#include <vector>
+
+#include "base/time/time.h"
+#include "base/timer/timer.h"
+#include "chrome/browser/ui/views/dictation/dictation_bubble_ui.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/gfx/animation/animation_delegate.h"
+#include "ui/views/view.h"
+
+namespace gfx {
+class InfiniteAnimation;
+}
+
+namespace dictation {
+
+// A custom View that draws an animated voice waveform consisting of 11 vertical
+// rounded bars. The animation only plays during transcribing, using a
+// spring-damper physics simulation driven by the audio level (simulated by
+// default, but can be overridden by calling SetAudioLevel).
+class WaveformView : public views::View, public gfx::AnimationDelegate {
+  METADATA_HEADER(WaveformView, views::View)
+
+ public:
+  WaveformView();
+  WaveformView(const WaveformView&) = delete;
+  WaveformView& operator=(const WaveformView&) = delete;
+  ~WaveformView() override;
+
+  // Set the current dictation state to control the animation behavior.
+  void SetState(DictationBubbleUi::State state);
+  DictationBubbleUi::State state() const { return state_; }
+
+  // Expose a public hook to drive the wave with real mic volume (0.0 to 1.0).
+  // Calling this will automatically disable the internal speech simulation.
+  void SetAudioLevel(float level);
+
+  // views::View:
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+  void OnPaint(gfx::Canvas* canvas) override;
+  void AddedToWidget() override;
+  void RemovedFromWidget() override;
+
+  // gfx::AnimationDelegate:
+  void AnimationProgressed(const gfx::Animation* animation) override;
+
+ private:
+  // Animation update ticks (running at 60 FPS).
+  void UpdateSimulatedAudio(base::TimeDelta delta);
+  void UpdatePhysics(base::TimeDelta delta);
+  float GetTargetHeightForBar(size_t index,
+                              double time_sec,
+                              float min_height,
+                              float max_height) const;
+
+  DictationBubbleUi::State state_ = DictationBubbleUi::State::kInactive;
+
+  // Animation timer and tracking.
+  std::unique_ptr<gfx::InfiniteAnimation> animation_;
+  base::TimeTicks last_update_time_;
+
+  // Audio level and ripple history.
+  float audio_level_ = 0.0f;
+  bool is_using_simulated_audio_ = true;
+  std::vector<float> audio_history_;
+  base::TimeDelta history_timer_;
+
+  // Physics state for the 11 bars.
+  struct BarState {
+    float height = 3.0f;
+    float target_height = 3.0f;
+    float velocity = 0.0f;
+  };
+  std::vector<BarState> bars_;
+
+  // Simulated speech envelope generator state.
+  float simulated_speech_energy_ = 0.0f;
+  float simulated_target_energy_ = 0.0f;
+  base::TimeDelta simulated_energy_duration_;
+  base::TimeDelta simulated_energy_elapsed_;
+};
+
+}  // namespace dictation
+
+#endif  // CHROME_BROWSER_UI_VIEWS_DICTATION_WAVEFORM_VIEW_H_

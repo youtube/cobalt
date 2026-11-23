@@ -153,7 +153,7 @@ class TranslationViewWrapperBase : public ui::SimpleMenuModel::Delegate,
   raw_ptr<views::Label> translation_header_text_;
   int source_language_button_index_ = -1;
   int target_language_button_index_ = -1;
-  std::vector<LanguageButton*> language_buttons_;
+  std::vector<raw_ptr<LanguageButton>> language_buttons_;
   raw_ptr<views::ImageView> translate_icon_;
   raw_ptr<views::View> translate_indicator_container_;
   std::u16string source_language_text_;

@@ -42,7 +42,6 @@
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/openscreen/src/cast/common/public/cast_streaming_app_ids.h"
@@ -533,7 +532,6 @@ class CastActivityManagerTest : public testing::Test,
 
  protected:
   content::BrowserTaskEnvironment task_environment_;
-  data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
   NiceMock<MockMojoMediaRouter> mock_router_;
   mojo::Remote<mojom::MediaRouter> router_remote_;
   std::unique_ptr<mojo::Receiver<mojom::MediaRouter>> router_receiver_;
@@ -731,13 +729,10 @@ TEST_F(CastActivityManagerTest, LaunchSessionTerminatesExistingSessionFromTab) {
 
   // Launch a new session from the same tab on a different sink.
   auto source = CastMediaSource::FromMediaSourceId(MakeSourceId(kAppId2));
-  // Use LaunchSessionParsed() instead of LaunchSession() here because
-  // LaunchSessionParsed() is called asynchronously and will fail the test.
-  manager_->LaunchSessionParsed(
+  manager_->LaunchSession(
       *source, sink2_, kPresentationId2, origin_, kFrameTreeNodeId,
       base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionSuccess,
-                     base::Unretained(this)),
-      data_decoder::DataDecoder::ValueOrError());
+                     base::Unretained(this)));
 }
 
 TEST_F(CastActivityManagerTest, LaunchSessionTerminatesPendingLaunchFromTab) {
@@ -747,13 +742,10 @@ TEST_F(CastActivityManagerTest, LaunchSessionTerminatesPendingLaunchFromTab) {
 
   // Launch a new session from the same tab on a different sink.
   auto source = CastMediaSource::FromMediaSourceId(MakeSourceId(kAppId2));
-  // Use LaunchSessionParsed() instead of LaunchSession() here because
-  // LaunchSessionParsed() is called asynchronously and will fail the test.
-  manager_->LaunchSessionParsed(
+  manager_->LaunchSession(
       *source, sink2_, kPresentationId2, origin_, kFrameTreeNodeId,
       base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionSuccess,
-                     base::Unretained(this)),
-      data_decoder::DataDecoder::ValueOrError());
+                     base::Unretained(this)));
 }
 
 TEST_F(CastActivityManagerTest, AddRemoveNonLocalActivity) {
@@ -918,11 +910,10 @@ TEST_F(CastActivityManagerTest, StartSessionAndRemoveExistingSessionOnSink) {
         launch_session_callback_ = std::move(callback);
       }));
   auto source = CastMediaSource::FromMediaSourceId(MakeSourceId(kAppId2));
-  manager_->LaunchSessionParsed(
+  manager_->LaunchSession(
       *source, sink_, kPresentationId2, origin_, kFrameTreeNodeId2,
       base::BindOnce(&CastActivityManagerTest::ExpectLaunchSessionSuccess,
-                     base::Unretained(this)),
-      data_decoder::DataDecoder::ValueOrError());
+                     base::Unretained(this)));
   RunUntilIdle();
   ReceiveLaunchSuccessResponseFromReceiver(kAppId2);
 

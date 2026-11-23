@@ -179,7 +179,6 @@ TEST_F(OpenTabProviderTest, KeywordMode) {
   // to match "google".
   AutocompleteInput input(u"@tabs google", metrics::OmniboxEventProto::OTHER,
                           TestSchemeClassifier());
-  input.set_prefer_keyword(true);
   input.set_in_keyword_mode(true);
   open_tab_provider().Start(input, /*minimal_changes=*/false);
 

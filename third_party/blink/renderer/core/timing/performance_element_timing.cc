@@ -25,7 +25,7 @@ PerformanceElementTiming* PerformanceElementTiming::Create(
     const AtomicString& id,
     Element* element,
     DOMWindow* source,
-    uint32_t navigation_id) {
+    uint64_t navigation_id) {
   // It is possible to 'paint' images which have naturalWidth or naturalHeight
   // equal to 0.
   DCHECK_GE(naturalWidth, 0);
@@ -51,8 +51,12 @@ PerformanceElementTiming::PerformanceElementTiming(
     const AtomicString& id,
     Element* element,
     DOMWindow* source,
-    uint32_t navigation_id)
-    : PerformanceEntry(/*duration=*/0.0, name, start_time, source, navigation_id),
+    uint64_t navigation_id)
+    : PerformanceEntry(/*duration=*/0.0,
+                       name,
+                       start_time,
+                       source,
+                       navigation_id),
       element_(element),
       intersection_rect_(DOMRectReadOnly::FromRectF(intersection_rect)),
       render_time_(render_time),

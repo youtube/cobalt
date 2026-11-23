@@ -26,7 +26,7 @@ class MockPasswordManagerClient
  public:
   MOCK_METHOD(bool,
               IsSavingAndFillingEnabled,
-              (const GURL&),
+              (const url::Origin&, base::optional_ref<const GURL>),
               (const, override));
 };
 

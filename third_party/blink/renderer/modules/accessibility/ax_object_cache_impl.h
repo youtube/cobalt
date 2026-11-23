@@ -285,6 +285,29 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   // this child, if one exists.
   void ChildrenChangedOnAncestorOf(AXObject*);
 
+  // Marks the extent of AXObject::UpdateCachedAttributeValuesIfNeeded().
+  // Inside this scope, NotifyParentChildrenChanged() invalidates ancestors
+  // immediately but queues the ChildrenChangedWithCleanLayout() dispatch,
+  // because dispatching it during an ongoing update can restructure the tree
+  // and detach the object whose cached values are still being recomputed.
+  // The outermost scope processes the queue after the recomputation completes.
+  class MODULES_EXPORT ScopedCachedAttributeValuesUpdate {
+    STACK_ALLOCATED();
+
+   public:
+    explicit ScopedCachedAttributeValuesUpdate(AXObjectCacheImpl& cache);
+    ~ScopedCachedAttributeValuesUpdate();
+
+    ScopedCachedAttributeValuesUpdate(
+        const ScopedCachedAttributeValuesUpdate&) = delete;
+    ScopedCachedAttributeValuesUpdate& operator=(
+        const ScopedCachedAttributeValuesUpdate&) = delete;
+
+   private:
+    AXObjectCacheImpl& cache_;
+    bool was_in_cached_attribute_values_update_;
+  };
+
   const Element* RootAXEditableElement(const Node*) override;
 
   // Called when aspects of the style (e.g. color, alignment) change.
@@ -1233,6 +1256,16 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   // Help de-dupe processing of repetitive events.
   HashSet<AXID> nodes_with_pending_children_changed_;
 
+  // True from the construction of the outermost
+  // ScopedCachedAttributeValuesUpdate until it has finished dispatching the
+  // queued children-changed notifications; see that class for details.
+  bool in_cached_attribute_values_update_ = false;
+
+  // Included ancestors awaiting ChildrenChangedWithCleanLayout() once the
+  // outermost ScopedCachedAttributeValuesUpdate exits. Deduped by pointer at
+  // enqueue time.
+  HeapVector<Member<AXObject>, 1> queued_children_changed_ancestors_;
+
   // Nodes with document markers that have received accessibility updates.
   HashSet<AXID> nodes_with_spelling_or_grammar_markers_;
 
@@ -1402,6 +1435,11 @@ class MODULES_EXPORT AXObjectCacheImpl : public AXObjectCacheBase {
   FRIEND_TEST_ALL_PREFIXES(AccessibilityTest,
                            UpdateAXForAllDocumentsAfterPausedUpdates);
   FRIEND_TEST_ALL_PREFIXES(AccessibilityTest, RemoveReferencesToAXID);
+  FRIEND_TEST_ALL_PREFIXES(AccessibilityTest,
+                           QueuedChildrenChangedFlattensReentrantDispatch);
+  FRIEND_TEST_ALL_PREFIXES(
+      AccessibilityTest,
+      UpdateChildrenIfNecessaryToleratesDetachDuringCachedValueUpdate);
   FRIEND_TEST_ALL_PREFIXES(AccessibilityTest, NodesRequiringCacheUpdate);
   FRIEND_TEST_ALL_PREFIXES(AccessibilityTest,
                            SetMenuListOptionsBoundsBasePickerClearsState);

@@ -43,4 +43,9 @@ message ScamDetectionResponse {
 
   // Intent of the page, if it was detected.
   string intent = 2 [features = { field_presence: EXPLICIT }];
+
+  // The likelihood of the page being a scam. This score is between 0 and 1,
+  // where 1 indicates a high likelihood of a scam and 0 indicates a low
+  // likelihood of a scam.
+  float scam_score = 3 [features = { field_presence: EXPLICIT }];
 }

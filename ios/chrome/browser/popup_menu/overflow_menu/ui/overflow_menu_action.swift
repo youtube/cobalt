@@ -23,6 +23,13 @@ import Combine
   /// An optional subtitle to be displayed under the main title.
   @Published public var subtitle: String? = nil
 
+  /// The optional tint color of the action's symbol.
+  @Published public var symbolTintColor: UIColor? = nil
+
+  /// The image representing the active background preview (if any).
+  /// Note: A preview circle will not appear in the action row unless this property is non-nil.
+  @Published public var previewImage: UIImage? = nil
+
   /// The optional user avatar image for signed-in state, the image needs to be 40x40.
   @Published public var image: UIImage? = nil
 

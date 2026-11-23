@@ -78,6 +78,7 @@ No podrás guardar marcadores nuevos en tu cuenta hasta que elimines algunos. Si
 <translation id="2386292341327187942">En el cuadro de búsqueda de widgets, escribe Chromium</translation>
 <translation id="2389827884654658221">Accede más rápido a Chromium desde la pantalla de inicio de tu iPad.</translation>
 <translation id="2426113998523353159">Tu organización requiere que inicies sesión para usar Chromium.</translation>
+<translation id="244367646885670394">Verifica que eres tú para guardar esta contraseña y acceder a datos de Chromium en todos tus dispositivos</translation>
 <translation id="2450140762465183767">Ahora puedes usar Chromium cada vez que toques enlaces de mensajes, documentos y otras aplicaciones.</translation>
 <translation id="2459183986985456602">Abre mi última pestaña en Chromium.</translation>
 <translation id="2476409803017965813">Puedes cambiar tu selección en cualquier momento desde la configuración de Chromium.</translation>
@@ -108,6 +109,7 @@ Si quieres ver más ajustes que usan datos para mejorar tu experiencia con Chrom
 <translation id="3054480780637153380">En iOS, ve a Ajustes, selecciona Chromium, toca Navegador predeterminado y elige Chromium.</translation>
 <translation id="3115956258722352278">¿Establecer Chromium como navegador predeterminado?</translation>
 <translation id="3180939591219927904">Activa Bloquear las pestañas de Incógnito al cerrar Chromium</translation>
+<translation id="327628223428512207">Introduce la frase de contraseña para guardar esta contraseña y acceder a datos de Chromium en todos tus dispositivos</translation>
 <translation id="328933489847748230">{count,plural, =1{Mostrando 1 ventana de Chromium}other{Mostrando {count} ventanas de Chromium}}</translation>
 <translation id="3344973607274501920">Chromium no ha podido comprobar tus contraseñas. Revisa tu conexión a Internet.</translation>
 <translation id="3366305173356742781">Datos de Chromium en tu cuenta</translation>

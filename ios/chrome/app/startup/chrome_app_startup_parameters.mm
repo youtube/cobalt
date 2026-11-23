@@ -14,6 +14,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/password_manager/core/browser/manage_passwords_referrer.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
+#import "ios/chrome/browser/google_one/shared/google_one_deep_link_util.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -362,8 +363,16 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
     if (!externalURL.is_valid()) {
       return nil;
     }
+    GURL urlToOpen = externalURL;
+    GURL googleOneURL;
+    BOOL isGoogleOneDeepLink = IsGoogleOneDeepLinkEnabled() &&
+                               IsGoogleOneDeepLinkURL(parsedURL, &googleOneURL);
+    if (isGoogleOneDeepLink) {
+      urlToOpen = GURL();
+      completeURL = net::NSURLWithGURL(googleOneURL);
+    }
     ChromeAppStartupParameters* params = [[ChromeAppStartupParameters alloc]
-         initWithExternalURL:externalURL
+         initWithExternalURL:urlToOpen
            declaredSourceApp:appID
              secureSourceApp:nil
                  completeURL:completeURL
@@ -372,6 +381,9 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
     params.openedWithURL = YES;
     params.openedViaFirstPartyScheme =
         openedViaSpecificScheme && CallerAppIsFirstParty(params.callerApp);
+    if (isGoogleOneDeepLink) {
+      params.postOpeningAction = SHOW_GOOGLE_ONE_SCREEN;
+    }
     return params;
   }
 }

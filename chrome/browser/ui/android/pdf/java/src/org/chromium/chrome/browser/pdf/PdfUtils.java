@@ -380,6 +380,16 @@ public class PdfUtils {
         return isPlatformSupported();
     }
 
+    /**
+     * Checks whether the inline PDF V2 download feature is enabled.
+     *
+     * @return {@code true} if the inline PDF V2 download feature is enabled, {@code false}
+     *     otherwise.
+     */
+    public static boolean isInlinePdfV2DownloadEnabled() {
+        return isInlinePdfV2Enabled() && ChromeFeatureList.sInlinePdfV2Download.isEnabled();
+    }
+
     /** Returns {@code true} if {@link PdfViewFragment} is reused on activity restart. */
     public static boolean isReuseFragmentEnabled() {
         return ChromeFeatureList.isEnabled(ChromeFeatureList.PDF_REUSE_FRAGMENT);

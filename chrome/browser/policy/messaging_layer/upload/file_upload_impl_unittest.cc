@@ -23,6 +23,7 @@
 #include "base/sequence_checker.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/policy/uploading/upload_job_impl.h"
@@ -42,6 +43,7 @@
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
+#include "services/network/public/cpp/resource_request.h"
 #include "services/network/test/test_network_context.h"
 #include "services/network/test/test_network_context_client.h"
 #include "services/network/test/test_shared_url_loader_factory.h"
@@ -220,6 +222,61 @@ class FakeOAuth2AccessTokenManagerDelegate
     return CoreAccountId::FromEmail(kRobotAccountId) == account_id;
   }
 };
+
+class InterceptingURLLoaderFactory : public ::network::SharedURLLoaderFactory {
+ public:
+  explicit InterceptingURLLoaderFactory(
+      scoped_refptr<::network::SharedURLLoaderFactory> impl)
+      : impl_(std::move(impl)) {}
+
+  void CreateLoaderAndStart(
+      ::mojo::PendingReceiver<::network::mojom::URLLoader> loader,
+      int32_t request_id,
+      uint32_t options,
+      const ::network::ResourceRequest& request,
+      ::mojo::PendingRemote<::network::mojom::URLLoaderClient> client,
+      const ::net::MutableNetworkTrafficAnnotationTag& traffic_annotation)
+      override {
+    {
+      base::AutoLock auto_lock(lock_);
+      intercepted_requests_.push_back(request);
+    }
+    impl_->CreateLoaderAndStart(std::move(loader), request_id, options, request,
+                                std::move(client), traffic_annotation);
+  }
+
+  void Clone(::mojo::PendingReceiver<::network::mojom::URLLoaderFactory>
+                 receiver) override {
+    impl_->Clone(std::move(receiver));
+  }
+
+  std::unique_ptr<::network::PendingSharedURLLoaderFactory> Clone() override {
+    return impl_->Clone();
+  }
+
+  bool BypassRedirectChecks() const override {
+    return impl_->BypassRedirectChecks();
+  }
+
+  std::vector<::network::ResourceRequest> GetInterceptedRequests() {
+    base::AutoLock auto_lock(lock_);
+    return intercepted_requests_;
+  }
+
+  void ClearInterceptedRequests() {
+    base::AutoLock auto_lock(lock_);
+    intercepted_requests_.clear();
+  }
+
+ private:
+  friend class base::RefCounted<InterceptingURLLoaderFactory>;
+  ~InterceptingURLLoaderFactory() override = default;
+
+  scoped_refptr<::network::SharedURLLoaderFactory> impl_;
+  base::Lock lock_;
+  std::vector<::network::ResourceRequest> intercepted_requests_
+      GUARDED_BY(lock_);
+};
 }  // namespace
 
 class FileUploadDelegateTest : public ::testing::Test {
@@ -234,8 +291,8 @@ class FileUploadDelegateTest : public ::testing::Test {
     memory_resource_ =
         base::MakeRefCounted<ResourceManager>(4u * 1024LLu * 1024LLu);  // 4 MiB
 
-    url_loader_factory_ =
-        base::MakeRefCounted<::network::TestSharedURLLoaderFactory>();
+    url_loader_factory_ = base::MakeRefCounted<InterceptingURLLoaderFactory>(
+        base::MakeRefCounted<::network::TestSharedURLLoaderFactory>());
     test_server_.RegisterRequestHandler(base::BindRepeating(
         &FileUploadDelegateTest::HandlePostRequest, base::Unretained(this)));
     ASSERT_TRUE(test_server_.Start());
@@ -247,6 +304,18 @@ class FileUploadDelegateTest : public ::testing::Test {
     FileUploadDelegate::SetAllowedDirectoryForTesting(nullptr);
     ASSERT_TRUE(test_server_.ShutdownAndWaitUntilComplete());
     EXPECT_THAT(memory_resource_->GetUsed(), Eq(0uL));
+    VerifyInterceptedRequests();
+  }
+
+  void VerifyInterceptedRequests() {
+    if (!url_loader_factory_) {
+      return;
+    }
+    for (const auto& request : url_loader_factory_->GetInterceptedRequests()) {
+      EXPECT_EQ(request.credentials_mode,
+                ::network::mojom::CredentialsMode::kOmit);
+    }
+    url_loader_factory_->ClearInterceptedRequests();
   }
 
   std::unique_ptr<FileUploadDelegate> PrepareFileUploadDelegate() {
@@ -362,7 +431,7 @@ class FileUploadDelegateTest : public ::testing::Test {
   base::ScopedTempDir temp_dir_;
   base::FilePath origin_path_;
   ::net::EmbeddedTestServer test_server_;
-  scoped_refptr<::network::TestSharedURLLoaderFactory> url_loader_factory_;
+  scoped_refptr<InterceptingURLLoaderFactory> url_loader_factory_;
   FakeOAuth2AccessTokenManagerDelegate token_manager_delegate_;
 };
 
@@ -1074,5 +1143,45 @@ TEST_F(FileUploadDelegateTest, DeleteFileRejectsUnsafePaths) {
   // The file should NOT have been deleted because it resides outside the
   // allowed directory!
   EXPECT_TRUE(base::PathExists(unsafe_file));
+}
+
+TEST_F(FileUploadDelegateTest, RejectNonGoogleResumableUploadUrlOnNextStep) {
+  // Prepare the delegate.
+  std::unique_ptr<FileUploadJob::Delegate> delegate =
+      PrepareFileUploadDelegate();
+
+  test::TestEvent<
+      StatusOr<std::pair<int64_t /*uploaded*/, std::string /*session_token*/>>>
+      step_done;
+  delegate->DoNextStep(kTestDataSize, kMaxUploadBufferSize,
+                       /*session_token=*/
+                       base::StrCat({origin_path(), "\n",
+                                     "http://malicious-attacker.com/upload"}),
+                       ScopedReservation(0uL, memory_resource_),
+                       step_done.cb());
+  const auto& result = step_done.result();
+  ASSERT_FALSE(result.has_value());
+  EXPECT_THAT(result.error(),
+              AllOf(Property(&Status::error_code, Eq(error::DATA_LOSS)),
+                    Property(&Status::error_message,
+                             StartsWith("Corrupt resumable upload URL="))));
+}
+
+TEST_F(FileUploadDelegateTest, RejectNonGoogleResumableUploadUrlOnFinalize) {
+  // Prepare the delegate.
+  std::unique_ptr<FileUploadJob::Delegate> delegate =
+      PrepareFileUploadDelegate();
+
+  test::TestEvent<StatusOr<std::string /*access_parameters*/>> finish_done;
+  delegate->DoFinalize(
+      /*session_token=*/base::StrCat(
+          {origin_path(), "\n", "http://malicious-attacker.com/upload"}),
+      finish_done.cb());
+  const auto& result = finish_done.result();
+  ASSERT_FALSE(result.has_value());
+  EXPECT_THAT(result.error(),
+              AllOf(Property(&Status::error_code, Eq(error::DATA_LOSS)),
+                    Property(&Status::error_message,
+                             StartsWith("Corrupt resumable upload URL="))));
 }
 }  // namespace reporting

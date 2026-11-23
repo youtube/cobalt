@@ -79,6 +79,7 @@ source_set("impl") {
   deps = [
     "//chrome/app/resources:locale_settings",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/search:search",
     "//chrome/common",
     "//components/language/core/browser",
     "//components/policy:generated",
@@ -107,12 +108,9 @@ source_set("impl") {
 source_set("unit_tests") {
   testonly = true
 
+  # spellcheck_service_unittest.cc has file-scope statics of
+  # non-trivial-destructor types, which -Wexit-time-destructors rejects.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
-  # These tests pre-date strict sign-comparison warnings; relax to the warning
-  # posture they had while compiled in //chrome/test.
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [ "//build/config/compiler:no_chromium_code" ]
 
   sources = [ "spellcheck_custom_dictionary_unittest.cc" ]
 
@@ -159,12 +157,10 @@ if (!is_android) {
   source_set("browser_tests") {
     testonly = true
 
+    # spellcheck_service_browsertest.cc has file-scope statics of
+    # non-trivial-destructor types, which -Wexit-time-destructors rejects.
     configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 
-    # These tests pre-date strict sign-comparison warnings; relax to the warning
-    # posture they had while compiled in //chrome/test.
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = []
@@ -199,12 +195,6 @@ if (is_mac) {
   source_set("interactive_ui_tests") {
     testonly = true
 
-    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
-
-    # These tests pre-date strict sign-comparison warnings; relax to the warning
-    # posture they had while compiled in //chrome/test.
-    configs -= [ "//build/config/compiler:chromium_code" ]
-    configs += [ "//build/config/compiler:no_chromium_code" ]
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [ "spellcheck_mac_view_interactive_uitest.mm" ]

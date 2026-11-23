@@ -162,12 +162,31 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   [self.geminiViewStateDelegate didSwitchToViewState:viewState];
 }
 
+// TODO(crbug.com/526669545): Remove this method once the dormantReason is fully
+// plugged in.
 - (void)didUpdateProcessingStatus:(ios::provider::GeminiClientMode)processStatus
                         sessionID:(NSString*)sessionID
                    conversationID:(NSString*)conversationID {
   [self.geminiViewStateDelegate didUpdateProcessingStatus:processStatus
                                                 sessionID:sessionID
                                            conversationID:conversationID];
+}
+
+- (void)didUpdateProcessingStatus:(ios::provider::GeminiClientMode)processStatus
+                    dormantReason:
+                        (ios::provider::GeminiDormantReason)dormantReason
+                        sessionID:(NSString*)sessionID
+                   conversationID:(NSString*)conversationID {
+  if (IsGeminiLiveDormantReasonsEnabled()) {
+    [self.geminiViewStateDelegate didUpdateProcessingStatus:processStatus
+                                              dormantReason:dormantReason
+                                                  sessionID:sessionID
+                                             conversationID:conversationID];
+  } else {
+    [self.geminiViewStateDelegate didUpdateProcessingStatus:processStatus
+                                                  sessionID:sessionID
+                                             conversationID:conversationID];
+  }
 }
 
 // TODO(crbug.com/504596190): Remove this method when internal code doesn't use
@@ -199,46 +218,7 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
 
 - (void)UIDidDisappearWithClientID:(NSString*)clientID
                           serverID:(NSString*)serverID {
-  [_geminiHandler dismissGeminiFlowWithCompletion:nil];
-
-  web::WebState* webState = [self webStateWithClientID:clientID];
-  if (!webState) {
-    return;
-  }
-  // Get the GeminiTabHelper from the WebState.
-  GeminiTabHelper* geminiTabHelper = GeminiTabHelper::FromWebState(webState);
-  // WebState should always be valid as long as the tab is open.
-  if (!geminiTabHelper) {
-    // Early exit if no valid tab helper is found.
-    return;
-  }
-  bool isFirstSession = geminiTabHelper->GetIsFirstRun();
-  geminiTabHelper->SetIsFirstRun(false);
-
-  // Record session duration.
-  if (!_sessionStartTime.is_null()) {
-    base::TimeDelta session_duration =
-        base::TimeTicks::Now() - _sessionStartTime;
-
-    // Determine session type.
-    IOSGeminiSessionType session_type;
-    if (_hasSubmittedFirstPrompt) {
-      session_type = IOSGeminiSessionType::kWithPrompt;
-    } else {
-      session_type = IOSGeminiSessionType::kAbandoned;
-    }
-
-    RecordGeminiSessionLengthByType(session_duration, isFirstSession,
-                                    session_type);
-    RecordGeminiSessionTime(session_duration);
-    _sessionStartTime = base::TimeTicks();
-  }
-  // Reset latency tracking on session end.
-  _waitingForResponse = NO;
-  _lastPromptSentTime = base::TimeTicks();
-  // Record prompt counts for the session.
-  RecordSessionPromptCount(_totalPromptsInSession);
-  RecordSessionFirstPrompt(_hasSubmittedFirstPrompt);
+  [self dismissAndRecordMetrics];
 }
 
 - (void)startReceivingResponseWithSessionID:(NSString*)sessionID
@@ -413,6 +393,10 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
                                          }];
 }
 
+- (void)didRequestDismissal {
+  [self dismissAndRecordMetrics];
+}
+
 #pragma mark - Private
 
 // Finds the web state with the given client ID as unique identifier.
@@ -441,6 +425,35 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
   gemini::CreateOrUpdateConversationIdPrefs(base::SysNSStringToUTF8(serverID),
                                             webState->GetVisibleURL().spec(),
                                             _prefService);
+}
+
+- (void)dismissAndRecordMetrics {
+  [_geminiHandler dismissGeminiFlowWithCompletion:nil];
+
+  // Record session duration.
+  if (!_sessionStartTime.is_null()) {
+    base::TimeDelta session_duration =
+        base::TimeTicks::Now() - _sessionStartTime;
+
+    // Determine session type.
+    IOSGeminiSessionType session_type;
+    if (_hasSubmittedFirstPrompt) {
+      session_type = IOSGeminiSessionType::kWithPrompt;
+    } else {
+      session_type = IOSGeminiSessionType::kAbandoned;
+    }
+
+    RecordGeminiSessionLengthByType(session_duration, _isFirstSession,
+                                    session_type);
+    RecordGeminiSessionTime(session_duration);
+    _sessionStartTime = base::TimeTicks();
+  }
+  // Reset latency tracking on session end.
+  _waitingForResponse = NO;
+  _lastPromptSentTime = base::TimeTicks();
+  // Record prompt counts for the session.
+  RecordSessionPromptCount(_totalPromptsInSession);
+  RecordSessionFirstPrompt(_hasSubmittedFirstPrompt);
 }
 
 @end

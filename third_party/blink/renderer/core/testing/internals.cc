@@ -3442,7 +3442,7 @@ String Internals::selectedHTMLForClipboard() {
   // Selection normalization and markup generation require clean layout.
   GetFrame()->GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kTest);
 
-  return GetFrame()->Selection().SelectedHTMLForClipboard();
+  return GetFrame()->Selection().SelectedHtmlForClipboard();
 }
 
 String Internals::selectedTextForClipboard() {

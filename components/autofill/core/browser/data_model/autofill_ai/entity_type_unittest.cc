@@ -190,7 +190,7 @@ TEST(AutofillEntityTypeTest, AttributeGetNameForI18n) {
   AttributeType k = AttributeType(kShipmentCarrierName);
   AttributeType l = AttributeType(kShipmentCarrierDomain);
   AttributeType m = AttributeType(kShipmentDeliveryZipCode);
-  AttributeType n = AttributeType(kShipmentEstimatedDeliveryDate);
+  AttributeType n = AttributeType(kShipmentShippedDate);
   AttributeType o = AttributeType(kShipmentOrderIds);
   AttributeType p = AttributeType(kShipmentOrderDates);
   AttributeType q = AttributeType(kShipmentMerchantName);
@@ -211,7 +211,7 @@ TEST(AutofillEntityTypeTest, AttributeGetNameForI18n) {
   EXPECT_EQ(k.GetNameForI18n(), u"Carrier name");
   EXPECT_EQ(l.GetNameForI18n(), u"Carrier domain");
   EXPECT_EQ(m.GetNameForI18n(), u"Delivery zip code");
-  EXPECT_EQ(n.GetNameForI18n(), u"Estimated delivery date");
+  EXPECT_EQ(n.GetNameForI18n(), u"Shipped date");
   EXPECT_EQ(o.GetNameForI18n(), u"Order ids");
   EXPECT_EQ(p.GetNameForI18n(), u"Order dates");
   EXPECT_EQ(q.GetNameForI18n(), u"Merchant name");

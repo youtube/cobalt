@@ -23,8 +23,7 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
-import org.chromium.base.test.util.Features;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.ImportantFormFactors;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -55,10 +54,8 @@ public class TabSwitcherPanePublicTransitTest {
 
     @Test
     @MediumTest
-    @DisableIf.Device(
-            DeviceFormFactor.DESKTOP) // TODO(crbug.com/479863847): Test failing on Desktop bot
-    // TODO(crbug.com/457847264): Test disabled for Incognito windowing.
-    @Features.DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    // TODO(crbug.com/457847264): Change to @Restriction(DeviceFormFactor.PHONE) after launch
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testSwitchTabModel_ScrollToSelectedTab() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();
@@ -104,7 +101,7 @@ public class TabSwitcherPanePublicTransitTest {
     @Test
     @MediumTest
     // TODO(crbug.com/457847264): Test disabled for Incognito windowing.
-    @Features.DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
     public void testEmptyStateView() {
         WebPageStation firstPage = mCtaTestRule.startOnBlankPage();
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();

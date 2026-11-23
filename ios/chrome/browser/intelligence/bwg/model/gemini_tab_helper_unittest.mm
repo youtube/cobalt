@@ -25,6 +25,7 @@
 #import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #import "components/signin/public/identity_manager/identity_test_utils.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/unified_consent/pref_names.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
@@ -49,6 +50,8 @@
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/public/provider/chrome/browser/bwg/gemini_api.h"
 #import "ios/web/public/test/fakes/fake_navigation_context.h"
@@ -59,6 +62,10 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 #import "url/gurl.h"
+
+namespace ios::provider {
+void SetMockProtectedUrl(bool is_protected);
+}
 
 class GeminiTabHelperTest : public PlatformTest {
  protected:
@@ -79,6 +86,8 @@ class GeminiTabHelperTest : public PlatformTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    builder.AddTestingFactory(SyncServiceFactory::GetInstance(),
+                              base::BindRepeating(&CreateTestSyncService));
     builder.AddTestingFactory(
         IdentityManagerFactory::GetInstance(),
         base::BindRepeating(IdentityTestEnvironmentBrowserStateAdaptor::
@@ -112,6 +121,11 @@ class GeminiTabHelperTest : public PlatformTest {
         mock_location_bar_badge_handler_);
     mock_help_handler_ = OCMProtocolMock(@protocol(HelpCommands));
     tab_helper_->SetHelpCommandsHandler(mock_help_handler_);
+  }
+
+  void TearDown() override {
+    ios::provider::SetMockProtectedUrl(false);
+    PlatformTest::TearDown();
   }
 
   // Environment objects are declared first, so they are destroyed last.
@@ -317,8 +331,6 @@ TEST_F(GeminiTabHelperTest, TestShouldShowSuggestionChips) {
   web_state_->SetCurrentURL(GURL("https://www.not-google.com"));
   ASSERT_TRUE(tab_helper_->ShouldShowSuggestionChips());
 }
-
-
 
 TEST_F(GeminiTabHelperTest, TestDidStartNavigation_ShowsImageRemixTooltip) {
   feature_engagement::test::ScopedIphFeatureList iph_feature_list;
@@ -792,6 +804,25 @@ TEST_F(GeminiTabHelperTest,
   GeminiTabHelper::CreateForWebState(web_state_.get());
   tab_helper_ = GeminiTabHelper::FromWebState(web_state_.get());
   EXPECT_FALSE(tab_helper_->IsGeminiAvailableForWebState());
+}
+
+// Tests that Gemini availability handles protected URLs.
+TEST_F(GeminiTabHelperTest, IsContextualEntryPointAllowed_ProtectedURL) {
+  web_state_->SetBrowserState(profile_.get());
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->SetContentsMimeType("text/html");
+  GeminiTabHelper::CreateForWebState(web_state_.get());
+  tab_helper_ = GeminiTabHelper::FromWebState(web_state_.get());
+
+  // Contextual entry points are allowed on an unprotected URL.
+  ios::provider::SetMockProtectedUrl(false);
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
+  EXPECT_TRUE(tab_helper_->IsContextualEntryPointAllowed());
+
+  // Contextual entry points are blocked on a protected URL.
+  ios::provider::SetMockProtectedUrl(true);
+  EXPECT_TRUE(tab_helper_->IsGeminiAvailableForWebState());
+  EXPECT_FALSE(tab_helper_->IsContextualEntryPointAllowed());
 }
 
 // Tests that Gemini is not available for a web state when the URL is an AIM

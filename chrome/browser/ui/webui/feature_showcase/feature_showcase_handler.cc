@@ -9,14 +9,22 @@
 FeatureShowcaseHandler::FeatureShowcaseHandler(
     mojo::PendingReceiver<feature_showcase::mojom::FeatureShowcasePageHandler>
         receiver,
-    base::OnceClosure finish_callback)
+    base::OnceClosure finish_callback,
+    base::RepeatingClosure next_step_shown_callback)
     : receiver_(this, std::move(receiver)),
-      finish_callback_(std::move(finish_callback)) {}
+      finish_callback_(std::move(finish_callback)),
+      next_step_shown_callback_(std::move(next_step_shown_callback)) {}
 
 FeatureShowcaseHandler::~FeatureShowcaseHandler() = default;
 
 void FeatureShowcaseHandler::FinishFeatureShowcase() {
   if (finish_callback_) {
     std::move(finish_callback_).Run();
+  }
+}
+
+void FeatureShowcaseHandler::NextStepShown() {
+  if (next_step_shown_callback_) {
+    next_step_shown_callback_.Run();
   }
 }

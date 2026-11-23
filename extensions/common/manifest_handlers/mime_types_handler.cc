@@ -257,8 +257,10 @@ bool MimeTypesHandlerParser::Parse(extensions::Extension* extension,
   // Legacy format: "mime_types" list + "mime_types_handler" string.
   const base::Value* mime_types_value = nullptr;
   if (!extension->manifest()->GetList(keys::kMIMETypes, &mime_types_value)) {
-    *error = errors::kInvalidMimeTypesHandler;
-    return false;
+    // "mime_types" is restricted to allowlisted extensions; a non-allowlisted
+    // extension can reach this point via the public "mime_types_handler" grant,
+    // so its absence means no legacy handler rather than a manifest error.
+    return true;
   }
 
   std::vector<std::string> mime_types;

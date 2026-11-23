@@ -52,7 +52,6 @@
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
 #endif
 #include "components/services/storage/storage_service_impl.h"
-#include "components/variations/net/omnibox_autofocus_http_headers.h"
 #include "components/variations/net/variations_http_headers.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 #include "content/browser/aggregation_service/aggregation_service.h"
@@ -77,6 +76,7 @@
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/browser/code_cache/generated_code_cache_context.h"
 #include "content/browser/cookie_store/cookie_store_manager.h"
+#include "content/browser/declarative_performance_observer/declarative_performance_observer_store.h"
 #include "content/browser/devtools/devtools_background_services_context_impl.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/devtools_url_loader_interceptor.h"
@@ -926,6 +926,8 @@ class StoragePartitionImpl::DataDeletionHelper {
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
       network::mojom::DeviceBoundSessionManager* device_bound_session_manager,
       KeepAliveURLLoaderService* keep_alive_url_loader_service,
+      DeclarativePerformanceObserverStore*
+          declarative_performance_observer_store,
       bool perform_storage_cleanup,
       const base::Time begin,
       const base::Time end);
@@ -950,7 +952,8 @@ class StoragePartitionImpl::DataDeletionHelper {
     kInterestGroups = 13,
     kCdmStorage = 14,
     kDeviceBoundSessions = 15,
-    kMaxValue = kDeviceBoundSessions,
+    kDeclarativePerformanceObserver = 16,
+    kMaxValue = kDeclarativePerformanceObserver,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/history/enums.xml:StoragePartitionRemoverTasks)
 
@@ -1236,6 +1239,10 @@ void StoragePartitionImpl::OnBrowserContextWillBeDestroyed() {
 
   if (keep_alive_url_loader_service_) {
     keep_alive_url_loader_service_->Shutdown();
+  }
+
+  if (declarative_performance_observer_store_) {
+    declarative_performance_observer_store_->Close();
   }
 }
 
@@ -1624,6 +1631,13 @@ void StoragePartitionImpl::Initialize(
                                                         this);
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
+
+  if (base::FeatureList::IsEnabled(
+          network::features::kDeclarativePerformanceObserver)) {
+    declarative_performance_observer_store_ =
+        std::make_unique<DeclarativePerformanceObserverStore>(is_in_memory(),
+                                                              path);
+  }
 }
 
 void StoragePartitionImpl::ResetSessionStorageConnections() {
@@ -2981,7 +2995,8 @@ void StoragePartitionImpl::ClearDataImpl(
       cdm_storage_manager_.get(),
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
       GetDeviceBoundSessionManager(), GetKeepAliveURLLoaderService(),
-      perform_storage_cleanup, begin, end);
+      declarative_performance_observer_store_.get(), perform_storage_cleanup,
+      begin, end);
 }
 
 void StoragePartitionImpl::DeletionHelperDone(base::OnceClosure callback) {
@@ -3089,6 +3104,7 @@ void StoragePartitionImpl::DataDeletionHelper::ClearData(
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
     network::mojom::DeviceBoundSessionManager* device_bound_session_manager,
     KeepAliveURLLoaderService* keep_alive_url_loader_service,
+    DeclarativePerformanceObserverStore* declarative_performance_observer_store,
     bool perform_storage_cleanup,
     const base::Time begin,
     const base::Time end) {
@@ -3125,6 +3141,29 @@ void StoragePartitionImpl::DataDeletionHelper::ClearData(
 
   auto combined_storage_key_matcher = CombineStorageKeyMatcherFunctions(
       storage_key_matcher, storage_key_policy_matcher);
+
+  if (remove_mask_ & REMOVE_DATA_MASK_DECLARATIVE_PERFORMANCE_OBSERVER) {
+    if (declarative_performance_observer_store) {
+      auto completion_callback = CreateTaskCompletionClosure(
+          TracingDataType::kDeclarativePerformanceObserver);
+      if (!storage_key_origin_empty) {
+        declarative_performance_observer_store->ClearDataForOrigin(
+            storage_key.origin(), std::move(completion_callback));
+      } else if (generic_filter.is_null()) {
+        declarative_performance_observer_store->ClearAllData(
+            std::move(completion_callback));
+      } else {
+        auto origin_matcher = base::BindRepeating(
+            [](const StorageKeyMatcherFunction& filter,
+               const url::Origin& origin) {
+              return filter.Run(blink::StorageKey::CreateFirstParty(origin));
+            },
+            generic_filter);
+        declarative_performance_observer_store->ClearDataWithFilter(
+            std::move(origin_matcher), std::move(completion_callback));
+      }
+    }
+  }
 
   if (remove_mask_ & REMOVE_DATA_MASK_COOKIES) {
     // The CookieDeletionFilter has a redundant time interval to `begin` and
@@ -3781,7 +3820,6 @@ void StoragePartitionImpl::InitNetworkContext() {
       GetCorsExemptRequestedWithHeaderName());
   context_params->cors_exempt_header_list.push_back("Last-Event-ID");
   variations::UpdateCorsExemptHeaderForVariations(context_params.get());
-  variations::UpdateCorsExemptHeaderForOmniboxAutofocus(context_params.get());
   cors_exempt_header_list_ = context_params->cors_exempt_header_list;
 
   if (base::FeatureList::IsEnabled(

@@ -17,7 +17,7 @@
 #import "ios/web/public/web_state_observer.h"
 
 // Helper observing the WebStateList and the unrealized WebStates events and
-// forwaring them to the owning TabsDependencyInstaller instance.
+// forwarding them to the owning TabsDependencyInstaller instance.
 class TabsDependencyInstallationHelper : public WebStateListObserver,
                                          public web::WebStateObserver {
  public:
@@ -42,7 +42,7 @@ class TabsDependencyInstallationHelper : public WebStateListObserver,
  private:
   // Invoked when a WebState is inserted/removed. They handle the fact that
   // the WebState may be unrealized (by observing it) or realized (invokes
-  // the correct method of TabDependencyInstaller).
+  // the correct method of TabsDependencyInstaller).
   void OnWebStateAdded(web::WebState* web_state);
   void OnWebStateRemoved(web::WebState* web_state);
 

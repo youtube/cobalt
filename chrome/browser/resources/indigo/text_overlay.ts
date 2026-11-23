@@ -38,6 +38,11 @@ export class IndigoTextOverlayElement extends CrLitElement {
         '--indigo-text-entry-delay', `${TEXT_ENTRY_DELAY_MS}ms`);
   }
 
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.stopSequence();
+  }
+
   protected accessor currentStep_: number = 0;
   protected accessor showIcon_: boolean = false;
 
@@ -54,7 +59,7 @@ export class IndigoTextOverlayElement extends CrLitElement {
       this.entryTimeout_ = null;
 
       this.stepTimer_ = window.setInterval(() => {
-        if (this.currentStep_ < TOTAL_STEPS + 1) {
+        if (this.currentStep_ < TOTAL_STEPS) {
           this.currentStep_++;
         } else {
           this.clearStepTimer_();

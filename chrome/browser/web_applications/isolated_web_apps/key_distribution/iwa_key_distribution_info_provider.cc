@@ -22,7 +22,6 @@
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
 #include "base/types/optional_ref.h"
-#include "chrome/browser/web_applications/isolated_web_apps/key_distribution/features.h"
 #include "chrome/browser/web_applications/isolated_web_apps/key_distribution/iwa_key_distribution_histograms.h"
 #include "components/webapps/isolated_web_apps/key_distribution/proto/key_distribution.pb.h"
 #include "components/webapps/isolated_web_apps/public/iwa_entitlements.h"
@@ -37,11 +36,6 @@ namespace {
 // OnMaybeDownloadedComponentDataReady().
 constexpr base::TimeDelta kDownloadedComponentDataWaitTime = base::Seconds(15);
 
-IwaKeyDistributionInfoProvider::KeyRotations& GetDevModeKeyRotationData() {
-  static base::NoDestructor<IwaKeyDistributionInfoProvider::KeyRotations>
-      dev_mode_kr_data;
-  return *dev_mode_kr_data;
-}
 
 bool GetSkipCaptureStartedNotification(
     const IwaSpecialAppPermissions::SpecialAppPermissions& special_permission) {
@@ -91,6 +85,11 @@ base::TaskPriority GetLoadTaskPriority() {
   return base::TaskPriority::BEST_EFFORT;
 #endif
 }
+void SignalIfNeeded(base::OneShotEvent& event) {
+  if (!event.is_signaled()) {
+    event.Signal();
+  }
+}
 }  // namespace
 
 // static
@@ -123,10 +122,6 @@ void IwaKeyDistributionInfoProvider::SetUp(
 const IwaRuntimeDataProvider::KeyRotationInfo*
 IwaKeyDistributionInfoProvider::GetKeyRotationInfo(
     const std::string& web_bundle_id) const {
-  if (const auto* kr_info =
-          base::FindOrNull(GetDevModeKeyRotationData(), web_bundle_id)) {
-    return kr_info;
-  }
 
   base::UmaHistogramEnumeration(kIwaKeyRotationInfoSource,
                                 GetComponentDataSource());
@@ -379,14 +374,6 @@ IwaKeyDistributionInfoProvider::ParseKeyDistributionData(
               std::move(user_install_allowlist));
 }
 
-void IwaKeyDistributionInfoProvider::RotateKeyForDevMode(
-    base::PassKey<IwaInternalsHandler>,
-    const std::string& web_bundle_id,
-    const std::vector<uint8_t>& rotated_key) {
-  GetDevModeKeyRotationData().insert_or_assign(
-      web_bundle_id, IwaRuntimeDataProvider::KeyRotationInfo(rotated_key));
-  DispatchComponentUpdateSuccess();
-}
 
 base::OneShotEvent&
 IwaKeyDistributionInfoProvider::OnBestEffortRuntimeDataReady() {
@@ -431,13 +418,6 @@ IwaKeyDistributionInfoProvider::OnComponentUpdatedForTesting(
 base::Value IwaKeyDistributionInfoProvider::AsDebugValue() const {
   base::DictValue debug_data;
 
-  if (!GetDevModeKeyRotationData().empty()) {
-    auto* dev_mode_key_rotations =
-        debug_data.EnsureDict("dev_mode_key_rotations");
-    for (const auto& [web_bundle_id, kr_info] : GetDevModeKeyRotationData()) {
-      dev_mode_key_rotations->Set(web_bundle_id, kr_info.AsDebugValue());
-    }
-  }
   if (component_) {
     // Component meta data
     debug_data.Set("component_version", component_->version.GetString());
@@ -507,6 +487,12 @@ void IwaKeyDistributionInfoProvider::
     return;
   }
   maybe_queue_component_update_posted_ = true;
+  if (maybe_downloaded_data_ready_.is_signaled()) {
+    // This will only be logged once per Chrome session.
+    base::UmaHistogramEnumeration(
+        kIwaComponentBestEffortWaitOutcome,
+        IwaComponentBestEffortWaitOutcome::kNoWaitComponentAlreadyReady);
+  }
   any_data_ready_.Post(
       FROM_HERE,
       base::BindOnce(&IwaKeyDistributionInfoProvider::MaybeQueueComponentUpdate,
@@ -524,20 +510,51 @@ void IwaKeyDistributionInfoProvider::MaybeQueueComponentUpdate() {
     //  Schedule a fallback signaller.
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
         FROM_HERE,
-        base::BindOnce(&IwaKeyDistributionInfoProvider::SignalOnDataReady,
-                       base::Unretained(this),
-                       /*is_preloaded=*/false),
+        base::BindOnce(&IwaKeyDistributionInfoProvider::OnTimeout,
+                       base::Unretained(this)),
         kDownloadedComponentDataWaitTime);
   }
 }
 
 void IwaKeyDistributionInfoProvider::SignalOnDataReady(bool is_preloaded) {
-  if (!any_data_ready_.is_signaled()) {
-    any_data_ready_.Signal();
+  if (is_preloaded) {
+    SignalIfNeeded(any_data_ready_);
+    return;
   }
-  if (!is_preloaded && !maybe_downloaded_data_ready_.is_signaled()) {
-    maybe_downloaded_data_ready_.Signal();
+
+  // We only record the outcome of a wait cycle if a wait was actually
+  // initiated (tracked by `maybe_queue_component_update_posted_` being true)
+  // and we are resolving the wait for the first time (when the event is not
+  // yet signaled).
+  if (maybe_queue_component_update_posted_ &&
+      !maybe_downloaded_data_ready_.is_signaled()) {
+    // If `any_data_ready_` has already been signaled, the preloaded
+    // component loaded first, meaning this download must be a brand new
+    // one fetched from the network. Otherwise, the local cached component
+    // won the startup race before preload finished loading.
+    base::UmaHistogramEnumeration(
+        kIwaComponentBestEffortWaitOutcome,
+        any_data_ready_.is_signaled()
+            ? IwaComponentBestEffortWaitOutcome::
+                  kWaitCompletedDownloadedNewComponent
+            : IwaComponentBestEffortWaitOutcome::
+                  kWaitCompletedLoadedCachedComponent);
   }
+
+  SignalIfNeeded(any_data_ready_);
+  SignalIfNeeded(maybe_downloaded_data_ready_);
+}
+
+void IwaKeyDistributionInfoProvider::OnTimeout() {
+  if (maybe_queue_component_update_posted_ &&
+      !maybe_downloaded_data_ready_.is_signaled()) {
+    base::UmaHistogramEnumeration(
+        kIwaComponentBestEffortWaitOutcome,
+        IwaComponentBestEffortWaitOutcome::kWaitTimeoutFellBackToPreload);
+  }
+
+  SignalIfNeeded(any_data_ready_);
+  SignalIfNeeded(maybe_downloaded_data_ready_);
 }
 
 KeyDistributionComponentSource

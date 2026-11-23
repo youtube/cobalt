@@ -273,6 +273,8 @@ public class CustomTabToolbarCoordinator {
         Intent addedIntent = new Intent();
         addedIntent.setData(Uri.parse(url.getSpec()));
         addedIntent.putExtra(Intent.EXTRA_SUBJECT, title);
+        mIntentDataProvider.maybeAddAdditionalContentExtrasToOutboundIntent(
+                mTabProvider, addedIntent, params.getId());
         try {
             ActivityOptions options = ActivityOptions.makeBasic();
             ApiCompatibilityUtils.setActivityOptionsBackgroundActivityStartAllowAlways(options);

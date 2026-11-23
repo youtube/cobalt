@@ -25,8 +25,10 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/encoded_frame.h"
+#include "api/video/timing/video_jitter_timing_interface.h"
 #include "api/video/video_frame.h"
 #include "logging/rtc_event_log/rtc_event_log_parser.h"
+#include "modules/video_coding/timing/timing.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/sequence_number_unwrapper.h"
@@ -172,6 +174,18 @@ class RenderedFrameCollector : public AssemblerEvents,
       RTC_GUARDED_BY(sequence_checker_);
 };
 
+std::unique_ptr<VCMTiming> CreateVCMTiming(
+    const Environment& env,
+    const RenderingSimulator::Config& config) {
+  std::unique_ptr<VideoJitterTimingInterface> video_jitter_timing =
+      config.video_jitter_timing_factory
+          ? config.video_jitter_timing_factory->Create(env)
+          : nullptr;
+  return std::make_unique<VCMTiming>(&env.clock(), env.field_trials(),
+                                     RenderingSimulator::kRenderDelay,
+                                     std::move(video_jitter_timing));
+}
+
 // Combines all objects needed to perform rendering simulation of a single
 // stream. Inserts the streams results to the `results` pointer when `Close()`
 // is called (at the end of simulation).
@@ -183,13 +197,12 @@ class RenderingSimulatorStream : public RtcEventLogDriver::StreamInterface {
                            uint32_t rtx_ssrc,
                            RenderingSimulator::Results* absl_nonnull results)
       : collector_(env, ssrc),
-        tracker_(
-            env,
-            RenderingTracker::Config{
-                .ssrc = ssrc,
-                .render_delay = RenderingSimulator::kRenderDelay},
-            config.video_timing_factory(env, RenderingSimulator::kRenderDelay),
-            &collector_),
+        tracker_(env,
+                 RenderingTracker::Config{
+                     .ssrc = ssrc,
+                     .render_delay = RenderingSimulator::kRenderDelay},
+                 CreateVCMTiming(env, config),
+                 &collector_),
         assembler_(env, ssrc, &collector_, &tracker_),
         receiver_(env, ssrc, rtx_ssrc, &assembler_),
         results_(*results) {

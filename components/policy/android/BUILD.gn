@@ -7,8 +7,10 @@ import("//third_party/jni_zero/jni_zero.gni")
 
 _jni_sources = [
   "java/src/org/chromium/components/policy/CombinedPolicyProvider.java",
+  "java/src/org/chromium/components/policy/EnterpriseInfo.java",
   "java/src/org/chromium/components/policy/PolicyCacheUpdater.java",
   "java/src/org/chromium/components/policy/PolicyConverter.java",
+  "java/src/org/chromium/components/policy/PolicyFeatureMap.java",
   "java/src/org/chromium/components/policy/PolicyMap.java",
   "java/src/org/chromium/components/policy/PolicyService.java",
 ]
@@ -20,21 +22,31 @@ java_cpp_strings("java_switches_srcjar") {
   class_name = "org.chromium.components.policy.PolicySwitches"
 }
 
+java_cpp_features("policy_features_srcjar") {
+  # External code should depend on ":policy_java" instead.
+  visibility = [ ":*" ]
+  sources = [ "//components/policy/core/common/features.cc" ]
+  class_name = "org.chromium.components.policy.PolicyFeatures"
+}
+
 android_library("policy_java") {
   deps = [
     "//base:base_java",
     "//build/android:build_java",
+    "//components/cached_flags:java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/jni_zero:jni_zero_java",
   ]
   srcjar_deps = [
     ":java_switches_srcjar",
     ":jni_headers",
+    ":policy_features_srcjar",
   ]
 
   sources = _jni_sources + [
               "java/src/org/chromium/components/policy/AbstractAppRestrictionsProvider.java",
               "java/src/org/chromium/components/policy/AppRestrictionsProvider.java",
+              "java/src/org/chromium/components/policy/EnterpriseInfoImpl.java",
               "java/src/org/chromium/components/policy/PolicyCache.java",
               "java/src/org/chromium/components/policy/PolicyCacheProvider.java",
               "java/src/org/chromium/components/policy/PolicyProvider.java",
@@ -52,6 +64,7 @@ android_library("policy_java_test_support") {
     "//third_party/junit",
   ]
   sources = [
+    "javatests/src/org/chromium/components/policy/test/FakeEnterpriseInfo.java",
     "javatests/src/org/chromium/components/policy/test/PolicyData.java",
     "javatests/src/org/chromium/components/policy/test/annotations/Policies.java",
   ]
@@ -66,6 +79,7 @@ robolectric_library("components_policy_junit_tests") {
   sources = [
     "junit/src/org/chromium/components/policy/AbstractAppRestrictionsProviderTest.java",
     "junit/src/org/chromium/components/policy/CombinedPolicyProviderTest.java",
+    "junit/src/org/chromium/components/policy/EnterpriseInfoImplTest.java",
     "junit/src/org/chromium/components/policy/PolicyCacheProviderTest.java",
     "junit/src/org/chromium/components/policy/PolicyCacheTest.java",
     "junit/src/org/chromium/components/policy/PolicyConverterTest.java",
@@ -79,6 +93,7 @@ robolectric_library("components_policy_junit_tests") {
     "//base:base_junit_test_support",
     "//build/android:build_java",
     "//third_party/androidx:androidx_test_core_java",
+    "//third_party/androidx:androidx_test_runner_java",
     "//third_party/google-truth:google_truth_java",
     "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",

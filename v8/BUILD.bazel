@@ -95,6 +95,11 @@ v8_flag(name = "v8_annotate_torque_ir")
 v8_flag(name = "v8_code_comments")
 
 v8_flag(
+    name = "v8_cppgc_microtask_queue",
+    default = False,
+)
+
+v8_flag(
     name = "v8_deprecation_warnings",
     default = True,
 )
@@ -501,6 +506,7 @@ v8_config(
     conditional_defines = {
         "v8_android_log_stdout": "V8_ANDROID_LOG_STDOUT",
         "v8_code_comments": "V8_CODE_COMMENTS",
+        "v8_cppgc_microtask_queue": "V8_CPPGC_MICROTASK_QUEUE",
         "v8_deprecation_warnings": "V8_DEPRECATION_WARNINGS",
         "v8_imminent_deprecation_warnings": "V8_IMMINENT_DEPRECATION_WARNINGS",
         "v8_enable_debug_code": "V8_ENABLE_DEBUG_CODE",
@@ -1806,7 +1812,6 @@ filegroup(
         "src/heap/cppgc-js/cpp-heap.cc",
         "src/heap/cppgc-js/cpp-heap.h",
         "src/heap/cppgc-js/cpp-marking-state.h",
-        "src/heap/cppgc-js/cpp-marking-state-inl.h",
         "src/heap/cppgc-js/cpp-snapshot.cc",
         "src/heap/cppgc-js/cpp-snapshot.h",
         "src/heap/cppgc-js/cross-heap-remembered-set.cc",
@@ -1825,7 +1830,6 @@ filegroup(
         "src/heap/evacuation-allocator-inl.h",
         "src/heap/evacuation-verifier.cc",
         "src/heap/evacuation-verifier.h",
-        "src/heap/evacuation-verifier-inl.h",
         "src/heap/factory.cc",
         "src/heap/factory.h",
         "src/heap/factory-base.cc",
@@ -2237,10 +2241,8 @@ filegroup(
         "src/objects/js-shadow-realm.h",
         "src/objects/js-shadow-realm-inl.h",
         "src/objects/js-shared-array.h",
-        "src/objects/js-shared-array-inl.h",
         "src/objects/js-struct.cc",
         "src/objects/js-struct.h",
-        "src/objects/js-struct-inl.h",
         # Temporal is currently gn-only
         # "src/objects/js-temporal-objects.cc",
         # "src/objects/js-temporal-objects.h",
@@ -2317,7 +2319,6 @@ filegroup(
         "src/objects/pod-array.h",
         "src/objects/pod-array-inl.h",
         "src/objects/primitive-heap-object.h",
-        "src/objects/primitive-heap-object-inl.h",
         "src/objects/promise.h",
         "src/objects/promise-inl.h",
         "src/objects/property.cc",
@@ -2331,6 +2332,7 @@ filegroup(
         "src/objects/property-descriptor-object.h",
         "src/objects/property-descriptor-object-inl.h",
         "src/objects/property-details.h",
+        "src/objects/property-details-inl.h",
         "src/objects/prototype.h",
         "src/objects/prototype-info.h",
         "src/objects/prototype-info-inl.h",
@@ -2397,8 +2399,6 @@ filegroup(
         "src/objects/templates.cc",
         "src/objects/templates.h",
         "src/objects/templates-inl.h",
-        "src/objects/torque-defined-classes.h",
-        "src/objects/torque-defined-classes-inl.h",
         "src/objects/transitions.cc",
         "src/objects/transitions.h",
         "src/objects/transitions-inl.h",
@@ -3051,6 +3051,7 @@ filegroup(
             "src/maglev/maglev-kna-processor.h",
             "src/maglev/maglev-map-inference.h",
             "src/maglev/maglev-node-type.h",
+            "src/maglev/maglev-phase.h",
             "src/maglev/maglev-phi-representation-selector.h",
             "src/maglev/maglev-truncation.h",
             "src/maglev/maglev-pipeline-statistics.h",
@@ -3901,6 +3902,7 @@ filegroup(
             "src/maglev/maglev-reducer-inl.h",
             "src/maglev/maglev-reducer.h",
             "src/maglev/maglev-register-frame-array.h",
+            "src/maglev/maglev-phase.h",
             "src/maglev/maglev-phi-representation-selector.cc",
             "src/maglev/maglev-phi-representation-selector.h",
             "src/maglev/maglev-tracer.h",
@@ -4539,6 +4541,8 @@ filegroup(
         "src/d8/d8-test.cc",
         "src/d8/hardware-watchpoints.cc",
         "src/d8/hardware-watchpoints.h",
+        "src/d8/memory-access-information.cc",
+        "src/d8/memory-access-information.h",
     ],
 )
 

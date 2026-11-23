@@ -21,6 +21,7 @@
 #include "components/optimization_guide/proto/text_safety_model_metadata.pb.h"
 #include "components/optimization_guide/public/mojom/model_broker.mojom.h"
 #include "mojo/public/cpp/base/proto_wrapper.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace optimization_guide {
@@ -316,7 +317,10 @@ void ModelBrokerClient::CreateSession(mojom::OnDeviceFeature feature,
 
 void ModelBrokerClient::GetConfig(mojom::OnDeviceFeature feature,
                                   GetConfigCallback callback) {
-  remote_->GetConfig(feature, std::move(callback));
+  remote_->GetConfig(
+      feature,
+      mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback),
+                                                  std::nullopt));
 }
 
 void ModelBrokerClient::AddModelDownloadProgressObserver(

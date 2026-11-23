@@ -8,7 +8,7 @@ rootWebArea
 ++++++++menuItem collapsed name='File' setSize=1 posInSet=1 haspopup=menu
 ++++++++++staticText name='File'
 ++++++++++++inlineTextBox name='File'
-++++++menu ignored invisible
+++++++++menu ignored invisible
 ++++++button collapsed name='Show Popover'
 ++++++++staticText name='Show Popover'
 ++++++++++inlineTextBox name='Show Popover'

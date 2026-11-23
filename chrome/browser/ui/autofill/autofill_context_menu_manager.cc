@@ -21,6 +21,7 @@
 #include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/factories/password_counter_factory.h"
+#include "chrome/browser/personal_context/personal_context_enablement_service_factory.h"
 #include "chrome/browser/plus_addresses/plus_address_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -60,6 +61,7 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/color/color_id.h"
 #include "ui/menus/simple_menu_model.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #include "components/plus_addresses/core/browser/resources/vector_icons.h"
@@ -329,9 +331,9 @@ void AutofillContextMenuManager::MaybeAddAutofillAtMemoryItem() {
     return;
   }
 
-  if (!IsAtMemoryFeatureEnabled(
-          GoogleGroupsManagerFactory::GetForBrowserContext(
-              rfh->GetBrowserContext()))) {
+  if (params_.form_control_type &&
+      params_.form_control_type.value() ==
+          blink::mojom::FormControlType::kInputPassword) {
     return;
   }
 
@@ -345,10 +347,8 @@ void AutofillContextMenuManager::MaybeAddAutofillAtMemoryItem() {
     return;
   }
 
-  if (autofill_driver->GetAutofillManager()
-          .client()
-          .GetPersonalContextEnablementState() ==
-      personal_context::PersonalContextEnablementState::kDisabledNotEligible) {
+  if (!MayPerformAtMemoryAction(AtMemoryAction::kTriggerSearchUI,
+                                autofill_driver->GetAutofillClient())) {
     return;
   }
 
@@ -449,8 +449,8 @@ bool AutofillContextMenuManager::ShouldAddPlusAddressManualFallbackItem(
 }
 
 bool AutofillContextMenuManager::ShouldAddPasswordsManualFallbackItem(
-    ContentPasswordManagerDriver& password_manager_driver) {
-  if (!password_manager_driver.CanShowAutofillUi()) {
+    ContentPasswordManagerDriver& driver) {
+  if (!driver.CanShowAutofillUi()) {
     return false;
   }
   // Password suggestions should not be triggered on text areas.
@@ -460,13 +460,12 @@ bool AutofillContextMenuManager::ShouldAddPasswordsManualFallbackItem(
 
   if (base::FeatureList::IsEnabled(
           password_manager::features::kPasswordManualFallbackSecurityChecks) &&
-      (!password_manager_driver.HasValidURL(/*may_kill_renderer*/ false) ||
-       !password_manager_driver.IsRenderFrameHostSupported())) {
+      (!driver.HasValidURL(/*may_kill_renderer*/ false) ||
+       !driver.IsRenderFrameHostSupported())) {
     return false;
   }
-  return password_manager_driver.GetPasswordManager()
-      ->GetClient()
-      ->IsFillingEnabled(password_manager_driver.GetLastCommittedURL());
+  return driver.GetPasswordManager()->GetClient()->IsFillingEnabled(
+      driver.GetLastCommittedOrigin(), driver.GetLastCommittedURL());
 }
 
 void AutofillContextMenuManager::AddPasswordsManualFallbackItems(

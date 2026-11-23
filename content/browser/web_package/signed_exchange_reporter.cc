@@ -9,13 +9,12 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
+#include "base/no_destructor.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
+#include "content/browser/storage_partition_impl.h"
 #include "content/browser/web_package/signed_exchange_utils.h"
-#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/site_instance.h"
 #include "content/public/browser/storage_partition.h"
 #include "net/base/ip_endpoint.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -124,22 +123,14 @@ bool ShouldDowngradeReport(const char* result_string,
 }
 
 void ReportResult(
-    FrameTreeNodeId frame_tree_node_id,
+    base::WeakPtr<StoragePartitionImpl> storage_partition,
     network::mojom::SignedExchangeReportPtr report,
     const net::NetworkAnonymizationKey& network_anonymization_key) {
-  FrameTreeNode* frame_tree_node =
-      FrameTreeNode::GloballyFindByID(frame_tree_node_id);
-  if (!frame_tree_node)
+  if (!storage_partition) {
     return;
-  RenderFrameHostImpl* frame_host = frame_tree_node->current_frame_host();
-  if (!frame_host)
-    return;
-  SiteInstance* site_instance = frame_host->GetSiteInstance();
-  DCHECK(site_instance);
-  StoragePartition* partition =
-      frame_host->GetBrowserContext()->GetStoragePartition(site_instance);
-  DCHECK(partition);
-  partition->GetNetworkContext()->QueueSignedExchangeReport(
+  }
+
+  storage_partition->GetNetworkContext()->QueueSignedExchangeReport(
       std::move(report), network_anonymization_key);
 }
 
@@ -169,8 +160,18 @@ SignedExchangeReporter::SignedExchangeReporter(
     FrameTreeNodeId frame_tree_node_id)
     : report_(network::mojom::SignedExchangeReport::New()),
       request_start_(response.load_timing.request_start),
-      network_anonymization_key_(network_anonymization_key),
-      frame_tree_node_id_(frame_tree_node_id) {
+      network_anonymization_key_(network_anonymization_key) {
+  // Resolve the StoragePartition that performed the load now: the report is
+  // queued only after asynchronous work completes, by which time the
+  // FrameTreeNode's current document may have been replaced by one in a
+  // different StoragePartition.
+  if (FrameTreeNode* frame_tree_node =
+          FrameTreeNode::GloballyFindByID(frame_tree_node_id)) {
+    if (RenderFrameHostImpl* frame_host =
+            frame_tree_node->current_frame_host()) {
+      storage_partition_ = frame_host->GetStoragePartition()->GetWeakPtr();
+    }
+  }
   report_->outer_url = outer_url;
   report_->referrer = referrer;
   report_->server_ip_address = response.remote_endpoint.address();
@@ -221,7 +222,7 @@ void SignedExchangeReporter::ReportLoadResultAndFinish(
     report_->elapsed_time = base::TimeTicks::Now() - request_start_;
   }
 
-  ReportResult(frame_tree_node_id_, std::move(report_),
+  ReportResult(storage_partition_, std::move(report_),
                network_anonymization_key_);
 }
 
@@ -230,7 +231,7 @@ void SignedExchangeReporter::ReportHeaderIntegrityMismatch() {
   report_->success = false;
   report_->type = kSXGHeaderIntegrityMismatch;
   report_->elapsed_time = base::TimeDelta();
-  ReportResult(frame_tree_node_id_, std::move(report_),
+  ReportResult(storage_partition_, std::move(report_),
                network_anonymization_key_);
 }
 

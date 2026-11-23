@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "base/check_is_test.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
@@ -255,9 +256,10 @@ void PermissionPromptBubbleOneOriginView::MaybeAddMediaPreview(
     std::vector<std::string> requested_video_capture_device_ids,
     size_t index) {
 #if !BUILDFLAG(IS_CHROMEOS)
-  // Unit tests call this without initializing `browser_`, but this should not
-  // happen in production code.
-  if (!GetBrowser()) {
+  // Unit tests call this without initializing the host window, but this should
+  // not happen in production code.
+  if (!GetNativeWindow()) {
+    CHECK_IS_TEST();
     return;
   }
 

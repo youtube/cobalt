@@ -1039,6 +1039,7 @@ external_v8_defines = [
   "V8_USE_PERFETTO",
   "V8_USE_PERFETTO_JSON_EXPORT",
   "V8_USE_PERFETTO_SDK",
+  "V8_CPPGC_MICROTASK_QUEUE",
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
   "V8_ENABLE_DIRECT_HANDLE",
@@ -1096,6 +1097,9 @@ if (v8_use_perfetto_json_export) {
 }
 if (v8_use_perfetto_sdk) {
   enabled_external_v8_defines += [ "V8_USE_PERFETTO_SDK" ]
+}
+if (v8_cppgc_microtask_queue) {
+  enabled_external_v8_defines += [ "V8_CPPGC_MICROTASK_QUEUE" ]
 }
 if (v8_enable_map_packing) {
   enabled_external_v8_defines += [ "V8_MAP_PACKING" ]
@@ -2063,7 +2067,6 @@ if (v8_postmortem_support) {
       "src/objects/pod-array.h",
       "src/objects/pod-array-inl.h",
       "src/objects/primitive-heap-object.h",
-      "src/objects/primitive-heap-object-inl.h",
       "src/objects/scope-info.h",
       "src/objects/scope-info-inl.h",
       "src/objects/script.cc",
@@ -3205,6 +3208,7 @@ generated_file("v8_generate_features_json") {
     v8_optimized_debug = v8_optimized_debug
     v8_random_seed = v8_random_seed
     v8_use_perfetto = v8_use_perfetto
+    v8_cppgc_microtask_queue = v8_cppgc_microtask_queue
     v8_use_siphash = v8_use_siphash
     v8_use_default_hasher_secret = v8_use_default_hasher_secret
   }
@@ -4118,7 +4122,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/conservative-stack-visitor-inl.h",
     "src/heap/conservative-stack-visitor.h",
     "src/heap/cppgc-js/cpp-heap.h",
-    "src/heap/cppgc-js/cpp-marking-state-inl.h",
     "src/heap/cppgc-js/cpp-marking-state.h",
     "src/heap/cppgc-js/cpp-snapshot.h",
     "src/heap/cppgc-js/cross-heap-remembered-set.h",
@@ -4129,7 +4132,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/ephemeron-remembered-set.h",
     "src/heap/evacuation-allocator-inl.h",
     "src/heap/evacuation-allocator.h",
-    "src/heap/evacuation-verifier-inl.h",
     "src/heap/evacuation-verifier.h",
     "src/heap/factory-base-inl.h",
     "src/heap/factory-base.h",
@@ -4408,9 +4410,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-segments.h",
     "src/objects/js-shadow-realm-inl.h",
     "src/objects/js-shadow-realm.h",
-    "src/objects/js-shared-array-inl.h",
     "src/objects/js-shared-array.h",
-    "src/objects/js-struct-inl.h",
     "src/objects/js-struct.h",
     "src/objects/js-temporal-helpers.h",
     "src/objects/js-weak-refs-inl.h",
@@ -4461,7 +4461,6 @@ v8_header_set("v8_internal_headers") {
     "src/objects/ordered-hash-table.h",
     "src/objects/pod-array-inl.h",
     "src/objects/pod-array.h",
-    "src/objects/primitive-heap-object-inl.h",
     "src/objects/primitive-heap-object.h",
     "src/objects/promise-inl.h",
     "src/objects/promise.h",
@@ -4472,6 +4471,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/property-descriptor-object-inl.h",
     "src/objects/property-descriptor-object.h",
     "src/objects/property-descriptor.h",
+    "src/objects/property-details-inl.h",
     "src/objects/property-details.h",
     "src/objects/property.h",
     "src/objects/prototype-info-inl.h",
@@ -4522,8 +4522,6 @@ v8_header_set("v8_internal_headers") {
     "src/objects/template-objects.h",
     "src/objects/templates-inl.h",
     "src/objects/templates.h",
-    "src/objects/torque-defined-classes-inl.h",
-    "src/objects/torque-defined-classes.h",
     "src/objects/transitions-inl.h",
     "src/objects/transitions.h",
     "src/objects/trusted-object-inl.h",
@@ -4810,6 +4808,7 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-loop-peeler.h",
       "src/maglev/maglev-map-inference.h",
       "src/maglev/maglev-node-type.h",
+      "src/maglev/maglev-phase.h",
       "src/maglev/maglev-phi-representation-selector.h",
       "src/maglev/maglev-pipeline-statistics.h",
       "src/maglev/maglev-post-hoc-optimizations-processors.h",
@@ -8461,6 +8460,8 @@ v8_executable("d8") {
     "src/d8/d8.h",
     "src/d8/hardware-watchpoints.cc",
     "src/d8/hardware-watchpoints.h",
+    "src/d8/memory-access-information.cc",
+    "src/d8/memory-access-information.h",
   ]
 
   configs = [

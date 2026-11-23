@@ -1985,8 +1985,11 @@ class AXPosition {
 
   // Returns a non-ignored position based on the current position,adjusted for
   // selection.
+  // TODO(crbug.com/527726308): Remove the `force_convert_leaf_to_text`
+  // parameter when AXTreeData supports offset types.
   AXPositionInstance AsUnignoredSelectionPosition(
-      AXPositionAdjustmentBehavior adjustment_behavior) const {
+      AXPositionAdjustmentBehavior adjustment_behavior,
+      bool force_convert_leaf_to_text = true) const {
     if (IsNullPosition() || !IsIgnored()) {
       return Clone();
     }
@@ -1999,7 +2002,7 @@ class AXPosition {
     // text position in AXTreeData. (Note that in this context "leaf node" means
     // a node with no children or with only ignored children. This does not
     // refer to a platform leaf.)
-    if (position->IsLeafTreePosition()) {
+    if (force_convert_leaf_to_text && position->IsLeafTreePosition()) {
       position = position->AsTextPosition();
     }
 

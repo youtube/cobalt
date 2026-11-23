@@ -398,7 +398,7 @@ TEST(MemoryDataTypeUtilTest, CreateResultFromShipmentEntity) {
   shipment.delivery_address = "123 Main St";
   shipment.carrier_name = "UPS";
   shipment.carrier_domain = GURL("https://www.example.com");
-  shipment.estimated_delivery_date = Date{15, 6, 2026};
+  shipment.shipped_date = Date{15, 6, 2026};
 
   Entity entity;
   entity.specifics = shipment;
@@ -414,7 +414,7 @@ TEST(MemoryDataTypeUtilTest, CreateResultFromShipmentEntity) {
            EntryMetadata(MemoryDataType::kShipmentCarrierName, u"", u"UPS"),
            EntryMetadata(MemoryDataType::kShipmentDeliveryAddress, u"",
                          u"123 Main St"),
-           EntryMetadata(MemoryDataType::kShipmentEstimatedDeliveryDate, u"",
+           EntryMetadata(MemoryDataType::kShipmentShippedDate, u"",
                          u"2026-06-15")}));
 
   EXPECT_THAT(
@@ -430,7 +430,7 @@ TEST(MemoryDataTypeUtilTest, CreateResultFromShipmentEntity) {
            EntryMetadata(MemoryDataType::kShipmentCarrierName, u"", u"UPS"),
            EntryMetadata(MemoryDataType::kShipmentDeliveryAddress, u"",
                          u"123 Main St"),
-           EntryMetadata(MemoryDataType::kShipmentEstimatedDeliveryDate, u"",
+           EntryMetadata(MemoryDataType::kShipmentShippedDate, u"",
                          u"2026-06-15"),
            EntryMetadata(MemoryDataType::kShipmentTrackingNumber, u"",
                          u"1Z9999999999999999")}));

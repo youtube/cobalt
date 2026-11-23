@@ -37,14 +37,15 @@ namespace storage {
 
 namespace {
 
-// Records the on-disk size of the LocalStorage database at `db_path` to the
-// `LocalStorage.DatabaseOnDiskSizeKB` histogram (`.OnDiskExperimental` suffix
-// for `kOnDiskExperimental`, unsuffixed for `kOnDisk`). LevelDB stores its data
-// in a directory, while SQLite stores a single file plus a `-wal` file that
-// may be absent depending on checkpoint state.
-void RecordLocalStorageOnDiskSizeKB(const base::FilePath& db_path,
-                                    bool is_sqlite,
-                                    DatabaseMetricsType metrics_type) {
+// Records the on-disk size of the database at `db_path` to the
+// `DatabaseOnDiskSizeKB` histogram for `storage_type` (`.OnDiskExperimental`
+// suffix for `kOnDiskExperimental`, unsuffixed for `kOnDisk`). LevelDB stores
+// its data in a directory, while SQLite stores a single file plus a `-wal` file
+// that may be absent depending on checkpoint state.
+void RecordDatabaseOnDiskSizeKB(StorageType storage_type,
+                                const base::FilePath& db_path,
+                                bool is_sqlite,
+                                DatabaseMetricsType metrics_type) {
   int64_t size_bytes = 0;
   if (is_sqlite) {
     size_bytes += base::GetFileSize(db_path).value_or(0);
@@ -53,18 +54,24 @@ void RecordLocalStorageOnDiskSizeKB(const base::FilePath& db_path,
   } else {
     size_bytes = base::ComputeDirectorySize(db_path);
   }
+  std::string_view name_prefix =
+      storage_type == StorageType::kLocalStorage
+          ? "LocalStorage.DatabaseOnDiskSizeKB"
+          : "Storage.SessionStorage.DatabaseOnDiskSizeKB";
   base::UmaHistogramMemoryKB(
-      base::StrCat({"LocalStorage.DatabaseOnDiskSizeKB",
-                    metrics_type == DatabaseMetricsType::kOnDiskExperimental
-                        ? ".OnDiskExperimental"
-                        : ""}),
+      base::StrCat(
+          {name_prefix, metrics_type == DatabaseMetricsType::kOnDiskExperimental
+                            ? ".OnDiskExperimental"
+                            : ""}),
       base::ByteSize(base::checked_cast<uint64_t>(size_bytes)));
 }
 
 // Records all open-time telemetry for a database open attempt:
 //   * `Storage.{LocalStorage,SessionStorage}.OpenDatabase` status.
 //   * `Storage.{LocalStorage,SessionStorage}.Duration.OpenDatabase2` duration.
-//   * `LocalStorage.DatabaseOnDiskSizeKB` size for LocalStorage on-disk only.
+//   * The on-disk size histogram, named `LocalStorage.DatabaseOnDiskSizeKB` for
+//     LocalStorage and `Storage.SessionStorage.DatabaseOnDiskSizeKB` for
+//     SessionStorage.
 //
 // The size histogram needs a blocking filesystem read. It is posted to a
 // `base::ThreadPool` sequence to avoid blocking DOMStorage database
@@ -83,11 +90,10 @@ void RecordOpenDatabaseHistograms(StorageType storage_type,
                           base::TimeTicks::Now() - start_time);
   status.Log(base::StrCat({prefix, ".OpenDatabase"}), metrics_type);
 
-  // TODO(crbug.com/377242771): Also record on-disk size for SessionStorage.
-  if (storage_type == StorageType::kLocalStorage && !database_path.empty()) {
+  if (!database_path.empty()) {
     base::ThreadPool::PostTask(
         FROM_HERE, {base::MayBlock()},
-        base::BindOnce(&RecordLocalStorageOnDiskSizeKB, database_path,
+        base::BindOnce(&RecordDatabaseOnDiskSizeKB, storage_type, database_path,
                        is_sqlite, metrics_type));
   }
 }
@@ -602,13 +608,6 @@ DbStatus MigrateDatabase(DomStorageDatabase& source,
                          DomStorageDatabase& destination) {
   ASSIGN_OR_RETURN(DomStorageDatabase::Metadata source_metadata,
                    source.ReadAllMetadata());
-
-  // Migrate the `next_map_id` metadata.
-  if (source_metadata.next_map_id) {
-    DomStorageDatabase::Metadata map_id_metadata;
-    map_id_metadata.next_map_id = source_metadata.next_map_id;
-    destination.PutMetadata(std::move(map_id_metadata));
-  }
 
   // Migrate each map in `source_metadata`.
   for (DomStorageDatabase::MapMetadata& source_map :

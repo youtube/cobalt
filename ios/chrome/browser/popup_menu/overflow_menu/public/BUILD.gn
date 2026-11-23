@@ -7,6 +7,14 @@ source_set("public") {
   deps = [ ":overflow_menu_constants" ]
 }
 
+source_set("features") {
+  sources = [
+    "features.h",
+    "features.mm",
+  ]
+  deps = [ "//ios/chrome/browser/shared/public/features" ]
+}
+
 source_set("overflow_menu_constants") {
   sources = [
     "overflow_menu_constants.cc",

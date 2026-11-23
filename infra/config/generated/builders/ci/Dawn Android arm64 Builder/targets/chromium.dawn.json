@@ -341,7 +341,6 @@
             "os": "Android",
             "pool": "chromium.tests.gpu"
           },
-          "expiration": 21600,
           "hard_timeout": 1800,
           "io_timeout": 1800,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -383,7 +382,6 @@
             "os": "Android",
             "pool": "chromium.tests.gpu"
           },
-          "expiration": 21600,
           "hard_timeout": 1800,
           "io_timeout": 1800,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -426,7 +424,6 @@
             "os": "Android",
             "pool": "chromium.tests.gpu"
           },
-          "expiration": 21600,
           "hard_timeout": 1800,
           "idempotent": false,
           "io_timeout": 1800,
@@ -469,7 +466,6 @@
             "os": "Android",
             "pool": "chromium.tests.gpu"
           },
-          "expiration": 21600,
           "hard_timeout": 1800,
           "idempotent": false,
           "io_timeout": 1800,
@@ -512,7 +508,6 @@
             "os": "Android",
             "pool": "chromium.tests.gpu"
           },
-          "expiration": 21600,
           "hard_timeout": 1800,
           "idempotent": false,
           "io_timeout": 1800,
@@ -554,7 +549,6 @@
             "os": "Android",
             "pool": "chromium.tests.gpu"
           },
-          "expiration": 21600,
           "hard_timeout": 1800,
           "idempotent": false,
           "io_timeout": 1800,
@@ -597,7 +591,6 @@
             "os": "Android",
             "pool": "chromium.tests.gpu"
           },
-          "expiration": 21600,
           "hard_timeout": 1800,
           "idempotent": false,
           "io_timeout": 1800,

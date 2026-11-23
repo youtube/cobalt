@@ -9,6 +9,12 @@
 
 :host {
   display: inline-flex;
+  /* Prevent parent flex containers from squishing the chip. The chip's minimum
+   * size should be min(intrinsic width, animated max-width). */
+  flex-shrink: 0;
+
+  /* The distance the divider spans. In C++: kLocationBarChipPadding + 2px. */
+  --divider-overlap: calc(var(--location-bar-chip-padding) + 2px);
 }
 
 #chip {
@@ -134,4 +140,51 @@
    * strictly match the native fade-tail visual parity. */
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+:host([has-divider]) {
+  /* In Native Views, the chip_divider_view_ takes 4px of layout space, and the
+   * request_chip_ has a left margin of -6px. This places the request chip
+   * exactly 2px inside the indicator chip. */
+  margin-inline-start: -2px;
+}
+
+:host([has-divider]) #chip {
+  border-end-start-radius: 0;
+  border-start-start-radius: 0;
+  /* TODO(crbug.com/527721143): Fix touch mode after native views fixed its bug.
+   * To perfectly match Native Views (PermissionDashboardView):
+   * The chip itself has a 12px corner radius (24px height), but the cutout
+   * arc is based on a larger 16px radius circle that starts exactly at the left
+   * edge of the request chip. Because the 32px diameter circle is taller than
+   * the 24px chip, it forms a shallow circular segment, not a full semicircle.
+   * The center of this 16px circle must be shifted left to intersect the top
+   * and bottom corners.
+   * By Pythagorean theorem: center_x = -sqrt(16^2 - (height/2)^2).
+   * Since CSS sqrt() cannot operate on dimensions, we precalculate the values
+   * for non-touch (height=24, center_x=-10.583px) and
+   * touch (height=30, center_x=-5.568px). */
+  --mask-radius: 16px;
+  --mask-center-x: calc(-10.583px + var(--touch-mode, 0) * 5.015px);
+
+  /* To perfectly match Native Views (PermissionChipView):
+   * To prevent the icon from getting eaten by that overlapping arc, the chip
+   * must push its internal content to the right*/
+  padding-inline-start:
+      calc(var(--location-bar-chip-padding) + var(--divider-overlap));
+
+  /* The 0.5px transition creates a smooth, anti-aliased edge that mimics the
+   * hardware anti-aliasing used by Skia (flags.setAntiAlias(true)) when Native
+   * Views draws this shape. */
+  mask-image: radial-gradient(
+      circle at var(--mask-center-x) 50%,
+      transparent var(--mask-radius),
+      black calc(var(--mask-radius) + 0.5px));
+}
+
+:host-context([dir=rtl]):host([has-divider]) #chip {
+  mask-image: radial-gradient(
+      circle at calc(100% - var(--mask-center-x)) 50%,
+      transparent var(--mask-radius),
+      black calc(var(--mask-radius) + 0.5px));
 }

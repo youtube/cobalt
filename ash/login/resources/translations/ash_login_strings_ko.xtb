@@ -14,6 +14,25 @@
 <translation id="1185924365081634987"><ph name="GUEST_SIGNIN_LINK_START" />게스트로 로그인<ph name="GUEST_SIGNIN_LINK_END" />하여 네트워크 오류를 수정할 수도 있습니다.</translation>
 <translation id="1201402288615127009">다음</translation>
 <translation id="1222835797152767346">더 쉽게 로그인할 수 있도록 PIN 설정하기</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />디버깅 기능<ph name="END_H3" />
+          <ph name="BR" />
+          기기에 맞춤 코드를 설치하고 테스트하기 위해 ChromeOS 기기에서 디버깅 기능을 사용 설정할 수 있습니다. 이를 통해 다음 작업을 할 수 있습니다.<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />OS 파일을 수정하기 위해 rootfs 인증 삭제
+            <ph name="LIST_ITEM" /><ph name="BEGIN_CODE" />'Cros Flash'<ph name="END_CODE" /> 같은 도구로 기기에 액세스할 수 있도록 표준 테스트 키를 이용한 기기 SSH 액세스 사용 설정
+            <ph name="LIST_ITEM" />USB 드라이브의 OS 이미지를 설치할 수 있도록 USB 부팅 사용 설정
+            <ph name="LIST_ITEM" />기기에 직접 SSH로 액세스할 수 있도록 개발자 및 시스템 루트 로그인 비밀번호를 맞춤 값으로 설정
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          디버깅 기능을 사용 설정하면 기업 관리 기기에서 파워워시를 실행하거나 데이터를 완전 삭제한 후에도 디버깅 기능은 대부분 사용 설정 상태로 유지됩니다. 모든 디버깅 기능을 완전히 사용 중지하려면 ChromeOS 복구 프로세스를 완료하세요.
+(https://support.google.com/chromebook/answer/1080595)
+          <ph name="BR" />
+          <ph name="BR" />
+          디버깅 기능에 관한 자세한 내용은 다음 페이지를 참고하세요.<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />참고:<ph name="END_BOLD" />  프로세스를 진행하는 동안 시스템이 재부팅됩니다.</translation>
 <translation id="1347625331607114917">Android 휴대전화에서 코드 확인</translation>
 <translation id="1347975661240122359">배터리 잔량이 <ph name="BATTERY_LEVEL" />%가 되면 업데이트가 시작됩니다.</translation>
 <translation id="1375938286942050085">설정이 완료되었습니다. 기기에서 게임을 즐길 준비를 하세요</translation>
@@ -126,9 +145,30 @@
 <translation id="503155457707535043">앱 다운로드 중</translation>
 <translation id="5045550434625856497">비밀번호가 잘못되었습니다.</translation>
 <translation id="5062930723426326933">로그인하지 못했습니다. 인터넷에 연결한 후 다시 시도하세요.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Gemini와 대화하며 Google AI를 활용해 글쓰기, 계획, 학습 등을 시작해 보세요<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />설정 후 화면 하단의 앱 표시줄에서 Gemini 앱을 선택하여 Gemini 사용을 시작하세요<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011"><ph name="DEVICE_TYPE" />을(를) 전원에 연결하세요.</translation>
 <translation id="5147516217412920887">휴대전화의 안내에 따라 코드를 확인하세요.</translation>
 <translation id="5160857336552977725"><ph name="DEVICE_TYPE" />에 로그인</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />디버깅 기능<ph name="END_H3" />
+          <ph name="BR" />
+          기기에 맞춤 코드를 설치하고 테스트하기 위해 ChromeOS Flex 기기에서 디버깅 기능을 사용 설정할 수 있습니다. 이를 통해 다음 작업을 할 수 있습니다.<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />OS 파일을 수정하기 위해 rootfs 인증 삭제
+            <ph name="LIST_ITEM" /><ph name="BEGIN_CODE" />'Cros Flash'<ph name="END_CODE" /> 같은 도구로 기기에 액세스할 수 있도록 표준 테스트 키를 이용한 기기
+            <ph name="LIST_ITEM" />USB 드라이브의 OS 이미지를 설치할 수 있도록 USB 부팅 사용 설정
+            <ph name="LIST_ITEM" />기기에 직접 SSH로 액세스할 수 있도록 개발자 및 시스템 루트 로그인 비밀번호를 맞춤 값으로 설정
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          디버깅 기능을 사용 설정하면 기업 관리 기기에서 파워워시를 실행하거나 데이터를 완전 삭제한 후에도 디버깅 기능은 대부분 사용 설정 상태로 유지됩니다. 모든 디버깅 기능을 완전히 사용 중지하려면 ChromeOS 복구 프로세스를 완료하세요.
+(https://support.google.com/chromebook/answer/1080595)
+          <ph name="BR" />
+          <ph name="BR" />
+          디버깅 기능에 관한 자세한 내용은 다음 페이지를 참고하세요.<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />참고:<ph name="END_BOLD" />  프로세스를 진행하는 동안 시스템이 재부팅됩니다.</translation>
 <translation id="523505283826916779">접근성 설정</translation>
 <translation id="5240931875940563122">Android 휴대전화로 로그인</translation>
 <translation id="5255859108402770436">다시 로그인</translation>
@@ -193,6 +233,10 @@
 <translation id="6955698182324067397">sshd 데몬을 설정하고 USB 드라이브에서 부팅하도록 사용 설정하는 ChromeOS 디버깅 기능을 사용 설정 중입니다.</translation>
 <translation id="6965382102122355670">확인</translation>
 <translation id="6981982820502123353">접근성</translation>
+<translation id="6984652455487792101">프록시 서버를 사용하는 경우 프록시 설정을 확인하거나
+        네트워크 관리자에게 문의하여 프록시 서버가 작동하는지
+확인하세요. 프록시 서버를 사용 중이지 않는 경우
+        <ph name="LINK_START" />프록시 설정<ph name="LINK_END" />을 조정하세요.</translation>
 <translation id="6996245928508281884">휴대전화의 블루투스 및 Wi-Fi를 사용 설정하세요.</translation>
 <translation id="7077829361966535409">현재 프록시 설정을 사용하여 로그인 페이지를 로드하지 못했습니다. <ph name="GAIA_RELOAD_LINK_START" />다시 로그인<ph name="GAIA_RELOAD_LINK_END" />하거나 다른 <ph name="PROXY_SETTINGS_LINK_START" />프록시 설정<ph name="PROXY_SETTINGS_LINK_END" />을 사용합니다.</translation>
 <translation id="7114054701490058191">비밀번호가 일치하지 않습니다.</translation>
@@ -205,6 +249,9 @@
 <translation id="7345706641791090287">비밀번호 확인</translation>
 <translation id="7352651011704765696">문제가 발생했습니다</translation>
 <translation id="7476454130948140105">배터린 잔량이 부족하여(<ph name="BATTERY_PERCENT" />%) 업데이트할 수 없음</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />등록하기 전에 <ph name="DEVICE_OS" />에서 기기 소유권을 가질 수 있도록 TPM을 삭제해야 합니다.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />TPM 기기를 완전히 끌 수도 있습니다. 데이터는 소프트웨어 암호화를 통해 계속 안전하게 저장되지만 하드웨어 지원 인증서와 같은 특정 보안 기능은 중지됩니다.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />재부팅하고 시스템 BIOS/UEFI 설정을 입력하여 TPM 설정을 변경할 수 있습니다. 기기 모델에 따라 설정을 변경하는 단계가 다를 수 있습니다. 자세한 내용을 확인하려면 재부팅하기 전에 별도의 기기에서 <ph name="DEVICE_OS" /> 도움말(g.co/flex/TPMHelp)을 참고하세요.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">이 <ph name="IDS_SHORT_PRODUCT_NAME" /> 기기에서 디버깅 기능을 사용 설정하세요.</translation>
 <translation id="7553242001898162573">비밀번호를 입력해 주세요.</translation>
 <translation id="7556242789364317684">안타깝게도 <ph name="SHORT_PRODUCT_NAME" />에서 설정을 복구할 수 없습니다. 오류를 해결하려면 <ph name="SHORT_PRODUCT_NAME" />에서 Powerwash를 사용하여 기기를 재설정해야 합니다.</translation>
@@ -251,6 +298,10 @@
 <translation id="8452105022015742247">Android 휴대전화에서 Google 계정 정보 전송 중</translation>
 <translation id="8524841856047224176">영상 통화 등을 위한 카메라 배경을 맞춤설정하세요.</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" />에 관해 더 알아보기</translation>
+<translation id="8628232294964836490">휴대전화의 안내에 따라 QR 코드를 스캔하세요. 휴대전화의 블루투스가 켜져 있어야 합니다
+        <ph name="BR" />
+        <ph name="BR" />
+        근처 기기에 표시되는 이름: <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">비밀번호를 확인할 수 없어 로그인할 수 없습니다. 관리자에게 문의하거나 다시 시도해 주세요.</translation>
 <translation id="8674903726754070732">컴퓨터가 잘못된 형식의 하드웨어 ID로 구성되어 있습니다. 이렇게 하면 ChromeOS가 최신 보안 수정사항으로 업데이트되지 않으며 컴퓨터가 <ph name="BEGIN_BOLD" />악의적인 공격에 취약해질 수 있습니다<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">설정 완료 후 자녀 보호 기능 추가</translation>
@@ -264,10 +315,20 @@
 <translation id="8830796635868321089">현재 프록시 설정을 사용하여 업데이트를 확인하지 못했습니다. <ph name="PROXY_SETTINGS_LINK_START" />프록시 설정<ph name="PROXY_SETTINGS_LINK_END" />을 조정하세요.</translation>
 <translation id="885746075120788020">Google 계정을 사용해 로그인할 경우 모든 ChromeOS 기기에서 저장된 환경설정 및 활동을 사용할 수 있습니다. 설정에서 동기화할 항목을 선택하세요</translation>
 <translation id="8875221558267407626">콘텐츠를 요약하거나, 복잡한 언어를 단순화하거나, 질문하세요</translation>
+<translation id="8913163265790894442">휴대전화로 <ph name="DEVICE_TYPE" /> 기기를 간편하게 설정하세요. 비밀번호를 직접 입력하지 않고도 Wi-Fi와 Google 계정을 추가할 수 있습니다
+        <ph name="BR" />
+        <ph name="BR" />
+        표시 이름: <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">이 <ph name="IDS_SHORT_PRODUCT_NAME" /> 기기에서 디버깅 기능의 사용 설정을 완료하지 못했습니다.</translation>
 <translation id="8965037249707889821">이전 비밀번호 입력</translation>
 <translation id="8975396729541388937">수신한 이메일의 링크를 클릭하여 언제든지 수신 거부할 수 있습니다.</translation>
 <translation id="9033765790910064284">무시하고 계속</translation>
 <translation id="903480517321259405">PIN 다시 입력</translation>
 <translation id="9076523132036239772">이메일이나 비밀번호를 확인할 수 없습니다. 먼저 네트워크에 연결해 주세요.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" /><ph name="DEVICE_TYPE" /> 전용 기능입니다<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />생성형 AI는 실험 단계의 기술로 초기 개발 단계에 있으며 현재 제한적으로만 이용할 수 있습니다<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">휴대전화로 <ph name="DEVICE_TYPE" /> 기기를 간편하게 설정하세요. 비밀번호를 직접 입력하지 않고도 Google 계정을 추가할 수 있습니다
+        <ph name="BR" />
+        <ph name="BR" />
+        표시 이름: <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

@@ -679,6 +679,51 @@ public class BottomAttachedUiObserverTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testBugReproduction_stuckColor() {
+        // 1. AndroidBottomBar enabled (done via annotation)
+        // 2. Mock bottom controls (bottom bar) visible and colored.
+        when(mBottomControlsStacker.isLayerVisible(eq(LayerType.BOTTOM_CHIN))).thenReturn(true);
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(BottomControlsStacker.LayerType.BOTTOM_CHIN)))
+                .thenReturn(true);
+        when(mBottomControlsStacker.hasVisibleLayersOtherThan(
+                        eq(Set.of(LayerType.BOTTOM_CHIN, LayerType.BOTTOM_SHEET))))
+                .thenReturn(true);
+
+        // Set bottom controls color (e.g. Red, representing the theme color).
+        mBottomAttachedUiObserver.onBottomControlsBackgroundColorChanged(Color.RED);
+        mBottomAttachedUiObserver.onBottomControlsHeightChanged(BOTTOM_CONTROLS_HEIGHT, 0);
+
+        // Initially, bottom controls are visible, so color should be Red.
+        mColorChangeObserver.assertColor(Color.RED);
+
+        // 3. Bottom sheet appears (peeked), colored (same color, Red).
+        when(mBottomSheetController.isFullWidth()).thenReturn(true);
+        when(mBottomSheetController.isAnchoredToBottomControls()).thenReturn(true);
+        doReturn(Color.RED).when(mBottomSheetController).getSheetBackgroundColor();
+        mBottomAttachedUiObserver.onSheetContentChanged(mSheetContent);
+        peekBottomSheet();
+
+        // Should still use bottom controls color (Red).
+        mColorChangeObserver.assertColor(Color.RED);
+
+        // 4. Navigate to a new page -> Bottom sheet dismissed.
+        dismissBottomSheet();
+
+        // Color should still be Red (because bottom controls are still visible).
+        mColorChangeObserver.assertColor(Color.RED);
+
+        // 5. Bottom controls scrolled off.
+        mBottomAttachedUiObserver.onControlsOffsetChanged(
+                0, 0, false, BOTTOM_CONTROLS_HEIGHT, 0, false, false, false);
+
+        // Now that bottom controls are scrolled off, and bottom sheet is dismissed,
+        // the color should become null.
+        mColorChangeObserver.assertColor(null);
+    }
+
+    @Test
     public void testAdaptsColorToBottomSheet_anchorToBrowserControls_peekedWithOtherControls() {
         when(mBottomSheetController.isFullWidth()).thenReturn(true);
         when(mBottomControlsStacker.isLayerVisible(eq(LayerType.BOTTOM_CHIN))).thenReturn(true);

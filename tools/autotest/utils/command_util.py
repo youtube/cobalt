@@ -8,6 +8,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import logging
 
 from . import constants as const
 from . import telemetry
@@ -89,10 +90,9 @@ def RunTestCommandWithSummary(cmd: list[str],
 
 
 def RunCommand(cmd: list[str], **kwargs: int) -> str:
-  if const.DEBUG:
-    # `shlex` does not support `pathlib.Path`, which `RunCommand` is sometimes
-    # called with. We explicitly convert the args into a `str` to be safe.
-    print(f"Run command: {shlex.join([str(c) for c in cmd])}")
+  # `shlex` does not support `pathlib.Path`, which `RunCommand` is sometimes
+  # called with. We explicitly convert the args into a `str` to be safe.
+  logging.debug(f"Run command: {shlex.join([str(c) for c in cmd])}")
 
   try:
     # Set an encoding to convert the binary output to a string.
@@ -120,9 +120,9 @@ def HaveUserPickFile(paths: list[str]) -> str:
   paths = sorted(paths, key=lambda p: (len(p), p))[:20]
   path_list: str = '\n'.join(f'{i}. {t}' for i, t in enumerate(paths))
 
-  print(f"""\
+  logging.info(f"""\
 Found multiple paths with that name.
-Hint: Avoid this in subsequent runs using --target=$TARGET_NAME, or --run-all.l
+Hint: Avoid this in subsequent runs using --target=$TARGET_NAME, or --run-all
 
 {path_list}
 """)
@@ -150,7 +150,7 @@ Hint: To avoid this in subsequent runs:
     else:
       hint += ' * Use full paths (not just base names)\n'
 
-  print(f"""\
+  logging.info(f"""\
 Path(s) belong to multiple test targets.
 
 {target_list}

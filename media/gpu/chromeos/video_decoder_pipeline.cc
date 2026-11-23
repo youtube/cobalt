@@ -682,21 +682,28 @@ void VideoDecoderPipeline::InitializeTask(const VideoDecoderConfig& config,
           &OOPVideoDecoder::GetOriginalFrame,
           base::Unretained(static_cast<OOPVideoDecoder*>(decoder_.get())));
     } else {
-      CHECK(main_frame_pool_);
-      PlatformVideoFramePool* platform_video_frame_pool =
-          main_frame_pool_->AsPlatformVideoFramePool();
-      // The only |frame_converter_| that needs the GetOriginalFrameCB callback
-      // is the MailboxVideoFrameConverter. When it is used, the
-      // |main_frame_pool_| should always be a PlatformVideoFramePool.
-      CHECK(platform_video_frame_pool);
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_V4L2_CODEC)
+      if (!main_frame_pool_) {
+        get_original_frame_cb = base::NullCallback();
+      } else
+#endif  // BUILDFLAG(IS_LINUX) && BUILDFLAG(USE_V4L2_CODEC)
+      {
+        CHECK(main_frame_pool_);
+        PlatformVideoFramePool* platform_video_frame_pool =
+            main_frame_pool_->AsPlatformVideoFramePool();
+        // The only |frame_converter_| that needs the GetOriginalFrameCB
+        // callback is the MailboxVideoFrameConverter. When it is used, the
+        // |main_frame_pool_| should always be a PlatformVideoFramePool.
+        CHECK(platform_video_frame_pool);
 
-      // Note: base::Unretained() is safe because either a) the
-      // |main_frame_pool_| outlives |frame_converter_| or b) we call
-      // |frame_converter_|->set_get_original_frame_cb() with a null
-      // GetOriginalFrameCB before destroying |main_frame_pool_|.
-      get_original_frame_cb =
-          base::BindRepeating(&PlatformVideoFramePool::GetOriginalFrame,
-                              base::Unretained(platform_video_frame_pool));
+        // Note: base::Unretained() is safe because either a) the
+        // |main_frame_pool_| outlives |frame_converter_| or b) we call
+        // |frame_converter_|->set_get_original_frame_cb() with a null
+        // GetOriginalFrameCB before destroying |main_frame_pool_|.
+        get_original_frame_cb =
+            base::BindRepeating(&PlatformVideoFramePool::GetOriginalFrame,
+                                base::Unretained(platform_video_frame_pool));
+      }
     }
 
     frame_converter_->set_get_original_frame_cb(

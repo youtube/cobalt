@@ -327,6 +327,16 @@ ResourceFetcher* FrameFetchContext::CreateFetcherForCommittedDocument(
       frame->GetSettings()->GetLoadsImagesAutomatically());
   fetcher->SetEarlyHintsPreloadedResources(
       loader.GetEarlyHintsPreloadedResources());
+  // Seed navigation preconnects (from Early Hints and from `Link:
+  // rel=preconnect` headers on the final response) for the
+  // SpeculationMeasurement API. This runs at commit, before markup/header
+  // preconnects are processed, so any later duplicate <link rel=preconnect>
+  // merges into these entries.
+  for (const auto& preconnect : loader.GetPreconnects()) {
+    fetcher->RecordPreconnect(
+        preconnect.url, CrossOriginAttributeToBlink(preconnect.cross_origin),
+        preconnect.early_hint);
+  }
   return fetcher;
 }
 

@@ -25,7 +25,8 @@ enum class ChangeProfileReason {
   kHandlePushNotification = 5,
   kSwitchAccountsFromWidget = 6,
   kSwitchAccountsFromShareExtension = 7,
-  kMaxValue = kSwitchAccountsFromShareExtension
+  kForGoogleOneSettings = 8,
+  kMaxValue = kForGoogleOneSettings
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:IOSChangeProfileReason)
 

@@ -61,9 +61,17 @@ enum class FormInputAccessoryViewSubitemGroup {
 - (void)formInputAccessoryViewDidTapAddressManualFillButton:
     (FormInputAccessoryView*)sender;
 
+// This method is called when the AtMemory manual fill button is tapped.
+// TODO(crbug.com/522326512): Verify this interface.
+- (void)formInputAccessoryViewDidTapAtMemoryManualFillButton:
+    (FormInputAccessoryView*)sender;
+
 @end
 
 extern NSString* const kFormInputAccessoryViewAccessibilityID;
+
+extern NSString* const
+    kFormInputAccessoryViewAtMemoryButtonAccessibilityIdentifier;
 
 extern NSString* const
     kFormInputAccessoryViewOmniboxTypingShieldAccessibilityID;
@@ -97,12 +105,20 @@ extern NSString* const
 // "addressManualFillSymbol". Nil otherwise.
 @property(nonatomic, readonly, weak) UIButton* addressManualFillButton;
 
+// The AtMemory button if the view was set up with a navigation delegate and a
+// "atMemoryManualFillSymbol". Nil otherwise.
+// TODO(crbug.com/522326512): Verify this property.
+@property(nonatomic, readonly, weak) UIButton* atMemoryManualFillButton;
+
 // The leading view.
 @property(nonatomic, readonly, weak) UIView* leadingView;
 
 // The trailing view. Can be nil. It is the parent view of all manual fill
 // buttons, and the close button when split view is not enabled.
 @property(nonatomic, readonly, weak) UIView* trailingView;
+
+// Hides or shows the AtMemory button.
+@property(nonatomic, assign) BOOL atMemoryButtonHidden;
 
 // Whether touches in blank areas should pass through to the underlying UI.
 @property(nonatomic, assign) BOOL passThroughTouchesEnabled;
@@ -129,6 +145,7 @@ extern NSString* const
       passwordManualFillSymbol:(UIImage*)passwordManualFillSymbol
     creditCardManualFillSymbol:(UIImage*)creditCardManualFillSymbol
        addressManualFillSymbol:(UIImage*)addressManualFillSymbol
+      atMemoryManualFillSymbol:(UIImage*)atMemoryManualFillSymbol
              closeButtonSymbol:(UIImage*)closeButtonSymbol
             isTabletFormFactor:(BOOL)isTabletFormFactor;
 

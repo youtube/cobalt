@@ -16,7 +16,9 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -38,17 +40,22 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.STYLE;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.VISIBLE;
 
+import android.widget.Button;
+import android.widget.TextView;
+
+import androidx.test.core.app.ApplicationProvider;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
-import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
@@ -57,6 +64,8 @@ import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
+import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManager;
+import org.chromium.chrome.browser.autofill.autofill_ai.EntityDataManagerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.keyboard_accessory.AccessoryAction;
 import org.chromium.chrome.browser.keyboard_accessory.R;
@@ -84,8 +93,13 @@ import org.chromium.components.autofill.FillingProduct;
 import org.chromium.components.autofill.FillingProductBridgeJni;
 import org.chromium.components.autofill.RecordType;
 import org.chromium.components.autofill.SuggestionType;
+import org.chromium.components.autofill.autofill_ai.EntityInstance;
+import org.chromium.components.autofill.autofill_ai.EntityType;
+import org.chromium.components.autofill.autofill_ai.EntityTypeName;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.ui.insets.InsetObserver;
+import org.chromium.ui.modaldialog.ModalDialogManager;
+import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.ListObservable;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -116,12 +130,14 @@ public class KeyboardAccessoryControllerTest {
     @Mock private AutofillDelegate mMockAutofillDelegate;
     @Mock private Profile mMockProfile;
     @Mock private PersonalDataManager mMockPersonalDataManager;
+    @Mock private EntityDataManager mMockEntityDataManager;
     @Mock private EdgeToEdgeController mEdgeToEdgeController;
     @Mock private InsetObserver mInsetObserver;
     @Mock private FillingProductBridgeJni mMockFillingProductBridgeJni;
     @Mock private Supplier<Boolean> mMockIsLargeFormFactorSupplier;
     @Mock private Runnable mMockDismissRunnable;
     @Mock private Runnable mMockAtMemoryCallback;
+    @Mock private ModalDialogManager mModalDialogManager;
 
     private final KeyboardAccessoryData.Tab mTestTab =
             new KeyboardAccessoryData.Tab("Passwords", 0, null, 0, 0, null);
@@ -133,9 +149,11 @@ public class KeyboardAccessoryControllerTest {
 
     @Before
     public void setUp() {
+        ApplicationProvider.getApplicationContext().setTheme(R.style.Theme_BrowserUI_DayNight);
         when(mMockButtonGroup.getTabSwitchingDelegate()).thenReturn(mMockTabSwitchingDelegate);
         FillingProductBridgeJni.setInstanceForTesting(mMockFillingProductBridgeJni);
         PersonalDataManagerFactory.setInstanceForTesting(mMockPersonalDataManager);
+        EntityDataManagerFactory.setInstanceForTesting(mMockEntityDataManager);
         mEdgeToEdgeControllerSupplier = ObservableSuppliers.createNonNull(mEdgeToEdgeController);
         when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
 
@@ -154,8 +172,9 @@ public class KeyboardAccessoryControllerTest {
 
         mCoordinator =
                 new KeyboardAccessoryCoordinator(
-                        ContextUtils.getApplicationContext(),
+                        ApplicationProvider.getApplicationContext(),
                         mMockProfile,
+                        mModalDialogManager,
                         mMockButtonGroup,
                         mMockBarVisibilityDelegate,
                         mMockSheetVisibilityDelegate,
@@ -448,6 +467,124 @@ public class KeyboardAccessoryControllerTest {
         barItems = flattenItemGroups();
         assertThat(barItems.get(0).getViewState(), is(ActionBarItem.ViewState.LOADING));
         assertThat(barItems.get(1).getViewState(), is(ActionBarItem.ViewState.DEACTIVATED));
+    }
+
+    private void verifyLongPressOnPersonalContextSuggestionOpensSettings(
+            @EntityTypeName int entityTypeName) {
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+
+        EntityInstance entityInstance = mock(EntityInstance.class);
+        when(entityInstance.getRecordType())
+                .thenReturn(
+                        org.chromium.components.autofill.autofill_ai.RecordType.PERSONAL_CONTEXT);
+        EntityType entityType = mock(EntityType.class);
+        when(entityType.getTypeName()).thenReturn(entityTypeName);
+        when(entityInstance.getEntityType()).thenReturn(entityType);
+        when(mMockEntityDataManager.getEntityInstance("guid")).thenReturn(entityInstance);
+
+        AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("Personal Context Suggestion")
+                        .setSubLabel("Order * Water")
+                        .setSuggestionType(SuggestionType.FILL_AUTOFILL_AI)
+                        .setFeatureForIph("")
+                        .setPayload(new AutofillAiPayload("guid", false))
+                        .build();
+
+        mCoordinator.setSuggestions(List.of(suggestion), mMockAutofillDelegate);
+
+        List<ActionBarItem> barItems = flattenItemGroups();
+        assertThat(barItems.get(0).getAction().getLongPressCallback(), notNullValue());
+
+        // Simulate a long press on the suggestion.
+        barItems.get(0).getAction().getLongPressCallback().onResult(barItems.get(0).getAction());
+
+        ArgumentCaptor<PropertyModel> modelCaptor = ArgumentCaptor.forClass(PropertyModel.class);
+        verify(mModalDialogManager).showDialog(modelCaptor.capture(), anyInt());
+        PropertyModel model = modelCaptor.getValue();
+        assertThat(model.get(ModalDialogProperties.TITLE), equalTo("Order * Water"));
+        TextView description =
+                model.get(ModalDialogProperties.CUSTOM_VIEW)
+                        .findViewById(R.id.description_text_view);
+        assertThat(
+                description.getText().toString(),
+                equalTo(
+                        ApplicationProvider.getApplicationContext()
+                                .getString(
+                                        R.string
+                                                .autofill_ai_suggestion_long_press_dialog_description)));
+        Button positiveButton =
+                model.get(ModalDialogProperties.CUSTOM_BUTTON_BAR_VIEW)
+                        .findViewById(R.id.button_primary);
+        assertThat(
+                positiveButton.getText().toString(),
+                equalTo(
+                        ApplicationProvider.getApplicationContext()
+                                .getString(
+                                        R.string
+                                                .autofill_ai_suggestion_long_press_dialog_positive_button)));
+        Button negativeButton =
+                model.get(ModalDialogProperties.CUSTOM_BUTTON_BAR_VIEW)
+                        .findViewById(R.id.button_secondary);
+        assertThat(
+                negativeButton.getText().toString(),
+                equalTo(
+                        ApplicationProvider.getApplicationContext()
+                                .getString(
+                                        R.string
+                                                .autofill_ai_suggestion_long_press_dialog_negative_button)));
+        verify(mMockAutofillDelegate, never()).deleteSuggestion(anyInt());
+
+        model.get(ModalDialogProperties.CONTROLLER)
+                .onClick(model, ModalDialogProperties.ButtonType.POSITIVE);
+        verify(mMockAutofillDelegate).openSettingsForEntityType(entityTypeName);
+    }
+
+    @Test
+    public void testLongPressOnPersonalContextSuggestionOpensDialog() {
+        verifyLongPressOnPersonalContextSuggestionOpensSettings(EntityTypeName.PASSPORT);
+    }
+
+    @Test
+    public void testLongPressOnPersonalContextSuggestionOpensDialog_Travel() {
+        verifyLongPressOnPersonalContextSuggestionOpensSettings(EntityTypeName.VEHICLE);
+    }
+
+    @Test
+    public void testLongPressOnPersonalContextSuggestionOpensDialog_Shopping() {
+        verifyLongPressOnPersonalContextSuggestionOpensSettings(EntityTypeName.ORDER);
+    }
+
+    @Test
+    public void testLongPressOnRegularSuggestionDeletesSuggestion() {
+        when(mMockIsLargeFormFactorSupplier.get()).thenReturn(false);
+
+        EntityInstance entityInstance = mock(EntityInstance.class);
+        when(entityInstance.getRecordType())
+                .thenReturn(org.chromium.components.autofill.autofill_ai.RecordType.LOCAL);
+        when(mMockEntityDataManager.getEntityInstance("guid")).thenReturn(entityInstance);
+
+        AutofillSuggestion suggestion =
+                new AutofillSuggestion.Builder()
+                        .setLabel("Regular Suggestion")
+                        .setSecondaryLabel("Order * Water")
+                        .setSubLabel("")
+                        .setSuggestionType(SuggestionType.AUTOCOMPLETE_ENTRY)
+                        .setFeatureForIph("")
+                        .setPayload(new AutofillAiPayload("guid", false))
+                        .build();
+
+        mCoordinator.setSuggestions(List.of(suggestion), mMockAutofillDelegate);
+
+        List<ActionBarItem> barItems = flattenItemGroups();
+        assertThat(barItems.get(0).getAction().getLongPressCallback(), notNullValue());
+
+        // Simulate a long press on the suggestion.
+        barItems.get(0).getAction().getLongPressCallback().onResult(barItems.get(0).getAction());
+
+        ArgumentCaptor<PropertyModel> modelCaptor = ArgumentCaptor.forClass(PropertyModel.class);
+        verify(mModalDialogManager, never()).showDialog(modelCaptor.capture(), anyInt());
+        verify(mMockAutofillDelegate).deleteSuggestion(0);
     }
 
     @Test

@@ -116,14 +116,13 @@ static int set_dist_point_name(DIST_POINT_NAME **pdp, const X509V3_CTX *ctx,
       return -1;
     }
     int ret = X509V3_NAME_from_section(nm.get(), dnsect, MBSTRING_ASC);
-    rnm.reset(std::exchange(FromOpaque(nm.get())->entries, nullptr));
+    rnm = std::move(FromOpaque(nm.get())->entries);
     if (!ret || sk_X509_NAME_ENTRY_num(rnm.get()) <= 0) {
       return -1;
     }
     // There can only be one RDN in nameRelativeToCRLIssuer.
-    if (sk_X509_NAME_ENTRY_value(rnm.get(),
-                                 sk_X509_NAME_ENTRY_num(rnm.get()) - 1)
-            ->set) {
+    if (X509_NAME_ENTRY_set(sk_X509_NAME_ENTRY_value(
+            rnm.get(), sk_X509_NAME_ENTRY_num(rnm.get()) - 1)) != 0) {
       OPENSSL_PUT_ERROR(X509V3, X509V3_R_INVALID_MULTIPLE_RDNS);
       return -1;
     }
@@ -424,7 +423,11 @@ static int print_distpoint(BIO *out, DIST_POINT_NAME *dpn, int indent) {
     print_gens(out, dpn->name.fullname, indent);
   } else {
     X509Name ntmp;
-    ntmp.entries = dpn->name.relativename;
+    ntmp.entries.reset(sk_X509_NAME_ENTRY_deep_copy(
+        dpn->name.relativename, X509_NAME_ENTRY_dup, X509_NAME_ENTRY_free));
+    if (ntmp.entries == nullptr) {
+      return 0;
+    }
     BIO_printf(out, "%*sRelative Name:\n%*s", indent, "", indent + 2, "");
     X509_NAME_print_ex(out, &ntmp, 0, XN_FLAG_ONELINE);
     BIO_puts(out, "\n");

@@ -298,14 +298,11 @@ TEST_F(IdentityCredentialSourceImplTest, SelectAccountSameSite) {
 
   MockIdentityRegistry identity_registry(web_contents(), nullptr,
                                          idp_origin.GetURL());
-  mojo::Remote<blink::mojom::FederatedAuthRequest> remote;
-
-  Request& request =
-      RequestService::GetOrCreateForCurrentDocument(main_rfh())
-          ->CreateRequestForTesting(
-              remote.BindNewPipeAndPassReceiver(), &api_permission_delegate,
-              &auto_reauthn_permission_delegate, permission_delegate_.get(),
-              &identity_registry);
+  auto* service = RequestService::GetOrCreateForCurrentDocument(main_rfh());
+  service->SetDelegatesForTesting(
+      &api_permission_delegate, &auto_reauthn_permission_delegate,
+      permission_delegate_.get(), &identity_registry);
+  Request& request = *service->GetOrCreateActiveRequest();
 
   TestIdentityCredentialSourceImpl::InitializeRequest(
       &request, std::make_unique<NiceMock<MockIdpNetworkRequestManager>>());
@@ -379,14 +376,11 @@ TEST_F(IdentityCredentialSourceImplTest, SelectAccountCrossSiteFail) {
 
   MockIdentityRegistry identity_registry(web_contents(), nullptr,
                                          idp_origin.GetURL());
-  mojo::Remote<blink::mojom::FederatedAuthRequest> remote;
-
-  Request& request =
-      RequestService::GetOrCreateForCurrentDocument(subframe)
-          ->CreateRequestForTesting(
-              remote.BindNewPipeAndPassReceiver(), &api_permission_delegate,
-              &auto_reauthn_permission_delegate, permission_delegate_.get(),
-              &identity_registry);
+  auto* service = RequestService::GetOrCreateForCurrentDocument(subframe);
+  service->SetDelegatesForTesting(
+      &api_permission_delegate, &auto_reauthn_permission_delegate,
+      permission_delegate_.get(), &identity_registry);
+  Request& request = *service->GetOrCreateActiveRequest();
 
   TestIdentityCredentialSourceImpl::InitializeRequest(
       &request, std::make_unique<NiceMock<MockIdpNetworkRequestManager>>());
@@ -461,14 +455,11 @@ TEST_F(IdentityCredentialSourceImplTest,
 
   MockIdentityRegistry identity_registry(web_contents(), nullptr,
                                          idp_origin.GetURL());
-  mojo::Remote<blink::mojom::FederatedAuthRequest> remote;
-
-  Request& request =
-      RequestService::GetOrCreateForCurrentDocument(subframe)
-          ->CreateRequestForTesting(
-              remote.BindNewPipeAndPassReceiver(), &api_permission_delegate,
-              &auto_reauthn_permission_delegate, permission_delegate_.get(),
-              &identity_registry);
+  auto* service = RequestService::GetOrCreateForCurrentDocument(subframe);
+  service->SetDelegatesForTesting(
+      &api_permission_delegate, &auto_reauthn_permission_delegate,
+      permission_delegate_.get(), &identity_registry);
+  Request& request = *service->GetOrCreateActiveRequest();
 
   TestIdentityCredentialSourceImpl::InitializeRequest(
       &request, std::make_unique<NiceMock<MockIdpNetworkRequestManager>>());
@@ -554,14 +545,11 @@ TEST_F(IdentityCredentialSourceImplTest,
       .WillRepeatedly(Return(false));
 
   MockIdentityRegistry identity_registry(web_contents(), nullptr, config_url);
-  mojo::Remote<blink::mojom::FederatedAuthRequest> remote;
-
-  Request& request =
-      RequestService::GetOrCreateForCurrentDocument(subframe)
-          ->CreateRequestForTesting(
-              remote.BindNewPipeAndPassReceiver(), &api_permission_delegate,
-              &auto_reauthn_permission_delegate, permission_delegate_.get(),
-              &identity_registry);
+  auto* service = RequestService::GetOrCreateForCurrentDocument(subframe);
+  service->SetDelegatesForTesting(
+      &api_permission_delegate, &auto_reauthn_permission_delegate,
+      permission_delegate_.get(), &identity_registry);
+  Request& request = *service->GetOrCreateActiveRequest();
 
   TestIdentityCredentialSourceImpl::InitializeRequest(
       &request, std::make_unique<NiceMock<MockIdpNetworkRequestManager>>());

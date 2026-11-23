@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <optional>
 
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
@@ -31,7 +32,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAllocHooks {
   typedef bool AllocationOverrideHook(void** out,
                                       AllocFlags flags,
                                       size_t size,
-                                      const char* type_name);
+                                      const char* type_name,
+                                      std::optional<size_t> alignment);
   // If it returns true, then the allocation was overridden and has been freed.
   typedef bool FreeOverrideHook(void* address);
   // If it returns true, the underlying allocation is overridden and *out holds
@@ -63,7 +65,8 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAllocHooks {
   static bool AllocationOverrideHookIfEnabled(void** out,
                                               AllocFlags flags,
                                               size_t size,
-                                              const char* type_name);
+                                              const char* type_name,
+                                              std::optional<size_t> alignment);
 
   static void FreeObserverHookIfEnabled(
       const FreeNotificationData& notification_data);

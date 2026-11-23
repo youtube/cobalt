@@ -78,6 +78,11 @@ message SendTabToSelfSpecifics {
   // sender.
   // New in M148.
   optional int64 opened_time_windows_epoch_micros = 14;
+
+  // Time (in microseconds since the Windows epoch) when the entry was activated
+  // on the target device. Set by the receiving device and synced to the server.
+  // New in M151.
+  optional int64 activated_time_windows_epoch_micros = 16;
 }
 
 message PageContext {

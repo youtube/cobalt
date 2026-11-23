@@ -5,6 +5,7 @@
 #include "components/sessions/core/command_storage_manager_test_helper.h"
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -36,14 +37,9 @@ void CommandStorageManagerTestHelper::RunTaskOnBackendThread(
 }
 
 void CommandStorageManagerTestHelper::RunMessageLoopUntilBackendDone() {
-  auto current_task_runner = base::SingleThreadTaskRunner::GetCurrentDefault();
   base::RunLoop run_loop;
-  auto quit_closure = run_loop.QuitClosure();
-  auto quit_from_backend =
-      base::BindLambdaForTesting([&current_task_runner, &quit_closure]() {
-        current_task_runner->PostTask(FROM_HERE, std::move(quit_closure));
-      });
-  RunTaskOnBackendThread(FROM_HERE, std::move(quit_from_backend));
+  command_storage_manager_->backend_task_runner_->PostTaskAndReply(
+      FROM_HERE, base::DoNothing(), run_loop.QuitClosure());
   run_loop.Run();
 }
 

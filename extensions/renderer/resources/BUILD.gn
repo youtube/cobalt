@@ -75,7 +75,6 @@ generate_grd("build_grdp") {
     "test_custom_bindings.js",
     "uncaught_exception_handler.js",
     "utils.js",
-    "web_request_custom_bindings.js",
     "web_request_event.js",
   ]
 

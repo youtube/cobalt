@@ -17,8 +17,10 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/native_library.h"
+#include "base/threading/sequence_bound.h"
 #include "base/types/expected.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
 #include "services/on_device_model/backend.h"
 #include "services/on_device_model/backend_model.h"
 #include "services/on_device_model/backend_session.h"
@@ -26,7 +28,6 @@
 #include "services/on_device_model/ml/chrome_ml_api.h"
 #include "services/on_device_model/ml/constraint_factory.h"
 #include "services/on_device_model/ml/session_accessor.h"
-#include "services/on_device_model/ml/ts_model.h"
 #include "services/on_device_model/public/cpp/model_assets.h"
 #include "services/on_device_model/public/mojom/on_device_model.mojom.h"
 #include "services/on_device_model/public/mojom/on_device_model_service.mojom.h"
@@ -35,6 +36,7 @@
 namespace ml {
 
 class ContextHolder;
+class TsHolder;
 class OnDeviceModelExecutor;
 class Responder;
 class AsrStreamResponder;
@@ -66,7 +68,9 @@ class COMPONENT_EXPORT(ON_DEVICE_MODEL_ML) BackendImpl final
 
  private:
   const raw_ptr<const ml::ChromeML> chrome_ml_;
+#if !BUILDFLAG(IS_FUCHSIA)
   base::SequenceBound<ml::TsHolder> ts_holder_;
+#endif
 };
 
 class COMPONENT_EXPORT(ON_DEVICE_MODEL_ML) SessionImpl final

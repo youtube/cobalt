@@ -114,14 +114,12 @@ LensSearchboxHandler::LensSearchboxHandler(
           std::move(pending_page),
           profile,
           web_contents,
-          std::make_unique<OmniboxController>(
-              std::make_unique<LensOmniboxClient>(profile,
-                                                  web_contents,
-                                                  lens_searchbox_client),
-              lens::features::GetLensSearchboxAutocompleteTimeout())),
+          std::make_unique<LensOmniboxClient>(profile,
+                                              web_contents,
+                                              lens_searchbox_client),
+          lens::features::GetLensSearchboxAutocompleteTimeout()),
       lens_searchbox_client_(lens_searchbox_client) {
   autocomplete_controller_observation_.Observe(autocomplete_controller());
-
 }
 
 LensSearchboxHandler::~LensSearchboxHandler() = default;
@@ -174,7 +172,7 @@ void LensSearchboxHandler::SetThumbnail(const std::string& thumbnail_url,
 }
 
 void LensSearchboxHandler::OnThumbnailRemoved() {
-  omnibox_controller()->client()->OnThumbnailRemoved();
+  client()->OnThumbnailRemoved();
 }
 
 void LensSearchboxHandler::OnAutocompleteStopTimerTriggered(

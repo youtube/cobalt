@@ -204,7 +204,7 @@ void PermissionPromptBubbleBaseView::Show() {
 }
 
 void PermissionPromptBubbleBaseView::CreateWidget() {
-  CHECK(GetBrowser()->GetWindow());
+  CHECK(GetNativeWindow());
 
   UpdateAnchorPosition();
 
@@ -221,9 +221,13 @@ void PermissionPromptBubbleBaseView::CreateWidget() {
 }
 
 void PermissionPromptBubbleBaseView::ShowWidget() {
-  // If a browser window (or popup) other than the bubble parent has focus,
+  // If a host window (or popup) other than the bubble parent has focus,
   // don't take focus.
-  if (GetBrowser() && GetBrowser()->GetWindow()->IsActive()) {
+  views::Widget* host_widget =
+      GetNativeWindow()
+          ? views::Widget::GetWidgetForNativeWindow(GetNativeWindow())
+          : nullptr;
+  if (host_widget && host_widget->ShouldPaintAsActive()) {
     GetWidget()->Show();
   } else {
     GetWidget()->ShowInactive();
@@ -260,7 +264,7 @@ void PermissionPromptBubbleBaseView::ClosingPermission() {
 
   if (delegate_) {
     permissions::PermissionUmaUtil::RecordActionBrowserAlwaysActive(
-        request_type(), "Dismissed", record_browser_always_active_value());
+        request_type(), "Dismissed", record_host_always_active_value());
     delegate_->Dismiss(/*prompt_options=*/std::monostate());
   }
 }
@@ -269,9 +273,13 @@ void PermissionPromptBubbleBaseView::RunButtonCallback(int button_id) {
   PermissionDialogButton button = GetPermissionDialogButton(button_id);
   permissions::PermissionUmaUtil::RecordActionBrowserAlwaysActive(
       request_type(), GetPermissionActionString(button),
-      record_browser_always_active_value());
+      record_host_always_active_value());
+  // `GetBrowser()` can be null for hosts that are not backed by a Browser, such
+  // as a standalone Document Picture-in-Picture window. Guard against it since
+  // `GetBrowserViewForBrowser()` dereferences its argument.
+  auto* browser = GetBrowser();
   BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(GetBrowser());
+      browser ? BrowserView::GetBrowserViewForBrowser(browser) : nullptr;
 #if BUILDFLAG(IS_CHROMEOS)
   // `PERMISSION_SMART_CARD` is essentially a chooser permission without an
   // actual chooser - thus, there is no blocklist of devices and no real

@@ -30,6 +30,13 @@ void RegisterIfLabelled(Graph* graph, NodeBase* node) {
   }
 }
 
+void RegisterClonedNode(Graph* graph, NodeBase* clone, const NodeBase* src) {
+  if (graph->has_graph_labeller()) {
+    graph->graph_labeller()->RegisterNode(
+        clone, &graph->graph_labeller()->GetNodeProvenance(src));
+  }
+}
+
 int LoopHeaderBytecodeOffset(BasicBlock* block) {
   if (!block->has_state()) return -1;
   return block->state()->merge_offset();
@@ -128,17 +135,31 @@ void RemapClonedDeoptInfo(NodeBase* src, NodeBase* clone, const ValueMap& vmap,
   }
 }
 
+void RemapClonedExceptionHandlerInfo(NodeBase* src, NodeBase* clone,
+                                     BasicBlock* dst_block) {
+  if (!clone->properties().can_throw()) return;
+  ExceptionHandlerInfo* src_info = src->exception_handler_info();
+  DCHECK(!src_info->HasExceptionHandler() || src_info->ShouldLazyDeopt());
+  if (src_info->ShouldLazyDeopt()) {
+    new (clone->exception_handler_info())
+        ExceptionHandlerInfo(ExceptionHandlerInfo::kLazyDeopt);
+  } else {
+    new (clone->exception_handler_info()) ExceptionHandlerInfo();
+  }
+  if (clone->Is<CallKnownJSFunction>()) {
+    dst_block->AddExceptionHandler(clone->exception_handler_info());
+  }
+}
+
 // Clone a single non-phi, non-control Node by raw byte copy; rewires its
 // inputs via vmap; for nodes carrying eager/lazy deopt info, also clones the
 // deopt frame chain in-place.
 Node* CloneNodeWithRemap(Node* src, const ValueMap& vmap, Zone* zone) {
-  DCHECK(!src->properties().can_throw());
   Node* clone = nullptr;
   switch (src->opcode()) {
 #define CLONE_CASE(Name)                                         \
   case Opcode::k##Name:                                          \
-    if constexpr (!Name::kProperties.can_throw() &&              \
-                  Opcode::k##Name != Opcode::kPhi) {             \
+    if constexpr (Opcode::k##Name != Opcode::kPhi) {             \
       clone = NodeBase::CloneRaw<Name>(src->Cast<Name>(), zone); \
     }                                                            \
     break;
@@ -354,10 +375,11 @@ std::optional<MaglevLoopPeeler::LoopInfo> MaglevLoopPeeler::BuildLoopInfo(
 
   // Classify out-of-body successor edges and collect exit edges.
   for (BasicBlock* b : loop.body) {
-    // TODO(victorgomes): Support throwable nodes.
-    if (!b->exception_handlers().is_empty()) {
+    // TODO(victorgomes): support a catch block inside the loop body; its
+    // exception merge state needs cloning support in CloneBodySubgraph.
+    if (b->has_state() && b->state()->is_exception_handler()) {
       TRACE_PEEL_SKIP("@" << header_offset
-                          << ": skip (body block has exception handlers)");
+                          << ": skip (catch block in loop body)");
       return std::nullopt;
     }
 
@@ -457,14 +479,18 @@ bool MaglevLoopPeeler::IsCloneable(const LoopInfo& loop) const {
     for (Node* node : block->nodes()) {
       if (node == nullptr) continue;
       if (IsSkippableInPeel(node)) continue;
-      // TODO(victorgomes): Support throwable nodes. A throwing node carries an
-      // attached exception handler / catch block; cloning it means cloning and
-      // re-wiring that handler too, which this first prototype doesn't do.
+      // TODO(victorgomes): support throwable nodes with a live catch block;
+      // cloning one means cloning/sharing the catch block and its exception
+      // merge state. Nodes with no live catch edge (no handler / lazy-deopt)
+      // are cloned; see RemapClonedExceptionHandlerInfo.
       if (node->properties().can_throw()) {
-        TRACE_PEEL_SKIP("@" << header_offset
-                            << ": skip (uncloneable throwable node "
-                            << OpcodeToString(node->opcode()) << ")");
-        return false;
+        ExceptionHandlerInfo* info = node->exception_handler_info();
+        if (info->HasExceptionHandler() && !info->ShouldLazyDeopt()) {
+          TRACE_PEEL_SKIP("@" << header_offset
+                              << ": skip (throwable node with live catch block "
+                              << OpcodeToString(node->opcode()) << ")");
+          return false;
+        }
       }
       if (NodeHasUntrackableSideState(node)) {
         TRACE_PEEL_SKIP("@" << header_offset << ": skip (uncloneable node "
@@ -698,12 +724,23 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
         }
         dst_block->state()->phis()->Add(clone_phi);
         ctx.value_map[phi] = clone_phi;
-        RegisterIfLabelled(graph_, clone_phi);
+        RegisterClonedNode(graph_, clone_phi, phi);
       }
     }
     dst_block->nodes().reserve(block->nodes().size());
-    for (Node* node : block->nodes()) {
+    for (Node*& node : block->nodes()) {
       if (node == nullptr) continue;
+      // This loop is being peeled now. A %AssertPeeled marker asserts exactly
+      // that, so drop it from the original body (so it never reaches the
+      // Turbolev backend) and don't clone it into the peeled iteration. A
+      // %AssertNotPeeled marker asserts the opposite, so peeling violates it.
+      if (auto* assert_peeled = node->TryCast<AssertPeeled>()) {
+        if (!assert_peeled->expect_peeled()) {
+          FATAL("%%AssertNotPeeled: loop was peeled");
+        }
+        node = nullptr;
+        continue;
+      }
       if (IsSkippableInPeel(node)) continue;
       // Don't clone Identity nodes; fold each one away by mapping it to its
       // underlying value. That value may itself be defined earlier in the body
@@ -717,11 +754,12 @@ void MaglevLoopPeeler::CloneBodySubgraph(PeelContext& ctx) {
       }
       Node* cloned = CloneNodeWithRemap(node, ctx.value_map, zone());
       cloned->set_owner(dst_block);
+      RemapClonedExceptionHandlerInfo(node, cloned, dst_block);
       dst_block->nodes().push_back(cloned);
       if (auto* vn = cloned->TryCast<ValueNode>()) {
         ctx.value_map[node->Cast<ValueNode>()] = vn;
       }
-      RegisterIfLabelled(graph_, cloned);
+      RegisterClonedNode(graph_, cloned, node);
     }
     // Control nodes are cloned later, in CloneLoopBodyControl, because a
     // cloned control node may target blocks/merges not created yet.
@@ -1055,7 +1093,7 @@ void MaglevLoopPeeler::CloneLoopBodyControl(PeelContext& ctx) {
     if (block->is_edge_split_block()) {
       cloned_block->set_edge_split_block(cloned_block->predecessor());
     }
-    RegisterIfLabelled(graph_, cloned_control);
+    RegisterClonedNode(graph_, cloned_control, control);
   }
 }
 
@@ -1256,6 +1294,23 @@ void MaglevLoopPeeler::RewireDownstreamPhiRefs(PeelContext& ctx) {
     });
   }
 
+  // Downstream deopt frames reference the old header phi (soon an Identity to
+  // the PEM phi). Later passes can't move deopt-frame uses off an Identity, so
+  // point them straight at the PEM phi to keep it live.
+  for (BasicBlock* block : graph_->blocks()) {
+    if (block->is_dead() || ctx.loop.body_set.contains(block)) continue;
+    block->ForEachNodeAndControl([&](NodeBase* n) {
+      if (n->properties().has_eager_deopt_info()) {
+        RewireDeoptFramePhiRefs(n->eager_deopt_info(),
+                                ctx.header_phi_to_pem_phi);
+      }
+      if (n->properties().can_lazy_deopt()) {
+        RewireDeoptFramePhiRefs(n->lazy_deopt_info(),
+                                ctx.header_phi_to_pem_phi);
+      }
+    });
+  }
+
   // Every header phi is being replaced, so drop them all at once rather than
   // removing each one individually (which would be O(n^2)).
   ctx.loop.header()->state()->phis()->Clear();
@@ -1337,15 +1392,6 @@ void MaglevLoopPeeler::SplicePeeledBlocks(PeelContext& ctx) {
 
 bool MaglevLoopPeeler::Run() {
   bool mutated = false;
-  // TODO(victorgomes): Should we support OSR and resumable generators?
-  if (graph_->is_osr()) {
-    TRACE_PEEL_SKIP("skip pass: graph is OSR");
-    return false;
-  }
-  if (graph_->has_resumable_generator()) {
-    TRACE_PEEL_SKIP("skip pass: graph has resumable generator");
-    return false;
-  }
 
   ResolveLoopHeader();
 

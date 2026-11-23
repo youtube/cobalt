@@ -200,7 +200,7 @@ public abstract class ToolbarLayout extends FrameLayout
      * @param extensionsToolbarCoordinator The {@link ExtensionsToolbarCoordinator} to be set.
      */
     public void setExtensionsToolbarCoordinator(
-            ExtensionsToolbarCoordinator extensionsToolbarCoordinator) {}
+            @Nullable ExtensionsToolbarCoordinator extensionsToolbarCoordinator) {}
 
     /**
      * @param overlay The coordinator for the texture version of the top toolbar.

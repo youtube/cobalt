@@ -87,9 +87,11 @@ class FidoMakeCredentialHandlerTest : public ::testing::Test {
   }
 
   void ForgeDiscoveries() {
-    discovery_ = fake_discovery_factory_->ForgeNextHidDiscovery();
-    nfc_discovery_ = fake_discovery_factory_->ForgeNextNfcDiscovery();
-    platform_discovery_ = fake_discovery_factory_->ForgeNextPlatformDiscovery();
+    discovery_ = fake_discovery_factory_->ForgeNextHidDiscovery()->GetWeakPtr();
+    nfc_discovery_ =
+        fake_discovery_factory_->ForgeNextNfcDiscovery()->GetWeakPtr();
+    platform_discovery_ =
+        fake_discovery_factory_->ForgeNextPlatformDiscovery()->GetWeakPtr();
   }
 
   std::unique_ptr<MakeCredentialRequestHandler> CreateMakeCredentialHandler(
@@ -143,8 +145,10 @@ class FidoMakeCredentialHandlerTest : public ::testing::Test {
         ::testing::UnorderedElementsAreArray(transports));
   }
 
-  test::FakeFidoDiscovery* discovery() const { return discovery_; }
-  test::FakeFidoDiscovery* nfc_discovery() const { return nfc_discovery_; }
+  test::FakeFidoDiscovery* discovery() const { return discovery_.get(); }
+  test::FakeFidoDiscovery* nfc_discovery() const {
+    return nfc_discovery_.get();
+  }
   TestMakeCredentialRequestFuture& future() { return future_; }
 
   void set_mock_platform_device(std::unique_ptr<MockFidoDevice> device) {
@@ -161,10 +165,9 @@ class FidoMakeCredentialHandlerTest : public ::testing::Test {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<test::FakeFidoDiscoveryFactory> fake_discovery_factory_ =
       std::make_unique<test::FakeFidoDiscoveryFactory>();
-  raw_ptr<test::FakeFidoDiscovery, AcrossTasksDanglingUntriaged> discovery_;
-  raw_ptr<test::FakeFidoDiscovery, AcrossTasksDanglingUntriaged> nfc_discovery_;
-  raw_ptr<test::FakeFidoDiscovery, AcrossTasksDanglingUntriaged>
-      platform_discovery_;
+  base::WeakPtr<test::FakeFidoDiscovery> discovery_;
+  base::WeakPtr<test::FakeFidoDiscovery> nfc_discovery_;
+  base::WeakPtr<test::FakeFidoDiscovery> platform_discovery_;
   scoped_refptr<::testing::NiceMock<MockBluetoothAdapter>> mock_adapter_;
   std::unique_ptr<MockFidoDevice> pending_mock_platform_device_;
   TestMakeCredentialRequestFuture future_;

@@ -164,11 +164,10 @@ std::optional<HtmlFieldType> ParseNonStandarizedAutocompleteAttribute(
 
 std::string AutocompleteParsingResult::ToString() const {
   return base::StrCat(
-      {"section='", section, "' ", "mode='", HtmlFieldModeToStringView(mode),
-       "' ", "field_type='", FieldTypeToStringView(field_type), "' ",
-       "webauthn='", base::ToString(webauthn), "webidentity='",
-       base::ToString(webidentity), "email_verification_token='",
-       base::ToString(email_verification_token), "'"});
+      {"section=\"", section, "\" mode=", HtmlFieldModeToStringView(mode),
+       " field_type=", FieldTypeToStringView(field_type), " webauthn=",
+       base::ToString(webauthn), " webidentity=", base::ToString(webidentity),
+       " email_verification_token=", base::ToString(email_verification_token)});
 }
 
 bool AutocompleteParsingResult::operator==(

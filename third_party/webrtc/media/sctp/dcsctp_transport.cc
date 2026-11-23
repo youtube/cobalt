@@ -753,7 +753,14 @@ void DcSctpTransport::OnTransportReadPacket(
 
   RTC_DLOG(LS_VERBOSE) << debug_name_ << "->OnTransportReadPacket(), length="
                        << packet.payload().size() << " socket=" << !!socket_;
-  if (socket_) {
+  // With SNAP the socket is created (in Start()) before it is connected (in
+  // MaybeConnectSocket(), once the transport is writable). Buffer packets that
+  // arrive in that window; delivering them to the still-closed socket would
+  // have it reject them as having an invalid verification tag.
+  bool snap_pending_connect = socket_ != nullptr && local_init_.has_value() &&
+                              remote_init_.has_value() &&
+                              socket_->state() == dcsctp::SocketState::kClosed;
+  if (socket_ && !snap_pending_connect) {
     socket_->ReceivePacket(packet.payload());
     return;
   }

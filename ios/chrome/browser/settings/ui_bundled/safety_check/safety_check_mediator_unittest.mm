@@ -81,8 +81,8 @@ using password_manager::TestPasswordStore;
 constexpr NSInteger kTrailingSymbolImagePointSize = 22;
 
 // Registers account preference that will be used for Safe Browsing.
-PrefService* SetPrefService() {
-  TestingPrefServiceSimple* prefs = new TestingPrefServiceSimple();
+std::unique_ptr<TestingPrefServiceSimple> SetPrefService() {
+  auto prefs = std::make_unique<TestingPrefServiceSimple>();
   PrefRegistrySimple* registry = prefs->registry();
   registry->RegisterBooleanPref(prefs::kSafeBrowsingEnabled, true);
   registry->RegisterBooleanPref(prefs::kSafeBrowsingEnhanced, true);
@@ -156,7 +156,7 @@ class SafetyCheckMediatorTest : public PlatformTest {
         TestingApplicationContext::GetGlobal()->GetLocalState();
 
     mediator_ = [[SafetyCheckMediator alloc]
-        initWithUserPrefService:pref_service_
+        initWithUserPrefService:pref_service_.get()
                localPrefService:local_pref_service_
            passwordCheckManager:password_check_
                     authService:auth_service_
@@ -261,13 +261,13 @@ class SafetyCheckMediatorTest : public PlatformTest {
   web::WebTaskEnvironment environment_{
       web::WebTaskEnvironment::TimeSource::MOCK_TIME};
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
-  raw_ptr<ProfileIOS, DanglingUntriaged> profile_;
-  scoped_refptr<TestPasswordStore> store_;
-  raw_ptr<AuthenticationService, DanglingUntriaged> auth_service_;
-  scoped_refptr<IOSChromePasswordCheckManager> password_check_;
   TestProfileManagerIOS profile_manager_;
+  raw_ptr<ProfileIOS> profile_;
+  scoped_refptr<TestPasswordStore> store_;
+  raw_ptr<AuthenticationService> auth_service_;
+  scoped_refptr<IOSChromePasswordCheckManager> password_check_;
   SafetyCheckMediator* mediator_;
-  raw_ptr<PrefService> pref_service_;
+  std::unique_ptr<TestingPrefServiceSimple> pref_service_;
   raw_ptr<PrefService> local_pref_service_;
   PrefBackedBoolean* safe_browsing_preference_;
 };
@@ -823,7 +823,7 @@ TEST_F(SafetyCheckMediatorTest, CheckNowClickableAll) {
 TEST_F(SafetyCheckMediatorTest, NotificationsOptInButtonPromptsTurnOff) {
   [mediator_ disconnect];
   mediator_ = [[SafetyCheckMediator alloc]
-      initWithUserPrefService:pref_service_
+      initWithUserPrefService:pref_service_.get()
              localPrefService:local_pref_service_
          passwordCheckManager:password_check_
                   authService:auth_service_
@@ -844,7 +844,7 @@ TEST_F(SafetyCheckMediatorTest, NotificationsOptInButtonPromptsTurnOff) {
 TEST_F(SafetyCheckMediatorTest, NotificationsOptInButtonPromptsTurnOn) {
   [mediator_ disconnect];
   mediator_ = [[SafetyCheckMediator alloc]
-      initWithUserPrefService:pref_service_
+      initWithUserPrefService:pref_service_.get()
              localPrefService:local_pref_service_
          passwordCheckManager:password_check_
                   authService:auth_service_

@@ -16,7 +16,7 @@ interface IsolatedWebAppApiBridge {
   // Passing an empty list of `rects` resets the window shape back to normal.
   //
   // If the length of `rects` exceeds `kMaxSetShapeRects`, does nothing and
-  // returns `kInvalidLength`.
+  // reports a bad message.
   //
   // If `rects` is not empty and no rectangle has the minimum size of
   // `kMinimumIwaSetShapeSize`, does nothing and reports a bad message.
@@ -29,8 +29,6 @@ interface IsolatedWebAppApiBridge {
 enum SetShapeResult {
   // The `SetShape` call succeeded.
   kSuccess,
-  // More than `kMaxSetShapeRects` were sent to `SetShape`.
-  kInvalidLength,
   // The window could not be found.
   kNoWindow,
   // The window is not in unframed mode.

@@ -388,6 +388,11 @@ chromium-metrics-reviews@google.com.
   <variant name="Policy" summary="chrome://policy"/>
 </variants>
 
+<variants name="ReportingScope">
+  <variant name="Browser" summary="Browser-level reporting"/>
+  <variant name="Profile" summary="Profile-level reporting"/>
+</variants>
+
 <variants name="ResumableRequestCheckType">
   <variant name="Content" summary="Content upload step of a Resumable request"/>
   <variant name="Metadata"
@@ -576,6 +581,56 @@ chromium-metrics-reviews@google.com.
   <summary>
     Reports success/failure when a spotlight session in Boca app is attempted.
   </summary>
+</histogram>
+
+<histogram
+    name="Enterprise.BrowserLaunchEvent.ProcessCreationToUploadLatency.{Scope}"
+    units="ms" expires_after="2027-06-15">
+  <owner>qiutanw@google.com</owner>
+  <owner>chrome-enterprise-security@google.com</owner>
+  <summary>
+    Records the time elapsed from the browser process creation (launch time) to
+    the successful upload of the browser launch event. Only recorded for
+    successful uploads. Emitted by BrowserLaunchEventController when the upload
+    callback returns success.
+  </summary>
+  <token key="Scope" variants="ReportingScope"/>
+</histogram>
+
+<histogram name="Enterprise.BrowserLaunchEvent.RetryCount.{Scope}"
+    units="count" expires_after="2027-06-15">
+  <owner>qiutanw@google.com</owner>
+  <owner>chrome-enterprise-security@google.com</owner>
+  <summary>
+    Records the number of retries performed before a successful browser launch
+    event upload. Emitted by BrowserLaunchEventController when the upload
+    callback returns success.
+  </summary>
+  <token key="Scope" variants="ReportingScope"/>
+</histogram>
+
+<histogram name="Enterprise.BrowserLaunchEvent.SwitchCount.{Scope}"
+    units="count" expires_after="2027-06-15">
+  <owner>qiutanw@google.com</owner>
+  <owner>chrome-enterprise-security@google.com</owner>
+  <summary>
+    Records the number of command-line switches reported in the browser launch
+    event. Emitted by BrowserLaunchEventController when the event is collected
+    at startup, regardless of upload success.
+  </summary>
+  <token key="Scope" variants="ReportingScope"/>
+</histogram>
+
+<histogram name="Enterprise.BrowserLaunchEvent.UploadResult.{Scope}"
+    enum="EnterpriseReportingUploadResult" expires_after="2027-06-15">
+  <owner>qiutanw@google.com</owner>
+  <owner>chrome-enterprise-security@google.com</owner>
+  <summary>
+    Records the final outcome of the browser launch event upload process.
+    Emitted by BrowserLaunchEventController when it either succeeds or gives up
+    (due to permanent error or retry limit).
+  </summary>
+  <token key="Scope" variants="ReportingScope"/>
 </histogram>
 
 <histogram name="Enterprise.BrowserSigninIOS.SignedOutByPolicy"
@@ -901,10 +956,7 @@ chromium-metrics-reviews@google.com.
     maximum report size limit allowed for upload. Logs the size of the dropped
     payload in KB.
   </summary>
-  <token key="ReportType">
-    <variant name="Browser" summary="browser-level (full or browser version)"/>
-    <variant name="Profile" summary="profile-level"/>
-  </token>
+  <token key="ReportType" variants="ReportingScope"/>
 </histogram>
 
 <histogram
@@ -917,10 +969,7 @@ chromium-metrics-reviews@google.com.
     report is triggered with security signals mode {SecuritySignalsMode} until
     it successfully finishes uploading or returns a final network error.
   </summary>
-  <token key="ReportType">
-    <variant name="Browser" summary="browser-level (full or browser version)"/>
-    <variant name="Profile" summary="profile-level"/>
-  </token>
+  <token key="ReportType" variants="ReportingScope"/>
   <token key="SecuritySignalsMode">
     <variant name="NoSignals" summary="No security signals attached"/>
     <variant name="SignalsAttached" summary="Security signals attached"/>
@@ -1014,10 +1063,7 @@ chromium-metrics-reviews@google.com.
     reporting request. It includes the requests which are more than 5MB and
     discarded.
   </summary>
-  <token key="ReportType">
-    <variant name="Browser" summary="browser-level (full or browser version)"/>
-    <variant name="Profile" summary="profile-level"/>
-  </token>
+  <token key="ReportType" variants="ReportingScope"/>
 </histogram>
 
 <histogram name="Enterprise.CloudReportingResponse"

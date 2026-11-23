@@ -10,8 +10,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/values_test_util.h"
 #include "build/build_config.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
+#include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/scoped_browser_locale.h"
 #include "components/url_formatter/url_formatter.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -193,21 +192,22 @@ base::DictValue GetValueFromCustomPaper(
 
 using PdfPrinterHandlerTest = testing::Test;
 
-class PdfPrinterHandlerGetCapabilityTest : public BrowserWithTestWindowTest {
+class PdfPrinterHandlerGetCapabilityTest
+    : public ChromeRenderViewHostTestHarness {
  public:
   PdfPrinterHandlerGetCapabilityTest() = default;
   ~PdfPrinterHandlerGetCapabilityTest() override = default;
 
   void SetUp() override {
-    BrowserWithTestWindowTest::SetUp();
+    ChromeRenderViewHostTestHarness::SetUp();
 
     // Set the locale to ensure NA_LETTER is the default paper size.
     scoped_browser_locale_ = std::make_unique<ScopedBrowserLocale>("en-US");
 
     // Create the PDF printer handler
-    pdf_printer_handler_ = std::make_unique<PdfPrinterHandler>(
-        profile(), browser()->tab_strip_model()->GetActiveWebContents(),
-        /*sticky_settings=*/nullptr);
+    pdf_printer_handler_ =
+        std::make_unique<PdfPrinterHandler>(profile(), web_contents(),
+                                            /*sticky_settings=*/nullptr);
   }
 
  protected:

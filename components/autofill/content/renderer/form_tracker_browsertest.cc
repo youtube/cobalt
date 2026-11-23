@@ -70,10 +70,8 @@ class MockFormTracker : public FormTracker {
       : FormTracker(render_frame, autofill_agent, password_autofill_agent) {
     ON_CALL(*this, FireFormSubmission)
         .WillByDefault([this](mojom::SubmissionSource source,
-                              std::optional<blink::WebFormElement> form,
-                              bool reset_last_interacted_elements) {
-          test_api(*this).FireFormSubmission(source, form,
-                                             reset_last_interacted_elements);
+                              std::optional<blink::WebFormElement> form) {
+          test_api(*this).FireFormSubmission(source, form);
         });
     ON_CALL(*this, ElementDisappeared)
         .WillByDefault([this](const blink::WebElement& element) {
@@ -82,9 +80,7 @@ class MockFormTracker : public FormTracker {
   }
   MOCK_METHOD((void),
               FireFormSubmission,
-              (mojom::SubmissionSource,
-               std::optional<blink::WebFormElement>,
-               bool),
+              (mojom::SubmissionSource, std::optional<blink::WebFormElement>),
               (override));
   MOCK_METHOD(void,
               ElementDisappeared,
@@ -96,10 +92,8 @@ class FormTrackerTest : public test::AutofillRendererTest,
                         public testing::WithParamInterface<int> {
  public:
   FormTrackerTest() {
-    EXPECT_LE(GetParam(), 3);
+    EXPECT_LE(GetParam(), 1);
     std::vector<base::test::FeatureRef> features = {
-        features::kAutofillFixFormTracking,
-        features::kAutofillReplaceCachedWebElementsByRendererIds,
         features::kAutofillReplaceFormElementObserver};
 
     std::vector<base::test::FeatureRef> enabled_features(
@@ -178,7 +172,7 @@ class FormTrackerTest : public test::AutofillRendererTest,
 
 INSTANTIATE_TEST_SUITE_P(AutofillSubmissionTest,
                          FormTrackerTest,
-                         ::testing::Values(0, 1, 2, 3));
+                         ::testing::Values(0, 1));
 
 // Check that submission is detected on a page with no <form> when in sequence:
 // 1) User types into a field.
@@ -203,7 +197,7 @@ TEST_P(FormTrackerTest, FormlessXHRThenHide) {
 
   // FormTracker should detect a submission after the <input>s are hidden.
   EXPECT_CALL(form_tracker(),
-              FireFormSubmission(mojom::SubmissionSource::XHR_SUCCEEDED, _, _))
+              FireFormSubmission(mojom::SubmissionSource::XHR_SUCCEEDED, _))
       .Times(1);
   ExecuteJavaScriptForTests(
       R"(document.getElementById('input1').style.display = 'none';
@@ -236,7 +230,7 @@ TEST_P(FormTrackerTest, FormlessHideThenXhr) {
 
   // FormTracker should detect a submission when the XHR succeeds.
   EXPECT_CALL(form_tracker(),
-              FireFormSubmission(mojom::SubmissionSource::XHR_SUCCEEDED, _, _))
+              FireFormSubmission(mojom::SubmissionSource::XHR_SUCCEEDED, _))
       .Times(1);
   form_tracker().AjaxSucceeded();
   task_environment_.RunUntilIdle();
@@ -282,9 +276,9 @@ TEST_P(FormTrackerTest, ProbablyFormSubmitted) {
   form_tracker().TextFieldValueChanged(input1);
   task_environment_.RunUntilIdle();
 
-  EXPECT_CALL(form_tracker(),
-              FireFormSubmission(
-                  mojom::SubmissionSource::PROBABLY_FORM_SUBMITTED, _, _))
+  EXPECT_CALL(
+      form_tracker(),
+      FireFormSubmission(mojom::SubmissionSource::PROBABLY_FORM_SUBMITTED, _))
       .Times(1);
 
   test_api(form_tracker())
@@ -317,13 +311,9 @@ TEST_P(FormTrackerTest, ProbablyFormSubmitted_IgnoreUninterestingNavigations) {
 
   EXPECT_CALL(form_tracker(), FireFormSubmission).Times(0);
 
-  if (base::FeatureList::IsEnabled(features::kAutofillFixFormTracking)) {
-    for (const blink::WebNavigationType navigation_type :
-         kUninterestingNavigationTypes) {
-      test_api(form_tracker()).DidStartNavigation(navigation_type);
-    }
-  } else {
-    test_api(form_tracker()).DidStartNavigation(kWebNavigationTypeLinkClicked);
+  for (const blink::WebNavigationType navigation_type :
+       kUninterestingNavigationTypes) {
+    test_api(form_tracker()).DidStartNavigation(navigation_type);
   }
 }
 

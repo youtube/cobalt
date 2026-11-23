@@ -557,10 +557,14 @@ public class AutocompleteCoordinator implements OmniboxSuggestionsVisualState {
     /**
      * Sends a zero suggest request to the server in order to pre-populate the result cache.
      *
-     * @param tab The current tab.
+     * <p>This call is static to guarantee no dependency on AutocompleteMediator's internal state.
+     *
+     * @param profile The profile to prefetch ZPS for.
+     * @param dataProvider Context describing page to prefetch ZPS for.
      */
-    public void prefetchZeroSuggestResults(@Nullable Tab tab) {
-        mMediator.startPrefetch(tab != null ? tab.getWebContents() : null);
+    public static void prefetchZeroSuggestResults(
+            Profile profile, LocationBarDataProvider dataProvider) {
+        AutocompleteMediator.startPrefetch(profile, dataProvider);
     }
 
     /** Stop current suggestions requests and clear the suggestions list. */

@@ -5,10 +5,15 @@
 #include "components/autofill/core/browser/integrators/personal_context/personal_context_autofill_util.h"
 
 #include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
+#include "components/autofill/core/browser/data_manager/autofill_ai/entity_data_manager.h"
+#include "components/autofill/core/browser/foundations/test_autofill_client.h"
+#include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
+#include "components/autofill/core/browser/webdata/autofill_webdata_service_test_helper.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/personal_context/core/personal_context_enablement_service.h"
 #include "components/personal_context/core/personal_context_types.h"
-#include "components/prefs/testing_pref_service.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -18,6 +23,8 @@ namespace {
 
 using personal_context::PersonalContextEnablementService;
 using personal_context::PersonalContextEnablementState;
+using ::testing::NiceMock;
+using ::testing::Return;
 
 class MockPersonalContextEnablementService
     : public PersonalContextEnablementService {
@@ -30,16 +37,49 @@ class MockPersonalContextEnablementService
               (override));
 };
 
+class PersonalContextAutofillUtilTest : public testing::Test {
+ public:
+  PersonalContextAutofillUtilTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {
+            {features::kAutofillAiWithDataSchema, {}},
+            {features::kAutofillAiServerModel, {}},
+            {features::kAutofillAiAvailableByDefault, {}},
+            {features::kAutofillAmbientAutofill,
+             {{"ambient_autofill_eligible_tiers", "1"}}},
+        },
+        /*disabled_features=*/{});
+    client_.GetPrefs()->SetInteger(
+        subscription_eligibility::prefs::kAiSubscriptionTier, 1);
+    client_.SetUpPrefsAndIdentityForAutofillAi();
+    client_.set_entity_data_manager(std::make_unique<EntityDataManager>(
+        client_.GetPrefs(), client_.GetIdentityManager(),
+        /*sync_service=*/nullptr, webdata_helper_.autofill_webdata_service(),
+        /*history_service=*/nullptr,
+        /*personal_context_access_manager=*/nullptr,
+        /*strike_database=*/nullptr,
+        /*variation_country_code=*/GeoIpCountryCode("US")));
+  }
+
+ protected:
+  base::test::TaskEnvironment task_environment_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+  AutofillWebDataServiceTestHelper webdata_helper_{
+      std::make_unique<EntityTable>()};
+  TestAutofillClient client_;
+};
+
 }  // namespace
 
-TEST(PersonalContextAutofillUtilTest,
-     ShouldShowPersonalContextAutofillSetting) {
+TEST_F(PersonalContextAutofillUtilTest,
+       ShouldShowPersonalContextAutofillSetting) {
   using enum PersonalContextEnablementState;
-  MockPersonalContextEnablementService service;
+  NiceMock<MockPersonalContextEnablementService> service;
 
   auto check_state = [&](PersonalContextEnablementState state) {
-    EXPECT_CALL(service, GetEnablementState()).WillOnce(testing::Return(state));
-    return ShouldShowPersonalContextAutofillSetting(&service);
+    ON_CALL(service, GetEnablementState()).WillByDefault(Return(state));
+    return ShouldShowPersonalContextAutofillSetting(client_, &service);
   };
 
   EXPECT_FALSE(check_state(kDisabledNotEligible));
@@ -48,52 +88,31 @@ TEST(PersonalContextAutofillUtilTest,
   EXPECT_TRUE(check_state(kEnabledShouldShowNotice));
   EXPECT_TRUE(check_state(kEnabled));
 
-  EXPECT_FALSE(ShouldShowPersonalContextAutofillSetting(nullptr));
+  EXPECT_FALSE(ShouldShowPersonalContextAutofillSetting(
+      client_, /*enablement_service=*/nullptr));
 }
 
-TEST(PersonalContextAutofillUtilTest,
-     AreAutofillPersonalContextFeaturesSupported) {
-  // 1. Both disabled
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatures(
-        /*enabled_features=*/{},
-        /*disabled_features=*/{features::kAutofillAmbientAutofill,
-                               features::kAutofillAtMemory});
-    EXPECT_FALSE(AreAutofillPersonalContextFeaturesSupported(
-        /*google_groups_manager=*/nullptr));
-  }
+TEST_F(PersonalContextAutofillUtilTest,
+       ShouldShowPersonalContextAutofillSetting_BothDisabled) {
+  NiceMock<MockPersonalContextEnablementService> service;
+  ON_CALL(service, GetEnablementState())
+      .WillByDefault(Return(PersonalContextEnablementState::kEnabled));
 
-  // 2. AmbientAutofill enabled
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatures(
-        /*enabled_features=*/{features::kAutofillAmbientAutofill},
-        /*disabled_features=*/{features::kAutofillAtMemory});
-    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported(
-        /*google_groups_manager=*/nullptr));
-  }
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{},
+      /*disabled_features=*/{features::kAutofillAmbientAutofill,
+                             features::kAutofillAtMemory});
+  EXPECT_FALSE(ShouldShowPersonalContextAutofillSetting(client_, &service));
+}
 
-  // 3. AtMemory enabled
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatures(
-        /*enabled_features=*/{features::kAutofillAtMemory},
-        /*disabled_features=*/{features::kAutofillAmbientAutofill});
-    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported(
-        /*google_groups_manager=*/nullptr));
-  }
+TEST_F(PersonalContextAutofillUtilTest,
+       ShouldShowPersonalContextAutofillSetting_AmbientAutofillEnabled) {
+  NiceMock<MockPersonalContextEnablementService> service;
+  ON_CALL(service, GetEnablementState())
+      .WillByDefault(Return(PersonalContextEnablementState::kEnabled));
 
-  // 4. Both enabled
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatures(
-        /*enabled_features=*/{features::kAutofillAmbientAutofill,
-                              features::kAutofillAtMemory},
-        /*disabled_features=*/{});
-    EXPECT_TRUE(AreAutofillPersonalContextFeaturesSupported(
-        /*google_groups_manager=*/nullptr));
-  }
+  EXPECT_TRUE(ShouldShowPersonalContextAutofillSetting(client_, &service));
 }
 
 }  // namespace autofill

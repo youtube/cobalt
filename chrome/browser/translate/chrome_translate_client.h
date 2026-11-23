@@ -8,7 +8,9 @@
 #include <memory>
 #include <string>
 
+#include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
 #include "components/language/core/browser/accept_languages_service.h"
 #include "components/language/core/browser/url_language_histogram.h"
@@ -117,6 +119,8 @@ class ChromeTranslateClient
                        translate::TranslateErrors error_type,
                        bool triggered_from_menu) override;
   bool IsTranslatableURL(const GURL& url) override;
+  void CheckIfPdfIsTranslatable(
+      base::OnceCallback<void(bool)> callback) override;
 
   // Performs a one-time undo of the translation and shows the translation
   // bubble.
@@ -169,6 +173,8 @@ class ChromeTranslateClient
   void PrimaryPageChanged(content::Page& page) override;
   void OnVisibilityChanged(content::Visibility visibility) override;
 #endif
+
+  base::WeakPtrFactory<ChromeTranslateClient> weak_factory_{this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

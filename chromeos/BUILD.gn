@@ -118,6 +118,17 @@ if (is_chromeos_device) {
     }
   }
 
+  _tast_flaky_tests_on_this_board = []
+  foreach(_test, tast_flaky_tests_from_chrome_all) {
+    _test_name_and_board = []
+    _test_name_and_board = string_split(_test, "@") + [ "" ]
+    _test_name = _test_name_and_board[0]
+    _test_board = _test_name_and_board[1]
+    if (_test_board == "" || _test_board == cros_board) {
+      _tast_flaky_tests_on_this_board += [ _test_name ]
+    }
+  }
+
   # Tast test sources live in the Chromium OS repository.
   # To diagnose tast failures or disable tests, see go/tast-failures
   tast_test("chrome_all_tast_tests") {
@@ -131,7 +142,8 @@ if (is_chromeos_device) {
     # To disable a specific test, add it to the
     # tast_disabled_tests_from_chrome_all list in "tast_control.gni" and cite
     # a bug.
-    tast_disabled_tests = _tast_disabled_tests_on_this_board
+    tast_disabled_tests =
+        _tast_disabled_tests_on_this_board + _tast_flaky_tests_on_this_board
   }
 
   tast_test("chrome_all_tast_tests_informational") {
@@ -146,11 +158,16 @@ if (is_chromeos_device) {
       tast_attr_expr = "($tast_attr_expr && !\"dep:no_chrome_dcheck\")"
     }
 
-    tast_disabled_tests = _tast_disabled_tests_on_this_board
+    tast_disabled_tests =
+        _tast_disabled_tests_on_this_board + _tast_flaky_tests_on_this_board
   }
 
   tast_test("chrome_disabled_tast_tests") {
     tast_tests = _tast_disabled_tests_on_this_board
+  }
+
+  tast_test("chrome_flaky_tast_tests") {
+    tast_tests = _tast_flaky_tests_on_this_board
   }
 
   tast_test("chrome_variations_tast_tests") {
@@ -166,7 +183,8 @@ if (is_chromeos_device) {
       tast_attr_expr = "($tast_attr_expr && !\"dep:no_chrome_dcheck\")"
     }
 
-    tast_disabled_tests = _tast_disabled_tests_on_this_board
+    tast_disabled_tests =
+        _tast_disabled_tests_on_this_board + _tast_flaky_tests_on_this_board
   }
 
   group("cros_chrome_deploy") {

@@ -6,10 +6,12 @@
 
 #include <optional>
 
+#include "base/check_deref.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/regional_capabilities/regional_capabilities_service_factory.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -21,6 +23,8 @@
 #include "chrome/browser/ui/webui/signin/signin_ui_error.h"
 #include "chrome/browser/ui/webui/signin/signin_utils.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/regional_capabilities/regional_capabilities_service.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/sync/base/features.h"
 
 namespace {
@@ -150,7 +154,12 @@ void ProfilePickerTurnSyncOnDelegate::ShowSyncConfirmation(
     return;
   }
 
-  ShowSyncConfirmationScreen();
+  MaybeShowSignInCelebration(base::BindOnce(
+      &ProfilePickerTurnSyncOnDelegate::ShowSyncConfirmationScreen,
+      // Unretained is safe as the delegate lives until
+      // `sync_confirmation_callback_` gets called and always outlives the
+      // preceding celebration screen.
+      base::Unretained(this)));
 }
 
 void ProfilePickerTurnSyncOnDelegate::ShowSyncDisabledConfirmation(
@@ -314,4 +323,26 @@ void ProfilePickerTurnSyncOnDelegate::OnManagedUserNoticeClosed(
 void ProfilePickerTurnSyncOnDelegate::LogOutcome(
     ProfileMetrics::ProfileSignedInFlowOutcome outcome) {
   ProfileMetrics::LogProfileAddSignInFlowOutcome(outcome);
+}
+
+void ProfilePickerTurnSyncOnDelegate::MaybeShowSignInCelebration(
+    base::OnceClosure show_next_screen_callback) {
+  const bool is_first_run =
+      adapter_ && adapter_->signin_access_point() ==
+                      signin_metrics::AccessPoint::kForYouFre;
+  if (!is_first_run) {
+    std::move(show_next_screen_callback).Run();
+    return;
+  }
+
+  const bool is_in_search_engine_choice_region =
+      CHECK_DEREF(regional_capabilities::RegionalCapabilitiesServiceFactory::
+                      GetForProfile(profile_))
+          .IsInSearchEngineChoiceScreenRegion();
+  if (switches::IsFirstRunDesktopRevampEnabled(
+          is_in_search_engine_choice_region)) {
+    adapter_->ShowSignInCelebration(std::move(show_next_screen_callback));
+  } else {
+    std::move(show_next_screen_callback).Run();
+  }
 }

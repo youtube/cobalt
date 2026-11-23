@@ -112,6 +112,7 @@
       'video_timing_tests': {},
       'voip_unittests': {},
       'webrtc_nonparallel_tests': {},
+      'xvfb_capture_tests': {},
       # keep-sorted end
     },
     'desktop_tests_linux_specific': {

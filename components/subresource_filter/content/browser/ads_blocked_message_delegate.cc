@@ -60,7 +60,7 @@ void AdsBlockedMessageDelegate::ShowMessage() {
   messages::MessageDispatcherBridge* message_dispatcher_bridge =
       messages::MessageDispatcherBridge::Get();
   message->SetIconResourceId(message_dispatcher_bridge->MapToJavaDrawableId(
-      IDR_ANDROID_INFOBAR_BLOCKED_POPUPS));
+      IDR_ANDROID_MESSAGE_BLOCKED_POPUPS));
 
   message->SetSecondaryIconResourceId(
       message_dispatcher_bridge->MapToJavaDrawableId(IDR_ANDROID_SETTINGS));

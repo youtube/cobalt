@@ -42,6 +42,9 @@ class PassageEmbeddingsServiceController : public EmbedderMetadataProvider {
   virtual bool MaybeUpdateModelInfo(
       base::optional_ref<const optimization_guide::ModelInfo> model_info);
 
+  // Returns true if the model is available.
+  bool IsModelAvailable();
+
   bool EmbedderRunning();
 
   // Returns the embedder used to generate embeddings.
@@ -67,11 +70,8 @@ class PassageEmbeddingsServiceController : public EmbedderMetadataProvider {
                      PassagePriority priority,
                      GetEmbeddingsResultCallback callback);
 
-  // Returns true if this service controller is ready for embeddings generation.
-  bool EmbedderReady();
-
   // Returns the metadata about the embeddings model. This is only valid when
-  // EmbedderReady() returns true.
+  // IsModelAvailable() returns true.
   EmbedderMetadata GetEmbedderMetadata();
 
   // Launches the passage embeddings service. Does nothing if the service is

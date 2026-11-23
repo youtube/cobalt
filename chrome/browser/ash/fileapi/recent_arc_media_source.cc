@@ -91,10 +91,6 @@ RecentArcMediaSource::CallContext::CallContext(const Params& params,
     : params(params),
       callback(std::move(callback)),
       build_start_time(base::TimeTicks::Now()) {}
-RecentArcMediaSource::CallContext::CallContext(CallContext&& context)
-    : params(context.params),
-      callback(std::move(context.callback)),
-      build_start_time(std::move(context.build_start_time)) {}
 
 RecentArcMediaSource::CallContext::~CallContext() = default;
 

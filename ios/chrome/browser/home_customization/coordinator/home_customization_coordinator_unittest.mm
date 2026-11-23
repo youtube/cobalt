@@ -6,8 +6,13 @@
 
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/scoped_feature_list.h"
+#import "components/sync/base/features.h"
+#import "components/sync/test/fake_sync_change_processor.h"
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_browser_agent.h"
 #import "ios/chrome/browser/home_customization/coordinator/home_customization_coordinator+Testing.h"
+#import "ios/chrome/browser/home_customization/model/home_background_customization_service.h"
+#import "ios/chrome/browser/home_customization/model/home_background_customization_service_factory.h"
+#import "ios/chrome/browser/home_customization/model/theme_syncable_service_ios.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_picker_presentation_delegate.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_main_view_controller.h"
 #import "ios/chrome/browser/home_customization/utils/home_customization_constants.h"
@@ -30,6 +35,7 @@
 class HomeCustomizationCoordinatorUnitTest : public PlatformTest {
  public:
   void SetUp() override {
+    scoped_feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
     profile_ = TestProfileIOS::Builder().Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
     DiscoverFeedVisibilityBrowserAgent::CreateForBrowser(browser_.get());
@@ -52,6 +58,7 @@ class HomeCustomizationCoordinatorUnitTest : public PlatformTest {
   }
 
  protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   HomeCustomizationCoordinator* coordinator_;
@@ -96,6 +103,14 @@ TEST_F(HomeCustomizationCoordinatorUnitTest, TestPresentMenuPage) {
 // correctly updates the property.
 TEST_F(HomeCustomizationCoordinatorUnitTest,
        TestSchedulePhotoNotSyncedSnackbar) {
+  [coordinator_ start];
+
+  HomeBackgroundCustomizationService* backgroundService =
+      HomeBackgroundCustomizationServiceFactory::GetForProfile(profile_.get());
+  auto processor = std::make_unique<syncer::FakeSyncChangeProcessor>();
+  backgroundService->GetThemeSyncableService()->MergeDataAndStartSyncing(
+      syncer::THEMES_IOS, syncer::SyncDataList(), std::move(processor));
+
   // The property should default to NO.
   EXPECT_FALSE(coordinator_.shouldShowPhotoNotSyncedSnackbarOnDismiss);
 
@@ -106,4 +121,7 @@ TEST_F(HomeCustomizationCoordinatorUnitTest,
 
   // The property should now be YES.
   EXPECT_TRUE(coordinator_.shouldShowPhotoNotSyncedSnackbarOnDismiss);
+
+  OCMExpect([mock_snackbar_commands_handler_ dismissAllSnackbars]);
+  [coordinator_ stop];
 }

@@ -44,3 +44,60 @@ static_library("test_support") {
     "//components/metrics_services_manager",
   ]
 }
+
+if (is_win || is_linux || is_mac) {
+  source_set("unit_tests") {
+    testonly = true
+
+    sources = [
+      "chrome_event_storage_unittest.cc",
+      "chrome_structured_metrics_recorder_unittest.cc",
+    ]
+
+    deps = [
+      ":structured",
+      ":test_support",
+      "//base",
+      "//chrome/test:test_support",
+      "//components/metrics/structured",
+      "//components/metrics/structured:proto_gen",
+      "//components/metrics/structured:structured_metrics_validator",
+      "//components/metrics/structured/lib",
+      "//components/metrics/structured/lib:proto_gen",
+      "//testing/gtest",
+    ]
+  }
+}
+
+if (is_chromeos) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [
+      "ash_structured_metrics_delegate_browsertest.cc",
+      "metadata_processor_ash_browsertest.cc",
+      "structured_metrics_key_events_observer_browsertest.cc",
+    ]
+
+    deps = [
+      ":structured",
+      ":test_support",
+      "//base",
+      "//chrome/browser:browser_process_platform_part",
+      "//chrome/browser/ash/app_mode:test_support",
+      "//chrome/browser/ash/app_mode/test:test_support",
+      "//chrome/browser/ash/app_mode/web_app",
+      "//chrome/browser/ash/login:test_support",
+      "//chrome/browser/ash/login/demo_mode:test_support",
+      "//chrome/browser/ash/ownership",
+      "//chrome/browser/ash/policy/core:test_support",
+      "//chrome/browser/ash/policy/test_support",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//content/test:test_support",
+      "//testing/gtest",
+    ]
+  }
+}

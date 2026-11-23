@@ -105,6 +105,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-promise-inl.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/managed-inl.h"
@@ -1622,6 +1623,8 @@ i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
       !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
   obj->set_non_masking(flags & PropertyHandlerFlags::kNonMasking);
   obj->set_has_no_side_effect(flags & PropertyHandlerFlags::kHasNoSideEffect);
+  obj->set_has_dont_delete_property(
+      flags & PropertyHandlerFlags::kHasDontDeleteProperty);
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -9001,7 +9004,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
 Local<WasmMemoryMapDescriptor> WasmMemoryMapDescriptor::New(
     v8::Isolate* v8_isolate, WasmMemoryMapDescriptor::WasmFileDescriptor fd) {
 #if V8_ENABLE_WEBASSEMBLY
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   v8::Local<v8::Object> wrapper =
       i::wasm::WasmMemoryMapDescriptor::NewFromFileDescriptor(v8_isolate, fd);
   return wrapper.As<WasmMemoryMapDescriptor>();
@@ -9018,7 +9021,7 @@ size_t WasmMemoryMapDescriptor::Map(v8::Isolate* v8_isolate,
                                     Local<WasmMemoryObject> memory,
                                     size_t offset) {
 #if V8_ENABLE_WEBASSEMBLY
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
 
   auto* descriptor =
       v8::Object::Unwrap<i::wasm::WasmMemoryMapDescriptor::kPointerTag,
@@ -9037,7 +9040,7 @@ size_t WasmMemoryMapDescriptor::Map(v8::Isolate* v8_isolate,
 bool WasmMemoryMapDescriptor::Unmap(v8::Isolate* v8_isolate,
                                     Local<Object> wasm_memory_map_descriptor) {
 #if V8_ENABLE_WEBASSEMBLY
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   auto* descriptor =
       v8::Object::Unwrap<i::wasm::WasmMemoryMapDescriptor::kPointerTag,
                          i::wasm::WasmMemoryMapDescriptor>(
@@ -10224,7 +10227,7 @@ void Isolate::Initialize(Isolate* v8_isolate,
             .release();
   }
 
-  i_isolate->heap()->ConfigureHeap(params.constraints, cpp_heap);
+  i_isolate->heap()->ConfigureHeap(params.constraints, *cpp_heap);
   if (params.constraints.stack_limit() != nullptr) {
     uintptr_t limit =
         reinterpret_cast<uintptr_t>(params.constraints.stack_limit());
@@ -11233,6 +11236,15 @@ bool v8::Object::IsCodeLike(v8::Isolate* v8_isolate) const {
 }
 
 // static
+#ifdef V8_CPPGC_MICROTASK_QUEUE
+MicrotaskQueue* MicrotaskQueue::New(Isolate* v8_isolate,
+                                    MicrotasksPolicy policy) {
+  auto* microtask_queue =
+      i::MicrotaskQueue::New(reinterpret_cast<i::Isolate*>(v8_isolate));
+  microtask_queue->set_microtasks_policy(policy);
+  return microtask_queue;
+}
+#else
 std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
                                                     MicrotasksPolicy policy) {
   auto microtask_queue =
@@ -11241,6 +11253,7 @@ std::unique_ptr<MicrotaskQueue> MicrotaskQueue::New(Isolate* v8_isolate,
   std::unique_ptr<MicrotaskQueue> ret(std::move(microtask_queue));
   return ret;
 }
+#endif  // V8_CPPGC_MICROTASK_QUEUE
 
 MicrotasksScope::MicrotasksScope(Local<Context> v8_context,
                                  MicrotasksScope::Type type)

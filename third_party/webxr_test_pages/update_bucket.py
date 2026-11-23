@@ -14,8 +14,13 @@ import tempfile
 from typing import List, Tuple
 
 # Add third_party directory to the Python import path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_third_party_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(_third_party_dir)
 import jinja2
+
+# Add build directory to find find_depot_tools
+sys.path.append(os.path.join(os.path.dirname(_third_party_dir), 'build'))
+import find_depot_tools
 
 # Oldest version of this directory that works for serving. Used to limit git
 # history searches.
@@ -65,7 +70,11 @@ def run_command(*args: Tuple[str, ...]) -> str:
   """Runs a shell command and returns output. The output will be decoded,
   assuming utf-8 encoding and using strict error handling scheme."""
   platform_args = list(args)
-  platform_args[0] = binary_name(platform_args[0])
+  if platform_args[0] == 'gsutil.py':
+    gsutil_path = os.path.join(find_depot_tools.DEPOT_TOOLS_PATH, 'gsutil.py')
+    platform_args = [sys.executable, gsutil_path] + platform_args[1:]
+  else:
+    platform_args[0] = binary_name(platform_args[0])
   logging.debug('Executing: %s', platform_args)
   return subprocess.check_output(platform_args).decode('utf-8')
 

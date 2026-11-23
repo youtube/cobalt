@@ -31,16 +31,6 @@ namespace crosapi {
 
 namespace {
 
-void MarshalAccounts(
-    mojom::AccountManager::GetAccountsCallback callback,
-    const std::vector<account_manager::Account>& accounts_to_marshal) {
-  std::vector<mojom::AccountPtr> mojo_accounts;
-  for (const account_manager::Account& account : accounts_to_marshal) {
-    mojo_accounts.emplace_back(account_manager::ToMojoAccount(account));
-  }
-  std::move(callback).Run(std::move(mojo_accounts));
-}
-
 void ReportErrorStatusFromHasDummyGaiaToken(
     base::OnceCallback<void(mojom::GoogleServiceAuthErrorPtr)> callback,
     bool has_dummy_token) {
@@ -99,12 +89,6 @@ void AccountManagerMojoService::AddObserver(AddObserverCallback callback) {
   auto receiver = remote.BindNewPipeAndPassReceiver();
   observers_.Add(std::move(remote));
   std::move(callback).Run(std::move(receiver));
-}
-
-void AccountManagerMojoService::GetAccounts(
-    mojom::AccountManager::GetAccountsCallback callback) {
-  account_manager_->GetAccounts(
-      base::BindOnce(&MarshalAccounts, std::move(callback)));
 }
 
 void AccountManagerMojoService::GetPersistentErrorForAccount(

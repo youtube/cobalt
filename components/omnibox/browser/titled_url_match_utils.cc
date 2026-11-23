@@ -51,10 +51,12 @@ AutocompleteMatch TitledUrlMatchToAutocompleteMatch(
     const AutocompleteSchemeClassifier& scheme_classifier,
     const AutocompleteInput& input,
     const std::u16string& fixed_up_input_text) {
-  const std::u16string title = titled_url_match.node->GetTitledUrlNodeTitle();
+  const std::u16string title = AutocompleteMatch::SanitizeString(
+      titled_url_match.node->GetTitledUrlNodeTitle());
   const GURL& url = titled_url_match.node->GetTitledUrlNodeUrl();
-  const std::u16string path = ConcatAncestorsTitles(
-      titled_url_match.node->GetTitledUrlNodeAncestorTitles());
+  const std::u16string path =
+      AutocompleteMatch::SanitizeString(ConcatAncestorsTitles(
+          titled_url_match.node->GetTitledUrlNodeAncestorTitles()));
 
   // The AutocompleteMatch we construct is non-deletable because the only way to
   // support this would be to delete the underlying object that created the
@@ -113,9 +115,6 @@ AutocompleteMatch TitledUrlMatchToAutocompleteMatch(
   }
 
   match.description = title;
-
-  base::TrimWhitespace(match.description, base::TRIM_LEADING,
-                       &match.description);
   auto description_terms = FindTermMatches(input.text(), match.description);
   match.description_class = ClassifyTermMatches(
       description_terms, match.description.length(),

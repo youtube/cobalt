@@ -36,7 +36,7 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 
 import {AppManagementStoreMixin} from '../common/app_management/store_mixin.js';
 import {DeepLinkingMixin} from '../common/deep_linking_mixin.js';
-import {androidAppsVisible, isAppParentalControlsFeatureAvailable, isArcVmEnabled, isPlayStoreAvailable, isPluginVmAvailable} from '../common/load_time_booleans.js';
+import {androidAppsVisible, isAppParentalControlsFeatureAvailable, isArcVmEnabled, isPlayStoreAvailable} from '../common/load_time_booleans.js';
 import {RouteOriginMixin} from '../common/route_origin_mixin.js';
 import type {DropdownMenuOptionList} from '../controls/settings_dropdown_menu.js';
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
@@ -180,13 +180,6 @@ export class OsSettingsAppsPageElement extends OsSettingsAppsPageElementBase {
         value: false,
       },
 
-      isPluginVmAvailable_: {
-        type: Boolean,
-        value: () => {
-          return isPluginVmAvailable();
-        },
-      },
-
       isAppParentalControlsFeatureAvailable_: {
         type: Boolean,
         value: () => {
@@ -248,7 +241,6 @@ export class OsSettingsAppsPageElement extends OsSettingsAppsPageElementBase {
   private isDndEnabled_: boolean;
   private isPinVerified_: boolean;
   private readonly isPlayStoreAvailable_: boolean;
-  private isPluginVmAvailable_: boolean;
   private mojoInterfaceProvider_: AppNotificationsHandlerInterface;
   private parentalControlsHandler_: AppParentalControlsHandlerInterface;
   private onStartupOptions_: DropdownMenuOptionList;

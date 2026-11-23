@@ -48,6 +48,10 @@ class BrowserAccessibilityStateImplTest : public ::testing::Test {
     state_ = BrowserAccessibilityStateImpl::GetInstance();
   }
 
+  void EnableAXModeFromPlatform(ui::AXMode mode) {
+    state_->EnableAXModeFromPlatform(mode);
+  }
+
   raw_ptr<BrowserAccessibilityStateImpl> state_;
   BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
@@ -126,6 +130,61 @@ TEST_F(BrowserAccessibilityStateImplTest, PlatformActivationFiltering) {
               ui::kAXModeBasic);
     state_->SetActivationFromPlatformEnabled(false);
   }
+}
+
+// Tests that AXMode changes are blocked when IsAXModeChangeAllowed() is false.
+TEST_F(BrowserAccessibilityStateImplTest, AXModeChangeAllowedFiltering) {
+  // Allowed by default.
+  ASSERT_TRUE(state_->IsAXModeChangeAllowed());
+  // Platform activation is disabled by default in tests, so we need to enable
+  // it first to test the lock, otherwise it would be filtered out by platform
+  // activation filtering anyway.
+  state_->SetActivationFromPlatformEnabled(true);
+
+  ASSERT_EQ(state_->GetAccessibilityMode(), ui::AXMode());
+
+  {
+    // Adding a mode from the platform works when allowed.
+    auto complete = state_->CreateScopedModeForProcess(
+        ui::kAXModeComplete | ui::AXMode::kFromPlatform);
+    EXPECT_EQ(state_->GetAccessibilityMode(), ui::kAXModeComplete);
+
+    // Locking changes should remove the platform mode.
+    state_->SetAXModeChangeAllowed(false);
+    ASSERT_FALSE(state_->IsAXModeChangeAllowed());
+    EXPECT_EQ(state_->GetAccessibilityMode(), ui::AXMode());
+
+    // Unlocking should restore it.
+    state_->SetAXModeChangeAllowed(true);
+    EXPECT_EQ(state_->GetAccessibilityMode(), ui::kAXModeComplete);
+  }
+
+  // Clear the complete mode scoper by letting it go out of scope (handled by
+  // block in test). But wait, in the test it was in a nested block, so
+  // `complete` is already destroyed here. Let's verify: yes, `complete` was in
+  // `{ ... }` block, so it is destroyed. So effective mode should be back to
+  // empty now.
+  ASSERT_EQ(state_->GetAccessibilityMode(), ui::AXMode());
+
+  {
+    // Test EnableAXModeFromPlatform behavior under lock.
+    state_->SetAXModeChangeAllowed(false);
+    EnableAXModeFromPlatform(ui::kAXModeBasic);
+    // It should be blocked (effective mode is still empty).
+    EXPECT_EQ(state_->GetAccessibilityMode(), ui::AXMode());
+
+    // Unlocking should restore the mode enabled via EnableAXModeFromPlatform.
+    state_->SetAXModeChangeAllowed(true);
+    EXPECT_EQ(state_->GetAccessibilityMode(), ui::kAXModeBasic);
+
+    // Clean up platform_ax_mode_ for subsequent tests by resetting it.
+    // EnableAXModeFromPlatform overwrites it, so we can reset it by enabling
+    // empty mode.
+    EnableAXModeFromPlatform(ui::AXMode());
+  }
+
+  // Reset state.
+  state_->SetActivationFromPlatformEnabled(false);
 }
 
 #if BUILDFLAG(IS_WIN)

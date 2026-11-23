@@ -84,9 +84,7 @@ void OnDeviceAssetManager::OnModelUpdated(
   switch (optimization_target) {
     case proto::OPTIMIZATION_TARGET_GENERALIZED_SAFETY: {
       std::unique_ptr<SafetyModelInfo> safety_model_info =
-          SafetyModelInfo::Load(
-              SafetyModelInfo::SafetyModelType::kGeneralizedSafetyModel,
-              model_info);
+          SafetyModelInfo::Load(model_info);
 
       if (safety_model_info) {
         service_controller_->MaybeUpdateSafetyModel(

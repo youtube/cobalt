@@ -78,6 +78,7 @@ Non è possibile salvare nuovi preferiti nel tuo account finché non ne elimini 
 <translation id="2386292341327187942">Nella casella Cerca nei widget, inserisci la parola Chromium</translation>
 <translation id="2389827884654658221">Accedi più velocemente a Chromium dalla schermata Home del tuo iPad.</translation>
 <translation id="2426113998523353159">La tua organizzazione richiede l'accesso per usare Chromium.</translation>
+<translation id="244367646885670394">Conferma la tua identità per salvare questa password e sincronizzare i dati di Chromium su tutti i tuoi dispositivi</translation>
 <translation id="2450140762465183767">Ora puoi usare Chromium ogni volta che tocchi i link in messaggi, documenti e altre app.</translation>
 <translation id="2459183986985456602">Apri La mia scheda più recente in Chromium.</translation>
 <translation id="2476409803017965813">Puoi aggiornare le tue selezioni in qualsiasi momento nelle impostazioni di Chromium.</translation>
@@ -108,6 +109,7 @@ Per altre impostazioni che utilizzano i dati per migliorare la tua esperienza co
 <translation id="3054480780637153380">Apri le impostazioni di Chromium in iOS, quindi tocca "App browser predefinita" e seleziona Chromium.</translation>
 <translation id="3115956258722352278">Vuoi imposta Chromium come browser predefinito?</translation>
 <translation id="3180939591219927904">Attiva l'opzione "Blocca le schede Incognito quando chiudi Chromium"</translation>
+<translation id="327628223428512207">Inserisci la passphrase per salvare questa password e sincronizzare i dati di Chromium su tutti i tuoi dispositivi</translation>
 <translation id="328933489847748230">{count,plural, =1{Visualizzazione di 1 finestra di Chromium}other{Visualizzazione di {count} finestre di Chromium}}</translation>
 <translation id="3344973607274501920">Chromium non ha potuto controllare le tue password. Verifica la tua connessione a Internet.</translation>
 <translation id="3366305173356742781">Dati di Chromium nel tuo account</translation>

@@ -144,7 +144,7 @@ class PasswordManagerInterface : public FormSubmissionObserver {
 
   // Processes the server predictions received from Autofill.
   virtual void ProcessAutofillPredictions(
-      PasswordManagerDriver* driver,
+      PasswordManagerDriver& driver,
       const autofill::FormData& form,
       const base::flat_map<autofill::FieldGlobalId,
                            autofill::AutofillServerPrediction>&

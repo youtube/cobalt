@@ -87,6 +87,7 @@
 #include "third_party/blink/renderer/core/style/style_generated_image.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/svg/svg_length.h"
+#include "third_party/blink/renderer/core/svg/svg_use_element.h"
 #include "third_party/blink/renderer/core/testing/color_scheme_helper.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
@@ -2616,7 +2617,7 @@ TEST_P(AnimationCompositorAnimationsTest,
 
   EXPECT_TRUE(CanStartAnimation("svg"));
   EXPECT_TRUE(CanStartAnimation("rect"));
-  EXPECT_FALSE(CanStartAnimation("rect-useref"));
+  EXPECT_TRUE(CanStartAnimation("rect-useref"));
   EXPECT_FALSE(CanStartAnimation("rect-smil"));
   EXPECT_FALSE(CanStartAnimation("rect-effect"));
   EXPECT_FALSE(CanStartAnimation("g-effect"));
@@ -2633,6 +2634,63 @@ TEST_P(AnimationCompositorAnimationsTest,
 
   EXPECT_FALSE(CanStartAnimation("svg-zoomed"));
   EXPECT_FALSE(CanStartAnimation("rect-zoomed"));
+}
+
+TEST_P(AnimationCompositorAnimationsTest,
+       SVGUseInstancesIndependentlyAnimate) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes wave {
+        0% { transform: rotate(-5deg); }
+        100% { transform: rotate(5deg); }
+      }
+      .animate {
+        transform-origin: 50px 50px;
+        animation: wave 1s infinite;
+      }
+    </style>
+    <svg>
+      <g id="reference" class="animate">
+        <rect width="100" height="100"/>
+      </g>
+      <use id="use-1" href="#reference"/>
+      <use id="use-2" href="#reference" x="120"/>
+    </svg>
+  )HTML");
+
+  UpdateAllLifecyclePhasesForTest();
+
+  const SVGElement* reference = To<SVGElement>(GetElementById("reference"));
+  const SVGUseElement* use_1 = To<SVGUseElement>(GetElementById("use-1"));
+  const SVGUseElement* use_2 = To<SVGUseElement>(GetElementById("use-2"));
+  const SVGElement* instance_1 = use_1->InstanceRoot();
+  const SVGElement* instance_2 = use_2->InstanceRoot();
+
+  const Animation* reference_animation =
+      reference->GetElementAnimations()->Animations().begin()->key;
+  const Animation* instance_1_animation =
+      instance_1->GetElementAnimations()->Animations().begin()->key;
+  const Animation* instance_2_animation =
+      instance_2->GetElementAnimations()->Animations().begin()->key;
+
+  // The animations all run on compositor
+  EXPECT_EQ(CompositorAnimations::kNoFailure,
+            reference_animation->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor(),
+                StartOnCompositorReason::kGeneric));
+  EXPECT_EQ(CompositorAnimations::kNoFailure,
+            instance_1_animation->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor(),
+                StartOnCompositorReason::kGeneric));
+  EXPECT_EQ(CompositorAnimations::kNoFailure,
+            instance_2_animation->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor(),
+                StartOnCompositorReason::kGeneric));
+
+  // The animations are all different
+  EXPECT_NE(reference_animation, instance_1_animation);
+  EXPECT_NE(reference_animation, instance_2_animation);
+  EXPECT_NE(instance_1_animation, instance_2_animation);
 }
 
 TEST_P(AnimationCompositorAnimationsTest, UnsupportedSVGCSSProperty) {

@@ -9,7 +9,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/memory/ptr_util.h"
 #include "base/not_fatal_until.h"
 #include "base/path_service.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
@@ -120,15 +119,39 @@ HeadlessBrowserContextImpl* HeadlessBrowserContextImpl::From(
 
 // static
 std::unique_ptr<HeadlessBrowserContextImpl> HeadlessBrowserContextImpl::Create(
-    HeadlessBrowserContext::Builder* builder) {
-  return base::WrapUnique(new HeadlessBrowserContextImpl(
-      builder->browser_, std::move(builder->options_)));
+    HeadlessBrowserImpl* browser,
+    HeadlessBrowserContext::CreateParams params) {
+  return std::make_unique<HeadlessBrowserContextImpl>(
+      browser, std::make_unique<HeadlessBrowserContextOptions>(
+                   browser->options(), std::move(params)));
 }
 
-HeadlessWebContents::Builder
-HeadlessBrowserContextImpl::CreateWebContentsBuilder() {
-  DCHECK(browser_->BrowserMainThread()->BelongsToCurrentThread());
-  return HeadlessWebContents::Builder(this);
+HeadlessWebContents* HeadlessBrowserContextImpl::CreateWebContents(
+    const HeadlessWebContents::CreateParams& params) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+
+  std::unique_ptr<HeadlessWebContentsImpl> headless_web_contents =
+      HeadlessWebContentsImpl::Create(params);
+
+  if (!headless_web_contents) {
+    return nullptr;
+  }
+
+  HeadlessWebContents* result = headless_web_contents.get();
+
+  RegisterWebContents(std::move(headless_web_contents));
+
+  return result;
+}
+
+HeadlessWebContents* HeadlessBrowserContextImpl::CreateWebContents(
+    const GURL& initial_url) {
+  return CreateWebContents(
+      HeadlessWebContents::CreateParams(this, initial_url));
+}
+
+HeadlessWebContents* HeadlessBrowserContextImpl::CreateWebContents() {
+  return CreateWebContents(HeadlessWebContents::CreateParams(this));
 }
 
 std::vector<HeadlessWebContents*>
@@ -260,24 +283,6 @@ HeadlessBrowserContextImpl::GetOriginTrialsControllerDelegate() {
   return origin_trials_controller_delegate_.get();
 }
 
-HeadlessWebContents* HeadlessBrowserContextImpl::CreateWebContents(
-    HeadlessWebContents::Builder* builder) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-
-  std::unique_ptr<HeadlessWebContentsImpl> headless_web_contents =
-      HeadlessWebContentsImpl::Create(builder);
-
-  if (!headless_web_contents) {
-    return nullptr;
-  }
-
-  HeadlessWebContents* result = headless_web_contents.get();
-
-  RegisterWebContents(std::move(headless_web_contents));
-
-  return result;
-}
-
 void HeadlessBrowserContextImpl::RegisterWebContents(
     std::unique_ptr<HeadlessWebContentsImpl> web_contents) {
   CHECK(web_contents);
@@ -330,69 +335,13 @@ void HeadlessBrowserContextImpl::ConfigureNetworkContextParams(
       cert_verifier_creation_params);
 }
 
-HeadlessBrowserContext::Builder::Builder(HeadlessBrowserImpl* browser)
-    : browser_(browser),
-      options_(new HeadlessBrowserContextOptions(browser->options())) {}
+HeadlessBrowserContext::CreateParams::CreateParams() = default;
 
-HeadlessBrowserContext::Builder::~Builder() = default;
+HeadlessBrowserContext::CreateParams::~CreateParams() = default;
 
-HeadlessBrowserContext::Builder::Builder(Builder&&) = default;
+HeadlessBrowserContext::CreateParams::CreateParams(CreateParams&&) = default;
 
-HeadlessBrowserContext::Builder& HeadlessBrowserContext::Builder::SetUserAgent(
-    const std::string& user_agent) {
-  options_->user_agent_ = user_agent;
-  return *this;
-}
-
-HeadlessBrowserContext::Builder&
-HeadlessBrowserContext::Builder::SetAcceptLanguage(
-    const std::string& accept_language) {
-  options_->accept_language_ = accept_language;
-  return *this;
-}
-
-HeadlessBrowserContext::Builder&
-HeadlessBrowserContext::Builder::SetProxyConfig(
-    std::unique_ptr<net::ProxyConfig> proxy_config) {
-  options_->proxy_config_ = std::move(proxy_config);
-  return *this;
-}
-
-HeadlessBrowserContext::Builder& HeadlessBrowserContext::Builder::SetWindowSize(
-    const gfx::Size& window_size) {
-  options_->window_size_ = window_size;
-  return *this;
-}
-
-HeadlessBrowserContext::Builder&
-HeadlessBrowserContext::Builder::SetUserDataDir(
-    const base::FilePath& user_data_dir) {
-  options_->user_data_dir_ = user_data_dir;
-  return *this;
-}
-
-HeadlessBrowserContext::Builder&
-HeadlessBrowserContext::Builder::SetDiskCacheDir(
-    const base::FilePath& disk_cache_dir) {
-  options_->disk_cache_dir_ = disk_cache_dir;
-  return *this;
-}
-
-HeadlessBrowserContext::Builder&
-HeadlessBrowserContext::Builder::SetIncognitoMode(bool incognito_mode) {
-  options_->incognito_mode_ = incognito_mode;
-  return *this;
-}
-
-HeadlessBrowserContext::Builder&
-HeadlessBrowserContext::Builder::SetBlockNewWebContents(
-    bool block_new_web_contents) {
-  options_->block_new_web_contents_ = block_new_web_contents;
-  return *this;
-}
-
-HeadlessBrowserContext* HeadlessBrowserContext::Builder::Build() {
-  return browser_->CreateBrowserContext(this);
-}
+HeadlessBrowserContext::CreateParams&
+HeadlessBrowserContext::CreateParams::operator=(CreateParams&&) = default;
 
 }  // namespace headless

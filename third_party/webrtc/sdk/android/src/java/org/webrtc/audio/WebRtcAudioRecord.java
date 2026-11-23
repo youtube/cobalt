@@ -107,6 +107,7 @@ class WebRtcAudioRecord {
   private final @Nullable SamplesReadyCallback audioSamplesReadyCallback;
   private final boolean isAcousticEchoCancelerSupported;
   private final boolean isNoiseSuppressorSupported;
+  private final ThreadUtils.ThreadChecker threadChecker = new ThreadUtils.ThreadChecker();
 
   /**
    * Audio thread which keeps calling ByteBuffer.read() waiting for audio
@@ -207,6 +208,7 @@ class WebRtcAudioRecord {
       @Nullable AudioRecordStateCallback stateCallback,
       @Nullable SamplesReadyCallback audioSamplesReadyCallback,
       boolean isAcousticEchoCancelerSupported, boolean isNoiseSuppressorSupported) {
+    threadChecker.detachThread();
     if (isAcousticEchoCancelerSupported && !WebRtcAudioEffects.isAcousticEchoCancelerSupported()) {
       throw new IllegalArgumentException("HW AEC not supported");
     }
@@ -264,18 +266,27 @@ class WebRtcAudioRecord {
 
   @CalledByNative
   private boolean enableBuiltInAEC(boolean enable) {
+    threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "enableBuiltInAEC(" + enable + ")");
     return effects.setAEC(enable);
   }
 
   @CalledByNative
   private boolean enableBuiltInNS(boolean enable) {
+    threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "enableBuiltInNS(" + enable + ")");
     return effects.setNS(enable);
   }
 
   @CalledByNative
   private int initRecording(int sampleRate, int channels) {
+    try {
+      threadChecker.checkIsOnValidThread();
+    } catch (IllegalStateException e) {
+      reportWebRtcAudioRecordInitError("threadChecker.checkIsOnValidThread failed: " +
+                                       e.getMessage());
+      return -1;
+    }
     Logging.d(TAG, "initRecording(sampleRate=" + sampleRate + ", channels=" + channels + ")");
     if (audioRecord != null) {
       reportWebRtcAudioRecordInitError("InitRecording called twice without StopRecording.");
@@ -384,6 +395,7 @@ class WebRtcAudioRecord {
 
   @CalledByNative
   private boolean startRecording() {
+    threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "startRecording");
     assertTrue(audioRecord != null);
     assertTrue(audioThread == null);
@@ -408,6 +420,7 @@ class WebRtcAudioRecord {
 
   @CalledByNative
   private boolean stopRecording() {
+    threadChecker.checkIsOnValidThread();
     Logging.d(TAG, "stopRecording");
     assertTrue(audioThread != null);
     if (future != null) {

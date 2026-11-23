@@ -1084,7 +1084,7 @@ Position PositionAfterNode(const Node& node) {
   return Position::InParentAfterNode(node);
 }
 
-bool IsHTMLListElement(const Node* n) {
+bool IsHtmlListElement(const Node* n) {
   return (n && (IsA<HTMLUListElement>(*n) || IsA<HTMLOListElement>(*n) ||
                 IsA<HTMLDListElement>(*n)));
 }
@@ -1105,7 +1105,7 @@ bool IsListElementTag(const Node* n) {
                n->HasTagName(html_names::kDlTag));
 }
 
-bool IsPresentationalHTMLElement(const Node* node) {
+bool IsPresentationalHtmlElement(const Node* node) {
   const auto* element = DynamicTo<HTMLElement>(node);
   if (!element)
     return false;
@@ -1255,7 +1255,7 @@ HTMLElement* CreateDefaultParagraphElement(Document& document) {
   NOTREACHED();
 }
 
-bool IsTabHTMLSpanElement(const Node* node) {
+bool IsTabSpanElement(const Node* node) {
   const auto* span = DynamicTo<HTMLSpanElement>(node);
   if (!span) {
     return false;
@@ -1275,13 +1275,13 @@ bool IsTabHTMLSpanElement(const Node* node) {
   return style && style->WhiteSpace() == EWhiteSpace::kPre;
 }
 
-bool IsTabHTMLSpanElementTextNode(const Node* node) {
+bool IsTabSpanElementTextNode(const Node* node) {
   return node && node->IsTextNode() && node->parentNode() &&
-         IsTabHTMLSpanElement(node->parentNode());
+         IsTabSpanElement(node->parentNode());
 }
 
 HTMLSpanElement* TabSpanElement(const Node* node) {
-  return IsTabHTMLSpanElementTextNode(node)
+  return IsTabSpanElementTextNode(node)
              ? To<HTMLSpanElement>(node->parentNode())
              : nullptr;
 }
@@ -1498,7 +1498,7 @@ Position ComputePositionForNodeRemoval(const Position& position,
   NOTREACHED() << "We should handle all PositionAnchorType";
 }
 
-bool IsMailHTMLBlockquoteElement(const Node* node) {
+bool IsMailHtmlBlockquoteElement(const Node* node) {
   const auto* element = DynamicTo<HTMLElement>(*node);
   if (!element)
     return false;
@@ -1651,7 +1651,7 @@ bool IsRenderedAsNonInlineTableImageOrHR(const Node* node) {
          layout_object->IsHR();
 }
 
-bool IsNonTableCellHTMLBlockElement(const Node* node) {
+bool IsNonTableCellHtmlBlockElement(const Node* node) {
   const auto* element = DynamicTo<HTMLElement>(node);
   if (!element)
     return false;

@@ -33,6 +33,13 @@ std::optional<std::string> IOSWebAuthnCredentialsDelegate::GetCableQrString()
 void IOSWebAuthnCredentialsDelegate::SelectPasskey(
     const std::string& backend_id,
     OnPasskeySelectedCallback callback) {
+  SelectPasskey(backend_id, /*did_complete_uv=*/false, std::move(callback));
+}
+
+void IOSWebAuthnCredentialsDelegate::SelectPasskey(
+    const std::string& backend_id,
+    bool did_complete_uv,
+    OnPasskeySelectedCallback callback) {
   // Nothing can be done if the web state is not valid.
   if (!web_state_) {
     return;
@@ -50,8 +57,8 @@ void IOSWebAuthnCredentialsDelegate::SelectPasskey(
       PasskeyTabHelper::FromWebState(web_state_.get());
   CHECK(passkey_tab_helper);
 
-  passkey_tab_helper->StartPasskeyAssertion(passkey_request_id_,
-                                            std::move(selected_credential_id));
+  passkey_tab_helper->StartPasskeyAssertion(
+      passkey_request_id_, std::move(selected_credential_id), did_complete_uv);
 }
 
 base::expected<const std::vector<password_manager::PasskeyCredential>*,

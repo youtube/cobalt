@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Chcete-li tuto chybu odstranit, můžete také zkusit <ph name="GUEST_SIGNIN_LINK_START" />procházení v roli hosta<ph name="GUEST_SIGNIN_LINK_END" />.</translation>
 <translation id="1201402288615127009">Další</translation>
 <translation id="1222835797152767346">Nastavte si PIN, abyste si usnadnili přihlašování</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Funkce ladění<ph name="END_H3" />
+      <ph name="BR" />
+      Na zařízení se systémem ChromeOS můžete aktivovat funkce ladění, abyste do něj mohli nainstalovat vlastní kód a otestovat ho. Budete tak moct:<ph name="BR" />
+      <ph name="BEGIN_LIST" />
+        <ph name="LIST_ITEM" />odstranit ověření rootfs, abyste mohli upravovat soubory operačního systému,
+        <ph name="LIST_ITEM" />povolit k zařízení přístup přes SSH pomocí standardních testovacích klíčů, abyste k němu mohli přistupovat pomocí nástrojů, jako je <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" />,
+        <ph name="LIST_ITEM" />aktivovat spouštění z jednotky USB, abyste mohli nainstalovat obraz operačního systému z jednotky USB,
+        <ph name="LIST_ITEM" />nastavit heslo uživatele root pro zařízení a systém na vlastní hodnotu, abyste se k zařízení mohli připojit ručně přes SSH.
+      <ph name="END_LIST" />
+      <ph name="BR" />
+      Jakmile tuto funkci povolíte, většina funkcí ladění zůstane zapnutá, dokonce i po použití funkce Powerwash nebo vymazání dat na zařízení spravovaném organizací. K úplné deaktivaci všech funkcí ladění bude potřeba provést proces obnovení systému ChromeOS (https://support.google.com/chromebook/answer/1080595).
+      <ph name="BR" />
+      <ph name="BR" />
+      Další informace o funkcích ladění najdete na následující stránce:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+      <ph name="BR" />
+      <ph name="BR" />
+      <ph name="BEGIN_BOLD" />Poznámka:<ph name="END_BOLD" /> Systém se během tohoto procesu restartuje.</translation>
 <translation id="1347625331607114917">Ověřte kód na svém telefonu s Androidem</translation>
 <translation id="1347975661240122359">Aktualizace bude zahájena, až baterie dosáhne <ph name="BATTERY_LEVEL" /> %.</translation>
 <translation id="1375938286942050085">Nastavení je dokončeno! Pokračujte tím, že zařízení připravíte k hraní</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Aplikace se stahují</translation>
 <translation id="5045550434625856497">Nesprávné heslo</translation>
 <translation id="5062930723426326933">Přihlášení se nezdařilo. Připojte se prosím k internetu a zkuste to znovu.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Chatováním s Gemini můžete začít psát, plánovat, učit se a dělat mnoho dalších věcí s pomocí Google AI.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Po nastavení můžete Gemini začít používat tak, že na poličce v dolní části obrazovky vyberete aplikaci Gemini.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Zapojte <ph name="DEVICE_TYPE" /> do zdroje napájení.</translation>
 <translation id="5147516217412920887">Ověřte kód podle pokynů na telefonu</translation>
 <translation id="5160857336552977725">Přihlaste se do zařízení <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Funkce ladění<ph name="END_H3" />
+      <ph name="BR" />
+      Na zařízení se systémem ChromeOS Flex můžete aktivovat funkce ladění, abyste do něj mohli nainstalovat vlastní kód a otestovat ho. Budete moci:<ph name="BR" />
+      <ph name="BEGIN_LIST" />
+        <ph name="LIST_ITEM" />odstranit ověření rootfs, abyste mohli upravovat soubory operačního systému,
+        <ph name="LIST_ITEM" />povolit k zařízení přístup přes SSH pomocí standardních testovacích klíčů, abyste k němu mohli přistupovat pomocí nástrojů, jako je <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" />,
+        <ph name="LIST_ITEM" />aktivovat spouštění z jednotky USB, abyste mohli nainstalovat obraz operačního systému z jednotky USB,
+        <ph name="LIST_ITEM" />nastavit heslo uživatele root pro zařízení a systém na vlastní hodnotu, abyste se k zařízení mohli připojit ručně přes SSH.
+      <ph name="END_LIST" />
+      <ph name="BR" />
+      Jakmile tuto funkci povolíte, většina funkcí ladění zůstane zapnutá, dokonce i po použití funkce Powerwash nebo vymazání dat na zařízení spravovaném organizací. K úplné deaktivaci všech funkcí ladění bude potřeba provést proces obnovení systému ChromeOS (https://support.google.com/chromebook/answer/1080595).
+      <ph name="BR" />
+      <ph name="BR" />
+      Další informace o funkcích ladění najdete na následující stránce:<ph name="BR" />
+      https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+      <ph name="BR" />
+      <ph name="BR" />
+      <ph name="BEGIN_BOLD" />Poznámka:<ph name="END_BOLD" /> Systém se během tohoto procesu restartuje.</translation>
 <translation id="523505283826916779">Nastavení usnadnění přístupu</translation>
 <translation id="5240931875940563122">Přihlásit se pomocí telefonu s Androidem</translation>
 <translation id="5255859108402770436">Znovu se přihlaste</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">Aktivujete funkce ladění systému ChromeOS, které nastaví démona sshd a umožní spouštění z jednotek USB.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Usnadnění</translation>
+<translation id="6984652455487792101">Pokud používáte proxy server, zkontrolujte jeho nastavení nebo se obraťte na správce sítě a ujistěte se, zda funguje. Pokud jste přesvědčeni, že byste proxy server používat neměli, upravte svá <ph name="LINK_START" />nastavení proxy serveru<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Zapněte v telefonu Bluetooth a Wi-Fi</translation>
 <translation id="7077829361966535409">Přihlašovací stránku se pomocí aktuálního nastavení proxy serveru nepodařilo načíst. <ph name="GAIA_RELOAD_LINK_START" />Zkuste se prosím přihlásit znovu<ph name="GAIA_RELOAD_LINK_END" />, nebo použijte jiné <ph name="PROXY_SETTINGS_LINK_START" />nastavení proxy serveru<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Hesla nejsou shodná</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">Potvrďte heslo</translation>
 <translation id="7352651011704765696">Něco se pokazilo</translation>
 <translation id="7476454130948140105">Aktualizaci nelze zahájit z důvodu slabé baterie (<ph name="BATTERY_PERCENT" /> %)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Před registrací je čip TPM potřeba vymazat, aby systém <ph name="DEVICE_OS" /> mohl převzít jeho vlastnictví.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Čip TPM můžete také úplně vypnout. Data se i nadále budou ukládat bezpečně pomocí softwarového šifrování, ale některé bezpečnostní funkce, jako jsou hardwarově chráněné certifikáty, budou deaktivovány.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Nastavení čipu TPM můžete změnit tak, že zařízení restartujete a přejdete do nastavení BIOS/UEFI systému. Postup se liší v závislosti na modelu zařízení. Pro další informace si před restartováním na jiném zařízení otevřete dokumentaci systému <ph name="DEVICE_OS" />: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Aktivovat v tomto zařízení <ph name="IDS_SHORT_PRODUCT_NAME" /> funkce ladění</translation>
 <translation id="7553242001898162573">Zadejte heslo.</translation>
 <translation id="7556242789364317684">Litujeme, prohlížeč <ph name="SHORT_PRODUCT_NAME" /> vaše nastavení nedokáže obnovit. Aby prohlížeč <ph name="SHORT_PRODUCT_NAME" /> mohl chybu odstranit, musí zařízení resetovat pomocí funkce Powerwash.</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">Přenos informací o účtu Google z telefonu s Androidem</translation>
 <translation id="8524841856047224176">Přizpůsobte si pozadí kamery pro videohovory a nejen to</translation>
 <translation id="8569673829373920831">Další informace: <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Podle pokynů na telefonu naskenujte QR kód. Zkontrolujte, zda je na telefonu zapnutý Bluetooth.
+        <ph name="BR" />
+        <ph name="BR" />
+        Zařízení v okolí vás vidí jako <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">Přihlášení se nezdařilo, protože nelze ověřit vaše heslo. Kontaktujte administrátora nebo to zkuste znovu.</translation>
 <translation id="8674903726754070732">Váš počítač je bohužel nakonfigurován pomocí chybného čísla hardwaru. Systému ChromeOS to zabraňuje získat aktualizace s nejnovějšími bezpečnostními opravami, a počítač tak <ph name="BEGIN_BOLD" />může být zranitelnější v případě útoků<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Přidejte rodičovskou kontrolu po dokončení nastavení</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">Při použití aktuálního nastavení proxy serveru se kontrola aktualizací nezdařila. Upravte <ph name="PROXY_SETTINGS_LINK_START" />nastavení proxy serveru<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Vaše uložené nastavení a aktivita budou připraveny na každém zařízení se systémem ChromeOS, když se přihlásíte pomocí účtu Google. Položky, které chcete synchronizovat, můžete vybrat v Nastavení.</translation>
 <translation id="8875221558267407626">Shrne obsah, zjednoduší složitý text a odpoví na otázky</translation>
+<translation id="8913163265790894442"><ph name="DEVICE_TYPE" /> můžete snadno nastavit pomocí telefonu. Svou síť Wi-Fi a účet Google můžete přidat bez ručního zadávání hesel.
+        <ph name="BR" />
+        <ph name="BR" />
+        Viditelné jako <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">V tomto zařízení <ph name="IDS_SHORT_PRODUCT_NAME" /> nebyly úplně povoleny funkce ladění.</translation>
 <translation id="8965037249707889821">Zadat staré heslo</translation>
 <translation id="8975396729541388937">Z odběru se můžete kdykoli odhlásit kliknutím na odkaz v doručených e-mailech.</translation>
 <translation id="9033765790910064284">Přesto pokračovat</translation>
 <translation id="903480517321259405">Znovu zadejte PIN</translation>
 <translation id="9076523132036239772">Litujeme, e-mailovou adresu nebo heslo nelze ověřit. Zkuste se nejdříve připojit k síti.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Exkluzivně pro zařízení <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generativní umělá inteligence je experimentální, na počátku vývoje a v současnosti má omezenou dostupnost.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618"><ph name="DEVICE_TYPE" /> můžete snadno nastavit pomocí telefonu. Svůj účet Google můžete přidat bez ručního zadávání hesla.
+        <ph name="BR" />
+        <ph name="BR" />
+        Viditelné jako <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

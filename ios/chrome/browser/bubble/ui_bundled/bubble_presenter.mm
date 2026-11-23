@@ -367,11 +367,8 @@ constexpr CGFloat kAdditionalBorderMargin = 4;
 
   BubbleArrowDirection arrowDirection;
   if (IsChromeNextIaEnabled()) {
-    BOOL isBottomOmnibox = IsBottomOmniboxAvailable() &&
-                           GetApplicationContext()->GetLocalState()->GetBoolean(
-                               omnibox::kIsOmniboxInBottomPosition);
-    arrowDirection =
-        isBottomOmnibox ? BubbleArrowDirectionDown : BubbleArrowDirectionUp;
+    arrowDirection = [self isBottomOmnibox] ? BubbleArrowDirectionDown
+                                            : BubbleArrowDirectionUp;
 
   } else {
     arrowDirection = IsSplitToolbarMode(self.rootViewController)
@@ -493,7 +490,11 @@ constexpr CGFloat kAdditionalBorderMargin = 4;
 }
 
 - (void)presentLensOverlayTipBubble {
-  if (![self canPresentBubble]) {
+  BOOL checkTabScrolledToTop = YES;
+  if (IsChromeNextIaEnabled() && ![self isBottomOmnibox]) {
+    checkTabScrolledToTop = NO;
+  }
+  if (![self canPresentBubbleWithCheckTabScrolledToTop:checkTabScrolledToTop]) {
     return;
   }
 
@@ -1533,6 +1534,13 @@ constexpr CGFloat kAdditionalBorderMargin = 4;
     _infobarModalPresenter = nullptr;
   }
   _overlayPresenterObserver = nullptr;
+}
+
+// Returns whether the omnibox is in the bottom position.
+- (BOOL)isBottomOmnibox {
+  return IsBottomOmniboxAvailable() &&
+         GetApplicationContext()->GetLocalState()->GetBoolean(
+             omnibox::kIsOmniboxInBottomPosition);
 }
 
 @end

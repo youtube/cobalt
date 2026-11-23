@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/accessibility/accessibility_event_rewriter_delegate_impl.h"
 
+#include "ash/constants/ash_extension_constants.h"
 #include "ash/public/cpp/accessibility_controller_enums.h"
 #include "ash/public/cpp/event_rewriter_controller.h"
 #include "base/strings/utf_string_conversions.h"
@@ -11,7 +12,6 @@
 #include "chrome/browser/ash/accessibility/event_handler_common.h"
 #include "chrome/browser/ui/aura/accessibility/automation_manager_aura.h"
 #include "chrome/common/extensions/api/accessibility_private.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/web_contents.h"

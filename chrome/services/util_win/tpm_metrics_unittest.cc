@@ -9,7 +9,9 @@
 
 using TpmIdentifier = metrics::SystemProfileProto_TpmIdentifier;
 
-TEST(TpmIdentifierTest, TpmTest) {
+// TODO(crbug.com/527676474): Re-enable after fixing unchecked optional
+// dereference under libc++ Hardening.
+TEST(TpmIdentifierTest, DISABLED_TpmTest) {
   // Ensure that each value has been populated
   std::optional<TpmIdentifier> identifier = GetTpmIdentifier();
   EXPECT_TRUE(identifier->tpm_specific_version() != "");

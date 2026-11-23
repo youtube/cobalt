@@ -686,7 +686,6 @@ void PermissionContextBase::PermissionDecided(
       decision.overall_decision == PermissionDecision::kNone) {
     content::RenderFrameHost* rfh = content::RenderFrameHost::FromID(
         request_data.id.global_render_frame_host_id());
-    DCHECK(rfh);
     MaybeUpdateCachedHasDevicePermission(
         content::WebContents::FromRenderFrameHost(rfh));
   }
@@ -887,8 +886,7 @@ void PermissionContextBase::UpdateSetting(
   // The unused permissions module in Safety check will revoke unused site
   // permissions after a finite amount of time if the permission can be revoked.
   if (content_settings::CanBeAutoRevokedAsUnusedPermission(
-          content_settings_type(), info->delegate().ToValue(setting),
-          is_one_time)) {
+          content_settings_type(), setting, is_one_time)) {
     constraints.set_track_last_visit_for_autoexpiration(true);
   }
 

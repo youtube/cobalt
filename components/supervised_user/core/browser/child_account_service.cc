@@ -148,6 +148,10 @@ void ChildAccountService::SetSupervisionStatusAndNotifyObservers(
     std::move(callback).Run();
   }
   status_received_callback_list_.clear();
+
+  // It's possible the supervision status change is caused by sign-in /
+  // sign-out event, which would also update the Google auth state.
+  OnAuthStateUpdated();
 }
 
 void ChildAccountService::OnPrimaryAccountChanged(
@@ -203,7 +207,6 @@ void ChildAccountService::OnExtendedAccountInfoUpdated(
 
   SetSupervisionStatusAndNotifyObservers(info.IsChildAccount() ==
                                          signin::Tribool::kTrue);
-  OnAuthStateUpdated();
 }
 
 void ChildAccountService::OnRefreshTokenUpdatedForAccount(

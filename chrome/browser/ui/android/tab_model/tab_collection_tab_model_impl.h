@@ -11,6 +11,7 @@
 
 #include "base/android/jni_weak_ref.h"
 #include "base/memory/raw_ptr.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 class Profile;
 class TabAndroid;
@@ -28,6 +29,7 @@ class TabGroupVisualData;
 namespace tabs {
 class TabGroupTabCollection;
 class TabStripCollection;
+class TabInterface;
 
 // The C++ portion of TabCollectionTabModelImpl.java. Note this is intentionally
 // a different entity from TabModelJniBridge as that class is shared between the
@@ -46,15 +48,8 @@ class TabCollectionTabModelImpl {
   TabCollectionTabModelImpl& operator=(const TabCollectionTabModelImpl&) =
       delete;
 
-  // Returns the total number of tabs in the collection, including
-  // sub-collections.
-  int GetTabCountRecursive(JNIEnv* env) const;
-
   // Returns the recursive index of the given tab, or -1 if not found.
-  int GetIndexOfTabRecursive(JNIEnv* env, TabAndroid* j_tab_android) const;
-
-  // Recurses until reaching the given index. Returns null if not found.
-  TabAndroid* GetTabAtIndexRecursive(JNIEnv* env, size_t index) const;
+  int GetIndexOfTabRecursive(TabAndroid* tab_android) const;
 
   // Moves a tab updating its group or pinned state if applicable. Returns the
   // final index of the tab.
@@ -90,27 +85,28 @@ class TabCollectionTabModelImpl {
 
   // Returns the tabs in a group. If the group is not found, returns an empty
   // vector.
-  std::vector<TabAndroid*> GetTabsInGroup(JNIEnv* env,
-                                          const base::Token& token);
+  std::vector<TabAndroid*> GetTabsInGroup(
+      JNIEnv* env,
+      const base::Token& tab_group_id) const;
 
   // Returns the number of tabs in a group. If the group is not found, returns
   // 0.
-  int GetTabCountForGroup(JNIEnv* env, const base::Token& token);
+  int GetTabCountForGroup(JNIEnv* env, const base::Token& tab_group_id) const;
 
   // Returns whether a tab group with tabs exists.
-  bool TabGroupExists(JNIEnv* env, const base::Token& token);
+  bool TabGroupExists(JNIEnv* env, const base::Token& tab_group_id) const;
 
   // Returns the number of individual tabs and tab groups.
-  int GetIndividualTabAndGroupCount(JNIEnv* env);
+  int GetIndividualTabAndGroupCount(JNIEnv* env) const;
 
   // Returns the number of tab groups.
-  int GetTabGroupCount(JNIEnv* env);
+  int GetTabGroupCount(JNIEnv* env) const;
 
   // Returns the index of a tab within its group. Returns -1 if tab is not in a
   // group or not found.
   int GetIndexOfTabInGroup(JNIEnv* env,
                            TabAndroid* tab,
-                           const base::Token& token);
+                           const base::Token& tab_group_id) const;
 
   // Update tab group visual data.
   void UpdateTabGroupVisualData(
@@ -121,35 +117,38 @@ class TabCollectionTabModelImpl {
       const std::optional<bool>& is_collapsed);
 
   // Getters for tab group visual data.
-  std::u16string GetTabGroupTitle(JNIEnv* env, const base::Token& tab_group_id);
-  int32_t GetTabGroupColor(JNIEnv* env, const base::Token& tab_group_id);
-  bool GetTabGroupCollapsed(JNIEnv* env, const base::Token& tab_group_id);
+  std::u16string GetTabGroupTitle(JNIEnv* env,
+                                  const base::Token& tab_group_id) const;
+  int32_t GetTabGroupColor(JNIEnv* env, const base::Token& tab_group_id) const;
+  bool GetTabGroupCollapsed(JNIEnv* env, const base::Token& tab_group_id) const;
 
   // Checks if a detached tab group exists.
-  bool DetachedTabGroupExists(JNIEnv* env, const base::Token& tab_group_id);
+  bool DetachedTabGroupExists(JNIEnv* env,
+                              const base::Token& tab_group_id) const;
 
   // Closes a detached tab group.
   void CloseDetachedTabGroup(JNIEnv* env, const base::Token& tab_group_id);
 
   // Gets a list of all tabs.
-  std::vector<TabAndroid*> GetAllTabs(JNIEnv* env);
+  std::vector<TabAndroid*> GetAllTabs(JNIEnv* env) const;
 
   // Gets a list of all tab group IDs.
-  std::vector<base::Token> GetAllTabGroupIds(JNIEnv* env);
+  std::vector<base::Token> GetAllTabGroupIds(JNIEnv* env) const;
 
   // Gets a list of representative tabs.
-  std::vector<TabAndroid*> GetRepresentativeTabList(JNIEnv* env);
+  std::vector<TabAndroid*> GetRepresentativeTabList(JNIEnv* env) const;
 
   // Sets the last shown tab for a group.
   void SetLastShownTabForGroup(JNIEnv* env,
-                               const base::Token& group_id,
+                               const base::Token& tab_group_id,
                                TabAndroid* tab_android);
 
   // Gets the last shown tab for a group.
-  TabAndroid* GetLastShownTabForGroup(JNIEnv* env, const base::Token& group_id);
+  TabAndroid* GetLastShownTabForGroup(JNIEnv* env,
+                                      const base::Token& tab_group_id) const;
 
   // Returns the index of the first non-pinned tab.
-  int GetIndexOfFirstNonPinnedTab(JNIEnv* env);
+  int GetIndexOfFirstNonPinnedTab(JNIEnv* env) const;
 
   // Returns the TabStripCollection associated with this TabModel.
   tabs::TabStripCollection* GetTabStripCollection(JNIEnv* env);
@@ -186,6 +185,8 @@ class TabCollectionTabModelImpl {
 
   // Always valid until destroyed.
   std::unique_ptr<tabs::TabStripCollection> tab_strip_collection_;
+
+  absl::flat_hash_map<TabAndroid*, tabs::TabInterface*> tab_map_;
 };
 
 }  // namespace tabs

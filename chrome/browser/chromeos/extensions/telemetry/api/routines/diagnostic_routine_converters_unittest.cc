@@ -169,22 +169,6 @@ TEST(TelemetryExtensionDiagnosticRoutineConvertersTest,
 }
 
 TEST(TelemetryExtensionDiagnosticRoutineConvertersTest,
-     LegacyVolumeButtonRoutineFinishedInfo) {
-  constexpr bool kHasPassed = true;
-  const base::Uuid kUuid = base::Uuid::GenerateRandomV4();
-
-  auto input = crosapi::TelemetryDiagnosticVolumeButtonRoutineDetail::New();
-
-  auto result = ConvertPtr(std::move(input), kUuid, kHasPassed);
-
-  ASSERT_TRUE(result.uuid.has_value());
-  EXPECT_EQ(*result.uuid, kUuid.AsLowercaseString());
-
-  ASSERT_TRUE(result.has_passed.has_value());
-  EXPECT_EQ(*result.has_passed, kHasPassed);
-}
-
-TEST(TelemetryExtensionDiagnosticRoutineConvertersTest,
      LegacyFanRoutineFinishedInfo) {
   auto input = crosapi::TelemetryDiagnosticFanRoutineDetail::New();
   input->passed_fan_ids = {0};
@@ -309,28 +293,6 @@ TEST(TelemetryExtensionDiagnosticRoutineConvertersTest,
       result.detail->memory->result->failed_items,
       testing::ElementsAre(cx_diag::MemtesterTestItemEnum::kCompareAnd,
                            cx_diag::MemtesterTestItemEnum::kCompareSub));
-}
-
-TEST(TelemetryExtensionDiagnosticRoutineConvertersTest,
-     RoutineFinishedInfoWithVolumeButtonDetail) {
-  constexpr bool kHasPassed = true;
-  const base::Uuid kUuid = base::Uuid::GenerateRandomV4();
-
-  auto detail = crosapi::TelemetryDiagnosticVolumeButtonRoutineDetail::New();
-
-  auto input = crosapi::TelemetryDiagnosticRoutineStateFinished::New();
-  input->detail = crosapi::TelemetryDiagnosticRoutineDetail::NewVolumeButton(
-      std::move(detail));
-
-  auto result = ConvertPtr(std::move(input), kUuid, kHasPassed);
-
-  ASSERT_TRUE(result.uuid.has_value());
-  EXPECT_EQ(*result.uuid, kUuid.AsLowercaseString());
-
-  ASSERT_TRUE(result.has_passed.has_value());
-  EXPECT_EQ(*result.has_passed, kHasPassed);
-
-  EXPECT_FALSE(result.detail.has_value());
 }
 
 TEST(TelemetryExtensionDiagnosticRoutineConvertersTest,

@@ -13,14 +13,25 @@ WaitAndReplaceSyncTokenClient::WaitAndReplaceSyncTokenClient(
 WaitAndReplaceSyncTokenClient::WaitAndReplaceSyncTokenClient(
     gpu::InterfaceBase* ib,
     std::unique_ptr<gpu::RasterScopedAccess> ri_access)
-    : ib_(ib), ri_access_(std::move(ri_access)) {}
+    : WaitAndReplaceSyncTokenClient(
+          ib,
+          base::BindOnce(
+              [](std::unique_ptr<gpu::RasterScopedAccess> ri_access) {
+                CHECK(ri_access);
+                return gpu::RasterScopedAccess::EndAccess(std::move(ri_access));
+              },
+              std::move(ri_access))) {}
+WaitAndReplaceSyncTokenClient::WaitAndReplaceSyncTokenClient(
+    gpu::InterfaceBase* ib,
+    GetSyncTokenCallback sync_callback)
+    : ib_(ib), sync_callback_(std::move(sync_callback)) {}
 
 WaitAndReplaceSyncTokenClient::~WaitAndReplaceSyncTokenClient() = default;
 
 void WaitAndReplaceSyncTokenClient::GenerateSyncToken(
     gpu::SyncToken* sync_token) {
-  if (ri_access_) {
-    *sync_token = gpu::RasterScopedAccess::EndAccess(std::move(ri_access_));
+  if (!sync_callback_.is_null()) {
+    *sync_token = std::move(sync_callback_).Run();
     int8_t* sync_token_data = sync_token->GetData();
     ib_->VerifySyncTokensCHROMIUM(&sync_token_data, 1);
   } else {

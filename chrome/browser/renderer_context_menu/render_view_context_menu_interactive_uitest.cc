@@ -627,17 +627,11 @@ class GlicInteractiveContextMenuTestBase
 };
 
 class GlicInteractiveContextMenuTest
-    : public GlicInteractiveContextMenuTestBase,
-      public ::testing::WithParamInterface<bool> {
+    : public GlicInteractiveContextMenuTestBase {
  public:
   GlicInteractiveContextMenuTest() {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kGlic, features::kGlicShareImage};
-    if (UseInvokeFlow()) {
-      enabled_features.push_back(features::kGlicShareImageViaInvoke);
-    }
     scoped_feature_list_.InitWithFeatures(
-        enabled_features,
+        {features::kGlic, features::kGlicShareImage},
         /*disabled_features=*/{features::kGlicWarming,
                                blink::features::kSvgFallBackToContainerSize});
     // Ensure that we open the FRE.
@@ -645,13 +639,11 @@ class GlicInteractiveContextMenuTest
   }
   ~GlicInteractiveContextMenuTest() override = default;
 
-  bool UseInvokeFlow() const { return GetParam(); }
-
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuTest, GlicShareImage) {
+IN_PROC_BROWSER_TEST_F(GlicInteractiveContextMenuTest, GlicShareImage) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
 
   const GURL url = embedded_test_server()->GetURL(kPageWithImage);
@@ -668,7 +660,7 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuTest, GlicShareImage) {
       CheckHistograms());
 }
 
-IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuTest, CreateNewInstance) {
+IN_PROC_BROWSER_TEST_F(GlicInteractiveContextMenuTest, CreateNewInstance) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
 
   const GURL url = embedded_test_server()->GetURL(kPageWithImage);
@@ -691,7 +683,7 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuTest, CreateNewInstance) {
 }
 
 // Disabled because flaky: crbug.com/519961669
-IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuTest,
+IN_PROC_BROWSER_TEST_F(GlicInteractiveContextMenuTest,
                        DISABLED_CreateNewInstanceDetached) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
 
@@ -720,7 +712,7 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuTest,
       CheckCachedInstance(), CheckHistograms());
 }
 
-IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuTest,
+IN_PROC_BROWSER_TEST_F(GlicInteractiveContextMenuTest,
                        GlicShareImageFailsOnNoImage) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
 
@@ -735,38 +727,23 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuTest,
       WaitForShareResult(glic::ShareImageResult::kFailedNoImage));
 }
 
-INSTANTIATE_TEST_SUITE_P(Invoke,
-                         GlicInteractiveContextMenuTest,
-                         // This parameter toggles invoke mode.
-                         testing::Bool());
-
 class GlicTrustFirstOnboardingContextMenuTest
-    : public GlicInteractiveContextMenuTestBase,
-      public ::testing::WithParamInterface<bool> {
+    : public GlicInteractiveContextMenuTestBase {
  public:
   GlicTrustFirstOnboardingContextMenuTest() {
-    std::vector<base::test::FeatureRef> enabled_features = {
-        features::kGlic, features::kGlicShareImage};
-    std::vector<base::test::FeatureRef> disabled_features = {
-        features::kGlicWarming, blink::features::kSvgFallBackToContainerSize};
-    if (UseInvokeFlow()) {
-      enabled_features.push_back(features::kGlicShareImageViaInvoke);
-    } else {
-      disabled_features.push_back(features::kGlicShareImageViaInvoke);
-    }
-    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
+    scoped_feature_list_.InitWithFeatures(
+        {features::kGlic, features::kGlicShareImage},
+        {features::kGlicWarming, blink::features::kSvgFallBackToContainerSize});
     glic_test_environment().SetFreStatusForNewProfiles(
         glic::prefs::FreStatus::kNotStarted);
   }
   ~GlicTrustFirstOnboardingContextMenuTest() override = default;
 
-  bool UseInvokeFlow() const { return GetParam(); }
-
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_P(GlicTrustFirstOnboardingContextMenuTest,
+IN_PROC_BROWSER_TEST_F(GlicTrustFirstOnboardingContextMenuTest,
                        GlicShareImageArm2) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
   const GURL url = embedded_https_test_server().GetURL(kPageWithImage);
@@ -780,11 +757,6 @@ IN_PROC_BROWSER_TEST_P(GlicTrustFirstOnboardingContextMenuTest,
       PollForAndInstrumentGlic(), WaitForAdditionalContext(),
       PollForAndCompleteOnboarding());
 }
-
-INSTANTIATE_TEST_SUITE_P(Invoke,
-                         GlicTrustFirstOnboardingContextMenuTest,
-                         // This parameter toggles invoke mode.
-                         testing::Bool());
 
 #if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
 
@@ -929,7 +901,7 @@ class GlicInteractiveContextMenuPolicyTest
   bool content_analysis_dialog_shown_ = false;
 };
 
-IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
+IN_PROC_BROWSER_TEST_F(GlicInteractiveContextMenuPolicyTest,
                        GlicShareImageFailsOnCopyDenied) {
   // Taken from DataProtectionClipboardBrowserTest in clipboard_browsertest.cc.
   data_controls::SetDataControls(browser()->profile()->GetPrefs(), {R"({
@@ -956,7 +928,7 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
       WaitForShareResult(glic::ShareImageResult::kFailedClipboardCopyPolicy));
 }
 
-IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
+IN_PROC_BROWSER_TEST_F(GlicInteractiveContextMenuPolicyTest,
                        GlicShareImageFailsOnPasteDenied) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
   const GURL url = embedded_test_server()->GetURL(kPageWithImage);
@@ -972,7 +944,7 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
       WaitForContentAnalysisDialog());
 }
 
-IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
+IN_PROC_BROWSER_TEST_F(GlicInteractiveContextMenuPolicyTest,
                        GlicShareImageFailsOnPasteAllowed) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
   const GURL url = embedded_test_server()->GetURL(kPageWithAllowedImage);
@@ -987,7 +959,7 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
       WaitForShareResult(glic::ShareImageResult::kSentImageToClient));
 }
 
-IN_PROC_BROWSER_TEST_P(
+IN_PROC_BROWSER_TEST_F(
     GlicInteractiveContextMenuPolicyTest,
     GlicShareImageSucceedsOnNavigationAfterPastePolicyCheck) {
   DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kActiveTab);
@@ -1014,7 +986,7 @@ IN_PROC_BROWSER_TEST_P(
   GetPastePolicyCallbackHook().Reset();
 }
 
-IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
+IN_PROC_BROWSER_TEST_F(GlicInteractiveContextMenuPolicyTest,
                        GlicShareImageFailsWhenGuestURLBlocked) {
   // Check that our destination is the Guest URL.
   GURL guest_url = glic::GetGuestURL();
@@ -1036,11 +1008,6 @@ IN_PROC_BROWSER_TEST_P(GlicInteractiveContextMenuPolicyTest,
       PollForAndCompleteOnboarding(),
       WaitForShareResult(glic::ShareImageResult::kFailedClipboardPastePolicy));
 }
-
-INSTANTIATE_TEST_SUITE_P(Invoke,
-                         GlicInteractiveContextMenuPolicyTest,
-                         // This parameter toggles invoke mode.
-                         testing::Bool());
 
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
 

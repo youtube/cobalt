@@ -19,7 +19,7 @@ import {assertNever} from '../transport/messaging.js';
 import type {ResponseExtras} from '../transport/messaging.js';
 import type {PostMessageHandler, PostMessageRemote} from '../transport/post_message_transport.js';
 
-import type {ConfirmationRequestErrorReason as ConfirmationRequestErrorReasonMojo, NavigationConfirmationRequest as NavigationConfirmationRequestMojo, NavigationConfirmationResponse as NavigationConfirmationResponseMojo, SelectAutofillSuggestionsDialogErrorReason as SelectAutofillSuggestionsDialogErrorReasonMojo, SelectAutofillSuggestionsDialogRequest as SelectAutofillSuggestionsDialogRequestMojo, SelectAutofillSuggestionsDialogResponse as SelectAutofillSuggestionsDialogResponseMojo, SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, TaskOptions as TaskOptionsMojo, UserConfirmationDialogRequest as UserConfirmationDialogRequestMojo, UserConfirmationDialogResponse as UserConfirmationDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo} from './../../actor_webui.mojom-webui.js';
+import type {ConfirmationRequestErrorReason as ConfirmationRequestErrorReasonMojo, NavigationConfirmationRequest as NavigationConfirmationRequestMojo, NavigationConfirmationResponse as NavigationConfirmationResponseMojo, SelectAutofillSuggestionsDialogErrorReason as SelectAutofillSuggestionsDialogErrorReasonMojo, SelectAutofillSuggestionsDialogRequest as SelectAutofillSuggestionsDialogRequestMojo, SelectAutofillSuggestionsDialogResponse as SelectAutofillSuggestionsDialogResponseMojo, SelectCredentialDialogErrorReason as SelectCredentialDialogErrorReasonMojo, SelectCredentialDialogRequest as SelectCredentialDialogRequestMojo, SelectCredentialDialogResponse as SelectCredentialDialogResponseMojo, TaskOptions as TaskOptionsMojo, UserConfirmationDialogRequest as UserConfirmationDialogRequestMojo, UserConfirmationDialogResponse as UserConfirmationDialogResponseMojo, UserGrantedPermissionDuration as UserGrantedPermissionDurationMojo, GmailOtpOptInResult as GmailOtpOptInResultMojo, GmailOtpOptInErrorReason as GmailOtpOptInErrorReasonMojo} from './../../actor_webui.mojom-webui.js';
 import type * as actorTypes from './actor_types.js';
 import type {ActorClient, ActorHost} from './actor_types.js';
 
@@ -306,6 +306,15 @@ export class ActorClientImpl implements ActorClientInterface {
           clientResponse.response),
     };
   }
+
+  async requestToShowGmailOtpOptInDialog(
+      taskId: number): Promise<{result: GmailOtpOptInResultMojo}> {
+    const clientResponse = await this.sender.requestWithResponse(
+        'requestToShowGmailOtpOptInDialog', {request: {taskId}});
+    return {
+      result: gmailOtpOptInResultToMojo(clientResponse.response),
+    };
+  }
 }
 
 assertNever<CheckEnumCompatibility<
@@ -480,3 +489,23 @@ function resumeActorTaskResultToClient(
     actionResult,
   };
 }
+
+assertNever<CheckEnumCompatibility<
+    typeof actorWebUiMojom.GmailOtpOptInErrorReason,
+    typeof actorTypes.GmailOtpOptInErrorReason>>();
+
+function gmailOtpOptInResultToMojo(
+    response: actorTypes.GmailOtpOptInResponsePrivate):
+    GmailOtpOptInResultMojo {
+  if (response.errorReason !== undefined) {
+    return {
+      errorReason: response.errorReason as number as
+          GmailOtpOptInErrorReasonMojo,
+    };
+  }
+  return {
+    permissionGranted: response.permissionGranted,
+  };
+}
+
+

@@ -257,7 +257,7 @@ void FinalizeUpdateJob::UpdateIsolationDataAndResetPendingUpdateInfo(
     const IsolatedWebAppStorageLocation& location,
     const IwaVersion& version,
     const std::optional<GURL>& iwa_update_manifest_url,
-    std::optional<IsolatedWebAppIntegrityBlockData> integrity_block_data) {
+    std::optional<IntegrityBlockData> integrity_block_data) {
   IsolationData::Builder builder(location, version);
 
   if (web_app->isolation_data()) {

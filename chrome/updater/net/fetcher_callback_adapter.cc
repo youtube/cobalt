@@ -84,10 +84,8 @@ class FileDownloadObserverImpl : public mojom::FileDownloadObserver {
  public:
   FileDownloadObserverImpl(
       ResponseStartedCallback response_started_callback,
-      ProgressCallback progress_callback,
       DownloadToFileCompleteCallback download_complete_callback)
       : response_started_callback_(response_started_callback),
-        progress_callback_(progress_callback),
         download_complete_callback_(std::move(download_complete_callback)) {}
   FileDownloadObserverImpl(const FileDownloadObserverImpl&) = delete;
   FileDownloadObserverImpl& operator=(const FileDownloadObserverImpl&) = delete;
@@ -99,9 +97,7 @@ class FileDownloadObserverImpl : public mojom::FileDownloadObserver {
         ToSignedIntegral(http_status_code),
         content_length ? ToSignedIntegral(*content_length) : -1);
   }
-  void OnProgress(uint64_t current) override {
-    progress_callback_.Run(ToSignedIntegral(current));
-  }
+
   void OnDownloadComplete(int32_t net_error,
                           std::optional<uint64_t> content_length) override {
     CHECK(download_complete_callback_)
@@ -114,7 +110,6 @@ class FileDownloadObserverImpl : public mojom::FileDownloadObserver {
 
  private:
   ResponseStartedCallback response_started_callback_;
-  ProgressCallback progress_callback_;
   DownloadToFileCompleteCallback download_complete_callback_;
 };
 
@@ -147,21 +142,17 @@ MakePostRequestObserver(
 base::OnceCallback<void(mojo::PendingReceiver<mojom::FileDownloadObserver>)>
 MakeFileDownloadObserver(
     ResponseStartedCallback response_started_callback,
-    ProgressCallback progress_callback,
     DownloadToFileCompleteCallback download_complete_callback) {
   return base::BindOnce(
       [](ResponseStartedCallback response_started_callback,
-         ProgressCallback progress_callback,
          DownloadToFileCompleteCallback download_complete_callback,
          mojo::PendingReceiver<mojom::FileDownloadObserver> receiver) {
-        mojo::MakeSelfOwnedReceiver(
-            std::make_unique<FileDownloadObserverImpl>(
-                response_started_callback, progress_callback,
-                std::move(download_complete_callback)),
-            std::move(receiver));
+        mojo::MakeSelfOwnedReceiver(std::make_unique<FileDownloadObserverImpl>(
+                                        response_started_callback,
+                                        std::move(download_complete_callback)),
+                                    std::move(receiver));
       },
       base::BindPostTaskToCurrentDefault(response_started_callback),
-      base::BindPostTaskToCurrentDefault(progress_callback),
       base::BindPostTaskToCurrentDefault(
           std::move(download_complete_callback)));
 }

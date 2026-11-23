@@ -13,7 +13,7 @@
 // Sets or updates the stat data displayed in the card.
 - (void)setStatTitle:(NSString*)title
             subtitle:(NSString*)subtitle
-               image:(UIImage*)image;
+     imageLottieName:(NSString*)imageLottieName;
 
 @end
 

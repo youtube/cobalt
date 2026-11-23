@@ -16,9 +16,9 @@
 
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
-#include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/timing/video_jitter_timing_interface.h"
 #include "modules/video_coding/timing/inter_frame_delay_variation_calculator.h"
 #include "modules/video_coding/timing/jitter_estimator.h"
 #include "modules/video_coding/timing/timestamp_extrapolator.h"
@@ -26,37 +26,36 @@
 
 namespace webrtc {
 
-class DefaultVideoJitterTiming {
+class DefaultVideoJitterTiming : public VideoJitterTimingInterface {
  public:
   explicit DefaultVideoJitterTiming(const Environment& env);
   // TODO(b/493549134): Remove once no longer used.
   DefaultVideoJitterTiming(Clock* clock, const FieldTrialsView& field_trials);
-  ~DefaultVideoJitterTiming() = default;
+  ~DefaultVideoJitterTiming() override;
 
   // Resets members to its initial state.
-  void Reset();
+  void Reset() override;
 
-  // Updates the extrapolator with the timestamp of a complete temporal unit.
-  void OnCompleteTemporalUnit(uint32_t rtp_timestamp, Timestamp receive_time);
+  // Updates the extrapolator with information of a complete frame.
+  void OnCompleteFrame(const FrameInfo& info) override;
 
   // Returns the extrapolated local time for a given RTP timestamp.
-  std::optional<Timestamp> ExtrapolateLocalTime(uint32_t rtp_timestamp) const;
+  std::optional<Timestamp> LocalTime(uint32_t rtp_timestamp) const override;
 
-  // Updates the jitter estimator with the information of a decodable temporal
-  // unit. Returns the current jitter estimate if available.
-  std::optional<TimeDelta> OnDecodableTemporalUnit(uint32_t rtp_timestamp,
-                                                   DataSize superframe_size,
-                                                   Timestamp max_receive_time,
-                                                   bool was_retransmitted);
+  // Updates the jitter estimator with information of a decodable temporal unit.
+  // Returns the current jitter delay (or nullopt if not available).
+  std::optional<TimeDelta> OnDecodableTemporalUnit(
+      const TemporalUnitInfo& info) override;
 
-  // Updates the jitter estimator with the current RTT.
-  void UpdateRtt(TimeDelta rtt);
+  // Updates the jitter estimator with network information.
+  void OnNetworkUpdate(const NetworkInfo& info) override;
 
  private:
   Clock* const clock_;
   TimestampExtrapolator ts_extrapolator_;
   JitterEstimator jitter_estimator_;
   InterFrameDelayVariationCalculator ifdv_calculator_;
+  const bool update_on_every_frame_;
 };
 
 }  // namespace webrtc

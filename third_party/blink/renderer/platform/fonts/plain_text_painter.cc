@@ -45,8 +45,7 @@ PlainTextPainter::PlainTextPainter(PlainTextPainter::Mode mode) : mode_(mode) {
   if (mode_ == kCanvas) {
     memory_consumer_registration_.emplace(
         "PlainTextPainter", kPlainTextPainterTraits, this,
-        MemoryConsumerRegistration::CheckUnregister::kDisabled,
-        MemoryConsumerRegistration::CheckRegistryExists::kDisabled);
+        MemoryConsumerRegistration::CheckUnregister::kDisabled);
   }
 }
 

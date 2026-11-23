@@ -32,7 +32,7 @@ dictionary SubAppsListResult {
   RuntimeEnabled=SubApps,
   IsolatedContext
 ] interface SubApps {
-  [CallWith=ScriptState, RaisesException] Promise<SubAppsAddResponse> add(sequence<USVString> install_paths);
-  [CallWith=ScriptState, RaisesException] Promise<SubAppsRemoveResponse> remove(sequence<USVString> manifest_ids);
-  [CallWith=ScriptState, RaisesException] Promise<record<USVString, SubAppsListResult>> list();
+  [CallWith=ScriptState, RaisesException, MeasureAs=SubAppsAdd] Promise<SubAppsAddResponse> add(sequence<USVString> install_paths);
+  [CallWith=ScriptState, RaisesException, MeasureAs=SubAppsRemove] Promise<SubAppsRemoveResponse> remove(sequence<USVString> manifest_ids);
+  [CallWith=ScriptState, RaisesException, MeasureAs=SubAppsList] Promise<record<USVString, SubAppsListResult>> list();
 };

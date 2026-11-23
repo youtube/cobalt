@@ -184,7 +184,8 @@ class CONTENT_EXPORT BackgroundFetchScheduler
       job_controllers_;
 
   // The current fetch job controllers that are being processed.
-  base::circular_deque<BackgroundFetchJobController*> active_controllers_;
+  base::circular_deque<raw_ptr<BackgroundFetchJobController>>
+      active_controllers_;
 
   struct RegistrationData {
     RegistrationData(

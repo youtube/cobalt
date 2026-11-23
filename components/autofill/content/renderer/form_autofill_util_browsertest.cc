@@ -252,8 +252,7 @@ class FormAutofillUtilsTest : public content::RenderViewTest {
   FormAutofillUtilsTest() {
     scoped_feature_list_.InitWithFeatures(
         /*enabled_features=*/
-        {features::kAutofillReplaceCachedWebElementsByRendererIds,
-         features::kAutofillIgnoreCheckableElements},
+        {features::kAutofillIgnoreCheckableElements},
         /*disabled_features=*/{});
   }
   ~FormAutofillUtilsTest() override = default;

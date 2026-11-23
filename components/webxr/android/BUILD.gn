@@ -123,6 +123,7 @@ android_library("xr_java") {
   ]
 
   deps = [
+    ":features_java",
     "//base:base_java",
     "//build/android:build_java",
     "//components/browser_ui/widget/android:java",
@@ -148,7 +149,9 @@ android_library("xr_java") {
       "//components/webxr/android/java/src/org/chromium/components/webxr/XrActivityListener.java",
       "//components/webxr/android/java/src/org/chromium/components/webxr/XrDelegateImpl.java",
       "//components/webxr/android/java/src/org/chromium/components/webxr/XrHostActivity.java",
+      "//components/webxr/android/java/src/org/chromium/components/webxr/XrHostProxyInputView.java",
       "//components/webxr/android/java/src/org/chromium/components/webxr/XrImmersiveOverlay.java",
+      "//components/webxr/android/java/src/org/chromium/components/webxr/XrInputMethodManagerWrapper.java",
       "//components/webxr/android/java/src/org/chromium/components/webxr/XrSessionCoordinator.java",
     ]
 

@@ -159,11 +159,11 @@ int EnergyEndpointer::TimeToFrame(float time) const {
   return static_cast<int32_t>(0.5 + (time / params_.frame_period()));
 }
 
-void EnergyEndpointer::Restart(bool reset_threshold) {
+void EnergyEndpointer::Restart(bool reset_environment) {
   status_ = EP_PRE_SPEECH;
   user_input_start_time_us_ = 0;
 
-  if (reset_threshold) {
+  if (reset_environment) {
     decision_threshold_ = params_.decision_threshold();
     rms_adapt_ = decision_threshold_;
     noise_level_ = params_.decision_threshold() / 2.0f;
@@ -224,8 +224,8 @@ void EnergyEndpointer::Init(const EnergyEndpointerParams& params) {
       static_cast<int>(sample_rate_ / params_.min_fundamental_frequency());
 }
 
-void EnergyEndpointer::StartSession() {
-  Restart(true);
+void EnergyEndpointer::StartSession(bool reset_environment) {
+  Restart(reset_environment);
 }
 
 void EnergyEndpointer::EndSession() {

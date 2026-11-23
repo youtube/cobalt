@@ -142,6 +142,24 @@ ValueWrapperSyntheticModuleScript::CreateJSONWrapperSyntheticModuleScript(
 }
 
 ValueWrapperSyntheticModuleScript*
+ValueWrapperSyntheticModuleScript::CreateTextWrapperSyntheticModuleScript(
+    const ModuleScriptCreationParams& params,
+    Modulator* settings_object) {
+  DCHECK(settings_object->HasValidContext());
+  ScriptState* script_state = settings_object->GetScriptState();
+  UseCounter::Count(ExecutionContext::From(script_state),
+                    WebFeature::kCreateTextModuleScript);
+  ScriptState::Scope scope(script_state);
+  v8::Isolate* isolate = script_state->GetIsolate();
+
+  v8::Local<v8::Value> text_value =
+      V8String(isolate, params.GetSourceText().ToString());
+  return ValueWrapperSyntheticModuleScript::CreateWithDefaultExport(
+      text_value, settings_object, params.SourceURL(), NullUrl(),
+      ScriptFetchOptions());
+}
+
+ValueWrapperSyntheticModuleScript*
 ValueWrapperSyntheticModuleScript::CreateWithDefaultExport(
     v8::Local<v8::Value> value,
     Modulator* settings_object,

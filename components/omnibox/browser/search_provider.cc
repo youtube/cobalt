@@ -203,12 +203,12 @@ void SearchProvider::RegisterDisplayedAnswers(
 int SearchProvider::CalculateRelevanceForKeywordVerbatim(
     metrics::OmniboxInputType type,
     bool allow_exact_keyword_match,
-    bool prefer_keyword) {
+    bool in_keyword_mode) {
   // This function is responsible for scoring verbatim query matches
   // for non-extension substituting keywords.
   // KeywordProvider::CalculateRelevance() scores all other types of
   // keyword verbatim matches.
-  if (allow_exact_keyword_match && prefer_keyword)
+  if (allow_exact_keyword_match && in_keyword_mode)
     return 1500;
   return (allow_exact_keyword_match &&
           (type == metrics::OmniboxInputType::QUERY))
@@ -1490,7 +1490,7 @@ int SearchProvider::GetKeywordVerbatimRelevance(
   return use_server_relevance ? keyword_results_.verbatim_relevance
                               : CalculateRelevanceForKeywordVerbatim(
                                     keyword_input_.type(), true,
-                                    keyword_input_.prefer_keyword());
+                                    keyword_input_.in_keyword_mode());
 }
 
 int SearchProvider::CalculateRelevanceForHistory(

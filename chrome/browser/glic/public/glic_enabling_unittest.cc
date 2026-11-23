@@ -48,6 +48,7 @@
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "components/variations/service/test_variations_service.h"
 #include "components/variations/service/variations_service.h"
@@ -662,7 +663,9 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
         /*disabled_features=*/{
             features::kGlic,  // Explicitly disable kGlic to fail global
                               // criteria
-            features::kGlicUserStatusCheck,
+            features::kGlicUserStatusCheck,  // Disable user status check to
+                                             // isolate from remote dogfood
+                                             // status fetcher dependencies.
         });
   }
 
@@ -728,7 +731,7 @@ class GlicEnablingAnchorEntryPointTestBase : public testing::Test {
 };
 
 TEST_F(GlicEnablingAnchorEntryPointTestBase,
-       AnchoredButtonForOnboardedProfile) {
+       FeatureFlagDisablesButtonWhenAnchored) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicCompletedFre,
       static_cast<int>(glic::prefs::FreStatus::kCompleted));
@@ -737,21 +740,16 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
   features.InitAndEnableFeature(
       features::kGlicAnchorEntryPointForOnboardedUsers);
 
-  base::HistogramTester histogram_tester;
-
-  // Profile should be eligible because the anchor entry point feature is active
-  // and user is onboarded, even though kGlic (global criteria) is failing.
-  EXPECT_TRUE(GlicEnabling::IsProfileEligible(profile()));
+  // Profile should NOT be eligible because the main kGlic flag is disabled,
+  // which acts as a global killswitch.
+  EXPECT_FALSE(GlicEnabling::IsProfileEligible(profile()));
 
   GlicEnabling::ProfileEnablement enablement =
       GlicEnabling::EnablementForProfile(profile());
-  enablement.RecordStartupMetrics();
 
-  histogram_tester.ExpectBucketCount(
-      "Glic.ProfileEnablement.AnchoredDespiteEligibilityFailureReason.Startup",
-      GlicEnabling::ProfileEnablement::FeatureDisabledReason::
-          kFeatureFlagDisabled,
-      1);
+  // The button should be hidden in the UI because the main feature flag
+  // kGlic is disabled.
+  EXPECT_FALSE(enablement.ShouldShowGlicButton());
 }
 
 TEST_F(GlicEnablingAnchorEntryPointTestBase, FeatureFlagDisablesAnchoring) {
@@ -788,9 +786,10 @@ TEST_F(GlicEnablingAnchorEntryPointTestBase,
   features.InitAndEnableFeature(
       features::kGlicAnchorEntryPointForOnboardedUsers);
 
-  // The anchor entry point feature keeps the button visible when global
-  // criteria fail. In a default test environment with the kGlic flag disabled,
-  // it falls through to the fallback block and returns kIneligibleAccount.
+  // When global criteria fail, the anchor entry point feature flag still allows
+  // GetProfileReadyState() to compute a fallback state (kIneligibleAccount)
+  // internally. Note that the entry point button itself is hidden in this case
+  // by ShouldShowGlicButton() because kGlic is disabled.
   EXPECT_EQ(GlicEnabling::GetProfileReadyState(profile()),
             mojom::ProfileReadyState::kIneligibleAccount);
 }
@@ -1038,7 +1037,7 @@ TEST_P(GlicEnablingContextMenuTest, ExpectedBehavior) {
   SetConsent(GetParam().has_user_consented);
   base::HistogramTester histogram_tester;
   bool expected = GetParam().expected_result;
-  EXPECT_EQ(expected, GlicEnabling::IsContextualMenuItemEnabled(profile()))
+  EXPECT_EQ(expected, GlicEnabling::IsContextualMenuItemEnabled(profile(), u""))
       << "Failed for case: " << GetParam().name;
   histogram_tester.ExpectUniqueSample("Glic.WebContentContextMenu.Enabled",
                                       expected, 1);
@@ -1762,6 +1761,8 @@ TEST_F(GlicEnablingWebActuationToggleTest, ManagedProfile_CannotActOnWeb) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicActuationOnWeb,
       static_cast<int>(glic::prefs::GlicActuationOnWebPolicyState::kDisabled));
+  profile()->GetPrefs()->SetInteger(
+      subscription_eligibility::prefs::kAiSubscriptionTier, 1);
 
   auto* glic_service = GlicKeyedService::Get(profile());
   EXPECT_FALSE(glic_service->enabling().ShouldShowWebActuationToggle());
@@ -1783,6 +1784,8 @@ TEST_F(GlicEnablingWebActuationToggleTest, ManagedProfile_CanActOnWeb) {
   profile()->GetPrefs()->SetInteger(
       glic::prefs::kGlicActuationOnWeb,
       static_cast<int>(glic::prefs::GlicActuationOnWebPolicyState::kEnabled));
+  profile()->GetPrefs()->SetInteger(
+      subscription_eligibility::prefs::kAiSubscriptionTier, 1);
 
   auto* glic_service = GlicKeyedService::Get(profile());
   EXPECT_TRUE(glic_service->enabling().ShouldShowWebActuationToggle());

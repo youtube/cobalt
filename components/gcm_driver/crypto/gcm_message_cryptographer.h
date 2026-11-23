@@ -134,6 +134,8 @@ class GCMMessageCryptographer {
  private:
   FRIEND_TEST_ALL_PREFIXES(GCMMessageCryptographerTest, AuthSecretAffectsPRK);
   FRIEND_TEST_ALL_PREFIXES(GCMMessageCryptographerTest, InvalidRecordPadding);
+  FRIEND_TEST_ALL_PREFIXES(GCMMessageCryptographerTest,
+                           RecordWithoutPaddingDelimiter);
 
   enum class Direction { ENCRYPT, DECRYPT };
 

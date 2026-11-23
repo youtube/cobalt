@@ -236,7 +236,10 @@ PrerenderManager::StartPrerenderDirectUrlInput(
           /*planned_max_preloading_type=*/content::PreloadingType::kPrerender),
       &preloading_attempt,
       /*url_match_predicate=*/{},
-      /*prerender_navigation_handle_callback=*/{},
+      /*prerender_navigation_handle_callback=*/
+      base::BindRepeating(
+          &page_load_metrics::NavigationHandleUserData::
+              AttachOmniboxDirectUrlInputNavigationHandleUserData),
       /*allow_reuse=*/false);
 
   if (direct_url_input_prerender_handle_) {
@@ -397,7 +400,10 @@ void PrerenderManager::StartPrerenderSearchResult(
               /*planned_max_preloading_type=*/content::PreloadingType::
                   kPrerender),
           preloading_attempt.get(), std::move(url_match_predicate),
-          /*prerender_navigation_handle_callback=*/{},
+          /*prerender_navigation_handle_callback=*/
+          base::BindRepeating(
+              &page_load_metrics::NavigationHandleUserData::
+                  AttachOmniboxDefaultSearchEngineNavigationHandleUserData),
           features::kPrerender2ReuseSearchResultHost.Get());
 
   if (prerender_handle) {

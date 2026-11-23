@@ -165,7 +165,7 @@ bool LabelHasUSBModel(const std::string& label) {
 }
 
 std::string GetUSBModelFromLabel(const std::string& label) {
-  DCHECK(LabelHasUSBModel(label));
+  CHECK(LabelHasUSBModel(label), base::NotFatalUntil::M152);
   return label.substr(label.size() - 10, 9);
 }
 

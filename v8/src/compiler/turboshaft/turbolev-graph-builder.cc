@@ -1366,6 +1366,7 @@ class GraphBuildingNodeProcessor {
   JSWasmCallParameters* TryInlineWasmWrapper(
       maglev::CallKnownJSFunction* node,
       Tagged<WasmExportedFunctionData> function_data,
+      Handle<WasmTrustedInstanceData> instance_handle,
       wasm::NativeModule* native_module) {
     // LINT.IfChange(WasmWrapperInliningConditions)
 #define TRACE_WASM_INLINING(...)                  \
@@ -1411,10 +1412,11 @@ class GraphBuildingNodeProcessor {
       return nullptr;
     }
 
-    if (!__ data()->TrySetWasmModuleForInlining(native_module->module())) {
+    if (!__ data()->TrySetWasmInstanceForInlining(native_module->module(),
+                                                  instance_handle)) {
       TRACE_WASM_INLINING(
           "- not inlining: already inlining from "
-          "another Wasm module");
+          "another Wasm instance");
       return nullptr;
     }
 
@@ -1488,9 +1490,10 @@ class GraphBuildingNodeProcessor {
 
         // Keep the instance data (and thus the NativeModule) alive via a GC
         // root.
-        broker_->CanonicalPersistentHandle(instance_data);
-        wasm_call_params =
-            TryInlineWasmWrapper(node, function_data, native_module);
+        Handle<WasmTrustedInstanceData> instance_handle =
+            broker_->CanonicalPersistentHandle(instance_data);
+        wasm_call_params = TryInlineWasmWrapper(node, function_data,
+                                                instance_handle, native_module);
       }
     }
     // LINT.ThenChange(src/maglev/maglev-reducer-inl.h:WasmWrapperInliningConditions)
@@ -5344,30 +5347,27 @@ class GraphBuildingNodeProcessor {
   maglev::ProcessResult Process(
       maglev::TruncateCheckedNumberOrOddballToInt32* node,
       const maglev::ProcessingState& state) {
-    TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement input_requirement;
+    TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement input_requirement;
     switch (node->conversion_type()) {
       case maglev::TaggedToFloat64ConversionType::kOnlyNumber:
         input_requirement =
-            TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement::kNumber;
+            TruncateJSPrimitiveToWord32OrDeoptOp::InputRequirement::kNumber;
         break;
       case maglev::TaggedToFloat64ConversionType::kNumberOrUndefined:
         UNREACHABLE();
       case maglev::TaggedToFloat64ConversionType::kNumberOrBoolean:
-        input_requirement = TruncateJSPrimitiveToUntaggedOrDeoptOp::
+        input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
             InputRequirement::kNumberOrBoolean;
         break;
       case maglev::TaggedToFloat64ConversionType::kNumberOrOddball:
-        input_requirement = TruncateJSPrimitiveToUntaggedOrDeoptOp::
+        input_requirement = TruncateJSPrimitiveToWord32OrDeoptOp::
             InputRequirement::kNumberOrOddball;
         break;
     }
     GET_FRAME_STATE_MAYBE_ABORT(frame_state, node->eager_deopt_info());
-    SetMap(
-        node,
-        __ TruncateJSPrimitiveToUntaggedOrDeopt(
-            Map(node->ValueInput()), frame_state,
-            TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32,
-            input_requirement, node->eager_deopt_info()->feedback_to_update()));
+    SetMap(node, __ TruncateJSPrimitiveToWord32OrDeopt(
+                     Map(node->ValueInput()), frame_state, input_requirement,
+                     node->eager_deopt_info()->feedback_to_update()));
     return maglev::ProcessResult::kContinue;
   }
   maglev::ProcessResult Process(
@@ -5664,11 +5664,29 @@ class GraphBuildingNodeProcessor {
     return maglev::ProcessResult::kContinue;
   }
 
+  template <typename Derived>
+  maglev::ProcessResult Process(maglev::AssumeTypeT<Derived>* node,
+                                const maglev::ProcessingState&) {
+    // Turboshaft doesn't track node types.
+    return maglev::ProcessResult::kContinue;
+  }
+
   maglev::ProcessResult Process(maglev::TurbofanStaticAssert* node,
                                 const maglev::ProcessingState&) {
     V<Word32> condition = __ TaggedEqual(
         Map(node->CheckInput()), __ HeapConstant(local_factory_->true_value()));
     __ StaticAssert(condition, "%TurbofanStaticAssert");
+    return maglev::ProcessResult::kContinue;
+  }
+
+  maglev::ProcessResult Process(maglev::AssertPeeled* node,
+                                const maglev::ProcessingState&) {
+    // The loop peeler removes this marker when it peels the surrounding loop,
+    // so reaching it means the loop was not peeled. That satisfies
+    // %AssertNotPeeled but fails %AssertPeeled.
+    if (node->expect_peeled()) {
+      FATAL("%%AssertPeeled: loop was not peeled");
+    }
     return maglev::ProcessResult::kContinue;
   }
 

@@ -12,6 +12,7 @@
 namespace sql {
 class Database;
 class MetaTable;
+class Statement;
 }  // namespace sql
 
 namespace storage {
@@ -42,10 +43,6 @@ class MapEntriesTable;
 // The `map_id` column references the `map_id` column in the
 // `map_entries_table_`, which is used to read and write a map's key/value
 // pairs.
-//
-// Also, in this example, the `meta_table_` contains the key/value pair:
-//
-// "next_map_id" = 4 (where 4 is an integer)
 class SessionStorageSqlite : public DomStorageDatabase,
                              private base::trace_event::MemoryDumpProvider {
  private:
@@ -83,10 +80,6 @@ class SessionStorageSqlite : public DomStorageDatabase,
   DbStatus PutVersionForTesting(int64_t version) override;
 
  private:
-  // Reads the `next_map_id` value from the meta table. Returns 0 if no value
-  // has been stored yet.
-  int64_t ReadNextMapId() const;
-
   // Reads all rows from the `session_metadata` table and returns them as a
   // vector of `MapMetadata`. Rows with the same `map_id` (cloned maps) are
   // merged into a single `MapMetadata` entry with multiple session IDs in its
@@ -94,9 +87,15 @@ class SessionStorageSqlite : public DomStorageDatabase,
   StatusOr<std::vector<DomStorageDatabase::MapMetadata>> ReadAllMapMetadata()
       const;
 
+  // Inserts or updates a row in the session_metadata table for each session in
+  // `map_locator`.
+  DbStatus PutMapLocator(const MapLocator& map_locator);
+
   // base::trace_event::MemoryDumpProvider implementation:
   bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
                     base::trace_event::ProcessMemoryDump* pmd) override;
+
+  void OnSqlError(int error, sql::Statement* statement);
 
   // `Open()` creates `database_`, `meta_table_` and `map_entries_table_`.
   std::unique_ptr<sql::Database> database_;

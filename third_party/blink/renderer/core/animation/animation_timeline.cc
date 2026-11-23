@@ -52,25 +52,25 @@ bool CompareAnimations(const Member<Animation>& left,
 }
 
 V8CSSNumberish* AnimationTimeline::currentTime() {
-  const std::optional<base::TimeDelta>& result = CurrentPhaseAndTime().time;
+  const std::optional<base::TimeDelta>& result = CurrentTimeInternal();
   if (result)
     return MakeGarbageCollected<V8CSSNumberish>(result->InMillisecondsF());
   return nullptr;
 }
 
 std::optional<AnimationTimeDelta> AnimationTimeline::CurrentTime() {
-  std::optional<base::TimeDelta> result = CurrentPhaseAndTime().time;
+  std::optional<base::TimeDelta> result = CurrentTimeInternal();
   return result ? std::make_optional(AnimationTimeDelta(result.value()))
                 : std::nullopt;
 }
 
 std::optional<double> AnimationTimeline::CurrentTimeMilliseconds() {
-  std::optional<base::TimeDelta> result = CurrentPhaseAndTime().time;
+  std::optional<base::TimeDelta> result = CurrentTimeInternal();
   return result ? std::make_optional(result->InMillisecondsF()) : std::nullopt;
 }
 
 std::optional<double> AnimationTimeline::CurrentTimeSeconds() {
-  std::optional<base::TimeDelta> result = CurrentPhaseAndTime().time;
+  std::optional<base::TimeDelta> result = CurrentTimeInternal();
   return result ? std::make_optional(result->InSecondsF()) : std::nullopt;
 }
 
@@ -98,16 +98,17 @@ wtf_size_t AnimationTimeline::AnimationsNeedingUpdateCount() const {
 }
 
 bool AnimationTimeline::NeedsAnimationTimingUpdate() {
-  PhaseAndTime current_phase_and_time = CurrentPhaseAndTime();
-  if (current_phase_and_time == last_current_phase_and_time_)
+  std::optional<base::TimeDelta> current_time = CurrentTimeInternal();
+  if (current_time == last_current_time_) {
     return false;
+  }
 
-  // We allow |last_current_phase_and_time_| to advance here when there
+  // We allow |last_current_time_| to advance here when there
   // are no animations to allow animations spawned during style
   // recalc to not invalidate this flag.
   if (animations_needing_update_.empty()) {
-    last_current_phase_and_time_ = current_phase_and_time;
-    // Make sure triggers get the chance to respond to the updated PhaseAndTime.
+    last_current_time_ = current_time;
+    // Make sure triggers get the chance to respond to the updated time.
     update_triggers_ = true;
   }
 
@@ -117,7 +118,7 @@ bool AnimationTimeline::NeedsAnimationTimingUpdate() {
 void AnimationTimeline::ServiceAnimations(TimingUpdateReason reason) {
   TRACE_EVENT0("blink", "AnimationTimeline::serviceAnimations");
 
-  auto current_phase_and_time = CurrentPhaseAndTime();
+  auto current_time = CurrentTimeInternal();
 
   if (IsProgressBased()) {
     // TODO(crbug.com/508229282): We probably want to move this call to be at
@@ -128,7 +129,7 @@ void AnimationTimeline::ServiceAnimations(TimingUpdateReason reason) {
     }
   }
 
-  last_current_phase_and_time_ = current_phase_and_time;
+  last_current_time_ = current_time;
 
   HeapVector<Member<Animation>> animations;
   animations.ReserveInitialCapacity(animations_needing_update_.size());
@@ -143,7 +144,7 @@ void AnimationTimeline::ServiceAnimations(TimingUpdateReason reason) {
   }
 
   DCHECK_EQ(outdated_animation_count_, 0U);
-  DCHECK(last_current_phase_and_time_ == CurrentPhaseAndTime());
+  DCHECK(last_current_time_ == CurrentTimeInternal());
 
 #if DCHECK_IS_ON()
   for (const auto& animation : animations_needing_update_)

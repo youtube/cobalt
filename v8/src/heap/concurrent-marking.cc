@@ -423,9 +423,6 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           done = true;
           break;
         }
-        SYNCHRONIZATION_POINT_FOR_TESTING(
-            is_joining_thread ? "ConcurrentMarkerMajorPerItemMainThread"
-                              : "ConcurrentMarkerMajorPerItemBgThread");
         DCHECK(!HeapLayout::InReadOnlySpace(object));
         DCHECK_EQ(HeapUtils::GetOwnerHeap(object), heap_);
         objects_processed++;
@@ -528,7 +525,6 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
                                                  TaskState* task_state) {
   static constexpr size_t kBytesUntilInterruptCheck = 64 * KB;
   static constexpr int kObjectsUntilInterruptCheck = 1000;
-  const bool is_joining_thread = delegate->IsJoiningThread();
   size_t marked_bytes = 0;
   size_t current_marked_bytes = 0;
   int objects_processed = 0;
@@ -552,9 +548,6 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
                    GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING_CLOSURE,
                    ThreadKind::kBackground);
     while (marking_worklists_local.Pop(&heap_object)) {
-      SYNCHRONIZATION_POINT_FOR_TESTING(
-          is_joining_thread ? "ConcurrentMarkerMinorPerItemMainThread"
-                            : "ConcurrentMarkerMinorPerItemBgThread");
       if (IsYoungObjectInLab(new_space_allocator, new_lo_space, heap_object)) {
         visitor.marking_worklists_local().PushOnHold(heap_object);
       } else {

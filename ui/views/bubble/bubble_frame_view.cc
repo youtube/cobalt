@@ -1004,9 +1004,29 @@ gfx::Insets BubbleFrameView::GetClientViewInsets() const {
 
 gfx::Rect BubbleFrameView::GetAvailableScreenBounds(
     const gfx::Rect& rect) const {
-  gfx::Rect work_area = display::Screen::Get()
-                            ->GetDisplayNearestPoint(rect.CenterPoint())
-                            .work_area();
+  display::Display display =
+      display::Screen::Get()->GetDisplayNearestPoint(rect.CenterPoint());
+
+  // On Ozone/Wayland platforms that don't support global screen coordinates,
+  // the display returned by `GetDisplayNearestPoint` may be incorrect because
+  // the coordinates for `rect` aren't global. Instead, fall back to getting the
+  // display from the anchor. See crbug.com/524087116 for context.
+#if BUILDFLAG(IS_OZONE)
+  if (!ui::OzonePlatform::GetInstance()
+           ->GetPlatformProperties()
+           .supports_global_screen_coordinates) {
+    if (auto* bubble_delegate =
+            GetWidget()->widget_delegate()->AsBubbleDialogDelegate()) {
+      views::Widget* anchor_widget = bubble_delegate->anchor_widget();
+      if (anchor_widget && anchor_widget->GetNativeWindow()) {
+        display = display::Screen::Get()->GetDisplayNearestWindow(
+            anchor_widget->GetNativeWindow());
+      }
+    }
+  }
+#endif
+
+  gfx::Rect work_area = display.work_area();
 #if BUILDFLAG(IS_OZONE)
   // When global screen coordinates aren't supported, shift the work area to
   // (0,0). If two displays are offset, the work area coordinates may not start

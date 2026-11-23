@@ -32,27 +32,15 @@ registerPaint('basic', class {
 </script>
 
 <script>
-var g_swapsBeforeAck = 15;
-
-function main()
+async function main()
 {
   var code = document.getElementById('code').textContent;
   var blob = new Blob([code], {type: 'text/javascript'});
-  CSS.paintWorklet.addModule(URL.createObjectURL(blob)).then(function() {
-  });
-  waitForFinish();
-}
-
-function waitForFinish()
-{
-  // This tests need paint worklet implemented.
-  if (g_swapsBeforeAck == 0 || typeof CSS.paintWorklet === 'undefined') {
-    domAutomationController.send("SUCCESS");
-  } else {
-    g_swapsBeforeAck--;
-    document.getElementById('container').style.zIndex = g_swapsBeforeAck + 1;
-    window.requestAnimationFrame(waitForFinish);
-  }
+  await CSS.paintWorklet.addModule(URL.createObjectURL(blob));
+  const animation =
+        document.body.animate({ opacity: [ 0, 1 ] }, {duration: 1 });
+  await animation.finished;
+  domAutomationController.send("SUCCESS");
 }
 </script>
 </head>

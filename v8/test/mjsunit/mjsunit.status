@@ -134,6 +134,12 @@
   # This test should always fail.
   'turbolev/static-assert-fail': [FAIL],
 
+  # This test should always fail: %AssertPeeled() in an unpeeled (outer) loop.
+  'turbolev/assert-peeled-fail': [FAIL],
+
+  # This test should always fail: %AssertNotPeeled() in a peeled loop.
+  'turbolev/assert-not-peeled-fail': [FAIL],
+
   # This test variant makes only sense on arm.
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64]', SKIP]],
 
@@ -978,7 +984,7 @@
   'wasm/ffi': [SKIP],
 
   # Tests using %WasmTierUpFunction()
-  'regress/regress-372269618': [SKIP],
+  'regress/wasm/regress-372269618': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-13230': [SKIP],
   'regress/wasm/regress-13290': [SKIP],
@@ -1081,7 +1087,7 @@
  }],  # has_wasm_interpreter and variant == jitless and arch == arm64
 
 ##############################################################################
-# --experimental-wasm-simd-opt, only supported on arm64
+# --future-wasm-simd-opt, only supported on arm64
 ['arch != arm64', {
   'wasm/half-shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
@@ -1668,10 +1674,6 @@
 
   # This often fails in debug mode because it is too slow.
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
-
-  # Needs FP16 support.
-  'wasm/simd-fp16': [SKIP],
-  'regress/wasm/regress-504612573': [SKIP],
 
   # Flush to zero is not supported yet.
   'd8/flush-denormals-flag': [SKIP],
@@ -2979,6 +2981,10 @@
 ['variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't support %TurbofanStaticAssert.
   'turbolev/static-assert-fail': [SKIP],
+  # Maglev doesn't support %AssertPeeled.
+  'turbolev/assert-peeled-fail': [SKIP],
+  # Maglev doesn't support %AssertNotPeeled.
+  'turbolev/assert-not-peeled-fail': [SKIP],
 }], # variant in (stress_maglev, stress_maglev_tracing, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 
@@ -3213,6 +3219,8 @@
   # These tests are not compatible with --fuzzing.
   'regress/regress-435630464-verification-failure': [SKIP],
   'turbolev/static-assert-fail': [SKIP],
+  'turbolev/assert-peeled-fail': [SKIP],
+  'turbolev/assert-not-peeled-fail': [SKIP],
 
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],
@@ -3274,6 +3282,10 @@
 ['variant == scavenger_chaos_mode', {
   'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == scavenger_chaos_mode
+
+['variant == experimental_regexp', {
+  'regress/regress-503097371': [SKIP],
+}],  # variant == experimental_regexp
 
 ##############################################################################
 ['variant in [dumpling_test]', {

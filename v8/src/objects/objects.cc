@@ -61,6 +61,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/keys.h"
@@ -749,7 +750,10 @@ DirectHandle<String> Object::NoSideEffectsToString(Isolate* isolate,
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("[object ");
-  builder.AppendString(tag);
+  // This threshold must be sufficiently far below String::kMaxLength that
+  // the {builder}'s result can never exceed that limit.
+  constexpr int kMaxPrintedStringLength = 1000;
+  builder.AppendStringCapped(tag, kMaxPrintedStringLength);
   builder.AppendCharacter(']');
 
   return builder.Finish().ToHandleChecked();

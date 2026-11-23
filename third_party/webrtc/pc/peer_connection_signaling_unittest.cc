@@ -1400,7 +1400,34 @@ TEST_F(PeerConnectionSignalingUnifiedPlanTest, LoopbackSdpIsPossible) {
   EXPECT_TRUE(caller->SetLocalDescription(std::move(offer)));
   std::unique_ptr<SessionDescriptionInterface> answer =
       CreateSessionDescription(SdpType::kAnswer, answer_sdp);
-  EXPECT_TRUE(caller->SetRemoteDescription(std::move(answer)));
+}
+
+TEST_F(PeerConnectionSignalingUnifiedPlanTest,
+       ParameterlessSetLocalDescriptionUsesLastCreatedOffer) {
+  auto caller = CreatePeerConnection();
+  caller->AddTransceiver(MediaType::AUDIO);
+
+  // Create offer. This populates last_created_offer_.
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      caller->CreateOffer(RTCOfferAnswerOptions());
+  std::string offer_sdp;
+  ASSERT_TRUE(offer->ToString(&offer_sdp));
+
+  // Call parameterless SetLocalDescription.
+  auto observer = make_ref_counted<FakeSetLocalDescriptionObserver>();
+  caller->pc()->SetLocalDescription(observer);
+  EXPECT_TRUE(WaitUntil([&] { return observer->called(); },
+                        {.timeout = TimeDelta::Millis(kWaitTimeout)}));
+  EXPECT_TRUE(observer->error().ok());
+
+  // Verify that the applied local description matches the last created offer.
+  const SessionDescriptionInterface* local_desc =
+      caller->pc()->local_description();
+  ASSERT_NE(nullptr, local_desc);
+  std::string local_sdp;
+  ASSERT_TRUE(local_desc->ToString(&local_sdp));
+
+  EXPECT_EQ(offer_sdp, local_sdp);
 }
 
 }  // namespace webrtc

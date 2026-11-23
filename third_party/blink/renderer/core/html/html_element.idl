@@ -38,6 +38,7 @@
     [RuntimeEnabled=AccessKeyLabel] readonly attribute DOMString accessKeyLabel;
     [CEReactions] attribute boolean draggable;
     [CEReactions] attribute boolean spellcheck;
+    [RuntimeEnabled=AutocorrectByDefault, CEReactions] attribute boolean autocorrect;
     [Measure] attribute DOMString autocapitalize;
 
     [RaisesException] ElementInternals attachInternals(optional AttachInternalsOptions options);

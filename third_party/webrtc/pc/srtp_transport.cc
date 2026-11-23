@@ -148,6 +148,7 @@ void SrtpTransport::OnNetworkRouteChanged(
     if (IsSrtpActive()) {
       GetSrtpOverhead(&srtp_overhead);
     }
+    srtp_overhead_ = srtp_overhead;
     network_route->packet_overhead += srtp_overhead;
   }
   SendNetworkRouteChanged(network_route);
@@ -368,6 +369,20 @@ void SrtpTransport::MaybeUpdateWritableState() {
   if (writable_ != writable) {
     writable_ = writable;
     SendWritableState(writable_);
+  }
+  MaybeUpdateSrtpOverhead();
+}
+
+void SrtpTransport::MaybeUpdateSrtpOverhead() {
+  if (!update_network_route_on_srtp_activation_ || !rtp_packet_transport()) {
+    return;
+  }
+  int srtp_overhead = 0;
+  if (IsSrtpActive()) {
+    GetSrtpOverhead(&srtp_overhead);
+  }
+  if (srtp_overhead != srtp_overhead_) {
+    OnNetworkRouteChanged(rtp_packet_transport()->network_route());
   }
 }
 

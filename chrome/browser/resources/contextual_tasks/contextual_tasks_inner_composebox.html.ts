@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import {html} from '//resources/lit/v3_0/lit.rollup.js';
+import {ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 
 import type {ContextualTasksInnerComposeboxElement} from './contextual_tasks_inner_composebox.js';
 
@@ -43,6 +44,7 @@ export function getHtml(this: ContextualTasksInnerComposeboxElement) {
               .result="${this.result}"
               .selectedMatchIndex="${this.selectedMatchIndex}"
               .maxSuggestions="${this.maxSuggestions}"
+              .toolMode="${this.inputState?.activeTool || ToolMode.kUnspecified}"
               .lastQueriedInput="${this.lastQueriedInput}"
               ?hidden="${!this.showDropdown || !this.dropdownNeeded}"
               @selected-match-index-changed="${this.onSelectedMatchIndexChanged}"

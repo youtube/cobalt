@@ -105,7 +105,7 @@ std::unique_ptr<KeyedService> PasswordFieldClassificationModelHandlerFactory::
           profile);
   auto* optimization_guide =
       global_state_holder
-          ? &global_state_holder->GetGlobalState().prediction_manager()
+          ? &global_state_holder->GetGlobalState().model_provider()
           : nullptr;
   autofill::MlLogRouter* log_router =
       autofill::MlLogRouterFactory::GetForProfile(profile);

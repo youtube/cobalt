@@ -49,8 +49,6 @@ class StubHomeBackgroundCustomizationServiceObserver
 class HomeBackgroundCustomizationServiceTest : public PlatformTest {
  public:
   void SetUp() override {
-    feature_list_.InitAndEnableFeature(kNTPBackgroundCustomization);
-
     pref_service_ = std::make_unique<TestingPrefServiceSimple>();
 
     test_shared_loader_factory_ =
@@ -893,9 +891,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest,
 // legacy theme data to the new theme pref and sets the migration flag.
 TEST_F(HomeBackgroundCustomizationServiceTest,
        MigratesLegacyThemeWhenSyncEnabled) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
 
   sync_pb::UserColorTheme expected_theme = GenerateUserColorTheme(0xff0000);
 
@@ -931,9 +927,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest,
 // theme pref is empty), and restarts, the legacy theme is NOT resurrected.
 TEST_F(HomeBackgroundCustomizationServiceTest,
        DoesNotResurrectLegacyThemeAfterClear) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
 
   // User has a legacy theme, but migration is marked complete (this simulates a
   // user who migrated, then cleared their background.)
@@ -960,9 +954,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest,
 // pref.
 TEST_F(HomeBackgroundCustomizationServiceTest,
        DualWritesToBothPrefsWhenSyncFeatureEnabledButNotSyncing) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
 
   CreateService();
 
@@ -993,9 +985,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest,
 // as a snapshot before signing in.
 TEST_F(HomeBackgroundCustomizationServiceTest,
        DoesNotOverwriteSnapshotWhenActivelySyncing) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
 
   CreateService();
 
@@ -1026,9 +1016,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest,
 
 // Tests that clearing the background clears both prefs when sync is not active.
 TEST_F(HomeBackgroundCustomizationServiceTest, ClearsBothPrefsWhenNotSyncing) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
 
   CreateService();
 
@@ -1068,9 +1056,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest, DelegateGetCurrentTheme) {
 // Tests that `ApplyTheme()` from the sync delegate correctly updates the local
 // theme, clears any user-uploaded images, and alerts UI observers.
 TEST_F(HomeBackgroundCustomizationServiceTest, DelegateApplyTheme) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
   CreateService();
 
   // Simulate a user having an uploaded image initially.
@@ -1101,9 +1087,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest, DelegateApplyTheme) {
 // Tests that `CacheLocalTheme()` and `RestoreCachedTheme()` successfully
 // snapshot and revert the local UI state.
 TEST_F(HomeBackgroundCustomizationServiceTest, DelegateCacheAndRestoreTheme) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
   CreateService();
 
   // Set initial theme (take snapshot).
@@ -1144,9 +1128,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest, DelegateCacheAndRestoreTheme) {
 // cache if the restored theme is empty and the active background is missing.
 TEST_F(HomeBackgroundCustomizationServiceTest,
        RestoreUserUploadedBackgroundFromCache) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
   CreateService();
 
   // Set a user-uploaded background.
@@ -1190,9 +1172,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest,
 // if a valid synced theme exists.
 TEST_F(HomeBackgroundCustomizationServiceTest,
        PreservesUserUploadedBackgroundEvenIfSyncThemeExists) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
   CreateService();
 
   // Set a user-uploaded background.
@@ -1232,9 +1212,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest,
 // Tests that `ApplyTheme` does not clear the cached user-uploaded background.
 TEST_F(HomeBackgroundCustomizationServiceTest,
        ApplyThemeDoesNotClearCachedUserUploadedBackground) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
   CreateService();
 
   // Set a user-uploaded background.
@@ -1354,9 +1332,7 @@ TEST_F(HomeBackgroundCustomizationServiceTest,
 // Tests that changing the theme locally automatically propagates the update
 // to the sync service.
 TEST_F(HomeBackgroundCustomizationServiceTest, LocalChangesTriggerSync) {
-  feature_list_.Reset();
-  feature_list_.InitWithFeatures(
-      {kNTPBackgroundCustomization, syncer::kSyncThemesIos}, {});
+  feature_list_.InitAndEnableFeature(syncer::kSyncThemesIos);
   CreateService();
 
   syncer::FakeSyncChangeProcessor* processor = StartSyncing();

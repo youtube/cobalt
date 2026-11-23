@@ -426,6 +426,7 @@ chromium-metrics-reviews@google.com.
   <int value="99" label="OnOptinImpression"/>
   <int value="100" label="ProcessCounterAbuseVerdict"/>
   <int value="101" label="GetImageBytesFromTab"/>
+  <int value="102" label="ActivateTabWithUrl"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/request_types.ts:ApiRequestType) -->
@@ -588,6 +589,7 @@ chromium-metrics-reviews@google.com.
   <int value="13" label="Additional context no client frame"/>
   <int value="14" label="Additional context no clipboard metadata"/>
   <int value="15" label="Instance not found"/>
+  <int value="16" label="Profile not enabled"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/public/glic_invoke_options.h:GlicInvokeError) -->
@@ -619,6 +621,19 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/service/metrics/glic_metrics_session_manager.h:GlicMultiInstanceSessionEndReason) -->
+
+<!-- LINT.IfChange(GlicOnboardingStatus) -->
+
+<enum name="GlicOnboardingStatus">
+  <int value="0" label="NoInteraction"/>
+  <int value="1" label="OptedInButNotInvoked"/>
+  <int value="2" label="NotOptedInButInvoked"/>
+  <int value="3" label="OptedInAndInvoked"/>
+  <int value="4" label="PromptWithNoOptIn"/>
+  <int value="5" label="PromptAndOptIn"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/service/glic_onboarding_tracker.h:OnboardingStatus) -->
 
 <!-- LINT.IfChange(GlicOptInFlowSource) -->
 
@@ -670,6 +685,7 @@ chromium-metrics-reviews@google.com.
   <int value="17" label="Not Pinned To Tabstrip"/>
   <int value="18" label="Profile Not Eligible (Location Mismatch)"/>
   <int value="19" label="Profile Not Eligible (Account Capabilities)"/>
+  <int value="20" label="Device low memory"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_profile_manager.h:GlicPrewarmingChecksResult) -->
@@ -732,6 +748,16 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Disallowed by remote admin"/>
   <int value="6" label="Disallowed by remote other"/>
 </enum>
+
+<!-- LINT.IfChange(GlicProfilesAllSomeNone) -->
+
+<enum name="GlicProfilesAllSomeNone">
+  <int value="0" label="All"/>
+  <int value="1" label="Some"/>
+  <int value="2" label="None"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics_provider.h:GlicProfilesAllSomeNone) -->
 
 <!-- LINT.IfChange(GlicReloadAfterExpiryStatus) -->
 
@@ -989,16 +1015,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics.h:GlicTabPinnedForSharingResult) -->
-
-<!-- LINT.IfChange(TieredRolloutEnablementStatus) -->
-
-<enum name="GlicTieredRolloutEnablementStatus">
-  <int value="0" label="All profiles enabled"/>
-  <int value="1" label="Some profiles enabled"/>
-  <int value="2" label="No profiles enabled"/>
-</enum>
-
-<!-- LINT.ThenChange(//chrome/browser/glic/glic_metrics_provider.h:TieredRolloutEnablementStatus) -->
 
 <!-- LINT.IfChange(GlicTurnSource) -->
 

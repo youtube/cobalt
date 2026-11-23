@@ -4027,28 +4027,7 @@ public class AwSettingsTest {
 
     @Test
     @SmallTest
-    @Feature({"AndroidWebView", "Preferences"})
-    public void testIgnoreDuplicateNavs() throws Throwable {
-        final TestAwContentsClient contentClient = new TestAwContentsClient();
-        final AwTestContainerView testContainerView =
-                mActivityTestRule.createAwTestContainerViewOnMainSync(contentClient);
-        final AwContents awContents = testContainerView.getAwContents();
-        final AwSettings settings = mActivityTestRule.getAwSettingsOnUiThread(awContents);
-
-        // Verify default values: feature disabled and threshold set to -1 (default).
-        Assert.assertFalse(settings.getIgnoreDuplicateNavEnabled());
-        Assert.assertEquals(-1L, settings.getIgnoreDuplicateNavThreshold());
-
-        // Enable the feature and set a custom threshold.
-        settings.setIgnoreDuplicateNavEnabled(true);
-        long customThreshold = 1000L;
-        settings.setIgnoreDuplicateNavThreshold(customThreshold);
-        Assert.assertTrue(settings.getIgnoreDuplicateNavEnabled());
-        Assert.assertEquals(customThreshold, settings.getIgnoreDuplicateNavThreshold());
-    }
-
-    @Test
-    @SmallTest
+    @EnableFeatures(AwFeatures.WEBVIEW_GATE_TEXT_SIZE_ADJUST_ON_TEXT_AUTOSIZING)
     @Feature({"AndroidWebView", "Preferences"})
     public void testTextSizeAdjustGatedByTextAutosizing() throws Throwable {
         final TestAwContentsClient contentClient = new TestAwContentsClient();
@@ -4074,8 +4053,10 @@ public class AwSettingsTest {
                         contentClient,
                         "window.getComputedStyle(document.getElementById('target')).fontSize");
 
-        // Before LAYOUT_ALGORITHM_TEXT_AUTOSIZING is set, text-size-adjust should be ignored.
-        Assert.assertEquals("\"10px\"", fontSizeStr);
+        Assert.assertEquals(
+                "Before LAYOUT_ALGORITHM_TEXT_AUTOSIZING is set, text-size-adjust is ignored.",
+                "\"10px\"",
+                fontSizeStr);
 
         settings.setLayoutAlgorithm(AwSettings.LAYOUT_ALGORITHM_TEXT_AUTOSIZING);
 
@@ -4089,7 +4070,41 @@ public class AwSettingsTest {
                         contentClient,
                         "window.getComputedStyle(document.getElementById('target')).fontSize");
 
-        // After it is set, text-size-adjust: 200% should apply.
-        Assert.assertEquals("\"20px\"", fontSizeStr);
+        Assert.assertEquals(
+                "After LAYOUT_ALGORITHM_TEXT_AUTOSIZING is set, text-size-adjust is obeyed.",
+                "\"20px\"",
+                fontSizeStr);
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView", "Preferences"})
+    public void testTextSizeAdjustAlwaysObeyed() throws Throwable {
+        final TestAwContentsClient contentClient = new TestAwContentsClient();
+        final AwTestContainerView testContainerView =
+                mActivityTestRule.createAwTestContainerViewOnMainSync(contentClient);
+        final AwContents awContents = testContainerView.getAwContents();
+        final AwSettings settings = mActivityTestRule.getAwSettingsOnUiThread(awContents);
+
+        settings.setJavaScriptEnabled(true);
+
+        final String html =
+                "<html><head><style>"
+                        + "body { font-size: 10px; text-size-adjust: 200%; }"
+                        + "</style></head><body><div id='target'>test</div></body></html>";
+
+        mActivityTestRule.loadDataSync(
+                awContents, contentClient.getOnPageFinishedHelper(), html, "text/html", false);
+
+        String fontSizeStr =
+                mActivityTestRule.executeJavaScriptAndWaitForResult(
+                        awContents,
+                        contentClient,
+                        "window.getComputedStyle(document.getElementById('target')).fontSize");
+
+        Assert.assertEquals(
+                "Even without LAYOUT_ALGORITHM_TEXT_AUTOSIZING set, text-size-adjust is obeyed.",
+                "\"20px\"",
+                fontSizeStr);
     }
 }

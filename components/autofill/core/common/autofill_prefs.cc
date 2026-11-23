@@ -79,6 +79,13 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       kAutofillPaymentCardBenefits, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 
+  registry->RegisterBooleanPref(
+      kAutofillGmailOtpFillingEnabled, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterTimePref(
+      kAutofillGmailOtpFillingActivationDismissalTimestamp, base::Time(),
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+
   registry->RegisterStringPref(
       kAutofillNameAndEmailProfileSignature, "",
       user_prefs::PrefRegistrySyncable::SYNCABLE_PRIORITY_PREF);
@@ -267,6 +274,24 @@ void SetAutofillProfileEnabled(PrefService* prefs, bool enabled) {
   using enum AutofillAddressOptInChange;
   base::UmaHistogramEnumeration("Autofill.Address.IsEnabled.Change",
                                 enabled ? kOptIn : kOptOut);
+}
+
+bool IsAutofillGmailOtpFillingEnabled(const PrefService* prefs) {
+  return prefs->GetBoolean(kAutofillGmailOtpFillingEnabled);
+}
+
+void SetAutofillGmailOtpFillingEnabled(PrefService* prefs, bool enabled) {
+  prefs->SetBoolean(kAutofillGmailOtpFillingEnabled, enabled);
+}
+
+base::Time GetAutofillGmailOtpFillingActivationDismissalTimestamp(
+    const PrefService* prefs) {
+  return prefs->GetTime(kAutofillGmailOtpFillingActivationDismissalTimestamp);
+}
+
+void SetAutofillGmailOtpFillingActivationDismissalTimestamp(PrefService* prefs,
+                                                            base::Time time) {
+  prefs->SetTime(kAutofillGmailOtpFillingActivationDismissalTimestamp, time);
 }
 
 bool IsAutofillAiSyncedOptInStatusEnabled(const PrefService* prefs) {

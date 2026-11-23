@@ -11,6 +11,7 @@
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_controller_base.h"
 #include "chrome/browser/touch_to_fill/autofill/android/touch_to_fill_payment_method_view_controller.h"
 
 namespace autofill {
@@ -32,7 +33,8 @@ class TouchToFillPaymentMethodView;
 // loyalty card data on Android. It is responsible for showing the view and
 // handling user interactions.
 class TouchToFillPaymentMethodController
-    : public TouchToFillPaymentMethodViewController {
+    : public TouchToFillControllerBase,
+      public TouchToFillPaymentMethodViewController {
  public:
   ~TouchToFillPaymentMethodController() override = default;
 
@@ -135,9 +137,6 @@ class TouchToFillPaymentMethodController
   virtual bool ShowBnplIssuerTos(payments::BnplTosModel bnpl_tos_model,
                                  base::OnceClosure accept_callback,
                                  base::OnceClosure cancel_callback) = 0;
-
-  // Hides the surface if it is currently shown.
-  virtual void Hide() = 0;
 
   // Sets the surface visibility to `visible`.
   virtual void SetVisible(bool visible) = 0;

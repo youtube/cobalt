@@ -16,6 +16,7 @@
 
 namespace bookmarks {
 class BookmarkModel;
+class ManagedBookmarkService;
 }
 
 namespace bookmarks_api {
@@ -24,7 +25,9 @@ class BookmarksService;
 
 class BookmarksServiceFeature : public bookmarks::BaseBookmarkModelObserver {
  public:
-  explicit BookmarksServiceFeature(bookmarks::BookmarkModel* bookmark_model);
+  BookmarksServiceFeature(
+      bookmarks::BookmarkModel* bookmark_model,
+      bookmarks::ManagedBookmarkService* managed_bookmark_service);
   ~BookmarksServiceFeature() override;
 
   // Accepts an incoming connection. Note that if the underlying bookmarks
@@ -43,6 +46,7 @@ class BookmarksServiceFeature : public bookmarks::BaseBookmarkModelObserver {
   void InitializeService();
 
   raw_ptr<bookmarks::BookmarkModel> bookmark_model_;
+  raw_ptr<bookmarks::ManagedBookmarkService> managed_bookmark_service_;
   base::ScopedObservation<bookmarks::BookmarkModel,
                           bookmarks::BaseBookmarkModelObserver>
       observation_{this};

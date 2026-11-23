@@ -398,7 +398,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory {
       std::unique_ptr<HttpTransactionFactory> new_network_layer);
 
   // Get the URL from the entry's cache key.
-  static std::string_view GetResourceURLFromHttpCacheKey(std::string_view key);
+  static std::string_view GetResourceURLFromHttpCacheKey(
+      const std::string_view key);
 
   // Generates the cache key for a request.
   static std::optional<std::string> GenerateCacheKeyForRequest(

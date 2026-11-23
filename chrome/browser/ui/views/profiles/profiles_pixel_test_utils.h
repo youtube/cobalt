@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/scoped_environment_variable_override.h"
 #include "chrome/browser/signin/signin_browser_test_base.h"
@@ -58,6 +59,10 @@ AccountInfo FillAccountInfo(
     AccountManagementStatus management_status,
     signin::Tribool
         can_show_history_sync_opt_ins_without_minor_mode_restrictions);
+
+// Returns a JavaScript string that waits for all `cr-lottie` animations inside
+// the given `component_name` to be fully initialized.
+std::string GetWaitForAnimationsScript(std::string_view component_name);
 
 // Used to create a dummy account and sign it in, by default as a primary
 // account.

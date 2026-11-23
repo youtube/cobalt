@@ -579,6 +579,25 @@ void FillNavigationParamsRequest(
         std::move(web_info));
   }
 
+  navigation_params->preconnects.reserve(
+      commit_params.early_hints_preconnects.size() +
+      commit_params.navigation_preconnects.size());
+  auto append_preconnects =
+      [&](const std::vector<network::mojom::LinkHeaderPtr>& links,
+          bool early_hint) {
+        for (const auto& link : links) {
+          blink::WebPreconnectInfo web_info;
+          web_info.url = blink::ToWebURL(link->href);
+          web_info.cross_origin = link->cross_origin;
+          web_info.early_hint = early_hint;
+          navigation_params->preconnects.push_back(std::move(web_info));
+        }
+      };
+  append_preconnects(commit_params.early_hints_preconnects,
+                     /*early_hint=*/true);
+  append_preconnects(commit_params.navigation_preconnects,
+                     /*early_hint=*/false);
+
   // Pass on the `initiator_base_url` sent via the common_params for srcdoc and
   // about:blank documents. This will be picked up in DocumentLoader.
   // Note: It's possible for initiator_base_url to be empty if this is an
@@ -2781,8 +2800,7 @@ void RenderFrameImpl::CommitNavigation(
         });
   }
 
-  if (IsForInitialWebUI() && base::FeatureList::IsEnabled(
-                                 features::kInitialWebUISyncNavStartToCommit)) {
+  if (IsForInitialWebUI()) {
     CHECK(subresource_loader_factories);
     CHECK(subresource_loader_factories->local_resource_loader_config());
     // Initial WebUI navigations loads the response body locally within the
@@ -6412,7 +6430,7 @@ void RenderFrameImpl::BeginNavigationInternal(
     // close enough to the start of the previous navigation, in which case we
     // can just ignore the new navigation and keep the previous navigation.
     bool start_diff_under_threshold =
-        nav_start_diff <= GetBlinkPreferences().duplicate_nav_threshold;
+        nav_start_diff <= GetContentClient()->GetIgnoreDuplicateNavsThreshold();
     base::UmaHistogramBoolean(
         "Navigation.RendererInitiated.DuplicateNavIsUnderThreshold2",
         start_diff_under_threshold);
@@ -6457,8 +6475,7 @@ void RenderFrameImpl::BeginNavigationInternal(
             input_diff);
       }
     }
-    if (GetBlinkPreferences().ignore_duplicate_nav_enabled &&
-        start_diff_under_threshold &&
+    if (start_diff_under_threshold &&
         GetContentClient()->ShouldIgnoreDuplicateNavs(
             common_params->url, /*is_renderer_initiated=*/true)) {
       if (!base::FeatureList::IsEnabled(

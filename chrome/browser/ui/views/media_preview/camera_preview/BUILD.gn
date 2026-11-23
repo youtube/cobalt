@@ -1,0 +1,72 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(is_win || is_mac || is_linux)
+
+source_set("camera_preview") {
+  public = [
+    "camera_coordinator.h",
+    "camera_mediator.h",
+    "camera_view_controller.h",
+    "preview_badge.h",
+    "video_format_comparison.h",
+    "video_stream_coordinator.h",
+    "video_stream_view.h",
+  ]
+  sources = [
+    "camera_coordinator.cc",
+    "camera_mediator.cc",
+    "camera_view_controller.cc",
+    "preview_badge.cc",
+    "video_format_comparison.cc",
+    "video_stream_coordinator.cc",
+    "video_stream_view.cc",
+  ]
+  deps = [
+    "//chrome/app:generated_resources",
+    "//chrome/browser/media/prefs",
+    "//chrome/browser/ui:layout_constants",
+    "//chrome/browser/ui/views:layout_provider",
+    "//components/capture_mode",
+    "//components/prefs",
+    "//components/user_prefs",
+    "//components/vector_icons",
+    "//ui/color:color_headers",
+  ]
+  public_deps = [
+    "//base",
+    "//components/media_effects",
+    "//content/public/browser",
+    "//media/capture:capture_lib",
+    "//services/video_capture/public/mojom",
+    "//ui/base",
+    "//ui/views",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "camera_coordinator_unittest.cc",
+    "video_format_comparison_unittest.cc",
+    "video_stream_coordinator_unittest.cc",
+  ]
+  deps = [
+    ":camera_preview",
+    "//base",
+    "//base/test:test_support",
+    "//chrome/browser/media/prefs",
+    "//chrome/browser/ui/views:layout_provider",
+    "//chrome/browser/ui/views/media_preview",
+    "//chrome/test:test_support",
+    "//components/media_effects/test:test_support",
+    "//content/test:test_support",
+    "//media/capture:capture_lib",
+    "//services/video_capture/public/cpp:mocks",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/views",
+    "//ui/views:test_support",
+  ]
+}

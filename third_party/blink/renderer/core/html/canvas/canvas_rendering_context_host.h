@@ -145,7 +145,7 @@ class CORE_EXPORT CanvasRenderingContextHost
                                   float font_height) {}
   virtual void ClearRenderedText(const gfx::RectF& rect) {}
   virtual void ClearRenderedText() {}
-  bool ShouldCaptureRenderedText() const {
+  virtual bool ShouldCaptureRenderedText() {
     return should_capture_rendered_text_;
   }
 

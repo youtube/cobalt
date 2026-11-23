@@ -50,6 +50,7 @@
 #include "chrome/browser/ui/autofill/bubble_manager.h"
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_bubble_controller.h"
 #include "chrome/browser/ui/autofill/payments/omnibox_autofill_page_action_controller.h"
+#include "chrome/browser/ui/autofill/payments/payments_churned_users_bubble_controller.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
@@ -469,6 +470,16 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
                 tab, tab, tab.GetContents());
   }
 
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableResurrectingPaymentsUsers) &&
+      page_action_controller_->ActionExists(
+          kActionShowPaymentsChurnedUsersBubble)) {
+    payments_churned_users_bubble_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<autofill::PaymentsChurnedUsersBubbleController>(
+                tab, tab, tab.GetContents());
+  }
+
   customize_chrome_side_panel_controller_ =
       std::make_unique<customize_chrome::SidePanelControllerViews>(tab);
 
@@ -736,6 +747,14 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
     omnibox_autofill_bubble_controller_ =
         GetUserDataFactory()
             .CreateInstance<autofill::OmniboxAutofillBubbleController>(
+                *tab, *tab, new_contents);
+  }
+
+  if (payments_churned_users_bubble_controller_) {
+    payments_churned_users_bubble_controller_.reset();
+    payments_churned_users_bubble_controller_ =
+        GetUserDataFactory()
+            .CreateInstance<autofill::PaymentsChurnedUsersBubbleController>(
                 *tab, *tab, new_contents);
   }
 }

@@ -30,6 +30,10 @@ class TabDragSessionListener {
   // Called when the drag moves within the current target window.
   virtual void OnDragMoved(const gfx::Point& screen_point) = 0;
 
+  // Called when the drag transitions from attached to detached (outside any
+  // window).
+  virtual void OnDragDetached(const gfx::Point& screen_point) = 0;
+
   // Called when the session ends with a drop.
   virtual void OnSessionDropped(const gfx::Point& screen_point) = 0;
 

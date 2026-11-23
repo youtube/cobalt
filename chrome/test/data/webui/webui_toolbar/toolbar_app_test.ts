@@ -7,12 +7,13 @@ import 'chrome://webui-toolbar.top-chrome/app.js';
 import {browserProxyFactory} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
 import type {HelpBubbleHandlerInterface} from 'chrome://resources/cr_components/help_bubble/help_bubble.mojom-webui.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
-import {assertEquals} from 'chrome://webui-test/chai_assert.js';
+import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 import {BrowserProxyImpl, INVALID_FOCUS_REQUEST_HANDLE, TrackedElementManager} from 'chrome://webui-toolbar.top-chrome/app.js';
 import type {ToolbarAppElement} from 'chrome://webui-toolbar.top-chrome/app.js';
 import type {BrowserProxy, FocusRequestListener, NavigationControlsStateListener} from 'chrome://webui-toolbar.top-chrome/browser_proxy.js';
+import {AvatarToolbarButtonState} from 'chrome://webui-toolbar.top-chrome/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 class TestToolbarUiHandler extends TestBrowserProxy {
   constructor() {
@@ -159,7 +160,7 @@ function createMockNavigationState() {
       },
     },
     avatarControlState: {
-      iconUrl: '',
+      icon: {handleId: 0n},
       text: '',
       tooltip: '',
       accessibilityName: '',
@@ -469,5 +470,112 @@ suite('ToolbarAppTest', () => {
     assertEquals(
         1, browserProxy.toolbarUIHandler.getCallCount('onPageInitialized'));
     assertEquals(9, startTrackingCalls.length - stopTrackingCalls.length);
+  });
+
+  test('AvatarButtonHighlightClasses', async () => {
+    loadTimeData.overrideValues({
+      initialWebUISurfaceSyncEnabled: false,
+    });
+    const highlightClasses = [
+      'highlight-default',
+      'highlight-sync-error',
+      'highlight-guest',
+      'highlight-incognito',
+    ];
+
+    app = document.createElement('toolbar-app');
+    document.body.appendChild(app);
+    await microtasksFinished();
+
+    const avatarButton = app.shadowRoot.querySelector('avatar-button')!;
+    const innerButton = avatarButton.shadowRoot.querySelector('#button')!;
+
+    // Helper to update state and check class
+    const checkClass = async (state: any, expectedClass: string) => {
+      const navigationState = createMockNavigationState();
+      navigationState.avatarControlState = state;
+      browserProxy.fireNavigationStateListener([], navigationState);
+      await microtasksFinished();
+      if (expectedClass) {
+        assertTrue(
+            innerButton.classList.contains(expectedClass),
+            `Expected class ${expectedClass} for state ${state.state}`);
+        // Ensure other highlight classes are not present
+        for (const cls of highlightClasses) {
+          if (cls !== expectedClass) {
+            assertFalse(
+                innerButton.classList.contains(cls),
+                `Expected NOT to have class ${cls} for state ${state.state}`);
+          }
+        }
+      } else {
+        // Should have no highlight classes
+        for (const cls of highlightClasses) {
+          assertFalse(
+              innerButton.classList.contains(cls),
+              `Expected no highlight class for state ${state.state}`);
+        }
+      }
+    };
+
+    // No text -> no highlight
+    await checkClass(
+        {
+          state: AvatarToolbarButtonState.kNormal,
+          text: '',
+          iconUrl: '',
+          tooltip: '',
+          accessibilityName: '',
+          accessibilityDescription: '',
+        },
+        '');
+
+    // Normal state with text -> highlight-default
+    await checkClass(
+        {
+          state: AvatarToolbarButtonState.kNormal,
+          text: 'Profile',
+          iconUrl: '',
+          tooltip: '',
+          accessibilityName: '',
+          accessibilityDescription: '',
+        },
+        'highlight-default');
+
+    // Sync error with text -> highlight-sync-error
+    await checkClass(
+        {
+          state: AvatarToolbarButtonState.kSyncError,
+          text: 'Error',
+          iconUrl: '',
+          tooltip: '',
+          accessibilityName: '',
+          accessibilityDescription: '',
+        },
+        'highlight-sync-error');
+
+    // Guest with text -> highlight-guest
+    await checkClass(
+        {
+          state: AvatarToolbarButtonState.kGuestSession,
+          text: 'Guest',
+          iconUrl: '',
+          tooltip: '',
+          accessibilityName: '',
+          accessibilityDescription: '',
+        },
+        'highlight-guest');
+
+    // Incognito with text -> highlight-incognito
+    await checkClass(
+        {
+          state: AvatarToolbarButtonState.kIncognitoProfile,
+          text: 'Incognito',
+          iconUrl: '',
+          tooltip: '',
+          accessibilityName: '',
+          accessibilityDescription: '',
+        },
+        'highlight-incognito');
   });
 });

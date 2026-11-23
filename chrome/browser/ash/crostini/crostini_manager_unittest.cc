@@ -2096,8 +2096,7 @@ TEST_F(CrostiniManagerTest, ImportContainerFailOnVmStop) {
 }
 
 TEST_F(CrostiniManagerTest, InstallerStatusInitiallyFalse) {
-  EXPECT_FALSE(
-      crostini_manager()->GetCrostiniDialogStatus(DialogType::INSTALLER));
+  EXPECT_FALSE(crostini_manager()->IsCrostiniInstallerOpen());
 }
 
 TEST_F(CrostiniManagerTest, StartContainerSuccess) {

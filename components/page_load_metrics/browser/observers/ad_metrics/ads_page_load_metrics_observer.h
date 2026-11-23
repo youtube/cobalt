@@ -15,6 +15,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/time/tick_clock.h"
+#include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "components/blocklist/opt_out_blocklist/opt_out_blocklist_data.h"
 #include "components/history/core/browser/history_service.h"
@@ -50,6 +51,19 @@ class AdsPageLoadMetricsObserver
   using FrameTreeData = page_load_metrics::FrameTreeData;
   using ResourceMimeType = page_load_metrics::ResourceMimeType;
   using ApplicationLocaleGetter = base::RepeatingCallback<std::string()>;
+
+  // A snapshot of the current ad frame statistics, to be serialized and
+  // reported by the DevTools Ads domain.
+  struct AdFrameLiveStats {
+    // The initial origin of the frame.
+    url::Origin initial_origin;
+
+    // The network bytes used by the frame.
+    int64_t network_bytes;
+
+    // The CPU time used by the frame.
+    base::TimeDelta cpu_time;
+  };
 
   // Helper class that generates a random amount of noise to apply to thresholds
   // for heavy ads. A different noise should be generated for each frame.
@@ -154,7 +168,12 @@ class AdsPageLoadMetricsObserver
   base::TimeDelta GetTotalAdCpuTime() const;
   int64_t GetTotalAdNetworkBytes() const;
 
-  PageAdDensityTracker::LiveStats GetLiveStats() {
+  // Returns a snapshot of the current ad frame statistics, keyed by the
+  // DevTools frame token.
+  [[nodiscard]] base::flat_map<base::UnguessableToken, AdFrameLiveStats>
+  GetAdFrameLiveStats() const;
+
+  PageAdDensityTracker::LiveStats GetAdDensityLiveStats() {
     return page_ad_density_tracker_.GetLiveStats();
   }
 
@@ -204,6 +223,7 @@ class AdsPageLoadMetricsObserver
 
     // Returns underlying pointer from |owned_frame_data_| if it exists.
     FrameTreeData* GetOwnedFrame();
+    const FrameTreeData* GetOwnedFrame() const;
 
    private:
     // Only |owned_frame_data_| or |unowned_frame_data_| can be set at one time.

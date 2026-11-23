@@ -103,7 +103,8 @@ bool BackgroundFetchScheduler::ScheduleDownload() {
     for (const auto& controller_id : controller_ids_) {
       // Make sure the storage key is not already active.
       bool is_new_storage_key = true;
-      for (auto* controller : active_controllers_) {
+      for (content::BackgroundFetchJobController* controller :
+           active_controllers_) {
         if (controller->registration_id().storage_key() ==
             controller_id.storage_key()) {
           is_new_storage_key = false;
@@ -130,7 +131,7 @@ bool BackgroundFetchScheduler::ScheduleDownload() {
   // 2. Try to start a request within the LRU registration.
   for (auto it = active_controllers_.begin(); it != active_controllers_.end();
        ++it) {
-    auto* controller = *it;
+    BackgroundFetchJobController* controller = *it;
     if (!controller->HasMoreRequests())
       continue;
 
@@ -196,9 +197,10 @@ void BackgroundFetchScheduler::FinishJob(
     base::OnceCallback<void(BackgroundFetchError)> callback) {
   auto* active_controller = GetActiveController(registration_id);
   if (active_controller) {
-    base::EraseIf(active_controllers_, [&registration_id](auto* controller) {
-      return controller->registration_id() == registration_id;
-    });
+    base::EraseIf(active_controllers_,
+                  [&registration_id](const auto& controller) {
+                    return controller->registration_id() == registration_id;
+                  });
   }
 
   data_manager_->MarkRegistrationForDeletion(
@@ -502,7 +504,8 @@ void BackgroundFetchScheduler::OnStorageWiped() {
 
 BackgroundFetchJobController* BackgroundFetchScheduler::GetActiveController(
     const BackgroundFetchRegistrationId& registration_id) {
-  for (auto* controller : active_controllers_) {
+  for (content::BackgroundFetchJobController* controller :
+       active_controllers_) {
     if (controller->registration_id() == registration_id)
       return controller;
   }

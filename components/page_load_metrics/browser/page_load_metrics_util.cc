@@ -184,7 +184,6 @@ std::optional<base::TimeDelta> GetNonPrerenderingBackgroundStartTiming(
     const PageLoadMetricsObserverDelegate& delegate) {
   switch (delegate.GetPrerenderingState()) {
     case PrerenderingState::kNoPrerendering:
-    case PrerenderingState::kInPreview:
       if (delegate.StartedInForeground()) {
         return delegate.GetTimeToFirstBackground();
       } else {
@@ -230,7 +229,6 @@ base::TimeDelta CorrectEventAsNavigationOrActivationOrigined(
 
   switch (delegate.GetPrerenderingState()) {
     case PrerenderingState::kNoPrerendering:
-    case PrerenderingState::kInPreview:
       return event;
     case PrerenderingState::kInPrerendering:
     case PrerenderingState::kActivatedNoActivationStart:

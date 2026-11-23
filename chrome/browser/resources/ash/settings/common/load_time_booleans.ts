@@ -36,10 +36,6 @@ export function isPlayStoreAvailable(): boolean {
   return loadTimeData.getBoolean('isPlayStoreAvailable');
 }
 
-export function isPluginVmAvailable(): boolean {
-  return loadTimeData.getBoolean('isPluginVmAvailable');
-}
-
 export function isAppParentalControlsFeatureAvailable(): boolean {
   return loadTimeData.getBoolean('isAppParentalControlsFeatureAvailable');
 }

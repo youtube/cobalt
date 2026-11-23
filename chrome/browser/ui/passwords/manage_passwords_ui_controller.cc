@@ -1254,11 +1254,17 @@ void ManagePasswordsUIController::UpdateBubbleAndIconVisibility() {
   if (!tab_interface) {
     return;
   }
-  auto* const tab_features = tab_interface->GetTabFeatures();
-  CHECK(tab_features);
+  tabs::TabFeatures* const tab_features = tab_interface->GetTabFeatures();
+  // During tab teardown, TabFeatures is destroyed before WebContents.
+  // Destroying other tab features (like ReadAnything) can trigger
+  // visibility changes on the WebContents, which calls this method
+  // when TabFeatures is already gone.
+  if (!tab_features) {
+    return;
+  }
   // Retrieve the controller responsible for managing the page action's
   // visibility and state.
-  auto* const controller =
+  ManagePasswordsPageActionController* const controller =
       tab_features->manage_passwords_page_action_controller();
   // Get the action item associated with the passwords UI.
   actions::ActionItem* passwords_action_item =

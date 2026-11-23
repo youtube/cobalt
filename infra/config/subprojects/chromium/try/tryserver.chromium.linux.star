@@ -469,6 +469,9 @@ try_.orchestrator_builder(
         "chromium.add_one_test_shard": 10,
         # crbug/940930
         "chromium.enable_cleandead": 100,
+        # go/rts-project-proposal
+        "chromium_rts.filter_file_analysis": 100,
+        "luci.buildbucket.run_in_turboci": 100,
     },
     main_list_view = "try",
     use_clang_coverage = True,
@@ -494,6 +497,10 @@ try_.orchestrator_builder(
         experiment_percentage = 10,
         on_default_cq = True,
     ),
+    siso_configs = ["builder", "default-remote"],
+    # TODO(crbug.com/529185604): Remove this once the missing input issue is resolved.
+    # We need to download all outputs to prevent build failures caused by missing inputs.
+    siso_output_local_strategy = "full",
     use_clang_coverage = True,
 )
 

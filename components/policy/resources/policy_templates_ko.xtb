@@ -131,7 +131,6 @@
 <translation id="1076751984131277498">USB 분리 가능 기기 허용 목록</translation>
 <translation id="1077675271127011209">사용 및 비정상 종료 관련 데이터 보고 사용 안함</translation>
 <translation id="1079498696402787191">TLS 핸드셰이크에서 허용되는 해시에 기본값을 사용합니다.</translation>
-<translation id="1079801999187584280">Developer Tools 사용 금지</translation>
 <translation id="1081470306474387129">분리형 웹 앱(IWA)과 같은 특정 분리형 컨텍스트에서 사용할 수 있는 Controlled Frame API를 사용하면 앱에서 임의의 콘텐츠를 삽입하고 조작할 수 있습니다.
 자세한 내용은 https://github.com/WICG/controlled-frame을 참고하세요.
 
@@ -1175,6 +1174,7 @@ Chrome 앱은 ID(예: <ph name="DEFAULT_HANDLERS_FOR_FILE_EXTENSIONS_POLICY_CHRO
 <translation id="1781356041596378058">이 정책은 Android 개발자 옵션 액세스 권한도 제어합니다. 이 정책을 true로 설정하는 경우 사용자는 개발자 옵션에 액세스할 수 없습니다. 이 정책을 false로 설정하거나 설정하지 않은 채로 두는 경우 Android 설정 앱에서 빌드 번호를 7번 탭하면 개발자 옵션에 액세스할 수 있습니다.</translation>
 <translation id="1781720543185538098">제품 내 <ph name="PRODUCT_NAME" /> 설문조사를 사용자에게 표시할지 지정합니다.</translation>
 <translation id="1787790976045065845">이 정책은 <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_POLICY_NAME" /> 정책이 <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_LOCK" /> 또는 <ph name="SECURITY_TOKEN_SESSION_BEHAVIOR_LOGOUT" />으로 설정되어 있으며 스마트 카드를 통해 인증하는 사용자가 해당 스마트 카드를 삭제하는 경우에만 적용됩니다. 그런 다음 이 정책은 사용자에게 곧 실행될 작업에 관해 알리는 알림을 몇 초 동안 표시할지 지정합니다. 이 알림은 화면을 가립니다. 작업은 알림이 만료된 후에만 실행됩니다. 사용자는 알림이 만료되기 전에 스마트 카드를 다시 삽입하여 작업이 시작되지 않도록 할 수 있습니다. 정책이 0으로 설정되어 있으면 알림이 표시되지 않으며 작업이 즉시 실행됩니다.</translation>
+<translation id="1788597893274674447">Android 기기에서 지정된 출처의 사이트 격리 사용 설정(지원 중단됨)</translation>
 <translation id="1793346220873697538">기본적으로 PIN 인쇄를 사용하지 않습니다.</translation>
 <translation id="1794457906032475749">정책이 사용 설정되면 기업 프로필 생성 시 기존 인터넷 사용 기록을 유지하는 옵션이 기본적으로 선택됩니다.
 
@@ -1675,6 +1675,11 @@ URL로 입력된 측정항목 수집이 허용되거나 사용자가 이를 사�
       정책을 False로 설정하면 사용자가 일부 시스템 정보 및 페이지 콘텐츠를 Google 서버로 전송하도록 선택할 수 없게 됩니다. True로 설정하거나 설정하지 않으면 사용자는 위험한 앱 및 사이트를 감지하기 위해 일부 시스템 정보와 페이지 콘텐츠를 세이프 브라우징으로 전송할 수 있습니다.
 
       https://developers.google.com/safe-browsing에서 세이프 브라우징에 관해 자세히 알아보세요.</translation>
+<translation id="2126895531607538755">정책을 설정하면 <ph name="DEVICE_WEEKLY_SCHEDULED_SUSPEND_POLICY_NAME" /> 간격 동안 기기에서 일시중지 작업을 다시 적용하기 전까지의 비활성 시간(밀리초)이 지정됩니다.
+
+예약된 절전 모드 기간 중에 기기가 수동으로 절전 모드에서 해제된 경우(예: 키보드 입력) 기기가 이 밀리초만큼 기다린 후 다시 RAM에 대해 일시중지됩니다. 사용자 활동이 있으면 정지 간격 내에 있는 한 재정지 타이머가 재설정됩니다.
+
+정책이 설정되지 않은 경우 기기가 절전 모드에서 해제된 후 지정된 간격 동안 자동으로 재정지되지 않습니다.</translation>
 <translation id="2127599828444728326">이 사이트에서 알림 허용</translation>
 <translation id="2131902621292742709">배터리 전원으로 실행할 때 화면 어둡게 하기 지연</translation>
 <translation id="2131915994539959070"><ph name="PRODUCT_NAME" />에서 창 오클루전을 사용 설정합니다.
@@ -1802,21 +1807,6 @@ URL로 입력된 측정항목 수집이 허용되거나 사용자가 이를 사�
 <translation id="2180958780733364832">헤드리스 모드 사용 제어</translation>
 <translation id="2182291258410176649">사용자가 백업 및 복원을 사용할지 결정</translation>
 <translation id="2183338188392346527">기기 런타임 카운터 보고 안함</translation>
-<translation id="2183838844225082873">정책을 0(기본값)으로 설정하면 개발자 도구와 JavaScript 콘솔에 액세스할 수 있지만 기업 정책으로 설치한 확장 프로그램의 컨텍스트나 버전 114 이상을 사용 중이며 관리 사용자인 경우 브라우저에 내장된 확장 프로그램의 컨텍스트에서는 액세스할 수 없습니다. 정책을 1로 설정하면 기업 정책으로 설치한 확장 프로그램을 비롯한 모든 컨텍스트에서 개발자 도구 및 JavaScript 콘솔에 액세스할 수 있습니다. 정책을 2로 설정하면 개발자 도구에 액세스할 수 없으며 웹사이트 요소를 검사할 수 없습니다.
-
-또한 이 설정은 개발자 도구 또는 JavaScript 콘솔을 여는 키보드 단축키, 메뉴 항목, 컨텍스트 메뉴 항목의 사용을 중지합니다.
-
-<ph name="PRODUCT_NAME" /> 버전 99부터는 '페이지 소스 보기' 기능의 진입점도 제어합니다. 이 정책을 'DeveloperToolsDisallowed'(값 2)로 설정하면 사용자가 키보드 단축키 또는 컨텍스트 메뉴를 통해 소스 보기에 액세스할 수 없습니다. 소스 보기를 완전히 차단하려면 <ph name="URL_BLOCKLIST_POLICY_NAME" /> 정책에 'view-source:*'도 추가해야 합니다.
-
-<ph name="PRODUCT_NAME" /> 버전 119부터 이 설정으로 분리형 웹 앱의 개발자 모드 활성화 및 사용 여부도 제어할 수 있습니다.
-
-<ph name="PRODUCT_NAME" /> 버전 128부터는 <ph name="EXTENSION_DEVELOPER_MODE_SETTINGS_POLICY_NAME" /> 정책이 설정된 경우 이 설정으로 확장 프로그램 페이지의 개발자 모드를 제어할 수 없습니다.
-
-개발자 도구의 사용 가능 여부는 다음 우선순위로 결정됩니다.
-1. URL이 <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" /> 정책의 패턴과 일치하면 개발자 도구가 허용됩니다.
-2. <ph name="DEVELOPER_TOOLS_AVAILABILITY_ALLOWLIST_POLICY_NAME" />이(가) 설정되고 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" />이(가) 설정되지 않은 경우 허용 목록에 없는 모든 URL이 차단됩니다.
-3. URL이 <ph name="DEVELOPER_TOOLS_AVAILABILITY_BLOCKLIST_POLICY_NAME" /> 정책의 패턴과 일치하면 개발자 도구가 차단됩니다.
-4. 허용 목록 또는 차단 목록에 포함되지 않은 URL의 경우 이 정책(<ph name="DEVELOPER_TOOLS_AVAILABILITY_POLICY_NAME" />)이 대체 정책으로 사용됩니다.</translation>
 <translation id="2187361040843865450">'Just Works' 블루투스 페어링 요청 수락</translation>
 <translation id="2187372280917024033">원하는 DNS-over-HTTPS 리졸버의 URI 템플릿입니다. 여러 개의 DNS-over-HTTPS 리졸버를 지정하려면 해당하는 URI 템플릿을 공백으로 구분하세요. 지정한 경우 이 정책은 매우 유사한 <ph name="DOH_TEMPLATES_POLICY_NAME" /> 정책을 재정의합니다.
 <ph name="DOH_TEMPLATES_POLICY_NAME" /> 정책과 달리, 이 정책은 신원 정보 지정을 지원합니다.
@@ -1991,6 +1981,25 @@ URI 템플릿에 <ph name="HTTP_VARIABLE_DNS" /> 변수가 포함된 경우 리�
       사용자는 이 설정을 변경하거나 재정의할 수 없습니다.
 
       참고: 정책을 사용하면 https://support.google.com/a/answer/1668854에서 설명된 바와 같이 X-GoogApps-Allowed-Domains 헤더가 모든 google.com 도메인에 대한 HTTP 및 HTTPS 요청에 첨부됩니다.</translation>
+<translation id="2282968242492236886">이 정책을 설정하면 특정 URL 패턴에서 차단되는 자동 완성 데이터 유형을 지정할 수 있습니다.
+
+정책은 사전 목록으로 구성됩니다. 각 사전에는 다음이 포함되어야 합니다.
+* 'url_pattern': 콘텐츠 설정 URL 패턴(예: 'https://[*.]example.com')입니다.
+* 'blocked_types': 차단할 자동 완성 데이터의 카테고리를 나타내는 문자열 목록입니다.
+
+'blocked_types'에 지원되는 값은 다음과 같습니다.
+* 'contact_info': 연락처 정보 입력 및 저장을 차단합니다.
+* 'payments': 신용카드 및 결제 수단의 자동 입력 및 저장을 차단합니다.
+* 'identity_docs': 신분증(예: 여권, 운전면허증, 국가 신분증)의 자동 입력 및 저장을 차단합니다.
+* 'travel': 여행 정보(예: 항공편 예약, 차량 등록)의 자동 입력 및 저장을 차단합니다.
+
+사이트에서 데이터 유형이 차단되면 해당 사이트에서 추천 생성과 해당 유형의 새 데이터를 저장하고 가져오라는 메시지가 모두 사용 중지됩니다.
+
+URL이 목록의 여러 패턴 항목과 일치하면 일치하는 모든 항목의 차단된 유형이 결합(합집합 병합)됩니다. 목록의 잘못된 URL 패턴은 무시됩니다.
+
+이 정책을 설정하지 않으면 도메인별로 자동 완성 데이터 유형이 차단되지 않습니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세요. 와일드 카드*가 지원됩니다. 이 패턴은 스킴, 포트, 경로와 관계없이 모든 URL과 일치합니다.</translation>
 <translation id="2287414160388710497">관리자가 데이터 손실 방지(DLP) 규칙에 따라 적용된 워터마크의 모양을 맞춤설정할 수 있습니다. 여기에는 채우기/윤곽선 불투명도 설정 및 글꼴 크기 정의가 포함됩니다.
 정책 또는 일부 값을 설정하지 않으면 Chrome에서 기본 워터마크 동작을 사용합니다.
 기본값은 채우기 불투명도 4, 윤곽선 불투명도 6, 글꼴 크기 24입니다.
@@ -3297,6 +3306,7 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 보고서에는 OS 버전, 브라우저 버전, 설치된 확장 프로그램, 적용된 정책을 포함하되 이에 국한되지 않는 프로필 상태 및 사용 정보가 포함됩니다.
 
 이 정책은 클라우드 사용자 정책으로만 설정할 수 있습니다.</translation>
+<translation id="3060733249129331512">사이트에서 여러 파일을 자동으로 다운로드하려고 할 때마다 확인</translation>
 <translation id="3062559845875011810">기능 허용 안함</translation>
 <translation id="3063302084011279315">스크린캐스트 사용 안함</translation>
 <translation id="3063307261083019730"><ph name="CACHE_CONTROL_NO_STORE_NAME" /> 헤더가 있는 페이지가 뒤로-앞으로 캐시에 저장되는 것을 허용하지 않습니다.</translation>
@@ -3385,6 +3395,19 @@ URL 목록에 <ph name="CHROME_ENTERPRISE_DEVICE_TRUST_CONNECTOR" />를 사용 �
 <translation id="3150351525324499342">기본적으로 툴바에 <ph name="PRODUCT_NAME" /> 아이콘이 표시되지 않지만 사용자가 선택하도록 허용</translation>
 <translation id="3152135410085709340">로컬 파일이 PDF 뷰어에서 사이트의 file:// URL에 액세스하도록 허용</translation>
 <translation id="3152425128389603870">통합 바탕화면을 기본적으로 허용하고 사용 설정합니다.</translation>
+<translation id="3157506194753687842"><ph name="GEMINI_SPARK_PRODUCT_NAME" /> 에이전트가 <ph name="PRODUCT_NAME" />에 연결하고 자동 탐색을 사용하도록 허용할지 제어합니다.
+
+0 = <ph name="GEMINI_SPARK_PRODUCT_NAME" />가 <ph name="PRODUCT_NAME" /> 자동 탐색에 연결하고 이를 사용하도록 허용합니다.
+
+1 = <ph name="GEMINI_SPARK_PRODUCT_NAME" />가 <ph name="PRODUCT_NAME" /> 자동 탐색에 연결하거나 이를 사용하도록 허용하지 않습니다.
+
+경고: <ph name="GEMINI_SPARK_PRODUCT_NAME" />가 <ph name="PRODUCT_NAME" />에 연결하고 자동 탐색을 사용하도록 허용하면 <ph name="GEMINI_SPARK_PRODUCT_NAME" /> 에이전트가 활성 브라우저 세션을 사용하여 <ph name="PRODUCT_NAME" /> 클라이언트에서 자율적인 다단계 작업을 수행할 수 있습니다. 여기에는 사용자 인증 정보 위험, 로컬 네트워크 인그레스, 컨텍스트 인식 신호 손실과 같은 심각한 보안 위험이 수반됩니다. 기존 관리 및 보안 제어가 적용되지 않을 수 있습니다.
+
+관리자는 이 기능을 사용 설정하기 전에 조직의 네트워크 위협 모델, 규정 준수, 개인 정보 보호 가이드라인을 신중하게 평가하시기 바랍니다.
+
+<ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 앱 또는 <ph name="PRODUCT_NAME" /> 자동 탐색 정책이 사용 중지되어 있는 경우 이 정책은 적용되지 않습니다. 예를 들어, <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 앱은 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 정책에 의해 사용 중지될 수 있습니다. <ph name="PRODUCT_NAME" />의 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />에 대한 자세한 내용은 https://support.google.com/chrome/a?p=gemini_in_chrome 페이지를 참고하세요.
+
+<ph name="PRODUCT_NAME" /> 자동 탐색 및 <ph name="GEMINI_SPARK_PRODUCT_NAME" />는 일부 국가 또는 언어에서만 제공됩니다. 이 정책을 0(사용 설정)으로 설정해도 이 기능이 사용 설정된다는 보장은 없으며, 기능 사용 가능 여부에 따라 달라집니다. 출시에 관한 자세한 내용은 Enterprise 출시 노트(https://chromeenterprise.google/resources/release-notes/)를 참고하세요.</translation>
 <translation id="3159375329008977062">사용자가 UI를 통해 Crostini 컨테이너를 내보내고 가져올 수 있음</translation>
 <translation id="3163167792874598128">이 정책을 설정하지 않거나 사용으로 설정하면 App Store 평가 프로모션이 사용자에게 1년에 최대 한 번 표시될 수 있습니다.
 정책을 사용 안함으로 설정하면 App Store 평가 프로모션이 사용자에게 표시되지 않습니다.</translation>
@@ -4705,6 +4728,13 @@ HTTPS용 RSA 인증서에 두 가지를 모두 포함해야 합니다.</translat
 정책을 설정하지 않으면 GenAiDefaultSettings 정책에 따라 동작이 결정됩니다.
 
 생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
+<translation id="4049815236567245576">여러 파일을 자동으로 다운로드하도록 허용되는 사이트를 지정하는 URL 패턴 목록을 설정할 수 있습니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세요.
+
+URL이 <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> 및 <ph name="AUTOMATIC_DOWNLOADS_BLOCKED_FOR_URLS_POLICY_NAME" /> 모두와 일치하면 AutomaticDownloadsBlockedForUrls가 우선 적용됩니다.
+
+이 정책을 설정하지 않으면, <ph name="DEFAULT_AUTOMATIC_DOWNLOADS_SETTING_POLICY_NAME" /> 정책이 설정되어 있는 경우 모든 사이트에 적용됩니다. 설정되어 있지 않다면 사용자의 개인 설정이 적용됩니다.</translation>
 <translation id="4051723201852944592">창 오클루전 사용 설정</translation>
 <translation id="4052529125939620019">시작 시 CryptoToken 구성요소 확장 프로그램 로드</translation>
 <translation id="4053157306171963473">기기 활동 시간 보고 사용 중지</translation>
@@ -4799,6 +4829,9 @@ Manifest V2 확장 프로그램 지원이 중단되며 향후 모든 확장 프�
 
       참고로, 동적 정책 새로고침은 <ph name="PRODUCT_NAME" /> 버전 123 이상에서만 지원됩니다. 'autofill'을 사용 중지하면 'payments'도 사용 중지됩니다. 'typedUrls'는 모든 방문 기록을 의미합니다.</translation>
 <translation id="4115501011761259824">영향을 받는 모든 사용자에게 First-Party Sets 사용 설정</translation>
+<translation id="4119598167427266156">정책을 1로 설정하면 웹사이트에서 여러 파일을 자동으로 다운로드할 수 있습니다. 정책을 2로 설정하면 이 권한이 거부됩니다. 웹사이트에서 여러 파일을 자동으로 다운로드하려고 할 때마다 사용자에게 묻도록 정책을 설정할 수 있습니다.
+
+정책을 설정하지 않으면 AskAutomaticDownloads 정책이 적용되지만 사용자가 이 설정을 변경할 수 있습니다.</translation>
 <translation id="4120401094617902941">런타임 카운터가 샘플링되고 수집되는 속도입니다. 허용되는 최솟값은 1일입니다.
 
 정책을 설정하지 않으면 기본값 1일이 적용됩니다.</translation>
@@ -4875,6 +4908,21 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 기본 알림을 사용�
 
           설정되지 않으면 처음에는 로그인 화면에서 음성 피드백이 사용되지 않지만 사용자가 언제든지 사용 설정할 수 있습니다.</translation>
 <translation id="4173974507809462880">로그인 시 터치패드 스크롤 방향 화면 표시</translation>
+<translation id="4175846494150407472">리소스가 제한된 플랫폼에서 전용 프로세스로 실행되는 출처 목록을 지정하세요.
+
+이 정책은 메모리가 제한된 기기(RAM 1GB~3.2GB)에서만 작동합니다. 리소스가 제한된 기기에서 너무 많은 사이트를 격리하면 성능 문제가 발생할 수 있습니다. 고성능 환경(고급 <ph name="ANDROID_NAME" /> 기기 포함)의 경우 대신 <ph name="ISOLATE_ORIGINS_POLICY_NAME" />을 사용하세요.
+
+메모리가 1GB 미만인 기기에는 특정 프로세스 격리를 구성하지 않는 것이 좋습니다.
+
+이름이 지정된 각 출처의 프로세스에는 해당 출처와 하위 도메인의 문서만 포함될 수 있습니다. 예를 들어 https://a1.example.com/을 지정하면 동일한 프로세스에는 https://a2.a1.example.com/만 허용되며 https://example.com 또는 https://b.example.com은 허용되지 않습니다.
+
+와일드 카드를 사용해 격리할 출처의 범위를 지정할 수도 있습니다. 예를 들어 https://[*.]corp.example.com을 지정하면 https://corp.example.com 자체와 https://a1.corp.example.com, https://a2.a1.corp.example.com 등 https://corp.example.com에 속한 모든 출처에 전용 프로세스가 제공됩니다.
+
+<ph name="ANDROID_NAME" />에서는 <ph name="PRODUCT_NAME" /> 버전 77부터 기본적으로 민감한 특정 사이트가 격리됩니다. 이 정책을 설정하면 이 기본적인 격리 모드가 특정 출처를 추가로 격리하도록 확장됩니다.
+
+이 정책에 의해 격리된 출처는 동일한 사이트의 다른 출처를 스크립트할 수 없으며, 동일한 사이트 문서 두 개의 document.domain을 일치하는 값으로 수정하는 경우 스크립트할 수 있습니다. 관리자는 격리 전에 이 비정상적인 동작이 출처에서 발생하지 않는지 확인해야 합니다.
+
+정책을 설정하지 않거나 빈 문자열로 설정하면 특정 출처에 사이트 격리가 필요하지 않습니다. 사용자는 계속해서 명령줄 플래그를 통해 프로세스 격리를 직접 사용 설정할 수 있습니다.</translation>
 <translation id="417956245902013347">로그인 화면에서 캐럿 강조표시 접근성 기능을 사용합니다.
 
           이 정책이 True로 설정되면 로그인 화면에서 캐럿 강조표시가 항상 사용됩니다.
@@ -5483,7 +5531,6 @@ URL 패턴은 <ph name="CONTROLLED_FRAME_BLOCKED_FOR_URLS_POLICY_NAME" /> 정책
 <translation id="4561940244682063697">사이트에서 사용자에게 화면의 동영상 스트림을 공유하라는 메시지를 표시하도록 허용 안함</translation>
 <translation id="4562165737444703281">사용자가 Crostini 포트 전달을 [사용 설정/구성]할 수 있도록 허용</translation>
 <translation id="456450545863578630">엔터프라이즈 관리자의 원격 지원 연결에서 파일 전송 사용 설정</translation>
-<translation id="4567137030726189378">Developer Tools를 사용하도록 허용</translation>
 <translation id="4570859815763368584">M68에서 지원 중단되었습니다. 대신 DefaultPopupsSetting을 사용하세요.
 
       자세한 내용은 https://www.chromestatus.com/feature/5675755719622656 페이지를 참고하시기 바랍니다.
@@ -6215,6 +6262,7 @@ Chrome 114까지 이 정책을 적용하려면 <ph name="SYNC_DISABLED_POLICY_NA
 <translation id="4970046075219007744">웹 앱에서 사용자에게 File Handling API를 통해 파일 형식 액세스 권한을 요청하도록 허용</translation>
 <translation id="4970855112942626932">브라우저 로그인 사용 중지</translation>
 <translation id="4974091268178043378">ChromeOS 색상 모드</translation>
+<translation id="4976824366963631628">특정 사이트의 자동 완성 데이터 유형 차단</translation>
 <translation id="4976825008579439428">AI 기록 검색을 허용하지 않습니다.</translation>
 <translation id="4978533099939732984">디스크 공간 부족 경고 항상 표시</translation>
 <translation id="4979614740553442831">이 정책은 <ph name="PRODUCT_OS_NAME" />에서 갤러리 앱의 렌즈 통합 사용 여부를 제어합니다.
@@ -6239,6 +6287,15 @@ Chrome 114까지 이 정책을 적용하려면 <ph name="SYNC_DISABLED_POLICY_NA
 
       U2F Security Key API 지원 중단에 관한 자세한 내용은 https://groups.google.com/a/chromium.org/g/blink-dev/c/xHC3AtU_65A에서 확인하세요.</translation>
 <translation id="4988291787868618635">유휴 지연 시간에 도달하면 수행할 작업</translation>
+<translation id="4988587935113718108">정책을 설정하면 쉼표로 구분된 목록의 이름이 지정된 각 출처가 <ph name="ANDROID_NAME" />에서 전용 프로세스로 실행됩니다. 이름이 지정된 각 출처의 프로세스에는 해당 출처와 하위 도메인의 문서만 포함될 수 있습니다. 예를 들어 https://a1.example.com/을 지정하면 동일한 프로세스에는 https://a2.a1.example.com/만 허용되며 https://example.com 또는 https://b.example.com은 허용되지 않습니다. <ph name="ANDROID_NAME" />에서는 <ph name="PRODUCT_NAME" /> 버전 77부터 기본적으로 민감한 특정 사이트가 격리됩니다. 이 정책을 설정하면 기본적인 격리 모드가 확장되어 특정 출처를 추가로 격리합니다.
+
+<ph name="PRODUCT_NAME" /> 77부터 와일드 카드를 사용해 격리할 출처의 범위를 지정할 수도 있습니다. 예를 들어 https://[*.]corp.example.com을 지정하면 https://corp.example.com 자체와 https://a1.corp.example.com, https://a2.a1.corp.example.com 등 https://corp.example.com에 속한 모든 출처에 전용 프로세스가 제공됩니다.
+
+이 정책에 의해 격리된 출처는 동일한 사이트의 다른 출처를 스크립트할 수 없으며, 동일한 사이트 문서 두 개의 document.domain을 일치하는 값으로 수정하는 경우 스크립트할 수 있습니다. 관리자는 격리 전에 이 비정상적인 동작이 출처에서 발생하지 않는지 확인해야 합니다.
+
+정책을 설정하지 않거나 빈 문자열로 설정하면 특정 출처에 사이트 격리가 필요하지 않습니다. 사용자는 계속해서 명령줄 플래그를 통해 프로세스 격리를 직접 사용 설정할 수 있습니다.
+
+참고: 이 정책은 지원 중단되었으므로 대신 <ph name="ISOLATE_ORIGINS_POLICY_NAME" />(고성능 기기용) 또는 <ph name="ISOLATE_ORIGINS_SHORTLIST_POLICY_NAME" /> 정책을 사용하세요. 이 정책은 반드시 1GB 이상의 RAM이 있는 기기에서 실행되는 <ph name="ANDROID_NAME" />의 Chrome에만 적용되며, 해당 기기에서는 특정 프로세스 격리를 구성하지 않는 것이 좋습니다.</translation>
 <translation id="4991786313466977061">기업 배지의 공개 상태 제어</translation>
 <translation id="4995123966071996433">Linux 가상 머신으로의 포트 전달 허용 안함</translation>
 <translation id="4996068111491152684"><ph name="PRODUCT_OS_NAME" /> 로그인 사용자 인증 정보가 네트워크 인증에 사용되지 않습니다.</translation>
@@ -6296,6 +6353,7 @@ false로 설정되면 기기 식별을 위해 사용할 수 있는 정보가 수
 <ph name="MS_WIN_NAME" />의 경우 이 정책은 <ph name="MS_AD_NAME" /> 도메인에 연결되거나, <ph name="MS_AAD_NAME" />에 연결되거나, <ph name="CHROME_ENTERPRISE_CORE_NAME" />에 등록된 인스턴스에서만 사용할 수 있습니다.
 
 <ph name="MAC_OS_NAME" />의 경우 이 정책은 MDM을 통해 관리되거나, MCX를 통해 도메인에 연결되거나, <ph name="CHROME_ENTERPRISE_CORE_NAME" />에 등록된 인스턴스에서만 사용할 수 있습니다.</translation>
+<translation id="5036662165765606524">사이트에서 여러 파일을 자동으로 다운로드하도록 허용하지 않음</translation>
 <translation id="5037749623252479780">PageUp/PageDown 설정이 사용 중지되었습니다.</translation>
 <translation id="5039110755072335605">와일드카드가 아닌 CORS 요청 헤더 지원</translation>
 <translation id="5039804452771397117">허용</translation>
@@ -6800,6 +6858,7 @@ False로 설정하면 <ph name="PRODUCT_NAME" />에서 시스템 알림을 사�
 <translation id="5345892164332459671">플로팅 SSO를 사용 중지하고 사용자의 웹 서비스 인증을 새 기기로 이동하지 않음</translation>
 <translation id="5345910753471481870">새 탭 페이지의 검색창에 Google 렌즈 버튼을 표시하지 않습니다.</translation>
 <translation id="5346587320074666194">이 사이트에서 센서에 액세스할 수 없도록 차단</translation>
+<translation id="534702079563980696">이 사이트에서 자동 다운로드 허용</translation>
 <translation id="5347735051291224683">이 정책은 백그라운드 웹 콘텐츠를 강제로 포그라운드 우선순위로 실행할지
 제어합니다.
 
@@ -7242,6 +7301,7 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5599461642204007579"><ph name="MS_AD_NAME" /> 관리 설정</translation>
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5605676983184673391">Chrome 앱이 키오스크 세션에서 실행되도록 허용합니다.</translation>
+<translation id="5606477661985737162">자동 다운로드 설정</translation>
 <translation id="5607021831414604820">기기 저장용량 상태 보고 사용 설정</translation>
 <translation id="5607808178576647930">AI 모드 통합을 허용합니다.</translation>
 <translation id="5608114828230655271">기본 기기 동작</translation>
@@ -7339,6 +7399,7 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5660950553460381588">가능한 경우 기본적으로 iCloud 키체인에서 패스키를 만듭니다.</translation>
 <translation id="566569751231933416">기본 동작을 사용합니다.</translation>
 <translation id="5666457529647159548">사용자가 설치된 클라이언트 인증서를 관리하도록 허용</translation>
+<translation id="566962283082154427">주간 정지 간격 예약의 재정지 지연 시간(밀리초)</translation>
 <translation id="5670249935663090320">정책을 사용 설정하거나 설정하지 않은 상태로 두면 <ph name="PRODUCT_NAME" />가 사용 설정되며 사용자가 앱 메뉴, 페이지 컨텍스트 메뉴, Cast 지원 웹사이트의 미디어 컨트롤, Cast 툴바 아이콘(표시되는 경우)을 통해 실행할 수 있습니다.
 
 정책을 사용 중지하면 <ph name="PRODUCT_NAME" />가 사용 중지됩니다.</translation>
@@ -7804,6 +7865,13 @@ IP 주소 공간 재정의에는 두 가지 형식이 있습니다.
 <translation id="5965344524743236327">사용 설정할 <ph name="GEMINI_ENTERPRISE_PRODUCT_NAME" /> 인스턴스에 해당하는 <ph name="GOOGLE_CLOUD_PRODUCT_NAME" /> 프로젝트의 ID 또는 번호입니다. https://docs.cloud.google.com/resource-manager/docs/creating-managing-projects에서 프로젝트 ID에 대해 자세히 알아보세요.</translation>
 <translation id="5966615072639944554">원격 인증 API를 사용하도록 허용된 확장 프로그램입니다.</translation>
 <translation id="596732417280023843">인증서 프로필의 이름입니다.</translation>
+<translation id="5972475504452039694">여러 파일을 자동으로 다운로드하도록 허용되지 않는 사이트를 지정하는 URL 패턴 목록을 설정할 수 있습니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세요.
+
+URL이 <ph name="AUTOMATIC_DOWNLOADS_ALLOWED_FOR_URLS_POLICY_NAME" /> 및 <ph name="AUTOMATIC_DOWNLOADS_BLOCKED_FOR_URLS_POLICY_NAME" /> 모두와 일치하면 AutomaticDownloadsBlockedForUrls가 우선 적용됩니다.
+
+이 정책을 설정하지 않으면, <ph name="DEFAULT_AUTOMATIC_DOWNLOADS_SETTING_POLICY_NAME" /> 정책이 설정되어 있는 경우 모든 사이트에 적용됩니다. 설정되어 있지 않다면 사용자의 개인 설정이 적용됩니다.</translation>
 <translation id="5972538402066550344">상세 보고 제어 허용</translation>
 <translation id="5973437409890460481">이 머신에 대한 기업 원격 액세스 연결을 허용합니다.</translation>
 <translation id="5975765799383881158">정책을 사용 설정하거나 설정하지 않으면 사용자가 메뉴 &gt; 도움말 &gt; 문제 신고 또는 키 조합을 통해 Google에 의견을 보낼 수 있습니다.
@@ -8062,6 +8130,7 @@ ArcEnabled 및 UnaffiliatedArcAllowed 정책에서 적용하는 제한사항과 
 <translation id="6181783961196084973">앱 활동 모음 전환 버튼의 값입니다. True로 설정하면 자녀와 부모의 <ph name="PRODUCT_NAME" /> 앱에 표시될 수 있도록 사용자 앱 활동이 서버로 전송됩니다. False로 설정하면 앱별 시간제한 기능은 계속 작동되나 데이터가 서버로 전송되거나 <ph name="PRODUCT_NAME" />에 표시되지 않습니다.</translation>
 <translation id="6182206125906000651">HTTPS 업그레이드를 사용 중지합니다.</translation>
 <translation id="6182563940865917569">Chrome의 미디어 자동재생 허용</translation>
+<translation id="618588573990666077">기본 자동 다운로드 설정</translation>
 <translation id="618635925649844912">이 정책은 최초 로그인 과정 중에 사용자에게 세션 내 AI 기능의 소개 화면 표시 여부를 제어합니다.
 
       사용 안함으로 설정하면 AI 소개 화면이 표시되지 않습니다.
@@ -8235,6 +8304,7 @@ Origin-Agent-Cluster: 헤더가 설정되지 않았을 때 M111의 기본값은 
 정책을 사용 중지하면 변경사항이 취소되고 Origin-Agent-Cluster: 헤더가 없는 문서는 사이트 관련 에이전트 클러스터에 할당됩니다. 그 결과 document.domain 접근자는 기본적으로 설정 가능한 상태로 유지됩니다. 이는 레거시 동작과 일치합니다.
 
 추가 세부정보는 다음을 참고하세요. https://developer.chrome.com/blog/immutable-document-domain/</translation>
+<translation id="626942726350419209">모든 사이트에서 여러 파일을 자동으로 다운로드하도록 허용</translation>
 <translation id="6270615143812355589">오디오 입력 사용 설정</translation>
 <translation id="6270791075656665237">QUIC 허용 안함</translation>
 <translation id="6273015149273504999">로그인 화면에서 사용자가 개입하지 않아도 자동 설치되며 사용자가 제거하거나 사용 중지할 수 없는 앱 및 확장 프로그램 목록을 지정합니다.
@@ -8642,6 +8712,7 @@ false로 설정하면 P2P가 사용되지 않습니다.
 
       참고: 현재 입력 방법이 지원되지 않으면 하드웨어 키보드 레이아웃(허용되는 경우) 또는 이 목록에서 가장 처음 유효한 항목으로 전환됩니다. 잘못되었거나 지원되지 않는 방법은 무시됩니다.</translation>
 <translation id="6483115462650732746">키오스크 모드에서 플로팅 접근성 메뉴 표시</translation>
+<translation id="6488321500788319000">리소스가 제한된 기기에서 지정된 출처에 사이트 격리 사용 설정</translation>
 <translation id="6491139795995924304">기기에서 블루투스 허용</translation>
 <translation id="6491305972928809525">키오스크 모드에서 플로팅 접근성 메뉴 표시 안함</translation>
 <translation id="6492177700737407141">고급 보호 프로그램에 등록된 사용자에게 일반적인 기본 보호 기능만 제공</translation>
@@ -8695,6 +8766,23 @@ false로 설정하면 P2P가 사용되지 않습니다.
 <translation id="651248769129998376">확장 프로그램 설치 요청을 만들거나 관리 콘솔에 업로드하지 않음</translation>
 <translation id="6513453889192806240">HTTPS 지연 시간</translation>
 <translation id="6515357889978918016"><ph name="PLUGIN_VM_NAME" /> 이미지</translation>
+<translation id="6515520014183265350">전용 프로세스에서 실행되는 출처 목록을 지정합니다.
+
+<ph name="ANDROID_NAME" />에서 이 정책은 메모리가 충분한 기기(반드시 3.2GB RAM 이상)에서만 작동합니다. 리소스가 제한된 기기에서 너무 많은 사이트를 격리하면 성능 문제가 발생할 수 있습니다. 리소스가 제한된 <ph name="ANDROID_NAME" /> 기기의 경우 <ph name="ISOLATE_ORIGINS_SHORTLIST_POLICY_NAME" /> 정책을 대신 사용하세요.
+
+메모리가 1GB 미만인 기기에는 특정 프로세스 격리를 구성하지 않는 것이 좋습니다.
+
+이름이 지정된 각 출처의 프로세스에는 해당 출처와 하위 도메인의 문서만 포함될 수 있습니다. 예를 들어 https://a1.example.com/을 지정하면 동일한 프로세스에는 https://a2.a1.example.com/만 허용되며 https://example.com 또는 https://b.example.com은 허용되지 않습니다.
+
+<ph name="PRODUCT_NAME" /> 77부터 와일드 카드를 사용해 격리할 출처의 범위를 지정할 수도 있습니다. 예를 들어 https://[*.]corp.example.com을 지정하면 https://corp.example.com 자체와 https://a1.corp.example.com, https://a2.a1.corp.example.com 등 https://corp.example.com에 속한 모든 출처에 전용 프로세스가 제공됩니다.
+
+<ph name="SITE_PER_PROCESS_POLICY_NAME" /> 정책에 명시된 바와 같이 모든 사이트(예: https://example.com 같은 스킴 플러스 eTLD+1)는 데스크톱 플랫폼에서 이미 기본적으로 격리되어 있습니다. 사이트보다 더 세부적인 수준으로 특정 출처를 격리하려면 <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> 정책을 사용하는 것이 유용합니다(예: https://a.example.com).
+
+<ph name="ANDROID_NAME" />에서는 <ph name="PRODUCT_NAME" /> 버전 77부터 기본적으로 민감한 특정 사이트가 격리됩니다. 이 정책을 설정하면 이 기본적인 격리 모드가 특정 출처를 추가로 격리하도록 확장됩니다.
+
+이 정책에 의해 격리된 출처는 동일한 사이트의 다른 출처를 스크립트할 수 없으며, 동일한 사이트 문서 두 개의 document.domain을 일치하는 값으로 수정하는 경우 스크립트할 수 있습니다. 관리자는 격리 전에 이 비정상적인 동작이 출처에서 발생하지 않는지 확인해야 합니다.
+
+정책을 설정하지 않거나 빈 문자열로 설정하면 특정 출처에 사이트 격리가 필요하지 않습니다. 사용자는 계속해서 명령줄 플래그를 통해 프로세스 격리를 직접 사용 설정할 수 있습니다.</translation>
 <translation id="6517859209214570623">정책을 설정하면 쿠키 설정이 불가한 사이트를 지정하는 URL 패턴 목록을 만들 수 있습니다.
 
       정책을 설정하지 않았을 때 <ph name="DEFAULT_COOKIES_SETTINGS_POLICY_NAME" />이 설정되어 있으면 모든 사이트에 사용되며 설정되어 있지 않다면 사용자의 개인 설정이 적용됩니다.
@@ -10450,6 +10538,7 @@ URL 패턴은 <ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FOR_URLS_P
 <translation id="759957074386651883">세이프 브라우징 설정</translation>
 <translation id="7602621823177962064">기기 메모리 정보 보고 사용 중지</translation>
 <translation id="7604169113182304895">Android 앱이 자발적으로 이 목록을 사용하도록 선택할 수 있습니다. 강제로 Android 앱에서 이 목록을 사용하도록 할 수 없습니다.</translation>
+<translation id="7607831126797434329">이 사이트에서 자동 다운로드 차단</translation>
 <translation id="7608186022704392724">PIN 자동 제출 기능은 <ph name="PRODUCT_OS_NAME" />에서 PIN이 입력되는 방식을 변경합니다.
           이 기능은 비밀번호 입력에 사용되는 텍스트 입력란을 표시하는 대신
           사용자에게 PIN에 필요한 자릿수를 명확히 보여주는
@@ -11588,7 +11677,6 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
 
           이 정책을 설정하지 않은 경우 'BlockKeygen'이 사용되며 사용자가 설정을 변경할 수 있습니다.</translation>
 <translation id="8314214821702356835">기기가 잠겨 있어도 사용자가 미디어를 재생할 수 있도록 허용합니다.</translation>
-<translation id="8314308739926578606">기업 정책에 의해 설치된 앱 및 확장 프로그램에서 개발자 도구 사용을 금지하며, 버전 114 이상을 사용 중이며 관리 사용자인 경우 브라우저에 내장된 확장 프로그램에서도 개발자 도구의 사용이 금지됩니다. 다른 컨텍스트에서는 개발자 도구의 사용이 허용됩니다.</translation>
 <translation id="8316940611391250886">subjectAlternativeName 확장이 없는 인증서 허용 안함</translation>
 <translation id="8319678975002906774">특정 웹사이트에 대한 관리형 구성을 특정 원본으로 설정합니다.</translation>
 <translation id="8320149248919453401">배터리 충전 모드</translation>

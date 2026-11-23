@@ -58,14 +58,19 @@ SqlSharedCacheIsolatedDatabase::DatabaseAssets::MaybeCreate(
                        sqlite_vfs::Client::kSharedCacheIsolated,
                        std::move(pending_file_set)),
                    [] { return nullptr; });
-  return std::make_unique<DatabaseAssets>(std::move(vfs_file_set),
+  return std::make_unique<DatabaseAssets>(directory, shared_cache_db_id,
+                                          std::move(vfs_file_set),
                                           base::PassKey<DatabaseAssets>());
 }
 
 SqlSharedCacheIsolatedDatabase::DatabaseAssets::DatabaseAssets(
+    const base::FilePath& directory,
+    SqlSharedCacheDbId shared_cache_db_id,
     sqlite_vfs::SqliteVfsFileSet vfs_file_set,
     base::PassKey<DatabaseAssets>)
-    : vfs_file_set_(std::move(vfs_file_set)),
+    : directory_(directory),
+      shared_cache_db_id_(shared_cache_db_id),
+      vfs_file_set_(std::move(vfs_file_set)),
       unregister_runner_(sqlite_vfs::SqliteSandboxedVfsDelegate::GetInstance()
                              ->RegisterSandboxedFiles(vfs_file_set_)),
       db_(sql::DatabaseOptions()
@@ -84,16 +89,37 @@ SqlSharedCacheIsolatedDatabase::DatabaseAssets::GetDbVirtualFilePath() const {
   return vfs_file_set_.GetDbVirtualFilePath();
 }
 
+base::expected<sqlite_vfs::PendingFileSet, sqlite_vfs::FileSetError>
+SqlSharedCacheIsolatedDatabase::DatabaseAssets::ShareConnection() {
+  return sqlite_vfs::ShareConnection(
+      directory_,
+      base::FilePath::FromASCII(
+          base::StrCat({kSqlBackendSharedCacheIsolatedFileNamePrefix,
+                        base::NumberToString(*shared_cache_db_id_)})),
+      vfs_file_set_, /*read_write=*/false);
+}
+
 SqlSharedCacheIsolatedDatabase::SqlSharedCacheIsolatedDatabase(
     std::string nik_string,
     const base::FilePath& directory,
-    SqlSharedCacheDbId shared_cache_db_id,
-    scoped_refptr<base::SequencedTaskRunner> task_runner)
+    SqlSharedCacheDbId shared_cache_db_id)
     : nik_string_(std::move(nik_string)),
-      db_assets_(DatabaseAssets::MaybeCreate(directory, shared_cache_db_id)),
-      task_runner_(std::move(task_runner)) {}
+      db_assets_(DatabaseAssets::MaybeCreate(directory, shared_cache_db_id)) {}
 
 SqlSharedCacheIsolatedDatabase::~SqlSharedCacheIsolatedDatabase() = default;
+
+base::expected<sqlite_vfs::PendingFileSet,
+               SqlSharedCacheIsolatedDatabase::Error>
+SqlSharedCacheIsolatedDatabase::GetSharedReadOnlyConnection() {
+  if (!db_assets_) {
+    return base::unexpected(Error::kFailedToOpenVfsFileSet);
+  }
+  auto pending_file_set = db_assets_->ShareConnection();
+  if (!pending_file_set.has_value()) {
+    return base::unexpected(Error::kFailedToShareConnection);
+  }
+  return std::move(*pending_file_set);
+}
 
 void SqlSharedCacheIsolatedDatabase::SetSimulateDbFailureForTesting(bool fail) {
   simulate_db_failure_ = fail;

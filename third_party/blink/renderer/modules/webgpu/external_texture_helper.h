@@ -16,10 +16,6 @@ namespace gfx {
 class ColorSpace;
 }  // namespace gfx
 
-namespace media {
-class PaintCanvasVideoRenderer;
-}  // namespace media
-
 namespace blink {
 
 class ExceptionState;
@@ -35,7 +31,6 @@ struct ColorSpaceConversionConstants {
 
 struct ExternalTextureSource {
   scoped_refptr<media::VideoFrame> media_video_frame = nullptr;
-  raw_ptr<media::PaintCanvasVideoRenderer> video_renderer = nullptr;
   std::optional<media::VideoFrame::ID> media_video_frame_unique_id =
       std::nullopt;
   bool valid = false;
@@ -68,8 +63,7 @@ ExternalTextureSource GetExternalTextureSourceFromVideoFrame(
 ExternalTexture CreateExternalTexture(
     GPUDevice* device,
     PredefinedColorSpace dst_predefined_color_space,
-    scoped_refptr<media::VideoFrame> media_video_frame,
-    media::PaintCanvasVideoRenderer* video_renderer);
+    scoped_refptr<media::VideoFrame> media_video_frame);
 }  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_WEBGPU_EXTERNAL_TEXTURE_HELPER_H_

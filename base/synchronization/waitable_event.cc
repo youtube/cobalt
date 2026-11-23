@@ -62,7 +62,7 @@ bool WaitableEvent::TimedWait(TimeDelta wait_delta, const Location& location) {
     // Always verify thread restrictions to avoid fortuitous allowance if it's
     // already signaled.
     internal::AssertBaseSyncPrimitivesAllowed();
-    if (IsSignaled()) {
+    if (IsDefinitelySignaled()) {
       return true;
     }
     scoped_blocking_call.emplace(location, BlockingType::WILL_BLOCK);
@@ -83,7 +83,7 @@ size_t WaitableEvent::WaitMany(base::span<WaitableEvent*> events) {
   DCHECK(!events.empty()) << "Cannot wait on no events";
 
   for (size_t i = 0; i < events.size(); ++i) {
-    if (events[i]->IsSignaled()) {
+    if (events[i]->IsDefinitelySignaled()) {
       return i;
     }
   }

@@ -1914,6 +1914,30 @@ TEST_F(PopupViewViewsTest, ExpandableSuggestionA11yMessageTest) {
       expected_a11y_name);
 }
 
+// Tests that Personal Context Notice view is created with valid accessibility
+// names.
+TEST_F(PopupViewViewsTest, PersonalContextNoticeViewCreated) {
+  controller().set_suggestions(
+      {Suggestion(SuggestionType::kPersonalContextNotice)});
+  CreateAndShowView();
+
+  PopupPersonalContextNoticeView* notice_view =
+      std::get<PopupPersonalContextNoticeView*>(test_api(view()).rows()[0]);
+  ASSERT_TRUE(notice_view);
+
+  ui::AXNodeData node_data;
+  // TODO(crbug.com/515651588): Check accessibility names once they are ready.
+  notice_view->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+  EXPECT_FALSE(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName)
+                   .empty());
+  ui::AXNodeData node_data_child_view;
+  notice_view->GetContentView().GetViewAccessibility().GetAccessibleNodeData(
+      &node_data_child_view);
+  EXPECT_FALSE(node_data_child_view
+                   .GetString16Attribute(ax::mojom::StringAttribute::kName)
+                   .empty());
+}
+
 TEST_F(PopupViewViewsTest, UpdateSuggestionsNoCrash) {
   CreateAndShowView({SuggestionType::kAddressEntry, SuggestionType::kSeparator,
                      SuggestionType::kManageAddress});

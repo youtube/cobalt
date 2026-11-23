@@ -58,7 +58,7 @@ if (use_system_harfbuzz) {
     bindgen_deps = [ ":hb_rs_generator" ]
     deps = [
       "//third_party/rust/font_types/v0_12:lib",
-      "//third_party/rust/harfrust/v0_9:lib",
+      "//third_party/rust/harfrust/v0_10:lib",
       "//third_party/rust/read_fonts/v0_40:lib",
       "//third_party/rust/skrifa/v0_43:lib",
       "//third_party/rust/smallvec/v1:lib",
@@ -425,12 +425,10 @@ if (use_system_harfbuzz) {
       "src/src/hb-raster-image.hh",
       "src/src/hb-raster-paint.cc",
       "src/src/hb-raster-paint.hh",
-      "src/src/hb-raster.cc",
       "src/src/hb-raster.h",
       "src/src/hb-raster.hh",
       "src/src/hb-style.cc",
       "src/src/hb-style.h",
-      "src/src/hb-subset-cff2-to-cff1.cc",
       "src/src/hb-subset-cff2-to-cff1.hh",
       "src/src/hb-uniscribe.cc",
       "src/src/hb-uniscribe.h",
@@ -559,7 +557,7 @@ if (use_system_harfbuzz) {
     deps = [
       ":harfbuzz_rust",
       "//third_party/icu:icuuc",
-      "//third_party/rust/harfrust/v0_9:lib",
+      "//third_party/rust/harfrust/v0_10:lib",
     ]
 
     if (use_glib) {

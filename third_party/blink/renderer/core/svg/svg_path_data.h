@@ -64,6 +64,8 @@ static inline bool IsAbsolutePathSegType(const SVGPathSegType type) {
 }
 
 // Command letter for each SVGPathSegType, indexed by enum value.
+// TODO(crbug.com/40441025): Unify the parallel command switches with a
+// descriptor.
 inline constexpr auto kPathSegmentCharacter = std::to_array<char>({
     0,    // kPathSegUnknown
     'Z',  // kPathSegClosePath
@@ -86,6 +88,55 @@ inline constexpr auto kPathSegmentCharacter = std::to_array<char>({
     'T',  // kPathSegCurveToQuadraticSmoothAbs
     't',  // kPathSegCurveToQuadraticSmoothRel
 });
+
+// Inverse of kPathSegmentCharacter; kPathSegUnknown for unrecognized letters.
+// TODO(crbug.com/40441025): Derive from kPathSegmentCharacter to avoid
+// duplication.
+inline SVGPathSegType MapLetterToSegmentType(unsigned letter) {
+  switch (letter) {
+    case 'Z':
+    case 'z':
+      return kPathSegClosePath;
+    case 'M':
+      return kPathSegMoveToAbs;
+    case 'm':
+      return kPathSegMoveToRel;
+    case 'L':
+      return kPathSegLineToAbs;
+    case 'l':
+      return kPathSegLineToRel;
+    case 'C':
+      return kPathSegCurveToCubicAbs;
+    case 'c':
+      return kPathSegCurveToCubicRel;
+    case 'Q':
+      return kPathSegCurveToQuadraticAbs;
+    case 'q':
+      return kPathSegCurveToQuadraticRel;
+    case 'A':
+      return kPathSegArcAbs;
+    case 'a':
+      return kPathSegArcRel;
+    case 'H':
+      return kPathSegLineToHorizontalAbs;
+    case 'h':
+      return kPathSegLineToHorizontalRel;
+    case 'V':
+      return kPathSegLineToVerticalAbs;
+    case 'v':
+      return kPathSegLineToVerticalRel;
+    case 'S':
+      return kPathSegCurveToCubicSmoothAbs;
+    case 's':
+      return kPathSegCurveToCubicSmoothRel;
+    case 'T':
+      return kPathSegCurveToQuadraticSmoothAbs;
+    case 't':
+      return kPathSegCurveToQuadraticSmoothRel;
+    default:
+      return kPathSegUnknown;
+  }
+}
 
 struct PathSegmentData {
   DISALLOW_NEW();

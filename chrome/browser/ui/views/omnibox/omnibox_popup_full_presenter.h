@@ -17,8 +17,7 @@ class OmniboxController;
 
 // Implements subclass of OmniboxPopupPresenterBase to present a single full
 // WebUI (input row + suggestions dropdown) into the Omnibox popup.
-class OmniboxPopupFullPresenter : public OmniboxPopupPresenterBase,
-                                  public views::WidgetObserver {
+class OmniboxPopupFullPresenter : public OmniboxPopupPresenterBase {
  public:
   OmniboxPopupFullPresenter(LocationBar* location_bar,
                             OmniboxPopupPresenterDelegate& presenter_delegate,
@@ -48,13 +47,7 @@ class OmniboxPopupFullPresenter : public OmniboxPopupPresenterBase,
   void WidgetDestroyed() override;
 
  private:
-  // views::WidgetObserver:
-  void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
-
   void StopForwardingEvents();
-
-  base::ScopedObservation<views::Widget, views::WidgetObserver>
-      widget_observation_{this};
 
   // Timer to stop forwarding events after a short delay.
   base::OneShotTimer forward_events_timer_;

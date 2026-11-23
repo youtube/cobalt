@@ -73,4 +73,21 @@ public class WebappAuthenticatorTest {
                 WebappAuthenticator.MAC_INVALID,
                 WebappAuthenticator.verifyMac(url, null, macWithIcon));
     }
+
+    @Test
+    @SmallTest
+    @Feature({"Webapps"})
+    public void testAuthenticationFieldBoundaries() {
+        String url = "https://attacker.example/app/";
+        String icon = "PAYLOAD_LEGIT_ICON";
+        byte[] mac = WebappAuthenticator.getMacForUrlAndIcon(url, icon);
+        Assert.assertNotNull(mac);
+
+        // Shift boundary between url and icon
+        String shiftedUrl = "https://attacker.example/app/PAYLOAD_";
+        String shiftedIcon = "LEGIT_ICON";
+        Assert.assertEquals(
+                WebappAuthenticator.MAC_INVALID,
+                WebappAuthenticator.verifyMac(shiftedUrl, shiftedIcon, mac));
+    }
 }

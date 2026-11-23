@@ -115,7 +115,7 @@ base::span<const TaskManagerView::FilterTab> GetTabDefinitions() {
 
 TaskManagerView::~TaskManagerView() {
   // Delete child views now, while our table model still exists.
-  tabs_ = nullptr;  // Destroyed by `container` below.
+  tabs_ = nullptr;
   tab_table_ = nullptr;
   RemoveAllChildViews();
 
@@ -257,7 +257,7 @@ bool TaskManagerView::AcceleratorPressed(const ui::Accelerator& accelerator) {
 }
 
 views::View* TaskManagerView::GetInitiallyFocusedView() {
-  // Set initial focus to |table_view_| so that screen readers can navigate the
+  // Set initial focus to |tab_table_| so that screen readers can navigate the
   // UI when the dialog is opened without having to manually assign focus first.
   return tab_table_;
 }
@@ -373,7 +373,7 @@ void TaskManagerView::SearchBarOnInputChanged(std::u16string_view query) {
 }
 
 TaskManagerView::TaskManagerView(StartAction start_action)
-    : table_config_(GetTableConfigs()), is_always_on_top_(false) {
+    : is_always_on_top_(false) {
   task_manager::RecordNewOpenEvent(start_action);
   set_use_custom_frame(false);
   SetHasWindowSizeControls(true);
@@ -394,16 +394,6 @@ TaskManagerView::TaskManagerView(StartAction start_action)
 // static
 TaskManagerView* TaskManagerView::GetInstanceForTests() {
   return g_task_manager_view;
-}
-
-// static
-TaskManagerView::TableConfigs TaskManagerView::GetTableConfigs() {
-  return TableConfigs{
-      .table_has_border = false,
-      .table_refresh = true,
-      .dialog_button_disabled = true,
-      .sort_on_cpu_by_default = true,
-  };
 }
 
 void TaskManagerView::TabSelectedAt(int index) {
@@ -570,10 +560,9 @@ std::unique_ptr<views::View> TaskManagerView::CreateSearchBar(
 }
 
 std::unique_ptr<views::ScrollView> TaskManagerView::CreateProcessView(
-    std::unique_ptr<views::TableView> tab_table,
-    bool table_has_border) {
+    std::unique_ptr<views::TableView> tab_table) {
   auto scroll_view = views::TableView::CreateScrollViewWithTable(
-      std::move(tab_table), table_has_border);
+      std::move(tab_table), /*has_border=*/false);
 
   scroll_view->SetLayoutManager(std::make_unique<views::FillLayout>());
   scroll_view->SetProperty(
@@ -635,22 +624,20 @@ void TaskManagerView::Init() {
       /*header_sort_state=*/true);
   tab_table->SetHeaderStyle(header_style);
 
-  if (table_config_.table_refresh) {
-    views::TableStyle table_style = {
-        .background_tokens =
-            views::TableBackgroundStyle{
-                .background = kColorTaskManagerTableBackground,
-                .alternate = kColorTaskManagerTableBackgroundAlternate,
-                .selected_focused =
-                    kColorTaskManagerTableBackgroundSelectedFocused,
-                .selected_unfocused =
-                    kColorTaskManagerTableBackgroundSelectedUnfocused,
-            },
-        .icons_have_background = true,
-        .inset_focus_ring = true,
-    };
-    tab_table->SetTableStyle(table_style);
-  }
+  views::TableStyle table_style = {
+      .background_tokens =
+          views::TableBackgroundStyle{
+              .background = kColorTaskManagerTableBackground,
+              .alternate = kColorTaskManagerTableBackgroundAlternate,
+              .selected_focused =
+                  kColorTaskManagerTableBackgroundSelectedFocused,
+              .selected_unfocused =
+                  kColorTaskManagerTableBackgroundSelectedUnfocused,
+          },
+      .icons_have_background = true,
+      .inset_focus_ring = true,
+  };
+  tab_table->SetTableStyle(table_style);
 
   // Margins around all contents
   const gfx::Insets dialog_insets =
@@ -673,8 +660,8 @@ void TaskManagerView::Init() {
   CreateHeader(provider);
 
   // Add Process List (a.k.a Scroll View)
-  auto* tab_table_parent = AddChildView(
-      CreateProcessView(std::move(tab_table), table_config_.table_has_border));
+  auto* tab_table_parent =
+      AddChildView(CreateProcessView(std::move(tab_table)));
 
   tab_table_parent->SetPaintToLayer(ui::LAYER_TEXTURED);
 
@@ -683,8 +670,7 @@ void TaskManagerView::Init() {
       gfx::RoundedCornersF(corner_radius));
   scroll_view_layer->SetIsFastRoundedCorner(true);
 
-  table_model_->RetrieveSavedColumnsSettingsAndUpdateTable(
-      table_config_.sort_on_cpu_by_default);
+  table_model_->RetrieveSavedColumnsSettingsAndUpdateTable(true);
 
   RestoreSavedCategory();
 

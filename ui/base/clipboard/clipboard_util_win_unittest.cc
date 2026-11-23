@@ -204,6 +204,72 @@ class MockVirtualFilesDataObject
   IFACEMETHODIMP EnumDAdvise(IEnumSTATDATA**) override { return E_NOTIMPL; }
 };
 
+// Emits a FILEGROUPDESCRIPTORW that allocates room for `allocated_items`
+// descriptors but reports `claimed_items` in cItems. Callers decide what those
+// counts represent.
+class MockMalformedVirtualFilesDataObject
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          IDataObject> {
+ public:
+  MockMalformedVirtualFilesDataObject(size_t allocated_items,
+                                      unsigned int claimed_items)
+      : allocated_items_(allocated_items), claimed_items_(claimed_items) {}
+
+  IFACEMETHODIMP GetData(FORMATETC* format_etc, STGMEDIUM* medium) override {
+    if (!format_etc || !medium) {
+      return E_INVALIDARG;
+    }
+    if (format_etc->cfFormat ==
+        ClipboardFormatType::FileDescriptorType().ToFormatEtc().cfFormat) {
+      size_t fgd_size = sizeof(FILEGROUPDESCRIPTORW) +
+                        allocated_items_ * sizeof(FILEDESCRIPTORW);
+      HGLOBAL hglobal = ::GlobalAlloc(GHND, fgd_size);
+      auto* fgd = static_cast<FILEGROUPDESCRIPTORW*>(::GlobalLock(hglobal));
+      fgd->cItems = claimed_items_;
+      ::GlobalUnlock(hglobal);
+      medium->tymed = TYMED_HGLOBAL;
+      medium->hGlobal = hglobal;
+      medium->pUnkForRelease = nullptr;
+      return S_OK;
+    }
+    return DV_E_FORMATETC;
+  }
+
+  IFACEMETHODIMP QueryGetData(FORMATETC* format_etc) override {
+    if (!format_etc) {
+      return E_INVALIDARG;
+    }
+    if (format_etc->cfFormat ==
+        ClipboardFormatType::FileDescriptorType().ToFormatEtc().cfFormat) {
+      return S_OK;
+    }
+    return DV_E_FORMATETC;
+  }
+
+  IFACEMETHODIMP GetDataHere(FORMATETC*, STGMEDIUM*) override {
+    return E_NOTIMPL;
+  }
+  IFACEMETHODIMP GetCanonicalFormatEtc(FORMATETC*, FORMATETC*) override {
+    return E_NOTIMPL;
+  }
+  IFACEMETHODIMP SetData(FORMATETC*, STGMEDIUM*, BOOL) override {
+    return E_NOTIMPL;
+  }
+  IFACEMETHODIMP EnumFormatEtc(DWORD, IEnumFORMATETC**) override {
+    return E_NOTIMPL;
+  }
+  IFACEMETHODIMP DAdvise(FORMATETC*, DWORD, IAdviseSink*, DWORD*) override {
+    return E_NOTIMPL;
+  }
+  IFACEMETHODIMP DUnadvise(DWORD) override { return E_NOTIMPL; }
+  IFACEMETHODIMP EnumDAdvise(IEnumSTATDATA**) override { return E_NOTIMPL; }
+
+ private:
+  const size_t allocated_items_;
+  const unsigned int claimed_items_;
+};
+
 using ClipboardUtilWinTest = PlatformTest;
 
 TEST_F(ClipboardUtilWinTest, EmptyHtmlToCFHtml) {
@@ -318,6 +384,19 @@ TEST_F(ClipboardUtilWinTest, GetFileContents) {
                                               &file_contents));
   EXPECT_EQ(filename, L"File1.txt");
   EXPECT_EQ(base::span(file_contents), base::byte_span_from_cstring("test"));
+}
+
+TEST_F(ClipboardUtilWinTest, GetVirtualFilenamesRejectsOversizedItemCount) {
+  // Buffer holds one descriptor but claims twenty, modeling a malicious OLE
+  // drag source; must be rejected with no out-of-bounds read.
+  Microsoft::WRL::ComPtr<IDataObject> data_object =
+      Microsoft::WRL::Make<MockMalformedVirtualFilesDataObject>(
+          /*allocated_items=*/1u, /*claimed_items=*/20u);
+
+  std::optional<std::vector<base::FilePath>> filenames =
+      clipboard_util::GetVirtualFilenames(data_object.Get());
+
+  EXPECT_FALSE(filenames.has_value());
 }
 
 }  // namespace

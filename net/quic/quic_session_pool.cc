@@ -556,7 +556,9 @@ QuicSessionPool::QuicCryptoClientConfigOwner::QuicCryptoClientConfigOwner(
     QuicSessionPool* quic_session_pool)
     : network_anonymization_key_(std::move(network_anonymization_key)),
       config_(std::move(proof_verifier), std::move(session_cache)),
-      clock_(base::DefaultClock::GetInstance()),
+      clock_(quic_session_pool->clock_for_testing_
+                 ? quic_session_pool->clock_for_testing_.get()
+                 : base::DefaultClock::GetInstance()),
       max_cache_entries_(max_cache_entries),
       quic_session_pool_(quic_session_pool) {
   DCHECK(quic_session_pool_);
@@ -589,11 +591,17 @@ void QuicSessionPool::QuicCryptoClientConfigOwner::OnMemoryPressure(
     return;
   }
 
+  uint64_t now_u64 = std::max<int64_t>(0, clock_->Now().ToTimeT());
+
+  // Under the global ignore memory pressure experiment, we evict expired
+  // entries instead of ignoring memory pressure completely.
   if (base::FeatureList::IsEnabled(
           features::kIgnoreQuicCryptoConfigMemoryPressure)) {
-    // We are experimenting with ignoring memory pressure for all network
-    // isolation partitions to improve the cache hit rate of all Quic sessions,
-    // especially for memory-constrained devices.
+    if (memory_pressure_level == base::MEMORY_PRESSURE_LEVEL_MODERATE ||
+        memory_pressure_level == base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+      session_cache->RemoveExpiredEntries(
+          quic::QuicWallTime::FromUNIXSeconds(now_u64));
+    }
     return;
   }
 
@@ -617,11 +625,6 @@ void QuicSessionPool::QuicCryptoClientConfigOwner::OnMemoryPressure(
     return;
   }
 
-  time_t now = clock_->Now().ToTimeT();
-  uint64_t now_u64 = 0;
-  if (now > 0) {
-    now_u64 = static_cast<uint64_t>(now);
-  }
   switch (memory_pressure_level) {
     case base::MEMORY_PRESSURE_LEVEL_NONE:
       break;

@@ -332,6 +332,7 @@ constexpr char kDrivePickerHostName[] = "drive_picker_host";
 constexpr char kMultistepFilterName[] = "multistep_filter";
 constexpr char kContextMemoryServiceName[] = "context_memory_service";
 constexpr char kSyncPreviewName[] = "chromesync_preview";
+constexpr char kContextContainersServiceName[] = "context_containers_service";
 }  // namespace
 
 namespace signin {
@@ -790,6 +791,10 @@ OAuthConsumer OAuthConsumerRegistry::GetOAuthConsumerFromId(
       return OAuthConsumer(
           /*name=*/kFpopServiceName,
           /*scopes=*/{kFpopOAuth2Scope});
+    case OAuthConsumerId::kContextContainersService:
+      return OAuthConsumer(
+          /*name=*/kContextContainersServiceName,
+          /*scopes=*/{GaiaConstants::kGoogleUserInfoEmail});
   }
 }
 

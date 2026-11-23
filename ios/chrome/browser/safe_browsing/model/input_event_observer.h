@@ -21,6 +21,9 @@ class InputEventObserver {
   // Called when text is pasted.
   virtual void OnPaste(std::string text) {}
 
+  // Called when a paste keyboard shortcut (Cmd+V/Ctrl+V) is detected.
+  virtual void OnPasteKeyDetected() {}
+
   // Returns the WebState for which events are being observed.
   virtual web::WebState* web_state() const = 0;
 };

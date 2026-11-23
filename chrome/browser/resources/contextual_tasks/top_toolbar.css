@@ -100,3 +100,7 @@ cr-icon-button {
 cr-icon-button[hidden] {
   display: none;
 }
+
+#overflowMenuButton.active {
+  background-color: var(--cr-active-background-color);
+}

@@ -241,6 +241,29 @@ class BundleJsTest(unittest.TestCase):
     depfile_d = self._read_out_file('depfile.d')
     self._check_dep_file(['src/bar.js'], depfile_d)
 
+  # Tests that the generated rollup.config.mjs is reproducible across build
+  # roots: it must store the input root relative to the cwd, not bake in an
+  # absolute path that varies per checkout/sandbox/output dir.
+  def testRollupConfigIsBuildRootIndependent(self):
+    args = [
+        '--host',
+        'fake-host',
+        '--js_module_in_files',
+        'foo_ui.js',
+    ]
+    self._run_bundle(args)
+
+    config = self._read_out_file('rollup.config.mjs')
+
+    input_path = os.path.join(_HERE_DIR, 'tests', 'bundle_js', 'src')
+    abs_input_path = os.path.abspath(input_path).replace('\\', '/')
+    rel_input_path = os.path.relpath(abs_input_path, _CWD).replace('\\', '/')
+
+    # The absolute input root must not be baked into the generated config.
+    self.assertNotIn(abs_input_path, config)
+    # Instead it is stored relative to the cwd and resolved back at load time.
+    self.assertIn("resolve('%s')" % rel_input_path, config)
+
   def testSimpleBundleExcludesCss(self):
     args = [
         '--host',

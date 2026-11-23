@@ -1438,8 +1438,8 @@ policies:
   1437: KrispNoiseCancellationEnabled
   1438: AndroidEntraSsoEnabled
   1439: FindsSettings
-  1440: MetricsReportingLevel
-  1441: DeviceMetricsReportingLevel
+  1440: ''
+  1441: ''
   1442: CpuPerformanceTierOverride
   1443: ForceForegroundPriorityForUrls
   1444: DataUrlInWebWorkerOpaqueOriginEnabled
@@ -1463,6 +1463,10 @@ policies:
   1462: DefaultAutomaticDownloadsSetting
   1463: AutomaticDownloadsAllowedForUrls
   1464: AutomaticDownloadsBlockedForUrls
+  1465: VoiceTypingSettings
+  1466: ProxyProvisioningDomains
+  1467: ThirdPartyAiChatSettings
+  1468: ProcessIsolationEnabled
 
 atomic_groups:
   1: Homepage

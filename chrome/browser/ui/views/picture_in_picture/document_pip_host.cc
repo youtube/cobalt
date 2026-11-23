@@ -8,6 +8,8 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
+#include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_contents_view.h"
@@ -15,8 +17,11 @@
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_frame_view.h"
 #include "chrome/browser/ui/views/picture_in_picture/document_pip_widget_delegate.h"
 #include "chrome/browser/ui/views/picture_in_picture/picture_in_picture_tucker.h"
+#include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/javascript_dialogs/tab_modal_dialog_manager.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
+#include "components/permissions/permission_recovery_success_rate_tracker.h"
+#include "components/permissions/permission_request_manager.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/media_stream_request.h"
 #include "content/public/browser/render_frame_host.h"
@@ -32,6 +37,10 @@
 #include "ui/views/window/non_client_view.h"
 #include "url/origin.h"
 
+#if BUILDFLAG(IS_MAC)
+#include "chrome/browser/ui/views/picture_in_picture/document_pip_native_widget_mac.h"
+#endif
+
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
@@ -43,10 +52,7 @@ namespace {
 // Resolves the extension (if any) that owns `security_origin`, mirroring
 // Browser::GetExtensionForOrigin so media-capture requests from extension
 // pages are attributed to the right extension.
-// TODO(crbug.com/515252142): Currently unused while the media-permission path
-// is stubbed out (see RequestMediaAccessPermission/CheckMediaAccessPermission);
-// the [[maybe_unused]] attribute can be dropped once Task 7 restores them.
-[[maybe_unused]] const extensions::Extension* GetExtensionForOrigin(
+const extensions::Extension* GetExtensionForOrigin(
     Profile* profile,
     const GURL& security_origin) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -143,7 +149,26 @@ void DocumentPipHost::CreateAndShowPipWindow(
   params.bounds = initial_bounds;
 
   widget_ = std::make_unique<views::Widget>();
+#if BUILDFLAG(IS_MAC)
+  // Give the borderless PiP window the default macOS styling (rounded corners +
+  // drop shadow) so it matches the Browser-backed Document PiP window. The
+  // Widget takes ownership of the native widget. Safety: the native widget's
+  // delegate is `widget_`, which owns it, so it cannot outlive the widget.
+  params.native_widget = new DocumentPipNativeWidgetMac(widget_.get());
+#endif
   widget_->Init(std::move(params));
+  // Now that the Widget (and its native window) exist and Init has applied the
+  // InitParams bounds, recompute the outer bounds to honor a requested inner
+  // (web-contents) size. This must run *after* Init: Init applies the
+  // InitParams bounds last, so doing this from the frame view's AddedToWidget()
+  // (which fires mid-Init) would be clobbered, leaving the window one top-bar
+  // height too short. Mirrors the Browser-backed recompute in
+  // PictureInPictureBrowserFrameView::OnBrowserViewInitialized.
+  if (auto* frame_view = views::AsViewClass<DocumentPipFrameView>(
+          widget_->non_client_view()->frame_view())) {
+    frame_view->UpdateWindowBoundsForRequestedInnerSize();
+  }
+
   // Intercept external close paths (OS close button, DialogDelegate, etc.) so
   // they route through our teardown logic.
   // Safety: `this` owns `widget_` via unique_ptr, so the widget (and its
@@ -151,14 +176,10 @@ void DocumentPipHost::CreateAndShowPipWindow(
   widget_->MakeCloseSynchronous(base::BindOnce(
       &DocumentPipHost::OnWidgetCloseRequested, base::Unretained(this)));
 
-  // Attach a JavaScript dialog manager so alert()/confirm()/prompt() dialogs
-  // from the PiP document are shown window-modal to the PiP widget. TabHelpers
-  // would normally do this for a tabbed WebContents, but the standalone PiP
-  // child WebContents is not a tab, so wire it up directly with a PiP-specific
-  // delegate that does not depend on Browser/TabStripModel.
-  javascript_dialogs::TabModalDialogManager::CreateForWebContents(
-      GetChildWebContents(),
-      std::make_unique<DocumentPipDialogManagerDelegate>(widget_.get()));
+  // The child WebContents is not a tab, so TabHelpers never runs for it. Wire
+  // up the helpers a standalone PiP child needs directly. Done after `widget_`
+  // is initialized because the dialog manager anchors to it.
+  CreateChildWebContentsHelpers(GetChildWebContents());
 
   widget_->Show();
 }
@@ -532,46 +553,63 @@ void DocumentPipHost::RequestMediaAccessPermission(
     content::WebContents* web_contents,
     const content::MediaStreamRequest& request,
     content::MediaResponseCallback callback) {
-  // TODO(crbug.com/515252142): Wire camera/mic permission requests once the
-  // standalone permission-prompt surface exists (Task 7). The permission
-  // dialog stack assumes the requesting WebContents is hosted by a Browser, so
-  // routing this through MediaCaptureDevicesDispatcher would crash for the
-  // standalone Document PiP window. Until then, deny the request so the
-  // renderer's getUserMedia() promise rejects cleanly instead of hanging.
-  //
-  // const extensions::Extension* extension =
-  //     GetExtensionForOrigin(GetProfile(), request.security_origin);
-  // MediaCaptureDevicesDispatcher::GetInstance()->ProcessMediaAccessRequest(
-  //     web_contents, request, std::move(callback), extension);
-  std::move(callback).Run(
-      blink::mojom::StreamDevicesSet(),
-      blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED,
-      /*ui=*/nullptr);
+  // Route camera/mic requests through the normal media-permission stack. The
+  // child WebContents has its own PermissionRequestManager (created in
+  // CreateAndShowPipWindow), so any prompt anchors to the PiP frame's location
+  // icon rather than a Browser toolbar.
+  const extensions::Extension* extension =
+      GetExtensionForOrigin(GetProfile(), request.security_origin);
+  MediaCaptureDevicesDispatcher::GetInstance()->ProcessMediaAccessRequest(
+      web_contents, request, std::move(callback), extension);
 }
 
 bool DocumentPipHost::CheckMediaAccessPermission(
     content::RenderFrameHost* render_frame_host,
     const url::Origin& security_origin,
     blink::mojom::MediaStreamType type) {
-  // TODO(crbug.com/515252142): Restore the real permission-state lookup once
-  // the standalone permission-prompt surface exists (Task 7). Camera/mic access
-  // cannot be granted through the UI in the standalone Document PiP window yet,
-  // so report no permission rather than surfacing state the user has no way to
-  // act on.
-  //
-  // Profile* profile =
-  //     Profile::FromBrowserContext(render_frame_host->GetBrowserContext());
-  // const extensions::Extension* extension =
-  //     GetExtensionForOrigin(profile, security_origin.GetURL());
-  // return MediaCaptureDevicesDispatcher::GetInstance()
-  //     ->CheckMediaAccessPermission(render_frame_host, security_origin, type,
-  //                                  extension);
-  return false;
+  Profile* profile =
+      Profile::FromBrowserContext(render_frame_host->GetBrowserContext());
+  const extensions::Extension* extension =
+      GetExtensionForOrigin(profile, security_origin.GetURL());
+  return MediaCaptureDevicesDispatcher::GetInstance()
+      ->CheckMediaAccessPermission(render_frame_host, security_origin, type,
+                                   extension);
 }
 
 // =============================================================================
 // Private helpers
 // =============================================================================
+
+void DocumentPipHost::CreateChildWebContentsHelpers(
+    content::WebContents* child_web_contents) {
+  // Create PageSpecificContentSettings so media grants from the PiP document
+  // are recorded on the child and mirrored onto the opener via the PiP
+  // synced-settings path (MaybeGetSyncedSettingsForPictureInPicture). Without
+  // it, PermissionBubbleMediaAccessHandler::UpdatePageSpecificContentSettings()
+  // finds no instance for the child frame and drops the grant, so the opener's
+  // content-setting icons (e.g. camera) never light up. Mirrors TabHelpers.
+  content_settings::PageSpecificContentSettings::CreateForWebContents(
+      child_web_contents, std::make_unique<PageSpecificContentSettingsDelegate>(
+                              child_web_contents));
+
+  // Create the PermissionRequestManager so camera/mic prompts triggered from
+  // the PiP document have a manager to drive them; the prompt anchors to the
+  // PiP frame's location icon via the shared bubble-anchor path.
+  permissions::PermissionRequestManager::CreateForWebContents(
+      child_web_contents);
+
+  // PageSpecificContentSettingsDelegate::UpdateLocationBar() expects the
+  // permission recovery tracker to be available when camera/mic are accessed.
+  permissions::PermissionRecoverySuccessRateTracker::CreateForWebContents(
+      child_web_contents);
+
+  // Attach a JavaScript dialog manager so alert()/confirm()/prompt() dialogs
+  // from the PiP document are shown window-modal to the PiP widget, using a
+  // PiP-specific delegate that does not depend on Browser/TabStripModel.
+  javascript_dialogs::TabModalDialogManager::CreateForWebContents(
+      child_web_contents,
+      std::make_unique<DocumentPipDialogManagerDelegate>(widget_.get()));
+}
 
 void DocumentPipHost::ClosePipWindow() {
   // Clear the child's delegate before tearing down, since the host set itself

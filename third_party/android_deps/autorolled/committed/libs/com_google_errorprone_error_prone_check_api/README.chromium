@@ -1,0 +1,16 @@
+Name: error-prone check api
+Short Name: error_prone_check_api
+URL: https://repo.maven.apache.org/maven2/com/google/errorprone/error_prone_check_api/2.50.0/error_prone_check_api-2.50.0.jar
+Version: 2.50.0
+Update Mechanism: Autoroll
+License: Apache-2.0
+License File: LICENSE
+CPEPrefix: unknown
+Security Critical: no
+Shipped: no
+
+Description:
+Errorprone error prone check api pulled in via gradle.
+
+Local Modifications:
+No modifications.

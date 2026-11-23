@@ -12,6 +12,7 @@
 #include "base/files/file_util.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/strings/string_view_util.h"
 #include "base/test/gtest_util.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
@@ -21,7 +22,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if !BUILDFLAG(IS_CHROMEOS)
-#include "third_party/boringssl/src/include/openssl/hpke.h"
+#include "crypto/hpke.h"
+#include "crypto/keypair.h"
 #endif
 
 namespace variations {
@@ -166,16 +168,9 @@ TEST(VariationsCommandLineTest, EncryptToString_ProdKey) {
 // passing doesn't necessary mean that in prod the server can decrypt the
 // reports.
 TEST(VariationsCommandLineTest, EncryptToString_EncryptAndDecryptUsingTestKey) {
-  EVP_HPKE_KEY* hpke_key = EVP_HPKE_KEY_new();
-  int result = EVP_HPKE_KEY_generate(hpke_key, EVP_hpke_x25519_hkdf_sha256());
-  EXPECT_EQ(result, 1);
-
-  std::vector<uint8_t> public_key(EVP_HPKE_MAX_PUBLIC_KEY_LENGTH, 0);
-  size_t public_key_len;
-  result = EVP_HPKE_KEY_public_key(hpke_key, public_key.data(), &public_key_len,
-                                   EVP_HPKE_MAX_PUBLIC_KEY_LENGTH);
-  EXPECT_EQ(result, 1);
-  public_key.resize(public_key_len);
+  const auto recipient = crypto::keypair::PrivateKey::GenerateX25519();
+  const auto recipient_pub =
+      crypto::keypair::PublicKey::FromPrivateKey(recipient);
 
   VariationsCommandLine vc;
   vc.field_trial_states = "trial1/group1/*trial2/group2";
@@ -183,41 +178,19 @@ TEST(VariationsCommandLineTest, EncryptToString_EncryptAndDecryptUsingTestKey) {
   vc.enable_features = "feature1<trial1";
   vc.disable_features = "feature2<trial2";
   std::vector<uint8_t> ciphertext;
-  size_t enc_len;
-  auto status = vc.EncryptToStringForTesting(&ciphertext, public_key, &enc_len);
+  auto status = vc.EncryptToStringForTesting(&ciphertext, recipient_pub);
   EXPECT_EQ(status, VariationsStateEncryptionStatus::kSuccess);
-  EXPECT_GT(enc_len, 0u);
 
-  base::span<uint8_t> enc_span = base::span(ciphertext).subspan(0u, enc_len);
-  base::span<uint8_t> ciphertext_span = base::span(ciphertext).subspan(enc_len);
-  bssl::ScopedEVP_HPKE_CTX ctx;
-  result = EVP_HPKE_CTX_setup_recipient(
-      /*ctx=*/ctx.get(),
-      /*key=*/hpke_key,
-      /*kdf=*/EVP_hpke_hkdf_sha256(),
-      /*aead=*/EVP_hpke_aes_256_gcm(),
-      /*enc=*/enc_span.data(),
-      /*enc_len=*/enc_len,
-      /*info=*/nullptr,
-      /*info_len=*/0);
-  EXPECT_EQ(result, 1);
-  std::vector<uint8_t> decrypted(ciphertext_span.size(), 0);
-  size_t decrypted_len;
+  constexpr crypto::hpke::HpkeParams kParams = {
+      .kem = crypto::hpke::KemType::kX25519HkdfSha256,
+      .kdf = crypto::hpke::KdfType::kHkdfSha256,
+      .aead = crypto::hpke::AeadType::kAes256Gcm,
+  };
+  const std::optional<std::vector<uint8_t>> result =
+      crypto::hpke::Open(kParams, recipient, ciphertext, {}, {});
 
-  result = EVP_HPKE_CTX_open(
-      /*ctx=*/ctx.get(),
-      /*out=*/decrypted.data(),
-      /*out_len=*/&decrypted_len,
-      /*max_out_len=*/decrypted.size(),
-      /*in=*/ciphertext_span.data(),
-      /*in_len=*/ciphertext_span.size(),
-      /*ad=*/nullptr,
-      /*ad_len=*/0);
-  EXPECT_EQ(result, 1);
-  decrypted.resize(decrypted_len);
-
-  EXPECT_EQ(std::string(decrypted.begin(), decrypted.end()), vc.ToString());
-  EVP_HPKE_KEY_free(hpke_key);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(base::as_string_view(*result), vc.ToString());
 }
 #endif
 

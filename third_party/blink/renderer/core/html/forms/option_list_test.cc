@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/testing/null_execution_context.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/testing/task_environment.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
 
@@ -30,12 +31,18 @@ class OptionListTest : public testing::Test {
     auto* select = MakeGarbageCollected<HTMLSelectElement>(*document);
     document->AppendChild(select);
     select_ = select;
+    document_ = document;
   }
+  Document& GetDocument() const { return *document_; }
   HTMLSelectElement& Select() const { return *select_; }
+  Element* GetElementById(const char* id) const {
+    return document_->getElementById(AtomicString(id));
+  }
 
  private:
   test::TaskEnvironment task_environment_;
   ScopedNullExecutionContext execution_context_;
+  Persistent<Document> document_;
   Persistent<HTMLSelectElement> select_;
 };
 
@@ -176,4 +183,155 @@ TEST_F(OptionListTest, RetreatFromLast) {
   EXPECT_EQ("o3", Id(*last_option));
 }
 
-}  // naemespace blink
+TEST_F(OptionListTest, RetreatExcluded) {
+  Select().SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <option id=o1>one</option>
+    <div>
+      <option id=o2>two</option>
+      <div id="for-nested"></div>
+    </div>
+    <option id=o4>four</option>
+  )HTML");
+  GetElementById("for-nested")->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+        <select>
+          <option id=o3>three</option>
+        </select>
+  )HTML");
+
+  OptionList list = Select().GetOptionList();
+  OptionList::Iterator it = list.last();
+  OptionList::Iterator end = list.end();
+  EXPECT_EQ("o4", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o2", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o1", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ(it, end);
+}
+
+TEST_F(OptionListTest, RetreatExcludedAtEnd) {
+  Select().SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <option id=o1>one</option>
+    <div>
+      <option id=o2>two</option>
+      <div id="for-nested"></div>
+    </div>
+  )HTML");
+  GetElementById("for-nested")->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+        <select>
+          <option id=o3>three</option>
+        </select>
+  )HTML");
+
+  OptionList list = Select().GetOptionList();
+  OptionList::Iterator it = list.last();
+  OptionList::Iterator end = list.end();
+  EXPECT_EQ("o2", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o1", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ(it, end);
+}
+
+TEST_F(OptionListTest, RetreatNesting1) {
+  Select().SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <option id=o1>one</option>
+    <div>
+      <option id=o2>two</option>
+    </div>
+    <div id="placeholder"></div>
+    <option id=o4>four</option>
+  )HTML");
+  HTMLSelectElement* inner =
+      MakeGarbageCollected<HTMLSelectElement>(GetDocument());
+  inner->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <option id=o3>three</option>
+  )HTML");
+  Select().ReplaceChild(inner, GetElementById("placeholder"));
+
+  OptionList list = Select().GetOptionList();
+  OptionList::Iterator it = list.last();
+  OptionList::Iterator end = list.end();
+  EXPECT_EQ("o4", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o2", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o1", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ(it, end);
+}
+
+TEST_F(OptionListTest, RetreatNesting2) {
+  Select().SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <option id=o1>one</option>
+    <div>
+      <option id=o2>two</option>
+    </div>
+    <div id="placeholder"></div>
+    <div id="not-excluded"></div>
+    <option id=o4>four</option>
+  )HTML");
+  HTMLSelectElement* inner =
+      MakeGarbageCollected<HTMLSelectElement>(GetDocument());
+  inner->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <option id=o3>three</option>
+  )HTML");
+  Select().ReplaceChild(inner, GetElementById("placeholder"));
+
+  OptionList list = Select().GetOptionList();
+  OptionList::Iterator it = list.last();
+  OptionList::Iterator end = list.end();
+  EXPECT_EQ("o4", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o2", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o1", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ(it, end);
+}
+
+TEST_F(OptionListTest, RetreatNesting3) {
+  Select().SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <option id=o1>one</option>
+    <div>
+      <option id=o2>two</option>
+    </div>
+    <div id="placeholder"></div>
+    <hr>
+    <option id=o4>four</option>
+  )HTML");
+  HTMLSelectElement* inner =
+      MakeGarbageCollected<HTMLSelectElement>(GetDocument());
+  inner->SetInnerHTMLWithoutTrustedTypes(R"HTML(
+    <option id=o3>three</option>
+  )HTML");
+  Select().ReplaceChild(inner, GetElementById("placeholder"));
+
+  OptionList list = Select().GetOptionList();
+  OptionList::Iterator it = list.last();
+  OptionList::Iterator end = list.end();
+  EXPECT_EQ("o4", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o2", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ("o1", Id(*it));
+  EXPECT_NE(it, end);
+  --it;
+  EXPECT_EQ(it, end);
+}
+
+}  // namespace blink

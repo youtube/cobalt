@@ -1,4 +1,5 @@
 include_rules = [
+  "+ash/constants/ash_extension_constants.h",
   "+ash/keyboard/ui/resources",  # For virtual keyboard
   "+components/app_constants/constants.h",
   "+components/device_signals/core/common",

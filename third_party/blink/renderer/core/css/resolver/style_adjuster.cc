@@ -1642,6 +1642,7 @@ StyleAdjuster::ElementTypeForCache StyleAdjuster::GetElementTypeCacheKey(
       return {ElementType::kHTMLBRElement};
 
     // SVG and MathML have special handling.
+    case ElementType::kMathMLAnchorElement:
     case ElementType::kMathMLElement:
     case ElementType::kMathMLFractionElement:
     case ElementType::kMathMLOperatorElement:
@@ -1802,6 +1803,7 @@ StyleAdjuster::ElementTypeForCache StyleAdjuster::GetElementTypeCacheKey(
     case ElementType::kHTMLSourceElement:
     case ElementType::kHTMLSpanElement:
     case ElementType::kHTMLStyleElement:
+    case ElementType::kHTMLSubMenuElement:
     case ElementType::kHTMLSummaryElement:
     case ElementType::kHTMLTableCaptionElement:
     case ElementType::kHTMLTableCellElement:

@@ -26,6 +26,7 @@ import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.omnibox.BackKeyBehaviorDelegate;
 import org.chromium.chrome.browser.omnibox.LocationBarCoordinator;
+import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedder;
 import org.chromium.chrome.browser.omnibox.LocationBarEmbedderUiOverrides;
 import org.chromium.chrome.browser.omnibox.OverrideUrlLoadingDelegate;
@@ -61,20 +62,22 @@ public class SearchUiCoordinator {
     private @Nullable BackPressManager mBackPressManager;
     private @Nullable LocationBarCoordinator mLocationBarCoordinator;
 
-    // SearchBoxDataProvider and LocationBarEmbedderUiOverrides are passed to several child
-    // components upon construction. Ensure we don't accidentally introduce disconnection by
-    // keeping only a single live instance here.
-    private final SearchBoxDataProvider mSearchBoxDataProvider = new SearchBoxDataProvider();
+    // LocationBarEmbedderUiOverrides are passed to several child components upon construction.
+    // Ensure we don't accidentally introduce disconnection by keeping only a single live instance
+    // here.
     private final LocationBarEmbedderUiOverrides mLocationBarUiOverrides =
             new LocationBarEmbedderUiOverrides();
+    private final LocationBarDataProvider mLocationBarDataProvider;
 
     /**
      * Constructs a new {@link SearchUiCoordinator}.
      *
      * @param activity Hosting activity.
+     * @param locationBarDataProvider The location bar data provider.
      */
-    public SearchUiCoordinator(Activity activity) {
+    public SearchUiCoordinator(Activity activity, LocationBarDataProvider locationBarDataProvider) {
         mActivity = activity;
+        mLocationBarDataProvider = locationBarDataProvider;
         mLocationBarUiOverrides.setForcedPhoneStyleOmnibox();
     }
 
@@ -127,7 +130,7 @@ public class SearchUiCoordinator {
                         mSearchBox,
                         mAnchorView,
                         profileSupplier,
-                        mSearchBoxDataProvider,
+                        mLocationBarDataProvider,
                         null,
                         assertNonNull(windowAndroid),
                         /* activityTabSupplier= */ ObservableSuppliers.alwaysNull(),
@@ -165,7 +168,7 @@ public class SearchUiCoordinator {
 
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
-        setColorScheme(mSearchBoxDataProvider.isIncognitoBranded());
+        setColorScheme(mLocationBarDataProvider.isIncognitoBranded());
     }
 
     /** Destroys the coordinator and its associated underlying components. */
@@ -174,7 +177,6 @@ public class SearchUiCoordinator {
             mLocationBarCoordinator.destroy();
             mLocationBarCoordinator = null;
         }
-        mSearchBoxDataProvider.destroy();
     }
 
     /**
@@ -203,13 +205,6 @@ public class SearchUiCoordinator {
      */
     public LocationBarCoordinator getLocationBarCoordinator() {
         return assertNonNull(mLocationBarCoordinator);
-    }
-
-    /**
-     * @return The {@link SearchBoxDataProvider} used for query initialization and state.
-     */
-    public SearchBoxDataProvider getSearchBoxDataProvider() {
-        return mSearchBoxDataProvider;
     }
 
     /**
@@ -277,7 +272,7 @@ public class SearchUiCoordinator {
         assertNonNull(mLocationBarCoordinator);
         assertNonNull(mSearchBox);
 
-        setColorScheme(mSearchBoxDataProvider.isIncognitoBranded());
+        setColorScheme(mLocationBarDataProvider.isIncognitoBranded());
 
         mLocationBarCoordinator.setUrlBarFocus(
                 new AutocompleteInput(OmniboxFocusReason.OMNIBOX_TAP)
@@ -311,7 +306,12 @@ public class SearchUiCoordinator {
                 (GradientDrawable) assertNonNull(mAnchorView).getBackground();
         anchorViewBackground.setColor(anchorViewColor);
 
-        assertNonNull(mControlContainer).setBackgroundColor(anchorViewColor);
+        Drawable controlBackground = assertNonNull(mControlContainer).getBackground();
+        if (controlBackground instanceof GradientDrawable gradientDrawable) {
+            gradientDrawable.setColor(anchorViewColor);
+        } else {
+            mControlContainer.setBackgroundColor(anchorViewColor);
+        }
 
         setStatusAndNavBarColors();
     }

@@ -71,44 +71,51 @@ chrome.test.getConfig(function(config) {
 
   chrome.test.runTests([
     function invalidScheme() {
+      // Verify `registerProtocolHandler` throws on invalid scheme syntax.
       chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['ext+@', SAME_ORIGIN_CHROME_EXTENSION_URL, TITLE],
+          navigator.registerProtocolHandler.bind(
+              navigator, 'ext+@', SAME_ORIGIN_CHROME_EXTENSION_URL, TITLE),
           MESSAGE_INVALID_URI_SYNTAX);
       chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['unknownscheme', SAME_ORIGIN_CHROME_EXTENSION_URL, TITLE],
+          navigator.registerProtocolHandler.bind(
+              navigator, 'unknownscheme', SAME_ORIGIN_CHROME_EXTENSION_URL,
+              TITLE),
           MESSAGE_NOT_SAFELISTED);
       chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['ext+', SAME_ORIGIN_CHROME_EXTENSION_URL, TITLE],
+          navigator.registerProtocolHandler.bind(
+              navigator, 'ext+', SAME_ORIGIN_CHROME_EXTENSION_URL, TITLE),
           MESSAGE_EXT_PLUS_SCHEME);
       chrome.test.succeed();
     },
 
     function invalidURL() {
+      // Verify `registerProtocolHandler` throws on invalid URL syntax.
       chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['mailto', 'invalidurl://%s', TITLE], MESSAGE_INVALID_SCHEME);
-      chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['mailto', `blob:${SAME_ORIGIN_CHROME_EXTENSION_URL}`, TITLE],
+          navigator.registerProtocolHandler.bind(
+              navigator, 'mailto', 'invalidurl://%s', TITLE),
           MESSAGE_INVALID_SCHEME);
       chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['mailto', 'data:text/html,Hello?url=%s', TITLE],
+          navigator.registerProtocolHandler.bind(
+              navigator, 'mailto', `blob:${SAME_ORIGIN_CHROME_EXTENSION_URL}`,
+              TITLE),
           MESSAGE_INVALID_SCHEME);
       chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['mailto', `filesystem:${SAME_ORIGIN_CHROME_EXTENSION_URL}`, TITLE],
+          navigator.registerProtocolHandler.bind(
+              navigator, 'mailto', 'data:text/html,Hello?url=%s', TITLE),
           MESSAGE_INVALID_SCHEME);
       chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['mailto', chrome.runtime.getURL('xhr.txt'), TITLE],
+          navigator.registerProtocolHandler.bind(
+              navigator, 'mailto',
+              `filesystem:${SAME_ORIGIN_CHROME_EXTENSION_URL}`, TITLE),
+          MESSAGE_INVALID_SCHEME);
+      chrome.test.assertThrows(
+          navigator.registerProtocolHandler.bind(
+              navigator, 'mailto', chrome.runtime.getURL('xhr.txt'), TITLE),
           MESSAGE_MISSING_PERCENT);
       chrome.test.assertThrows(
-          navigator.registerProtocolHandler, navigator,
-          ['mailto', 'https://%s', TITLE], MESSAGE_INVALID_URL_CREATED);
+          navigator.registerProtocolHandler.bind(
+              navigator, 'mailto', 'https://%s', TITLE),
+          MESSAGE_INVALID_URL_CREATED);
       chrome.test.succeed();
     },
 

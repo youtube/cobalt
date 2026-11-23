@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/settings/autofill/autofill_ai/test/autofill_ai_settings_test_util.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_root_table_constants.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_constants.h"
 #import "ios/chrome/browser/shared/ui/elements/activity_overlay_egtest_util.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
@@ -160,6 +161,7 @@ id<GREYMatcher> TextFieldWithLabel(NSString* textFieldLabel) {
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
+  config.features_disabled.push_back(kYourSavedInfoSettingsPageIos);
 
   if ([self isRunningTest:@selector(testToggleEnhancedAutofillSwitch)] ||
       [self isRunningTest:@selector(testAddAndDeleteEntityUsingMenu)] ||

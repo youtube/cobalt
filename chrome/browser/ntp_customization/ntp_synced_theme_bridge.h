@@ -13,14 +13,14 @@
 #include "chrome/browser/profiles/profile.h"
 #include "components/themes/ntp_custom_background_service_observer.h"
 
-class NtpCustomBackgroundService;
+class NtpAndroidCustomBackgroundService;
 
 using base::android::JavaRef;
 
 // The C++ counterpart to NtpSyncedThemeBridge.java. This class serves as
 // a bridge to the NTP theme services, handling theme collections and custom
 // backgrounds for the New Tab Page. It observes changes from
-// NtpCustomBackgroundService and communicates with the Java layer.
+// NtpAndroidCustomBackgroundService and communicates with the Java layer.
 class NtpSyncedThemeBridge : public NtpCustomBackgroundServiceObserver {
  public:
   // Creates an instance of NtpSyncedThemeBridge.
@@ -38,7 +38,7 @@ class NtpSyncedThemeBridge : public NtpCustomBackgroundServiceObserver {
   void FetchNextThemeCollectionImage(JNIEnv* env);
 
   // Fetches the current custom background information (e.g., URL, collection
-  // ID) from the NtpCustomBackgroundService.
+  // ID) from the NtpAndroidCustomBackgroundService.
   base::android::ScopedJavaLocalRef<jobject> GetCustomBackgroundInfo(
       JNIEnv* env);
 
@@ -49,7 +49,7 @@ class NtpSyncedThemeBridge : public NtpCustomBackgroundServiceObserver {
   void OnCustomBackgroundImageUpdated() override;
 
   raw_ptr<Profile> profile_;
-  raw_ptr<NtpCustomBackgroundService> ntp_custom_background_service_;
+  raw_ptr<NtpAndroidCustomBackgroundService> ntp_custom_background_service_;
   base::android::ScopedJavaGlobalRef<jobject> j_java_obj_;
 };
 

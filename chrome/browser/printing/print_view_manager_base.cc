@@ -517,7 +517,7 @@ void PrintViewManagerBase::DidPrintDocument(
   if (IsOopifEnabled() && print_job_->document()->settings().is_modifiable()) {
     auto* client = PrintCompositeClient::FromWebContents(web_contents());
     client->CompositeDocument(
-        params->document_cookie, GetCurrentTargetFrame(), content,
+        params->document_cookie, CurrentTargetFrame(), content,
         ui::AXTreeUpdate(), mojom::GenerateDocumentOutline::kNone,
         base::BindOnce(&PrintViewManagerBase::OnComposeDocumentDone,
                        weak_ptr_factory_.GetWeakPtr(), params->document_cookie,
@@ -546,8 +546,8 @@ void PrintViewManagerBase::GetDefaultPrintSettings(
     return;
   }
 
-  content::RenderFrameHost* render_frame_host = GetCurrentTargetFrame();
-  if (!render_frame_host->IsActive()) {
+  content::RenderFrameHost& render_frame_host = CurrentTargetFrame();
+  if (!render_frame_host.IsActive()) {
     // Only active RFHs should show UI elements.
     GetDefaultPrintSettingsReply(std::move(callback), nullptr);
     return;
@@ -565,7 +565,7 @@ void PrintViewManagerBase::GetDefaultPrintSettings(
 #endif
 
   content::RenderProcessHost* render_process_host =
-      render_frame_host->GetProcess();
+      render_frame_host.GetProcess();
   auto callback_wrapper =
       base::BindOnce(&PrintViewManagerBase::GetDefaultPrintSettingsReply,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback));
@@ -573,7 +573,7 @@ void PrintViewManagerBase::GetDefaultPrintSettings(
       queue()->PopPrinterQuery(PrintSettings::NewInvalidCookie());
   if (!printer_query) {
     printer_query =
-        queue()->CreatePrinterQuery(render_frame_host->GetGlobalId());
+        queue()->CreatePrinterQuery(render_frame_host.GetGlobalId());
 #if BUILDFLAG(ENABLE_OOP_PRINTING)
     if (query_with_ui_client_id().has_value()) {
       printer_query->SetClientId(query_with_ui_client_id().value());
@@ -608,16 +608,16 @@ void PrintViewManagerBase::ScriptedPrint(mojom::ScriptedPrintParamsPtr params,
                                          ScriptedPrintCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  content::RenderFrameHost* render_frame_host = GetCurrentTargetFrame();
-  if (!render_frame_host->IsActive()) {
+  content::RenderFrameHost& render_frame_host = CurrentTargetFrame();
+  if (!render_frame_host.IsActive()) {
     // Only active RFHs should show UI elements.
     std::move(callback).Run(nullptr);
     return;
   }
 
   content::RenderProcessHost* render_process_host =
-      render_frame_host->GetProcess();
-  if (params->is_scripted && render_frame_host->IsNestedWithinFencedFrame()) {
+      render_frame_host.GetProcess();
+  if (params->is_scripted && render_frame_host.IsNestedWithinFencedFrame()) {
     // The renderer should have checked and disallowed the request for fenced
     // frames in ChromeClient. Ignore the request and mark it as bad if it
     // didn't happen for some reason.
@@ -645,7 +645,7 @@ void PrintViewManagerBase::ScriptedPrint(mojom::ScriptedPrintParamsPtr params,
   }
 #endif  // BUILDFLAG(ENTERPRISE_CONTENT_ANALYSIS)
 
-  CompleteScriptedPrint(render_frame_host, std::move(params),
+  CompleteScriptedPrint(&render_frame_host, std::move(params),
                         std::move(callback));
 }
 

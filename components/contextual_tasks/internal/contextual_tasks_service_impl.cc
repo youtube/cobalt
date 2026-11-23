@@ -113,6 +113,9 @@ MergeUrlResourcesResult MergeUrlResources(
       if (!incoming_res.context_id.has_value()) {
         incoming_res.context_id = existing_res.context_id;
       }
+      if (!incoming_res.timestamp.has_value()) {
+        incoming_res.timestamp = existing_res.timestamp;
+      }
       incoming_res.has_chrome_tab_data =
           incoming_res.has_chrome_tab_data || existing_res.has_chrome_tab_data;
 
@@ -122,6 +125,7 @@ MergeUrlResourcesResult MergeUrlResources(
           incoming_res.tab_id != existing_res.tab_id ||
           incoming_res.title != existing_res.title ||
           incoming_res.context_id != existing_res.context_id ||
+          incoming_res.timestamp != existing_res.timestamp ||
           incoming_res.has_chrome_tab_data !=
               existing_res.has_chrome_tab_data) {
         result.has_changes = true;

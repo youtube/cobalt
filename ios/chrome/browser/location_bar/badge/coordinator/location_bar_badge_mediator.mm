@@ -629,7 +629,6 @@ constexpr base::TimeDelta kStartCollapseTransitionTime = base::Seconds(5);
     }
     default:
       return NO;
-      ;
   }
 }
 

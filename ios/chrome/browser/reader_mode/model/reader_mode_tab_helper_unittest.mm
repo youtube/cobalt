@@ -11,6 +11,7 @@
 #import "components/infobars/core/infobar_delegate.h"
 #import "components/infobars/core/infobar_manager.h"
 #import "components/optimization_guide/proto/hints.pb.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/ukm/ios/ukm_url_recorder.h"
 #import "components/ukm/test_ukm_recorder.h"
 #import "ios/chrome/browser/browser_content/model/edit_menu_tab_helper.h"
@@ -28,6 +29,7 @@
 #import "ios/chrome/browser/reader_mode/model/reader_mode_test.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_source_tab_helper.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/web/model/web_view_proxy/web_view_proxy_tab_helper.h"
 #import "ios/chrome/browser/web_selection/model/web_selection_tab_helper.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -1012,8 +1014,7 @@ TEST_F(ReaderModeTabHelperTest, ReaderModeContentDidCancelRequestForwarding) {
   // Simulate a navigation cancellation with a referrer.
   NSMutableURLRequest* request = [NSMutableURLRequest
       requestWithURL:[NSURL URLWithString:@"https://destination.url/"]];
-  [request setValue:@"https://referrer.url/"
-      forHTTPHeaderField:@"Referer"];
+  [request setValue:@"https://referrer.url/" forHTTPHeaderField:@"Referer"];
 
   web::WebStatePolicyDecider::RequestInfo request_info(
       ui::PageTransition::PAGE_TRANSITION_LINK,

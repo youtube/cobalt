@@ -806,6 +806,47 @@ TEST(UkmRecorderImplTest, GetDocumentToNavigationUrlsMap_Redirect) {
   EXPECT_TRUE(found_subframe_source);
 }
 
+TEST(UkmRecorderImplTest, DocumentCreatedNotSerialized) {
+  base::test::TaskEnvironment task_environment;
+  UkmRecorderImpl impl;
+  impl.EnableRecording();
+  impl.UpdateRecording({MSBB});
+  impl.SetSamplingForTesting(1);  // Sample everything in.
+
+  SourceId subframe_id = ConvertToSourceId(1, SourceIdType::NAVIGATION_ID);
+  SourceId main_frame_navigation_id =
+      ConvertToSourceId(2, SourceIdType::NAVIGATION_ID);
+  GURL main_frame_url("https://example.com");
+
+  // Record the URL for the main frame's navigation ID.
+  impl.UpdateSourceURL(main_frame_navigation_id, main_frame_url);
+
+  // Record a subframe DocumentCreated event.
+  {
+    auto entry = mojom::UkmEntry::New();
+    entry->source_id = subframe_id;
+    entry->event_hash = builders::DocumentCreated::kEntryNameHash;
+    entry->metrics[builders::DocumentCreated::kNavigationSourceIdNameHash] =
+        main_frame_navigation_id;
+    impl.AddEntry(std::move(entry));
+  }
+
+  // Record a PageLoad entry for the subframe.
+  {
+    auto entry = mojom::UkmEntry::New();
+    entry->source_id = subframe_id;
+    entry->event_hash = builders::PageLoad::kEntryNameHash;
+    impl.AddEntry(std::move(entry));
+  }
+
+  // Verify that only PageLoad is in the report, and DocumentCreated is skipped.
+  Report report;
+  impl.StoreRecordingsInReport(&report);
+
+  EXPECT_EQ(1, report.entries_size());
+  EXPECT_EQ(builders::PageLoad::kEntryNameHash, report.entries(0).event_hash());
+}
+
 TEST(UkmRecorderImplTest, StoreDownsamplingParametersInReport) {
   struct TestUkmRecorder : public UkmRecorderImpl {
     TestUkmRecorder() {

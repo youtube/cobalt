@@ -1680,7 +1680,7 @@ void PdfInkModule::HandleFinishTextAnnotationMessage(
   pdf::mojom::InkTextInfoPtr text_info_mojo;
   CHECK(pdf::mojom::InkTextInfo::Deserialize(text_info_blob, &text_info_mojo));
 
-  std::vector<InkTextInfo> ink_info = InkTextInfo::SplitTypefaceRuns(
+  std::vector<InkTextInfo> ink_info = InkTextInfo::BlinkTextInfoToPDFTextInfo(
       text_info_mojo->text_runs, text_info_mojo->effective_zoom);
 
   // Note: `pdf_zoom` is similar to GetZoom() but GetZoom() is multiplied by

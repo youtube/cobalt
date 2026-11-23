@@ -183,8 +183,6 @@ def _validate_entity(entity):
     yield '"read only": value is not a Boolean'
 
   if entity['read only']:
-    if entity['import constraints']:
-      yield '"import constraints": value must be empty if "read only" is true'
     if entity['strike keys']:
       yield '"strike keys": value must be empty if "read only" is true'
 

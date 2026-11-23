@@ -1,0 +1,21 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++group hasActions actionsIds=button
+++++++++staticText name='Host with visible target'
+++++++++++inlineTextBox name='Host with visible target'
+++++++button name='Save'
+++++++++staticText name='Save'
+++++++++++inlineTextBox name='Save'
+++++++group hasActions
+++++++++staticText name='Host with hidden target'
+++++++++++inlineTextBox name='Host with hidden target'
+++++++group hasActions actionsIds=button
+++++++++staticText name='Host with mixed targets'
+++++++++++inlineTextBox name='Host with mixed targets'
+++++++button name='Open'
+++++++++staticText name='Open'
+++++++++++inlineTextBox name='Open'
+++++++group hasActions
+++++++++staticText name='Host with ancestor-hidden target'
+++++++++++inlineTextBox name='Host with ancestor-hidden target'

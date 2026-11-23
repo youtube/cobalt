@@ -18,7 +18,6 @@
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/safe_browsing/core/browser/csd_model_type.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "net/base/ip_address.h"
 #include "net/http/http_status_code.h"
@@ -27,6 +26,8 @@
 class PrefService;
 
 namespace safe_browsing {
+
+enum class CSDModelType;
 
 // Enum used to keep stats on classification using threshold comparison.
 // These values are persisted to logs. Entries should not be renumbered and

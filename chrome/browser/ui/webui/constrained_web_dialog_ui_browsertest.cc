@@ -193,16 +193,15 @@ IN_PROC_BROWSER_TEST_P(ConstrainedWebDialogBrowserAutosizeTest,
                        MAYBE_ContentResizeInAutoResizingDialog) {
   // During auto-resizing, dialogs size to (WebContents size) + 16.
   constexpr int kDialogBorderSpace = 16;
-  const bool feature_enabled = GetParam();
 
   // Expected dialog sizes after auto-resizing.
   const gfx::Size min_size(100, 100);
-  const gfx::Size initial_size(feature_enabled ? 158 : 150 + kDialogBorderSpace,
+  const gfx::Size initial_size(150 + kDialogBorderSpace,
                                150 + kDialogBorderSpace);
-  const gfx::Size resized_size(feature_enabled ? 183 : 175 + kDialogBorderSpace,
+  const gfx::Size resized_size(175 + kDialogBorderSpace,
                                175 + kDialogBorderSpace);
   const gfx::Size minimum_content_size =
-      feature_enabled ? gfx::Size(183, 100) : min_size;
+      GetParam() ? gfx::Size(191, 100) : min_size;
 
   auto delegate =
       std::make_unique<AutoResizingTestWebDialogDelegate>(GURL(kTestDataURL));

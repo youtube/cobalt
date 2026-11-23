@@ -45,7 +45,7 @@ class GraphRegisteredImpl;
 // a list of observers that are notified of node addition and removal.
 class Graph {
  public:
-  using NodeSet = std::unordered_set<const Node*>;
+  using NodeSet = std::unordered_set<raw_ptr<const Node>>;
   template <class NodeViewPtr>
   using NodeSetView = NodeSetView<NodeSet, NodeViewPtr>;
 

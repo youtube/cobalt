@@ -249,6 +249,10 @@ void RenderWidgetHostNSViewBridge::SetShowingContextMenu(bool showing) {
   [cocoa_view_ setShowingContextMenu:showing];
 }
 
+void RenderWidgetHostNSViewBridge::SetSupportsAutoFill(bool supports) {
+  [cocoa_view_ setSupportsAutoFill:supports];
+}
+
 void RenderWidgetHostNSViewBridge::OnDisplayAdded(const display::Display&) {
   [cocoa_view_ updateScreenProperties];
 }

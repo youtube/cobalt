@@ -29,6 +29,9 @@ void RecordPopupsAction(PopupsAction action) {
 
 void UpdateLocationBarUiForWebContents(content::WebContents* web_contents) {
 #if !BUILDFLAG(IS_ANDROID)
+  if (!web_contents) {
+    return;
+  }
   BrowserWindowInterface* browser =
       GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(web_contents);
   if (!browser) {

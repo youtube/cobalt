@@ -2,16 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//mojo/public/tools/bindings/mojom.gni")
-
 assert(is_chromeos)
 
 static_library("guest_os") {
   sources = [
     "guest_id.cc",
     "guest_id.h",
-    "guest_os_diagnostics_builder.cc",
-    "guest_os_diagnostics_builder.h",
     "guest_os_dlc_helper.cc",
     "guest_os_dlc_helper.h",
     "guest_os_external_protocol_handler.cc",
@@ -57,7 +53,6 @@ static_library("guest_os") {
   public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 
   deps = [
-    ":guest_os_diagnostics_mojom",
     "//ash/constants",
     "//ash/public/cpp",
     "//ash/strings",
@@ -163,7 +158,6 @@ source_set("unit_tests") {
 
   sources = [
     "guest_id_unittest.cc",
-    "guest_os_diagnostics_builder_unittest.cc",
     "guest_os_dlc_helper_unittest.cc",
     "guest_os_external_protocol_handler_unittest.cc",
     "guest_os_file_watcher_unittest.cc",
@@ -207,13 +201,6 @@ source_set("unit_tests") {
     "//chrome/browser/ash/guest_os/infra:unit_tests",
     "//chrome/browser/ash/guest_os/public:unit_tests",
   ]
-}
-
-mojom("guest_os_diagnostics_mojom") {
-  sources = [ "guest_os_diagnostics.mojom" ]
-
-  public_deps = [ "//url/mojom:url_mojom_gurl" ]
-  webui_module_path = "/"
 }
 
 source_set("browser_tests") {

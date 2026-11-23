@@ -52,6 +52,9 @@ bool operator==(const sync_pb::ThemeIosSpecifics& lhs,
 
 namespace {
 
+// The number of maximum recently used backgrounds to store.
+const int kMaxRecentlyUsedBackgrounds = 7;
+
 // Checks if the legacy theme pref has been migrated. If not, copies the legacy
 // value to the new pref and marks migration as complete. Returns the encoded
 // migrated theme if migration occurred, or `std::nullopt` otherwise.
@@ -139,15 +142,11 @@ HomeBackgroundCustomizationService::HomeBackgroundCustomizationService(
     PrefService* pref_service,
     UserUploadedImageManager* user_image_manager,
     HomeBackgroundImageService* home_background_image_service)
-    : recently_used_backgrounds_(MaxRecentlyUsedBackgrounds()),
+    : recently_used_backgrounds_(kMaxRecentlyUsedBackgrounds),
       pref_service_(pref_service),
       user_image_manager_(user_image_manager),
       home_background_image_service_(home_background_image_service),
       weak_ptr_factory_{this} {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
-
   CHECK(pref_service_);
 
   pref_change_registrar_.Init(pref_service_);
@@ -387,10 +386,6 @@ void HomeBackgroundCustomizationService::SetCurrentBackground(
     const std::string& attribution_line_2,
     const GURL& attribution_action_url,
     const std::string& collection_id) {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
-
   if (IsCustomizationDisabledOrColorManagedByPolicy()) {
     return;
   }
@@ -413,10 +408,6 @@ void HomeBackgroundCustomizationService::SetCurrentBackground(
 void HomeBackgroundCustomizationService::SetBackgroundColor(
     SkColor color,
     sync_pb::UserColorTheme::BrowserColorVariant color_variant) {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
-
   if (IsCustomizationDisabledOrColorManagedByPolicy()) {
     return;
   }
@@ -434,10 +425,6 @@ void HomeBackgroundCustomizationService::SetBackgroundColor(
 }
 
 void HomeBackgroundCustomizationService::ClearCurrentBackground() {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
-
   current_theme_.Clear();
 
   ClearCurrentUserUploadedBackground();
@@ -505,10 +492,6 @@ void HomeBackgroundCustomizationService::ClearCachedUserUploadedBackground(
 }
 
 void HomeBackgroundCustomizationService::StoreCurrentTheme() {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
-
   // Recently used backgrounds list if not updated if an enterprise policy for
   // ntp customization is enabled.
   if (IsCustomizationDisabledOrColorManagedByPolicy()) {
@@ -545,10 +528,6 @@ void HomeBackgroundCustomizationService::StoreCurrentTheme() {
 }
 
 void HomeBackgroundCustomizationService::StoreRecentlyUsedBackgroundsList() {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
-
   base::ListValue recently_used_backgrounds_list;
   for (const RecentlyUsedBackgroundInternal& background :
        recently_used_backgrounds_) {
@@ -568,19 +547,12 @@ void HomeBackgroundCustomizationService::StoreRecentlyUsedBackgroundsList() {
 }
 
 void HomeBackgroundCustomizationService::RestoreCurrentTheme() {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
   LoadCurrentTheme();
 
   NotifyObserversOfBackgroundChange();
 }
 
 void HomeBackgroundCustomizationService::LoadCurrentTheme() {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
-
   std::string saved_encoded_theme = GetThemeSpecifics(pref_service_);
 
   // If theme sync is enabled, check if a migration from legacy theme storage is
@@ -631,10 +603,6 @@ HomeBackgroundCustomizationService::GetCurrentUserUploadedBackground() {
 void HomeBackgroundCustomizationService::SetCurrentUserUploadedBackground(
     const std::string& image_path,
     const FramingCoordinates& framing_coordinates) {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
-
   if (IsCustomizationDisabledOrColorManagedByPolicy()) {
     return;
   }
@@ -651,9 +619,6 @@ void HomeBackgroundCustomizationService::SetCurrentUserUploadedBackground(
 }
 
 void HomeBackgroundCustomizationService::ClearCurrentUserUploadedBackground() {
-  if (!IsNTPBackgroundCustomizationEnabled()) {
-    return;
-  }
   current_user_uploaded_background_ = std::nullopt;
 }
 
@@ -662,6 +627,10 @@ bool HomeBackgroundCustomizationService::
   return !pref_service_->GetBoolean(
              prefs::kNTPCustomBackgroundEnabledByPolicy) ||
          pref_service_->IsManagedPreference(themes::prefs::kPolicyThemeColor);
+}
+
+bool HomeBackgroundCustomizationService::IsThemeSyncActive() {
+  return theme_syncable_service_ && theme_syncable_service_->IsSyncing();
 }
 
 syncer::SyncableService*

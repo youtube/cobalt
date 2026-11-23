@@ -13,8 +13,6 @@
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_observer.h"
 #include "chrome/browser/enterprise/watermark/settings.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "components/enterprise/connectors/core/reporting_constants.h"
 #include "components/enterprise/data_protection/utils.h"
 #include "components/tabs/public/tab_interface.h"
@@ -239,8 +237,7 @@ void DataProtectionNavigationController::DidStartNavigation(
     content::NavigationHandle* navigation_handle) {
   auto navigation_observer = enterprise_data_protection::
       DataProtectionNavigationObserver::CreateForNavigationIfNeeded(
-          this, tab_interface_->GetBrowserWindowInterface()->GetProfile(),
-          navigation_handle,
+          this, tab_interface_->GetProfile(), navigation_handle,
           base::BindOnce(&DataProtectionNavigationController::
                              ApplyDataProtectionSettingsOrDelayIfEmpty,
                          weak_ptr_factory_.GetWeakPtr(),

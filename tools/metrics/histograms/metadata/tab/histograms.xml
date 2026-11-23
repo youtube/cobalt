@@ -35,6 +35,22 @@ chromium-metrics-reviews@google.com.
   <variant name="Window" summary="RecentlyClosedWindow"/>
 </variants>
 
+<variants name="SplitTabCreatedSource">
+  <variant name="BookmarkContextMenu"
+      summary="created via bookmark context menu"/>
+  <variant name="DragAndDropLink" summary="created via drag and drop link"/>
+  <variant name="DragAndDropTab" summary="created via drag and drop tab"/>
+  <variant name="DuplicateSplit" summary="created via duplicate split"/>
+  <variant name="ExtensionsApi" summary="created via extensions API"/>
+  <variant name="KeyboardShortcut" summary="created via keyboard shortcut"/>
+  <variant name="LinkClick" summary="created via link click"/>
+  <variant name="LinkContextMenu" summary="created via link context menu"/>
+  <variant name="NewTabButton" summary="created via new tab button"/>
+  <variant name="TabContextMenu" summary="created via tab context menu"/>
+  <variant name="ToolbarButton" summary="created via toolbar button"/>
+  <variant name="WhatsNew" summary="created via What's New page"/>
+</variants>
+
 <variants name="SplitViewMenuSource">
   <variant name="MiniToolbar" summary="The split view mini toolbar"/>
   <variant name="TabContextMenu" summary="The tab context menu"/>
@@ -3108,6 +3124,17 @@ chromium-metrics-reviews@google.com.
   </token>
 </histogram>
 
+<histogram name="Tabs.TabSearch.WebUI.Action" enum="TabSearchWebUIAction"
+    expires_after="2027-06-24">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Records actions performed by the user within the Tab Search WebUI. Emitted
+    when a user switches to a tab, closes a tab, or opens a recently closed
+    tab/group, from either the filtered (searched) or unfiltered list.
+  </summary>
+</histogram>
+
 <histogram name="Tabs.TabSearch.WebUI.IndexOf{Action}In{State}List"
     units="tabs" expires_after="2026-11-29">
   <owner>tluk@chromium.org</owner>
@@ -3686,7 +3713,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.{TabActiveState}TabWidth" units="px"
-    expires_after="2025-11-16">
+    expires_after="2027-06-01">
   <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -3707,7 +3734,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabStrip.SplitView.OrientationOnCreation"
-    enum="SplitTabLayout" expires_after="2026-09-27">
+    enum="SplitTabLayout" expires_after="2026-12-27">
   <owner>kunaldaftari@google.com</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -3716,8 +3743,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="TabStrip.SplitView.{Source}.OrientationOnCreation"
+    enum="SplitTabLayout" expires_after="2026-12-27">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Recorded when a split view is created via a specific source, capturing the
+    initial layout orientation (stacked or side-by-side).
+  </summary>
+  <token key="Source" variants="SplitTabCreatedSource"/>
+</histogram>
+
 <histogram name="TabStrip.Tab.ContextMenuReloadCount" units="tabs"
-    expires_after="2026-07-26">
+    expires_after="2026-12-22">
   <owner>agale@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>

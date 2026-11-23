@@ -1059,10 +1059,10 @@ bool GetMinValue(const std::vector<int>& values, int* value) {
   return true;
 }
 
-bool GetParameter(const std::string& name,
+bool GetParameter(absl::string_view name,
                   const CodecParameterMap& params,
                   int* value) {
-  std::map<std::string, std::string>::const_iterator found = params.find(name);
+  CodecParameterMap::const_iterator found = params.find(std::string(name));
   if (found == params.end()) {
     return false;
   }
@@ -2615,7 +2615,7 @@ void UpdateFromMediaSectionWideSettings(MediaContentDescription* desc) {
   }
 }
 
-void AddAudioAttribute(const std::string& name,
+void AddAudioAttribute(absl::string_view name,
                        absl::string_view value,
                        MediaContentDescription* desc) {
   RTC_DCHECK(desc);
@@ -2624,7 +2624,7 @@ void AddAudioAttribute(const std::string& name,
   }
   std::vector<Codec> codecs = desc->codecs();
   for (Codec& codec : codecs) {
-    codec.params[name] = std::string(value);
+    codec.SetParam(name, value);
   }
   desc->set_codecs(codecs);
 }
@@ -2700,9 +2700,7 @@ bool ParseContent(absl::string_view message,
         ReportSdpBandwidth(kSdpBandwidthParseFailure);
         return false;
       }
-      if (b == -1) {
-        ReportSdpBandwidth(kSdpBandwidthNegativeOne);
-      } else if (b == 0) {
+      if (b == 0) {
         ReportSdpBandwidth(kSdpBandwidthZero);
       } else if (b > 0 && b <= INT_MAX / 1000) {
         ReportSdpBandwidth(kSdpBandwidthSmall);
@@ -2710,16 +2708,6 @@ bool ParseContent(absl::string_view message,
         ReportSdpBandwidth(kSdpBandwidthLarge);
       } else {
         ReportSdpBandwidth(kSdpBandwidthNegative);
-      }
-      // TODO(deadbeef): Historically, applications may be setting a value
-      // of -1 to mean "unset any previously set bandwidth limit", even
-      // though ommitting the "b=AS" entirely will do just that. Once we've
-      // transitioned applications to doing the right thing, it would be
-      // better to treat this as a hard error instead of just ignoring it.
-      if (bandwidth_type == kApplicationSpecificBandwidth && b == -1) {
-        RTC_LOG(LS_WARNING) << "Ignoring \"b=AS:-1\"; will be treated as \"no "
-                               "bandwidth limit\".";
-        continue;
       }
       if (b < 0) {
         return ParseFailed(

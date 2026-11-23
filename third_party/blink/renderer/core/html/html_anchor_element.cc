@@ -191,13 +191,14 @@ static void AppendServerMapMousePosition(StringBuilder& url, Event* event) {
 
 void HTMLAnchorElementBase::DefaultEventHandler(Event& event) {
   if (IsLink()) {
-    if (IsFocused() && IsEnterKeyKeydownEvent(event) && IsLiveLink()) {
+    if (IsFocused() && KeyboardEvent::IsEnterKeyKeydownEvent(event) &&
+        IsLiveLink()) {
       event.SetDefaultHandled();
       DispatchSimulatedClick(&event);
       return;
     }
 
-    if (IsLinkClick(event) && IsLiveLink()) {
+    if (AnchorElementUtils::IsLinkClick(event) && IsLiveLink()) {
       // IsLinkClick validates that |event| is a MouseEvent.
       HandleClick(To<MouseEvent>(event));
       return;
@@ -576,23 +577,6 @@ void HTMLAnchorElementBase::HandleClick(MouseEvent& event) {
   } else {
     std::move(navigate_closure).Run();
   }
-}
-
-bool IsEnterKeyKeydownEvent(Event& event) {
-  auto* keyboard_event = DynamicTo<KeyboardEvent>(event);
-  return event.type() == event_type_names::kKeydown && keyboard_event &&
-         keyboard_event->key() == keywords::kCapitalEnter &&
-         !keyboard_event->repeat();
-}
-
-bool IsLinkClick(Event& event) {
-  auto* mouse_event = DynamicTo<MouseEvent>(event);
-  if ((event.type() != event_type_names::kClick &&
-       event.type() != event_type_names::kAuxclick) ||
-      !mouse_event) {
-    return false;
-  }
-  return mouse_event->IsLinkClickButton();
 }
 
 bool HTMLAnchorElementBase::WillRespondToMouseClickEvents() {

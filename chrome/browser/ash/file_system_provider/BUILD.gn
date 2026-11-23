@@ -194,6 +194,7 @@ source_set("browser_tests") {
   deps = [
     ":file_system_provider",
     ":test_support",
+    "//ash/constants",
     "//base",
     "//base/test:test_support",
     "//chrome/browser/ash/file_manager:test_support",

@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
+#include "v8/include/cppgc/macros.h"
 #include "v8/include/v8-microtask-queue.h"
 
 namespace blink {
@@ -20,6 +21,8 @@ using MicrotasksScopeMode = v8::MicrotasksScope::Type;
 
 template <MicrotasksScopeMode kMode>
 class V8MicrotasksScope {
+  CPPGC_STACK_ALLOCATED();
+
  public:
   explicit V8MicrotasksScope(ScriptState* script_state)
       : V8MicrotasksScope(ExecutionContext::From(script_state)) {}

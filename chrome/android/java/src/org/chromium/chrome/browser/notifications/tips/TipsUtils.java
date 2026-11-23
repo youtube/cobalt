@@ -52,6 +52,7 @@ import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -296,6 +297,7 @@ public class TipsUtils {
 
     private static void maybeScheduleTipsNotification(
             Profile profile, WindowAndroid windowAndroid) {
+        if (windowAndroid.isDestroyed()) return;
         boolean isBottomOmnibox = isBottomOmniboxActive(windowAndroid);
 
         TipsUtils.areTipsNotificationsEnabled(
@@ -313,10 +315,15 @@ public class TipsUtils {
                         // it will be torn down. Note that it is possible that when the notification
                         // is rescheduled, the usage criteria may have changed such that the user is
                         // no longer eligible to receive a notification.
+                        WeakReference<WindowAndroid> windowAndroidRef =
+                                new WeakReference<>(windowAndroid);
                         PostTask.postDelayedTask(
                                 TaskTraits.UI_DEFAULT,
                                 () -> {
-                                    maybeScheduleTipsNotification(profile, windowAndroid);
+                                    WindowAndroid window = windowAndroidRef.get();
+                                    if (window != null && !window.isDestroyed()) {
+                                        maybeScheduleTipsNotification(profile, window);
+                                    }
                                 },
                                 TimeUnit.HOURS.toMillis(1));
                     }

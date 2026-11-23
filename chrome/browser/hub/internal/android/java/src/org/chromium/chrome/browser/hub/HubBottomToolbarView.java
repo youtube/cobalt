@@ -15,18 +15,26 @@ import org.chromium.build.annotations.NullMarked;
 /** Basic view that represents the bottom toolbar in the Hub. */
 @NullMarked
 public class HubBottomToolbarView extends LinearLayout {
+    private final HubColorMixerRegistrationHelper mColorMixerHelper =
+            new HubColorMixerRegistrationHelper();
+
     /** Default {@link LinearLayout} constructor called by inflation. */
     public HubBottomToolbarView(Context context, AttributeSet attributeSet) {
         super(context, attributeSet);
     }
 
-    void setColorMixer(HubColorMixer mixer) {
+    @Override
+    protected void onFinishInflate() {
+        super.onFinishInflate();
         Context context = getContext();
-
-        mixer.registerBlend(
+        mColorMixerHelper.registerBlend(
                 new SingleHubViewColorBlend(
                         PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
                         colorScheme -> HubColors.getBackgroundColor(context, colorScheme),
                         this::setBackgroundColor));
+    }
+
+    void setColorMixer(HubColorMixer mixer) {
+        mColorMixerHelper.setColorMixer(mixer);
     }
 }

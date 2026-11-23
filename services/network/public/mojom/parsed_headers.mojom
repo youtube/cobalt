@@ -41,6 +41,12 @@ struct ParsedHeaders {
  // `Connection-Allowlist-Report-Only` headers.
   ConnectionAllowlists connection_allowlists;
 
+  // The parsed value of the `Allow-Connection-Allowlist-From` response header,
+  // used for Connection-Allowlist embedded enforcement. Reuses
+  // `OriginOrWildcardHeaderValue` as it shares the `*` / origin grammar with
+  // `Allow-CSP-From`.
+  OriginOrWildcardHeaderValue? allow_connection_allowlist_from;
+
   // The parsed representation of Cross-Origin-Embedder-Policy and
   // Cross-Origin-Embedder-Policy-Report-Only headers.
   CrossOriginEmbedderPolicy cross_origin_embedder_policy;

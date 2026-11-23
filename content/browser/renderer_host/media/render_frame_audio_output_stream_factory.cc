@@ -95,7 +95,7 @@ class RenderFrameAudioOutputStreamFactory::Core final
         : owner_(owner),
           device_id_(device_id),
           receiver_(this, std::move(receiver)) {
-      DCHECK_CURRENTLY_ON(BrowserThread::IO);
+      CHECK_CURRENTLY_ON(BrowserThread::IO, base::NotFatalUntil::M152);
       // Unretained is safe since |this| owns |receiver_|.
       receiver_.set_disconnect_handler(
           base::BindOnce(&ProviderImpl::Done, base::Unretained(this)));
@@ -110,7 +110,7 @@ class RenderFrameAudioOutputStreamFactory::Core final
         const media::AudioParameters& params,
         mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient>
             provider_client) final {
-      DCHECK_CURRENTLY_ON(BrowserThread::IO);
+      CHECK_CURRENTLY_ON(BrowserThread::IO, base::NotFatalUntil::M152);
       TRACE_EVENT1("audio",
                    "RenderFrameAudioOutputStreamFactory::ProviderImpl::Acquire",
                    "raw device id", device_id_);
@@ -199,11 +199,11 @@ RenderFrameAudioOutputStreamFactory::RenderFrameAudioOutputStreamFactory(
                      audio_system,
                      media_stream_manager,
                      std::move(receiver))) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
 }
 
 RenderFrameAudioOutputStreamFactory::~RenderFrameAudioOutputStreamFactory() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
 
   // Ensure |core_| is deleted on the right thread. DeleteOnIOThread isn't used
   // as it doesn't post in case it is already executed on the right thread. That
@@ -215,7 +215,7 @@ RenderFrameAudioOutputStreamFactory::~RenderFrameAudioOutputStreamFactory() {
 
 void RenderFrameAudioOutputStreamFactory::
     SetAuthorizedDeviceIdForGlobalMediaControls(std::string hashed_device_id) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
   // base::Unretained(core_.get()) is safe here because |core_| is owned by
   // RenderFrameAudioOutputStreamFactory and the
   // RenderFrameAudioOutputStreamFactory destructor posts a task to delete
@@ -243,7 +243,7 @@ RenderFrameAudioOutputStreamFactory::Core::Core(
       global_render_frame_host_id_(frame->GetGlobalId()),
       main_frame_token_(frame->GetMainFrame()->GetGlobalFrameToken()),
       authorization_handler_(audio_system, media_stream_manager, process_id_) {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  CHECK_CURRENTLY_ON(BrowserThread::UI, base::NotFatalUntil::M152);
 
   ForwardingAudioStreamFactory::Core* tmp_factory =
       ForwardingAudioStreamFactory::CoreForFrame(frame);
@@ -267,14 +267,14 @@ RenderFrameAudioOutputStreamFactory::Core::Core(
 void RenderFrameAudioOutputStreamFactory::Core::Init(
     mojo::PendingReceiver<blink::mojom::RendererAudioOutputStreamFactory>
         receiver) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  CHECK_CURRENTLY_ON(BrowserThread::IO, base::NotFatalUntil::M152);
 
   receiver_.Bind(std::move(receiver));
 }
 
 void RenderFrameAudioOutputStreamFactory::Core::
     SetAuthorizedDeviceIdForGlobalMediaControls(std::string hashed_device_id) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  CHECK_CURRENTLY_ON(BrowserThread::IO, base::NotFatalUntil::M152);
   authorization_handler_.SetAuthorizedDeviceIdForGlobalMediaControls(
       std::move(hashed_device_id));
 }
@@ -285,7 +285,7 @@ void RenderFrameAudioOutputStreamFactory::Core::RequestDeviceAuthorization(
     const std::optional<base::UnguessableToken>& session_id,
     const std::string& device_id,
     RequestDeviceAuthorizationCallback callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  CHECK_CURRENTLY_ON(BrowserThread::IO, base::NotFatalUntil::M152);
   TRACE_EVENT2(
       "audio",
       "RenderFrameAudioOutputStreamFactory::RequestDeviceAuthorization",
@@ -316,7 +316,7 @@ void RenderFrameAudioOutputStreamFactory::Core::AuthorizationCompleted(
     const media::AudioParameters& params,
     const std::string& raw_device_id,
     const std::string& device_id_for_renderer) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  CHECK_CURRENTLY_ON(BrowserThread::IO, base::NotFatalUntil::M152);
   TRACE_EVENT2("audio",
                "RenderFrameAudioOutputStreamFactory::AuthorizationCompleted",
                "raw device id", raw_device_id, "status", status);
@@ -346,9 +346,9 @@ void RenderFrameAudioOutputStreamFactory::Core::AuthorizationCompleted(
 
 void RenderFrameAudioOutputStreamFactory::Core::DeleteProvider(
     media::mojom::AudioOutputStreamProvider* stream_provider) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  CHECK_CURRENTLY_ON(BrowserThread::IO, base::NotFatalUntil::M152);
   size_t deleted = stream_providers_.erase(stream_provider);
-  DCHECK_EQ(1u, deleted);
+  CHECK_EQ(1u, deleted, base::NotFatalUntil::M152);
 }
 
 void RenderFrameAudioOutputStreamFactory::Core::SendLogMessage(

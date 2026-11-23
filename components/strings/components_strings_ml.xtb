@@ -314,6 +314,7 @@
 <translation id="1463793142714244641">ടൈംഷെയറുകളും വെക്കേഷൻ പ്രോപ്പർട്ടികളും</translation>
 <translation id="1465457928007067810">IBAN നിങ്ങളുടെ Google Account-ൽ സംരക്ഷിച്ചു</translation>
 <translation id="1467432559032391204">ഇടത്</translation>
+<translation id="1471514598850585811">ലാപ്‌ടോപ്പ്</translation>
 <translation id="1472675084647422956">കൂടുതൽ‍ കാണിക്കുക</translation>
 <translation id="1473183651233018052">JIS B10</translation>
 <translation id="1473495410389165587">എഴുതാൻ സഹായം തേടാൻ 3 അല്ലെങ്കിൽ അതിലധികം വാക്കുകൾ നൽകുക</translation>
@@ -477,6 +478,7 @@
 <translation id="173080396488393970">ഇത്തരത്തിലുള്ള കാർഡ് അനുയോജ്യമല്ല</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">പകരം നേരിട്ട് ആവശ്യപ്പെടുക</translation>
+<translation id="1732796940245838248">Google Wallet-ൽ പരാതി പരിഹാര നമ്പർ അപ്ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="1733064249834771892">ഫോണ്ടുകൾ</translation>
 <translation id="1733631169686303142">ഓഡിയോ ഉപകരണം</translation>
 <translation id="1733762317901693627">സാധാരണയായി സുരക്ഷിതമായ സൈറ്റുകൾ പോലും ചിലപ്പോൾ ആക്രമണകാരികൾ അപഹരിക്കാറുണ്ട്. അപകടസാധ്യതകളെക്കുറിച്ച് നിങ്ങൾക്ക് ഉറപ്പുണ്ടെങ്കിൽ മാത്രം <ph name="BEGIN_LINK" />ഈ സുരക്ഷിതമല്ലാത്ത സൈറ്റ്<ph name="END_LINK" /> സന്ദർശിക്കുക.</translation>
@@ -581,6 +583,7 @@
 <translation id="1902576642799138955">സാധുതാ കാലാവധി</translation>
 <translation id="1908217026282415406">ക്യാമറയുടെ ഉപയോഗവും ചലനവും</translation>
 <translation id="1908690643053136980">നിങ്ങളുടെ അഡ്‌മിൻ ഈ സൈറ്റിന് <ph name="PERMISSION" /> അനുവദിക്കുന്നില്ല</translation>
+<translation id="1912750443952232242">Google Wallet-ൽ ഐഡി കാർഡ് സംരക്ഷിക്കുക</translation>
 <translation id="1913037223029790376">ഈ വെർച്വൽ കാർഡിനുള്ള CVC ഉപയോഗിക്കുക</translation>
 <translation id="191374271204266022">JSON ഫോർമാറ്റിൽ പകർത്തുക</translation>
 <translation id="1914326953223720820">അൺസിപ്പ് സേവനം</translation>
@@ -711,6 +714,7 @@
 <translation id="2122165854541876335">ഉപഭോക്താക്കൾക്കുള്ള വിഭവസാമഗ്രികൾ</translation>
 <translation id="2122214041802369259">ഉയർന്ന നിരക്ക്</translation>
 <translation id="2122719317867821810">ഈ നയം ഉദ്ദേശിച്ചത് പോലെ പ്രവർത്തിക്കുന്നുണ്ട്, എന്നാൽ മറ്റൊരു ഉറവിടത്തിൽ വൈരുദ്ധ്യമുള്ള മൂല്യം സജ്ജീകരിച്ചതിനെ തുടർന്ന് ഈ നയം അസാധുവാക്കി.</translation>
+<translation id="2124081665399116863">Google Wallet-ൽ വാഹനം അപ്ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="2126374524350484896">PDF പ്രൊഡ്യൂസർ:</translation>
 <translation id="2127090458081644412">പാസ്‌വേഡ് ഈ ഉപകരണത്തിൽ സംരക്ഷിച്ചു</translation>
 <translation id="2127747486437921899">ഇറ്റാലിക്</translation>
@@ -993,6 +997,7 @@
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />ഈ ഓപ്ഷനുകൾ ലഭ്യമാക്കാൻ, ചെക്ക്ഔട്ട് പേജിൽ നിന്നുള്ള ഉള്ളടക്കം Google-മായി പങ്കിടുന്നു.<ph name="END_BOLD" /> പേയ്മെന്റ് പ്ലാനുകൾ യോഗ്യതയ്ക്ക് വിധേയമാണ്. പിന്നീട് പേ ചെയ്യാനുള്ള ഓപ്ഷനുകൾ മറയ്ക്കാൻ, <ph name="BEGIN_LINK" />പേയ്മെന്റ് ക്രമീകരണം<ph name="END_LINK" /> എന്നതിലേക്ക് പോകുക.</translation>
 <translation id="2526062290525841862">ഈ ആപ്പ് റൺ ചെയ്യാൻ, ഐസൊലേറ്റഡ് വെബ് ആപ്പ് ഡെവലപ്പർ മോഡ് വീണ്ടും പ്രവർത്തനക്ഷമമാക്കുക</translation>
 <translation id="2526280916094749336">സംരക്ഷിച്ച വിലാസങ്ങൾ നിങ്ങൾക്ക് Google ഉൽപ്പന്നങ്ങളിലുടനീളം ഉപയോഗിക്കാം. ഈ വിലാസം നിങ്ങളുടെ <ph name="ACCOUNT" /> എന്ന Google Account-ൽ സംരക്ഷിക്കും.</translation>
+<translation id="2526590354069164005">ഡെസ്ക്‌ടോപ്പ്</translation>
 <translation id="2527451058878391043">CVC നിങ്ങളുടെ കാർഡിന്റെ മുൻഭാഗത്താണുള്ളത്. നിങ്ങളുടെ കാർഡ് നമ്പറിന് മുകളിൽ വലതുവശത്തുള്ള 4 അക്ക കോഡാണിത്.</translation>
 <translation id="2529899080962247600">ഈ ഫീൽഡിൽ <ph name="MAX_ITEMS_LIMIT" />-ൽ കൂടുതൽ എൻ‌ട്രികൾ ഉണ്ടാകരുത്. തുടർന്നുള്ള എല്ലാ എൻ‌ട്രികളും നിരസിക്കും.</translation>
 <translation id="2530042584066815841">മൗസ് ലോക്കും ഉപയോഗവും</translation>
@@ -1492,6 +1497,7 @@
 <translation id="3325568918769906282">അവരോഹണക്രമത്തിൽ</translation>
 <translation id="3325662270238538525">ഫയലിന്റെ പേരുകളും ഫയൽ ഉള്ളടക്കത്തിന്റെ ഡിജിറ്റൽ ഫിംഗർപ്രിന്റുകളും ഡൗൺലോഡ് ഉറവിടവും മെറ്റാഡാറ്റയും ഉൾപ്പെടെ, അടുത്തിടെയുള്ള ഫയൽ ആക്‌സസും പരിഷ്‌ക്കരണങ്ങളും</translation>
 <translation id="3329013043687509092">സാച്ചുറേഷൻ</translation>
+<translation id="3330483197654063678">ഓണായിരിക്കുമ്പോൾ, കൂടുതൽ പ്രസക്തമായ പ്രതികരണങ്ങൾ ലഭിക്കാൻ നിങ്ങളെ സഹായിക്കുന്നതിന് ഈ വിൻഡോയിൽ തുറന്നിരിക്കുന്ന ടാബുകൾ Chrome പങ്കിടും.</translation>
 <translation id="3333762389743153920">വെർച്വൽ കാർഡിന് യോഗ്യമല്ല</translation>
 <translation id="3338095232262050444">സുരക്ഷിതം</translation>
 <translation id="333839153442689579">ഹെെ ഇന്റൻസിറ്റി ഇന്റർവെൽ ട്രെയ്‌നിംഗ്</translation>
@@ -1545,6 +1551,7 @@
 <translation id="3422472998109090673"><ph name="HOST_NAME" /> നിലവിൽ ലഭ്യമല്ല.</translation>
 <translation id="3422794267539320056">കളിക്കാൻ ദിനോസറിൽ ടാപ്പ് ചെയ്യുക അല്ലെങ്കിൽ Space അമർത്തുക</translation>
 <translation id="3423742043356668186">സിസ്റ്റം വ്യക്തമാക്കിയത്</translation>
+<translation id="3426672782316020729">Google Wallet-ൽ പാസ്‌പോർട്ട് അപ്ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="3427342743765426898">&amp;എഡിറ്റുചെയ്യുന്നത് വീണ്ടും ചെയ്യുക</translation>
 <translation id="342781501876943858">മറ്റ് സൈറ്റുകളിൽ നിങ്ങളുടെ പാസ്‌വേഡ് പുനരുപയോഗിച്ചിട്ടുണ്ടെങ്കിൽ, അത് റീസെറ്റ് ചെയ്യാൻ Chromium ശുപാർശ ചെയ്യുന്നു.</translation>
 <translation id="3428151540071562330">DnsOverHttpsTemplates സെർവർ ടെംപ്ലേറ്റ് URI-കളിൽ ഒന്നോ അതിലധികമോ അസാധുവാണ്, അവ ഉപയോഗിക്കില്ല.</translation>
@@ -2405,6 +2412,7 @@
 <translation id="4766713847338118463">താഴെ ഇരട്ട സ്‌റ്റേപ്പിൾ ചെയ്യുക</translation>
 <translation id="4768816584204270288">നിങ്ങൾ കാലക്രമേണ പേ ചെയ്യുമ്പോൾ, ഒരു ഒറ്റത്തവണ വെർച്വൽ കാർഡ് നമ്പർ പൂരിപ്പിക്കും. ഈ വാങ്ങലിനുള്ള കാർഡ് വിശദാംശങ്ങൾ പകർത്തി ഒട്ടിക്കാൻ നിങ്ങൾക്ക് ക്ലിക്ക് ചെയ്യാം.</translation>
 <translation id="4768864802656530630">വിശദമായ സിസ്‌റ്റം ലോഗുകൾ. <ph name="BEGIN_LINK" />കൂടുതലറിയുക<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">Google Wallet-ൽ KTN അപ്ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="4771249073710170730">റേഡിയോ നിയന്ത്രണവും മോഡലിംഗും</translation>
 <translation id="4771973620359291008">ഒരു അജ്ഞാത പിശക് സംഭവിച്ചു.</translation>
 <translation id="4774055414220872623">ആർട്ട്, ക്രാഫ്റ്റ് സാമഗ്രികൾ</translation>
@@ -2845,6 +2853,7 @@
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> എന്നതും മറ്റ് <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> എണ്ണവും}other{<ph name="CONTACT_PREVIEW" /> എന്നതും മറ്റ് <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> എണ്ണവും}}</translation>
 <translation id="5463625433003343978">ഉപകരണങ്ങൾ കണ്ടെത്തുന്നു...</translation>
 <translation id="5464236009658034488">ഓഫീസ് സപ്ലൈകൾ</translation>
+<translation id="5465128270485645058">ഈ ത്രെഡുമായി ബന്ധപ്പെട്ടതാണെങ്കിൽ, ഈ വിൻഡോയിലെ തുറന്ന ടാബുകൾ സ്വയമേവ പങ്കിടുന്നതിലൂടെ കൂടുതൽ അനുയോജ്യമായ പ്രതികരണങ്ങൾ നേടുക.</translation>
 <translation id="5465724643247062031">ഗ്ലാസ് (അതാര്യം)</translation>
 <translation id="5466018172325111652">നിങ്ങളുടെ കോഡ് ലഭിച്ചില്ലേ? <ph name="BEGIN_LINK" />പുതിയ കോഡ് നേടുക<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">പേയ്‌മെന്റ് ആപ്പുകൾ</translation>
@@ -3127,6 +3136,7 @@
 <translation id="5911020115933784199">ഇവന്റുകളും ലിസ്റ്റിംഗുകളും</translation>
 <translation id="5911110632211230665">തുറക്കുന്നത് ബ്ലോക്ക് ചെയ്തിരിക്കുന്നു</translation>
 <translation id="5912796581727968237">Google Wallet തുറക്കുക</translation>
+<translation id="5914185423510719251">Google Wallet-ൽ KTN സംരക്ഷിക്കുക</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" />, ഈ ടാബ് ചേർത്തു</translation>
 <translation id="5915189366813702112">സൗകര്യപ്രദമായ ജോലി ക്രമീകരണങ്ങൾ</translation>
 <translation id="59174027418879706">പ്രവർത്തനക്ഷമമാക്കി</translation>
@@ -3650,6 +3660,7 @@
 <translation id="6702851555558236418">ഓഡിയോ, സംഗീത സോഫ്റ്റ്‌വെയർ</translation>
 <translation id="6702919718839027939">ദൃശ്യമാക്കുക</translation>
 <translation id="6704458454638854812">"custom_size" പ്രോപ്പർട്ടി സജ്ജീകരിച്ചതിനാൽ, പേര് ചേർക്കേണ്ടത് "custom" എന്നാണ്.</translation>
+<translation id="670477556876354552">റീസ്‌റ്റാർട്ട് ചെയ്യേണ്ടതുണ്ട്</translation>
 <translation id="6706005862292023715">കർട്ടനുകളും വിൻഡോ ട്രീറ്റ്മെന്റുകളും</translation>
 <translation id="6706210727756204531">വ്യാപ്‌തി</translation>
 <translation id="6706678697074905703">ഈ IBAN നിങ്ങളുടെ Google Account-ൽ സംരക്ഷിക്കാനായില്ല. പകരം, ഈ ഉപകരണത്തിലെ Chrome-ൽ സംരക്ഷിച്ചു.</translation>
@@ -3907,6 +3918,7 @@
 <translation id="7110116949943042888">താൽക്കാലികവും സീസണലുമായ ജോലികൾ</translation>
 <translation id="7110368079836707726">കോളേജുകളും സർവകലാശാലകളും</translation>
 <translation id="7111507312244504964">പ്രോപ്പർട്ടി പരിശോധനകളും മൂല്യനിർണ്ണയങ്ങളും</translation>
+<translation id="7117290130383718594">ടെക്സ്റ്റ് കുറിപ്പുകൾ</translation>
 <translation id="7118618213916969306">ക്ലിപ്പ്ബോർഡ് URL-നുള്ള തിരയൽ, <ph name="SHORT_URL" /></translation>
 <translation id="7118852830504022370">ഈ സൈറ്റ് HTTPS പിന്തുണയ്‌ക്കാത്തതിനാലാണ് നിങ്ങൾ ഈ മുന്നറിയിപ്പ് കാണുന്നത്. <ph name="BEGIN_LEARN_MORE_LINK" />ഈ മുന്നറിയിപ്പിനെ കുറിച്ച് കൂടുതലറിയുക<ph name="END_LEARN_MORE_LINK" /></translation>
 <translation id="7119063404975271297">ടിവി നാടകങ്ങൾ</translation>
@@ -4214,6 +4226,7 @@
 <translation id="7569490014721427265">ഗോൾഫ്</translation>
 <translation id="7569952961197462199">Chrome-ൽ നിന്ന് ക്രെഡിറ്റ് കാർഡ് നീക്കംചെയ്യണോ?</translation>
 <translation id="7569983096843329377">കറുപ്പ്</translation>
+<translation id="7570524564113479209">Google Wallet-ൽ ഐഡി കാർഡ് അപ്ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="7570862164055912832">റിഡ്രെസ് നമ്പറുകൾ</translation>
 <translation id="7571813784389228510">Google AI മോഡ്</translation>
 <translation id="7574998639136359461">വിന്റർ സ്‌പോർട്‌സ് ഉപകരണം</translation>
@@ -4735,6 +4748,7 @@
 <translation id="8389940864052787379">ഇഷ്ടാനുസൃത, പെർഫോമൻസ് വാഹനങ്ങൾ</translation>
 <translation id="8390725133630534698"><ph name="ORIGIN_NAME" /> -ൽ നിന്ന് <ph name="VM_NAME" /> എന്നതിലേക്ക് പങ്കിടുന്നത് അഡ്‌മിൻ നയം ബ്ലോക്ക് ചെയ്തിരിക്കുന്നു</translation>
 <translation id="8392783408127179588">നയങ്ങൾ റീലോഡ് ചെയ്യുന്നു</translation>
+<translation id="8393948304336153065">Google Wallet-ൽ ഡ്രൈവിംഗ് ലൈസൻസ് അപ്ഡേറ്റ് ചെയ്യുക</translation>
 <translation id="8396522675989118466"><ph name="SIDE_OF_CARD" /> എന്നതിലെ <ph name="NUMBER_OF_DIGITS" />-അക്ക കോഡാണിത്</translation>
 <translation id="8398335999901363925">ടച്ച് ചെയ്യുമ്പോൾ പൂരിപ്പിക്കാൻ ലഭ്യമായ പേയ്‌മെന്റ് രീതികൾ പൂർണ്ണമായി തുറന്നിരിക്കുന്നു.</translation>
 <translation id="8398446215576328011">ബാധക നയങ്ങൾ പുനഃസ്ഥാപിക്കുക</translation>
@@ -4896,7 +4910,6 @@
 <translation id="8671519637524426245"><ph name="SECURE_DNS_SALT" /> എന്ന മൂല്യം, വലുപ്പ സംബന്ധമായ ആവശ്യകതകൾ പാലിക്കുന്നില്ല.</translation>
 <translation id="867224526087042813">ഒപ്പ്</translation>
 <translation id="8672535691554698269">കമ്പ്യൂട്ടർ നെറ്റ്‌വർക്കുകൾ</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{ടാബ് പങ്കിടൽ വിശദാംശങ്ങൾ കാണിക്കുക. {WEBSITE_LIST_STR} എന്നതിൽ നിന്ന് ഒരു ടാബ് പങ്കിടുന്നു}other{ടാബ് പങ്കിടൽ വിശദാംശങ്ങൾ കാണിക്കുക. {WEBSITE_LIST_STR} എന്നതിൽ നിന്ന് {NUM_TABS} ടാബുകൾ പങ്കിടുന്നു}}</translation>
 <translation id="8675446170353411473">നിങ്ങളുടെ ഫയലുകൾ <ph name="CLOUD_PROVIDER" /> എന്നതിലേക്ക് അപ്‌ലോഡ് ചെയ്യുകയാണ്</translation>
 <translation id="8676424191133491403">കാലതാമസമില്ല</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, ഉത്തരം, <ph name="ANSWER" /></translation>

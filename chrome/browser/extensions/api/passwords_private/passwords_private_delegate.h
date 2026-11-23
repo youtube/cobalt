@@ -14,6 +14,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list_types.h"
 #include "chrome/common/extensions/api/passwords_private.h"
 #include "components/password_manager/core/browser/export/export_progress_status.h"
 #include "components/password_manager/core/browser/import/import_results.h"
@@ -36,9 +37,28 @@ namespace extensions {
 // Delegate used by the chrome.passwordsPrivate API to facilitate working with
 // saved passwords and password exceptions (reading, adding, changing, removing,
 // import/export) and to notify listeners when these values have changed.
+//
+// It also acts as the shared context for modern WebUI Mojo interfaces within a
+// Profile. Because it orchestrates memory-intensive domain services (e.g.,
+// SavedPasswordsPresenter), it is ref-counted; a single instance is shared as
+// the source of truth across all concurrent WebUI tabs, and it is automatically
+// destroyed when the last tab is closed.
+//
+// Observers registered here will receive global state broadcasts (e.g.,
+// Export Progress) guaranteeing consistent UI state across all open tabs.
 class PasswordsPrivateDelegate
     : public base::RefCounted<PasswordsPrivateDelegate> {
  public:
+  class Observer : public base::CheckedObserver {
+   public:
+    virtual void OnPasswordsExportProgress(
+        password_manager::ExportProgressStatus status,
+        const std::string& folder_name) {}
+  };
+
+  virtual void AddObserver(Observer* observer) = 0;
+  virtual void RemoveObserver(Observer* observer) = 0;
+
   using ImportResultsCallback =
       base::OnceCallback<void(const api::passwords_private::ImportResults&)>;
 
@@ -195,11 +215,17 @@ class PasswordsPrivateDelegate
   // |delete_file|: whether to trigger deletion of the last imported file.
   virtual void ResetImporter(bool delete_file) = 0;
 
+  enum class ExportPasswordsResult {
+    kSuccess,
+    kInProgress,
+    kReauthFailed,
+  };
+
   // Trigger the password export procedure, allowing the user to save a file
-  // containing their passwords. |callback| will be called with an error
-  // message if the request is rejected, because another export is in progress.
+  // containing their passwords. |accepted_callback| will be called to notify
+  // whether the operation is accepted.
   virtual void ExportPasswords(
-      base::OnceCallback<void(const std::string&)> callback,
+      base::OnceCallback<void(ExportPasswordsResult)> accepted_callback,
       content::WebContents* web_contents) = 0;
 
   // Get the most recent progress status.

@@ -33,6 +33,7 @@ export function getHtml(this: ContextualActionMenuElement) {
                   role="menuitem"
                   aria-haspopup="menu"
                   aria-expanded="${this.shareTabsFlyoutOpen}"
+                  ?disabled="${this.isShareTabsTriggerDisabled_()}"
                   @pointerenter="${this.onShareTabsRowPointerenter_}"
                   @pointerleave="${this.onShareTabsRowPointerleave_}"
                   @keydown="${this.onShareTabsRowKeydown_}">
@@ -88,7 +89,8 @@ export function getHtml(this: ContextualActionMenuElement) {
                       <span class="tab-title">${tab.title}</span>
                       ${this.isRecentTab_(tab.tabId) ? html`
                         <span class="recent-tabs-suffix"
-                            ?disabled="${this.isTabDisabled_(tab)}">${
+                            ?disabled="${this.isTabDisabled_(tab)}">
+                            · ${
                             this.isSidePanel ?
                             this.i18n('currentTabSuffix') :
                             this.i18n('recentTabsSuffix')}</span>

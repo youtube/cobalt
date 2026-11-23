@@ -18,10 +18,12 @@
 #include "base/uuid.h"
 #include "components/history/core/browser/history_service_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/multistep_filter/core/data_models/suggestion_user_decision.h"
 #include "components/multistep_filter/core/data_models/url_filter_suggestion.h"
 #include "components/sync/service/sync_service.h"
 
 class GURL;
+class PrefService;
 
 namespace signin {
 class IdentityManager;
@@ -66,6 +68,7 @@ class MultistepFilterService : public KeyedService,
         consent_helper;
     raw_ptr<MultistepFilterLogRouter> log_router;
     raw_ptr<history::HistoryService> history_service;
+    raw_ptr<PrefService> pref_service;
     raw_ptr<syncer::SyncService> sync_service;
   };
 
@@ -90,6 +93,14 @@ class MultistepFilterService : public KeyedService,
       int64_t navigation_id,
       const GURL& url,
       base::OnceCallback<void(std::optional<UrlFilterSuggestion>)> callback);
+
+  // Records a suggestion impression in Profile retention preferences.
+  virtual void RecordSuggestionImpression();
+
+  // Records a user interaction with a suggestion in Profile retention
+  // preferences.
+  virtual void RecordUserInteractionWithSuggestion(
+      SuggestionUserDecision decision);
 
   // Deletes all annotations for the given `task_type`.
   virtual void DeleteAnnotationsForTask(std::string_view task_type,
@@ -172,6 +183,9 @@ class MultistepFilterService : public KeyedService,
 
   // Log router for the internals page.
   raw_ptr<MultistepFilterLogRouter> log_router_;
+
+  // Pref service to record retention statistics.
+  raw_ptr<PrefService> pref_service_;
 
   // Sync service to check for history sync state.
   raw_ptr<syncer::SyncService> sync_service_;

@@ -74,6 +74,25 @@ chromium-metrics-reviews@google.com.
   <variant name="1000ms"/>
 </variants>
 
+<!-- LINT.IfChange(GWSFontFallbackScript) -->
+
+<variants name="GWSFontFallbackScript">
+  <variant name="Arab" summary="Arabic"/>
+  <variant name="Beng" summary="Bengali"/>
+  <variant name="Cyrl" summary="Cyrillic"/>
+  <variant name="Deva" summary="Devanagari"/>
+  <variant name="Emoji" summary="Emoji"/>
+  <variant name="Hang" summary="Hangul"/>
+  <variant name="Hani" summary="Han"/>
+  <variant name="Hira" summary="Hiragana"/>
+  <variant name="Kana" summary="Katakana"/>
+  <variant name="Latn" summary="Latin"/>
+  <variant name="Other" summary="Other scripts"/>
+  <variant name="Zyyy" summary="Common (Symbols, Math)"/>
+</variants>
+
+<!-- LINT.ThenChange(//components/page_load_metrics/common/page_load_metrics.mojom:ScriptType) -->
+
 <variants name="GWSFontLoadingMilestone">
   <variant name="AFTEnd"
       summary="up to the Above the Fold End (AFTEnd) performance mark.
@@ -492,6 +511,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".ntp-microsoft-auth"/>
   <variant name=".ntp-tiles-internals"/>
   <variant name=".office-fallback"/>
+  <variant name=".omnibox-everywhere.top-chrome"/>
   <variant name=".omnibox-popup.top-chrome"/>
   <variant name=".on-device-translation-internals"/>
   <variant name=".oobe"/>
@@ -611,6 +631,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".LensSidePanelUntrusted"/>
   <variant name=".MakoUntrusted"/>
   <variant name=".NewTabFooter"/>
+  <variant name=".OmniboxEverywhere"/>
   <variant name=".OmniboxPopup"/>
   <variant name=".PerformanceSidePanel"/>
   <variant name=".PersonalContextNotice"/>
@@ -649,6 +670,40 @@ chromium-metrics-reviews@google.com.
   <summary>
     The number of Page Action Suggestion Chips currently active. Measured each
     time a new suggestion chip is shown.
+  </summary>
+</histogram>
+
+<histogram name="PageActionController.Chip.CollapsedDueToSpace.ActionType"
+    enum="PageActionIconType" expires_after="2027-06-01">
+  <owner>yeroshkin@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    The type of Page Action suggestion chip that was shown in a collapsed state
+    (icon only) due to insufficient space in the omnibox. Logged once when the
+    chip is originally shown.
+  </summary>
+</histogram>
+
+<histogram name="PageActionController.Chip.CollapsedDueToSpace.PreferredWidth"
+    units="DIPs" expires_after="2027-06-01">
+  <owner>yeroshkin@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    The preferred width of the Page Action suggestion chip that was shown in a
+    collapsed state due to insufficient space in the omnibox. Logged once when
+    the chip is originally shown.
+  </summary>
+</histogram>
+
+<histogram name="PageActionController.ChipCollapseAnalysisCount.ActionType"
+    enum="PageActionIconType" expires_after="2027-06-01">
+  <owner>yeroshkin@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    The type of Page Action suggestion chip that was shown. Logged once when the
+    chip is originally shown, regardless of whether it was collapsed or
+    expanded. Used as a denominator for CollapsedDueToSpace.ActionType to
+    calculate the collapse rate.
   </summary>
 </histogram>
 
@@ -1942,6 +1997,20 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.{GWSFontFallbackScript}.{GWSFontLoadingMilestone}"
+    units="count" expires_after="2027-06-01">
+  <owner>suzukikeita@chromium.org</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    The number of times a system fallback font was used for
+    {GWSFontFallbackScript} character rendering for a Google Search page load,
+    {GWSFontLoadingMilestone}. Recorded in batch at the milestone.
+  </summary>
+  <token key="GWSFontFallbackScript" variants="GWSFontFallbackScript"/>
+  <token key="GWSFontLoadingMilestone" variants="GWSFontLoadingMilestone"/>
+</histogram>
+
+<histogram
     name="PageLoad.Clients.GoogleSearch.FontLoading.FallbackCount.{GWSFontLoadingMilestone}"
     units="count" expires_after="2027-06-01">
   <owner>suzukikeita@chromium.org</owner>
@@ -2066,6 +2135,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="PageLoad.Clients.GoogleSearch.InteractionToAFTEnd" units="ms"
+    expires_after="2026-09-24">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Measures the duration from a) the OS-level timestamp of the user input event
+    that started a navigation to b) when the Above the Fold (AFT) content is
+    fully rendered, excluding the time spent waiting for user interaction in
+    beforeunload dialogs. This includes the time spent running beforeunload
+    JavaScript handlers. This is recorded for Google Search page loads.
+  </summary>
+</histogram>
+
 <histogram name="PageLoad.Clients.GoogleSearch.InteractionToNavigationStart"
     units="ms" expires_after="2027-02-04">
   <owner>chikamune@chromium.org</owner>
@@ -2094,7 +2177,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.Leakage2.{NavigationMilestone}ToAbandon{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{ResponseFromCache}"
-    units="ms" expires_after="2026-06-28">
+    units="ms" expires_after="2027-06-30">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -3866,7 +3949,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients{ObservedNavigation}.Leakage2.RendererProcessCreatedBeforeNav{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
-    enum="Boolean" expires_after="2026-06-23">
+    enum="Boolean" expires_after="2027-06-30">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
@@ -3912,7 +3995,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients{ObservedNavigation}.Leakage2.{NavigationType}To{NavigationAbandonReason}{BackgroundSuffix}{HiddenSuffix}{IncognitoSuffix}{ResponseFromCache}"
-    units="ms" expires_after="2026-06-23">
+    units="ms" expires_after="2027-06-30">
   <owner>sisidovski@chromium.org</owner>
   <owner>rakina@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>

@@ -64,6 +64,7 @@ import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 import org.chromium.ui.test.util.modaldialog.FakeModalDialogManager;
 import org.chromium.url.GURL;
+import org.chromium.url.Origin;
 
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -1729,6 +1730,20 @@ public class ExternalNavigationHandlerTest {
     public void testDigitalCredentialsWarningDialog_WrappedMdoc() {
         String wrappedUrl = "intent://#Intent;scheme=mdoc;action=android.intent.action.VIEW;end";
         checkDigitalCredentialsWarningDialogShow("mdoc", wrappedUrl);
+    }
+
+    @Test
+    @MediumTest
+    public void testDigitalCredentialsWarningDialog_OpaqueOrigin() {
+        mDelegate.add(
+                new IntentActivity("openid4vp-v1-unsigned", DIGITAL_CREDENTIALS_PACKAGE_NAME));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    checkUrl(DIGITAL_CREDENTIALS_URL, redirectHandlerForLinkClick())
+                            .withHasUserGesture(true)
+                            .withInitiatorOrigin(Origin.createOpaqueOrigin())
+                            .expecting(OverrideUrlLoadingResultType.NO_OVERRIDE, IGNORE);
+                });
     }
 
     @Test
@@ -3875,6 +3890,7 @@ public class ExternalNavigationHandlerTest {
         private boolean mIsInitialNavigationInFrame;
         private boolean mIsHiddenCrossFrame;
         private long mNavigationId;
+        private Origin mInitiatorOrigin;
 
         private ExternalNavigationTestParams(String url, RedirectHandler handler) {
             mUrl = url;
@@ -3938,6 +3954,11 @@ public class ExternalNavigationHandlerTest {
             return this;
         }
 
+        public ExternalNavigationTestParams withInitiatorOrigin(Origin initiatorOrigin) {
+            mInitiatorOrigin = initiatorOrigin;
+            return this;
+        }
+
         public void expecting(
                 @OverrideUrlLoadingResultType int expectedOverrideResult, int otherExpectation) {
             boolean expectStartIncognito = (otherExpectation & START_INCOGNITO) != 0;
@@ -3981,6 +4002,7 @@ public class ExternalNavigationHandlerTest {
                             .setIsInitialNavigationInFrame(mIsInitialNavigationInFrame)
                             .setIsHiddenCrossFrameNavigation(mIsHiddenCrossFrame)
                             .setNavigationId(mNavigationId)
+                            .setInitiatorOrigin(mInitiatorOrigin)
                             .build();
             OverrideUrlLoadingResult result = mUrlHandler.shouldOverrideUrlLoading(params);
 

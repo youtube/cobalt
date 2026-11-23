@@ -103,6 +103,7 @@
 <translation id="1335767868357998043">เลือกตำแหน่งของแถบที่อยู่</translation>
 <translation id="1347468774581902829">จัดการกิจกรรม</translation>
 <translation id="1348596747084433075">https://www.amazon.com/Wife-Gifts/s?k=for+Wife+Gifts</translation>
+<translation id="1353169676553627502">ปิดข้อมูลอัปเดตความคืบหน้า</translation>
 <translation id="1355337783640312381">หากต้องการสลับบัญชี ให้แตะไอคอนบัญชี</translation>
 <translation id="135806768612505061">แท็บทั้งหมด</translation>
 <translation id="1358106883354237005">บัญชีที่มีการจัดการ</translation>
@@ -147,6 +148,7 @@
 <translation id="147982357559798527">เปลี่ยนแปลงแล้ว</translation>
 <translation id="1483493594462132177">ส่ง</translation>
 <translation id="1486096554574027028">ค้นหารหัสผ่าน</translation>
+<translation id="1486593497476255523">กลุ่มแท็บเสร็จสมบูรณ์</translation>
 <translation id="1491277525950327607">แตะ 2 ครั้งเพื่อสลับการตั้งค่า</translation>
 <translation id="1492417797159476138">คุณบันทึกชื่อผู้ใช้นี้สำหรับเว็บไซต์นี้แล้ว</translation>
 <translation id="1497590942294823549">เมนู → เครื่องมือจัดการรหัสผ่าน</translation>
@@ -231,6 +233,7 @@
 <translation id="1740650426894359238">เปลี่ยนไปใช้โปรไฟล์อื่น</translation>
 <translation id="1741219894094057085">สมาร์ทวอทช์</translation>
 <translation id="1743244221910283364">ทิ้งการเปลี่ยนแปลง</translation>
+<translation id="1744234754703485302">จัดการวิธีการชำระเงินเสร็จสมบูรณ์</translation>
 <translation id="1748975028205587434">เลือกไฟล์</translation>
 <translation id="1749733017156547309">ต้องระบุรหัสผ่าน</translation>
 <translation id="174998178145075354">{count,plural, =1{ตัวเลือกที่อยู่ {count} รายการพร้อมให้ใช้งานอยู่เหนือแป้นพิมพ์}other{ตัวเลือกที่อยู่ {count} รายการพร้อมให้ใช้งานอยู่เหนือแป้นพิมพ์}}</translation>
@@ -357,6 +360,7 @@
 <translation id="2155663190508912427">ลบในอีก 1 เดือน</translation>
 <translation id="2161446265348023004">เปลี่ยนเพื่อเปิดหน้าต่าง</translation>
 <translation id="2164946989711475905">ลงชื่อเข้าใช้…</translation>
+<translation id="2165110345209765380">ค้นหาด้วยโหมด AI เสร็จสมบูรณ์</translation>
 <translation id="2175927920773552910">คิวอาร์โค้ด</translation>
 <translation id="2180338296831857171">ลบที่อยู่</translation>
 <translation id="218350106843433823">ป้อนรหัสผ่านและพาสคีย์อัตโนมัติ</translation>
@@ -396,6 +400,7 @@
 <translation id="2273327106802955778">เมนูเพิ่มเติม</translation>
 <translation id="2287614783861766820">{count,plural, =1{ระบบจะลบที่อยู่นี้ออกจากอุปกรณ์เครื่องนี้}other{ระบบจะลบที่อยู่เหล่านี้ออกจากอุปกรณ์เครื่องนี้}}</translation>
 <translation id="2295236662082735391">กดรูปภาพบนเว็บค้างไว้เพื่อแก้ไขด้วย Gemini</translation>
+<translation id="2296360194694387941">ใช้ Gemini ใน Chrome เสร็จสมบูรณ์</translation>
 <translation id="2297989278479054870">หลังจากที่คุณออกจากระบบ บุ๊กมาร์ก รหัสผ่าน และข้อมูลอื่นๆ ในบัญชี Google จะถูกนำออกจากอุปกรณ์นี้</translation>
 <translation id="2299218006564889602">ระบบจะเข้ารหัสให้แก่รหัสผ่านในอุปกรณ์ก่อนบันทึกลงในเครื่องมือจัดการรหัสผ่านบน Google</translation>
 <translation id="2306265833370324042">แสดงรายละเอียด <ph name="SEARCH_ENGINE_NAME" /></translation>
@@ -609,6 +614,7 @@
 <translation id="3073633853887034268">รับทราบ</translation>
 <translation id="3080525922482950719">คุณบันทึกหน้าเว็บไว้อ่านภายหลังหรืออ่านขณะออฟไลน์ได้</translation>
 <translation id="3081338492074632642">ตรวจสอบว่ารหัสผ่านที่คุณจะบันทึกตรงกับรหัสผ่านสำหรับ <ph name="WEBSITE" /></translation>
+<translation id="3084484227247071193">เปิดข้อมูลอัปเดตความคืบหน้า</translation>
 <translation id="3087734570205094154">ด้านล่าง</translation>
 <translation id="309710370695886264">คุณมีรหัสผ่านที่ใช้ซ้ำ 1 รายการ แก้ไขเลยเพื่อความปลอดภัย</translation>
 <translation id="3099402981545350675">การดำเนินการนี้จะลบที่อยู่ที่บันทึกไว้ในอุปกรณ์นี้ นอกจากนี้ยังจะนำข้อมูลที่เลือกออกจาก Chrome แต่จะไม่ลบข้อมูลนี้ออกจากบัญชี Google</translation>
@@ -642,6 +648,7 @@
 <translation id="3177338796769255211">ลงชื่อเข้าใช้เพื่อรับบุ๊กมาร์กและอื่นๆ ในอุปกรณ์ทุกเครื่อง</translation>
 <translation id="3181954750937456830">Google Safe Browsing (ปกป้องคุณและอุปกรณ์จากเว็บไซต์ที่เป็นอันตราย)</translation>
 <translation id="3183362380688692618">กลุ่มแท็บใหม่...</translation>
+<translation id="3185760469172949183">ค้นหาด้วยกล้องเสร็จสมบูรณ์</translation>
 <translation id="3186796054637504691">ล้างประวัติการเข้าชมและข้อมูลเว็บไซต์</translation>
 <translation id="3190736958609431397">ยกเลิกการติดตาม</translation>
 <translation id="3208260410153224535">องค์กรปิดการลงชื่อเข้าใช้ไว้ บุ๊กมาร์ก รหัสผ่านใหม่ และข้อมูลอื่นๆ จะบันทึกไว้ในอุปกรณ์นี้เท่านั้น</translation>
@@ -708,7 +715,9 @@
 <translation id="3449029510150690417">สร้างกลุ่มแท็บใหม่โดยตั้งชื่อและสีให้กลุ่มแท็บ</translation>
 <translation id="345348365500626747">พบที่อยู่</translation>
 <translation id="3459644598174926977">ใช้ฟีเจอร์ Live กับ Gemini เพื่อถามเกี่ยวกับหน้าเว็บ ระดมความคิดออกมา และพูดคุยโต้ตอบ</translation>
+<translation id="3462768334899086950">การดำเนินการนี้หมายความว่าคุณจะเสียไฟล์ที่ยังไม่ได้บันทึกและแท็บปัจจุบัน</translation>
 <translation id="3464194322481586217">ติดตามราคาไม่ได้</translation>
+<translation id="346831467152294287">รหัสผ่านและการป้อนข้อความอัตโนมัติเสร็จสมบูรณ์</translation>
 <translation id="3469117812148449995">ตัวเลือกในการบันทึกรหัสผ่าน</translation>
 <translation id="3472469028191701821">เปิดในแท็บใหม่</translation>
 <translation id="3474048842645761983">{COUNT,plural, =1{สำหรับเว็บไซต์หรือแอป {COUNT} รายการ}other{สําหรับเว็บไซต์และแอป {COUNT} รายการ}}</translation>
@@ -745,6 +754,7 @@
 <translation id="3565012355885596568">โหลดรูปภาพไม่ได้</translation>
 <translation id="3565930036634619844">แท็บ <ph name="TAB_INDEX" /> จาก <ph name="NUMBER_OF_TABS" /></translation>
 <translation id="3567168891086460374">บันทึกด้วยวิธีอื่น</translation>
+<translation id="3567446754270467567">Google Safe Browsing พร้อมการปกป้องที่ดียิ่งขึ้นเสร็จสมบูรณ์</translation>
 <translation id="3572503683475187385">ระบบจะแชร์แท็บปัจจุบันกับ Gemini เมื่อคุณเริ่มแชทใหม่ เมื่อคุณแชร์แท็บกับ Gemini ระบบจะส่งเนื้อหาและ URL ของแท็บไปยัง Google <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติม<ph name="END_LINK" /></translation>
 <translation id="3572607909481582402">ในบัญชี Google</translation>
 <translation id="3575234738189584619">ค้นหาด้วย Lens</translation>
@@ -805,6 +815,7 @@
 <translation id="3813175908845379029">คำแนะนำที่เป็นประโยชน์ซึ่งทำให้การท่องเว็บดีขึ้นและง่ายขึ้น</translation>
 <translation id="3818293389945649617">ค้นหาถัดไป</translation>
 <translation id="3819183753496523827">คุณออฟไลน์อยู่ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองอีกครั้ง</translation>
+<translation id="3826034723896327540">ปักหมุดแท็บเสร็จสมบูรณ์</translation>
 <translation id="3828924571679282172">{COUNT,plural, =1{วิธีการชำระเงิน 1 วิธี}other{วิธีการชำระเงิน # วิธี}}</translation>
 <translation id="3831560640878483188">ปิดคำเตือนไหม</translation>
 <translation id="3832419617903252251">บันทึกรหัสผ่านไว้ในอุปกรณ์นี้เท่านั้น</translation>
@@ -836,7 +847,6 @@
 <translation id="391904960191284041">รีวิวสินค้า</translation>
 <translation id="3921585859122905677">ตำแหน่งของแถบที่อยู่</translation>
 <translation id="3922185497376658606">โหลดหน้าเว็บล่วงหน้า</translation>
-<translation id="3922395466317605522">ปรับแต่งเมนู</translation>
 <translation id="3926703470020109118">ยกเลิกการดาวน์โหลดแล้ว</translation>
 <translation id="3929457972718048006">ที่อยู่</translation>
 <translation id="3931215329146376310">{count,plural, =1{รหัสผ่านใหม่สำหรับเว็บไซต์นี้}other{รหัสผ่านใหม่สำหรับเว็บไซต์นี้}}</translation>
@@ -886,6 +896,7 @@
 <translation id="4049507953662678203">ตรวจสอบว่าคุณมีการเชื่อมต่อเครือข่าย และลองอีกครั้ง</translation>
 <translation id="4054290211988862686">เลือกไฟล์</translation>
 <translation id="4070132839822635162">ไม่ลงชื่อเข้าใช้</translation>
+<translation id="4072473499345702662">ไปที่ Level Up</translation>
 <translation id="4092655288299341041">แสดงความช่วยเหลือ</translation>
 <translation id="4095483462103784441">สร้างกลุ่มแท็บใหม่</translation>
 <translation id="4099756562043439968">ตั้งค่าการช่วยเตือน</translation>
@@ -965,6 +976,7 @@
 <translation id="4326912346867677256">แตะ "ใช้รหัสผ่าน" เพื่อลงชื่อเข้าใช้อย่างปลอดภัย</translation>
 <translation id="4328843285884395590">ไดรฟ์ของฉัน</translation>
 <translation id="4331177082088332784">คุณจัดการตัวเลือกนี้ได้ในBEGIN_LINKการตั้งค่าเนื้อหาEND_LINK</translation>
+<translation id="4331712008356052424">หากต้องการส่งลิงก์นี้ ให้ลงชื่อเข้าใช้อุปกรณ์อื่นโดยใช้ <ph name="USER_EMAIL" /></translation>
 <translation id="4334428914252001502">บทความที่ยังไม่ได้อ่าน 1 รายการ</translation>
 <translation id="4338258232580025606">ลงชื่อเข้าใช้ไม่ได้</translation>
 <translation id="4338650699862464074">ส่ง URL ของหน้าที่คุณเข้าชมไปยัง Google</translation>
@@ -1027,6 +1039,7 @@
 <translation id="4578835633387306383">เปิด…</translation>
 <translation id="4580621046861724270">ระบบไม่ได้บันทึกบุ๊กมาร์กบางรายการ</translation>
 <translation id="4580716718466706433">ไปที่ "เครื่องมือจัดการรหัสผ่าน"</translation>
+<translation id="4584778196791098089">เข้าสู่โหมดไม่ระบุตัวตนเสร็จสมบูรณ์</translation>
 <translation id="4585751637295612750">เปิดแท็บใหม่เพื่อเพิ่มลงในคำถาม</translation>
 <translation id="4587589328781138893">เว็บไซต์</translation>
 <translation id="4592672037257622855">{count,plural, =1{เพิ่มหน้าลงในเรื่องรออ่านแล้ว}other{เพิ่ม {count} หน้าลงในเรื่องรออ่านแล้ว}}</translation>
@@ -1097,6 +1110,7 @@
 <translation id="479628432297359449">หยุดดาวน์โหลดใช่ไหม</translation>
 <translation id="4796496140132859135">กลุ่มแท็บ ยุบอยู่</translation>
 <translation id="4802185666270672526">ซ่อน "ขอเว็บไซต์เวอร์ชันเดสก์ท็อป"</translation>
+<translation id="4802678077012980341">การตรวจสอบรหัสผ่านเสร็จสมบูรณ์</translation>
 <translation id="4803185665210547709">จัดการโดยองค์กร
 <ph name="BEGIN_LINK" />ดูข้อมูลเพิ่มเติม<ph name="END_LINK" /></translation>
 <translation id="4803728135431112209">วง ไฮไลต์ หรือแตะเพื่อเลือกสิ่งที่ต้องการค้นหาและรับผลการค้นหาโดยไม่ต้องออกจากแท็บ</translation>
@@ -1269,6 +1283,7 @@
 <translation id="5336910966955551309">แตะค้างไว้เพื่อปักหมุดเว็บไซต์โปรด</translation>
 <translation id="5338512273860059533">กำลังลงชื่อเข้าใช้</translation>
 <translation id="5343472494710226394">ข่าวสาร กีฬา และเนื้อหาตามความสนใจของคุณ</translation>
+<translation id="5351613737248079168">คุณต้องลงชื่อเข้าใช้เพื่อใช้ Level Up</translation>
 <translation id="5352128922772839949">บันทึกไฟล์</translation>
 <translation id="5355191726083956201">การปกป้องที่ปรับปรุงแล้วเปิดอยู่</translation>
 <translation id="536067926684072644">แสดงบุ๊กมาร์ก</translation>
@@ -1305,6 +1320,7 @@
 <translation id="5482922178977937393">ต้องการรับการแจ้งเตือนเกี่ยวกับข่าว กีฬา และอื่นๆ ตามความสนใจของคุณไหม</translation>
 <translation id="5483838506518938965">คุณพร้อมแล้ว</translation>
 <translation id="5487521232677179737">ล้างข้อมูล</translation>
+<translation id="5491208689472430746">ลบด่วนเสร็จสมบูรณ์</translation>
 <translation id="5494920125229734069">เลือกทั้งหมด</translation>
 <translation id="5499648645977734083">จัดการวิธีการชำระเงิน…</translation>
 <translation id="5501346139932663133">แอป Google</translation>
@@ -1471,6 +1487,7 @@
 <translation id="6040143037577758943">ปิด</translation>
 <translation id="6042308850641462728">แสดงเพิ่ม</translation>
 <translation id="6045460247888249350">เพิ่มชื่อ</translation>
+<translation id="6050237559175440178">โปรดยืนยันว่าเป็นคุณเพื่อใช้และบันทึกข้อมูลในอุปกรณ์ทุกเครื่อง</translation>
 <translation id="6052269326659653305">เปลี่ยนโปรไฟล์</translation>
 <translation id="605721222689873409">ปป</translation>
 <translation id="6059830886158432458">ควบคุมเรื่องราวและกิจกรรมของคุณได้ที่นี่</translation>
@@ -1690,7 +1707,6 @@
 <translation id="6674917187596384849">คุณสลับระหว่างบัญชีต่างๆ ได้อย่างง่ายดาย</translation>
 <translation id="6676349090816247042">ตัวเลือกการลงชื่อเข้าใช้</translation>
 <translation id="667999046851023355">เอกสาร</translation>
-<translation id="6680416467695217368">ปรับแต่งเมนู</translation>
 <translation id="6681791404926413601">{count,plural, =1{ตัวเลือกวิธีการชำระเงิน {count} รายการพร้อมให้ใช้งานอยู่เหนือแป้นพิมพ์}other{ตัวเลือกวิธีการชำระเงิน {count} รายการพร้อมให้ใช้งานอยู่เหนือแป้นพิมพ์}}</translation>
 <translation id="6682680306647339111">นำการช่วยเตือนออกแล้ว</translation>
 <translation id="6684262542644248484">ลงชื่อเข้าใช้เว็บไซต์</translation>
@@ -1846,6 +1862,7 @@
 <translation id="722339453342442311">ตรวจสอบเลย</translation>
 <translation id="7227235818314667565">จัดการการแชร์</translation>
 <translation id="7233006041370588369">เลือกรหัสผ่านเพื่อกรอก</translation>
+<translation id="723874023660911012">สลับโปรไฟล์</translation>
 <translation id="7241135764990439166">โหมดไม่ระบุตัวตนไม่พร้อมใช้งาน</translation>
 <translation id="7248046129087111453">ระบบอาจบันทึก<ph name="BEGIN_LINK" />ประวัติการค้นหา<ph name="END_LINK" />และ<ph name="BEGIN_LINK" />กิจกรรมรูปแบบอื่น<ph name="END_LINK" />ในบัญชี Google</translation>
 <translation id="7253951228444156601">กำลังตรวจสอบรหัสผ่าน…</translation>
@@ -2072,6 +2089,7 @@
 <translation id="7996239959906074962">ตั้งค่า…</translation>
 <translation id="800361585186029508">เปิด URL ที่ป้อนใน Google Chrome</translation>
 <translation id="8005666035647241369">ที่เครื่องมือจัดการรหัสผ่านบน Google ในอุปกรณ์นี้</translation>
+<translation id="8007106936382123905">{count,plural, =1{งานที่ทำเสร็จแล้ว 1 งาน}other{งานที่ทำเสร็จแล้ว # งาน}}</translation>
 <translation id="8010488806779226127">สำรวจฟีเจอร์ที่จะช่วยให้คุณทำสิ่งต่างๆ ได้มากขึ้นขณะท่องเว็บ</translation>
 <translation id="8011489434346330032">เครื่องมือตรวจสอบเว็บ</translation>
 <translation id="8014007212279733632">ยืนยันว่าเป็นคุณเพื่อป้อนข้อมูลที่ละเอียดอ่อนโดยอัตโนมัติ</translation>
@@ -2145,6 +2163,7 @@
 <translation id="8233237502828137700">ปิดการโปรโมตแบนเนอร์</translation>
 <translation id="823339794112333264">เปิดไมโครโฟน</translation>
 <translation id="8250920743982581267">เอกสาร</translation>
+<translation id="8252980988000695656">Google Lens เสร็จสมบูรณ์</translation>
 <translation id="8258734532103758067">ส่งออกข้อมูลแล้ว</translation>
 <translation id="8258999165172757081">มีแล้ว</translation>
 <translation id="8261506727792406068">ลบ</translation>
@@ -2155,6 +2174,7 @@
 <translation id="826614135184049678">คุณออกจากระบบบัญชี <ph name="USER_NAME" /> ในขั้นตอนการรีเซ็ต iPad หากต้องการลงชื่อเข้าใช้อีกครั้ง ให้แตะ "ต่อไป" ด้านล่าง</translation>
 <translation id="8270320981823560179">ไดรฟ์</translation>
 <translation id="8273982424131314219">ข้อมูลนี้จะกรอกลงใน <ph name="URL" /></translation>
+<translation id="8274795744553482834">คุณกำลังจะสลับโปรไฟล์</translation>
 <translation id="8275068909952022340">เพิ่มเติม…</translation>
 <translation id="8280797717392145626">ได้รับลิงก์แล้ว</translation>
 <translation id="8281781826761538115">ค่าเริ่มต้น - <ph name="DEFAULT_LOCALE" /></translation>

@@ -418,6 +418,7 @@ public class ToolbarPositionControllerTest {
                         mProfileSupplier,
                         mActivityTabSupplier,
                         mKeyboardHeightSupplier,
+                        () -> 0,
                         mWindowAndroid);
 
         LocalStatePrefs.setNativePrefsLoadedForTesting(true);

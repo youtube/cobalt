@@ -122,7 +122,7 @@
     {
         "name": "cardview",
         "group": "androidx.cardview",
-        "version": "1.1.0-SNAPSHOT"
+        "version": "1.0.0"
     },
     {
         "name": "collection",
@@ -357,7 +357,7 @@
     {
         "name": "core",
         "group": "androidx.core",
-        "version": "1.19.0"
+        "version": "1.20.0-SNAPSHOT"
     },
     {
         "name": "core-animation",
@@ -372,7 +372,7 @@
     {
         "name": "core-ktx",
         "group": "androidx.core",
-        "version": "1.19.0"
+        "version": "1.20.0-SNAPSHOT"
     },
     {
         "name": "core-pip",
@@ -517,7 +517,7 @@
     {
         "name": "fragment",
         "group": "androidx.fragment",
-        "version": "1.9.0-SNAPSHOT"
+        "version": "1.9.0-alpha01"
     },
     {
         "name": "fragment-compose",
@@ -632,7 +632,7 @@
     {
         "name": "interpolator",
         "group": "androidx.interpolator",
-        "version": "1.1.0-SNAPSHOT"
+        "version": "1.0.0"
     },
     {
         "name": "leanback",
@@ -702,7 +702,7 @@
     {
         "name": "lifecycle-process",
         "group": "androidx.lifecycle",
-        "version": "2.11.0-rc01"
+        "version": "2.11.0"
     },
     {
         "name": "lifecycle-runtime",
@@ -777,7 +777,7 @@
     {
         "name": "loader",
         "group": "androidx.loader",
-        "version": "1.2.0-SNAPSHOT"
+        "version": "1.1.0"
     },
     {
         "name": "localbroadcastmanager",
@@ -928,6 +928,11 @@
         "name": "palette",
         "group": "androidx.palette",
         "version": "1.0.0"
+    },
+    {
+        "name": "pdf-core",
+        "group": "androidx.pdf",
+        "version": "1.0.0-SNAPSHOT"
     },
     {
         "name": "pdf-document-service",
@@ -1147,12 +1152,12 @@
     {
         "name": "tracing",
         "group": "androidx.tracing",
-        "version": "2.0.0-alpha08"
+        "version": "2.0.0-alpha09"
     },
     {
         "name": "tracing-android",
         "group": "androidx.tracing",
-        "version": "2.0.0-alpha08"
+        "version": "2.0.0-alpha09"
     },
     {
         "name": "tracing-ktx",
@@ -1337,7 +1342,7 @@
     {
         "name": "extensions-xr",
         "group": "com.android.extensions.xr",
-        "version": "1.4.0-alpha01"
+        "version": "1.4.0-alpha02"
     },
     {
         "name": "layoutlib-api",
@@ -1353,6 +1358,16 @@
         "name": "sdk-common",
         "group": "com.android.tools",
         "version": "30.2.0-beta01"
+    },
+    {
+        "name": "caffeine",
+        "group": "com.github.ben-manes.caffeine",
+        "version": "3.0.5"
+    },
+    {
+        "name": "software-and-algorithms",
+        "group": "com.github.kevinstern",
+        "version": "1.0"
     },
     {
         "name": "accessibility-test-framework",
@@ -1422,7 +1437,7 @@
     {
         "name": "play-services-cloud-messaging",
         "group": "com.google.android.gms",
-        "version": "17.2.0"
+        "version": "17.4.0"
     },
     {
         "name": "play-services-fido",
@@ -1457,7 +1472,7 @@
     {
         "name": "play-services-location",
         "group": "com.google.android.gms",
-        "version": "21.3.0"
+        "version": "21.4.0"
     },
     {
         "name": "play-services-phenotype",
@@ -1530,6 +1545,11 @@
         "version": "1.11.0"
     },
     {
+        "name": "auto-common",
+        "group": "com.google.auto",
+        "version": "1.2.2"
+    },
+    {
         "name": "jsr305",
         "group": "com.google.code.findbugs",
         "version": "3.0.2"
@@ -1537,10 +1557,20 @@
     {
         "name": "error_prone_annotation",
         "group": "com.google.errorprone",
-        "version": "2.41.0"
+        "version": "2.50.0"
     },
     {
         "name": "error_prone_annotations",
+        "group": "com.google.errorprone",
+        "version": "2.50.0"
+    },
+    {
+        "name": "error_prone_check_api",
+        "group": "com.google.errorprone",
+        "version": "2.50.0"
+    },
+    {
+        "name": "error_prone_test_helpers",
         "group": "com.google.errorprone",
         "version": "2.50.0"
     },
@@ -1587,12 +1617,12 @@
     {
         "name": "firebase-installations",
         "group": "com.google.firebase",
-        "version": "18.0.0"
+        "version": "19.1.0"
     },
     {
         "name": "firebase-installations-interop",
         "group": "com.google.firebase",
-        "version": "17.1.1"
+        "version": "17.3.0"
     },
     {
         "name": "firebase-measurement-connector",
@@ -1602,7 +1632,12 @@
     {
         "name": "firebase-messaging",
         "group": "com.google.firebase",
-        "version": "25.0.2"
+        "version": "25.1.0"
+    },
+    {
+        "name": "google-java-format",
+        "group": "com.google.googlejavaformat",
+        "version": "1.35.0"
     },
     {
         "name": "failureaccess",
@@ -1623,6 +1658,11 @@
         "name": "j2objc-annotations",
         "group": "com.google.j2objc",
         "version": "3.1"
+    },
+    {
+        "name": "jimfs",
+        "group": "com.google.jimfs",
+        "version": "1.3.0"
     },
     {
         "name": "common",
@@ -1648,6 +1688,11 @@
         "name": "protobuf-lite",
         "group": "com.google.protobuf",
         "version": "3.0.1"
+    },
+    {
+        "name": "compile-testing",
+        "group": "com.google.testing.compile",
+        "version": "0.23.0"
     },
     {
         "name": "test-parameter-injector",
@@ -1682,97 +1727,97 @@
     {
         "name": "leakcanary-android",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-android-core",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-android-instrumentation",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-android-test",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-android-utils",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-core",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-gc",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-object-watcher",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-object-watcher-android",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-object-watcher-android-androidx",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-object-watcher-android-core",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "leakcanary-test-core",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "plumber-android",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "plumber-android-core",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "shark",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "shark-android",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "shark-graph",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "shark-hprof",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "shark-log",
         "group": "com.squareup.leakcanary",
-        "version": "3.0-alpha-8"
+        "version": "3.0-alpha-9"
     },
     {
         "name": "moshi",
@@ -1810,14 +1855,24 @@
         "version": "2.1.1"
     },
     {
+        "name": "dataflow-errorprone",
+        "group": "io.github.eisop",
+        "version": "3.41.0-eisop1"
+    },
+    {
+        "name": "java-diff-utils",
+        "group": "io.github.java-diff-utils",
+        "version": "4.12"
+    },
+    {
         "name": "grpc-api",
         "group": "io.grpc",
-        "version": "1.82.0"
+        "version": "1.82.1"
     },
     {
         "name": "grpc-stub",
         "group": "io.grpc",
-        "version": "1.82.0"
+        "version": "1.82.1"
     },
     {
         "name": "rxandroid",

@@ -9,6 +9,7 @@
 #include "base/command_line.h"
 #include "base/version_info/channel.h"
 #include "build/build_config.h"
+#include "chrome/browser/glic/host/guest_util.h"
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/webui_url_constants.h"
@@ -24,6 +25,11 @@ using extensions::Extension;
 using extensions::ProcessManager;
 
 namespace {
+bool IsGlicWebUIHost(base::WeakPtr<extensions::WebViewGuest> web_view_guest) {
+  return web_view_guest && web_view_guest->owner_web_contents() &&
+         glic::IsGlicWebUI(web_view_guest->owner_web_contents());
+}
+
 bool IsContextualTaskWebUIHost(
     base::WeakPtr<extensions::WebViewGuest> web_view_guest) {
   if (!web_view_guest || !web_view_guest->owner_rfh()) {
@@ -83,9 +89,10 @@ bool ContextMenuContentTypeWebView::SupportsGroup(int group) {
       return true;
     case ITEM_GROUP_DEVELOPER:
       {
-      // Contextual Tasks is embedding an external URL, and as such needs
-      // to be allowed to use the developer tools for the embedded page.
-      if (IsContextualTaskWebUIHost(web_view_guest_)) {
+      // Contextual Tasks and Glic are embedding an external URL, and as such
+      // need to be allowed to use the developer tools for the embedded page.
+      if (IsGlicWebUIHost(web_view_guest_) ||
+          IsContextualTaskWebUIHost(web_view_guest_)) {
         return ContextMenuContentType::SupportsGroup(group);
       }
       const extensions::Extension* embedder_extension = GetExtension();

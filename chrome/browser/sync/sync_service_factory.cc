@@ -48,6 +48,9 @@
 #include "chrome/browser/sync/account_bookmark_sync_service_factory.h"
 #include "chrome/browser/sync/chrome_sync_client.h"
 #include "chrome/browser/sync/chrome_sync_controller_builder.h"
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/sync/cross_device_theme_tracker_factory.h"
+#endif
 #include "chrome/browser/sync/data_type_store_service_factory.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/glue/extensions_activity_monitor.h"
@@ -358,6 +361,11 @@ syncer::DataTypeController::TypeVector CreateChromeControllers(
           : nullptr);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+#if !BUILDFLAG(IS_ANDROID)
+  builder.SetCrossDeviceThemeTracker(
+      CrossDeviceThemeTrackerFactory::GetForProfile(profile));
+#endif
+
   return builder.Build(sync_service);
 }
 
@@ -546,6 +554,7 @@ SyncServiceFactory::SyncServiceFactory()
   DependsOn(ConsentAuditorFactory::GetInstance());
 #if !BUILDFLAG(IS_ANDROID)
   DependsOn(contextual_tasks::ContextualTasksServiceFactory::GetInstance());
+  DependsOn(CrossDeviceThemeTrackerFactory::GetInstance());
 #endif  // !BUILDFLAG(IS_ANDROID)
   DependsOn(DataTypeStoreServiceFactory::GetInstance());
   DependsOn(DeviceInfoSyncServiceFactory::GetInstance());

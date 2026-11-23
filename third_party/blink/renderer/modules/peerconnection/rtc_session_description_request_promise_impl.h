@@ -25,11 +25,13 @@ class RTCSessionDescriptionRequestPromiseImpl final
  public:
   static RTCSessionDescriptionRequestPromiseImpl* Create(
       RTCPeerConnection*,
-      ScriptPromiseResolver<RTCSessionDescriptionInit>*);
+      ScriptPromiseResolver<RTCSessionDescriptionInit>*,
+      bool is_offer);
 
   RTCSessionDescriptionRequestPromiseImpl(
       RTCPeerConnection*,
-      ScriptPromiseResolver<RTCSessionDescriptionInit>*);
+      ScriptPromiseResolver<RTCSessionDescriptionInit>*,
+      bool is_offer);
   ~RTCSessionDescriptionRequestPromiseImpl() override;
 
   // RTCSessionDescriptionRequest
@@ -43,6 +45,7 @@ class RTCSessionDescriptionRequestPromiseImpl final
 
   Member<RTCPeerConnection> requester_;
   Member<ScriptPromiseResolver<RTCSessionDescriptionInit>> resolver_;
+  const bool is_offer_;
 };
 
 }  // namespace blink

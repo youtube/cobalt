@@ -481,6 +481,9 @@ void CARendererLayerTree::RootLayer::CALayerFallBack() {
             break;
           }
           [old_layer_child->clipping_ca_layer_ removeFromSuperlayer];
+          [old_layer_child->rounded_corner_ca_layer_ removeFromSuperlayer];
+          old_layer_child->clipping_ca_layer_ = nil;
+          old_layer_child->rounded_corner_ca_layer_ = nil;
           ++old_layer_child_it;
         }
       } else {
@@ -520,6 +523,7 @@ void CARendererLayerTree::ClipAndSortingLayer::CALayerFallBack() {
             break;
           }
           [old_layer_child->ca_layer_ removeFromSuperlayer];
+          old_layer_child->ca_layer_ = nil;
           ++old_layer_child_it;
         }
       } else {
@@ -559,6 +563,9 @@ void CARendererLayerTree::TransformLayer::CALayerFallBack() {
             break;
           }
           [old_layer_child->ca_layer_ removeFromSuperlayer];
+          [old_layer_child->update_indicator_layer_ removeFromSuperlayer];
+          old_layer_child->ca_layer_ = nil;
+          old_layer_child->update_indicator_layer_ = nil;
           ++old_layer_child_it;
         }
       } else {

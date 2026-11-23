@@ -26,6 +26,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-kna-processor.h"
 #include "src/maglev/maglev-loop-peeler.h"
+#include "src/maglev/maglev-phase.h"
 #include "src/maglev/maglev-phi-representation-selector.h"
 #include "src/maglev/maglev-post-hoc-optimizations-processors.h"
 #include "src/maglev/maglev-range-analysis.h"
@@ -40,7 +41,8 @@ namespace v8::internal::compiler::turboshaft {
                                        RuntimeCallStats::kThreadSpecific,   \
                                        "Turbolev" #Name)                    \
                                                                             \
-  static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;
+  static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;              \
+  static constexpr maglev::MaglevPhase phase = maglev::MaglevPhase::k##Name;
 
 #define DECL_TURBOLEV_PHASE_CONSTANTS(Name) \
   DECL_TURBOLEV_PHASE_CONSTANTS_IMPL(Name, Turbolev##Name)
@@ -67,12 +69,13 @@ TurbolevFrontendPipeline::TurbolevFrontendPipeline(PipelineData* data,
   compilation_info_->set_optimization_id(data->info()->optimization_id());
 }
 
-void TurbolevFrontendPipeline::PrintMaglevGraph(const char* msg) {
+void TurbolevFrontendPipeline::PrintMaglevGraph(maglev::MaglevPhase phase) {
   CodeTracer* code_tracer = data_.GetCodeTracer();
   CodeTracer::StreamScope tracing_scope(code_tracer);
-  tracing_scope.stream() << "\n----- " << msg << " -----" << std::endl;
+  tracing_scope.stream() << "\n----- " << maglev::PhaseName(phase) << " -----"
+                         << std::endl;
 
-  maglev::PrintGraph(tracing_scope.stream(), graph_);
+  maglev::PrintGraph(tracing_scope.stream(), graph_, phase);
 }
 
 namespace {
@@ -165,7 +168,7 @@ void TurbolevFrontendPipeline::PrintBytecode() {
 }
 
 struct MaglevGraphBuilderPhase {
-  DECL_TURBOLEV_PHASE_CONSTANTS(MaglevGraphBuilder)
+  DECL_TURBOLEV_PHASE_CONSTANTS(MaglevGraphBuilding)
 
   bool Run(maglev::Graph* graph) {
     // TODO(victorgomes): These could be initialized inside the graph builder
@@ -180,7 +183,7 @@ struct MaglevGraphBuilderPhase {
 };
 
 struct InlinerPhase {
-  DECL_TURBOLEV_PHASE_CONSTANTS(Inliner)
+  DECL_TURBOLEV_PHASE_CONSTANTS(Inlining)
 
   bool Run(maglev::Graph* graph) {
     maglev::MaglevInliner inliner(graph);
@@ -189,7 +192,7 @@ struct InlinerPhase {
 };
 
 struct LoopPeelerPhase {
-  DECL_TURBOLEV_PHASE_CONSTANTS(LoopPeeler)
+  DECL_TURBOLEV_PHASE_CONSTANTS(LoopPeeling)
 
   bool Run(maglev::Graph* graph) {
     maglev::MaglevLoopPeeler peeler(graph);
@@ -265,9 +268,11 @@ struct PostOptimizerPhase {
 };
 
 struct PostHocPhase {
-  DECL_TURBOLEV_PHASE_CONSTANTS(PostHoc)
+  DECL_TURBOLEV_PHASE_CONSTANTS(AnyUseMarking)
 
   bool Run(maglev::Graph* graph) {
+    // Unwrap deopt frames before escape analysis.
+    graph->UnwrapDeoptFrames();
     // Escape analysis.
     maglev::GraphMultiProcessor<maglev::ReturnedValueRepresentationSelector,
                                 maglev::AnyUseMarkingProcessor>
@@ -303,11 +308,11 @@ auto TurbolevFrontendPipeline::Run(Args&&... args) {
   SYNCHRONIZATION_POINT_FOR_TESTING(Phase::synchronization_point_name());
   bool result = phase.Run(graph_, std::forward<Args>(args)...);
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
-    PrintMaglevGraph(Phase::phase_name());
+    PrintMaglevGraph(Phase::phase);
   }
   if (compilation_info_->trace_json_enabled()) {
     maglev::PrintMaglevGraphAsJSON(compilation_info_.get(), graph_,
-                                   Phase::phase_name());
+                                   Phase::phase);
   }
 #ifdef DEBUG
   maglev::GraphProcessor<maglev::MaglevGraphVerifier> verifier(
@@ -349,6 +354,7 @@ std::optional<maglev::Graph*> TurbolevFrontendPipeline::Run() {
   if (rerun_postoptimizer_phase) {
     Run<PostOptimizerPhase>(nullptr);
   }
+  graph_->UnwrapDeoptFrames();
   if (v8_flags.turbolev_untagged_phis) {
     Run<PhiUntaggingPhase>();
   }

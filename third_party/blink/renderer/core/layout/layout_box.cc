@@ -575,10 +575,6 @@ PaintLayerType LayoutBox::LayerTypeRequired() const {
 }
 
 bool LayoutBox::TransformsChangeMayRequireLayout() const {
-  if (!RuntimeEnabledFeatures::CSSAnchorWithTransformsEnabled()) {
-    return false;
-  }
-
   for (const PhysicalBoxFragment& fragment : PhysicalFragments()) {
     if (fragment.HasAnchorsToPropagate()) {
       return true;

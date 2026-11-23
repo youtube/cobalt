@@ -1824,6 +1824,44 @@ TEST_F(TestSimulcastEncoderAdapterFake, GeneratesKeyFramesOnRequestedLayers) {
   EXPECT_EQ(0, adapter_->Encode(third_frame, &frame_types));
 }
 
+TEST_F(TestSimulcastEncoderAdapterFake,
+       BypassModePassesPerStreamKeyframeRequests) {
+  SimulcastTestFixtureImpl::DefaultSettings(
+      &codec_, static_cast<const int*>(kTestTemporalLayerProfile),
+      kVideoCodecVP8);
+  codec_.numberOfSimulcastStreams = 3;
+
+  // Indicate that mock encoders internally support simulcast.
+  helper_->factory()->set_supports_simulcast(true);
+  adapter_->RegisterEncodeCompleteCallback(this);
+  EXPECT_EQ(0, adapter_->InitEncode(&codec_, kSettings));
+
+  // Only one encoder should have been produced.
+  ASSERT_EQ(1u, helper_->factory()->encoders().size());
+
+  scoped_refptr<VideoFrameBuffer> buffer(I420Buffer::Create(1280, 720));
+  VideoFrame input_frame = VideoFrame::Builder()
+                               .set_video_frame_buffer(buffer)
+                               .set_rtp_timestamp(100)
+                               .set_timestamp_ms(1000)
+                               .build();
+
+  // We request keyframe only on the second layer: [delta, key, delta].
+  std::vector<VideoFrameType> frame_types = {VideoFrameType::kVideoFrameDelta,
+                                             VideoFrameType::kVideoFrameKey,
+                                             VideoFrameType::kVideoFrameDelta};
+
+  // Verify that the single encoder receives the exact same frame types.
+  EXPECT_CALL(*helper_->factory()->encoders()[0],
+              Encode(_, ::testing::Pointee(::testing::ElementsAre(
+                            VideoFrameType::kVideoFrameDelta,
+                            VideoFrameType::kVideoFrameKey,
+                            VideoFrameType::kVideoFrameDelta))))
+      .WillOnce(Return(WEBRTC_VIDEO_CODEC_OK));
+
+  EXPECT_EQ(0, adapter_->Encode(input_frame, &frame_types));
+}
+
 TEST_F(TestSimulcastEncoderAdapterFake, TestFailureReturnCodesFromEncodeCalls) {
   SimulcastTestFixtureImpl::DefaultSettings(
       &codec_, static_cast<const int*>(kTestTemporalLayerProfile),

@@ -31,7 +31,6 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/task_traits.h"
@@ -82,6 +81,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_LINUX)
@@ -141,7 +141,7 @@ void ExpectNoUpdateSequence(
            base::ListValue().Append(std::move(app_expectation))))},
       base::BindRepeating(
           [](const std::string& app_id, bool v4) {
-            return v4 ? base::StringPrintf(
+            return v4 ? absl::StrFormat(
                             ")]}'\n"
                             R"({"response":{)"
                             R"(  "protocol":"4.0",)"
@@ -156,7 +156,7 @@ void ExpectNoUpdateSequence(
                             R"(  ])"
                             R"(}})",
                             app_id)
-                      : base::StringPrintf(
+                      : absl::StrFormat(
                             ")]}'\n"
                             R"({"response":{)"
                             R"(  "protocol":"3.1",)"
@@ -182,26 +182,26 @@ void ExpectPingRequest(
     const base::Version& version = base::Version(kUpdaterVersion)) {
   test_server.ExpectOnce(
       {request::GetUpdaterUserAgentMatcher(version),
-       request::GetContentMatcher({base::StringPrintf(
+       request::GetContentMatcher({absl::StrFormat(
            R"(.*"appid":"%s".*"errorcode":%d,"eventresult":%d,"eventtype":%d,)"
            R"(%s.*)",
            app_id.c_str(), ping_params.error_code, ping_params.result,
            ping_params.event_type,
-           ping_params.extra_code1 ? base::StringPrintf(R"("extracode1":%d,)",
-                                                        ping_params.extra_code1)
-                                         .c_str()
-                                   : "")})},
-      base::StringPrintf(")]}'\n"
-                         R"({"response":{)"
-                         R"(  "protocol":"4.0",)"
-                         R"(  "apps":[)"
-                         R"(    {)"
-                         R"(      "appid":"%s",)"
-                         R"(      "status":"ok")"
-                         R"(    })"
-                         R"(  ])"
-                         R"(}})",
-                         app_id.c_str()));
+           ping_params.extra_code1
+               ? absl::StrFormat(R"("extracode1":%d,)", ping_params.extra_code1)
+                     .c_str()
+               : "")})},
+      absl::StrFormat(")]}'\n"
+                      R"({"response":{)"
+                      R"(  "protocol":"4.0",)"
+                      R"(  "apps":[)"
+                      R"(    {)"
+                      R"(      "appid":"%s",)"
+                      R"(      "status":"ok")"
+                      R"(    })"
+                      R"(  ])"
+                      R"(}})",
+                      app_id.c_str()));
 }
 
 void ExpectInstallEvent(
@@ -225,17 +225,17 @@ void ExpectInstallEvent(
       {request::GetJSONContentMatcher(base::DictValue().SetByDottedPath(
           "request.apps",
           base::ListValue().Append(std::move(app_expectation))))},
-      base::StringPrintf(")]}'\n"
-                         R"({"response":{)"
-                         R"(  "protocol":"3.1",)"
-                         R"(  "app":[)"
-                         R"(    {)"
-                         R"(      "appid":"%s",)"
-                         R"(      "status":"ok")"
-                         R"(    })"
-                         R"(  ])"
-                         R"(}})",
-                         app_id));
+      absl::StrFormat(")]}'\n"
+                      R"({"response":{)"
+                      R"(  "protocol":"3.1",)"
+                      R"(  "app":[)"
+                      R"(    {)"
+                      R"(      "appid":"%s",)"
+                      R"(      "status":"ok")"
+                      R"(    })"
+                      R"(  ])"
+                      R"(}})",
+                      app_id));
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -245,7 +245,7 @@ void ExpectAppErrorEvent(ScopedServer& test_server,
                          const int event_type) {
   test_server.ExpectOnce({request::GetPathMatcher(test_server.update_path()),
                           request::GetUpdaterUserAgentMatcher(),
-                          request::GetContentMatcher({base::StringPrintf(
+                          request::GetContentMatcher({absl::StrFormat(
                               R"(.*"appid":"%s",.*)"
                               R"(.*"errorcode":%d,)"
                               R"("eventresult":0,"eventtype":%d,.*)",
@@ -256,20 +256,20 @@ void ExpectAppErrorEvent(ScopedServer& test_server,
 void ExpectUninstallPingPreviousVersion(ScopedServer& test_server,
                                         const base::Version& previous_version) {
   test_server.ExpectOnce(
-      {request::GetContentMatcher({base::StringPrintf(
+      {request::GetContentMatcher({absl::StrFormat(
           R"(.*"appid":"%s".*"eventtype":4,"previousversion":"%s".*)",
           kUpdaterAppId, previous_version.GetString())})},
-      base::StringPrintf(")]}'\n"
-                         R"({"response":{)"
-                         R"(  "protocol":"3.1",)"
-                         R"(  "app":[)"
-                         R"(    {)"
-                         R"(      "appid":"%s",)"
-                         R"(      "status":"ok")"
-                         R"(    })"
-                         R"(  ])"
-                         R"(}})",
-                         kUpdaterAppId));
+      absl::StrFormat(")]}'\n"
+                      R"({"response":{)"
+                      R"(  "protocol":"3.1",)"
+                      R"(  "app":[)"
+                      R"(    {)"
+                      R"(      "appid":"%s",)"
+                      R"(      "status":"ok")"
+                      R"(    })"
+                      R"(  ])"
+                      R"(}})",
+                      kUpdaterAppId));
 }
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -1279,10 +1279,10 @@ TEST_F(IntegrationTest, QualifyUpdater) {
 
   // This instance is now qualified and should activate itself and check itself
   // for updates on the next check.
-  test_server.ExpectOnce({request::GetUpdaterUserAgentMatcher(),
-                          request::GetContentMatcher(
-                              {base::StringPrintf(".*%s.*", kUpdaterAppId)})},
-                         ")]}'\n");
+  test_server.ExpectOnce(
+      {request::GetUpdaterUserAgentMatcher(),
+       request::GetContentMatcher({absl::StrFormat(".*%s.*", kUpdaterAppId)})},
+      ")]}'\n");
   ASSERT_NO_FATAL_FAILURE(RunWake(0));
   ASSERT_TRUE(WaitForUpdaterExit());
   ASSERT_NO_FATAL_FAILURE(ExpectVersionActive(kUpdaterVersion));
@@ -1341,7 +1341,7 @@ TEST_F(IntegrationTest, SelfUpdate) {
   ASSERT_NO_FATAL_FAILURE(ExpectInstalled());
 
   ScopedServer test_server(test_commands_);
-  base::Version next_version(base::StringPrintf("%s1", kUpdaterVersion));
+  base::Version next_version(absl::StrFormat("%s1", kUpdaterVersion));
   ASSERT_NO_FATAL_FAILURE(ExpectUpdateSequence(
       test_server, kUpdaterAppId, "", UpdateService::Priority::kBackground,
       base::Version(kUpdaterVersion), next_version));
@@ -1359,7 +1359,7 @@ TEST_F(IntegrationTest, SelfUpdateWithWakeAll) {
   ASSERT_NO_FATAL_FAILURE(Install());
   ASSERT_NO_FATAL_FAILURE(InstallApp("test"));
 
-  base::Version next_version(base::StringPrintf("%s1", kUpdaterVersion));
+  base::Version next_version(absl::StrFormat("%s1", kUpdaterVersion));
   ScopedServer test_server(test_commands_);
   ASSERT_NO_FATAL_FAILURE(ExpectUpdateSequence(
       test_server, kUpdaterAppId, "", UpdateService::Priority::kBackground,
@@ -1416,7 +1416,7 @@ TEST_F(IntegrationTest, SelfUpdateAfterEulaAcceptedViaRegistry) {
           .WriteValue(L"eulaaccepted", 1),
       ERROR_SUCCESS);
 
-  base::Version next_version(base::StringPrintf("%s1", kUpdaterVersion));
+  base::Version next_version(absl::StrFormat("%s1", kUpdaterVersion));
   ASSERT_NO_FATAL_FAILURE(ExpectUpdateSequence(
       test_server, kUpdaterAppId, "", UpdateService::Priority::kBackground,
       base::Version(kUpdaterVersion), next_version));
@@ -1467,7 +1467,7 @@ TEST_F(IntegrationTest, SelfUpdateAfterEulaAcceptedViaInstall) {
 
   ASSERT_NO_FATAL_FAILURE(InstallAppViaService(kApp1.appid));
 
-  base::Version next_version(base::StringPrintf("%s1", kUpdaterVersion));
+  base::Version next_version(absl::StrFormat("%s1", kUpdaterVersion));
   ASSERT_NO_FATAL_FAILURE(ExpectUpdateSequence(
       test_server, kUpdaterAppId, "", UpdateService::Priority::kBackground,
       base::Version(kUpdaterVersion), next_version));
@@ -2775,7 +2775,7 @@ TEST_F(IntegrationTest, SameVersionUpdate) {
   ExpectInstallEvent(test_server, app_id);
   ASSERT_NO_FATAL_FAILURE(InstallApp(app_id));
 
-  const std::string response = base::StringPrintf(
+  const std::string response = absl::StrFormat(
       ")]}'\n"
       R"({"response":{)"
       R"(  "protocol":"4.0",)"
@@ -2820,7 +2820,7 @@ TEST_F(IntegrationTest, InstallDataIndex) {
   ExpectInstallEvent(test_server, app_id);
   ASSERT_NO_FATAL_FAILURE(InstallApp(app_id));
 
-  const std::string response = base::StringPrintf(
+  const std::string response = absl::StrFormat(
       ")]}'\n"
       R"({"response":{)"
       R"(  "protocol":"4.0",)"
@@ -2838,9 +2838,9 @@ TEST_F(IntegrationTest, InstallDataIndex) {
 
   test_server.ExpectOnce(
       {request::GetUpdaterUserAgentMatcher(),
-       request::GetContentMatcher({base::StringPrintf(
-           R"(.*"data":\[{"index":"%s","name":"install"}],.*)",
-           install_data_index.c_str())})},
+       request::GetContentMatcher(
+           {absl::StrFormat(R"(.*"data":\[{"index":"%s","name":"install"}],.*)",
+                            install_data_index.c_str())})},
       response);
 
   ASSERT_NO_FATAL_FAILURE(
@@ -2919,9 +2919,9 @@ TEST_F(IntegrationTest, CrashUsageStatsEnabled) {
   test_server.ExpectOnce(
       {
           request::GetPathMatcher(
-              base::StringPrintf(R"(%s\?product=%s&version=%s&guid=.*)",
-                                 test_server.crash_report_path().c_str(),
-                                 CRASH_PRODUCT_NAME, kUpdaterVersion)),
+              absl::StrFormat(R"(%s\?product=%s&version=%s&guid=.*)",
+                              test_server.crash_report_path().c_str(),
+                              CRASH_PRODUCT_NAME, kUpdaterVersion)),
           request::GetHeaderMatcher({{"User-Agent", R"(Crashpad/.*)"}}),
           request::GetMultipartContentMatcher({
               {"guid", std::vector<std::string>({})},  // Crash guid.
@@ -3286,10 +3286,10 @@ TEST_F(IntegrationTestDeviceManagement, QualifyUpdaterWhenUpdateDisabled) {
   // Verify the new instance is qualified and activated itself.
   ExpectDeviceManagementPolicyFetchRequest(
       *test_server_, kDMToken, omaha_settings, /*first_request=*/false);
-  test_server_->ExpectOnce({request::GetUpdaterUserAgentMatcher(),
-                            request::GetContentMatcher(
-                                {base::StringPrintf(".*%s.*", kUpdaterAppId)})},
-                           ")]}'\n");
+  test_server_->ExpectOnce(
+      {request::GetUpdaterUserAgentMatcher(),
+       request::GetContentMatcher({absl::StrFormat(".*%s.*", kUpdaterAppId)})},
+      ")]}'\n");
   ASSERT_NO_FATAL_FAILURE(RunWake(0));
   ASSERT_TRUE(WaitForUpdaterExit());
   ASSERT_NO_FATAL_FAILURE(ExpectVersionActive(kUpdaterVersion));
@@ -4894,7 +4894,7 @@ TEST_F(IntegrationTest, SelfUpdateIfNoAuditModeWithOemSwitch) {
   ScopedServer test_server(test_commands_);
   ExpectInstallEvent(test_server, kUpdaterAppId);
   ASSERT_NO_FATAL_FAILURE(Install({kOemSwitch}));
-  base::Version next_version(base::StringPrintf("%s1", kUpdaterVersion));
+  base::Version next_version(absl::StrFormat("%s1", kUpdaterVersion));
   ASSERT_NO_FATAL_FAILURE(ExpectUpdateSequence(
       test_server, kUpdaterAppId, "", UpdateService::Priority::kBackground,
       base::Version(kUpdaterVersion), next_version));
@@ -4918,7 +4918,7 @@ TEST_F(IntegrationTest, SelfUpdateIfOemModeMoreThan72Hours) {
   ExpectInstallEvent(test_server, kUpdaterAppId);
   ASSERT_NO_FATAL_FAILURE(Install({kOemSwitch}));
   ASSERT_NO_FATAL_FAILURE(RewindOemState72PlusHours());
-  base::Version next_version(base::StringPrintf("%s1", kUpdaterVersion));
+  base::Version next_version(absl::StrFormat("%s1", kUpdaterVersion));
   ASSERT_NO_FATAL_FAILURE(ExpectUpdateSequence(
       test_server, kUpdaterAppId, "", UpdateService::Priority::kBackground,
       base::Version(kUpdaterVersion), next_version));
@@ -5282,11 +5282,11 @@ TEST_F(IntegrationTest, AppLogoUrl) {
   std::string app_logo_bytes;
   ASSERT_TRUE(base::ReadFileToString(
       test::GetTestFilePath("app_logos")
-          .AppendUTF8(base::StringPrintf("%s.bmp", kAppId.c_str())),
+          .AppendUTF8(absl::StrFormat("%s.bmp", kAppId.c_str())),
       &app_logo_bytes));
   test_logo_server.ExpectOnce(
       {
-          request::GetPathMatcher(base::StringPrintf(
+          request::GetPathMatcher(absl::StrFormat(
               "%s%s.bmp\\?lang=%s", test_logo_server.app_logo_path().c_str(),
               kAppId.c_str(),
               base::WideToUTF8(GetPreferredLanguage()).c_str())),

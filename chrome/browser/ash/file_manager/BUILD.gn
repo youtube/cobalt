@@ -252,6 +252,7 @@ static_library("test_support") {
   ]
 
   deps = [
+    "//ash/constants",
     "//base/test:test_support",
     "//chrome/browser/apps/app_service",
     "//chrome/browser/ash/drive",

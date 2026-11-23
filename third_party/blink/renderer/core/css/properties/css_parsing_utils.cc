@@ -16,7 +16,6 @@
 #include "base/notreached.h"
 #include "services/network/public/mojom/referrer_policy.mojom-blink.h"
 #include "third_party/blink/renderer/core/css/counter_style_map.h"
-#include "third_party/blink/renderer/core/css/css_alpha_color_value.h"
 #include "third_party/blink/renderer/core/css/css_axis_value.h"
 #include "third_party/blink/renderer/core/css/css_basic_shape_values.h"
 #include "third_party/blink/renderer/core/css/css_border_image.h"
@@ -2141,12 +2140,6 @@ static std::optional<ColorInterpolationSpace> ConsumeColorInterpolationSpace(
 
 namespace {
 
-CSSValue* ConsumeColorInternal(CSSParserTokenStream&,
-                               const CSSParserContext&,
-                               CSSParserLocalContext&,
-                               bool accept_quirky_colors,
-                               const ColorParserContext&);
-
 bool IsAllowedValueInParserContext(
     const CSSValue* value,
     const ColorParserContext& color_parser_context) {
@@ -2191,10 +2184,8 @@ CSSValue* ConsumeColorMixFunction(
       return nullptr;
     }
 
-    const bool no_quirky_colors = false;
-
-    CSSValue* color1 = ConsumeColorInternal(
-        stream, context, local_context, no_quirky_colors, color_parser_context);
+    CSSValue* color1 =
+        ConsumeColor(stream, context, local_context, color_parser_context);
     CSSPrimitiveValue* p1 = ConsumePercent(stream, context, local_context,
                                            CSSPrimitiveValue::ValueRange::kAll);
     if (!IsAllowedValueInParserContext(p1, color_parser_context)) {
@@ -2202,8 +2193,8 @@ CSSValue* ConsumeColorMixFunction(
     }
     // Color can come after the percentage
     if (!color1) {
-      color1 = ConsumeColorInternal(stream, context, local_context,
-                                    no_quirky_colors, color_parser_context);
+      color1 =
+          ConsumeColor(stream, context, local_context, color_parser_context);
       if (!color1) {
         return nullptr;
       }
@@ -2219,8 +2210,8 @@ CSSValue* ConsumeColorMixFunction(
       return nullptr;
     }
 
-    CSSValue* color2 = ConsumeColorInternal(
-        stream, context, local_context, no_quirky_colors, color_parser_context);
+    CSSValue* color2 =
+        ConsumeColor(stream, context, local_context, color_parser_context);
     CSSPrimitiveValue* p2 = ConsumePercent(stream, context, local_context,
                                            CSSPrimitiveValue::ValueRange::kAll);
     if (!IsAllowedValueInParserContext(p2, color_parser_context)) {
@@ -2228,8 +2219,8 @@ CSSValue* ConsumeColorMixFunction(
     }
     // Color can come after the percentage
     if (!color2) {
-      color2 = ConsumeColorInternal(stream, context, local_context,
-                                    no_quirky_colors, color_parser_context);
+      color2 =
+          ConsumeColor(stream, context, local_context, color_parser_context);
       if (!color2) {
         return nullptr;
       }
@@ -2270,85 +2261,9 @@ CSSValue* ConsumeAlphaColorFunction(
     const ColorParserContext& color_parser_context) {
   CHECK(RuntimeEnabledFeatures::CSSAlphaColorFunctionEnabled());
   DCHECK_EQ(stream.Peek().FunctionId(), CSSValueID::kAlpha);
-
-  CSSParserLocalContext::FunctionLocalContext function_context(
-      CSSValueID::kAlpha, local_context);
-
-  CSSParserTokenStream::RestoringBlockGuard guard(stream);
-  stream.ConsumeWhitespace();
-
-  // "from" keyword is required.
-  if (!ConsumeIdent<CSSValueID::kFrom>(stream)) {
-    return nullptr;
-  }
-
-  CSSValue* origin_color = ConsumeColorInternal(stream, context, local_context,
-                                                /*accept_quirky_colors=*/false,
-                                                color_parser_context);
-  if (!origin_color) {
-    return nullptr;
-  }
-
-  // Optional: / <alpha-value>
-  CSSValue* alpha = nullptr;
-  if (ConsumeSlashIncludingWhitespace(stream)) {
-    // The alpha value can be a number, percentage, none, or the `alpha`
-    // channel keyword (or a calc() expression using `alpha`).
-    if (ConsumeIdent<CSSValueID::kNone>(stream)) {
-      alpha = CSSIdentifierValue::Create(CSSValueID::kNone);
-    } else if (CSSValue* number =
-                   ConsumeNumber(stream, context, local_context,
-                                 CSSPrimitiveValue::ValueRange::kAll)) {
-      alpha = number;
-    } else if (CSSValue* percent =
-                   ConsumePercent(stream, context, local_context,
-                                  CSSPrimitiveValue::ValueRange::kAll)) {
-      alpha = percent;
-    } else {
-      // Try to parse as the `alpha` channel keyword or a calc() expression
-      // referencing the `alpha` keyword.
-      CSSColorChannelMap color_channel_map = {
-          {CSSValueID::kAlpha, std::nullopt},
-      };
-      const CSSParserToken token = stream.Peek();
-      if (token.GetType() == kFunctionToken) {
-        using enum CSSMathExpressionNode::Flag;
-        using Flags = CSSMathExpressionNode::Flags;
-        CSSParserTokenStream::RestoringBlockGuard calc_guard(stream);
-        stream.ConsumeWhitespace();
-        CSSMathFunctionValue* calc_value = CSSMathFunctionValue::Create(
-            CSSMathExpressionNode::ParseMathFunction(
-                token.FunctionId(), stream, context, local_context,
-                Flags({AllowPercent}), kCSSAnchorQueryTypesNone,
-                color_channel_map),
-            CSSPrimitiveValue::ValueRange::kAll);
-        if (calc_value) {
-          const CalculationResultCategory category = calc_value->Category();
-          if (category != kCalcNumber && category != kCalcPercent) {
-            return nullptr;
-          }
-          calc_guard.Release();
-          stream.ConsumeWhitespace();
-          alpha = calc_value;
-        }
-      } else if (color_channel_map.Contains(token.Id())) {
-        alpha = ConsumeIdent(stream);
-      }
-    }
-    if (!alpha) {
-      return nullptr;
-    }
-  }
-
-  if (!stream.AtEnd()) {
-    return nullptr;
-  }
-
-  guard.Release();
-  stream.ConsumeWhitespace();
-
-  return MakeGarbageCollected<cssvalue::CSSAlphaColorValue>(origin_color,
-                                                            alpha);
+  ColorFunctionParser parser;
+  return parser.ConsumeRelativeAlphaFunction(stream, context, local_context,
+                                             color_parser_context);
 }
 
 // https://www.w3.org/TR/css-color-5/#contrast-color
@@ -2363,9 +2278,8 @@ CSSValue* ConsumeContrastColorFunction(
   CSSParserTokenStream::RestoringBlockGuard guard(stream);
   stream.ConsumeWhitespace();
 
-  CSSValue* color = ConsumeColorInternal(stream, context, local_context,
-                                         /*accept_quirky_colors=*/false,
-                                         color_parser_context);
+  CSSValue* color =
+      ConsumeColor(stream, context, local_context, color_parser_context);
 
   if (!color || !stream.AtEnd()) {
     return nullptr;
@@ -2379,45 +2293,49 @@ CSSValue* ConsumeContrastColorFunction(
   return MakeGarbageCollected<cssvalue::CSSContrastColorValue>(color);
 }
 
-bool ParseHexColor(CSSParserTokenStream& stream,
-                   Color& result,
-                   bool accept_quirky_colors) {
+std::optional<Color> ParseHexColor(CSSParserTokenStream& stream) {
   const CSSParserToken& token = stream.Peek();
-  if (token.GetType() == kHashToken) {
-    if (!Color::ParseHexColor(token.Value(), result)) {
-      return false;
-    }
-  } else if (accept_quirky_colors) {
-    String color;
-    if (token.GetType() == kNumberToken || token.GetType() == kDimensionToken) {
-      if (token.GetNumericValueType() != kIntegerValueType ||
-          token.NumericValue() < 0. || token.NumericValue() >= 1000000.) {
-        return false;
-      }
-      if (token.GetType() == kNumberToken) {  // e.g. 112233
-        color = String::Format("%d", static_cast<int>(token.NumericValue()));
-      } else {  // e.g. 0001FF
-        color = StrCat({String::Number(static_cast<int>(token.NumericValue())),
-                        token.Value()});
-      }
-      while (color.length() < 6) {
-        color = StrCat({"0", color});
-      }
-    } else if (token.GetType() == kIdentToken) {  // e.g. FF0000
-      color = token.Value().ToString();
-    }
-    unsigned length = color.length();
-    if (length != 3 && length != 6) {
-      return false;
-    }
-    if (!Color::ParseHexColor(color, result)) {
-      return false;
-    }
-  } else {
-    return false;
+  if (token.GetType() != kHashToken) {
+    return std::nullopt;
+  }
+  Color result;
+  if (!Color::ParseHexColor(token.Value(), result)) {
+    return std::nullopt;
   }
   stream.ConsumeIncludingWhitespace();
-  return true;
+  return result;
+}
+
+std::optional<Color> ParseQuirkyHexColor(CSSParserTokenStream& stream) {
+  const CSSParserToken& token = stream.Peek();
+  String color;
+  if (token.GetType() == kNumberToken || token.GetType() == kDimensionToken) {
+    if (token.GetNumericValueType() != kIntegerValueType ||
+        token.NumericValue() < 0. || token.NumericValue() >= 1000000.) {
+      return std::nullopt;
+    }
+    if (token.GetType() == kNumberToken) {  // e.g. 112233
+      color = String::Format("%d", static_cast<int>(token.NumericValue()));
+    } else {  // e.g. 0001FF
+      color = StrCat({String::Number(static_cast<int>(token.NumericValue())),
+                      token.Value()});
+    }
+    while (color.length() < 6) {
+      color = StrCat({"0", color});
+    }
+  } else if (token.GetType() == kIdentToken) {  // e.g. FF0000
+    color = token.Value().ToString();
+  }
+  unsigned length = color.length();
+  if (length != 3 && length != 6) {
+    return std::nullopt;
+  }
+  Color result;
+  if (!Color::ParseHexColor(color, result)) {
+    return std::nullopt;
+  }
+  stream.ConsumeIncludingWhitespace();
+  return result;
 }
 
 bool SystemAccentColorAllowed(const CSSParserContext& context) {
@@ -2439,11 +2357,12 @@ bool SystemAccentColorAllowed(const CSSParserContext& context) {
   return true;
 }
 
-CSSValue* ConsumeColorInternal(CSSParserTokenStream& stream,
-                               const CSSParserContext& context,
-                               CSSParserLocalContext& local_context,
-                               bool accept_quirky_colors,
-                               const ColorParserContext& color_parser_context) {
+}  // namespace
+
+CSSValue* ConsumeColor(CSSParserTokenStream& stream,
+                       const CSSParserContext& context,
+                       CSSParserLocalContext& local_context,
+                       const ColorParserContext& color_parser_context) {
   if (stream.Peek().FunctionId() == CSSValueID::kColorMix) {
     CSSValue* color = ConsumeColorMixFunction(stream, context, local_context,
                                               color_parser_context);
@@ -2481,9 +2400,8 @@ CSSValue* ConsumeColorInternal(CSSParserTokenStream& stream,
     return color;
   }
 
-  Color color = Color::kTransparent;
-  if (ParseHexColor(stream, color, accept_quirky_colors)) {
-    return cssvalue::CSSColor::Create(color);
+  if (std::optional<Color> color = ParseHexColor(stream)) {
+    return cssvalue::CSSColor::Create(*color);
   }
 
   // Parses the color inputs rgb(), rgba(), hsl(), hsla(), hwb(), lab(),
@@ -2507,40 +2425,33 @@ CSSValue* ConsumeColorInternal(CSSParserTokenStream& stream,
   return nullptr;
 }
 
-}  // namespace
-
 CSSValue* ConsumeColorMaybeQuirky(CSSParserTokenStream& stream,
                                   const CSSParserContext& context,
                                   CSSParserLocalContext& local_context) {
-  return ConsumeColorInternal(stream, context, local_context,
-                              IsQuirksModeBehavior(context.Mode()),
-                              ColorParserContext());
-}
-
-CSSValue* ConsumeColor(CSSParserTokenStream& stream,
-                       const CSSParserContext& context,
-                       CSSParserLocalContext& local_context,
-                       const ColorParserContext& color_parser_context) {
-  return ConsumeColorInternal(stream, context, local_context,
-                              false /* accept_quirky_colors */,
-                              color_parser_context);
+  if (CSSValue* color_value = ConsumeColor(stream, context, local_context)) {
+    return color_value;
+  }
+  if (IsQuirksModeBehavior(context.Mode())) {
+    if (std::optional<Color> color = ParseQuirkyHexColor(stream)) {
+      return cssvalue::CSSColor::Create(*color);
+    }
+  }
+  return nullptr;
 }
 
 CSSValue* ConsumeAbsoluteColor(CSSParserTokenStream& stream,
                                const CSSParserContext& context,
                                CSSParserLocalContext& local_context) {
-  return ConsumeColorInternal(stream, context, local_context,
-                              false /* accept_quirky_colors */,
-                              ColorParserContext::AbsoluteColorContext());
+  return ConsumeColor(stream, context, local_context,
+                      ColorParserContext::AbsoluteColorContext());
 }
 
 CSSValue* ConsumeColorWithoutElementAndPropertyContext(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) {
-  return ConsumeColorInternal(stream, context, local_context,
-                              false /* accept_quirky_colors */,
-                              ColorParserContext::NoElementNoPropertyContext());
+  return ConsumeColor(stream, context, local_context,
+                      ColorParserContext::NoElementNoPropertyContext());
 }
 
 CSSValue* ConsumeLineWidth(CSSParserTokenStream& stream,
@@ -9684,11 +9595,11 @@ CSSValue* ConsumeBorderColorSide(CSSParserTokenStream& stream,
                                  const CSSParserContext& context,
                                  CSSParserLocalContext& local_context) {
   CSSPropertyID shorthand = local_context.CurrentShorthand();
-  bool allow_quirky_colors = IsQuirksModeBehavior(context.Mode()) &&
-                             (shorthand == CSSPropertyID::kInvalid ||
-                              shorthand == CSSPropertyID::kBorderColor);
-  return ConsumeColorInternal(stream, context, local_context,
-                              allow_quirky_colors, ColorParserContext());
+  if (shorthand == CSSPropertyID::kInvalid ||
+      shorthand == CSSPropertyID::kBorderColor) {
+    return ConsumeColorMaybeQuirky(stream, context, local_context);
+  }
+  return ConsumeColor(stream, context, local_context, ColorParserContext());
 }
 
 CSSValue* ConsumeBorderWidth(CSSParserTokenStream& stream,

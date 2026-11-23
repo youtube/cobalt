@@ -50,7 +50,7 @@ public class MediaCapturePickerManagerBridge implements MediaCapturePickerManage
      */
     @CalledByNative
     public void showDialog(
-            WebContents webContents,
+            @JniType("content::WebContents*") WebContents webContents,
             @JniType("std::u16string") String appName,
             @JniType("std::u16string") String targetName,
             boolean requestAudio,

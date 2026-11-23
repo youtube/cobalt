@@ -27,9 +27,10 @@ chrome.test.runTests([
 
     // Invalid titles throw and do not alter the histogram.
     chrome.test.assertThrows(
-        chrome.action.setTitle, null, [{title: null}], invalidTitleError);
+        chrome.action.setTitle.bind(null, {title: null}), invalidTitleError);
     chrome.test.assertThrows(
-        chrome.action.setTitle, null, [{title: undefined}], invalidTitleError);
+        chrome.action.setTitle.bind(null, {title: undefined}),
+        invalidTitleError);
     chrome.test.assertEq('A', await chrome.action.getTitle({}));
 
     // Increments 60-byte string bucket.

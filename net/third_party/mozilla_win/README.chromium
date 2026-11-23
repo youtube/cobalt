@@ -7,6 +7,7 @@ Update Mechanism: Static (https://crbug.com/422332085)
 Security Critical: Yes
 Shipped: yes
 License: MPL-2.0
+License Android Compatible: yes
 License File: LICENSE
 
 Description:

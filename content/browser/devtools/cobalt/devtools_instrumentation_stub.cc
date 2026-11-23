@@ -26,6 +26,7 @@ class DownloadUrlParameters;
 }  // namespace download
 
 namespace net {
+class HttpRequestHeaders;
 struct WebTransportError;
 }  // namespace net
 
@@ -318,6 +319,28 @@ void OnWorkerMainScriptRequestWillBeSent(
     network::ResourceRequest& request) {}
 
 void DidChangeFrameLoadingState(FrameTreeNode& ftn) {}
+
+void ApplyExtraHeadersForWebSocket(const GlobalRenderFrameHostId& frame_id,
+                                   net::HttpRequestHeaders* headers) {}
+
+void OnPrefetchActivationBeaconWillBeSent(
+    FrameTreeNodeId frame_tree_node_id,
+    const std::string& request_id,
+    const network::ResourceRequest& request,
+    std::optional<std::pair<const GURL&,
+                            const network::mojom::URLResponseHeadDevToolsInfo&>>
+        redirect_info) {}
+
+void OnPrefetchActivationBeaconResponseReceived(
+    FrameTreeNodeId frame_tree_node_id,
+    const std::string& request_id,
+    const GURL& url,
+    const network::mojom::URLResponseHead& head) {}
+
+void OnPrefetchActivationBeaconRequestComplete(
+    FrameTreeNodeId frame_tree_node_id,
+    const std::string& request_id,
+    const network::URLLoaderCompletionStatus& status) {}
 
 void OnAuctionWorkletNetworkRequestWillBeSent(
     FrameTreeNodeId frame_tree_node_id,

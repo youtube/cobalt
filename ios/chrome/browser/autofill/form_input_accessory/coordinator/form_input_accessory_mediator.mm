@@ -15,7 +15,6 @@
 #import "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #import "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #import "components/autofill/core/browser/data_manager/personal_data_manager.h"
-#import "components/autofill/core/common/autofill_features.h"
 #import "components/autofill/ios/browser/form_suggestion.h"
 #import "components/autofill/ios/browser/form_suggestion_provider.h"
 #import "components/autofill/ios/browser/personal_data_manager_observer_bridge.h"
@@ -29,6 +28,7 @@
 #import "ios/chrome/browser/autofill/form_input_accessory/public/form_input_accessory_chromium_text_data.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/ui/form_input_accessory_consumer.h"
 #import "ios/chrome/browser/autofill/form_input_accessory/ui/form_suggestion_view.h"
+#import "ios/chrome/browser/autofill/model/autofill_ai_util.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_observer_bridge.h"
 #import "ios/chrome/browser/autofill/model/bottom_sheet/autofill_bottom_sheet_tab_helper.h"
 #import "ios/chrome/browser/autofill/model/features.h"
@@ -295,6 +295,8 @@ bool IsStateless() {
       consumer.creditCardButtonHidden = YES;
       consumer.addressButtonHidden = YES;
     }
+    // TODO(crbug.com/522326512): Verify this visibility condition.
+    consumer.atMemoryButtonHidden = !autofill::IsAutofillAtMemoryEnabled();
     _reauthenticationModule = reauthenticationModule;
     _securityAlertHandler = securityAlertHandler;
 
@@ -569,6 +571,12 @@ bool IsStateless() {
 - (void)formInputAccessoryViewDidTapAddressManualFillButton:
     (FormInputAccessoryView*)sender {
   [self.consumer addressManualFillButtonPressed:sender.addressManualFillButton];
+}
+
+- (void)formInputAccessoryViewDidTapAtMemoryManualFillButton:
+    (FormInputAccessoryView*)sender {
+  [self.consumer
+      atMemoryManualFillButtonPressed:sender.atMemoryManualFillButton];
 }
 
 - (FormInputAccessoryViewTextData*)textDataforFormInputAccessoryView:

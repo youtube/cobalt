@@ -2208,13 +2208,8 @@ TEST_P(WebAppRegistrarParameterizedTest, Filter_IsIsolatedSubApp) {
 INSTANTIATE_TEST_SUITE_P(
     ,
     WebAppRegistrarParameterizedTest,
-#if BUILDFLAG(IS_CHROMEOS)
-    testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff)
-#else
     testing::Values(apps::test::LinkCapturingFeatureVersion::kV2DefaultOff,
-                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn)
-#endif  // BUILDFLAG(IS_CHROMEOS)
-        ,
+                    apps::test::LinkCapturingFeatureVersion::kV2DefaultOn),
     apps::test::LinkCapturingVersionToString);
 
 }  // namespace web_app

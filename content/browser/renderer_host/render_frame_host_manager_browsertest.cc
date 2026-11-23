@@ -6218,10 +6218,9 @@ IN_PROC_BROWSER_TEST_P(
   // At this time, there should be at least one RenderProcessHost. Capture them
   // for testing expectations later.
   auto& spare_manager = SpareRenderProcessHostManagerImpl::Get();
-  EXPECT_THAT(
-      spare_manager.GetSpares(),
-      testing::Each(testing::Property(&RenderProcessHost::GetPriority,
-                                      base::Process::Priority::kBestEffort)));
+  for (content::RenderProcessHost* host : spare_manager.GetSpares()) {
+    EXPECT_EQ(host->GetPriority(), base::Process::Priority::kBestEffort);
+  }
   std::vector<ChildProcessId> spare_rph_ids = spare_manager.GetSpareIds();
   ASSERT_FALSE(spare_rph_ids.empty());
 

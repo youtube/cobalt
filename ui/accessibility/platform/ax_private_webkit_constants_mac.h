@@ -121,6 +121,11 @@ constexpr NSString* const NSAccessibilityTextStateSyncKey = @"AXTextStateSync";
 #define NSAccessibilityScrollToVisibleAction @"AXScrollToVisible"
 #endif
 
+COMPONENT_EXPORT(AX_PLATFORM)
+constexpr NSString* const NSAccessibilityFieldsetSubrole = @"AXFieldset";
+COMPONENT_EXPORT(AX_PLATFORM)
+constexpr NSString* const NSAccessibilityEmptyGroupSubrole = @"AXEmptyGroup";
+
 COMPONENT_EXPORT(AX_PLATFORM) const char* ToString(AXTextStateChangeType);
 COMPONENT_EXPORT(AX_PLATFORM) const char* ToString(AXTextSelectionDirection);
 COMPONENT_EXPORT(AX_PLATFORM) const char* ToString(AXTextSelectionGranularity);

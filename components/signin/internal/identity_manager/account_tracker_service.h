@@ -6,6 +6,7 @@
 #define COMPONENTS_SIGNIN_INTERNAL_IDENTITY_MANAGER_ACCOUNT_TRACKER_SERVICE_H_
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -134,6 +135,12 @@ class AccountTrackerService {
                                       bool is_under_advanced_protection);
 
   void RemoveAccount(const CoreAccountId& account_id);
+
+  // Sets or clears the override for a specific capability for the account.
+  // Set `override_value` to `std::nullopt` to clear the override.
+  void SetCapabilityOverride(const CoreAccountId& account_id,
+                             std::string_view capability_name,
+                             std::optional<signin::Tribool> override_value);
 
 #if BUILDFLAG(IS_CHROMEOS)
   AccountIdMigrationState GetMigrationState() const;

@@ -279,6 +279,98 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
   DestructivelyIntersect(loaded_context_slots_, other.loaded_context_slots_);
 }
 
+// Loop-header variant of Merge. The forward (LHS) predecessor dominates the
+// loop body, so its facts hold throughout the loop: keep them instead of
+// intersecting with the backedge by pointer equality (which drops the
+// loop-invariant values the peeler cloned), invalidating only what the loop
+// body can change.
+void KnownNodeAspects::MergeForLoop(const KnownNodeAspects& backedge,
+                                    Zone* zone,
+                                    const LoopEffects* loop_effects) {
+  if (side_effects_require_invalidation_ &&
+      (loop_effects == nullptr || loop_effects->unstable_aspects_cleared)) {
+    ZoneMap<ValueNode*, NodeInfo> cleared(zone);
+    for (auto& entry : node_infos_) {
+      cleared.emplace(entry.first,
+                      NodeInfo::ClearUnstableMapsOnCopy{entry.second});
+    }
+    node_infos_ = std::move(cleared);
+    side_effects_require_invalidation_ = false;
+  }
+
+  if (effect_epoch_ != backedge.effect_epoch_) {
+    effect_epoch_ = std::max(effect_epoch_, backedge.effect_epoch_) + 1;
+  }
+  DestructivelyIntersect(
+      available_expressions_, backedge.available_expressions_,
+      [&](uint32_t hash, const AvailableExpression& lhs,
+          const AvailableExpression& rhs) {
+        DCHECK_IMPLIES(lhs.node == rhs.node,
+                       lhs.effect_epoch == rhs.effect_epoch);
+        DCHECK_NE(lhs.effect_epoch, kEffectEpochOverflow);
+        DCHECK_IMPLIES(
+            !lhs.node->Is<Identity>(),
+            Node::needs_epoch_check(lhs.node->opcode()) ==
+                (lhs.effect_epoch != kEffectEpochForPureInstructions));
+        ValueNode* rhs_value = rhs.node->TryCast<ValueNode>();
+        NodeBase* rhs_node =
+            rhs_value ? rhs_value->UnwrapIdentities() : rhs.node;
+        return !lhs.node->Is<Identity>() &&
+               lhs.node->IsStructurallyEqualTo(rhs_node) &&
+               lhs.effect_epoch >= effect_epoch_;
+      });
+
+  const bool keep_invariant_loads =
+      loop_effects != nullptr && !loop_effects->unstable_aspects_cleared;
+  auto same_load = [](ValueNode* lhs, ValueNode* rhs) {
+    return lhs != nullptr && rhs != nullptr &&
+           lhs->UnwrapIdentities()->IsStructurallyEqualTo(
+               rhs->UnwrapIdentities());
+  };
+  auto merge_constant_properties =
+      [&](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
+          const ZoneMap<ValueNode*, ValueNode*>& rhs) {
+        DestructivelyIntersect(lhs, rhs,
+                               [&](ValueNode* obj, ValueNode* l, ValueNode* r) {
+                                 return l == r || same_load(l, r);
+                               });
+        return !lhs.empty();
+      };
+  auto merge_loaded_properties =
+      [&](PropertyKey key, ZoneMap<ValueNode*, ValueNode*>& lhs,
+          const ZoneMap<ValueNode*, ValueNode*>& rhs) {
+        const bool key_invariant =
+            keep_invariant_loads && !loop_effects->keys_cleared.contains(key);
+        DestructivelyIntersect(
+            lhs, rhs, [&](ValueNode* obj, ValueNode* l, ValueNode* r) {
+              return l == r || (key_invariant &&
+                                !loop_effects->objects_written.contains(obj) &&
+                                same_load(l, r));
+            });
+        return !lhs.empty();
+      };
+  DestructivelyIntersect(loaded_constant_properties_,
+                         backedge.loaded_constant_properties_,
+                         merge_constant_properties);
+  DestructivelyIntersect(loaded_properties_, backedge.loaded_properties_,
+                         merge_loaded_properties);
+  DestructivelyIntersect(loaded_context_constants_,
+                         backedge.loaded_context_constants_,
+                         [&](auto key, ValueNode* l, ValueNode* r) {
+                           return l == r || same_load(l, r);
+                         });
+  may_have_aliasing_contexts_ = ContextSlotLoadsAliasMerge(
+      may_have_aliasing_contexts_, backedge.may_have_aliasing_contexts());
+  DestructivelyIntersect(
+      loaded_context_slots_, backedge.loaded_context_slots_,
+      [&](auto key, ValueNode* l, ValueNode* r) {
+        return l == r || (keep_invariant_loads &&
+                          !loop_effects->may_have_aliasing_contexts &&
+                          !loop_effects->context_slot_written.contains(key) &&
+                          same_load(l, r));
+      });
+}
+
 void KnownNodeAspects::UnwrapIdentitiesAndPhisInKeys(Zone* zone) {
   auto unwrap = [](ValueNode* node) -> ValueNode* {
     return node == nullptr ? nullptr : node->UnwrapIdentitiesAndPhis();
@@ -400,7 +492,7 @@ void KnownNodeAspects::ClearUnstableNodeAspectsForStoreMap(
   if (!node->is_transitioning()) return;
 
   if (NodeInfo* node_info = TryGetInfoFor(node->ValueInput().node())) {
-    if (node_info->possible_maps_are_known() &&
+    if (node_info->possible_maps_are_known() && !node_info->maps_are_stale() &&
         node_info->possible_maps().size() == 1) {
       compiler::MapRef old_map = node_info->possible_maps().at(0);
       auto MaybeAliases = [&](compiler::MapRef map) -> bool {

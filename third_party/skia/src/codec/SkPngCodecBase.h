@@ -57,6 +57,8 @@ protected:
     // Initialize other fields needed by `applyXformRow`.
     //
     // Needs to be called *after* (i.e. outside of) `onStartIncrementalDecode`.
+    // This timing ensures that the `swizzler` (if present) is in its final
+    // state (e.g. setting up subsampling by the user of the codec can affect `swizzleWidth`).
     void initializeXformParams();
 
     // Transforms a decoded row into the `dstInfo` format that was earlier
@@ -71,6 +73,7 @@ protected:
     void applyXformRow(void* dstRow, const uint8_t* srcRow);
 
     size_t getEncodedRowBytes() const { return fEncodedRowBytes; }
+    size_t getDstRowBytes() const { return fDstRowBytes; }
     const SkSwizzler* swizzler() const { return fSwizzler.get(); }
 
     struct PaletteColorEntry {
@@ -86,13 +89,15 @@ protected:
 
     sk_sp<SkPngCompositeChunkReader> fPngChunkReader;
 
+    // SkCodec overrides:
+    SkSampler* getSampler(bool createIfNecessary) override;
+
 private:
     bool onGetGainmapCodec(SkGainmapInfo* info, std::unique_ptr<SkCodec>* gainmapCodec) final;
     bool onGetGainmapInfo(SkGainmapInfo* info) final;
 
     // SkCodec overrides:
     SkEncodedImageFormat onGetEncodedFormat() const final;
-    SkSampler* getSampler(bool createIfNecessary) final;
 
     void allocateStorage(const SkImageInfo& dstInfo);
     Result initializeSwizzler(const SkImageInfo& dstInfo,

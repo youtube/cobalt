@@ -81,9 +81,7 @@
   }
 
   std::optional<bool> shouldPerformUserVerification =
-      passkeyTabHelper->ShouldPerformUserVerification(
-          _requestInfo->request_id,
-          [_reauthModule canAttemptReauthWithBiometrics]);
+      passkeyTabHelper->ShouldPerformUserVerification(_requestInfo->request_id);
 
   if (!shouldPerformUserVerification.has_value()) {
     // TODO(crbug.com/479249845): This should not happen. The correct behavior
@@ -94,8 +92,9 @@
     return;
   }
 
-  if (!*shouldPerformUserVerification) {
-    [self performPasskeyCreation];
+  bool mustPerformUserVerification = *shouldPerformUserVerification;
+  if (!mustPerformUserVerification) {
+    [self performPasskeyCreationWithUserVerification:NO];
     return;
   }
 
@@ -104,7 +103,7 @@
     [_reauthModule
         attemptReauthWithLocalizedReason:
             l10n_util::GetNSString(IDS_IOS_PASSKEY_CREATION_START_REAUTH_REASON)
-                    canReusePreviousAuth:YES
+                    canReusePreviousAuth:!mustPerformUserVerification
                                  handler:^(ReauthenticationResult result) {
                                    [weakSelf handleReauthResult:result];
                                  }];
@@ -118,8 +117,9 @@
 }
 
 - (void)handleReauthResult:(ReauthenticationResult)result {
-  if (result == ReauthenticationResult::kSuccess) {
-    [self performPasskeyCreation];
+  if (result != ReauthenticationResult::kFailure) {
+    [self performPasskeyCreationWithUserVerification:
+              result == ReauthenticationResult::kSuccess];
   } else {
     // TODO(crbug.com/479249845): The correct behavior when reauthentication
     // fails (e.g., was canceled) should be to fail the request.
@@ -131,13 +131,14 @@
   }
 }
 
-- (void)performPasskeyCreation {
+- (void)performPasskeyCreationWithUserVerification:(BOOL)didCompleteUV {
   webauthn::PasskeyTabHelper* passkeyTabHelper = [self passkeyTabHelper];
   if (!passkeyTabHelper || !_requestInfo.has_value()) {
     [_mediatorDelegate dismissPasskeyCreation];
     return;
   }
-  passkeyTabHelper->StartPasskeyCreation(_requestInfo->request_id);
+  passkeyTabHelper->StartPasskeyCreation(_requestInfo->request_id,
+                                         didCompleteUV);
   [_mediatorDelegate dismissPasskeyCreation];
 }
 

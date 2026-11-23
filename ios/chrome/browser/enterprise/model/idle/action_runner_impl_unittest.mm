@@ -58,13 +58,6 @@ class MockAction : public Action {
   MOCK_METHOD2(Run, void(ProfileIOS*, Continuation));
 };
 
-// testing::InvokeArgument<N> does not work with base::OnceCallback, so we
-// define our own gMock action to run the 2nd argument.
-// Used to mock success and failure in successive actions.
-ACTION_P(RunContinuation, success) {
-  std::move(const_cast<Action::Continuation&>(arg1)).Run(success);
-}
-
 }  // namespace
 
 class IdleActionRunnerTest : public PlatformTest {
@@ -116,9 +109,11 @@ TEST_F(IdleActionRunnerTest, PrefOrderDoesNotMatter) {
 
   testing::InSequence in_sequence;
   EXPECT_CALL(*clear_history, Run(profile(), _))
-      .WillOnce(RunContinuation(true));
-  EXPECT_CALL(*close_tabs, Run(profile(), _)).WillOnce(RunContinuation(true));
-  EXPECT_CALL(*sign_out, Run(profile(), _)).WillOnce(RunContinuation(true));
+      .WillOnce(base::test::RunOnceCallback<1>(true));
+  EXPECT_CALL(*close_tabs, Run(profile(), _))
+      .WillOnce(base::test::RunOnceCallback<1>(true));
+  EXPECT_CALL(*sign_out, Run(profile(), _))
+      .WillOnce(base::test::RunOnceCallback<1>(true));
 
   action_factory->Associate(ActionType::kCloseTabs, std::move(close_tabs));
   action_factory->Associate(ActionType::kClearBrowsingHistory,
@@ -147,7 +142,8 @@ TEST_F(IdleActionRunnerTest, OtherActionsDontRunOnFailure) {
 
   // "sign_out" shouldn't run, because "close_tabs" fails.
   testing::InSequence in_sequence;
-  EXPECT_CALL(*close_tabs, Run(profile(), _)).WillOnce(RunContinuation(false));
+  EXPECT_CALL(*close_tabs, Run(profile(), _))
+      .WillOnce(base::test::RunOnceCallback<1>(false));
   EXPECT_CALL(*sign_out, Run(_, _)).Times(0);
 
   action_factory->Associate(ActionType::kCloseTabs, std::move(close_tabs));

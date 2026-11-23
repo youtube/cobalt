@@ -23,6 +23,7 @@ android_library("java") {
     "android/java/src/org/chromium/chrome/browser/hub/DirectionalScrollListener.java",
     "android/java/src/org/chromium/chrome/browser/hub/HubAnimationConstants.java",
     "android/java/src/org/chromium/chrome/browser/hub/HubColorMixer.java",
+    "android/java/src/org/chromium/chrome/browser/hub/HubColorMixerRegistrationHelper.java",
     "android/java/src/org/chromium/chrome/browser/hub/HubColorScheme.java",
     "android/java/src/org/chromium/chrome/browser/hub/HubContainerView.java",
     "android/java/src/org/chromium/chrome/browser/hub/HubController.java",
@@ -109,6 +110,7 @@ robolectric_library("junit") {
   resources_package = "org.chromium.chrome.browser.hub"
   sources = [
     "android/java/src/org/chromium/chrome/browser/hub/DirectionalScrollListenerUnitTest.java",
+    "android/java/src/org/chromium/chrome/browser/hub/HubColorMixerRegistrationHelperUnitTest.java",
     "android/java/src/org/chromium/chrome/browser/hub/HubLayoutScrimControllerUnitTest.java",
     "android/java/src/org/chromium/chrome/browser/hub/HubShowPaneHelperUnitTest.java",
     "android/java/src/org/chromium/chrome/browser/hub/NewTabAnimationUtilsUnitTest.java",

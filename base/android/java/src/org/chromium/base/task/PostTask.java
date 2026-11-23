@@ -384,7 +384,11 @@ public class PostTask {
             taskRunner.initNativeTaskRunner();
         }
         if (sShutdownPostTaskPreNativeThreadPoolEnabled) {
-            sPrenativeThreadPoolExecutor.shutdown();
+            PostTask.postTask(
+                    TaskTraits.BEST_EFFORT,
+                    () -> {
+                        sPrenativeThreadPoolExecutor.shutdown();
+                    });
         }
     }
 

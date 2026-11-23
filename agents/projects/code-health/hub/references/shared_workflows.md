@@ -6,8 +6,11 @@ Code Health cleanup task.
 ## Table of Contents
 
 - [Pre-authorized Operations](#pre-authorized-operations-generic)
+- [Workspace Preparation](#workspace-preparation)
+- [Branch Creation](#branch-creation)
 - [Commit](#commit)
 - [Upload to Gerrit](#upload-to-gerrit)
+- [Congratulations & Summary](#congratulations--summary)
 
 ## Pre-authorized Operations (Generic)
 
@@ -35,6 +38,27 @@ isolated environment.
 3. **Check for unmerged local commits:** Run `git log origin/main..HEAD`. If
    there is any output, stop and inform the user, as we do not want to carry
    these over to a new branch.
+
+## Branch Creation
+
+1. **Create Branch**: Run `git new-branch <BranchName>` to create a clean
+   branch. The branch name should follow the convention specified by the active
+   skill (typically `cleanup-[skill-name]-[component]`).
+
+## Commit
+
+1. **Draft Message**: Retrieve the commit message template from the active
+   skill's `Submission` section. Fill in the template details (e.g., component
+   name, bug ID, and specific details). **CRITICAL**: You MUST ensure the first
+   line (subject line) of the commit message is under 72 characters. Use a
+   shortened component name if necessary.
+2. **Review & Stage**: Display the drafted commit message to the user.
+   Autonomously stage only the specific files modified during this task using
+   `git add`.
+3. **Execute Commit**: Execute the commit with the drafted message:
+   ```bash
+   git commit -m "<drafted message>"
+   ```
 
 ## Upload to Gerrit
 

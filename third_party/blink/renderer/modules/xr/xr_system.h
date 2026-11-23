@@ -44,9 +44,11 @@ class XRSessionInit;
 
 // Implementation of the XRSystem interface according to
 // https://immersive-web.github.io/webxr/#xrsystem-interface . This is created
-// lazily on first access to the navigator.xr attrib,
-// and disposed when the execution context is destroyed or on mojo communication
-// errors with the browser/device process.
+// lazily on first access to the navigator.xr attrib, and disposed when the
+// execution context is destroyed or on mojo communication errors.
+//
+// See README.md for a high-level overview of the WebXR stack and its process
+// model.
 //
 // When the XRSystem is used for promises, it uses query objects to store state
 // including the associated ScriptPromiseResolverBase. These query objects are

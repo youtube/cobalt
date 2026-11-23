@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/notreached.h"
+#include "base/numerics/ranges.h"
 #include "base/strings/to_string.h"
 #include "base/values.h"
 #include "pdf/pdf_ink_conversions.h"
@@ -158,9 +159,12 @@ void PrintTo(const InkTextBoxAttributes& info, std::ostream* os) {
 }
 
 bool InkTextInfoEquals(const InkTextInfo& lhs, const InkTextInfo& rhs) {
-  return lhs.font_id == rhs.font_id && lhs.glyphs == rhs.glyphs &&
-         lhs.glyph_positions == rhs.glyph_positions &&
-         lhs.location == rhs.location &&
+  const bool glyph_positions_eq = std::ranges::equal(
+      lhs.glyph_positions, rhs.glyph_positions, [](float lhs, float rhs) {
+        return base::IsApproximatelyEqual(lhs, rhs, 0.01f);
+      });
+  return glyph_positions_eq && lhs.font_id == rhs.font_id &&
+         lhs.glyphs == rhs.glyphs && lhs.location == rhs.location &&
          lhs.is_horizontal == rhs.is_horizontal && lhs.text == rhs.text;
 }
 

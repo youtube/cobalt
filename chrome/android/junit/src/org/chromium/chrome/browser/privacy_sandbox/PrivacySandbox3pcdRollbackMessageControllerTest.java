@@ -50,7 +50,6 @@ import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.content_public.browser.NavigationHandle;
-import org.chromium.content_public.browser.Page;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.JUnitTestGURLs;
 
@@ -100,23 +99,7 @@ public class PrivacySandbox3pcdRollbackMessageControllerTest {
     private void navigate(boolean hasCommitted) {
         NavigationHandle navigation =
                 NavigationHandle.createForTesting(JUnitTestGURLs.EXAMPLE_URL, false, 0, false);
-        navigation.didFinish(
-                JUnitTestGURLs.EXAMPLE_URL,
-                /* isErrorPage= */ false,
-                hasCommitted,
-                /* isPrimaryMainFrameFragmentNavigation= */ false,
-                /* isDownload= */ false,
-                /* isValidSearchFormUrl= */ false,
-                /* transition= */ 0,
-                /* errorCode= */ 0,
-                /* errorDescription= */ "",
-                /* httpStatuscode= */ 200,
-                /* isExternalProtocol= */ false,
-                /* isPdf= */ false,
-                /* mimeType= */ "",
-                Page.createForTesting(),
-                /* isSameOrigin= */ true,
-                /* ignoredDuplicateNavigationCount= */ 0);
+        navigation.callDidFinishForTesting(JUnitTestGURLs.EXAMPLE_URL, hasCommitted);
         ActivityTabTabObserver observer = assertNonNull(mController.getActivityTabTabObserver());
         observer.onDidFinishNavigationInPrimaryMainFrame(mTab, navigation);
     }

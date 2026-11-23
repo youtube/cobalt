@@ -55,6 +55,7 @@
 #include "third_party/blink/renderer/modules/indexeddb/idb_key_range.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_version_change_event.h"
 #include "third_party/blink/renderer/modules/indexeddb/indexed_db_blink_mojom_traits.h"
+#include "third_party/blink/renderer/modules/indexeddb/shared_idb_database_connection.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -69,13 +70,12 @@ namespace blink {
 
 namespace {
 
-BASE_FEATURE(kIDBDatabaseExternalMemoryAccounting,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kIDBDatabaseDumpOnHighConnectionCount,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Number of connections in the process. All operations use
+// Number of frontend connection instances (IDBDatabase objects) in the process.
+// Note that with connection deduplication enabled, this may be larger than the
+// number of actual Mojo connections to the browser. All operations use
 // std::memory_order_relaxed since there is no dependency with other data.
 //
 // TODO(crbug.com/381086791): Remove after the bug is understood.
@@ -146,14 +146,13 @@ IDBDatabase::IDBDatabase(
       callbacks_receiver_(this, context) {
   IncrementNumConnections();
 
-  if (base::FeatureList::IsEnabled(kIDBDatabaseExternalMemoryAccounting)) {
+  // Only account for memory here if deduplication is disabled. If enabled,
+  // the memory is accounted for in SharedIDBDatabaseConnection instead.
+  if (base::FeatureList::IsEnabled(
+          features::kIDBDatabaseExternalMemoryAccounting) &&
+      !base::FeatureList::IsEnabled(
+          features::kIndexedDBConnectionDeduplication)) {
     if (v8::Isolate* isolate = v8::Isolate::TryGetCurrent()) {
-      // This object indirectly retains memory in the browser process via
-      // `database_remote_` (mostly internal Mojo structures for
-      // IndexedDBClientStateChecker, IDBDatabase, and DatabaseCallbacks). The
-      // size was derived empirically by measuring the browser process memory
-      // delta from retaining 100k connections in a renderer process.
-      constexpr base::ByteSize kExternalMemorySize = base::KiBU(90);
       external_memory_accounter_.Increase(isolate,
                                           kExternalMemorySize.InBytes());
     }
@@ -173,6 +172,27 @@ IDBDatabase::IDBDatabase(
   UpdateStateIfNeeded();
 }
 
+IDBDatabase::IDBDatabase(ExecutionContext* context,
+                         SharedIDBDatabaseConnection* shared_connection,
+                         int connection_priority)
+    : ActiveScriptWrappable<IDBDatabase>({}),
+      ExecutionContextLifecycleStateObserver(context),
+      database_remote_(context),
+      shared_connection_(shared_connection),
+      scheduling_priority_(connection_priority),
+      callbacks_receiver_(this, context) {
+  IncrementNumConnections();
+  shared_connection_->RegisterFrontend(this);
+
+  // Invokes the callback immediately.
+  scheduler_observer_ = context->GetScheduler()->AddLifecycleObserver(
+      FrameOrWorkerScheduler::ObserverType::kWorkerScheduler,
+      BindRepeating(&IDBDatabase::OnSchedulerLifecycleStateChanged,
+                    WrapWeakPersistent(this)));
+
+  UpdateStateIfNeeded();
+}
+
 IDBDatabase::~IDBDatabase() {
   DecrementNumConnections();
   ClearExternalMemory();
@@ -180,6 +200,7 @@ IDBDatabase::~IDBDatabase() {
 
 void IDBDatabase::Trace(Visitor* visitor) const {
   visitor->Trace(database_remote_);
+  visitor->Trace(shared_connection_);
   visitor->Trace(version_change_transaction_);
   visitor->Trace(transactions_);
   visitor->Trace(callbacks_receiver_);
@@ -208,6 +229,10 @@ void IDBDatabase::TransactionCreated(IDBTransaction* transaction) {
   DCHECK(transaction);
   DCHECK(!transactions_.Contains(transaction->Id()));
   transactions_.insert(transaction->Id(), transaction);
+
+  if (shared_connection_) {
+    shared_connection_->RegisterTransaction(transaction->Id(), this);
+  }
 
   // Log a histogram when the number of active transactions becomes unusually
   // large, to help diagnose crbug.com/381086791.
@@ -247,6 +272,10 @@ void IDBDatabase::TransactionFinished(const IDBTransaction* transaction) {
   DCHECK(transactions_.Contains(transaction->Id()));
   DCHECK_EQ(transactions_.at(transaction->Id()), transaction);
   transactions_.erase(transaction->Id());
+
+  if (shared_connection_) {
+    shared_connection_->UnregisterTransaction(transaction->Id());
+  }
 
   TransactionWillFinish(transaction);
 
@@ -358,7 +387,7 @@ IDBObjectStore* IDBDatabase::createObjectStore(
     return nullptr;
   }
 
-  if (!database_remote_.is_bound()) {
+  if (!IsConnectionOpen()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       IDBDatabase::kDatabaseClosedErrorMessage);
     return nullptr;
@@ -424,7 +453,7 @@ IDBTransaction* IDBDatabase::transaction(
     return nullptr;
   }
 
-  if (!database_remote_.is_bound()) {
+  if (!IsConnectionOpen()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       IDBDatabase::kDatabaseClosedErrorMessage);
     return nullptr;
@@ -507,7 +536,7 @@ void IDBDatabase::deleteObjectStore(const String& name,
     return;
   }
 
-  if (!database_remote_.is_bound()) {
+  if (!IsConnectionOpen()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       IDBDatabase::kDatabaseClosedErrorMessage);
     return;
@@ -535,13 +564,23 @@ void IDBDatabase::CloseConnection() {
   DCHECK(close_pending_);
   DCHECK(transactions_.empty());
 
-  if (database_remote_.is_bound()) {
+  if (shared_connection_) {
+    shared_connection_->UnregisterFrontend(this);
+    shared_connection_ = nullptr;
+  } else if (database_remote_.is_bound()) {
     ClearExternalMemory();
     database_remote_.reset();
   }
 
   if (callbacks_receiver_.is_bound()) {
     callbacks_receiver_.reset();
+  }
+}
+
+void IDBDatabase::Dispose() {
+  if (shared_connection_) {
+    shared_connection_->UnregisterFrontend(this);
+    shared_connection_ = nullptr;
   }
 }
 
@@ -565,7 +604,7 @@ DispatchEventResult IDBDatabase::DispatchEventInternal(Event& event) {
       EventTarget::DispatchEventInternal(event);
 
   if (event.type() == event_type_names::kVersionchange && !close_pending_ &&
-      database_remote_.is_bound()) {
+      IsConnectionOpen()) {
     VersionChangeIgnored();
   }
   return dispatch_result;
@@ -634,14 +673,18 @@ void IDBDatabase::ContextDestroyed() {
   // Immediately close the connection to the back end. Don't attempt a
   // normal close() since that may wait on transactions which require a
   // round trip to the back-end to abort.
-  if (database_remote_.is_bound()) {
+  // Automatically closes sharing if sharing is enabled.
+  if (shared_connection_) {
+    shared_connection_->UnregisterFrontend(this);
+    shared_connection_ = nullptr;
+  } else if (database_remote_.is_bound()) {
     ClearExternalMemory();
     database_remote_.reset();
   }
 }
 
 void IDBDatabase::ContextEnteredBackForwardCache() {
-  if (!database_remote_.is_bound()) {
+  if (!IsConnectionOpen()) {
     return;
   }
 
@@ -650,7 +693,7 @@ void IDBDatabase::ContextEnteredBackForwardCache() {
 
 void IDBDatabase::ContextLifecycleStateChanged(
     mojom::blink::FrameLifecycleState state) {
-  if (!database_remote_.is_bound()) {
+  if (!IsConnectionOpen()) {
     return;
   }
 
@@ -660,7 +703,17 @@ void IDBDatabase::ContextLifecycleStateChanged(
 }
 
 bool IDBDatabase::IsConnectionOpen() const {
+  if (shared_connection_) {
+    return shared_connection_->is_bound();
+  }
   return database_remote_.is_bound();
+}
+
+mojom::blink::IDBDatabase* IDBDatabase::GetDatabaseRemote() {
+  if (shared_connection_) {
+    return shared_connection_->GetDatabaseRemote();
+  }
+  return database_remote_.get();
 }
 
 const AtomicString& IDBDatabase::InterfaceName() const {
@@ -700,9 +753,9 @@ void IDBDatabase::Get(
 
   mojom::blink::IDBKeyRangePtr key_range_ptr =
       mojom::blink::IDBKeyRange::From(key_range);
-  database_remote_->Get(transaction_id, object_store_id, index_id,
-                        std::move(key_range_ptr), key_only,
-                        std::move(result_callback));
+  GetDatabaseRemote()->Get(transaction_id, object_store_id, index_id,
+                           std::move(key_range_ptr), key_only,
+                           std::move(result_callback));
 }
 
 void IDBDatabase::GetAll(int64_t transaction_id,
@@ -717,11 +770,11 @@ void IDBDatabase::GetAll(int64_t transaction_id,
 
   mojom::blink::IDBKeyRangePtr key_range_ptr =
       mojom::blink::IDBKeyRange::From(key_range);
-  database_remote_->GetAll(transaction_id, object_store_id, index_id,
-                           std::move(key_range_ptr), result_type, max_count,
-                           direction,
-                           BindOnce(&IDBRequest::OnGetAll,
-                                    WrapWeakPersistent(request), result_type));
+  GetDatabaseRemote()->GetAll(
+      transaction_id, object_store_id, index_id, std::move(key_range_ptr),
+      result_type, max_count, direction,
+      BindOnce(&IDBRequest::OnGetAll, WrapWeakPersistent(request),
+               result_type));
 }
 
 void IDBDatabase::OpenCursor(int64_t object_store_id,
@@ -735,7 +788,7 @@ void IDBDatabase::OpenCursor(int64_t object_store_id,
 
   mojom::blink::IDBKeyRangePtr key_range_ptr =
       mojom::blink::IDBKeyRange::From(key_range);
-  database_remote_->OpenCursor(
+  GetDatabaseRemote()->OpenCursor(
       request->transaction()->Id(), object_store_id, index_id,
       std::move(key_range_ptr), direction, key_only, task_type,
       BindOnce(&IDBRequest::OnOpenCursor, WrapWeakPersistent(request)));
@@ -748,9 +801,9 @@ void IDBDatabase::Count(int64_t transaction_id,
                         mojom::blink::IDBDatabase::CountCallback callback) {
   IDBCursor::ResetCursorPrefetchCaches(transaction_id, nullptr);
 
-  database_remote_->Count(transaction_id, object_store_id, index_id,
-                          mojom::blink::IDBKeyRange::From(key_range),
-                          std::move(callback));
+  GetDatabaseRemote()->Count(transaction_id, object_store_id, index_id,
+                             mojom::blink::IDBKeyRange::From(key_range),
+                             std::move(callback));
 }
 
 void IDBDatabase::Delete(int64_t transaction_id,
@@ -761,9 +814,9 @@ void IDBDatabase::Delete(int64_t transaction_id,
 
   mojom::blink::IDBKeyRangePtr key_range_ptr =
       mojom::blink::IDBKeyRange::From(IDBKeyRange::Create(primary_key));
-  database_remote_->DeleteRange(transaction_id, object_store_id,
-                                std::move(key_range_ptr),
-                                std::move(success_callback));
+  GetDatabaseRemote()->DeleteRange(transaction_id, object_store_id,
+                                   std::move(key_range_ptr),
+                                   std::move(success_callback));
 }
 
 void IDBDatabase::DeleteRange(int64_t transaction_id,
@@ -774,16 +827,16 @@ void IDBDatabase::DeleteRange(int64_t transaction_id,
 
   mojom::blink::IDBKeyRangePtr key_range_ptr =
       mojom::blink::IDBKeyRange::From(key_range);
-  database_remote_->DeleteRange(transaction_id, object_store_id,
-                                std::move(key_range_ptr),
-                                std::move(success_callback));
+  GetDatabaseRemote()->DeleteRange(transaction_id, object_store_id,
+                                   std::move(key_range_ptr),
+                                   std::move(success_callback));
 }
 
 void IDBDatabase::GetKeyGeneratorCurrentNumber(
     int64_t transaction_id,
     int64_t object_store_id,
     mojom::blink::IDBDatabase::GetKeyGeneratorCurrentNumberCallback callback) {
-  database_remote_->GetKeyGeneratorCurrentNumber(
+  GetDatabaseRemote()->GetKeyGeneratorCurrentNumber(
       transaction_id, object_store_id, std::move(callback));
 }
 
@@ -792,8 +845,8 @@ void IDBDatabase::Clear(
     int64_t object_store_id,
     mojom::blink::IDBDatabase::ClearCallback success_callback) {
   IDBCursor::ResetCursorPrefetchCaches(transaction_id, nullptr);
-  database_remote_->Clear(transaction_id, object_store_id,
-                          std::move(success_callback));
+  GetDatabaseRemote()->Clear(transaction_id, object_store_id,
+                             std::move(success_callback));
 }
 
 void IDBDatabase::CreateIndex(int64_t transaction_id,
@@ -803,7 +856,7 @@ void IDBDatabase::CreateIndex(int64_t transaction_id,
                               const IDBKeyPath& key_path,
                               bool unique,
                               bool multi_entry) {
-  database_remote_->CreateIndex(
+  GetDatabaseRemote()->CreateIndex(
       transaction_id, object_store_id,
       base::MakeRefCounted<IDBIndexMetadata>(name, index_id, key_path, unique,
                                              multi_entry));
@@ -812,7 +865,7 @@ void IDBDatabase::CreateIndex(int64_t transaction_id,
 void IDBDatabase::DeleteIndex(int64_t transaction_id,
                               int64_t object_store_id,
                               int64_t index_id) {
-  database_remote_->DeleteIndex(transaction_id, object_store_id, index_id);
+  GetDatabaseRemote()->DeleteIndex(transaction_id, object_store_id, index_id);
 }
 
 void IDBDatabase::RenameIndex(int64_t transaction_id,
@@ -820,13 +873,13 @@ void IDBDatabase::RenameIndex(int64_t transaction_id,
                               int64_t index_id,
                               const String& new_name) {
   DCHECK(!new_name.IsNull());
-  database_remote_->RenameIndex(transaction_id, object_store_id, index_id,
-                                new_name);
+  GetDatabaseRemote()->RenameIndex(transaction_id, object_store_id, index_id,
+                                   new_name);
 }
 
 void IDBDatabase::Abort(int64_t transaction_id) {
-  if (database_remote_.is_bound()) {
-    database_remote_->Abort(transaction_id);
+  if (IsConnectionOpen()) {
+    GetDatabaseRemote()->Abort(transaction_id);
   }
 }
 
@@ -837,8 +890,8 @@ void IDBDatabase::OnSchedulerLifecycleStateChanged(
     return;
   }
   scheduling_priority_ = new_priority;
-  if (database_remote_) {
-    database_remote_->UpdatePriority(scheduling_priority_);
+  if (IsConnectionOpen()) {
+    GetDatabaseRemote()->UpdatePriority(scheduling_priority_);
   }
 }
 

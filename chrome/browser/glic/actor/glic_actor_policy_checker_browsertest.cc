@@ -41,10 +41,10 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/actor/core/actor_features.h"
 #include "components/actor/core/actor_util.h"
-#include "components/actor/core/origin_gating_cache.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/enterprise/connectors/core/features.h"
+#include "components/origin_gating/core/origin_gating_cache.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
@@ -382,6 +382,8 @@ class GlicActorPolicyCheckerBrowserTestManagedBrowser
     // This is a managed browser, so a non-enterprise account must be signed in
     // in order to get the actuation capability.
     SimulatePrimaryAccountChangedSignIn(&kNonEnterpriseAccount);
+    GetProfile()->GetPrefs()->SetInteger(
+        subscription_eligibility::prefs::kAiSubscriptionTier, 1);
   }
 
   void TearDownOnMainThread() override {
@@ -470,8 +472,9 @@ class GlicActorPolicyCheckerBrowserTestManagedBrowser
     base::test::TestFuture<actor::MayActOnUrlBlockReason> allowed;
     MayActOnUrl(url_to_check, /*allow_insecure_http=*/true, GetProfile(),
                 actor_service->GetJournal(), TaskId(123),
-                actor::OriginGatingCache(), policy_checker,
-                allowed.GetCallback());
+                origin_gating::OriginGatingCache(
+                    actor::kGlicNavigationGatingUseSiteNotOrigin.Get()),
+                policy_checker, allowed.GetCallback());
     EXPECT_EQ(expected_result.may_act_on_url_block_reason, allowed.Get());
   }
 
@@ -963,7 +966,8 @@ IN_PROC_BROWSER_TEST_P(GlicActorPolicyCheckerBrowserTestWithManagedAccount,
 IN_PROC_BROWSER_TEST_P(GlicActorPolicyCheckerBrowserTestWithManagedAccount,
                        DataProtectedDogfoodUserCanActOnWeb) {
   SetIsLikelyDogfoodClient(true);
-  SimulatePrimaryAccountChangedSignIn(&kNonEnterpriseAccount);
+  constexpr TestAccount kGoogleAccount = {"foo@google.com", ""};
+  SimulatePrimaryAccountChangedSignIn(&kGoogleAccount);
   AddUserStatusPref(/*is_enterprise_account_data_protected=*/true);
 
   // Dogfood devices are exempted from the data protected check.
@@ -1040,6 +1044,16 @@ IN_PROC_BROWSER_TEST_F(
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 }
 
+IN_PROC_BROWSER_TEST_F(
+    ActorPolicyCheckerBrowserTestWithManagedAccountWithPolicy,
+    InvalidPolicyValueFallsSafeAndDoesNotCrash) {
+  browser()->profile()->GetPrefs()->SetInteger(glic::prefs::kGlicActuationOnWeb,
+                                               2);
+  EXPECT_FALSE(GetPolicyChecker().CanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().CannotActOnWebReason(),
+            CannotActReason::kDisabledByPolicy);
+}
+
 IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestManagedBrowser,
                        ValidateContentAllowedByDefault) {
   base::test::TestFuture<GlicActorPolicyChecker::ContentValidationReason>
@@ -1051,6 +1065,281 @@ IN_PROC_BROWSER_TEST_F(GlicActorPolicyCheckerBrowserTestManagedBrowser,
 
   EXPECT_EQ(future.Get(),
             GlicActorPolicyChecker::ContentValidationReason::kAllowed);
+}
+
+class GlicApiActorPolicyCheckerBrowserTest
+    : public GlicActorPolicyCheckerBrowserTestBase {
+ public:
+  GlicApiActorPolicyCheckerBrowserTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /* enabled_features = */
+        {{features::kGlicActor,
+          {{features::kGlicActorPolicyControlExemption.name, "false"},
+           {features::kGlicActorEligibleTiers.name, "1"}}}},
+        /* disabled_features = */ {});
+  }
+  ~GlicApiActorPolicyCheckerBrowserTest() override = default;
+
+  void SetSubscriptionTier(int32_t tier) {
+    GetProfile()->GetPrefs()->SetInteger(
+        subscription_eligibility::prefs::kAiSubscriptionTier, tier);
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTest, NoAccount) {
+  // Initially signed out.
+  EXPECT_FALSE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kAccountCapabilityIneligible);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTest,
+                       CapabilityIneligible) {
+  SimulatePrimaryAccountChangedSignIn(&kNonEnterpriseAccount);
+
+  // Set capability to false.
+  CoreAccountInfo core_account_info =
+      identity_manager_->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+  AccountInfo account_info =
+      identity_manager_->FindExtendedAccountInfoByAccountId(
+          core_account_info.account_id);
+  AccountCapabilitiesTestMutator mutator(&account_info);
+  mutator.set_can_use_model_execution_features(false);
+  identity_test_env_->UpdateAccountInfoForAccount(account_info);
+
+  EXPECT_FALSE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kAccountCapabilityIneligible);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTest,
+                       DogfoodGoogleAccount) {
+  SetIsLikelyDogfoodClient(true);
+  constexpr TestAccount kGoogleAccount = {"foo@google.com", ""};
+  SimulatePrimaryAccountChangedSignIn(&kGoogleAccount);
+
+  // Tier is not set (so default ineligible tier 0).
+  // But GlicApiCanActOnWeb should be true because of Google dogfood bypass.
+  EXPECT_TRUE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kNone);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTest,
+                       DogfoodNonGoogleAccount) {
+  SetIsLikelyDogfoodClient(true);
+  SimulatePrimaryAccountChangedSignIn(&kNonEnterpriseAccount);
+
+  // Tier is not set (so default ineligible).
+  // GlicApiCanActOnWeb should be false because it is not a Google account and
+  // tier is ineligible.
+  EXPECT_FALSE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kAccountMissingChromeBenefits);
+
+  // Set eligible tier.
+  SetSubscriptionTier(1);
+  EXPECT_TRUE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kNone);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTest,
+                       EnterpriseAccount) {
+  SimulatePrimaryAccountChangedSignIn(&kEnterpriseAccount);
+
+  // Enterprise account is always disabled for Glic API.
+  EXPECT_FALSE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kEnterpriseWithoutManagement);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTest,
+                       NonManagedTierCheck) {
+  SimulatePrimaryAccountChangedSignIn(&kNonEnterpriseAccount);
+
+  // Tier not set -> ineligible.
+  EXPECT_FALSE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kAccountMissingChromeBenefits);
+
+  // Set tier to 1 (eligible).
+  SetSubscriptionTier(1);
+  EXPECT_TRUE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kNone);
+}
+
+class GlicApiActorPolicyCheckerBrowserTestManaged
+    : public GlicApiActorPolicyCheckerBrowserTest {
+ public:
+  GlicApiActorPolicyCheckerBrowserTestManaged() = default;
+  ~GlicApiActorPolicyCheckerBrowserTestManaged() override = default;
+
+  void SetUpOnMainThread() override {
+    policy_provider_.SetupPolicyServiceForPolicyUpdates(
+        GetProfile()->GetProfilePolicyConnector()->policy_service());
+    scoped_management_service_override_ =
+        std::make_unique<policy::ScopedManagementServiceOverrideForTesting>(
+            policy::ManagementServiceFactory::GetForProfile(GetProfile()),
+            policy::EnterpriseManagementAuthority::CLOUD);
+
+    GlicApiActorPolicyCheckerBrowserTest::SetUpOnMainThread();
+
+    auto* management_service_factory =
+        policy::ManagementServiceFactory::GetInstance();
+    auto* browser_management_service =
+        management_service_factory->GetForProfile(GetProfile());
+    ASSERT_TRUE(browser_management_service);
+    ASSERT_TRUE(browser_management_service->IsManaged());
+
+    // By default, sign in with non-enterprise account.
+    SimulatePrimaryAccountChangedSignIn(&kNonEnterpriseAccount);
+  }
+
+  void TearDownOnMainThread() override {
+    policy_provider_.SetupPolicyServiceForPolicyUpdates(nullptr);
+    scoped_management_service_override_.reset();
+    GlicApiActorPolicyCheckerBrowserTest::TearDownOnMainThread();
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        switches::kNoErrorDialogs);
+    policy_provider_.SetDefaultReturns(
+        /*is_initialization_complete_return=*/true,
+        /*is_first_policy_load_complete_return=*/true);
+    policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
+        &policy_provider_);
+  }
+
+  void UpdateGeminiActOnWebPolicy(
+      std::optional<glic::prefs::GlicActuationOnWebPolicyState> value) {
+    UpdateGeminiActOnWebAndUrlPolicies(value, /*url_allowlist=*/{},
+                                       /*url_blocklist=*/{});
+  }
+
+  void UpdateGeminiActOnWebAndUrlPolicies(
+      std::optional<glic::prefs::GlicActuationOnWebPolicyState> value,
+      const std::vector<std::string>& url_allowlist,
+      const std::vector<std::string>& url_blocklist) {
+    GlicActorPolicyChecker& policy_checker = GetPolicyChecker();
+
+    policy::PolicyMap policies;
+    std::optional<base::Value> value_to_set;
+    if (value.has_value()) {
+      value_to_set = base::Value(std::to_underlying(*value));
+    }
+    std::optional<base::Value> allow_list_value =
+        base::Value(base::ToValueList(url_allowlist));
+    std::optional<base::Value> block_list_value =
+        base::Value(base::ToValueList(url_blocklist));
+    policies.Set(policy::key::kGeminiActOnWebSettings,
+                 policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+                 policy::POLICY_SOURCE_ENTERPRISE_DEFAULT,
+                 std::move(value_to_set), nullptr);
+    policies.Set(policy::key::kGeminiActOnWebAllowedForURLs,
+                 policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+                 policy::POLICY_SOURCE_ENTERPRISE_DEFAULT,
+                 std::move(allow_list_value), nullptr);
+    policies.Set(policy::key::kGeminiActOnWebBlockedForURLs,
+                 policy::POLICY_LEVEL_MANDATORY, policy::POLICY_SCOPE_USER,
+                 policy::POLICY_SOURCE_ENTERPRISE_DEFAULT,
+                 std::move(block_list_value), nullptr);
+    base::test::TestFuture<void> on_url_lists_updated;
+    base::CallbackListSubscription list_update_subscription =
+        policy_checker.AddUrlListsUpdateObserverForTesting(
+            on_url_lists_updated.GetRepeatingCallback());
+    policy_provider_.UpdateChromePolicy(policies);
+    EXPECT_TRUE(on_url_lists_updated.Wait());
+  }
+
+ private:
+  ::testing::NiceMock<policy::MockConfigurationPolicyProvider> policy_provider_;
+  std::unique_ptr<policy::ScopedManagementServiceOverrideForTesting>
+      scoped_management_service_override_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTestManaged,
+                       ManagedDisabled) {
+  UpdateGeminiActOnWebPolicy(
+      glic::prefs::GlicActuationOnWebPolicyState::kDisabled);
+
+  EXPECT_FALSE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kDisabledByPolicy);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTestManaged,
+                       ManagedEnabledNoAllowlistTierCheck) {
+  UpdateGeminiActOnWebPolicy(
+      glic::prefs::GlicActuationOnWebPolicyState::kEnabled);
+
+  // Tier is not set -> ineligible, so GlicApiCanActOnWeb is false even though
+  // policy is enabled.
+  EXPECT_FALSE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kAccountMissingChromeBenefits);
+
+  // Set tier to 1 (eligible).
+  SetSubscriptionTier(1);
+  EXPECT_TRUE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kNone);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTestManaged,
+                       ManagedEnabledWithAllowlist) {
+  // Even if tier is ineligible, if there is a non-empty allowlist,
+  // it returns kByAllowlistOnly (which means GlicApiCanActOnWeb is true).
+  UpdateGeminiActOnWebAndUrlPolicies(
+      glic::prefs::GlicActuationOnWebPolicyState::kEnabled,
+      /*url_allowlist=*/{"example.com"},
+      /*url_blocklist=*/{});
+
+  EXPECT_TRUE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kDisabledByPolicy);
+}
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTestManaged,
+                       ManagedDisabledWithAllowlist) {
+  UpdateGeminiActOnWebAndUrlPolicies(
+      glic::prefs::GlicActuationOnWebPolicyState::kDisabled,
+      /*url_allowlist=*/{"example.com"},
+      /*url_blocklist=*/{});
+
+  EXPECT_TRUE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kDisabledByPolicy);
+}
+
+class GlicApiActorPolicyCheckerBrowserTestExemption
+    : public GlicActorPolicyCheckerBrowserTestBase {
+ public:
+  GlicApiActorPolicyCheckerBrowserTestExemption() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /* enabled_features = */
+        {{features::kGlicActor,
+          {{features::kGlicActorPolicyControlExemption.name, "true"},
+           {features::kGlicActorEligibleTiers.name, "1"}}}},
+        /* disabled_features = */ {});
+  }
+  ~GlicApiActorPolicyCheckerBrowserTestExemption() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicApiActorPolicyCheckerBrowserTestExemption,
+                       ExemptionEnabled) {
+  // Even without sign-in, GlicApiCanActOnWeb is true because of exemption.
+  EXPECT_TRUE(GetPolicyChecker().GlicApiCanActOnWeb());
+  EXPECT_EQ(GetPolicyChecker().GlicApiCannotActOnWebReason(),
+            CannotActReason::kNone);
 }
 
 }  // namespace glic

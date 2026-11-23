@@ -62,6 +62,9 @@ void TestSyncService::SetSignedIn(signin::ConsentLevel consent_level) {
 
 void TestSyncService::SetSignedIn(signin::ConsentLevel consent_level,
                                   const CoreAccountInfo& account_info) {
+  CHECK(!local_sync_enabled_)
+      << "Cannot set signed in while local sync is enabled.";
+
   disable_reasons_.Remove(DISABLE_REASON_NOT_SIGNED_IN);
   account_info_ = account_info;
   if (consent_level == signin::ConsentLevel::kSync) {
@@ -111,7 +114,20 @@ void TestSyncService::SetMaxTransportState(TransportState max_transport_state) {
 }
 
 void TestSyncService::SetLocalSyncEnabled(bool local_sync_enabled) {
+  if (local_sync_enabled == local_sync_enabled_) {
+    return;
+  }
+
   local_sync_enabled_ = local_sync_enabled;
+  if (local_sync_enabled_) {
+    SetSignedOut();
+    disable_reasons_.Remove(DISABLE_REASON_NOT_SIGNED_IN);
+    disable_reasons_.Remove(DISABLE_REASON_ENTERPRISE_POLICY);
+  } else {
+    SetSignedIn(IsReplaceSyncPromosWithSignInPromosEnabled()
+                    ? signin::ConsentLevel::kSignin
+                    : signin::ConsentLevel::kSync);
+  }
 }
 
 void TestSyncService::SetPersistentAuthError() {

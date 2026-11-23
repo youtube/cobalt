@@ -10,11 +10,14 @@
 
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/i18n/tag_converters.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "pdf/document_metadata.h"
 #include "pdf/pdf_utils/dates.h"
 #include "pdf/pdfium/pdfium_api_string_buffer_adapter.h"
+#include "pdf/pdfium/pdfium_api_wrappers.h"
+#include "third_party/pdfium/public/fpdf_catalog.h"
 #include "third_party/pdfium/public/fpdf_doc.h"
 #include "third_party/pdfium/public/fpdf_formfill.h"
 #include "third_party/pdfium/public/fpdfview.h"
@@ -100,6 +103,9 @@ DocumentMetadata GetPDFiumDocumentMetadata(FPDF_DOCUMENT doc,
       ParsePdfDate(GetTrimmedMetadataByField(doc, "CreationDate"));
   doc_metadata.mod_date =
       ParsePdfDate(GetTrimmedMetadataByField(doc, "ModDate"));
+  doc_metadata.language_tag =
+      base::i18n::LanguageTagConverter::GetInstance().FromString(
+          GetDocumentLanguage(doc));
 
   return doc_metadata;
 }

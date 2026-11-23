@@ -23,7 +23,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/task_traits.h"
@@ -48,6 +47,7 @@
 #include "components/crash/core/common/crash_key.h"
 #include "components/policy/core/common/policy_types.h"
 #include "components/update_client/update_client_errors.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 
 namespace updater {
 
@@ -407,26 +407,26 @@ std::string PolicyService::GetAllPoliciesAsString() const {
   std::vector<std::string> policies;
   for (const auto& [policy, value] :
        GetUpdaterPolicies<base::flat_map<std::string, PolicyValue>>()) {
-    policies.push_back(base::StringPrintf("%s = %s (%s)", policy.c_str(),
-                                          value.policy_value.c_str(),
-                                          value.policy_source.c_str()));
+    policies.push_back(absl::StrFormat("%s = %s (%s)", policy.c_str(),
+                                       value.policy_value.c_str(),
+                                       value.policy_source.c_str()));
   }
 
   for (const auto& [app_id, app_policy_values] :
        GetAppPolicies<base::flat_map<std::string, PolicyValue>>()) {
     std::vector<std::string> app_policies;
     for (const auto& [policy, value] : app_policy_values) {
-      app_policies.push_back(base::StringPrintf("%s = %s (%s)", policy.c_str(),
-                                                value.policy_value.c_str(),
-                                                value.policy_source.c_str()));
+      app_policies.push_back(absl::StrFormat("%s = %s (%s)", policy.c_str(),
+                                             value.policy_value.c_str(),
+                                             value.policy_source.c_str()));
     }
     policies.push_back(
-        base::StringPrintf("\"%s\": {\n    %s\n  }", app_id.c_str(),
-                           base::JoinString(app_policies, "\n    ").c_str()));
+        absl::StrFormat("\"%s\": {\n    %s\n  }", app_id.c_str(),
+                        base::JoinString(app_policies, "\n    ").c_str()));
   }
 
-  return base::StringPrintf("{\n  %s\n}\n",
-                            base::JoinString(policies, "\n  ").c_str());
+  return absl::StrFormat("{\n  %s\n}\n",
+                         base::JoinString(policies, "\n  ").c_str());
 }
 
 bool PolicyService::AreUpdatesSuppressed(base::Time time) const {

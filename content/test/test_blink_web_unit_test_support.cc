@@ -215,8 +215,21 @@ blink::WebString TestBlinkWebUnitTestSupport::DefaultLocale() {
 
 scoped_refptr<base::SingleThreadTaskRunner>
 TestBlinkWebUnitTestSupport::GetIOTaskRunner() const {
-  return ChildProcess::current() ? ChildProcess::current()->io_task_runner()
-                                 : nullptr;
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner =
+      ChildProcess::current() ? ChildProcess::current()->io_task_runner()
+                              : nullptr;
+  return task_runner ? task_runner
+                     : base::SingleThreadTaskRunner::GetCurrentDefault();
+}
+
+scoped_refptr<base::SequencedTaskRunner>
+TestBlinkWebUnitTestSupport::GetMediaStreamVideoSourceVideoTaskRunner() const {
+  return GetIOTaskRunner();
+}
+
+scoped_refptr<base::SequencedTaskRunner>
+TestBlinkWebUnitTestSupport::MediaThreadTaskRunner() {
+  return base::SequencedTaskRunner::GetCurrentDefault();
 }
 
 bool TestBlinkWebUnitTestSupport::IsThreadedAnimationEnabled() {

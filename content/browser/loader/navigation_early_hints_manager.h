@@ -117,6 +117,11 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
 
   std::vector<network::mojom::LinkHeaderPtr> TakePreloadedResources();
 
+  // Returns the deduped preconnect Link headers received via Early Hints, for
+  // the SpeculationMeasurement API. Each entry is a unique (origin,
+  // crossorigin) preconnect that was issued.
+  std::vector<network::mojom::LinkHeaderPtr> TakePreconnectedResources();
+
   // True when there are at least one inflight preloads.
   bool HasInflightPreloads() const;
 
@@ -192,6 +197,10 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
 
   std::vector<network::mojom::LinkHeaderPtr> preloaded_infos_;
 
+  // Deduped preconnect Link headers issued via Early Hints, kept for the
+  // SpeculationMeasurement API.
+  std::vector<network::mojom::LinkHeaderPtr> preconnect_infos_;
+
   // Set to true when HandleEarlyHints() is called for the first time. Used to
   // ignore following responses.
   std::optional<base::TimeTicks> first_early_hints_receive_time_;
@@ -204,6 +213,13 @@ class CONTENT_EXPORT NavigationEarlyHintsManager {
 
   raw_ptr<network::mojom::NetworkContext, DanglingUntriaged>
       network_context_for_testing_ = nullptr;
+
+  // Whether the connection allowlist in early hints response feature is
+  // enabled. If enabled, the URL of the preconnect, preload and module preload
+  // requests by the Link header is checked against the connection allowlist.
+  //
+  // About connection allowlist: https://github.com/WICG/connection-allowlists.
+  const bool is_connection_allowlist_enabled_;
 };
 
 }  // namespace content

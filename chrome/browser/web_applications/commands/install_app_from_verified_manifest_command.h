@@ -20,19 +20,13 @@
 #include "chrome/browser/web_applications/web_contents/web_app_data_retriever.h"
 #include "components/webapps/browser/install_result_code.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom-forward.h"
-#include "third_party/blink/public/mojom/manifest/manifest_manager.mojom.h"
 #include "url/gurl.h"
-
-namespace webapps {
-class WebAppUrlLoader;
-enum class WebAppUrlLoaderResult;
-}  // namespace webapps
 
 namespace web_app {
 
 class FinalizeInstallJob;
+class ParseManifestFromStringJob;
 class SharedWebContentsWithAppLock;
 
 // Installs a web app using a raw manifest JSON string, bypassing the usual
@@ -87,7 +81,6 @@ class InstallAppFromVerifiedManifestCommand
   void StartWithLock(std::unique_ptr<SharedWebContentsLock> lock) override;
 
  private:
-  void OnAboutBlankLoaded(webapps::WebAppUrlLoaderResult result);
   void OnManifestParsed(blink::mojom::ManifestPtr manifest);
   void OnInstallInfoParsedFromManifest(
       std::unique_ptr<WebAppInstallInfo> install_info);
@@ -111,13 +104,11 @@ class InstallAppFromVerifiedManifestCommand
   // SharedWebContentsWithAppLock is held while installing the app.
   std::unique_ptr<SharedWebContentsWithAppLock> app_lock_;
 
-  std::unique_ptr<webapps::WebAppUrlLoader> url_loader_;
+  std::unique_ptr<ParseManifestFromStringJob> parse_job_;
   std::unique_ptr<WebAppDataRetriever> data_retriever_;
   std::unique_ptr<WebAppInstallInfo> web_app_info_;
   std::unique_ptr<ManifestToWebAppInstallInfoJob> manifest_to_install_info_job_;
   std::unique_ptr<FinalizeInstallJob> install_job_;
-
-  mojo::Remote<blink::mojom::ManifestManager> manifest_manager_;
 
   base::WeakPtrFactory<InstallAppFromVerifiedManifestCommand> weak_ptr_factory_{
       this};

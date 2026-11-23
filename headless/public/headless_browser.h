@@ -46,7 +46,8 @@ class HEADLESS_EXPORT HeadlessBrowser {
   // Pointer to HeadlessBrowserContext becomes invalid after:
   // a) Calling HeadlessBrowserContext::Close or
   // b) Calling HeadlessBrowser::Shutdown
-  virtual HeadlessBrowserContext::Builder CreateBrowserContextBuilder() = 0;
+  virtual HeadlessBrowserContext* CreateBrowserContext(
+      HeadlessBrowserContext::CreateParams params = {}) = 0;
 
   virtual std::vector<HeadlessBrowserContext*> GetAllBrowserContexts() = 0;
 

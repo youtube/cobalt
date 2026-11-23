@@ -74,6 +74,8 @@ std::string_view ExperimentalTriggeringRequestPayloadCaseToString(
       return "StopActuationRequest";
     case Request::kDeviceOptInRequest:
       return "DeviceOptInRequest";
+    case Request::kGetScreenshotRequest:
+      return "GetScreenshotRequest";
     case Request::PAYLOAD_NOT_SET:
       return "PAYLOAD_NOT_SET";
   }

@@ -825,6 +825,16 @@ void SessionServiceImpl::DeleteSessionAndNotify(
     DeletionReason reason,
     const SessionKey& session_key,
     SessionService::OnAccessCallback per_request_callback) {
+  if (pending_initialization_) {
+    queued_operations_.push_back(base::BindOnce(
+        &SessionServiceImpl::DeleteSessionAndNotify,
+        // `base::Unretained` is safe because the callback is stored in
+        // `queued_operations_`, which is owned by `this`.
+        base::Unretained(this), reason, session_key,
+        std::move(per_request_callback)));
+    return;
+  }
+
   auto it = unpartitioned_sessions_.find(session_key);
   if (it == unpartitioned_sessions_.end()) {
     return;
@@ -950,6 +960,16 @@ void SessionServiceImpl::DeleteAllSessions(
     base::RepeatingCallback<bool(const url::Origin&, const net::SchemefulSite&)>
         origin_and_site_matcher,
     base::OnceClosure completion_callback) {
+  if (pending_initialization_) {
+    queued_operations_.push_back(base::BindOnce(
+        &SessionServiceImpl::DeleteAllSessions,
+        // `base::Unretained` is safe because the callback is stored in
+        // `queued_operations_`, which is owned by `this`.
+        base::Unretained(this), reason, created_after_time, created_before_time,
+        std::move(origin_and_site_matcher), std::move(completion_callback)));
+    return;
+  }
+
   for (auto it = unpartitioned_sessions_.begin();
        it != unpartitioned_sessions_.end();) {
     auto curit = it;

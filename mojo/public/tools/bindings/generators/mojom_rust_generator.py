@@ -28,6 +28,12 @@ _mojom_primitive_type_to_rust_type = {
     mojom.STRING: "String",
     mojom.HANDLE: "system::mojo_types::UntypedHandle",
     mojom.MSGPIPE: "system::message_pipe::MessageEndpoint",
+    mojom.DCPIPE: "system::data_pipe::DataPipeConsumerHandle",
+    mojom.DPPIPE: "system::data_pipe::DataPipeProducerHandle",
+    # TODO(crbug.com/529331861): Support these for real
+    mojom.SHAREDBUFFER: "system::mojo_types::UntypedHandle",
+    # TODO(crbug.com/529329486): Support these for real
+    mojom.PLATFORMHANDLE: "system::mojo_types::UntypedHandle",
 }
 
 
@@ -168,6 +174,57 @@ def _ShouldDeriveClone(ty: mojom.Kind) -> bool:
   return not mojom.ContainsHandlesOrInterfaces(ty)
 
 
+_ESCAPABLE_KEYWORDS = {
+    "as", "break", "const", "continue", "crate", "else", "enum", "extern",
+    "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod",
+    "move", "mut", "pub", "ref", "return", "self", "Self", "static", "struct",
+    "super", "trait", "true", "type", "unsafe", "use", "where", "while",
+    "async", "await", "dyn", "abstract", "become", "box", "do", "final",
+    "macro", "override", "priv", "typeof", "unsized", "virtual", "yield",
+    "try",
+}
+
+# Path resolution keywords can't be escaped, the compiler simply won't have it.
+_NON_ESCAPABLE_KEYWORDS = {"self", "Self", "super", "crate"}
+
+
+def _EscapeRustKeyword(mojom_name: str) -> str:
+  if mojom_name in _NON_ESCAPABLE_KEYWORDS:
+    # We may use some other method to escape these in the future, but
+    # let's see if we can get away with just forbidding this.
+    raise Exception(f"This Rust keyword cannot be used as a name: {mojom_name}")
+  if mojom_name in _ESCAPABLE_KEYWORDS:
+    return f"r#{mojom_name}"
+  return mojom_name
+
+
+class RustStylizer(generator.Stylizer):
+
+  def StylizeConstant(self, mojom_name):
+    return _EscapeRustKeyword(mojom_name)
+
+  def StylizeField(self, mojom_name):
+    return _EscapeRustKeyword(mojom_name)
+
+  def StylizeStruct(self, mojom_name):
+    return _EscapeRustKeyword(mojom_name)
+
+  def StylizeUnion(self, mojom_name):
+    return _EscapeRustKeyword(mojom_name)
+
+  def StylizeParameter(self, mojom_name):
+    return _EscapeRustKeyword(mojom_name)
+
+  def StylizeMethod(self, mojom_name):
+    return _EscapeRustKeyword(mojom_name)
+
+  def StylizeEnumField(self, mojom_name):
+    return _EscapeRustKeyword(mojom_name)
+
+  def StylizeEnum(self, mojom_name):
+    return _EscapeRustKeyword(mojom_name)
+
+
 class Generator(generator.Generator):
 
   def __init__(self, *args, **kwargs):
@@ -251,7 +308,7 @@ class Generator(generator.Generator):
     GENERATOR_PREFIX, i.e. 'rust').
     '''
     # Make sure all the AST nodes have pretty names
-    self.module.Stylize(generator.Stylizer())
+    self.module.Stylize(RustStylizer())
 
     # When GN calls this script, it provides a JSON file with a list of GN
     # targets, and their source files. It contains one entry for the mojom

@@ -747,9 +747,9 @@ bool FirstPartySetsDatabase::LazyInit() {
     return db_status_ == InitStatus::kSuccess;
 
   CHECK_EQ(db_.get(), nullptr);
-  db_ = std::make_unique<sql::Database>(
-      sql::DatabaseOptions().set_cache_size(32).set_preload(true),
-      sql::Database::Tag("FirstPartySets"));
+  db_ =
+      std::make_unique<sql::Database>(sql::DatabaseOptions().set_cache_size(32),
+                                      sql::Database::Tag("FirstPartySets"));
   // base::Unretained is safe here because this FirstPartySetsDatabase owns
   // the sql::Database instance that stores and uses the callback. So,
   // `this` is guaranteed to outlive the callback.

@@ -56,7 +56,6 @@ import org.chromium.content.browser.RenderCoordinatesImpl;
 import org.chromium.content_public.browser.GestureStateListener;
 import org.chromium.content_public.browser.LoadCommittedDetails;
 import org.chromium.content_public.browser.NavigationHandle;
-import org.chromium.content_public.browser.Page;
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.content_public.browser.test.mock.MockWebContents;
 import org.chromium.url.GURL;
@@ -997,23 +996,7 @@ public class RealtimeEngagementSignalObserverUnitTest {
 
     private NavigationHandle createNavigationHandle(GURL url) {
         var navigationHandle = NavigationHandle.createForTesting(url, false, 0, false);
-        navigationHandle.didFinish(
-                url,
-                /* isErrorPage= */ false,
-                /* hasCommitted= */ true,
-                /* isPrimaryMainFrameFragmentNavigation= */ false,
-                /* isDownload= */ false,
-                /* isValidSearchFormUrl= */ false,
-                /* transition= */ 0,
-                /* errorCode= */ 0,
-                /* errorDescription= */ "",
-                /* httpStatuscode= */ 200,
-                /* isExternalProtocol= */ false,
-                /* isPdf= */ false,
-                /* mimeType= */ "",
-                Page.createForTesting(),
-                /* isSameOrigin= */ true,
-                /* ignoredDuplicateNavigationCount= */ 0);
+        navigationHandle.callDidFinishForTesting(url);
         return navigationHandle;
     }
 

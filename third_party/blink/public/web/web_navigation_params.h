@@ -72,6 +72,17 @@ struct BLINK_EXPORT WebEarlyHintsPreloadInfo {
       network::mojom::CrossOriginAttribute::kUnspecified;
 };
 
+// Information about an origin preconnected to during a navigation, either via a
+// 103 Early Hints response (early_hint=true) or a `Link: rel=preconnect` header
+// on the final response (early_hint=false). Used by the SpeculationMeasurement
+// API.
+struct BLINK_EXPORT WebPreconnectInfo {
+  WebURL url;
+  network::mojom::CrossOriginAttribute cross_origin =
+      network::mojom::CrossOriginAttribute::kUnspecified;
+  bool early_hint = false;
+};
+
 class WebDocumentLoader;
 class WebServiceWorkerNetworkProvider;
 
@@ -537,6 +548,10 @@ struct BLINK_EXPORT WebNavigationParams {
   // request attributes (destination from "as", credentials mode from
   // "crossorigin").
   std::vector<WebEarlyHintsPreloadInfo> early_hints_preloaded_resources;
+
+  // Origins preconnected to during the navigation (Early Hints and final-
+  // response Link headers).
+  std::vector<WebPreconnectInfo> preconnects;
 
   // If this is a navigation to fenced frame from an interest group auction,
   // contains URNs mapped to the ad components returned by the winning bid.

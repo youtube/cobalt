@@ -19,4 +19,4 @@ AXWebArea AXRoleDescription='HTML content'
 ++++++++++++++++AXTextField AXDescription='Green channel' AXRoleDescription='text field' AXValue='153'
 ++++++++++++++++AXTextField AXDescription='Blue channel' AXRoleDescription='text field' AXValue='0'
 ++++++++++++++AXIncrementor AXDescription='Format toggler' AXRoleDescription='stepper' AXValue=1
-++++++++++++AXGroup AXRoleDescription='group'
+++++++++++++AXGroup AXSubrole=AXEmptyGroup AXRoleDescription='group'

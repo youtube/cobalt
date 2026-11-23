@@ -23,6 +23,7 @@ class ToyTabDragSessionListener : public TabDragSessionListener {
       kStarted,
       kTargetChanged,
       kMoved,
+      kDetached,
       kDropped,
       kCancelled,
     };
@@ -43,6 +44,7 @@ class ToyTabDragSessionListener : public TabDragSessionListener {
   void OnTargetChanged(DropTargetId new_target,
                        const gfx::Point& screen_point) override;
   void OnDragMoved(const gfx::Point& screen_point) override;
+  void OnDragDetached(const gfx::Point& screen_point) override;
 
   void OnSessionDropped(const gfx::Point& screen_point) override;
   void OnSessionCancelled() override;

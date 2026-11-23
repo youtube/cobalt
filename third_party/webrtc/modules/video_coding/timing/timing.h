@@ -21,10 +21,10 @@
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/timing/video_jitter_timing_interface.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_timing.h"
 #include "modules/video_coding/timing/decode_time_percentile_filter.h"
-#include "modules/video_coding/timing/default_video_jitter_timing.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
@@ -70,7 +70,11 @@ class VCMTiming {
   VCMTiming(Clock* clock,
             const FieldTrialsView& field_trials,
             TimeDelta render_delay);
-  virtual ~VCMTiming() = default;
+  VCMTiming(Clock* clock,
+            const FieldTrialsView& field_trials,
+            TimeDelta render_delay,
+            std::unique_ptr<VideoJitterTimingInterface> video_jitter_timing);
+  ~VCMTiming() = default;
 
   // Resets the timing to the initial state.
   void Reset();
@@ -87,8 +91,7 @@ class VCMTiming {
   void set_playout_delay(const VideoPlayoutDelay& playout_delay);
 
   // Methods used by video jitter timing.
-  virtual void OnCompleteTemporalUnit(uint32_t rtp_timestamp,
-                                      Timestamp receive_time);
+  void OnCompleteFrame(const VideoJitterTimingInterface::FrameInfo& info);
   void OnDecodableTemporalUnit(uint32_t rtp_timestamp,
                                DataSize superframe_size,
                                Timestamp max_receive_time,
@@ -123,7 +126,7 @@ class VCMTiming {
  private:
   mutable Mutex mutex_;
   RTC_NO_UNIQUE_ADDRESS SequenceChecker worker_sequence_checker_;
-  DefaultVideoJitterTiming video_jitter_timing_
+  const std::unique_ptr<VideoJitterTimingInterface> video_jitter_timing_
       RTC_GUARDED_BY(worker_sequence_checker_);
 
   std::unique_ptr<DecodeTimePercentileFilter> decode_time_filter_

@@ -7,15 +7,18 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "content/public/browser/navigation_throttle.h"
+
+class GeolocationHeaderService;
 
 class GeolocationNavigationThrottle : public content::NavigationThrottle {
  public:
   static std::unique_ptr<content::NavigationThrottle> MaybeCreateThrottleFor(
       content::NavigationThrottleRegistry& registry);
 
-  explicit GeolocationNavigationThrottle(
-      content::NavigationThrottleRegistry& registry);
+  GeolocationNavigationThrottle(content::NavigationThrottleRegistry& registry,
+                                GeolocationHeaderService* service);
   ~GeolocationNavigationThrottle() override;
 
   GeolocationNavigationThrottle(const GeolocationNavigationThrottle&) = delete;
@@ -29,5 +32,7 @@ class GeolocationNavigationThrottle : public content::NavigationThrottle {
 
  private:
   ThrottleCheckResult ProcessNavigation();
+
+  const raw_ptr<GeolocationHeaderService> service_;
 };
 #endif  // CHROME_BROWSER_OMNIBOX_GEOLOCATION_NAVIGATION_THROTTLE_H_

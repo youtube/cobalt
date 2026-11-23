@@ -49,7 +49,6 @@
 #import "components/metrics/metrics_features.h"
 #import "components/metrics/metrics_log_uploader.h"
 #import "components/metrics/metrics_pref_names.h"
-#import "components/metrics/metrics_reporting_choice_service.h"
 #import "components/metrics/metrics_reporting_default_state.h"
 #import "components/metrics/metrics_service.h"
 #import "components/metrics/metrics_state_manager.h"
@@ -62,7 +61,6 @@
 #import "components/metrics/ui/form_factor_metrics_provider.h"
 #import "components/metrics/ui/screen_info_metrics_provider.h"
 #import "components/metrics/version_utils.h"
-#import "components/metrics_services_manager/metrics_services_manager.h"
 #import "components/omnibox/browser/omnibox_metrics_provider.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/pref_service.h"
@@ -601,14 +599,6 @@ void IOSChromeMetricsServiceClient::OnHistoryDeleted() {
 void IOSChromeMetricsServiceClient::OnUkmAllowedStateChanged(
     bool must_purge,
     ukm::UkmConsentState previous_consent_state) {
-  // If the metrics consent restructure is enabled, UKM and DWA consent states
-  // are now managed by the metrics reporting level. Changes to these states
-  // are handled in OnMetricsReportingLevelChanged().
-  if (metrics::MetricsReportingChoiceService::
-          ShouldUseMetricsConsentRestructure(
-              GetApplicationContext()->GetLocalState())) {
-    return;
-  }
   const ukm::UkmConsentState consent_state = GetUkmConsentState();
   if (ukm_service_) {
     if (must_purge) {
@@ -788,26 +778,10 @@ void IOSChromeMetricsServiceClient::WebStateDestroyed(
 }
 
 bool IOSChromeMetricsServiceClient::IsUkmAllowedForAllProfiles() {
-  // Note: Incognito is handled separately, see
-  // MetricsServicesManager::UpdateUkmService().
-  PrefService* local_state = GetApplicationContext()->GetLocalState();
-  if (metrics::MetricsReportingChoiceService::
-          ShouldUseMetricsConsentRestructure(local_state)) {
-    return metrics::MetricsReportingChoiceService::
-        IsAdvancedMetricsReportingEnabled(local_state);
-  }
   return UkmConsentStateObserver::IsUkmAllowedForAllProfiles();
 }
 
 bool IOSChromeMetricsServiceClient::IsDwaAllowedForAllProfiles() {
-  // Note: Incognito is handled separately, see
-  // MetricsServicesManager::UpdateUkmService().
-  PrefService* local_state = GetApplicationContext()->GetLocalState();
-  if (metrics::MetricsReportingChoiceService::
-          ShouldUseMetricsConsentRestructure(local_state)) {
-    return metrics::MetricsReportingChoiceService::
-        IsAdvancedMetricsReportingEnabled(local_state);
-  }
   return UkmConsentStateObserver::IsDwaAllowedForAllProfiles();
 }
 

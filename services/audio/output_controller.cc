@@ -89,7 +89,9 @@ OutputController::ErrorStatisticsTracker::ErrorStatisticsTracker(
     : controller_(controller),
       start_time_(base::TimeTicks::Now()),
       last_periodic_log_time_(start_time_),
-      on_more_io_data_called_(0) {
+      on_more_io_data_called_(0),
+      task_runner_(base::SingleThreadTaskRunner::GetCurrentDefault()) {
+  weak_this_ = weak_ptr_factory_.GetWeakPtr();
   // WedgeCheck() will look to see if |on_more_io_data_called_| is true after
   // the timeout expires and log this as a UMA stat. If the stream is
   // paused/closed before the timer fires, nothing is logged.
@@ -141,19 +143,30 @@ void OutputController::ErrorStatisticsTracker::WedgeCheck() {
   }
 }
 void OutputController::ErrorStatisticsTracker::LogGlitchStats(
-    const std::string& call_name,
+    const char* call_name,
     base::TimeTicks now) {
   const base::TimeDelta total_duration = now - start_time_;
   const double glitch_percentage =
       total_duration.is_zero()
           ? 0
           : glitch_info_.duration.InSecondsF() / total_duration.InSecondsF();
+  task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&ErrorStatisticsTracker::DoLogGlitchStats,
+                                weak_this_, call_name, total_duration,
+                                glitch_info_, glitch_percentage));
+}
+
+void OutputController::ErrorStatisticsTracker::DoLogGlitchStats(
+    const char* call_name,
+    base::TimeDelta total_duration,
+    media::AudioGlitchInfo glitch_info,
+    double glitch_percentage) {
   controller_->SendLogMessage(
-      base::StringPrintf("%s => (duration=%" PRId64 " sec)", call_name.c_str(),
+      base::StringPrintf("%s => (duration=%" PRId64 " sec)", call_name,
                          total_duration.InSeconds()));
   controller_->SendLogMessage(base::StringPrintf(
-      "%s => (glitches=[%s], glitch_percentage=%.3f%%)", call_name.c_str(),
-      glitch_info_.ToString().c_str(), glitch_percentage * 100));
+      "%s => (glitches=[%s], glitch_percentage=%.3f%%)", call_name,
+      glitch_info.ToString().c_str(), glitch_percentage * 100));
 }
 
 OutputController::OutputController(

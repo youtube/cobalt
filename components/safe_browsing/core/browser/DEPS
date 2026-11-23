@@ -14,4 +14,8 @@ include_rules = [
   "+services/network/network_context.h",
   "+services/network/public",
   "+services/service_manager/public/cpp",
+  "+components/optimization_guide/core",
+  "+components/optimization_guide/proto",
+  "+crypto/hash.h",
+  "+third_party/zlib/google/compression_utils.h",
 ]

@@ -53,6 +53,7 @@ source_set("ffmpeg_regression_tests") {
   sources = [ "ffmpeg_regression_tests.cc" ]
   deps = [
     "//base",
+    "//base/test:test_support",
     "//media",
     "//media/test:pipeline_integration_test_base",
     "//testing/gmock",

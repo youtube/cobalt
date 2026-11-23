@@ -1,11 +1,18 @@
 include_rules = [
+  "+google_apis/google_api_keys.h",
+  "+net",
+  "+services/network/public/cpp",
   "+third_party/federated_compute",
 ]
 
 specific_include_rules = {
-  # FCP event publisher implements FCP's interfaces that need absl.
-  "fcp_event_publisher\\.(cc|h)": [
+  # FCP files implements FCP's interfaces that need absl.
+  "fcp_.*": [
     "+third_party/abseil-cpp/absl/strings",
     "+third_party/abseil-cpp/absl/time",
+    "+third_party/abseil-cpp/absl/status",
+  ],
+  "private_insights_service\\.cc": [
+    "+third_party/abseil-cpp/absl/status",
   ],
 }

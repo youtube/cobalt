@@ -14,6 +14,8 @@
 <translation id="1185924365081634987">Aby spróbować usunąć ten błąd sieci, możesz też użyć trybu <ph name="GUEST_SIGNIN_LINK_START" />przeglądania jako gość<ph name="GUEST_SIGNIN_LINK_END" />.</translation>
 <translation id="1201402288615127009">Dalej</translation>
 <translation id="1222835797152767346">Aby ułatwić sobie logowanie, ustaw kod PIN</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Funkcje debugowania<ph name="END_H3" />
+<ph name="BR" />Na swoim urządzeniu z Chrome OS możesz włączyć funkcje debugowania, aby instalować i testować na nim niestandardowy kod. Dzięki temu możesz:<ph name="BR" /><ph name="BEGIN_LIST" /><ph name="LIST_ITEM" />wyłączyć weryfikację rootfs, aby modyfikować pliki systemowe;<ph name="LIST_ITEM" />umożliwić dostęp do urządzenia za pomocą SSH ze standardowymi kluczami testowymi, aby na przykład mieć do niego dostęp za pomocą narzędzi takich jak <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" />;<ph name="LIST_ITEM" />włączyć uruchomienie z dysku USB wraz z możliwością zainstalowania z niego obrazu systemu operacyjnego;<ph name="LIST_ITEM" />ustawić własne hasła użytkowników dev i root, aby móc ręcznie zalogować się przez SSH na urządzeniu.<ph name="END_LIST" /><ph name="BR" />Po włączeniu większość funkcji debugowania pozostanie włączona nawet po wykonaniu procedury Powerwash lub wyczyszczeniu danych na urządzeniu zarządzanym przez firmę. Aby całkowicie wyłączyć wszystkie funkcje debugowania, przejdź proces odzyskiwania Chrome OS (https://support.google.com/chromebook/answer/1080595).<ph name="BR" /><ph name="BR" />Więcej informacji o funkcjach debugowania:<ph name="BR" />https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features<ph name="BR" /><ph name="BR" /><ph name="BEGIN_BOLD" />Uwaga:<ph name="END_BOLD" /> podczas tego procesu system uruchomi się ponownie.</translation>
 <translation id="1347625331607114917">Potwierdź kod na telefonie z Androidem</translation>
 <translation id="1347975661240122359">Aktualizacja się uruchomi, gdy bateria naładuje się do <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Konfiguracja została ukończona. Przygotuj urządzenie do grania</translation>
@@ -126,9 +128,18 @@
 <translation id="503155457707535043">Pobieram aplikacje</translation>
 <translation id="5045550434625856497">Nieprawidłowe hasło</translation>
 <translation id="5062930723426326933">Logowanie nieudane. Połącz się z internetem i spróbuj ponownie.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Porozmawiaj z Gemini, aby zacząć pisać, planować, uczyć się lub wykonywać inne zadania dzięki AI od Google.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Po zakończeniu konfiguracji zacznij korzystać z Gemini, wybierając aplikację Gemini na półce u dołu ekranu.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Podłącz urządzenie <ph name="DEVICE_TYPE" /> do źródła zasilania.</translation>
 <translation id="5147516217412920887">Aby zweryfikować kod, postępuj zgodnie z instrukcjami wyświetlanymi na telefonie</translation>
 <translation id="5160857336552977725">Zaloguj się na urządzeniu <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Funkcje debugowania<ph name="END_H3" />
+<ph name="BR" />Na swoim urządzeniu z Chrome OS Flex możesz włączyć funkcje debugowania, aby instalować i testować na nim niestandardowy kod. Dzięki temu możesz:<ph name="BR" /><ph name="BEGIN_LIST" />
+<ph name="LIST_ITEM" />wyłączyć weryfikację rootfs, aby modyfikować pliki systemowe;
+<ph name="LIST_ITEM" />umożliwić dostęp do urządzenia za pomocą SSH ze standardowymi kluczami testowymi, aby na przykład mieć do niego dostęp za pomocą narzędzi takich jak <ph name="BEGIN_CODE" />„cros flash”<ph name="END_CODE" />;
+<ph name="LIST_ITEM" />włączyć uruchomienie z dysku USB wraz z możliwością zainstalowania z niego obrazu systemu operacyjnego;
+<ph name="LIST_ITEM" />ustawić własne hasła użytkowników dev i root, aby móc ręcznie zalogować się przez SSH na urządzeniu.
+<ph name="END_LIST" /><ph name="BR" />Po włączeniu większość funkcji debugowania pozostanie włączona nawet po wykonaniu procedury Powerwash lub wyczyszczeniu danych na urządzeniu zarządzanym przez firmę. Aby całkowicie wyłączyć wszystkie funkcje debugowania, przejdź proces odzyskiwania Chrome OS (https://support.google.com/chromebook/answer/1080595).<ph name="BR" /><ph name="BR" />Więcej informacji o funkcjach debugowania:<ph name="BR" />https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features<ph name="BR" /><ph name="BR" /><ph name="BEGIN_BOLD" />Uwaga:<ph name="END_BOLD" /> podczas tego procesu system uruchomi się ponownie.</translation>
 <translation id="523505283826916779">Ustawienia ułatwień dostępu</translation>
 <translation id="5240931875940563122">Zaloguj się, używając telefonu</translation>
 <translation id="5255859108402770436">Zaloguj się ponownie</translation>
@@ -193,6 +204,7 @@
 <translation id="6955698182324067397">Chcesz włączyć funkcje debugowania w Chrome OS. Spowoduje to włączenie demona sshd i umożliwi uruchamianie urządzenia z dysku USB.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Ułatwienia dostępu</translation>
+<translation id="6984652455487792101">Jeśli używasz serwera proxy, sprawdź jego ustawienia lub skontaktuj się z administratorem sieci, by sprawdzić, czy on działa. Jeśli sądzisz, że serwer proxy nie powinien być używany, zmień <ph name="LINK_START" />jego ustawienia<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Włącz Bluetooth i Wi-Fi na telefonie</translation>
 <translation id="7077829361966535409">Nie można wczytać strony logowania przy bieżących ustawieniach serwera proxy. <ph name="GAIA_RELOAD_LINK_START" />Zaloguj się jeszcze raz<ph name="GAIA_RELOAD_LINK_END" /> lub użyj innych <ph name="PROXY_SETTINGS_LINK_START" />ustawień serwera proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Hasła nie są identyczne</translation>
@@ -205,6 +217,9 @@
 <translation id="7345706641791090287">Potwierdź hasło</translation>
 <translation id="7352651011704765696">Coś poszło nie tak</translation>
 <translation id="7476454130948140105">Poziom naładowania baterii (<ph name="BATTERY_PERCENT" />%) jest za niski, by zainstalować aktualizację</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Przed rejestracją musisz wyczyścić TPM, aby system operacyjny <ph name="DEVICE_OS" /> mógł uzyskać prawo własności do tego urządzenia.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Możesz też całkowicie wyłączyć urządzenie TPM. Twoje dane będą przechowywane bezpiecznie (zaszyfrowane programowo), ale niektóre funkcje, np. certyfikaty obsługiwane sprzętowo, będą wyłączone.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Możesz zmienić ustawienia TPM. Aby to zrobić, uruchom urządzenie ponownie i otwórz ustawienia BIOS/UEFI. Czynności, które trzeba wykonać, mogą się różnić w zależności od urządzenia. Aby dowiedzieć się więcej, przed ponownym uruchomieniem otwórz dokumentację systemu operacyjnego <ph name="DEVICE_OS" /> na innym urządzeniu: g.co/flex/TPMHelp<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Włącz funkcje debugowania na urządzeniu <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">Wpisz hasło</translation>
 <translation id="7556242789364317684"><ph name="SHORT_PRODUCT_NAME" /> nie może niestety odzyskać Twoich ustawień. Aby naprawić ten błąd, <ph name="SHORT_PRODUCT_NAME" /> musi zresetować urządzenie za pomocą Powerwash.</translation>
@@ -251,6 +266,8 @@
 <translation id="8452105022015742247">Przenoszę informacje o koncie Google z telefonu z Androidem</translation>
 <translation id="8524841856047224176">Spersonalizuj tło kamery, m.in. aby prowadzić rozmowy wideo</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" /> – więcej informacji</translation>
+<translation id="8628232294964836490">Postępuj zgodnie z instrukcjami wyświetlanymi na telefonie, aby zeskanować kod QR. Sprawdź, czy na telefonie jest włączony Bluetooth.
+        <ph name="BR" /><ph name="BR" />Widoczne dla urządzeń w pobliżu jako <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />…</translation>
 <translation id="8655972064210167941">Nie udało się zalogować, bo nie można zweryfikować hasła. Skontaktuj się z administratorem lub spróbuj ponownie.</translation>
 <translation id="8674903726754070732">Twój komputer jest skonfigurowany przy użyciu błędnie sformatowanego identyfikatora sprzętu. Ta sytuacja uniemożliwia zaktualizowanie Chrome OS za pomocą najnowszych poprawek zabezpieczeń, a komputer <ph name="BEGIN_BOLD" />może być narażony na złośliwe ataki<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Dodaj kontrolę rodzicielską po konfiguracji</translation>
@@ -264,10 +281,16 @@
 <translation id="8830796635868321089">Sprawdzenie aktualizacji przy użyciu obecnych ustawień serwera proxy nie powiodło się. Popraw <ph name="PROXY_SETTINGS_LINK_START" />ustawienia serwera proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Twoje zapisane ustawienia i aktywność będą dostępne na każdym urządzeniu z Chrome OS, na którym zalogujesz się na swoje konto Google. W Ustawieniach możesz wybrać, co chcesz synchronizować.</translation>
 <translation id="8875221558267407626">Podsumuj treść, uprość skomplikowany język lub zadaj pytania</translation>
+<translation id="8913163265790894442">Łatwo skonfiguruj urządzenie <ph name="DEVICE_TYPE" /> za pomocą telefonu. Możesz dodać sieć Wi-Fi i konto Google bez ręcznego wpisywania haseł.
+        <ph name="BR" /><ph name="BR" />Widoczne jako <ph name="DEVICE_TYPE" />…</translation>
 <translation id="8946359700442089734">Funkcje debugowania nie zostały w pełni włączone na urządzeniu <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">Wpisz stare hasło</translation>
 <translation id="8975396729541388937">W każdej chwili możesz zrezygnować z subskrypcji. Wystarczy kliknąć link w otrzymywanych e-mailach.</translation>
 <translation id="9033765790910064284">Kontynuuj mimo to</translation>
 <translation id="903480517321259405">Ponownie wpisz kod PIN</translation>
 <translation id="9076523132036239772">Niestety, nie udało się zweryfikować Twojego adresu e-mail lub hasła. Najpierw nawiąż połączenie z siecią.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Tylko na urządzeniu <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generatywna AI to funkcja eksperymentalna, która znajduje się we wczesnej fazie rozwoju i obecnie jest dostępna z ograniczeniami.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Łatwo skonfiguruj urządzenie <ph name="DEVICE_TYPE" /> za pomocą telefonu. Możesz dodać konto Google bez ręcznego wpisywania hasła.
+        <ph name="BR" /><ph name="BR" />Widoczne jako <ph name="DEVICE_TYPE" />…</translation>
 </translationbundle>

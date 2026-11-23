@@ -127,6 +127,12 @@ class PLATFORM_EXPORT MediaStreamAudioSource
     return std::nullopt;
   }
 
+  virtual bool IsProcessedSource() const { return false; }
+  virtual bool IsApmProcessedSource() const { return false; }
+
+  virtual void SetAudioProcessingProperties(
+      const blink::AudioProcessingProperties& properties) {}
+
   std::optional<media::AudioCapturerSource::ErrorCode> ErrorCode();
 
   // Returns a new MediaStreamAudioTrack. |id| is the blink track's ID in UTF-8.
@@ -136,6 +142,7 @@ class PLATFORM_EXPORT MediaStreamAudioSource
 
   // Number of MediaStreamAudioTracks added as consumers.
   size_t NumTracks() const override;
+  Vector<MediaStreamAudioTrack*> GetTracks() const;
 
  protected:
   // Returns true if the source has already been started and has not yet been

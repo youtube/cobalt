@@ -17,10 +17,10 @@
 #include "base/test/gmock_callback_support.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/web_applications/commands/web_app_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/jobs/finalize_install_job.h"
 #include "chrome/browser/web_applications/locks/app_lock.h"
+#include "chrome/browser/web_applications/model/integrity_block_data.h"
+#include "chrome/browser/web_applications/model/isolation_data.h"
 #include "chrome/browser/web_applications/model/migration_behavior.h"
 #include "chrome/browser/web_applications/model/migration_source.h"
 #include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
@@ -244,19 +244,18 @@ class FinalizeUpdateJobTestIwa
     : public FinalizeUpdateJobTest,
       public testing::WithParamInterface<IsolatedWebAppStorageLocation> {
  protected:
-  webapps::AppId InstallBaseIwa(const WebAppInstallInfo& info,
-                                const IsolatedWebAppStorageLocation& location,
-                                std::optional<IsolatedWebAppIntegrityBlockData>
-                                    integrity_block_data = std::nullopt) {
+  webapps::AppId InstallBaseIwa(
+      const WebAppInstallInfo& info,
+      const IsolatedWebAppStorageLocation& location,
+      std::optional<IntegrityBlockData> integrity_block_data = std::nullopt) {
     webapps::WebappInstallSource install_source =
         location.dev_mode() ? webapps::WebappInstallSource::IWA_DEV_UI
                             : webapps::WebappInstallSource::IWA_EXTERNAL_POLICY;
 
     FinalizeJobOptions options(install_source);
     options.iwa_options = FinalizeJobOptions::IwaOptions(
-        location,
-        integrity_block_data.value_or(
-            IsolatedWebAppIntegrityBlockData(test::CreateSignatures())));
+        location, integrity_block_data.value_or(
+                      IntegrityBlockData(test::CreateSignatures())));
 
     base::test::TestFuture<webapps::AppId, webapps::InstallResultCode> future;
     FakeWebAppProvider::Get(profile())->install_finalizer().FinalizeInstall(
@@ -274,11 +273,11 @@ class FinalizeUpdateJobTestIwa
     return future.Get<webapps::AppId>();
   }
 
-  void SetPendingUpdateState(const webapps::AppId& app_id,
-                             const IsolatedWebAppStorageLocation& location,
-                             const IwaVersion& update_version,
-                             std::optional<IsolatedWebAppIntegrityBlockData>
-                                 integrity_block = std::nullopt) {
+  void SetPendingUpdateState(
+      const webapps::AppId& app_id,
+      const IsolatedWebAppStorageLocation& location,
+      const IwaVersion& update_version,
+      std::optional<IntegrityBlockData> integrity_block = std::nullopt) {
     WebApp* app = FakeWebAppProvider::Get(profile())
                       ->GetRegistrarMutable()
                       .GetAppByIdMutable(app_id);
@@ -307,8 +306,7 @@ TEST_P(FinalizeUpdateJobTestIwa, IwaUpdateManifestUrlIgnoredInDevMode) {
   info->iwa_update_manifest_url = update_manifest_url;
 
   webapps::AppId app_id = InstallBaseIwa(*info, location);
-  auto integrity_block_data =
-      IsolatedWebAppIntegrityBlockData(test::CreateSignatures());
+  auto integrity_block_data = IntegrityBlockData(test::CreateSignatures());
   SetPendingUpdateState(app_id, location, update_version, integrity_block_data);
 
   auto update_info = WebAppInstallInfo::CreateWithStartUrlForTesting(start_url);

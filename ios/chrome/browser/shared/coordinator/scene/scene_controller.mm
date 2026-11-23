@@ -40,6 +40,7 @@
 #import "ios/chrome/app/change_profile_commands.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/app/profile/profile_state_observer.h"
+#import "ios/chrome/app/startup/chrome_app_startup_parameters.h"
 #import "ios/chrome/app/tests_hook.h"
 #import "ios/chrome/browser/app_store_rating/model/app_store_rating_scene_agent.h"
 #import "ios/chrome/browser/app_store_rating/model/features.h"
@@ -70,6 +71,7 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/first_run/model/first_run.h"
 #import "ios/chrome/browser/geolocation/model/geolocation_manager.h"
+#import "ios/chrome/browser/google_one/shared/google_one_deep_link_util.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_scene_agent.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -130,6 +132,7 @@
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
+#import "ios/chrome/browser/shared/public/commands/google_one_commands.h"
 #import "ios/chrome/browser/shared/public/commands/lens_commands.h"
 #import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
@@ -169,6 +172,7 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/components/webui/web_ui_url_constants.h"
 #import "ios/public/provider/chrome/browser/cobalt/cobalt_api.h"
+#import "ios/public/provider/chrome/browser/google_one/google_one_api.h"
 #import "ios/web/common/features.h"
 #import "ios/web/public/js_image_transcoder/java_script_image_transcoder.h"
 #import "ios/web/public/navigation/navigation_manager.h"
@@ -675,6 +679,19 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
         };
       }
       return nil;
+    case SHOW_GOOGLE_ONE_SCREEN: {
+      __weak id<GoogleOneCommands> weakGoogleOneHandler = HandlerForProtocol(
+          self.currentInterface.browser->GetCommandDispatcher(),
+          GoogleOneCommands);
+      GURL inputURL =
+          self.startupParameters ? self.startupParameters.completeURL : GURL();
+      if (inputURL.is_valid()) {
+        return ^{
+          [weakGoogleOneHandler showGoogleOneForURL:inputURL];
+        };
+      }
+      return nil;
+    }
     default:
       return nil;
   }
@@ -1293,7 +1310,12 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
     openURL = YES;
   }
   ChangeProfileReason reason;
-  if ([self shareExtensionURLEligibleForAccountChange:context.context.URL]) {
+  if (IsGoogleOneDeepLinkURL(net::GURLWithNSURL(context.context.URL),
+                             nullptr)) {
+    CHECK(IsGoogleOneDeepLinkEnabled());
+    reason = ChangeProfileReason::kForGoogleOneSettings;
+  } else if ([self shareExtensionURLEligibleForAccountChange:context.context
+                                                                 .URL]) {
     reason = ChangeProfileReason::kSwitchAccountsFromShareExtension;
   } else {
     reason = ChangeProfileReason::kSwitchAccountsFromWidget;
@@ -1320,6 +1342,15 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
     if (net::GetValueForKeyInQuery(net::GURLWithNSURL(context.URL),
                                    app_group::kGaiaIDQueryItemName, &newGaia)) {
       accountChanges++;
+    } else {
+      GURL googleOneGURL;
+      if (IsGoogleOneDeepLinkEnabled() &&
+          IsGoogleOneDeepLinkURL(net::GURLWithNSURL(context.URL),
+                                 &googleOneGURL)) {
+        if (GoogleOneAccountFromURL(googleOneGURL).length > 0) {
+          accountChanges++;
+        }
+      }
     }
   }
   return accountChanges > 1 ? YES : NO;
@@ -1344,20 +1375,37 @@ UrlLoadParams UpdateParamsForDinoGame(UrlLoadParams params) {
   CoreAccountInfo primaryAccount =
       identityManager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
   for (UIOpenURLContext* context : URLContexts) {
-    // Check that this URL is coming from a widget.
-    if (!([self widgetURLEligibleForAccountChange:context.URL] ||
-          [self shareExtensionURLEligibleForAccountChange:context.URL])) {
+    BOOL isWidgetOrShare =
+        [self widgetURLEligibleForAccountChange:context.URL] ||
+        [self shareExtensionURLEligibleForAccountChange:context.URL];
+    GURL contextGURL = net::GURLWithNSURL(context.URL);
+    GURL googleOneGURL;
+    BOOL isGoogleOne = IsGoogleOneDeepLinkEnabled() &&
+                       IsGoogleOneDeepLinkURL(contextGURL, &googleOneGURL);
+    if (!(isWidgetOrShare || isGoogleOne)) {
       continue;
     }
-    std::string newGaia;
+    GaiaId newGaiaID;
 
-    // Continue if the URL does not contain a gaia.
-    if (!net::GetValueForKeyInQuery(net::GURLWithNSURL(context.URL),
-                                    app_group::kGaiaIDQueryItemName,
-                                    &newGaia)) {
-      continue;
+    if (isGoogleOne) {
+      NSString* accountParam = GoogleOneAccountFromURL(googleOneGURL);
+      if (accountParam.length == 0) {
+        continue;
+      }
+      newGaiaID = FindGaiaIdForGoogleOneAccount(accountParam);
+      if (newGaiaID.empty()) {
+        continue;
+      }
+    } else {
+      std::string newGaia;
+      // Continue if the URL does not contain a gaia.
+      if (!net::GetValueForKeyInQuery(net::GURLWithNSURL(context.URL),
+                                      app_group::kGaiaIDQueryItemName,
+                                      &newGaia)) {
+        continue;
+      }
+      newGaiaID = GaiaId(newGaia);
     }
-    GaiaId newGaiaID(newGaia);
 
     // Only switch account if the gaia in the widget is different from the gaia
     // in the app.

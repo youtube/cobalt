@@ -120,6 +120,8 @@ class MockToolbarUIServiceDelegate
   MOCK_METHOD(void, ShowAvatarMenu, (), (override));
   MOCK_METHOD(void, SetAvatarButtonHovered, (bool), (override));
   MOCK_METHOD(void, SetAvatarButtonFocused, (bool), (override));
+  MOCK_METHOD(void, SetAvatarButtonIPHPromoShowing, (bool), (override));
+  MOCK_METHOD(void, OnAppMenuFocusChanged, (bool), (override));
 };
 
 class MockBrowserControlsServiceDelegate

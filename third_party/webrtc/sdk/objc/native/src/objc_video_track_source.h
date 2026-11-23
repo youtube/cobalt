@@ -14,7 +14,7 @@
 #import "base/RTCVideoCapturer.h"
 
 #include "api/environment/environment.h"
-#include "media/base/adapted_video_track_source.h"
+#include "api/video/adapted_video_track_source.h"
 #include "rtc_base/timestamp_aligner.h"
 #include "sdk/objc/base/RTCMacros.h"
 

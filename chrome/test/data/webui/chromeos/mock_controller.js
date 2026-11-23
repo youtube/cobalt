@@ -47,9 +47,9 @@ class MockMethod {
 
     /**
      * Value returned from call to function.
-     * @type {*}
+     * @private {*}
      */
-    this.returnValue = undefined;
+    this.returnValue_ = undefined;
 
     /**
      * List of arguments for callback function.
@@ -120,6 +120,15 @@ class MockMethod {
    */
   notFunction_(arg) {
     return typeof arg !== 'function';
+  }
+
+  /** @return {*} */
+  get returnValue() {
+    return this.returnValue_;
+  }
+  /** @param {*} val */
+  set returnValue(val) {
+    this.returnValue_ = val;
   }
 }
 

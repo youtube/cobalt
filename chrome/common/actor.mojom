@@ -37,7 +37,17 @@ struct ObservedToolTarget {
 // Corresponds to ClickAction.ClickType
 enum ClickType {
   kLeft = 1,
+
   kRight = 2,
+
+  // Left click on an element expected to be occluded by a modeless panel,
+  // such as a cookie banner or popup. This bypasses occluding elements on top
+  // of the target and directly activates the target element.
+  //
+  // Only use this with an ActionTarget that identifies a content_node_id, not
+  // a coordinate target. The action fails if the target is not actually
+  // occluded by an eligible modeless panel at execution time.
+  kLeftOnOccludedTarget = 3,
 };
 
 // Corresponds to ClickAction.ClickCount

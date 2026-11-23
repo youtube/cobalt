@@ -63,7 +63,10 @@ enum class ToastId {
   kDefaultBrowserUpdateSuccess = 40,
   kSendTabToSelfNoInternetConnection = 41,
   kIndigoInvokeError = 42,
-  kMaxValue = kIndigoInvokeError,
+  kTabStripSwitchDelayedHorizontal = 43,
+  kTabStripSwitchDelayedVertical = 44,
+  kAutofillAiPreFetchErrorMessage = 45,
+  kMaxValue = kAutofillAiPreFetchErrorMessage,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/toasts/enums.xml:ToastId)
 

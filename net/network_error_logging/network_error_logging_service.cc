@@ -826,14 +826,18 @@ class NetworkErrorLoggingServiceImpl : public NetworkErrorLoggingService {
     body.Set(kElapsedTimeKey,
              static_cast<int>(details.elapsed_time.InMilliseconds()));
 
+    // Strip username, password, and ref fragment from the URLs in the body,
+    // matching what ReportingService::QueueReport() does for the top-level URL.
     base::DictValue sxg_body;
-    sxg_body.Set(kOuterUrlKey, details.outer_url.spec());
-    if (details.inner_url.is_valid())
-      sxg_body.Set(kInnerUrlKey, details.inner_url.spec());
+    sxg_body.Set(kOuterUrlKey, details.outer_url.GetAsReferrer().spec());
+    if (details.inner_url.is_valid()) {
+      sxg_body.Set(kInnerUrlKey, details.inner_url.GetAsReferrer().spec());
+    }
 
     base::ListValue cert_url_list;
-    if (details.cert_url.is_valid())
-      cert_url_list.Append(details.cert_url.spec());
+    if (details.cert_url.is_valid()) {
+      cert_url_list.Append(details.cert_url.GetAsReferrer().spec());
+    }
     sxg_body.Set(kCertUrlKey, std::move(cert_url_list));
     body.Set(kSignedExchangeBodyKey, std::move(sxg_body));
 

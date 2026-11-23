@@ -45,7 +45,9 @@ class ContextualSearchService : public KeyedService {
       TemplateURLService* template_url_service,
       variations::VariationsClient* variations_client,
       version_info::Channel channel,
-      const std::string& locale);
+      const std::string& locale,
+      std::unique_ptr<ContextualSearchSessionHandle::TabValidator>
+          tab_validator);
   ~ContextualSearchService() override;
 
   // KeyedService:
@@ -89,11 +91,16 @@ class ContextualSearchService : public KeyedService {
   ContextualSearchMetricsRecorder* GetSessionMetricsRecorder(
       const SessionId& session_id);
 
+  // Called by SessionHandle to retrieve the tab validator.
+  ContextualSearchSessionHandle::TabValidator* GetTabValidator() const;
+
   // Called by SessionHandle to manage ref counts.
   void ReleaseSession(const SessionId& session_id);
 
   // Map of active sessions, keyed by the session ID.
   std::map<SessionId, ContextualSearchSessionEntry> sessions_;
+
+  std::unique_ptr<ContextualSearchSessionHandle::TabValidator> tab_validator_;
 
   raw_ptr<signin::IdentityManager> identity_manager_;
   const scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;

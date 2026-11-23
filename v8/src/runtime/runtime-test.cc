@@ -1576,6 +1576,7 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
     }
   }
 
+  CHECK_UNLESS_FUZZING(args.length() >= 1);
   if (!IsString(args[0])) {
     return args[0];
   }
@@ -2070,6 +2071,22 @@ RUNTIME_FUNCTION(Runtime_TurbofanStaticAssert) {
   SealHandleScope shs(isolate);
   // Always lowered to StaticAssert node in Turbofan, so we never get here in
   // compiled code.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AssertPeeled) {
+  SealHandleScope shs(isolate);
+  // In Turbolev this is lowered to an AssertPeeled node that the loop peeler
+  // removes when it peels the surrounding loop, so we never reach this in
+  // compiled code once peeling fires.
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AssertNotPeeled) {
+  SealHandleScope shs(isolate);
+  // In Turbolev this is lowered to an AssertPeeled node that fails compilation
+  // if the loop peeler peels the surrounding loop, so we never reach this in
+  // compiled code unless the loop was (correctly) left unpeeled.
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

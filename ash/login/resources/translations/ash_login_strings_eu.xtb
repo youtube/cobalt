@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Sareko errorea konpontzeko, <ph name="GUEST_SIGNIN_LINK_START" />gonbidatu gisa nabigatzen<ph name="GUEST_SIGNIN_LINK_END" /> saia zaitezke.</translation>
 <translation id="1201402288615127009">Hurrengoa</translation>
 <translation id="1222835797152767346">Ezarri PIN bat, saioa hastea errazteko</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Arazketa-eginbideak<ph name="END_H3" />
+          <ph name="BR" />
+          Chrome OS-eko gailuan arazketa-eginbideak gai ditzakezu bertan kode pertsonalizatua instalatzeko eta probatzeko. Horri esker, honako hauek egin ahalko dituzu:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Roofts bidezko egiaztapena kendu, sistema eragilearen fitxategiak aldatu ahal izateko.
+            <ph name="LIST_ITEM" />Probako gako estandarrak erabilita gailurako SSH bidezko sarbidea gaitu gailua atzitzeko tresnak (adibidez, <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" />) erabili ahal izateko.
+            <ph name="LIST_ITEM" />USB bidezko unitateetatik abiarazteko aukera gaitu, sistema eragilearen irudia (unitate horietan gordeta dagoena) instalatu ahal izateko.
+            <ph name="LIST_ITEM" />Garatzailearen eta sistemaren saioa hasteko erroko pasahitzari balio pertsonalizatua eman, SSH bidez gailua atzitu ahal izateko.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Gaituz gero, arazketa-eginbide gehienek gaituta jarraituko dute, baita jatorrizko ezarpenak Powerwash bidez berrezartzen edo enpresak kudeatutako gailu bateko datuak xahutzen badira ere. Arazketa-eginbide guztiak erabat desgaitzeko, osatu Chrome OS kendu eta berriro instalatzeko prozesua (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Arazketa-eginbideei buruzko informazio gehiago nahi izanez gero, joan<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features helbidera
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Oharra:<ph name="END_BOLD" /> sistema berrabiarazi egingo da prozesuan zehar.</translation>
 <translation id="1347625331607114917">Egiaztatu kodea Android-eko telefonoarekin</translation>
 <translation id="1347975661240122359">Bateriaren gutxienez % <ph name="BATTERY_LEVEL" /> duzunean hasiko da eguneratzen.</translation>
 <translation id="1375938286942050085">Konfiguratu da. Ondoren, prestatu gailua bideojokoetan aritzeko.</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Deskargatzen ari dira aplikazioak</translation>
 <translation id="5045550434625856497">Pasahitz okerra</translation>
 <translation id="5062930723426326933">Ezin izan da saioa hasi. Konektatu Internetera eta saiatu berriro.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Txateatu Gemini-rekin, Google-ren AA bidez idazten, antolatzen, ikasten eta abar egiten hasteko.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Konfiguratu ondoren, hasi Gemini erabiltzen pantailaren behealdean agertzen den apaleko Gemini aplikazioa hautatuta.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Konektatu <ph name="DEVICE_TYPE" /> gailua energia-iturri batera.</translation>
 <translation id="5147516217412920887">Kodea egiaztatzeko, jarraitu telefonoko argibideei</translation>
 <translation id="5160857336552977725">Hasi saioa <ph name="DEVICE_TYPE" /> gailuan</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Arazketa-eginbideak<ph name="END_H3" />
+          <ph name="BR" />
+          Chrome OS Flex-eko gailuan arazketa-eginbideak gai ditzakezu bertan kode pertsonalizatua instalatzeko eta probatzeko. Horri esker, honako hauek egin ahalko dituzu:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />Roofts bidezko egiaztapena kendu, sistema eragilearen fitxategiak aldatu ahal izateko.
+            <ph name="LIST_ITEM" />Probako gako estandarrak erabilita gailurako SSH bidezko sarbidea gaitu gailua atzitzeko tresnak (adibidez, <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" />) erabili ahal izateko.
+            <ph name="LIST_ITEM" />USB bidezko unitateetatik abiarazteko aukera gaitu, sistema eragilearen irudia (unitate horietan gordeta dagoena) instalatu ahal izateko.
+            <ph name="LIST_ITEM" />Garatzailearen eta sistemaren saioa hasteko erroko pasahitzari balio pertsonalizatua eman, SSH bidez gailua atzitu ahal izateko.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          Gaituz gero, arazketa-eginbide gehienek gaituta jarraituko dute, baita jatorrizko ezarpenak Powerwash bidez berrezartzen edo enpresak kudeatutako gailu bateko datuak xahutzen badira ere. Arazketa-eginbide guztiak erabat desgaitzeko, osatu Chrome OS kendu eta berriro instalatzeko prozesua (https://support.google.com/chromebook/answer/1080595).
+          <ph name="BR" />
+          <ph name="BR" />
+          Arazketa-eginbideei buruzko informazio gehiago nahi izanez gero, joan<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features helbidera
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />Oharra:<ph name="END_BOLD" /> sistema berrabiarazi egingo da prozesuan zehar.</translation>
 <translation id="523505283826916779">Erabilerraztasun-ezarpenak</translation>
 <translation id="5240931875940563122">Hasi saioa Android-eko telefonoan</translation>
 <translation id="5255859108402770436">Hasi saioa berriro</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">Chrome OS-ren arazketa-eginbideak gaitzera zoaz. Eginbide horiek sshd daemon konfiguratuko dute, eta USB bidezko unitateetatik abiarazteko aukera gaituko.</translation>
 <translation id="6965382102122355670">Ados</translation>
 <translation id="6981982820502123353">Erabilerraztasuna</translation>
+<translation id="6984652455487792101">Proxy-zerbitzari bat erabiltzen ari bazara, egiaztatu proxy-ezarpenak edo
+        jarri harremanetan sarearen administratzailearekin proxy-zerbitzariak
+        funtzionatzen duela egiaztatzeko. Proxy-zerbitzaririk
+        erabili behar duzula uste ez baduzu, aldatu <ph name="LINK_START" />proxy-ezarpenak<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Aktibatu telefonoaren Bluetootha eta wifia</translation>
 <translation id="7077829361966535409">Ezin izan da kargatu saioa hasteko orria oraingo proxy-ezarpenekin. <ph name="GAIA_RELOAD_LINK_START" />Saiatu saioa berriro hasten<ph name="GAIA_RELOAD_LINK_END" /> edo erabili beste <ph name="PROXY_SETTINGS_LINK_START" />proxy-ezarpen<ph name="PROXY_SETTINGS_LINK_END" /> batzuk.</translation>
 <translation id="7114054701490058191">Pasahitzak ez datoz bat</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">Berretsi pasahitza</translation>
 <translation id="7352651011704765696">Arazo bat izan da</translation>
 <translation id="7476454130948140105">Ez daukazu eguneratzeko behar adina bateria (% <ph name="BATTERY_PERCENT" />)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Erregistratu aurretik, TPMa garbitu behar duzu, <ph name="DEVICE_OS" /> sistemak zure gailuaren jabetza eskura dezan.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Bestela, itzali egin dezakezu TPMa darabilen gailua. Hala ere, datuak segurtasun osoz gordeko dira software-enkriptatzearen bidez, baina segurtasun-eginbide batzuk (adibidez, hardwarean gordetako ziurtagiriak) desgaitu egingo dira.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />TPMaren ezarpenak aldatzeko, berrabiarazi gailua eta idatzi sistemak darabilen BIOS edo UEFIaren ezarpenak. Urratsak gailuaren modeloaren araberakoak dira. Informazio gehiago lortzeko, berrabiarazi aurretik, ireki <ph name="DEVICE_OS" /> sistemari buruzko dokumentazio hau beste gailu batean: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Gaitu arazketa-eginbideak <ph name="IDS_SHORT_PRODUCT_NAME" /> gailuan</translation>
 <translation id="7553242001898162573">Idatzi pasahitza</translation>
 <translation id="7556242789364317684">Tamalez, <ph name="SHORT_PRODUCT_NAME" /> programak ezin ditu berreskuratu zure ezarpenak. Errorea konpontzeko, <ph name="SHORT_PRODUCT_NAME" /> programak gailuaren fabrikako ezarpenak berrezarri behar ditu Powerwash erabilita.</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">Android-eko telefonotik Google-ko kontuaren informazioa transferitzen</translation>
 <translation id="8524841856047224176">Pertsonalizatu kameraren atzeko planoak bideodeietarako eta beste</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" /> aplikazioari buruzko informazio gehiago</translation>
+<translation id="8628232294964836490">Jarraitu telefonoko argibideei QR kodea eskaneatzeko. Ziurtatu telefonoaren Bluetootha aktibatuta dagoela.
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> gisa dago ikusgai inguruko gailuetarako…</translation>
 <translation id="8655972064210167941">Ezin izan da hasi saioa, ezin izan delako egiaztatu pasahitza. Jarri administratzailearekin harremanetan edo saiatu berriro.</translation>
 <translation id="8674903726754070732">Ordenagailua gaizki eratutako hardware-identifikatzaile batekin konfiguratuta dago. Ondorioz, ezin da eguneratu Chrome OS azken segurtasun-konponketekin, eta baliteke ordenagailuak <ph name="BEGIN_BOLD" />asmo txarreko erasoak jasotzea<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Gehitu guraso-murriztapenak konfiguratzen amaitzen duzunean</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">Ezin izan da egiaztatu eguneratzerik dagoen oraingo proxy-ezarpenak erabilita. Doitu <ph name="PROXY_SETTINGS_LINK_START" />proxy-ezarpenak<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Gordetako hobespenak eta jarduerak prest egongo dira Chrome OS-ko gailuetan Google-ko kontuarekin saioa hasten duzunean. Zer sinkronizatu nahi duzun aukeratzeko, joan Ezarpenak atalera.</translation>
 <translation id="8875221558267407626">Laburbildu edukia, sinplifikatu hizkera konplexua edo egin galderak</translation>
+<translation id="8913163265790894442">Konfiguratu <ph name="DEVICE_TYPE" /> erraz telefonoarekin. Wifia eta Google-ko kontua pasahitzak eskuz idatzi gabe gehi ditzakezu.
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="DEVICE_TYPE" /> gisa ikusgai…</translation>
 <translation id="8946359700442089734">Arazketa-eginbideak ez dira guztiz gaitu <ph name="IDS_SHORT_PRODUCT_NAME" /> gailu honetan.</translation>
 <translation id="8965037249707889821">Idatzi aurreko pasahitza</translation>
 <translation id="8975396729541388937">Harpidetza kentzeko, sakatu horretarako esteka jasotzen dituzun mezu elektronikoetan.</translation>
 <translation id="9033765790910064284">Jarraitu, halere</translation>
 <translation id="903480517321259405">Idatzi berriro PINa</translation>
 <translation id="9076523132036239772">Ezin izan da helbide elektronikoa edo pasahitza egiaztatu. Saiatu sare batera konektatzen lehendabizi.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Esklusiboa <ph name="DEVICE_TYPE" /> gailuetarako.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />AA generatiboa esperimentala da, garapen-zikloaren fase goiztiar batean dago eta, oraingoz, erabilgarritasun mugatua du.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Konfiguratu <ph name="DEVICE_TYPE" /> erraz telefonoarekin. Zure pasahitza eskuz idatzi gabe gehi dezakezu Google-ko kontua.
+        <ph name="BR" />
+        <ph name="BR" />
+        <ph name="DEVICE_TYPE" /> gisa ikusgai…</translation>
 </translationbundle>

@@ -34,6 +34,21 @@ class PresentationTimeRecorder;
 // windows coordinates.
 class ASH_EXPORT WindowResizer {
  public:
+  // ScopedDeleteBlocker prevents the WindowResizer from being deleted while
+  // it is in scope.
+  class ASH_EXPORT ScopedDeleteBlocker {
+   public:
+    explicit ScopedDeleteBlocker(WindowResizer* resizer) : resizer_(resizer) {
+      resizer_->delete_block_count_++;
+    }
+    ScopedDeleteBlocker(const ScopedDeleteBlocker&) = delete;
+    ScopedDeleteBlocker& operator=(const ScopedDeleteBlocker&) = delete;
+    ~ScopedDeleteBlocker() { resizer_->delete_block_count_--; }
+
+   private:
+    raw_ptr<WindowResizer> resizer_;
+  };
+
   // Constants to identify the type of resize.
   static const int kBoundsChange_None;
   static const int kBoundsChange_Repositions;
@@ -130,6 +145,8 @@ class ASH_EXPORT WindowResizer {
                                       gfx::Rect* new_bounds);
 
   std::unique_ptr<PresentationTimeRecorder> recorder_;
+
+  uint32_t delete_block_count_ = 0;
 
   base::WeakPtrFactory<WindowResizer> weak_ptr_factory_{this};
 };

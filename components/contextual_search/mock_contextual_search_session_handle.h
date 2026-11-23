@@ -6,6 +6,7 @@
 #define COMPONENTS_CONTEXTUAL_SEARCH_MOCK_CONTEXTUAL_SEARCH_SESSION_HANDLE_H_
 
 #include "components/contextual_search/contextual_search_session_handle.h"
+#include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -32,6 +33,10 @@ class MockContextualSearchSessionHandle : public ContextualSearchSessionHandle {
               (const, override));
   MOCK_METHOD(std::vector<FileInfo>,
               GetUploadedContextFileInfos,
+              (),
+              (const, override));
+  MOCK_METHOD(std::vector<FileInfo>,
+              GetSubmittedContextFileInfos,
               (),
               (const, override));
   MOCK_METHOD(ContextualSearchContextController*,

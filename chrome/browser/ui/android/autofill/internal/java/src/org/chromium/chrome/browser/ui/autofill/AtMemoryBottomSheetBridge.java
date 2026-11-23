@@ -13,6 +13,7 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
@@ -30,14 +31,18 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
     private AtMemoryBottomSheetBridge(
             long nativeAtMemoryBottomSheetBridge,
             Context context,
-            BottomSheetController bottomSheetController) {
+            BottomSheetController bottomSheetController,
+            Profile profile) {
         mNativeAtMemoryBottomSheetBridge = nativeAtMemoryBottomSheetBridge;
-        mCoordinator = new AtMemoryBottomSheetCoordinator(context, bottomSheetController, this);
+        mCoordinator =
+                new AtMemoryBottomSheetCoordinator(context, bottomSheetController, this, profile);
     }
 
     @CalledByNative
     public static @Nullable AtMemoryBottomSheetBridge create(
-            long nativeAtMemoryBottomSheetBridge, WindowAndroid windowAndroid) {
+            long nativeAtMemoryBottomSheetBridge,
+            WindowAndroid windowAndroid,
+            @JniType("Profile*") Profile profile) {
         Context context = windowAndroid.getContext().get();
         if (context == null) {
             return null;
@@ -50,7 +55,7 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
         }
 
         return new AtMemoryBottomSheetBridge(
-                nativeAtMemoryBottomSheetBridge, context, bottomSheetController);
+                nativeAtMemoryBottomSheetBridge, context, bottomSheetController, profile);
     }
 
     @CalledByNative
@@ -99,11 +104,25 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
     }
 
     @Override
+    public void onQueryTextChanged(String query) {
+        if (mNativeAtMemoryBottomSheetBridge != 0) {
+            AtMemoryBottomSheetBridgeJni.get()
+                    .onQueryTextChanged(mNativeAtMemoryBottomSheetBridge, query);
+        }
+    }
+
+    @Override
     public void onSuggestionClicked(int position) {
         if (mNativeAtMemoryBottomSheetBridge != 0) {
             AtMemoryBottomSheetBridgeJni.get()
                     .onSuggestionSelected(mNativeAtMemoryBottomSheetBridge, position);
         }
+    }
+
+    @Override
+    public boolean isSearching() {
+        if (mNativeAtMemoryBottomSheetBridge == 0) return false;
+        return AtMemoryBottomSheetBridgeJni.get().isSearching(mNativeAtMemoryBottomSheetBridge);
     }
 
     @NativeMethods
@@ -113,6 +132,11 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
         void onQuerySubmitted(
                 long nativeAtMemoryBottomSheetBridge, @JniType("std::u16string") String query);
 
+        void onQueryTextChanged(
+                long nativeAtMemoryBottomSheetBridge, @JniType("std::u16string") String query);
+
         void onSuggestionSelected(long nativeAtMemoryBottomSheetBridge, int position);
+
+        boolean isSearching(long nativeAtMemoryBottomSheetBridge);
     }
 }

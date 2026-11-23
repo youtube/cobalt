@@ -399,7 +399,7 @@ void RtpVideoStreamReceiver2::AddReceiveCodec(
     const CodecParameterMap& codec_params,
     bool raw_payload) {
   RTC_DCHECK_RUN_ON(&packet_sequence_checker_);
-  if (codec_params.count(kH264FmtpSpsPpsIdrInKeyframe) > 0 ||
+  if (codec_params.count(std::string(kH264FmtpSpsPpsIdrInKeyframe)) > 0 ||
       env_.field_trials().IsEnabled("WebRTC-SpsPpsIdrIsH264Keyframe")) {
     packet_buffer_.ForceSpsPpsIdrIsH264Keyframe();
     sps_pps_idr_is_h264_keyframe_ = true;
@@ -1410,7 +1410,7 @@ void RtpVideoStreamReceiver2::InsertSpsPpsIntoTracker(uint8_t payload_type) {
 
   H264SpropParameterSets sprop_decoder;
   auto sprop_base64_it =
-      codec_params_it->second.find(kH264FmtpSpropParameterSets);
+      codec_params_it->second.find(std::string(kH264FmtpSpropParameterSets));
 
   if (sprop_base64_it == codec_params_it->second.end())
     return;

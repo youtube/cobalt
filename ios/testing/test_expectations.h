@@ -7,6 +7,19 @@
 
 #import <Foundation/Foundation.h>
 
+typedef NS_OPTIONS(NSUInteger, TestExpectationType) {
+  TestExpectationTypeNone = 0,
+  TestExpectationTypeFailure = 1 << 0,
+  TestExpectationTypePass = 1 << 1,
+  TestExpectationTypeSkip = 1 << 2,
+  TestExpectationTypeCrash = 1 << 3,
+};
+
+@interface TestExpectationEntry : NSObject
+@property(nonatomic, copy) NSString* bug;
+@property(nonatomic, assign) TestExpectationType type;
+@end
+
 // Helper class to manage and check expected failures for XCTests.
 @interface TestExpectations : NSObject
 
@@ -25,11 +38,10 @@
 // Sets the current expectations instance.
 + (void)setCurrentExpectations:(TestExpectations*)expectations;
 
-// Returns YES if the given test case and method is expected to fail.
-// If YES, the reason or bug URL is returned in `outReason`.
-- (BOOL)shouldExpectFailureForTestCase:(NSString*)testClassName
-                            methodName:(NSString*)methodName
-                             outReason:(NSString**)outReason;
+// Returns the expectation entry for the given test case and method, or nil if
+// no expectation exists.
+- (TestExpectationEntry*)expectationEntryForTestCase:(NSString*)testClassName
+                                          methodName:(NSString*)methodName;
 
 @end
 

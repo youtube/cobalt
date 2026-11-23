@@ -5,7 +5,9 @@
 #ifndef CHROME_BROWSER_NAVIGATION_PREDICTOR_NAVIGATION_PREDICTOR_METRICS_DOCUMENT_DATA_H_
 #define CHROME_BROWSER_NAVIGATION_PREDICTOR_NAVIGATION_PREDICTOR_METRICS_DOCUMENT_DATA_H_
 
+#include <map>
 #include <unordered_map>
+#include <vector>
 
 #include "base/time/time.h"
 #include "content/public/browser/document_user_data.h"

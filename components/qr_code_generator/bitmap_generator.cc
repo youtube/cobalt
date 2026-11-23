@@ -36,6 +36,14 @@ static const int kDinoTileSizePixels = 4;
 // Size of a QR locator, in modules.
 static const int kLocatorSizeModules = 7;
 
+// Maximum fraction of the QR code width/height that the center image can take.
+// Currently we default to `EcLevel::M` error correction level, which
+// according to https://www.qrcode.com/en/about/error_correction.html can
+// restore approximately 15% of code words.
+// kMaxCenterImageFraction * kMaxCenterImageFraction = 0.0625 which is
+// less than 15% with considerable safety margin.
+constexpr float kMaxCenterImageFraction = 0.25f;
+
 SkBitmap CreateDinoBitmap() {
   // The dino is taller than it is wide; validate this assumption in debug
   // builds to simplify some calculations later.
@@ -126,6 +134,22 @@ void DrawDino(SkCanvas* canvas,
   int dino_height_px = pixels_per_dino_tile * dino_image::kDinoHeight;
   PaintCenterImage(canvas, canvas_bounds, dino_width_px, dino_height_px,
                    dino_border_px, paint_background, dino_bitmap);
+}
+
+void DrawCustomCenterImage(SkCanvas* canvas,
+                           const SkRect& canvas_bounds,
+                           const int qr_width_px,
+                           const SkPaint& paint_background,
+                           const SkBitmap& image) {
+  CHECK_EQ(image.width(), image.height())
+      << "Custom center images must be square.";
+
+  int target_size_px = static_cast<int>(qr_width_px * kMaxCenterImageFraction);
+  int width_px = std::min(image.width(), target_size_px);
+  int height_px = std::min(image.height(), target_size_px);
+  constexpr int kBorderPx = 4;
+  PaintCenterImage(canvas, canvas_bounds, width_px, height_px, kBorderPx,
+                   paint_background, image);
 }
 
 void PaintCenterImage(SkCanvas* canvas,
@@ -235,6 +259,7 @@ SkBitmap RenderBitmap(base::span<const uint8_t> data,
                       ModuleStyle module_style,
                       LocatorStyle locator_style,
                       CenterImage center_image,
+                      const SkBitmap* custom_center_image,
                       QuietZone quiet_zone) {
   // Setup: create colors and clear canvas.
   SkBitmap bitmap;
@@ -286,24 +311,49 @@ SkBitmap RenderBitmap(base::span<const uint8_t> data,
   SkRect bitmap_bounds;
   bitmap.getBounds(&bitmap_bounds);
 
-  switch (center_image) {
-    case CenterImage::kNoCenterImage:
-      break;
-    case CenterImage::kDino:
-      DrawDino(&canvas, bitmap_bounds, kDinoTileSizePixels, 2, paint_black,
-               paint_white);
-      break;
+  if (custom_center_image) {
+    int qr_width_px = data_size.width() * kModuleSizePixels;
+    DrawCustomCenterImage(&canvas, bitmap_bounds, qr_width_px, paint_white,
+                          *custom_center_image);
+  } else {
+    switch (center_image) {
+      case CenterImage::kNoCenterImage:
+        break;
+      case CenterImage::kDino:
+        DrawDino(&canvas, bitmap_bounds, kDinoTileSizePixels, 2, paint_black,
+                 paint_white);
+        break;
 #if !BUILDFLAG(IS_IOS)
-    case CenterImage::kPasskey:
-      DrawPasskeyIcon(&canvas, bitmap_bounds, paint_black, paint_white);
-      break;
-    case CenterImage::kProductLogo:
-      DrawProductIcon(&canvas, bitmap_bounds, paint_black, paint_white);
-      break;
+      case CenterImage::kPasskey:
+        DrawPasskeyIcon(&canvas, bitmap_bounds, paint_black, paint_white);
+        break;
+      case CenterImage::kProductLogo:
+        DrawProductIcon(&canvas, bitmap_bounds, paint_black, paint_white);
+        break;
 #endif
+    }
   }
 
   return bitmap;
+}
+
+base::expected<GeneratedCode, Error> GenerateAndPrepareCode(
+    base::span<const uint8_t> data) {
+  // The QR version (i.e. size) must be >= 5 because otherwise the dino
+  // painted over the middle covers too much of the code to be decodable.
+  constexpr int kMinimumQRVersion = 5;
+  auto qr_result = GenerateCode(data, kMinimumQRVersion);
+  if (!qr_result.has_value()) {
+    return base::unexpected(qr_result.error());
+  }
+
+  GeneratedCode qr_code = std::move(qr_result.value());
+  // The least significant bit of each byte in |qr_code.data| is set if the tile
+  // should be black.
+  for (uint8_t& byte : qr_code.data) {
+    byte &= 1;
+  }
+  return qr_code;
 }
 
 }  // namespace
@@ -327,34 +377,48 @@ base::expected<gfx::ImageSkia, Error> GenerateImage(
       .transform(&gfx::ImageSkia::CreateFrom1xBitmap);
 }
 
+base::expected<gfx::ImageSkia, Error> GenerateImage(
+    base::span<const uint8_t> data,
+    ModuleStyle module_style,
+    LocatorStyle locator_style,
+    const gfx::ImageSkia& center_image,
+    QuietZone quiet_zone) {
+  return GenerateBitmap(data, module_style, locator_style,
+                        *center_image.bitmap(), quiet_zone)
+      .transform(&gfx::ImageSkia::CreateFrom1xBitmap);
+}
+
 base::expected<SkBitmap, Error> GenerateBitmap(base::span<const uint8_t> data,
                                                ModuleStyle module_style,
                                                LocatorStyle locator_style,
                                                CenterImage center_image,
                                                QuietZone quiet_zone) {
-  GeneratedCode qr_code;
-  {
-    // The QR version (i.e. size) must be >= 5 because otherwise the dino
-    // painted over the middle covers too much of the code to be decodable.
-    constexpr int kMinimumQRVersion = 5;
-    auto qr_result = GenerateCode(data, kMinimumQRVersion);
-    if (!qr_result.has_value()) {
-      return base::unexpected(qr_result.error());
-    }
-    qr_code = std::move(qr_result.value());
+  auto qr_code_result = GenerateAndPrepareCode(data);
+  if (!qr_code_result.has_value()) {
+    return base::unexpected(qr_code_result.error());
   }
 
-  // The least significant bit of each byte in |qr_data.span| is set if the tile
-  // should be black.
-  for (uint8_t& byte : qr_code.data) {
-    byte &= 1;
+  const GeneratedCode& qr_code = qr_code_result.value();
+  gfx::Size data_size = {qr_code.qr_size, qr_code.qr_size};
+  return RenderBitmap(base::span(qr_code.data), data_size, module_style,
+                      locator_style, center_image, nullptr, quiet_zone);
+}
+
+base::expected<SkBitmap, Error> GenerateBitmap(base::span<const uint8_t> data,
+                                               ModuleStyle module_style,
+                                               LocatorStyle locator_style,
+                                               const SkBitmap& center_image,
+                                               QuietZone quiet_zone) {
+  auto qr_code_result = GenerateAndPrepareCode(data);
+  if (!qr_code_result.has_value()) {
+    return base::unexpected(qr_code_result.error());
   }
 
-  {
-    gfx::Size data_size = {qr_code.qr_size, qr_code.qr_size};
-    return RenderBitmap(base::span(qr_code.data), data_size, module_style,
-                        locator_style, center_image, quiet_zone);
-  }
+  const GeneratedCode& qr_code = qr_code_result.value();
+  gfx::Size data_size = {qr_code.qr_size, qr_code.qr_size};
+  return RenderBitmap(base::span(qr_code.data), data_size, module_style,
+                      locator_style, CenterImage::kNoCenterImage, &center_image,
+                      quiet_zone);
 }
 
 }  // namespace qr_code_generator

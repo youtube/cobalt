@@ -494,17 +494,7 @@ using web::wk_navigation_util::URLNeedsUserAgentType;
                     rendererInitiated:NO];
 
   WKNavigation* navigation = nil;
-  BOOL setAttribution =
-      base::FeatureList::IsEnabled(web::features::kSetRequestAttribution);
-  if (@available(iOS 27.0, *)) {
-    // TODO(b/522248158): Remove this workaround when the WebKit bug is
-    // fixed.
-    // Disable request attribution on iOS 27+ due to a WebKit session restore
-    // bug where user-attributed requests process-swap and get flagged as
-    // wasCreatedByJSWithoutUserInteraction.
-    setAttribution = NO;
-  }
-  if (setAttribution) {
+  if (base::FeatureList::IsEnabled(web::features::kSetRequestAttribution)) {
     request.attribution = NSURLRequestAttributionUser;
   }
 

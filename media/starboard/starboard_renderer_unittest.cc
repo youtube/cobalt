@@ -19,6 +19,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
@@ -92,8 +93,8 @@ class StarboardRendererTest : public testing::Test {
     streams_.push_back(CreateMockDemuxerStream(type, encrypted));
   }
 
-  std::vector<DemuxerStream*> GetAllStreams() {
-    std::vector<DemuxerStream*> streams;
+  std::vector<raw_ptr<DemuxerStream>> GetAllStreams() {
+    std::vector<raw_ptr<DemuxerStream>> streams;
     for (auto& stream : streams_) {
       streams.push_back(stream.get());
     }

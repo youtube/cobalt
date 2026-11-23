@@ -464,8 +464,13 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
     item.trailingText = l10n_util::GetNSString(IDS_IOS_AUTOFILL_WALLET_TEXT);
   }
 
+  const bool isPersonalContext =
+      instance.record_type() ==
+      autofill::EntityInstance::RecordType::kPersonalContext;
+
   item.icon = autofill::DefaultIconForAutofillAiEntityType(
-      instance.type().name(), kEntityIconPointSize, /*tint_color=*/nil);
+      instance.type().name(), isPersonalContext, kEntityIconPointSize,
+      /*tint_color=*/nil);
   return item;
 }
 

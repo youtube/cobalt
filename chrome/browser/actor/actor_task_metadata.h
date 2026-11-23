@@ -10,6 +10,7 @@
 
 #include "chrome/browser/actor/actor_container_config.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "url/origin.h"
 
@@ -33,8 +34,8 @@ class ActorTaskMetadata {
     return added_writable_mainframe_origins_;
   }
 
-  std::optional<optimization_guide::proto::AgentContainerConfig>&
-  agent_container_config() {
+  const std::optional<optimization_guide::proto::AgentContainerConfig>&
+  agent_container_config() const {
     return agent_container_config_;
   }
 

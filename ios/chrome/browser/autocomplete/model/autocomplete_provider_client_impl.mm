@@ -287,13 +287,13 @@ bool AutocompleteProviderClientImpl::IsAuthenticated() const {
 
 void AutocompleteProviderClientImpl::Classify(
     const std::u16string& text,
-    bool prefer_keyword,
+    bool in_keyword_mode,
     bool allow_exact_keyword_match,
     metrics::OmniboxEventProto::PageClassification page_classification,
     AutocompleteMatch* match,
     GURL* alternate_nav_url) {
   AutocompleteClassifier* classifier = GetAutocompleteClassifier();
-  classifier->Classify(text, prefer_keyword, allow_exact_keyword_match,
+  classifier->Classify(text, in_keyword_mode, allow_exact_keyword_match,
                        page_classification, match, alternate_nav_url);
 }
 

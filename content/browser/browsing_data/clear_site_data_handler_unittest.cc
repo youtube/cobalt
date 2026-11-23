@@ -12,8 +12,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
+#include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "base/test/fuzztest_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -26,6 +28,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/features_generated.h"
+#include "third_party/fuzztest/src/fuzztest/fuzztest.h"
 
 using ::testing::_;
 
@@ -791,4 +794,27 @@ TEST_F(ClearSiteDataHandlerTest, ClearPrefetchAndPrerenderCacheSuccess) {
             blink::mojom::ConsoleMessageLevel::kInfo);
   testing::Mock::VerifyAndClearExpectations(&handler);
 }
+
+void ParseHeader(const std::string& data) {
+  ClearSiteDataTypeSet clear_site_data_types;
+  std::set<std::string> storage_buckets_to_remove;
+  ClearSiteDataHandler::ConsoleMessagesDelegate delegate;
+
+  content::ClearSiteDataHandler::ParseHeaderForTesting(
+      data, &clear_site_data_types, &storage_buckets_to_remove, &delegate,
+      GURL());
+}
+
+std::vector<std::tuple<std::string>> ReadCearSiteDataHeaderFuzzerCorpus() {
+  return fuzztest::ReadFilesFromDirectory(
+      base::PathService::CheckedGet(base::DIR_SRC_TEST_DATA_ROOT)
+          .AppendASCII("content/test/data/fuzzer_corpus/clear_site_data/")
+          .AsUTF8Unsafe());
+}
+
+FUZZ_TEST(ClearSiteDataHandlerFuzzerTest, ParseHeader)
+    // Pass the function as a pointer so the dictionary file is available
+    // for android after InitAndroidTestPaths runs.
+    .WithSeeds(ReadCearSiteDataHeaderFuzzerCorpus);
+
 }  // namespace content

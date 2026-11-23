@@ -233,22 +233,25 @@ scoped_refptr<WebGPUMailboxTexture> WebGPUSwapBufferProvider::GetNewTexture(
   // NOTE: Passing WEBGPU_MAILBOX_DISCARD to request clearing requires passing a
   // usage that supports clearing. Swapbuffer textures will always be
   // renderable, so we can pass RenderAttachment.
-  current_swap_buffer_->mailbox_texture =
-      WebGPUMailboxTexture::FromExistingSharedImage(
-          dawn_control_client_, device_, desc,
-          current_swap_buffer_->GetSharedImage(),
-          // Wait on the last usage of this swap buffer.
-          current_swap_buffer_->GetSyncToken(),
-          gpu::webgpu::WEBGPU_MAILBOX_DISCARD,
-          wgpu::TextureUsage::RenderAttachment,
-          // When the mailbox texture is dissociated, set the access finished
-          // token back on the swap buffer for the next time it is used.
-          base::BindOnce(
-              [](scoped_refptr<SwapBuffer> swap_buffer,
-                 const gpu::SyncToken& access_finished_token) {
-                swap_buffer->SetReleaseSyncToken(access_finished_token);
-              },
-              current_swap_buffer_));
+  current_swap_buffer_
+      ->mailbox_texture = WebGPUMailboxTexture::FromExistingSharedImage(
+      dawn_control_client_, device_, desc,
+      current_swap_buffer_->GetSharedImage(),
+      // Wait on the last usage of this swap buffer.
+      current_swap_buffer_->GetSyncToken(), gpu::webgpu::WEBGPU_MAILBOX_DISCARD,
+      wgpu::TextureUsage::RenderAttachment,
+      base::BindOnce(
+          [](scoped_refptr<SwapBuffer> swap_buffer,
+             std::unique_ptr<gpu::WebGPUTextureScopedAccess> scoped_access) {
+            gpu::SyncToken access_finished_token;
+            if (scoped_access) {
+              access_finished_token = gpu::WebGPUTextureScopedAccess::EndAccess(
+                  std::move(scoped_access));
+            }
+            swap_buffer->SetReleaseSyncToken(access_finished_token);
+            return access_finished_token;
+          },
+          current_swap_buffer_));
 
   if (!layer_) {
     // Create a layer that will be used by the canvas and will ask for a

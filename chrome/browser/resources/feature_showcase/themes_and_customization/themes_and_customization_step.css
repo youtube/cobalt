@@ -1,0 +1,44 @@
+/* Copyright 2026 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #import=//resources/cr_elements/cr_shared_vars.css.js
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+#illustration {
+  align-items: center;
+  background-color: var(--color-sys-surface5);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  padding: 0 70px;
+  width: 100%;
+}
+
+.picker-container {
+  align-items: stretch;
+  background-color: var(--cr-fallback-color-surface);
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px;
+}
+
+customize-color-scheme-mode,
+cr-theme-color-picker {
+  display: block;
+}
+
+cr-theme-color-picker {
+  --cr-theme-color-border-radius: 12px;
+  --cr-theme-color-padding: 7px;
+  --cr-theme-color-picker-column-width: 72px;
+  --cr-theme-color-picker-grid-gap: 8px;
+  --cr-theme-color-picker-grid-padding: unset;
+}

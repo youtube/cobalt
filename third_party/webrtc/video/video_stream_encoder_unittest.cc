@@ -58,6 +58,7 @@
 #include "api/video/resolution.h"
 #include "api/video/video_adaptation_counters.h"
 #include "api/video/video_adaptation_reason.h"
+#include "api/video/video_adapter.h"
 #include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_bitrate_allocator.h"
 #include "api/video/video_bitrate_allocator_factory.h"
@@ -84,7 +85,6 @@
 #include "call/adaptation/video_stream_adapter.h"
 #include "call/video_send_stream.h"
 #include "common_video/h264/h264_common.h"
-#include "media/base/video_adapter.h"
 #include "media/engine/webrtc_video_engine.h"
 #include "modules/video_coding/codecs/av1/libaom_av1_encoder.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
@@ -8156,7 +8156,7 @@ TEST_F(VideoStreamEncoderTest, DropsFramesWhenEncoderOvershoots) {
     // doesn't push back as hard so we don't need quite as much overshoot.
     // These numbers are unfortunately a bit magical but there's not trivial
     // way to algebraically infer them.
-    overshoot_factor = 3.0;
+    overshoot_factor = 3.5;
   }
   fake_encoder_.SimulateOvershoot(overshoot_factor);
   video_stream_encoder_->WaitUntilTaskQueueIsIdle();
@@ -8350,6 +8350,51 @@ TEST_F(VideoStreamEncoderTest, SetsFrameTypesSimulcast) {
   EXPECT_THAT(fake_encoder_.LastFrameTypes(),
               ::testing::ElementsAreArray({VideoFrameType::kVideoFrameKey,
                                            VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey}));
+
+  video_stream_encoder_->Stop();
+}
+
+TEST_F(VideoStreamEncoderTest, MergesKeyFrameRequestsForMultipleLayers) {
+  // Setup simulcast with three streams.
+  ResetEncoder("VP8", 3, 1, 1, false);
+  video_stream_encoder_->OnBitrateUpdatedAndWaitForManagedResources(
+      kSimulcastTargetBitrate, kSimulcastTargetBitrate, 0, 0, 0);
+  sink_.SetNumExpectedLayers(3);
+
+  // First frame is always keyframe.
+  video_source_.IncomingCapturedFrame(CreateFrame(1, nullptr));
+  WaitForEncodedFrame(1);
+  EXPECT_THAT(fake_encoder_.LastFrameTypes(),
+              ::testing::ElementsAreArray({VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameKey}));
+
+  // Insert delta frame.
+  video_source_.IncomingCapturedFrame(CreateFrame(2, nullptr));
+  WaitForEncodedFrame(2);
+  EXPECT_THAT(fake_encoder_.LastFrameTypes(),
+              ::testing::ElementsAreArray({VideoFrameType::kVideoFrameDelta,
+                                           VideoFrameType::kVideoFrameDelta,
+                                           VideoFrameType::kVideoFrameDelta}));
+
+  // Request next frame be a keyframe on first and third layers by calling
+  // SendKeyFrame twice.
+  video_stream_encoder_->SendKeyFrame({VideoFrameType::kVideoFrameKey,
+                                       VideoFrameType::kVideoFrameDelta,
+                                       VideoFrameType::kVideoFrameDelta});
+  video_stream_encoder_->SendKeyFrame({VideoFrameType::kVideoFrameDelta,
+                                       VideoFrameType::kVideoFrameDelta,
+                                       VideoFrameType::kVideoFrameKey});
+
+  video_source_.IncomingCapturedFrame(CreateFrame(3, nullptr));
+  WaitForEncodedFrame(3);
+
+  // Verify that both requests are merged, producing keyframes on 1st and 3rd
+  // streams.
+  EXPECT_THAT(fake_encoder_.LastFrameTypes(),
+              ::testing::ElementsAreArray({VideoFrameType::kVideoFrameKey,
+                                           VideoFrameType::kVideoFrameDelta,
                                            VideoFrameType::kVideoFrameKey}));
 
   video_stream_encoder_->Stop();

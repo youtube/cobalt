@@ -17,6 +17,7 @@
 #import "components/open_from_clipboard/fake_clipboard_recent_content.h"
 #import "components/search_engines/template_url_service.h"
 #import "components/supervised_user/core/common/features.h"
+#import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/autocomplete/model/autocomplete_browser_agent.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/bookmarks/ui_bundled/home/bookmarks_coordinator.h"
@@ -36,6 +37,7 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/history/model/history_service_factory.h"
 #import "ios/chrome/browser/incognito_reauth/ui_bundled/incognito_reauth_commands.h"
+#import "ios/chrome/browser/metrics/model/activity_reporter.h"
 #import "ios/chrome/browser/metrics/model/tab_usage_recorder_browser_agent.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/ui_bundled/logo_animation_controller.h"
@@ -76,6 +78,8 @@
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_recent_tab_browser_agent.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/tabs/model/tab_helper_util.h"
 #import "ios/chrome/browser/tabs/ui_bundled/foreground_tab_animation_view.h"
 #import "ios/chrome/browser/tips_manager/model/tips_manager_ios_factory.h"
@@ -158,6 +162,9 @@ class BrowserViewControllerTest : public BlockCleanupTest {
         AuthenticationServiceFactory::GetInstance(),
         AuthenticationServiceFactory::GetFactoryWithDelegate(
             std::make_unique<FakeAuthenticationServiceDelegate>()));
+    test_profile_builder.AddTestingFactory(
+        SyncServiceFactory::GetInstance(),
+        base::BindRepeating(&CreateTestSyncService));
     test_profile_builder.AddTestingFactory(
         segmentation_platform::SegmentationPlatformServiceFactory::
             GetInstance(),
@@ -329,6 +336,7 @@ class BrowserViewControllerTest : public BlockCleanupTest {
     dependencies.safeAreaProvider = safe_area_provider_;
     dependencies.sceneHandler = mock_application_handler_;
     dependencies.ntpCoordinator = NTPCoordinator_;
+    dependencies.isOffTheRecord = browser_->GetProfile()->IsOffTheRecord();
 
     bvc_ = [[BrowserViewController alloc]
         initWithBrowserContentViewController:container_
@@ -611,4 +619,36 @@ TEST_F(BrowserViewControllerTest, ViewOnInsert) {
 TEST_F(BrowserViewControllerTest, LogoAnimationControllerOwnerOwner) {
   EXPECT_TRUE(
       [bvc_ conformsToProtocol:@protocol(LogoAnimationControllerOwnerOwner)]);
+}
+
+TEST_F(BrowserViewControllerTest, ActivityReporting) {
+  id mockInstance = OCMClassMock([ActivityReporterWithIncognito class]);
+  [bvc_ setValue:mockInstance forKey:@"activityReporter"];
+
+  // Initial state is active, non-incognito standard web state.
+  OCMExpect([mockInstance reportActiveWithIncognito:NO]);
+  [bvc_ setActive:YES];
+  [mockInstance verify];
+
+  // Making BVC inactive -> reports inactive.
+  OCMExpect([mockInstance reportInactive]);
+  [bvc_ setActive:NO];
+  [mockInstance verify];
+
+  // Making BVC active again -> reports active.
+  OCMExpect([mockInstance reportActiveWithIncognito:NO]);
+  [bvc_ setActive:YES];
+  [mockInstance verify];
+
+  // Simulating navigating to NTP -> reports inactive.
+  OCMExpect([mockInstance reportInactive]);
+  auto ntp_web_state = CreateWebState();
+  NewTabPageTabHelper::FromWebState(ntp_web_state.get())
+      ->SetDelegate(tab_events_mediator_);
+  LoadNTP(ntp_web_state.get());
+  InsertWebState(std::move(ntp_web_state));
+  [mockInstance verify];
+
+  [bvc_ setActive:NO];
+  [mockInstance stopMocking];
 }

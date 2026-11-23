@@ -53,9 +53,6 @@ class CORE_EXPORT SkeletonLoader : public GarbageCollected<SkeletonLoader>,
   // Skeleton::Observer implementation
   void DocumentReady(Skeleton&) final;
 
-  // Sanitize and insert the skeleton document when loading finished
-  void UpdateSkeletonTree();
-
   // Remove the ::skeleton pseudo subtree
   void RemoveSkeletonTree();
 

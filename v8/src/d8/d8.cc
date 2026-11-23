@@ -749,7 +749,14 @@ MaybeLocal<String> Shell::Source::ConvertToString(Isolate* isolate) const {
     return string_;
   }
   DCHECK_EQ(type_, Type::kFile);
-  return Shell::ReadFile(isolate, filename_);
+  MaybeLocal<String> result = Shell::ReadFile(isolate, filename_);
+  if (result.IsEmpty()) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    if (i_isolate->has_pending_message()) {
+      i_isolate->ReportPendingMessages();
+    }
+  }
+  return result;
 }
 
 template <class T>
@@ -771,6 +778,10 @@ MaybeLocal<T> Shell::CompileSource(Isolate* isolate, Local<Context> context,
       auto file_stream =
           std::make_unique<FileSourceStream>(isolate, source.filename());
       if (!file_stream->IsValid()) {
+        i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+        if (i_isolate->has_pending_message()) {
+          i_isolate->ReportPendingMessages();
+        }
         return MaybeLocal<T>();
       }
       source_stream = std::move(file_stream);
@@ -3614,7 +3625,7 @@ void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
 void Shell::CreateWasmMemoryMapDescriptor(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = info.GetIsolate();
-  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  CHECK(i::v8_flags.wasm_memory_control);
   DCHECK(i::ValidateCallbackInfo(info));
   String::Utf8Value file_name(isolate, info[0]);
   if (*file_name == nullptr) {
@@ -4784,7 +4795,7 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     file_template->Set(isolate, "exists",
                        FunctionTemplate::New(isolate, Shell::FileExists));
 #if V8_TARGET_OS_LINUX && V8_ENABLE_WEBASSEMBLY
-    if (i::v8_flags.experimental_wasm_memory_control) {
+    if (i::v8_flags.wasm_memory_control) {
       file_template->Set(
           isolate, "create_wasm_memory_map_descriptor",
           FunctionTemplate::New(isolate, Shell::CreateWasmMemoryMapDescriptor));
@@ -6792,8 +6803,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       }
     } else if (FlagMatches("--ignore-unhandled-promises", &argv[i])) {
       options.ignore_unhandled_promises = true;
-    } else if (FlagMatches("--isolate", &argv[i], /*keep_flag=*/true)) {
-      options.num_isolates++;
     } else if (FlagMatches("--throws", &argv[i])) {
       options.expected_to_throw = true;
     } else if (FlagMatches("--no-fail", &argv[i])) {
@@ -7041,6 +7050,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   }
 
   // Set up isolated source groups.
+  options.num_isolates = 1;
+  for (int i = 1; i < argc; i++) {
+    if (argv[i] != nullptr && strcmp(argv[i], "--isolate") == 0) {
+      options.num_isolates++;
+    }
+  }
   options.isolate_sources = new SourceGroup[options.num_isolates];
   internal::g_num_isolates_for_testing = options.num_isolates;
   SourceGroup* current = options.isolate_sources;

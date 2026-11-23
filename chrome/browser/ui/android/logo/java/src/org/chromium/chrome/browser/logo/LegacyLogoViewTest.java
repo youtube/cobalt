@@ -12,6 +12,8 @@ import android.animation.ObjectAnimator;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -52,16 +54,20 @@ public class LegacyLogoViewTest {
     private static final String LOGO_URL = "https://www.google.com";
     private static final String ANIMATED_LOGO_URL =
             "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4.json";
+    private static final String DARK_ANIMATED_LOGO_URL =
+            "https://www.gstatic.com/chrome/ntp/doodle_test/ddljson_android4_dark.json";
     private static final String ALT_TEXT = "Hello World!";
 
     private LegacyLogoView mView;
     private Bitmap mBitmap;
+    private Bitmap mDarkBitmap;
     private PropertyModelChangeProcessor mPropertyModelChangeProcessor;
     private PropertyModel mModel;
 
     @Before
     public void setup() {
         mBitmap = Bitmap.createBitmap(1, 1, Config.ALPHA_8);
+        mDarkBitmap = Bitmap.createBitmap(1, 1, Config.ARGB_8888);
         TemplateUrlServiceFactory.setInstanceForTesting(mTemplateUrlService);
 
         mActivityScenarioRule
@@ -97,7 +103,14 @@ public class LegacyLogoViewTest {
 
     @Test
     public void testLogoView_WithUrl() {
-        Logo logo = new Logo(mBitmap, LOGO_URL, null, null);
+        Logo logo =
+                new Logo(
+                        /* image= */ mBitmap,
+                        /* darkImage= */ mDarkBitmap,
+                        /* onClickUrl= */ LOGO_URL,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
         mView.updateLogo(logo);
         mView.endAnimationsForTesting();
 
@@ -110,7 +123,14 @@ public class LegacyLogoViewTest {
 
     @Test
     public void testLogoView_WithAnimatedUrl() {
-        Logo logo = new Logo(mBitmap, null, null, ANIMATED_LOGO_URL);
+        Logo logo =
+                new Logo(
+                        /* image= */ mBitmap,
+                        /* darkImage= */ mDarkBitmap,
+                        /* onClickUrl= */ null,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ ANIMATED_LOGO_URL,
+                        /* darkAnimatedLogoUrl= */ null);
         mView.updateLogo(logo);
         mView.endAnimationsForTesting();
 
@@ -124,7 +144,14 @@ public class LegacyLogoViewTest {
     @Test
     public void testLogoView_WithUrl_Clicked() {
         mView.setClickHandler(mLogoClickHandler);
-        Logo logo = new Logo(mBitmap, LOGO_URL, null, null);
+        Logo logo =
+                new Logo(
+                        /* image= */ mBitmap,
+                        /* darkImage= */ mDarkBitmap,
+                        /* onClickUrl= */ LOGO_URL,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
         mView.updateLogo(logo);
         mView.endAnimationsForTesting();
         mView.performClick();
@@ -133,7 +160,14 @@ public class LegacyLogoViewTest {
 
     @Test
     public void testLogoView_WithAltText() {
-        Logo logo = new Logo(mBitmap, null, ALT_TEXT, null);
+        Logo logo =
+                new Logo(
+                        /* image= */ mBitmap,
+                        /* darkImage= */ mDarkBitmap,
+                        /* onClickUrl= */ null,
+                        /* altText= */ ALT_TEXT,
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
         mView.updateLogo(logo);
         mView.endAnimationsForTesting();
 
@@ -146,7 +180,14 @@ public class LegacyLogoViewTest {
 
     @Test
     public void testShowLoadingView() {
-        Logo logo = new Logo(Bitmap.createBitmap(1, 1, Bitmap.Config.ALPHA_8), null, null, null);
+        Logo logo =
+                new Logo(
+                        /* image= */ Bitmap.createBitmap(1, 1, Config.ALPHA_8),
+                        /* darkImage= */ mDarkBitmap,
+                        /* onClickUrl= */ null,
+                        /* altText= */ null,
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
         mModel.set(LogoProperties.LOGO, logo);
         mView.endAnimationsForTesting();
         Assert.assertNotNull(mView.getLogoDrawableForTesting());
@@ -181,7 +222,14 @@ public class LegacyLogoViewTest {
         Assert.assertEquals(logoTopMargin, logoLayoutParams.topMargin);
 
         // Test doodle animation.
-        Logo logo = new Logo(mBitmap, null, ALT_TEXT, null);
+        Logo logo =
+                new Logo(
+                        /* image= */ mBitmap,
+                        /* darkImage= */ mDarkBitmap,
+                        /* onClickUrl= */ null,
+                        /* altText= */ ALT_TEXT,
+                        /* animatedLogoUrl= */ null,
+                        /* darkAnimatedLogoUrl= */ null);
         mModel.set(LogoProperties.LOGO, logo);
         ObjectAnimator fadeAnimation = mView.getFadeAnimationForTesting();
         Assert.assertNotNull(fadeAnimation);
@@ -237,5 +285,69 @@ public class LegacyLogoViewTest {
         MarginLayoutParams params = (MarginLayoutParams) mView.getLayoutParams();
         mView.setLogoHeight(200);
         Assert.assertEquals(200, params.height);
+    }
+
+    @Test
+    public void testLogoView_DarkMode_WithDarkAsset() {
+        Bitmap darkBitmap = Bitmap.createBitmap(2, 2, Config.ARGB_8888);
+        Logo logo =
+                new Logo(
+                        mBitmap, darkBitmap, null, null, ANIMATED_LOGO_URL, DARK_ANIMATED_LOGO_URL);
+
+        // Test Light Mode
+        mView.setNightMode(false);
+        mView.updateLogo(logo);
+        mView.endAnimationsForTesting();
+        Assert.assertEquals(
+                "Should render light logo in light mode",
+                mBitmap,
+                getLogoDrawableBitmapForTesting());
+        Assert.assertEquals(
+                "Should use light animated logo in light mode",
+                ANIMATED_LOGO_URL,
+                mView.getAnimatedLogoUrlForTesting());
+        Assert.assertTrue("Logo should be clickable", mView.isClickable());
+
+        // Test Dark Mode
+        mView.setNightMode(true);
+        mView.updateLogo(logo);
+        mView.endAnimationsForTesting();
+        Assert.assertEquals(
+                "Should render dark logo in dark mode",
+                darkBitmap,
+                getLogoDrawableBitmapForTesting());
+        Assert.assertEquals(
+                "Should use dark animated logo in dark mode",
+                DARK_ANIMATED_LOGO_URL,
+                mView.getAnimatedLogoUrlForTesting());
+        Assert.assertTrue("Logo should be clickable", mView.isClickable());
+    }
+
+    @Test
+    public void testLogoView_DarkMode_WithoutDarkAsset() {
+        Logo logo = new Logo(mBitmap, null, null, null, ANIMATED_LOGO_URL, null);
+
+        // Test Dark Mode Fallback
+        mView.setNightMode(true);
+        mView.updateLogo(logo);
+        mView.endAnimationsForTesting();
+        Assert.assertEquals(
+                "Should fall back to light logo in dark mode if no dark asset exists",
+                mBitmap,
+                getLogoDrawableBitmapForTesting());
+        Assert.assertEquals(
+                "Should fall back to light animated logo in dark mode if no dark animated logo"
+                        + " exists",
+                ANIMATED_LOGO_URL,
+                mView.getAnimatedLogoUrlForTesting());
+        Assert.assertTrue("Logo should be clickable", mView.isClickable());
+    }
+
+    private Bitmap getLogoDrawableBitmapForTesting() {
+        Drawable drawable = mView.getLogoDrawableForTesting();
+        if (drawable instanceof BitmapDrawable) {
+            return ((BitmapDrawable) drawable).getBitmap();
+        }
+        return null;
     }
 }

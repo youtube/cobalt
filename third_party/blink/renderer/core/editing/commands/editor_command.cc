@@ -1595,7 +1595,7 @@ static const EditorInternalCommand* InternalCommand(
       {EditingCommandType::kInsertBacktab, InsertCommands::ExecuteInsertBacktab,
        SupportedFromMenuOrKeyBinding, EnabledInEditableText, StateNone,
        ValueStateOrNull, kIsTextInsertion, CanNotExecuteWhenDisabled},
-      {EditingCommandType::kInsertHTML, InsertCommands::ExecuteInsertHTML,
+      {EditingCommandType::kInsertHTML, InsertCommands::ExecuteInsertHtml,
        Supported, EnabledInEditableText, StateNone, ValueStateOrNull,
        kNotTextInsertion, CanNotExecuteWhenDisabled},
       {EditingCommandType::kInsertHorizontalRule,
@@ -2260,7 +2260,7 @@ bool EditorCommand::IsTextInsertion() const {
   return command_ && command_->is_text_insertion;
 }
 
-bool EditorCommand::IsValueInterpretedAsHTML() const {
+bool EditorCommand::IsValueInterpretedAsHtml() const {
   return IsSupported() &&
          command_->command_type == EditingCommandType::kInsertHTML;
 }

@@ -899,7 +899,6 @@ public class PaymentRequestServiceTest implements PaymentRequestClient {
 
     @Test
     @Feature({"Payments"})
-    @EnableFeatures({PaymentFeatureList.PAYMENT_REQUEST_SUPPORT_REPORTING_APP_ERROR})
     public void testOnInstrumentDetailsError_userCancel() {
         int[] userCancelResponses = {
             org.chromium.payments.mojom.PaymentEventResponseType.PAYMENT_EVENT_REJECT,
@@ -916,7 +915,6 @@ public class PaymentRequestServiceTest implements PaymentRequestClient {
 
     @Test
     @Feature({"Payments"})
-    @EnableFeatures({PaymentFeatureList.PAYMENT_REQUEST_SUPPORT_REPORTING_APP_ERROR})
     public void testOnInstrumentDetailsError_appError() {
         int[] appErrorResponses = {
             org.chromium.payments.mojom.PaymentEventResponseType.PAYMENT_EVENT_BROWSER_ERROR,
@@ -948,7 +946,6 @@ public class PaymentRequestServiceTest implements PaymentRequestClient {
 
     @Test
     @Feature({"Payments"})
-    @EnableFeatures({PaymentFeatureList.PAYMENT_REQUEST_SUPPORT_REPORTING_APP_ERROR})
     public void testOnInstrumentDetailsError_notAllowed() {
         PaymentRequestService service = defaultBuilder().build();
         Mockito.doReturn(true).when(mBrowserPaymentRequest).hasSkippedAppSelector();

@@ -17,6 +17,8 @@ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 @NullMarked
 public class HubPaneHostCoordinator {
     private final HubPaneHostMediator mMediator;
+    private final PropertyModel mModel;
+    private final HubPaneHostView mHubPaneHostView;
 
     /**
      * Eagerly creates the component, but will not be rooted in the view tree yet.
@@ -31,18 +33,21 @@ public class HubPaneHostCoordinator {
             MonotonicObservableSupplier<Pane> paneSupplier,
             HubColorMixer hubColorMixer,
             @PaneId int defaultPaneId) {
-        PropertyModel model =
+        mHubPaneHostView = hubPaneHostView;
+        mModel =
                 new PropertyModel.Builder(HubPaneHostProperties.ALL_KEYS)
                         .with(COLOR_MIXER, hubColorMixer)
                         .build();
-        PropertyModelChangeProcessor.create(model, hubPaneHostView, HubPaneHostViewBinder::bind);
+        PropertyModelChangeProcessor.create(mModel, hubPaneHostView, HubPaneHostViewBinder::bind);
         mMediator =
                 new HubPaneHostMediator(
-                        model, paneSupplier, new DefaultPaneOrderController(), defaultPaneId);
+                        mModel, paneSupplier, new DefaultPaneOrderController(), defaultPaneId);
     }
 
     /** Cleans up observers and resources. */
     public void destroy() {
+        mHubPaneHostView.destroy();
+        mModel.set(COLOR_MIXER, null);
         mMediator.destroy();
     }
 

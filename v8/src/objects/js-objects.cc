@@ -47,12 +47,13 @@
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-iterator-helpers-inl.h"
 #include "src/objects/js-promise.h"
+#include "src/objects/js-proxy-inl.h"
 #include "src/objects/js-raw-json-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-regexp-string-iterator.h"
 #include "src/objects/js-shadow-realm.h"
-#include "src/objects/js-shared-array-inl.h"
-#include "src/objects/js-struct-inl.h"
+#include "src/objects/js-shared-array.h"
+#include "src/objects/js-struct.h"
 #include "src/objects/property-details.h"
 #ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
@@ -5825,6 +5826,24 @@ void JSGlobalObject::InvalidatePropertyCell(DirectHandle<JSGlobalObject> global,
   details = details.set_cell_type(PropertyCellType::kMutable);
   PropertyCell::InvalidateAndReplaceEntry(isolate, dictionary, entry, details,
                                           value);
+}
+
+// static
+Maybe<bool> JSGlobalObject::HasRestrictedGlobalProperty(
+    Isolate* isolate, DirectHandle<JSGlobalObject> global,
+    DirectHandle<Name> name) {
+  LookupIterator::Configuration config = LookupIterator::OWN_SKIP_INTERCEPTOR;
+  if (global->HasNamedInterceptor() &&
+      global->GetNamedInterceptor()->has_dont_delete_property()) {
+    config = LookupIterator::OWN;
+  }
+  LookupIterator it(isolate, global, name, global, config);
+  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+  if (maybe.IsNothing()) return Nothing<bool>();
+  // Global var and function bindings (except those that are introduced by
+  // non-strict direct eval) are non-configurable and are therefore restricted
+  // global properties.
+  return Just((maybe.FromJust() & DONT_DELETE) != 0);
 }
 
 // static

@@ -126,13 +126,13 @@ class FakeContextualSearchboxHandler : public ContextualSearchboxHandler {
       mojo::PendingRemote<searchbox::mojom::Page> pending_page,
       Profile* profile,
       content::WebContents* web_contents,
-      std::unique_ptr<OmniboxController> controller,
+      std::unique_ptr<OmniboxClient> client,
       GetSessionHandleCallback get_session_callback)
       : ContextualSearchboxHandler(std::move(pending_page_handler),
                                    std::move(pending_page),
                                    profile,
                                    web_contents,
-                                   std::move(controller),
+                                   std::move(client),
                                    std::move(get_session_callback)) {}
   ~FakeContextualSearchboxHandler() override {
 #if !BUILDFLAG(IS_ANDROID)
@@ -200,8 +200,17 @@ class FakeContextualSearchboxHandler : public ContextualSearchboxHandler {
     ContextualSearchboxHandler::OnDrivePickerDisconnected();
   }
 
+  bool IsContextualSearchTabSharingEligible() const override {
+    return tab_sharing_eligible_;
+  }
+
+  void set_tab_sharing_eligible(bool eligible) {
+    tab_sharing_eligible_ = eligible;
+  }
+
  private:
   std::optional<bool> smart_tab_sharing_active_override_;
+  bool tab_sharing_eligible_ = true;
 };
 
 class MockDrivePickerHostController : public DrivePickerHostController {
@@ -311,8 +320,7 @@ class ContextualSearchboxHandlerTest
     handler_ = std::make_unique<FakeContextualSearchboxHandler>(
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
         mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
-        std::make_unique<OmniboxController>(
-            std::make_unique<TestOmniboxClient>()),
+        std::make_unique<TestOmniboxClient>(),
         base::BindLambdaForTesting(
             [&]() { return contextual_session_handle_.get(); }));
 
@@ -436,9 +444,7 @@ TEST_F(ContextualSearchboxHandlerTest,
   auto incognito_handler = std::make_unique<FakeContextualSearchboxHandler>(
       mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
       incognito_mock_searchbox_page.BindAndGetRemote(), incognito_profile,
-      web_contents(),
-      std::make_unique<OmniboxController>(
-          std::make_unique<TestOmniboxClient>()),
+      web_contents(), std::make_unique<TestOmniboxClient>(),
       base::BindLambdaForTesting(
           [&]() { return contextual_session_handle_.get(); }));
 
@@ -1295,8 +1301,7 @@ class SmartTabSharingTest : public ContextualSearchboxHandlerTestHarness {
     handler_ = std::make_unique<FakeContextualSearchboxHandler>(
         mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
         mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
-        std::make_unique<OmniboxController>(
-            std::make_unique<TestOmniboxClient>()),
+        std::make_unique<TestOmniboxClient>(),
         base::BindLambdaForTesting(
             [&]() { return contextual_session_handle_.get(); }));
 
@@ -1502,10 +1507,9 @@ TEST_F(SmartTabSharingTest, InitializationFromPref) {
   auto handler = std::make_unique<FakeContextualSearchboxHandler>(
       mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
       mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
-      std::make_unique<OmniboxController>(
-          std::make_unique<TestOmniboxClient>()),
-      base::BindLambdaForTesting(
-          [&]() { return contextual_session_handle_.get(); }));
+      std::make_unique<TestOmniboxClient>(), base::BindLambdaForTesting([&]() {
+        return contextual_session_handle_.get();
+      }));
 
   EXPECT_TRUE(handler->IsSmartTabSharingActive());
 }
@@ -1932,7 +1936,7 @@ TEST_F(ContextualSearchboxHandlerTest, OpenAutocompleteMatch_ZeroSuggestClick) {
   input.set_focus_type(metrics::OmniboxFocusType::INTERACTION_FOCUS);
 
   // Set the page classification on the client's location bar model.
-  static_cast<TestOmniboxClient*>(handler().omnibox_controller()->client())
+  static_cast<TestOmniboxClient*>(handler().client())
       ->location_bar_model()
       ->set_page_classification(
           metrics::OmniboxEventProto::NTP_OMNIBOX_COMPOSEBOX);
@@ -1950,8 +1954,7 @@ TEST_F(ContextualSearchboxHandlerTest, OpenAutocompleteMatch_ZeroSuggestClick) {
 
     fake_controller->published_result_.AppendMatches({match});
 
-    handler().omnibox_controller()->SetAutocompleteControllerForTesting(
-        std::move(fake_controller));
+    handler().SetAutocompleteControllerForTesting(std::move(fake_controller));
 
     EXPECT_CALL(*GetMetricsRecorderPtr(), RecordZeroSuggestClick(false))
         .WillOnce(testing::Invoke(
@@ -1985,8 +1988,7 @@ TEST_F(ContextualSearchboxHandlerTest, OpenAutocompleteMatch_ZeroSuggestClick) {
 
     fake_controller->published_result_.AppendMatches({match});
 
-    handler().omnibox_controller()->SetAutocompleteControllerForTesting(
-        std::move(fake_controller));
+    handler().SetAutocompleteControllerForTesting(std::move(fake_controller));
 
     EXPECT_CALL(*GetMetricsRecorderPtr(), RecordZeroSuggestClick(true))
         .WillOnce(testing::Invoke(
@@ -2015,7 +2017,7 @@ TEST_F(ContextualSearchboxHandlerTest,
                           ChromeAutocompleteSchemeClassifier(profile()));
 
   // Set the page classification on the client's location bar model.
-  static_cast<TestOmniboxClient*>(handler().omnibox_controller()->client())
+  static_cast<TestOmniboxClient*>(handler().client())
       ->location_bar_model()
       ->set_page_classification(
           metrics::OmniboxEventProto::NTP_OMNIBOX_COMPOSEBOX);
@@ -2033,8 +2035,7 @@ TEST_F(ContextualSearchboxHandlerTest,
 
     fake_controller->published_result_.AppendMatches({match});
 
-    handler().omnibox_controller()->SetAutocompleteControllerForTesting(
-        std::move(fake_controller));
+    handler().SetAutocompleteControllerForTesting(std::move(fake_controller));
 
     EXPECT_CALL(*GetMetricsRecorderPtr(), RecordTypedSuggestNavigation(true))
         .WillOnce(testing::Invoke(GetMetricsRecorderPtr(),
@@ -2072,8 +2073,7 @@ TEST_F(ContextualSearchboxHandlerTest,
 
     fake_controller->published_result_.AppendMatches({match0, match1});
 
-    handler().omnibox_controller()->SetAutocompleteControllerForTesting(
-        std::move(fake_controller));
+    handler().SetAutocompleteControllerForTesting(std::move(fake_controller));
 
     EXPECT_CALL(*GetMetricsRecorderPtr(), RecordTypedSuggestNavigation(false))
         .WillOnce(testing::Invoke(GetMetricsRecorderPtr(),
@@ -2119,8 +2119,7 @@ TEST_F(ContextualSearchboxHandlerTest, SubmitQuery_NoContextualTasksService) {
       std::make_unique<FakeContextualSearchboxHandler>(
           mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
           mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
-          std::make_unique<OmniboxController>(
-              std::make_unique<TestOmniboxClient>()),
+          std::make_unique<TestOmniboxClient>(),
           base::BindLambdaForTesting(
               [&]() { return contextual_session_handle_.get(); }));
 
@@ -2142,8 +2141,7 @@ TEST_F(ContextualSearchboxHandlerTest, QueryAutocomplete_SetsLensInputs) {
   // Set suggest inputs on the client.
   lens::proto::LensOverlaySuggestInputs suggest_inputs;
   suggest_inputs.set_encoded_image_signals("xyz");
-  EXPECT_CALL(*static_cast<TestOmniboxClient*>(
-                  handler().omnibox_controller()->client()),
+  EXPECT_CALL(*static_cast<TestOmniboxClient*>(handler().client()),
               GetLensOverlaySuggestInputs())
       .WillRepeatedly(testing::Return(suggest_inputs));
 
@@ -2162,7 +2160,7 @@ TEST_F(ContextualSearchboxHandlerTest, QueryAutocomplete_SetsLensInputs) {
   AutocompleteInput input;
   EXPECT_CALL(*autocomplete_controller, Start(_))
       .WillOnce(testing::SaveArg<0>(&input));
-  handler().omnibox_controller()->SetAutocompleteControllerForTesting(
+  handler().SetAutocompleteControllerForTesting(
       std::move(autocomplete_controller));
 
   handler().QueryAutocomplete(u"test", false, 0);
@@ -2176,8 +2174,7 @@ TEST_F(ContextualSearchboxHandlerTest,
        QueryAutocomplete_SetsLensInputs_InToolModes) {
   lens::proto::LensOverlaySuggestInputs suggest_inputs;
   suggest_inputs.set_encoded_image_signals("xyz");
-  EXPECT_CALL(*static_cast<TestOmniboxClient*>(
-                  handler().omnibox_controller()->client()),
+  EXPECT_CALL(*static_cast<TestOmniboxClient*>(handler().client()),
               GetLensOverlaySuggestInputs())
       .WillRepeatedly(testing::Return(suggest_inputs));
 
@@ -2195,7 +2192,7 @@ TEST_F(ContextualSearchboxHandlerTest,
     AutocompleteInput input;
     EXPECT_CALL(*autocomplete_controller, Start(_))
         .WillOnce(testing::SaveArg<0>(&input));
-    handler().omnibox_controller()->SetAutocompleteControllerForTesting(
+    handler().SetAutocompleteControllerForTesting(
         std::move(autocomplete_controller));
 
     handler().QueryAutocomplete(u"test", false, 0);
@@ -2218,7 +2215,7 @@ TEST_F(ContextualSearchboxHandlerTest,
     AutocompleteInput input;
     EXPECT_CALL(*autocomplete_controller, Start(_))
         .WillOnce(testing::SaveArg<0>(&input));
-    handler().omnibox_controller()->SetAutocompleteControllerForTesting(
+    handler().SetAutocompleteControllerForTesting(
         std::move(autocomplete_controller));
 
     handler().QueryAutocomplete(u"test", false, 0);
@@ -2843,9 +2840,7 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
       std::make_unique<FakeContextualSearchboxHandler>(
           mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
           local_mock_searchbox_page.BindAndGetRemote(), profile(),
-          web_contents(),
-          std::make_unique<OmniboxController>(
-              std::make_unique<TestOmniboxClient>()),
+          web_contents(), std::make_unique<TestOmniboxClient>(),
           base::BindLambdaForTesting(
               []() -> contextual_search::ContextualSearchSessionHandle* {
                 return nullptr;

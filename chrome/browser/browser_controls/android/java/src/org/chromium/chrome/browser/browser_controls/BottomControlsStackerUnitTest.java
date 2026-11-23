@@ -339,6 +339,28 @@ public class BottomControlsStackerUnitTest {
     }
 
     @Test
+    public void testLayerMinHeightClearedWhenHidden() {
+        TestLayer layer =
+                new TestLayer(
+                        MID_LAYER,
+                        50,
+                        LayerScrollBehavior.NEVER_SCROLL_OFF,
+                        LayerVisibility.VISIBLE);
+        mBottomControlsStacker.addLayer(layer);
+        mBottomControlsStacker.requestLayerUpdate(false);
+
+        assertTrue(mBottomControlsStacker.isLayerNonScrollable(MID_LAYER));
+        assertTrue(mBottomControlsStacker.hasNonScrollableLayersOtherThan(LayerType.BOTTOM_CHIN));
+
+        // Hide the layer. It should no longer be considered non-scrollable.
+        layer.setVisibility(LayerVisibility.HIDDEN);
+        mBottomControlsStacker.requestLayerUpdate(false);
+
+        assertFalse(mBottomControlsStacker.isLayerNonScrollable(MID_LAYER));
+        assertFalse(mBottomControlsStacker.hasNonScrollableLayersOtherThan(LayerType.BOTTOM_CHIN));
+    }
+
+    @Test
     public void stackLayerBothScrollOff() {
         TestLayer layer1 =
                 new TestLayer(

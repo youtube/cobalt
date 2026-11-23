@@ -7,6 +7,8 @@
 #import "ios/chrome/browser/level_up/model/task_info.h"
 #import "ios/chrome/browser/level_up/model/tasks/task_factories.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util.h"
 
 class PinTabsTaskInfo : public TaskInfo {
  public:
@@ -28,6 +30,9 @@ class PinTabsTaskInfo : public TaskInfo {
   }
   std::string GetTriggerUserAction() const override {
     return "MobileTabPinned";
+  }
+  std::string GetCompletionSnackbarMessage() const override {
+    return l10n_util::GetStringUTF8(IDS_IOS_LEVEL_UP_TASK_COMPLETED_PIN_TABS);
   }
   TaskInfo::NavigationAction GetNavigationAction() const override {
     return base::DoNothing();

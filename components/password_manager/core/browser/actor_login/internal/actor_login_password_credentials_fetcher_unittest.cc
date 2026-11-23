@@ -48,15 +48,16 @@
 
 namespace actor_login {
 
-using base::test::RunUntil;
-using password_manager::PasswordForm;
-using password_manager::PasswordFormManager;
-using testing::Eq;
-using testing::NiceMock;
-using testing::Return;
-using testing::ReturnRef;
-using testing::UnorderedElementsAre;
-using testing::WithArg;
+using ::base::test::RunUntil;
+using ::password_manager::PasswordForm;
+using ::password_manager::PasswordFormManager;
+using ::testing::_;
+using ::testing::Eq;
+using ::testing::NiceMock;
+using ::testing::Return;
+using ::testing::ReturnRef;
+using ::testing::UnorderedElementsAre;
+using ::testing::WithArg;
 
 using GetCredentialsDetails =
     optimization_guide::proto::ActorLoginQuality_GetCredentialsDetails;
@@ -86,8 +87,10 @@ class FakePasswordManagerClient
               GetPasswordManager,
               (),
               (override, const));
-
-  MOCK_METHOD(bool, IsFillingEnabled, (const GURL& url), (override, const));
+  MOCK_METHOD(bool,
+              IsFillingEnabled,
+              (const url::Origin& origin, base::optional_ref<const GURL>),
+              (override, const));
   FakePasswordManagerClient() {
     profile_store_ = base::MakeRefCounted<password_manager::TestPasswordStore>(
         password_manager::IsAccountStore(false));
@@ -850,8 +853,7 @@ TEST_F(ActorLoginPasswordCredentialsFetcherTest,
 }
 
 TEST_F(ActorLoginPasswordCredentialsFetcherTest, FillingNotAllowed) {
-  EXPECT_CALL(*client(), IsFillingEnabled(kOrigin.GetURL()))
-      .WillOnce(Return(false));
+  EXPECT_CALL(*client(), IsFillingEnabled(kOrigin, _)).WillOnce(Return(false));
   base::test::TestFuture<std::vector<Credential>,
                          ActorLoginCredentialsFetcher::Status>
       future;

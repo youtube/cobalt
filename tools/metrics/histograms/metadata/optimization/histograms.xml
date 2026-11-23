@@ -1508,7 +1508,7 @@ chromium-metrics-reviews@google.com.
     name="OptimizationGuide.ModelExecution.OnDeviceModelToBeInstalledReason.{ModelExecutionFeature}"
     enum="OptimizationGuideOnDeviceModelStatus" expires_after="2027-04-14">
   <owner>holte@chromium.org</owner>
-  <owner>andysjlim@chromium.org</owner>
+  <owner>nwokedi@chromium.org</owner>
   <summary>
     Records the OptimizationGuideOnDeviceModelStatus when it is determined that
     the device is eligible but the model has not been installed yet. This is

@@ -123,7 +123,6 @@ class VIEWS_EXPORT BubbleDialogModelHost : public BubbleDialogDelegate,
   void Close() override;
   void OnDialogButtonChanged() override;
 
-  ui::DialogModel* GetModelForTesting() { return model_.get(); }
 
  private:
   // This class observes the ContentsView theme to make sure that the window
@@ -162,6 +161,8 @@ class VIEWS_EXPORT BubbleDialogModelHost : public BubbleDialogDelegate,
   const raw_ptr<BubbleDialogModelHostContentsView> contents_view_;
   base::CallbackListSubscription on_contents_changed_subscription_;
   ThemeChangedObserver theme_observer_;
+
+  base::WeakPtrFactory<BubbleDialogModelHost> weak_ptr_factory_{this};
 };
 
 }  // namespace views

@@ -11,14 +11,18 @@ import '//resources/cr_elements/icons.html.js';
 import {assert, assertNotReachedCase} from '//resources/js/assert.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
+import type {Point} from '//resources/mojo/ui/gfx/geometry/mojom/geometry.mojom-webui.js';
 import {TabStripService} from '/tab_strip_api/tab_strip_api.mojom-webui.js';
 import type {TabStripServiceRemote} from '/tab_strip_api/tab_strip_api.mojom-webui.js';
 import type {Container, Tab, TabCreatedContainer, TabGroup} from '/tab_strip_api/tab_strip_api_data_model.mojom-webui.js';
 import {OnDataChangedEventFieldTags, whichOnDataChangedEvent} from '/tab_strip_api/tab_strip_api_events.mojom-webui.js';
 import type {OnCollectionCreatedEvent, OnDataChangedEvent, OnNodeMovedEvent, OnNodesClosedEvent, OnTabsCreatedEvent} from '/tab_strip_api/tab_strip_api_events.mojom-webui.js';
-import type {NodeId} from '/tab_strip_api/tab_strip_api_types.mojom-webui.js';
+import type {NodeId, Position} from '/tab_strip_api/tab_strip_api_types.mojom-webui.js';
 import {TabStripObservation} from '/tab_strip_api/tab_strip_observation.js';
 import type {TabStripObserver} from '/tab_strip_api/tab_strip_observer.js';
+
+import {DropTargetReceiver, DropTargetRegistrationRemote, TabDragService} from '../tab_drag_api.mojom-webui.js';
+import type {DropTargetInterface, DropTargetRegistrationRemote as DropTargetRegistrationRemoteType, TabDragServiceRemote} from '../tab_drag_api.mojom-webui.js';
 
 import type {TabActivated, TabAdded, TabClosed, TabUpdated} from './events.js';
 import type {TabGroupItem, TabItem, TabStripItem} from './items.js';
@@ -63,8 +67,8 @@ class TabStripItemFactory {
   }
 }
 
-export class TabStripElement extends CrLitElement implements TabStripObserver,
-                                                             TabDragHost {
+export class TabStripElement extends CrLitElement implements
+    TabStripObserver, TabDragHost, DropTargetInterface {
   static get is() {
     return 'webui-browser-tab-strip';
   }
@@ -104,13 +108,18 @@ export class TabStripElement extends CrLitElement implements TabStripObserver,
   protected accessor inactiveFrame = false;
 
   private readonly tabStripService_: TabStripServiceRemote;
+  private readonly tabDragService_: TabDragServiceRemote;
   private tabStripObservation_: TabStripObservation|undefined;
   private dragDelegate_ = new TabDragDelegate(this);
+  private dropTargetReceiver_: DropTargetReceiver|null = null;
+  private dropTargetRegistration_: DropTargetRegistrationRemoteType|null = null;
+  private resizeObserver_: ResizeObserver|null = null;
 
   constructor() {
     super();
 
     this.tabStripService_ = TabStripService.getRemote();
+    this.tabDragService_ = TabDragService.getRemote();
   }
 
   override connectedCallback() {
@@ -165,7 +174,20 @@ export class TabStripElement extends CrLitElement implements TabStripObserver,
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.tabStripObservation_ = undefined;
+    if (this.resizeObserver_) {
+      this.resizeObserver_.disconnect();
+      this.resizeObserver_ = null;
+    }
+    if (this.dropTargetReceiver_) {
+      this.dropTargetReceiver_.$.close();
+      this.dropTargetReceiver_ = null;
+    }
+    if (this.dropTargetRegistration_) {
+      this.dropTargetRegistration_.$.close();
+      this.dropTargetRegistration_ = null;
+    }
   }
+
 
   // TabStripObserver impl:
   onTabsCreated(tabsCreatedEvent: OnTabsCreatedEvent) {
@@ -192,6 +214,40 @@ export class TabStripElement extends CrLitElement implements TabStripObserver,
     if (changedProperties.has('activeTab_' as keyof TabStripElement)) {
       this.syncTabActiveStates_();
     }
+  }
+
+  protected override firstUpdated(changedProperties: PropertyValues<this>) {
+    super.firstUpdated(changedProperties);
+    this.registerDropTarget_();
+  }
+
+  private async registerDropTarget_() {
+    this.dropTargetReceiver_ = new DropTargetReceiver(this);
+    const pendingRemote = this.dropTargetReceiver_.$.associateAndPassRemote();
+
+    this.dropTargetRegistration_ = new DropTargetRegistrationRemote();
+    const pendingReceiver =
+        this.dropTargetRegistration_.$.associateAndPassReceiver();
+
+    await this.tabDragService_.registerDropTarget(
+        pendingRemote, pendingReceiver);
+    this.setupResizeObserver_();
+  }
+
+  private setupResizeObserver_() {
+    this.resizeObserver_ = new ResizeObserver(() => {
+      if (!this.dropTargetRegistration_) {
+        return;
+      }
+      const rect = this.$.tabstrip.getBoundingClientRect();
+      this.dropTargetRegistration_.onBoundsChanged({
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      });
+    });
+    this.resizeObserver_.observe(this.$.tabstrip);
   }
 
   private syncTabActiveStates_() {
@@ -373,8 +429,20 @@ export class TabStripElement extends CrLitElement implements TabStripObserver,
 
   // TabDragHost impl:
 
+  get tabDragService() {
+    return this.tabDragService_;
+  }
+
   get itemsForDrag() {
     return this.items_;
+  }
+
+  commitDrag(nodeId: NodeId, finalIndex: number) {
+    const position: Position = {
+      path: {components: []},
+      index: finalIndex,
+    };
+    this.tabStripService_.moveNode(nodeId, position);
   }
 
   getTabElementForDrag(id: string) {
@@ -397,16 +465,39 @@ export class TabStripElement extends CrLitElement implements TabStripObserver,
     this.$.tabstrip.classList.toggle('nodrag', noDrag);
   }
 
+  getDragContainerBounds() {
+    return this.$.tabstrip.getBoundingClientRect();
+  }
+
   dragMouseDown(e: MouseEvent) {
     this.dragDelegate_.onMouseDown(e);
   }
 
-  elementDrag(e: MouseEvent) {
-    this.dragDelegate_.onMouseMove(e);
+  // DropTargetInterface implementation
+  onDragEntered(sourceTabIds: NodeId[], localPoint: Point) {
+    this.dragInProgress_ = true;
+    const nodeId = sourceTabIds[0]!;
+    this.dragDelegate_.onMojoDragEntered(nodeId, localPoint);
   }
 
-  closeDragElement() {
-    this.dragDelegate_.onMouseUp();
+  onDrag(localPoint: Point) {
+    this.dragDelegate_.onMojoDrag(localPoint);
+  }
+
+  onDragLeave() {
+    this.dragInProgress_ = false;
+    this.dragDelegate_.onMojoDragLeave();
+  }
+
+  onDrop(sourceTabIds: NodeId[], localPoint: Point) {
+    this.dragInProgress_ = false;
+    const nodeId = sourceTabIds[0]!;
+    this.dragDelegate_.onMojoDrop(nodeId, localPoint);
+  }
+
+  onDragCancelled() {
+    this.dragInProgress_ = false;
+    this.dragDelegate_.onMojoDragCancelled();
   }
 }
 

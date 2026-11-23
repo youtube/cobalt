@@ -464,13 +464,18 @@ void UkmRecorderImpl::StoreRecordingsInReport(Report* report) {
   std::set<SourceId> source_ids_seen;
   std::vector<mojom::UkmEntry*> document_created_entries;
   for (const auto& entry : recordings_.entries) {
+    // DocumentCreated events are only needed to map navigation source IDs
+    // to document source IDs on the client-side (which helps populate
+    // `resolved_urls`), so there is no need to send them to the server.
+    // TODO(crbug.com/502906724): Remove DocumentCreated.
+    if (entry->event_hash == builders::DocumentCreated::kEntryNameHash) {
+      document_created_entries.push_back(entry.get());
+      continue;
+    }
+
     Entry* proto_entry = report->add_entries();
     StoreEntryProto(*entry, proto_entry);
     source_ids_seen.insert(entry->source_id);
-
-    if (entry->event_hash == builders::DocumentCreated::kEntryNameHash) {
-      document_created_entries.push_back(entry.get());
-    }
   }
 
   for (const auto& [source_id, features_set] : recordings_.webdx_features) {
@@ -572,7 +577,7 @@ void UkmRecorderImpl::StoreRecordingsInReport(Report* report) {
     num_serialized_sources += source_type_and_count.second;
   }
 
-  int num_serialized_entries = recordings_.entries.size();
+  int num_serialized_entries = report->entries_size();
   UMA_HISTOGRAM_COUNTS_1000("UKM.Sources.SerializedCount2",
                             num_serialized_sources);
   UMA_HISTOGRAM_COUNTS_100000("UKM.Entries.SerializedCount2",

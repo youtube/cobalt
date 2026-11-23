@@ -236,8 +236,8 @@ content_settings::ContentSettingConstraints CreateConstraintsForAutoRevocation(
   if (base::FeatureList::IsEnabled(
           permissions::features::
               kSafetyHubUnusedPermissionRevocationForAllSurfaces) &&
-      content_settings::CanBeAutoRevokedAsUnusedPermission(
-          content_type, content_settings::ContentSettingToValue(setting))) {
+      content_settings::CanBeAutoRevokedAsUnusedPermission(content_type,
+                                                           setting)) {
     constraints.set_track_last_visit_for_autoexpiration(true);
   }
   return constraints;

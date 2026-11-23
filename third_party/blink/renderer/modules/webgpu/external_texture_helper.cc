@@ -156,7 +156,6 @@ ExternalTextureSource GetExternalTextureSourceFromVideoElement(
 
   if (auto* wmp = video->GetWebMediaPlayer()) {
     source.media_video_frame = wmp->GetCurrentFrameThenUpdate();
-    source.video_renderer = wmp->GetPaintCanvasVideoRenderer();
   }
 
   if (!source.media_video_frame) {
@@ -210,8 +209,7 @@ ExternalTextureSource GetExternalTextureSourceFromVideoFrame(
 ExternalTexture CreateExternalTexture(
     GPUDevice* device,
     PredefinedColorSpace dst_predefined_color_space,
-    scoped_refptr<media::VideoFrame> media_video_frame,
-    media::PaintCanvasVideoRenderer* video_renderer) {
+    scoped_refptr<media::VideoFrame> media_video_frame) {
   DCHECK(media_video_frame);
   gfx::ColorSpace src_color_space = media_video_frame->ColorSpace();
   gfx::ColorSpace dst_color_space =
@@ -233,8 +231,12 @@ ExternalTexture CreateExternalTexture(
 
   // TODO(crbug.com/1306753): Use SharedImageProducer and CompositeSharedImage
   // rather than check 'is_webgpu_compatible'.
-  bool device_support_zero_copy =
-      device->adapter()->SupportsMultiPlanarFormats();
+  // Note that the feature is checked on the adapter and not the device, because
+  // we assume that the GPU-process side automatically adds
+  // DawnMultiPlanarFormats to the requested extension list (since we don't do
+  // it in gpu_device.cc).
+  bool device_support_zero_copy = device->GetHandle().GetAdapter().HasFeature(
+      wgpu::FeatureName::DawnMultiPlanarFormats);
 
   wgpu::ExternalTextureDescriptor external_texture_desc = {};
 
@@ -363,12 +365,6 @@ ExternalTexture CreateExternalTexture(
       static_cast<uint32_t>(natural_size.width()),
       static_cast<uint32_t>(natural_size.height())};
 
-  std::unique_ptr<media::PaintCanvasVideoRenderer> local_video_renderer;
-  if (!video_renderer) {
-    local_video_renderer = std::make_unique<media::PaintCanvasVideoRenderer>();
-    video_renderer = local_video_renderer.get();
-  }
-
   // Using CopyVideoFrameToSharedImage() is an optional one copy upload path.
   // However, the formats this path supports are quite limited. Check whether
   // the current video frame could be uploaded through this one copy upload
@@ -377,6 +373,7 @@ ExternalTexture CreateExternalTexture(
   // cannot use it if the visible_rect isn't the same size as natural_size.
   // TODO(crbug.com/327270287): Expand CopyVideoFrameToSharedImage() to
   // support all valid video frame formats and remove the draw path.
+  auto video_renderer = std::make_unique<media::PaintCanvasVideoRenderer>();
   bool use_copy_to_shared_image =
       video_renderer->CanUseCopyVideoFrameToSharedImage(*media_video_frame) &&
       visible_rect.size() == natural_size;

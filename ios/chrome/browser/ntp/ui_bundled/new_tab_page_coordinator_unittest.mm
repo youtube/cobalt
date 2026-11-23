@@ -8,6 +8,7 @@
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/task_environment.h"
 #import "components/commerce/core/mock_shopping_service.h"
+#import "components/sync/test/test_sync_service.h"
 #import "components/variations/scoped_variations_ids_provider.h"
 #import "ios/chrome/browser/aim/model/ios_chrome_aim_eligibility_service_factory.h"
 #import "ios/chrome/browser/aim/model/mock_ios_chrome_aim_eligibility_service.h"
@@ -24,6 +25,7 @@
 #import "ios/chrome/browser/discover_feed/model/discover_feed_visibility_observer.h"
 #import "ios/chrome/browser/favicon/model/ios_chrome_large_icon_service_factory.h"
 #import "ios/chrome/browser/history/model/history_service_factory.h"
+#import "ios/chrome/browser/metrics/model/activity_reporter.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/shared/metrics/home_metrics.h"
 #import "ios/chrome/browser/ntp/shared/metrics/new_tab_page_metrics_constants.h"
@@ -65,6 +67,8 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_recent_tab_browser_agent.h"
+#import "ios/chrome/browser/sync/model/sync_service_factory.h"
+#import "ios/chrome/browser/sync/model/test_sync_service_utils.h"
 #import "ios/chrome/browser/tips_manager/model/tips_manager_ios_factory.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/fakebox_focuser.h"
 #import "ios/chrome/browser/url_loading/model/fake_url_loading_browser_agent.h"
@@ -142,6 +146,9 @@ class NewTabPageCoordinatorTest : public PlatformTest {
     test_profile_builder.AddTestingFactory(
         IOSChromeAimEligibilityServiceFactory::GetInstance(),
         base::BindRepeating(&BuildMockIOSChromeAimEligibilityService));
+    test_profile_builder.AddTestingFactory(
+        SyncServiceFactory::GetInstance(),
+        base::BindRepeating(&CreateTestSyncService));
 
     profile_ =
         profile_manager_.AddProfileWithBuilder(std::move(test_profile_builder));
@@ -823,4 +830,29 @@ TEST_F(NewTabPageCoordinatorTest, NTPShortcutsMetricLogging) {
                                        IOSHomeActionType::kPlusButton, 1);
 
   [coordinator_ stop];
+}
+
+TEST_F(NewTabPageCoordinatorTest, ActivityReporting) {
+  CreateCoordinator(/*off_the_record=*/false);
+  SetupCommandHandlerMocks();
+
+  id mockInstance = OCMClassMock([ActivityReporterWithIncognito class]);
+  [coordinator_ setValue:mockInstance forKey:@"activityReporter"];
+
+  // Starting coordinator.
+  [coordinator_ start];
+
+  // Navigate to NTP -> reports active.
+  OCMExpect([mockInstance reportActiveWithIncognito:NO]);
+  [coordinator_ didNavigateToNTPInWebState:web_state_];
+  [mockInstance verify];
+
+  // Navigate away -> reports inactive.
+  OCMExpect([mockInstance reportInactive]);
+  [coordinator_ didNavigateAwayFromNTP];
+  [mockInstance verify];
+
+  [coordinator_ stop];
+  [coordinator_ setValue:nil forKey:@"activityReporter"];
+  [mockInstance stopMocking];
 }

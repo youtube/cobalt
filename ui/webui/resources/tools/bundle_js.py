@@ -79,16 +79,23 @@ def _generate_rollup_config(out_dir, in_path, bundle_dir_path, host_url,
   rollup_config_file = os.path.join(out_dir, 'rollup.config.mjs')
   path_to_plugin = os.path.join(
       os.path.relpath(_HERE_PATH, out_dir), 'rollup_plugin.mjs')
+  # The plugin needs an absolute input root, but baking the abspath into the
+  # generated config makes it vary per build root (checkout/sandbox/execroot).
+  # Store it relative to the cwd (the output dir); the config resolve()s it back
+  # to absolute on load, normalized to '/' so the plugin matches on Windows.
+  in_path_rel = os.path.relpath(in_path, _CWD).replace('\\', '/')
   config_content = r'''
     import plugin from '{plugin_path}';
+    import {{resolve}} from 'node:path';
+    const in_path_abs = resolve('{in_path_rel}').replace(/\\/g, '/');
     export default ({{
       plugins: [
-        plugin('{in_path}', '{bundle_dir_path}', '{host_url}', {exclude_list},
+        plugin(in_path_abs, '{bundle_dir_path}', '{host_url}', {exclude_list},
                {external_path_list}) ]
     }});
     '''.format(
       plugin_path=path_to_plugin.replace('\\', '/'),
-      in_path=in_path.replace('\\', '/'),
+      in_path_rel=in_path_rel,
       bundle_dir_path=bundle_dir_path.replace('\\', '/'),
       host_url=host_url,
       exclude_list=json.dumps(excludes),

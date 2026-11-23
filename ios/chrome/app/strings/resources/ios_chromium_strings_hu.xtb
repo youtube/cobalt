@@ -78,6 +78,7 @@
 <translation id="2386292341327187942">Írja be a Modulok keresése mezőbe azt, hogy Chromium.</translation>
 <translation id="2389827884654658221">Gyorsabban hozzáférhet a Chromiumhoz az iPad főképernyőjéről.</translation>
 <translation id="2426113998523353159">Szervezete megköveteli a bejelentkezést a Chromium használatához.</translation>
+<translation id="244367646885670394">Igazolja személyazonosságát, hogy menthesse a jelszót, és az összes eszközén hozzáférhessen a Chromium-adatokhoz</translation>
 <translation id="2450140762465183767">Mostantól bármikor használhatja a Chromiumot, amikor üzenetekben, dokumentumokban és más alkalmazásokban linkekre kattint.</translation>
 <translation id="2459183986985456602">A legutóbbi lap megnyitása a Chromiumban.</translation>
 <translation id="2476409803017965813">A kiválasztott értesítéseket bármikor módosíthatja a Chromium beállításaiban.</translation>
@@ -108,6 +109,7 @@ Az adatokat a Chromium-élmény javítására használó további beállítások
 <translation id="3054480780637153380">Nyissa meg a Chromium beállításait iOS rendszeren, majd koppintson az „Alapértelmezett böngésző” elemre, és válassza ki a Chromiumot.</translation>
 <translation id="3115956258722352278">Legyen a Chromium az alapértelmezett böngészője?</translation>
 <translation id="3180939591219927904">Kapcsolja be az „Inkognitó lapok zárolása a Chromium bezárásakor” beállítást.</translation>
+<translation id="327628223428512207">Adja meg az összetett jelszót, hogy menthesse a jelszót, és az összes eszközén hozzáférhessen a Chromium-adatokhoz</translation>
 <translation id="328933489847748230">{count,plural, =1{Jelenleg 1 Chromium-ablak látható}other{Jelenleg {count} Chromium-ablak látható}}</translation>
 <translation id="3344973607274501920">A Chromium nem tudta ellenőrizni a jelszavakat. Ellenőrizze az internetkapcsolatot.</translation>
 <translation id="3366305173356742781">A fiókjában lévő Chromium-adatok</translation>

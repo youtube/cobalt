@@ -115,8 +115,7 @@ class SyncServiceFactoryTest : public PlatformTest {
     if (base::FeatureList::IsEnabled(syncer::kSyncGeminiThread)) {
       datatypes.Put(syncer::GEMINI_THREAD);
     }
-    if (base::FeatureList::IsEnabled(syncer::kSyncThemesIos) &&
-        IsNTPBackgroundCustomizationEnabled()) {
+    if (base::FeatureList::IsEnabled(syncer::kSyncThemesIos)) {
       datatypes.Put(syncer::THEMES_IOS);
     }
     if (base::FeatureList::IsEnabled(syncer::kSyncAccountSettings)) {

@@ -922,8 +922,7 @@ public class LocationBarCoordinator
     /** Initiates a pre-fetch of autocomplete suggestions. */
     public void startAutocompletePrefetch() {
         if (!mNativeInitialized) return;
-        mAutocompleteCoordinator.prefetchZeroSuggestResults(
-                mLocationBarMediator.getLocationBarDataProvider().getTab());
+        mLocationBarMediator.hintZeroSuggestRefresh();
     }
 
     /**
@@ -1505,11 +1504,7 @@ public class LocationBarCoordinator
 
         var locationBarDataProvider = mLocationBarMediator.getLocationBarDataProvider();
         boolean isNtp = locationBarDataProvider.getNewTabPageDelegate().isCurrentlyVisible();
-        if (!ToolbarVariationUtils.shouldModifyToolbarButtons(
-                        mLocationBarLayout.getContext(), isNtp)
-                || mLocationBarMediator.isUrlBarFocused()
-                || mMiniOriginMode
-                || mOptionalButtonData == null) {
+        if (shouldHideOptionalButton(isNtp)) {
             mOptionalButtonCoordinator.hideButton();
         } else {
             mOptionalButtonCoordinator.setBrandedColorScheme(
@@ -1521,6 +1516,23 @@ public class LocationBarCoordinator
         }
 
         updateUrlBarNextFocusForwardId();
+    }
+
+    private boolean shouldHideOptionalButton(boolean isNtp) {
+        if (!ToolbarVariationUtils.shouldModifyToolbarButtons(
+                mLocationBarLayout.getContext(), isNtp)) {
+            return true;
+        }
+        if (mLocationBarMediator.isUrlBarFocused()
+                || mMiniOriginMode
+                || mOptionalButtonData == null) {
+            return true;
+        }
+        if (ToolbarVariationUtils.isToolbarUiRefactorEnabled(mLocationBarLayout.getContext())
+                && mOptionalButtonData.isIdentityDisc()) {
+            return true;
+        }
+        return false;
     }
 
     private void updateUrlBarNextFocusForwardId() {

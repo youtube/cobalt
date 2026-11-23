@@ -4,6 +4,7 @@
 
 #include "chrome/browser/readaloud/read_aloud_service.h"
 
+#include "base/metrics/histogram_functions.h"
 #include "chrome/browser/dom_distiller/dom_distiller_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/dom_distiller/content/browser/distiller_page_web_contents.h"
@@ -16,7 +17,31 @@ ReadAloudService::ReadAloudService(Profile* profile) : profile_(profile) {}
 
 ReadAloudService::~ReadAloudService() = default;
 
+void ReadAloudService::SetDelegate(std::unique_ptr<Delegate> delegate) {
+  delegate_ = std::move(delegate);
+}
+
+void ReadAloudService::Play() {}
+void ReadAloudService::Pause() {}
+void ReadAloudService::Stop() {}
+void ReadAloudService::SeekToWordIndex(int word_index) {}
+void ReadAloudService::Seek(base::TimeDelta absolute_time) {}
+void ReadAloudService::SeekRelative(base::TimeDelta offset) {}
+void ReadAloudService::SetPlaybackRate(float rate) {}
+void ReadAloudService::SetVoice(std::string_view voice_id) {}
+void ReadAloudService::PreviewVoice(std::string_view voice_id) {}
+void ReadAloudService::StopVoicePreview() {}
+void ReadAloudService::SetPlaybackMode(PlaybackMode mode) {}
+void ReadAloudService::SetHighlightingEnabled(bool enabled) {}
+void ReadAloudService::SendFeedback(FeedbackType feedback_type) {}
+void ReadAloudService::CheckReadability(const GURL& url) {}
+
 void ReadAloudService::Shutdown() {
+  weak_factory_.InvalidateWeakPtrs();
+  if (delegate_) {
+    delegate_->OnNativeDestroyed();
+    delegate_.reset();
+  }
   viewer_handle_.reset();
 }
 
@@ -32,8 +57,9 @@ void ReadAloudService::DistillPage(content::WebContents* web_contents) {
     return;
   }
 
-  viewer_handle_ = service->ViewUrlIgnoreCache(
+  distillation_start_time_ = base::TimeTicks::Now();
 
+  viewer_handle_ = service->ViewUrlIgnoreCache(
       this,
       service->CreateDefaultDistillerPageWithHandle(
           std::make_unique<dom_distiller::SourcePageHandleWebContents>(
@@ -43,6 +69,13 @@ void ReadAloudService::DistillPage(content::WebContents* web_contents) {
 
 void ReadAloudService::OnArticleReady(
     const dom_distiller::DistilledArticleProto* article_proto) {
+  if (!distillation_start_time_.is_null()) {
+    bool success = article_proto && !article_proto->pages().empty();
+    base::UmaHistogramTimes("ReadAloud.Distillation.Duration",
+                            base::TimeTicks::Now() - distillation_start_time_);
+    base::UmaHistogramBoolean("ReadAloud.Distillation.Success", success);
+    distillation_start_time_ = base::TimeTicks();
+  }
   viewer_handle_.reset();
 }
 

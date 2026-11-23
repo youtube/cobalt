@@ -199,6 +199,13 @@ class SigninPrefs {
   base::DictValue& GetOrCreateAvatarButtonPromoCountDictionary(
       const GaiaId& gaia_id);
 
+  // Returns a dictionary of the cross-device promo preferences for `gaia_id`,
+  // if the dictionary didn't exist it will create it.
+  // The returned dictionary will not notify observers for underlying pref
+  // changes. If this will be required later on, consider returning a
+  // `ScopedDictPrefUpdate` instead.
+  base::DictValue& GetOrCreateCrossDevicePromoPrefs(const GaiaId& gaia_id);
+
   // Updates the dismiss count of the promo and last time it was dismissed.
   void IncrementBookmarkBatchUploadPromoDismissCountWithLastTime(
       const GaiaId& gaia_id);

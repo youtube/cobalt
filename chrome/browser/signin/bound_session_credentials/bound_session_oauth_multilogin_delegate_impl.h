@@ -32,6 +32,7 @@ class BoundSessionOAuthMultiLoginDelegateImpl
   // signin::BoundSessionOauthMultiLoginDelegate:
   void BeforeSetCookies(const OAuthMultiloginResult& result) override;
   void OnCookiesSet() override;
+  std::vector<std::pair<GURL, std::string>> GetAllSessions() const override;
 
  private:
   std::vector<bound_session_credentials::BoundSessionParams>

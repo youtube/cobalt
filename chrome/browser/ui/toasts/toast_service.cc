@@ -19,6 +19,7 @@
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_client_service_factory.h"
 #include "chrome/browser/skills/skills_ui_window_controller.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -51,6 +52,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/vector_icons/vector_icons.h"
+#include "ui/base/base_window.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/menus/simple_menu_model.h"
 #include "ui/strings/grit/ui_strings.h"
@@ -432,9 +434,7 @@ void ToastService::RegisterToasts(
           .Build());
 
   if (base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAiWalletPrivatePasses) ||
-      base::FeatureList::IsEnabled(
-          autofill::features::kAutofillAmbientAutofill)) {
+          autofill::features::kAutofillAiWalletPrivatePasses)) {
     toast_registry_->RegisterToast(
         ToastId::kAutofillAiFetchFromWalletErrorMessage,
         ToastSpecification::Builder(
@@ -600,6 +600,53 @@ void ToastService::RegisterToasts(
                     },
                     base::Unretained(browser_window_interface)))
             .AddCloseButton()
+            .Build());
+  }
+
+  toast_registry_->RegisterToast(
+      ToastId::kTabStripSwitchDelayedHorizontal,
+      ToastSpecification::Builder(
+          kFullscreenIcon,
+          IDS_TAB_STRIP_SWITCH_DELAYED_TO_HORIZONTAL_TOAST_BODY)
+          .AddActionButton(IDS_TAB_STRIP_SWITCH_DELAYED_EXIT_FULLSCREEN_ACTION,
+                           base::BindRepeating(
+                               [](BrowserWindowInterface* window) {
+                                 if (window->GetWindow()->IsFullscreen()) {
+                                   chrome::ToggleFullscreenMode(
+                                       window, /*user_initiated=*/true);
+                                 }
+                               },
+                               base::Unretained(browser_window_interface)))
+          .AddCloseButton()
+          .AddGlobalScoped()
+          .Build());
+
+  toast_registry_->RegisterToast(
+      ToastId::kTabStripSwitchDelayedVertical,
+      ToastSpecification::Builder(
+          kFullscreenIcon, IDS_TAB_STRIP_SWITCH_DELAYED_TO_VERTICAL_TOAST_BODY)
+          .AddActionButton(IDS_TAB_STRIP_SWITCH_DELAYED_EXIT_FULLSCREEN_ACTION,
+                           base::BindRepeating(
+                               [](BrowserWindowInterface* window) {
+                                 if (window->GetWindow()->IsFullscreen()) {
+                                   chrome::ToggleFullscreenMode(
+                                       window, /*user_initiated=*/true);
+                                 }
+                               },
+                               base::Unretained(browser_window_interface)))
+          .AddCloseButton()
+          .AddGlobalScoped()
+          .Build());
+
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAmbientAutofill)) {
+    toast_registry_->RegisterToast(
+        ToastId::kAutofillAiPreFetchErrorMessage,
+        ToastSpecification::Builder(features::IsRoundedIconsEnabled()
+                                        ? kTextAnalysisIcon
+                                        : kTextAnalysisOldIcon,
+                                    IDS_AUTOFILL_AI_PRE_FETCH_ERROR_MESSAGE)
+            .AddGlobalScoped()
             .Build());
   }
 }  // RegisterToasts() end.

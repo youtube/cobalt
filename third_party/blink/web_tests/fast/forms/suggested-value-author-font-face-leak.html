@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Author @font-face must not shadow autofill preview text.</title>
+<!-- Regression test for crbug.com/517710554. -->
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+'use strict';
+
+// The autofill preview pins a generic font-family, which an author @font-face
+// can never match. That generic resolves to a concrete platform family for
+// rendering (Arial on Windows/Linux, Helvetica on macOS); register author
+// faces for both, with a unicode-range covering the preview text, so a leak
+// would be caught on whichever family the running platform uses.
+const PROBE_FAMILIES = ['Arial', 'Helvetica'];
+
+function addProbes(t) {
+  const probes = PROBE_FAMILIES.map(family => {
+    const face = new FontFace(
+        family,
+        'url("./resources/nonexistent-font-for-autofill-leak-test.woff2")',
+        { unicodeRange: 'U+0041-007A' });
+    document.fonts.add(face);
+    return face;
+  });
+  t.add_cleanup(() => { probes.forEach(p => document.fonts.delete(p)); });
+  return probes;
+}
+
+function waitTwoFrames() {
+  return new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
+// Creates an isolated control, previews a value on it, and asserts that no
+// author @font-face was consulted to render the preview text. The control is
+// created per-test so unrelated elements can't load the probe.
+async function assertNoFontFaceLoad(t, tagName) {
+  const control = document.createElement(tagName);
+  document.body.appendChild(control);
+  t.add_cleanup(() => { control.remove(); });
+
+  const probes = addProbes(t);
+  probes.forEach(p => assert_equals(p.status, 'unloaded'));
+
+  internals.setSuggestedValue(control, 'Alice');
+  control.offsetWidth;
+  await waitTwoFrames();
+
+  for (const probe of probes) {
+    assert_equals(probe.status, 'unloaded',
+        `author @font-face "${probe.family}" must not be consulted for ` +
+        'autofill preview text (crbug.com/517710554)');
+  }
+}
+
+promise_test(async t => {
+  assert_true(!!window.internals, 'This test requires window.internals.');
+  await assertNoFontFaceLoad(t, 'input');
+}, 'input::-internal-input-suggested does not leak via author @font-face');
+
+promise_test(async t => {
+  assert_true(!!window.internals, 'This test requires window.internals.');
+  await assertNoFontFaceLoad(t, 'textarea');
+}, 'textarea::-internal-input-suggested does not leak via author @font-face');
+</script>
+</body>
+</html>

@@ -15,8 +15,6 @@
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
 #include "ui/base/mojom/window_show_state.mojom.h"
-#include "ui/gfx/image/image_skia.h"
-#include "ui/menus/simple_menu_model.h"
 #include "ui/views/widget/widget.h"
 
 #if BUILDFLAG(IS_LINUX)

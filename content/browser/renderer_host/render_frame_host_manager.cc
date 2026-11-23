@@ -108,9 +108,6 @@ using LifecycleStateImpl = RenderFrameHostImpl::LifecycleStateImpl;
 using perfetto::protos::pbzero::ChromeTrackEvent;
 
 namespace {
-const char kWouldSwapAboutBlankHistogramName[] =
-    "Navigation.ProcessSwap.V8Optimizer."
-    "WouldSwapRendererInitiatedAboutBlankNavigation";
 
 // Enables swapping BrowsingInstances when a navigation requires different
 // process-level flags (e.g., V8 optimizers, jitless) than the current process.
@@ -185,13 +182,7 @@ bool ShouldSwapBrowsingInstancesForDynamicIsolation(
 // into a new tab before taking effect.
 bool ShouldSwapBrowsingInstancesForDifferentProcessFlags(
     RenderFrameHostImpl* current_rfh,
-    const UrlInfo& destination_effective_url_info,
-    SiteInstanceImpl* source_instance) {
-  // TODO(crbug.com/493684112): Clean up this way of checking for
-  // renderer-initiated navigations for the histogram.
-  const bool is_renderer_initiated_about_blank =
-      destination_effective_url_info.url.IsAboutBlank() && source_instance;
-
+    const UrlInfo& destination_effective_url_info) {
   if (!base::FeatureList::IsEnabled(
           kSwapBrowsingInstancesForDifferentProcessFlags)) {
     return false;
@@ -204,9 +195,12 @@ bool ShouldSwapBrowsingInstancesForDifferentProcessFlags(
   // Skip cases when there are other windows that might script this one.
   SiteInstanceImpl* current_instance = current_rfh->GetSiteInstance();
   if (current_instance->GetRelatedActiveContentsCount() > 1u) {
-    if (is_renderer_initiated_about_blank) {
-      base::UmaHistogramBoolean(kWouldSwapAboutBlankHistogramName, false);
-    }
+    return false;
+  }
+
+  // Navigation to about:blank should stay in its initiator's
+  // SiteInstance/process.
+  if (destination_effective_url_info.url.IsAboutBlank()) {
     return false;
   }
 
@@ -217,21 +211,6 @@ bool ShouldSwapBrowsingInstancesForDifferentProcessFlags(
   const SiteInfo& site_info_in_future_context = SiteInfo::Create(
       future_isolation_context, destination_effective_url_info);
   const SiteInfo& current_site_info = current_instance->GetSiteInfo();
-
-  if (is_renderer_initiated_about_blank) {
-    const bool should_swap_for_flags =
-        current_site_info.are_v8_optimizations_disabled() !=
-            site_info_in_future_context.are_v8_optimizations_disabled() ||
-        current_site_info.is_jit_disabled() !=
-            site_info_in_future_context.is_jit_disabled();
-    base::UmaHistogramBoolean(kWouldSwapAboutBlankHistogramName,
-                              should_swap_for_flags);
-  }
-  // Navigation to about:blank should stay in its initiator's
-  // SiteInstance/process.
-  if (destination_effective_url_info.url.IsAboutBlank()) {
-    return false;
-  }
 
   if (current_site_info.are_v8_optimizations_disabled() !=
       site_info_in_future_context.are_v8_optimizations_disabled()) {
@@ -1419,7 +1398,8 @@ void RenderFrameHostManager::UnloadOldFrame(
   // If the old RenderFrameHost can be stored in the BackForwardCache, return
   // early without unloading and running unload handlers, as the document may
   // be restored later.
-  if (!old_render_frame_host->GetParentOrOuterDocument()) {
+  if (!old_render_frame_host->GetParentOrOuterDocument() &&
+      frame_tree_node_->frame_tree().is_primary()) {
     BackForwardCacheImpl& back_forward_cache =
         GetNavigationController().GetBackForwardCache();
 
@@ -2934,7 +2914,7 @@ RenderFrameHostManager::ShouldSwapBrowsingInstancesForNavigation(
   // applied. This ensures that the user's security preferences are applied
   // without needing to open a new tab.
   if (ShouldSwapBrowsingInstancesForDifferentProcessFlags(
-          render_frame_host_.get(), url_info_to_test, source_instance)) {
+          render_frame_host_.get(), url_info_to_test)) {
     return BrowsingContextGroupSwap::CreateSecuritySwap();
   }
 
@@ -4611,9 +4591,11 @@ RenderFrameHostManager::CreateSpeculativeRenderFrame(
   // about to create.
   // TODO(https://crbug.com/354382462): Make this a proper fix with a repro
   // test and delete the debugging code around this.
-  GetNavigationController()
-      .GetBackForwardCache()
-      .EvictFramesInRelatedSiteInstances(instance);
+  if (frame_tree_node_->frame_tree().is_primary()) {
+    GetNavigationController()
+        .GetBackForwardCache()
+        .EvictFramesInRelatedSiteInstances(instance);
+  }
 
   // Since CreateSpeculativeRenderFrameHost should have already called
   // GetOrCreateProcess(), a process allocation is not expected in
@@ -4755,9 +4737,7 @@ void RenderFrameHostManager::CreateRenderFrameProxy(
       SCOPED_CRASH_KEY_STRING64("Bug1400009", "parent_lifecycle",
                                 RenderFrameHostImpl::LifecycleStateImplToString(
                                     parent_rfh->lifecycle_state()));
-      // TODO(https://crbug.com/526542464): CHECK-exclusion: Convert to CHECK
-      // once we are sure this isn't hit.
-      DCHECK(render_view_host);
+      CHECK(render_view_host);
     }
     if (!render_view_host) {
       // Before creating a new RenderFrameProxyHost, ensure a RenderViewHost
@@ -5698,6 +5678,38 @@ void RenderFrameHostManager::CommitPending(
       render_frame_host_->GetSiteInstance()->group()));
 }
 
+namespace {
+void CheckForRenderFrameHostSetCollisionsForDebugging(
+    FrameTree* frame_tree,
+    RenderFrameHostImpl* render_frame_host) {
+  if (!render_frame_host || !frame_tree->is_primary()) {
+    return;
+  }
+
+  SiteInstanceGroupId sig_id =
+      render_frame_host->GetSiteInstance()->group()->GetId();
+  auto& bfcache = frame_tree->controller().GetBackForwardCache();
+  bool rfh_in_bfcache =
+      bfcache.IsRenderFrameHostWithSIGInBackForwardCacheForDebugging(sig_id);
+  bool rfph_in_bfcache =
+      bfcache.IsRenderFrameProxyHostWithSIGInBackForwardCacheForDebugging(
+          sig_id);
+  bool rvh_in_bfcache =
+      bfcache.IsRenderViewHostWithMapIdInBackForwardCacheForDebugging(
+          *static_cast<RenderViewHostImpl*>(
+              render_frame_host->GetRenderViewHost()));
+  if (rfh_in_bfcache || rfph_in_bfcache || rvh_in_bfcache) {
+    SCOPED_CRASH_KEY_BOOL("rvh-double", "rfh_in_bfcache", rfh_in_bfcache);
+    SCOPED_CRASH_KEY_BOOL("rvh-double", "rfph_in_bfcache", rfph_in_bfcache);
+    SCOPED_CRASH_KEY_BOOL("rvh-double", "rvh_in_bfcache", rvh_in_bfcache);
+    SCOPED_CRASH_KEY_NUMBER(
+        "rvh-double", "related_active_contents",
+        render_frame_host->GetSiteInstance()->GetRelatedActiveContentsCount());
+    base::debug::DumpWithoutCrashing();
+  }
+}
+}  // namespace
+
 std::unique_ptr<RenderFrameHostImpl> RenderFrameHostManager::SetRenderFrameHost(
     std::unique_ptr<RenderFrameHostImpl> render_frame_host) {
   // Swap the two.
@@ -5798,32 +5810,8 @@ std::unique_ptr<RenderFrameHostImpl> RenderFrameHostManager::SetRenderFrameHost(
   }
 
   if (render_frame_host_) {
-    SiteInstanceGroupId sig_id =
-        render_frame_host_->GetSiteInstance()->group()->GetId();
-    bool rfh_in_bfcache =
-        GetNavigationController()
-            .GetBackForwardCache()
-            .IsRenderFrameHostWithSIGInBackForwardCacheForDebugging(sig_id);
-    bool rfph_in_bfcache =
-        GetNavigationController()
-            .GetBackForwardCache()
-            .IsRenderFrameProxyHostWithSIGInBackForwardCacheForDebugging(
-                sig_id);
-    bool rvh_in_bfcache =
-        GetNavigationController()
-            .GetBackForwardCache()
-            .IsRenderViewHostWithMapIdInBackForwardCacheForDebugging(
-                *static_cast<RenderViewHostImpl*>(
-                    render_frame_host_->GetRenderViewHost()));
-    if (rfh_in_bfcache || rfph_in_bfcache || rvh_in_bfcache) {
-      SCOPED_CRASH_KEY_BOOL("rvh-double", "rfh_in_bfcache", rfh_in_bfcache);
-      SCOPED_CRASH_KEY_BOOL("rvh-double", "rfph_in_bfcache", rfph_in_bfcache);
-      SCOPED_CRASH_KEY_BOOL("rvh-double", "rvh_in_bfcache", rvh_in_bfcache);
-      SCOPED_CRASH_KEY_NUMBER("rvh-double", "related_active_contents",
-                              render_frame_host_->GetSiteInstance()
-                                  ->GetRelatedActiveContentsCount());
-      base::debug::DumpWithoutCrashing();
-    }
+    CheckForRenderFrameHostSetCollisionsForDebugging(&frame_tree,
+                                                     render_frame_host_.get());
   }
   return old_render_frame_host;
 }

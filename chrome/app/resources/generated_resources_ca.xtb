@@ -637,7 +637,6 @@ Comprova les contrasenyes sempre que vulguis al <ph name="GOOGLE_PASSWORD_MANAGE
 <translation id="1472675084647422956">Mostra'n més</translation>
 <translation id="1473223074251193484">Defineix la configuració de la compartició de xarxa</translation>
 <translation id="1473616112002966036">&amp;Fotograma de vídeo</translation>
-<translation id="1474785664565228650">El canvi a l'opció de configuració del micròfon requereix reiniciar Parallels Desktop. Fes-ho per continuar.</translation>
 <translation id="1476088332184200792">Copia-ho al dispositiu</translation>
 <translation id="1476607407192946488">&amp;Configuració d'idioma</translation>
 <translation id="1477654881618305065">La teva organització no et permet compartir aquest contingut. Si necessites ajuda, contacta amb l'administrador.</translation>
@@ -673,7 +672,6 @@ Comprova les contrasenyes sempre que vulguis al <ph name="GOOGLE_PASSWORD_MANAGE
 <translation id="1501480321619201731">Suprimeix el grup</translation>
 <translation id="150411034776756821">Suprimeix <ph name="SITE" /></translation>
 <translation id="1504253885059472207">Fixa la vista dividida</translation>
-<translation id="1504551620756424144">Les carpetes compartides estan disponibles a Windows a <ph name="BASE_DIR" />.</translation>
 <translation id="1505494256539862015">exportar les contrasenyes</translation>
 <translation id="1505654899813338756">Pots agrupar les pestanyes per mantenir les pàgines relacionades juntes i desades en tots els teus dispositius</translation>
 <translation id="1506061864768559482">Motor de cerca</translation>
@@ -3623,7 +3621,6 @@ Pots gestionar la configuració d'aquest compte instal·lant l'aplicació Family
 <translation id="3697716475445175867">oberta per darrera vegada</translation>
 <translation id="3698471669415859717">Revisió completada</translation>
 <translation id="3699624789011381381">Adreça electrònica</translation>
-<translation id="3699755232086000535">Dona a Parallels Desktop el control sobre els dispositius USB.</translation>
 <translation id="3699920817649120894">Vols desactivar la sincronització i la personalització?</translation>
 <translation id="3700888195348409686">S'està presentant (<ph name="PAGE_ORIGIN" />)</translation>
 <translation id="3700993174159313525">No permetis que els llocs web facin un seguiment de la posició de la càmera</translation>
@@ -3880,7 +3877,6 @@ Pots gestionar la configuració d'aquest compte instal·lant l'aplicació Family
 <translation id="3854348409770521214">Pintura a l'oli</translation>
 <translation id="3854967233147778866">Proposa traduir els llocs web en altres idiomes</translation>
 <translation id="3854976556788175030">La safata de sortida està plena</translation>
-<translation id="3855324045699437362">Gemini a Chrome s'està ampliant a diferents ubicacions, però no està disponible a tot arreu.</translation>
 <translation id="3855441664322950881">Empaqueta l'extensió</translation>
 <translation id="3855676282923585394">Importa les adreces d'interès i la configuració...</translation>
 <translation id="3856023744577163821">Les pestanyes que s'obren des d'un xat o una pestanya compartida també es comparteixen amb Gemini.</translation>
@@ -3900,6 +3896,7 @@ Pots gestionar la configuració d'aquest compte instal·lant l'aplicació Family
 <translation id="3865414814144988605">Resolució</translation>
 <translation id="3866142613641074814">Tens contrasenyes que estan en perill</translation>
 <translation id="3866249974567520381">Descripció</translation>
+<translation id="3866863539038222107">Inspecciona</translation>
 <translation id="3867134342671430205">Per moure una pantalla, arrossega-la o utilitza les tecles de fletxa</translation>
 <translation id="3867831579565057323">Mapa la pantalla tàctil</translation>
 <translation id="3867944738977021751">Camps del certificat</translation>
@@ -4171,7 +4168,6 @@ Pots gestionar la configuració d'aquest compte instal·lant l'aplicació Family
 <translation id="4058720513957747556">AppSocket (TCP/IP)</translation>
 <translation id="4058793769387728514">Comprova el document ara</translation>
 <translation id="4060997212318214773">També pots suprimir aquestes extensions d'aquest dispositiu:</translation>
-<translation id="4061374428807229313">Per compartir una carpeta de l'aplicació Fitxers, fes-hi clic amb el botó dret i selecciona Comparteix amb Parallels Desktop.</translation>
 <translation id="406213378265872299">Comportaments personalitzats</translation>
 <translation id="4065910654823040256">Tanca la visualització dreta</translation>
 <translation id="4065931125325392744">És possible que aquesta extensió es deixi d'admetre aviat</translation>
@@ -4219,6 +4215,7 @@ Pots gestionar la configuració d'aquest compte instal·lant l'aplicació Family
 <translation id="4103644672850109428">Lector de pantalla, ampliació</translation>
 <translation id="4104163789986725820">E&amp;xporta...</translation>
 <translation id="4107048419833779140">Identificar i expulsar els dispositius d'emmagatzematge</translation>
+<translation id="4107207375883769436">És possible que la teva organització necessiti veure i gestionar les dades de navegació del teu perfil de treball, com ara l'historial de navegació i les contrasenyes</translation>
 <translation id="4107522742068568249">Ves a Comprovació de seguretat</translation>
 <translation id="4107793386654579933">Selecciona una drecera per a l'acció <ph name="ACTION_NAME" /></translation>
 <translation id="4109135793348361820">Mou la finestra a <ph name="USER_NAME" /> (<ph name="USER_EMAIL" />)</translation>
@@ -4923,7 +4920,6 @@ Pots gestionar la configuració d'aquest compte instal·lant l'aplicació Family
 <translation id="4650591383426000695">Desconnecta el telèfon del dispositiu <ph name="DEVICE_TYPE" /></translation>
 <translation id="4651921906638302153">No pots iniciar la sessió amb aquest compte</translation>
 <translation id="4652921642122345344">Velocitat de la veu multiplicada per <ph name="RATE" /></translation>
-<translation id="4652935475563630866">El canvi a l'opció de configuració de la càmera requereix reiniciar Parallels Desktop. Fes-ho per continuar.</translation>
 <translation id="4654236001025007561">Comparteix fitxers amb dispositius Chromebook i Android a prop teu</translation>
 <translation id="4654801841330730814">Tot</translation>
 <translation id="4657724094180965385">No m'interessa</translation>
@@ -5212,7 +5208,6 @@ Fes servir Ctrl+Alt+disminueix la brillantor per reduir el zoom.</translation>
 <translation id="486505726797718946">Memòria estalviada</translation>
 <translation id="486635084936119914">Obre alguns tipus de fitxer automàticament després de baixar-los</translation>
 <translation id="4867272607148176509">Els pares poden aprovar o bloquejar aplicacions, establir límits de temps i controlar la navegació web. Més endavant, es pot afegir un compte de centre educatiu per accedir a la majoria de recursos educatius.</translation>
-<translation id="486796517585164369">· Pestanya recent</translation>
 <translation id="4868284252360267853">Actualment el focus no està posat en aquest quadre de diàleg. Prem Command+Maj+Option+A per posar-hi el focus.</translation>
 <translation id="4869170227080975044">Llegir informació de la xarxa de ChromeOS</translation>
 <translation id="4870724079713069532">Amb aquesta aplicació pots obrir i editar fitxers admesos des de l'Explorador de fitxers o des d'altres aplicacions. Si vols controlar quins fitxers s'obren amb aquesta aplicació de manera predeterminada, ves a la <ph name="BEGIN_LINK" />configuració de Windows<ph name="END_LINK" />.</translation>
@@ -6034,6 +6029,7 @@ Pots assignar diferents interruptors a aquesta acció.</translation>
 <translation id="5493792505296048976">pantalla activada</translation>
 <translation id="5494016731375030300">Pestanyes tancades recentment</translation>
 <translation id="5494362494988149300">Obre quan &amp;acabi</translation>
+<translation id="5494879038325093596">Verifica la teva identitat per obtenir la contrasenya en tots els dispositius amb el teu Compte de Google</translation>
 <translation id="5494920125229734069">Selecciona-ho tot</translation>
 <translation id="5495466433285976480">Això suprimirà tots els usuaris, els fitxers i les dades locals, així com qualsevol altra configuració la pròxima vegada que reiniciïs. Tots els usuaris hauran de tornar a iniciar la sessió.</translation>
 <translation id="5495597166260341369">Mantén la pantalla activa</translation>
@@ -8090,7 +8086,6 @@ Tens # contrasenyes més en perill. El gestor de contrasenyes de Google recomana
 <translation id="705352103640172578">Cascada</translation>
 <translation id="7053983685419859001">Bloqueja</translation>
 <translation id="7055152154916055070">S'ha bloquejat la redirecció:</translation>
-<translation id="7055451306017383754">No s'ha pogut deixar de compartir aquesta carpeta perquè una aplicació l'està utilitzant. Es deixarà de compartir la propera vegada que Parallels Desktop s'apagui.</translation>
 <translation id="7056418393177503237">{0,plural, =1{Incògnit}other{# finestres d'incògnit obertes}}</translation>
 <translation id="7056526158851679338">&amp;Inspecciona els dispositius</translation>
 <translation id="7057567173736333354">Descriu la imatge</translation>
@@ -8431,7 +8426,7 @@ Tens # contrasenyes més en perill. El gestor de contrasenyes de Google recomana
 <translation id="7324297612904500502">Fòrum per a la versió beta</translation>
 <translation id="7325209047678309347">El paper s'ha encallat</translation>
 <translation id="7325953439504232954">Vols canviar de perfil?</translation>
-<translation id="7326004502692201767">Configura aquest dispositiu <ph name="DEVICE_TYPE" /> per a un nen</translation>
+<translation id="7326004502692201767">Configura aquest dispositiu <ph name="DEVICE_TYPE" /> per a un nen o nena</translation>
 <translation id="732659786514229249">Vols inscriure el dispositiu a la teva organització?</translation>
 <translation id="7328162502911382168">(<ph name="COUNT" />)</translation>
 <translation id="732845903678043302">{BOOKMARK_COUNT,plural, =1{1 adreça d'interès s'ha desat només en aquest dispositiu. Per utilitzar-la als altres dispositius que fas servir, desa-la al teu Compte de Google.}other{{BOOKMARK_COUNT} adreces d'interès s'han desat només en aquest dispositiu. Per utilitzar-les als altres dispositius que fas servir, desa-les al teu Compte de Google.}}</translation>
@@ -10736,6 +10731,7 @@ que pot incloure dades del programari instal·lat, de fitxers, del navegador, de
 <translation id="9012585441087414258">Protegeix contra llocs web, baixades i extensions que se sap que són perillosos. Si una pàgina fa res sospitós, els URL i els fragments de contingut de les pàgines s'envien a Navegació segura de Google.</translation>
 <translation id="9014206344398081366">Tutorial de ChromeVox</translation>
 <translation id="9014674417732091912">S'ha mogut a la fila <ph name="ROW_NUMBER" /></translation>
+<translation id="9015111999662965458">Per assegurar-se que aquest dispositiu es pot utilitzar de manera segura, és possible que la teva organització necessiti veure informació sobre el sistema operatiu, el navegador, la configuració i el programari que hi ha instal·lat al dispositiu</translation>
 <translation id="9015849286924418538">Organitza les pestanyes en grups etiquetats i codificats amb colors per accedir-hi fàcilment</translation>
 <translation id="9016827136585652292">commutador de la pantalla de privadesa</translation>
 <translation id="90181708067259747">Data de caducitat: <ph name="CARD" /></translation>

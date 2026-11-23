@@ -27,7 +27,7 @@ constexpr auto kKeyPubBytes = std::to_array<uint8_t>(
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzedDataProvider fdp(data, size);
   client_update_protocol::Ecdsa cup(6, kKeyPubBytes);
-  cup.SignRequest(fdp.ConsumeRandomLengthString());
+  cup.PrepareRequestParameters(fdp.ConsumeRandomLengthString());
   cup.ValidateResponse(fdp.ConsumeRandomLengthString(),
                        fdp.ConsumeRandomLengthString());
   return 0;

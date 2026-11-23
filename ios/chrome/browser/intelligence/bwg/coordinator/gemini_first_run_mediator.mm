@@ -240,11 +240,6 @@ const CGFloat kPromoMaxImpressionCount = 3;
   }
 
   [self logPromoShown];
-
-  GeminiTabHelper* geminiTabHelper = [self activeWebStateGeminiTabHelper];
-  if (geminiTabHelper) {
-    geminiTabHelper->SetIsFirstRun(true);
-  }
 }
 
 - (void)handleFRECompletion:(BOOL)success {

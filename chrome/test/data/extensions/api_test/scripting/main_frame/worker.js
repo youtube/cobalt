@@ -432,14 +432,16 @@ chrome.test.runTests([
         'scripting.ScriptInjection injection, optional function callback): ' +
         'Error at parameter \'injection\': Error at property \'args\': ' +
         'Error at index 0: Value is unserializable.';
+    // Verify `executeScript` throws when passed an unserializable function
+    // argument.
     chrome.test.assertThrows(
-        chrome.scripting.executeScript, [{
+        chrome.scripting.executeScript.bind(null, {
           target: {
             tabId: tab.id,
           },
           func: echoArguments,
           args: [function() {}],
-        }],
+        }),
         expectedError);
     chrome.test.succeed();
   },

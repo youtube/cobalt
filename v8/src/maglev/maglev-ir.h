@@ -220,7 +220,12 @@ class ExceptionHandlerInfo;
 #define TURBOLEV_NON_VALUE_NODE_LIST(V) \
   V(TransitionAndStoreArrayElement)     \
   V(TurbofanStaticAssert)               \
-  V(AssumeMap)
+  V(AssertPeeled)                       \
+  V(AssumeMap)                          \
+  V(AssumeTaggedType)                   \
+  V(AssumeInt32Type)                    \
+  V(AssumeUint32Type)                   \
+  V(AssumeFloat64Type)
 
 #define CONVERSION_NODE_LIST(V)         \
   V(ChangeInt32ToFloat64)               \
@@ -2120,10 +2125,8 @@ class NodeBase : public ZoneObject {
     return node;
   }
 
-  // TODO(victorgomes): We don't support cloning throwable nodes.
   template <class Derived>
   static Derived* CloneRaw(Derived* src, Zone* zone) {
-    static_assert(!Derived::kProperties.can_throw());
     static_assert(NodeBase::opcode_of<Derived> != Opcode::kPhi);
     // TODO(victorgomes): this prefix-size computation is duplicated with
     // Allocate(); hoist it into a shared helper so the two can't drift apart.
@@ -2294,6 +2297,8 @@ class NodeBase : public ZoneObject {
   // For GDB: Print any Node with `print node->Print()`.
   void Print() const;
 
+  bool IsStructurallyEqualTo(const NodeBase* other) const;
+
   EagerDeoptInfo* eager_deopt_info() {
     DCHECK(properties().has_eager_deopt_info());
     return reinterpret_cast<EagerDeoptInfo*>(deopt_info_address());
@@ -2379,7 +2384,6 @@ class NodeBase : public ZoneObject {
   template <typename NodeT, typename... Args>
   NodeT* OverwriteWith(Args&&... args);
 
-  inline void UnwrapDeoptFrames();
   inline void OverwriteWithIdentityTo(ValueNode* node);
   inline void OverwriteWithReturnValue(ValueNode* node);
 
@@ -2814,6 +2818,10 @@ class ValueNode : public Node {
   // Unwrap identities and conversions.
   ValueNode* Unwrap();
 
+  // Like Unwrap, but also unwraps single-input phis (cf.
+  // UnwrapIdentitiesAndPhis).
+  ValueNode* UnwrapForDeopt();
+
   ValueNode* UnwrapIdentitiesAndUpdateUseCountForDeopt(
       const VirtualObjectList& virtual_objects);
   ValueNode* UnwrapAndUpdateUseCountForDeopt(
@@ -2920,7 +2928,7 @@ inline ValueNode* ValueNode::UnwrapIdentitiesAndUpdateUseCountForDeopt(
 // use-count and increments the use-count of the unwrapped node.
 inline ValueNode* ValueNode::UnwrapAndUpdateUseCountForDeopt(
     const VirtualObjectList& virtual_objects) {
-  ValueNode* unwrapped = Unwrap();
+  ValueNode* unwrapped = UnwrapForDeopt();
   if (unwrapped != this) {
     // TODO(dmercadier): instead of a simple `remove_use` here, we could instead
     // recursively remove uses in VirtualObjects (basically doing the oppositve
@@ -6683,6 +6691,8 @@ class ArgumentsLength : public FixedInputValueNodeT<0, ArgumentsLength> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  NodeType type() const { return NodeType::kSmi; }
 };
 
 class RestLength : public FixedInputValueNodeT<0, RestLength> {
@@ -7708,6 +7718,63 @@ class AssumeMap : public FixedInputNodeT<1, AssumeMap> {
   const compiler::ZoneRefSet<Map> maps_;
 };
 
+template <class Derived>
+class AssumeTypeT : public FixedInputNodeT<1, Derived> {
+ public:
+  using Base = FixedInputNodeT<1, Derived>;
+
+  explicit AssumeTypeT(uint64_t bitfield, NodeType type)
+      : Base(bitfield), asserted_type_(type) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Pure();
+
+  NodeType asserted_type() const { return asserted_type_; }
+  auto options() const { return std::tuple{asserted_type_}; }
+
+ private:
+  const NodeType asserted_type_;
+};
+
+class AssumeTaggedType : public AssumeTypeT<AssumeTaggedType> {
+ public:
+  using AssumeTypeT<AssumeTaggedType>::AssumeTypeT;
+
+  DECLARE_UNOP(Tagged)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class AssumeInt32Type : public AssumeTypeT<AssumeInt32Type> {
+ public:
+  using AssumeTypeT<AssumeInt32Type>::AssumeTypeT;
+
+  DECLARE_UNOP(Int32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class AssumeUint32Type : public AssumeTypeT<AssumeUint32Type> {
+ public:
+  using AssumeTypeT<AssumeUint32Type>::AssumeTypeT;
+
+  DECLARE_UNOP(Uint32)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class AssumeFloat64Type : public AssumeTypeT<AssumeFloat64Type> {
+ public:
+  using AssumeTypeT<AssumeFloat64Type>::AssumeTypeT;
+
+  DECLARE_UNOP(Float64)
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
 class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {
  public:
   explicit TurbofanStaticAssert(uint64_t bitfield) : Base(bitfield) {}
@@ -7717,6 +7784,24 @@ class TurbofanStaticAssert : public FixedInputNodeT<1, TurbofanStaticAssert> {
 
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
+};
+
+class AssertPeeled : public FixedInputNodeT<0, AssertPeeled> {
+ public:
+  explicit AssertPeeled(uint64_t bitfield, bool expect_peeled)
+      : Base(ExpectPeeledField::update(bitfield, expect_peeled)) {}
+
+  constexpr bool expect_peeled() const {
+    return ExpectPeeledField::decode(bitfield());
+  }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+
+  auto options() const { return std::tuple{expect_peeled()}; }
+
+ private:
+  using ExpectPeeledField = NextBitField<bool, 1>;
 };
 
 class MajorGCForCompilerTesting
@@ -11941,6 +12026,16 @@ constexpr inline int SizeOfNodeForOpcode(Opcode op) {
 #undef CASE
   }
   UNREACHABLE();
+}
+
+template <typename NodeT>
+inline bool IsDead(NodeT* node) {
+  if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
+                (!NodeT::kProperties.is_required_when_unused() ||
+                 std::is_same_v<ArgumentsElements, NodeT>)) {
+    return !node->is_used();
+  }
+  return false;
 }
 
 template <typename Function>

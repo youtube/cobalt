@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/gtest_util.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "components/enterprise/browser/reporting/browser_launch/browser_launch_event_uploader.h"
 #include "components/enterprise/common/proto/synced/browser_events.pb.h"
@@ -43,6 +44,7 @@ class MockBrowserLaunchEventUploader : public BrowserLaunchEventUploader {
   MockBrowserLaunchEventUploader() = default;
   ~MockBrowserLaunchEventUploader() override = default;
 
+  MOCK_METHOD(std::string_view, GetMetricSuffix, (), (const, override));
   MOCK_METHOD(void,
               UploadEvent,
               (const ::chrome::cros::reporting::proto::BrowserLaunchEvent&,
@@ -73,6 +75,8 @@ class BrowserLaunchEventControllerTest : public testing::Test {
 
     auto uploader = std::make_unique<MockBrowserLaunchEventUploader>();
     uploader_ptr_ = uploader.get();
+    EXPECT_CALL(*uploader_ptr_, GetMetricSuffix())
+        .WillRepeatedly(testing::Return("Browser"));
     controller_ = std::make_unique<BrowserLaunchEventController>(
         std::move(collector), std::move(uploader));
   }
@@ -86,6 +90,7 @@ class BrowserLaunchEventControllerTest : public testing::Test {
 };
 
 TEST_F(BrowserLaunchEventControllerTest, SuccessfulUpload) {
+  base::HistogramTester histogram_tester;
   EXPECT_CALL(*collector_ptr_, GetEvent()).Times(1);
   EXPECT_CALL(*uploader_ptr_, UploadEvent(_, _))
       .WillOnce(
@@ -99,9 +104,21 @@ TEST_F(BrowserLaunchEventControllerTest, SuccessfulUpload) {
           });
 
   controller_->CollectAndUpload();
+
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.UploadResult.Browser",
+      /*kSuccess*/ 0, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.RetryCount.Browser", 0, 1);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.ProcessCreationToUploadLatency.Browser",
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.SwitchCount.Browser", 1, 1);
 }
 
 TEST_F(BrowserLaunchEventControllerTest, RetryOnFailure) {
+  base::HistogramTester histogram_tester;
   EXPECT_CALL(*collector_ptr_, GetEvent()).Times(1);
 
   EXPECT_CALL(*uploader_ptr_, UploadEvent(_, _))
@@ -120,9 +137,21 @@ TEST_F(BrowserLaunchEventControllerTest, RetryOnFailure) {
 
   controller_->CollectAndUpload();
   task_environment_.FastForwardBy(base::Minutes(10));
+
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.UploadResult.Browser",
+      /*kSuccess*/ 0, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.RetryCount.Browser", 1, 1);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.ProcessCreationToUploadLatency.Browser",
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.SwitchCount.Browser", 1, 1);
 }
 
 TEST_F(BrowserLaunchEventControllerTest, MaxRetriesReached) {
+  base::HistogramTester histogram_tester;
   EXPECT_CALL(*collector_ptr_, GetEvent()).Times(1);
 
   EXPECT_CALL(*uploader_ptr_, UploadEvent(_, _))
@@ -137,9 +166,21 @@ TEST_F(BrowserLaunchEventControllerTest, MaxRetriesReached) {
 
   controller_->CollectAndUpload();
   task_environment_.FastForwardBy(base::Minutes(30));
+
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.UploadResult.Browser",
+      /*kFailedRetryLimit*/ 1, 1);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.RetryCount.Browser", 0);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.ProcessCreationToUploadLatency.Browser",
+      0);
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.SwitchCount.Browser", 1, 1);
 }
 
 TEST_F(BrowserLaunchEventControllerTest, NonRetryableFailure) {
+  base::HistogramTester histogram_tester;
   EXPECT_CALL(*collector_ptr_, GetEvent()).Times(1);
 
   // We should only see one upload attempt because the error is non-retryable.
@@ -155,6 +196,17 @@ TEST_F(BrowserLaunchEventControllerTest, NonRetryableFailure) {
 
   // Fast forward significantly. No second attempt should happen.
   task_environment_.FastForwardBy(base::Minutes(30));
+
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.UploadResult.Browser",
+      /*kFailedPermanent*/ 2, 1);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.RetryCount.Browser", 0);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.ProcessCreationToUploadLatency.Browser",
+      0);
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.SwitchCount.Browser", 1, 1);
 }
 
 TEST_F(BrowserLaunchEventControllerTest, MultipleCallsTriggerCheck) {
@@ -163,6 +215,31 @@ TEST_F(BrowserLaunchEventControllerTest, MultipleCallsTriggerCheck) {
 
   controller_->CollectAndUpload();
   EXPECT_CHECK_DEATH(controller_->CollectAndUpload());
+}
+
+TEST_F(BrowserLaunchEventControllerTest, NotRegisteredFailure) {
+  base::HistogramTester histogram_tester;
+  EXPECT_CALL(*collector_ptr_, GetEvent()).Times(1);
+
+  EXPECT_CALL(*uploader_ptr_, UploadEvent(_, _))
+      .WillOnce([](const auto&,
+                   base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                       callback) {
+        std::move(callback).Run(policy::CloudPolicyClient::Result(
+            policy::CloudPolicyClient::NotRegistered()));
+      });
+
+  controller_->CollectAndUpload();
+
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.UploadResult.Browser", 0);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.RetryCount.Browser", 0);
+  histogram_tester.ExpectTotalCount(
+      "Enterprise.BrowserLaunchEvent.ProcessCreationToUploadLatency.Browser",
+      0);
+  histogram_tester.ExpectUniqueSample(
+      "Enterprise.BrowserLaunchEvent.SwitchCount.Browser", 1, 1);
 }
 
 }  // namespace enterprise_reporting

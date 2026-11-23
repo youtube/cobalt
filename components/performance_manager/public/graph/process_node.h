@@ -8,6 +8,7 @@
 #include "base/byte_size.h"
 #include "base/containers/enum_set.h"
 #include "base/containers/flat_set.h"
+#include "base/memory/raw_ptr.h"
 #include "base/observer_list_types.h"
 #include "base/process/process.h"
 #include "base/task/task_traits.h"
@@ -43,7 +44,7 @@ class BrowserChildProcessHostProxy;
 // it.
 class ProcessNode : public TypedNode<ProcessNode> {
  public:
-  using NodeSet = base::flat_set<const Node*>;
+  using NodeSet = base::flat_set<raw_ptr<const Node>>;
   template <class ReturnType>
   using NodeSetView = NodeSetView<NodeSet, ReturnType>;
 

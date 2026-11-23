@@ -13,6 +13,7 @@
 
 #include "base/base64url.h"
 #include "base/debug/dump_without_crashing.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted_memory.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -723,6 +724,7 @@ void ComposeboxQueryController::CreateSearchUrl(
         std::make_unique<lens::LensOverlayContextualInputs>();
     const FileInfo* last_active_lens_file = nullptr;
     bool has_image_upload = false;
+    bool has_drive_id = false;
     size_t num_valid_lens_files = 0;
     for (const auto& file_token : search_url_request_info->file_tokens) {
       auto* file_info = GetMutableFileInfo(file_token);
@@ -741,6 +743,12 @@ void ComposeboxQueryController::CreateSearchUrl(
             file_info->input_data->upload_type.has_value()) {
           contextual_input->set_upload_type(
               *file_info->input_data->upload_type);
+        }
+        if (file_info->input_data &&
+            file_info->input_data->drive_id.has_value() &&
+            !file_info->input_data->drive_id->empty()) {
+          contextual_input->set_drive_id(*file_info->input_data->drive_id);
+          has_drive_id = true;
         }
 
         has_image_upload |= RequestIdHasImage(*file_info->request_id);
@@ -846,7 +854,8 @@ void ComposeboxQueryController::CreateSearchUrl(
           (!suppress_lns_surface_param_if_no_image_ || has_image_upload);
       std::string lns_surface =
           should_send_lns_surface ? kLnsSurfaceParameterValue : std::string();
-      if (contextual_inputs->inputs_size() == 1 && !send_upload_type) {
+      if (contextual_inputs->inputs_size() == 1 && !send_upload_type &&
+          !has_drive_id) {
         bool is_raw_file = last_active_lens_file->request_id->media_type() ==
                            lens::LensOverlayRequestId::MEDIA_TYPE_RAW_FILE;
         bool is_translate =
@@ -954,6 +963,10 @@ lens::ClientToAimMessage ComposeboxQueryController::CreateClientToAimRequest(
     (*submit_query->mutable_payload()->add_context_turn_metadata()) =
         context_turn_metadata;
   }
+
+  // TODO(crbug.com/514803722): Tracked removed contexts are available in
+  // create_client_to_aim_request_info->removed_contexts, but we don't send them
+  // to the server yet until the proto changes are finalized.
 
   // Add the request id data for each file token.
   if (!active_files_.empty() && cluster_info_.has_value()) {
@@ -2553,9 +2566,9 @@ const contextual_search::FileInfo* ComposeboxQueryController::GetFileInfo(
   return GetMutableFileInfo(file_token);
 }
 
-std::vector<const contextual_search::FileInfo*>
+std::vector<raw_ptr<const contextual_search::FileInfo>>
 ComposeboxQueryController::GetFileInfoList() {
-  std::vector<const contextual_search::FileInfo*> file_infos;
+  std::vector<raw_ptr<const contextual_search::FileInfo>> file_infos;
   file_infos.reserve(active_files_.size());
   for (const auto& [file_token, file_info] : active_files_) {
     file_infos.push_back(file_info.get());

@@ -23,3 +23,66 @@ source_set("permissions") {
     "//services/network/public/mojom",
   ]
 }
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "top_level_storage_access_permission_context_unittest.cc" ]
+
+  deps = [
+    ":permissions",
+    "//base",
+    "//chrome/browser/content_settings",
+    "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/first_party_sets",
+    "//chrome/test:test_support",
+    "//components/content_settings/core/browser",
+    "//components/content_settings/core/common",
+    "//components/permissions",
+    "//components/permissions:test_support",
+    "//components/prefs",
+    "//components/privacy_sandbox:privacy_sandbox_prefs",
+    "//content/public/browser",
+    "//content/public/common",
+    "//content/test:test_support",
+    "//net",
+    "//testing/gtest",
+  ]
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "request_storage_access_for_browsertest.cc" ]
+
+    deps = [
+      ":permissions",
+      "//base",
+      "//chrome/browser/content_settings",
+      "//chrome/browser/content_settings:content_settings_factory",
+      "//chrome/browser/net:storage_test_utils",
+      "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/content_settings/core/browser",
+      "//components/content_settings/core/common",
+      "//components/metrics:content",
+      "//components/permissions:test_support",
+      "//components/prefs",
+      "//components/privacy_sandbox:privacy_sandbox_prefs",
+      "//components/ukm:test_support",
+      "//content/public/browser",
+      "//content/public/common",
+      "//content/test:test_support",
+      "//net",
+      "//net:test_support",
+      "//services/network/public/cpp",
+      "//services/network/public/mojom",
+      "//testing/gtest",
+    ]
+  }
+}

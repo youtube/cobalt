@@ -219,6 +219,46 @@ class TestTraceAnalyzerLib(unittest.TestCase):
         self.assertEqual(agg_child.self_ms, 12.0)  # 4 + 8
         self.assertEqual(agg_child.count, 2)
 
+    def test_aggregate_trees_with_args(self):
+        # Tree 1: Root -> IsSuitableForUrlInfo(
+        #     url: google.com, site_instance: 1)
+        root1 = trace_analyzer_lib.SliceNode(1, "Root", 10000000.0, 1000)
+        child1 = trace_analyzer_lib.SliceNode(2, "IsSuitableForUrlInfo",
+                                              4000000.0, 2000, 1, 1)
+        child1.args = {
+            "url_info.url": "https://google.com",
+            "site_instance_id": "1"
+        }
+        root1.children = [child1]
+        root1.self_time = 6000000.0
+
+        # Tree 2: Root -> IsSuitableForUrlInfo(
+        #     url: youtube.com, site_instance: 2)
+        root2 = trace_analyzer_lib.SliceNode(3, "Root", 20000000.0, 5000)
+        child2 = trace_analyzer_lib.SliceNode(4, "IsSuitableForUrlInfo",
+                                              8000000.0, 6000, 1, 3)
+        child2.args = {
+            "url_info.url": "https://youtube.com",
+            "site_instance_id": "2"
+        }
+        root2.children = [child2]
+        root2.self_time = 12000000.0
+
+        agg_root = trace_analyzer_lib.aggregate_trees([root1, root2])
+        self.assertIsNotNone(agg_root)
+        self.assertEqual(agg_root.name, "Root")
+        self.assertEqual(agg_root.dur_ms, 30.0)
+
+        # They should NOT be merged because they have different arguments!
+        sig1 = ("IsSuitableForUrlInfo (url: https://google.com, "
+                "site_instance: 1)")
+        sig2 = ("IsSuitableForUrlInfo (url: https://youtube.com, "
+                "site_instance: 2)")
+        self.assertIn(sig1, agg_root.children)
+        self.assertIn(sig2, agg_root.children)
+        self.assertEqual(agg_root.children[sig1].count, 1)
+        self.assertEqual(agg_root.children[sig2].count, 1)
+
     def test_get_flat_metrics(self):
         # Tree: Root(10ms, self 6ms) -> Child1(4ms, self 4ms)
         root = trace_analyzer_lib.SliceNode(1, "Root", 10000000.0, 1000)
@@ -323,7 +363,7 @@ class TestTraceAnalyzerLib(unittest.TestCase):
         metric_query = [q for q in queries_run if "JOIN args" in q]
         self.assertEqual(len(metric_query), 1)
         self.assertIn("a.key = 'mykey'", metric_query[0])
-        self.assertIn("a.string_value = 'myval'", metric_query[0])
+        self.assertIn("a.string_value LIKE 'myval'", metric_query[0])
 
     def test_build_paths_from_slices(self):
         slices = {
@@ -410,7 +450,11 @@ class TestCliParsing(unittest.TestCase):
                                              'SliceA',
                                              arg_key='mykey',
                                              arg_value='myval',
-                                             aggregate=False)
+                                             aggregate=False,
+                                             boundary_target=None,
+                                             boundary_arg_key=None,
+                                             boundary_arg_value=None)
+
 
     @patch('trace_analyzer_lib.extract_slice_hierarchies')
     @patch('trace_analyzer_lib.TraceSession')

@@ -93,7 +93,9 @@ class MqlsFeatureMetadata {
 
 class MqlsFeatureRegistry {
  public:
+  COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
   MqlsFeatureRegistry();
+  COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)
   ~MqlsFeatureRegistry();
 
   COMPONENT_EXPORT(OPTIMIZATION_GUIDE_FEATURES)

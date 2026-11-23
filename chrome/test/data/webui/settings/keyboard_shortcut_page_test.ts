@@ -2,26 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// clang-format off
 import 'chrome://settings/settings.js';
 
 import type {KeyboardShortcutPageElement} from 'chrome://settings/settings.js';
-import {SearchEnginesBrowserProxyImpl, SearchEnginesInteractions} from 'chrome://settings/settings.js';
+import {loadTimeData, PrefsBrowserProxy, PrefService, SearchEnginesBrowserProxyImpl, SearchEnginesInteractions} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
-import {loadTimeData} from 'chrome://settings/settings.js';
-import {microtasksFinished} from 'chrome://webui-test/test_util.js';
-import {isVisible} from 'chrome://webui-test/test_util.js';
+import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
+import {TestPrefsBrowserProxy} from './test_prefs_browser_proxy.js';
 import {TestSearchEnginesBrowserProxy} from './test_search_engines_browser_proxy.js';
-
-// clang-format on
 
 suite('KeyboardShortcutPageTest', function() {
   let page: KeyboardShortcutPageElement;
   let browserProxy: TestSearchEnginesBrowserProxy;
+  let prefService: PrefService;
 
-  setup(function() {
+  setup(async function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     browserProxy = new TestSearchEnginesBrowserProxy();
     SearchEnginesBrowserProxyImpl.setInstance(browserProxy);
@@ -30,26 +26,31 @@ suite('KeyboardShortcutPageTest', function() {
       searchSettingsUpdate: true,
     });
 
-    page = document.createElement('settings-keyboard-shortcut-page');
-    page.prefs = {
-      omnibox: {
-        keyword_space_triggering_enabled: {
-          key: 'omnibox.keyword_space_triggering_enabled',
-          type: chrome.settingsPrivate.PrefType.BOOLEAN,
-          value: true,
-        },
+    const fakePrefs = [
+      {
+        key: 'omnibox.keyword_space_triggering_enabled',
+        type: chrome.settingsPrivate.PrefType.BOOLEAN,
+        value: true,
       },
-    };
+    ];
+    const prefsBrowserProxy = new TestPrefsBrowserProxy(fakePrefs);
+    PrefsBrowserProxy.setInstance(prefsBrowserProxy);
+    PrefService.resetInstanceForTesting();
+    prefService = PrefService.getInstance();
+    await prefService.whenInitialized();
+
+    page = document.createElement('settings-keyboard-shortcut-page');
     document.body.appendChild(page);
 
-    return flushTasks();
+    await microtasksFinished();
   });
 
   // Test that the keyboard shortcut dropdown menu is shown as expected.
   test('KeyboardShortcutSettingState', function() {
     assertTrue(isVisible(page.$.dropdown));
-    assertTrue(page.getPref<boolean>('omnibox.keyword_space_triggering_enabled')
-                   .value);
+    assertTrue(
+        prefService.getPref<boolean>('omnibox.keyword_space_triggering_enabled')
+            .value);
   });
 
   // Test that changing the selection updates the pref and records a metric.
@@ -57,8 +58,9 @@ suite('KeyboardShortcutPageTest', function() {
     const selectElement = page.$.dropdown.$.dropdownMenu;
     assertTrue(!!selectElement);
 
-    assertTrue(page.getPref<boolean>('omnibox.keyword_space_triggering_enabled')
-                   .value);
+    assertTrue(
+        prefService.getPref<boolean>('omnibox.keyword_space_triggering_enabled')
+            .value);
     assertEquals('true', selectElement.value);
 
     // Switch space triggering off.
@@ -67,7 +69,7 @@ suite('KeyboardShortcutPageTest', function() {
     await microtasksFinished();
 
     assertFalse(
-        page.getPref<boolean>('omnibox.keyword_space_triggering_enabled')
+        prefService.getPref<boolean>('omnibox.keyword_space_triggering_enabled')
             .value);
     assertEquals('false', selectElement.value);
 
@@ -82,8 +84,9 @@ suite('KeyboardShortcutPageTest', function() {
     selectElement.dispatchEvent(new Event('change'));
     await microtasksFinished();
 
-    assertTrue(page.getPref<boolean>('omnibox.keyword_space_triggering_enabled')
-                   .value);
+    assertTrue(
+        prefService.getPref<boolean>('omnibox.keyword_space_triggering_enabled')
+            .value);
     assertEquals('true', selectElement.value);
 
     histogramResult =

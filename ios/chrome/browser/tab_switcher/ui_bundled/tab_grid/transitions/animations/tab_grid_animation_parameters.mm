@@ -19,7 +19,8 @@
                bottomToolbarSnapshotView:(UIView*)bottomToolbarSnapshotView
                    shouldScaleTopToolbar:(BOOL)shouldScaleTopToolbar
                                incognito:(BOOL)incognito
-                        topToolbarHidden:(BOOL)topToolbarHidden {
+                        topToolbarHidden:(BOOL)topToolbarHidden
+                          commandHandler:(id<TabGridCommands>)handler {
   self = [super init];
   if (self) {
     _destinationFrame = destinationFrame;
@@ -36,6 +37,7 @@
     _shouldScaleTopToolbar = shouldScaleTopToolbar;
     _incognito = incognito;
     _topToolbarHidden = topToolbarHidden;
+    _handler = handler;
   }
   return self;
 }

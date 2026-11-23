@@ -35,7 +35,7 @@ void CobaltTrustedHeaderClient::OnBeforeSendHeaders(
   for (const auto& pair : header_value_provider->GetHeaderValues()) {
     mutable_headers.SetHeader(pair.first, pair.second);
   }
-  std::move(callback).Run(net::OK, mutable_headers);
+  std::move(callback).Run(net::OK, mutable_headers, std::nullopt);
 }
 
 void CobaltTrustedHeaderClient::OnHeadersReceived(

@@ -101,8 +101,7 @@ TEST_F(IdleEventNotifierTest, CheckInitialValues) {
 TEST_F(IdleEventNotifierTest, LidOpenEventReceived) {
   const base::Time now = base::Time::Now();
   idle_event_notifier_->LidEventReceived(
-      chromeos::PowerManagerClient::LidState::OPEN,
-      base::TimeTicks::UnixEpoch());
+      chromeos::PowerManagerClient::LidState::OPEN, base::TimeTicks());
   IdleEventNotifier::ActivityData data;
   data.last_activity_day = GetDayOfWeek(now);
   const base::TimeDelta time_of_day = GetTimeSinceMidnight(now);
@@ -533,8 +532,7 @@ TEST_F(IdleEventNotifierTest, UserInputEventsOneIdleEvent) {
   ui::MouseEvent mouse_event(ui::EventType::kMouseExited, gfx::Point(0, 0),
                              gfx::Point(0, 0), base::TimeTicks(), 0, 0);
   ui::TouchEvent touch_event(
-      ui::EventType::kTouchPressed, gfx::Point(0, 0),
-      base::TimeTicks::UnixEpoch(),
+      ui::EventType::kTouchPressed, gfx::Point(0, 0), base::TimeTicks(),
       ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
   const base::Time first_activity_time = base::Time::Now();
@@ -596,8 +594,7 @@ TEST_F(IdleEventNotifierTest, UserInputEventsTwoIdleEvents) {
   ui::MouseEvent mouse_event(ui::EventType::kMouseExited, gfx::Point(0, 0),
                              gfx::Point(0, 0), base::TimeTicks(), 0, 0);
   ui::TouchEvent touch_event(
-      ui::EventType::kTouchPressed, gfx::Point(0, 0),
-      base::TimeTicks::UnixEpoch(),
+      ui::EventType::kTouchPressed, gfx::Point(0, 0), base::TimeTicks(),
       ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
   const base::Time now_1 = base::Time::Now();

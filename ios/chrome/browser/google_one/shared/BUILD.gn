@@ -5,3 +5,36 @@
 source_set("shared") {
   sources = [ "google_one_entry_point.h" ]
 }
+
+source_set("deep_link") {
+  sources = [
+    "google_one_deep_link_util.h",
+    "google_one_deep_link_util.mm",
+  ]
+  deps = [
+    "//base",
+    "//google_apis",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/signin/model:system_identity",
+    "//ios/chrome/browser/signin/model:system_identity_manager",
+    "//ios/public/provider/chrome/browser/google_one:google_one_api",
+    "//net",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "google_one_deep_link_util_unittest.mm" ]
+  deps = [
+    ":deep_link",
+    "//base",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/signin/model:fake_system_identity",
+    "//ios/chrome/browser/signin/model:fake_system_identity_manager",
+    "//ios/chrome/test:test_support",
+    "//ios/public/provider/chrome/browser/google_one:google_one_api",
+    "//testing/gtest",
+    "//url",
+  ]
+}

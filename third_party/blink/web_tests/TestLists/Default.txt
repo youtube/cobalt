@@ -147,6 +147,7 @@ external/wpt/css/css-timing/cubic-bezier-timing-functions-output.html
 external/wpt/css/css-timing/frames-timing-functions-output.html
 external/wpt/css/css-timing/frames-timing-functions-syntax.html
 external/wpt/css/css-timing/step-timing-functions-output.html
+external/wpt/css/css-transitions/crashtests/transition-transform-translate-calculated-length-crash.html
 external/wpt/css/css-typed-om/CSSMatrixComponent-DOMMatrix-mutable.html
 external/wpt/css/css-typed-om/declared-styleMap-accepts-inherit.html
 external/wpt/css/css-typed-om/stylevalue-subclasses/cssKeywordValue.html
@@ -906,7 +907,6 @@ transforms/topmost-becomes-bottomost-for-scrolling.html
 transforms/transformed-caret.html
 transforms/transform-origin-crash.html
 transitions/background-webkit-mask-crash.html
-transitions/transition-transform-translate-calculated-length-crash.html
 traversal/hixie-node-iterator/001.xml
 traversal/hixie-node-iterator/006.xml
 traversal/tree-walker-004.html

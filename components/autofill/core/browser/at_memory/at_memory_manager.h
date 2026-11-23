@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/functional/callback.h"
@@ -17,6 +18,7 @@
 #include "components/autofill/core/browser/at_memory/at_memory_funnel_metrics.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
+#include "components/autofill/core/browser/data_model/payments/iban.h"
 #include "components/autofill/core/browser/filling/autofill_ai/autofill_ai_access_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/common/aliases.h"
@@ -104,14 +106,14 @@ class AtMemoryManager {
   void ClearSuggestions();
 
   // Fills the unmasked IBAN value after fetching it.
-  void FillIban(const Suggestion::AtMemoryPayload::Identifier& identifier,
+  void FillIban(const std::variant<Iban::Guid, Iban::InstrumentId>& identifier,
                 const FormGlobalId& form_id,
                 const FieldGlobalId& field_id,
                 const Suggestion& suggestion,
                 std::unique_ptr<AtMemoryFunnelMetrics> metrics);
 
   // Fills the unmasked credit card value after fetching it.
-  void FillCreditCard(const Suggestion::AtMemoryPayload::Identifier& identifier,
+  void FillCreditCard(const std::string& credit_card_guid,
                       const FormGlobalId& form_id,
                       const FieldGlobalId& field_id,
                       const Suggestion& suggestion,

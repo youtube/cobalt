@@ -146,10 +146,9 @@ void ScopedSVGPaintState::ApplyPaintPropertyState(
   const auto* filter = properties.Filter();
   if (filter && filter->Filter() && filter->Filter()->OriginTainted() &&
       (paint_info_.GetPaintFlags() & PaintFlag::kPrivacyPreserving)) {
+    state.SetEffect(*filter->Parent());
     filter = nullptr;
-  }
-
-  if (filter) {
+  } else if (filter) {
     state.SetEffect(*filter);
   } else if (const auto* effect = properties.Effect()) {
     state.SetEffect(*effect);

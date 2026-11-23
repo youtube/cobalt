@@ -72,6 +72,9 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
   int ReadAvailableFormatsCallCountForTesting() const {
     return read_available_formats_call_count_for_testing_;
   }
+  mojom::ClipboardBuffer LastReadPngBuffer() const {
+    return last_read_png_buffer_;
+  }
 
   // Test helpers used to simulate a slow OS clipboard read so callers can
   // verify that renderer-side Async Clipboard read paths are truly
@@ -177,6 +180,9 @@ class MockClipboardHost : public mojom::blink::ClipboardHost {
   // Deferred-callback machinery for the truly-async-read regression test.
   bool defer_read_text_callback_for_testing_ = false;
   ReadTextCallback deferred_read_text_callback_for_testing_;
+
+  mojom::ClipboardBuffer last_read_png_buffer_ =
+      mojom::ClipboardBuffer::kStandard;
 };
 
 }  // namespace blink

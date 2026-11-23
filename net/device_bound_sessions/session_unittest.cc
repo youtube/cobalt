@@ -4,12 +4,14 @@
 
 #include "net/device_bound_sessions/session.h"
 
+#include <optional>
 #include <string_view>
 
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
+#include "components/unexportable_keys/unexportable_key_id.h"
 #include "net/base/features.h"
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_inclusion_status.h"
@@ -23,8 +25,11 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_builder.h"
 #include "net/url_request/url_request_test_util.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 using base::test::ErrorIs;
+using base::test::ValueIs;
+using ::testing::Optional;
 
 namespace net::device_bound_sessions {
 
@@ -57,18 +62,21 @@ const GURL kRefreshUrl(kRefreshUrlString);
 const GURL kTestUrlForWrongETLD(kUrlStringForWrongETLD);
 
 SessionParams CreateValidParams() {
-  SessionParams::Scope scope;
-  scope.origin = "https://example.test";
-  std::vector<SessionParams::Credential> cookie_credentials(
-      {SessionParams::Credential{"test_cookie",
-                                 "Secure; Domain=example.test"}});
-  return SessionParams{kSessionId,
-                       kTestUrl,
-                       kRefreshUrlString,
-                       std::move(scope),
-                       std::move(cookie_credentials),
-                       unexportable_keys::UnexportableSigningKeyId(),
-                       /*allowed_refresh_initiators=*/{"*"}};
+  return {
+      .session_id = kSessionId,
+      .fetcher_url = kTestUrl,
+      .refresh_url = kRefreshUrlString,
+      .scope = {.origin = "https://example.test"},
+      .credentials =
+          {
+              {
+                  .name = "test_cookie",
+                  .attributes = "Secure; Domain=example.test",
+              },
+          },
+      .key_id = unexportable_keys::UnexportableSigningKeyId(),
+      .allowed_refresh_initiators = {"*"},
+  };
 }
 
 TEST_F(SessionTest, ValidService) {
@@ -237,6 +245,30 @@ TEST_F(SessionTest, CreateWithInvalidCredential) {
   EXPECT_THAT(
       Session::CreateIfValid(params),
       ErrorIs(MatchesErrorType(SessionError::kInvalidCredentialsCookie)));
+}
+
+TEST_F(SessionTest, CreateWithAttestationKey) {
+  SessionParams params = CreateValidParams();
+  params.attestation_key_id = unexportable_keys::UnexportableAttestationKeyId();
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<Session> session,
+                       Session::CreateIfValid(params));
+  ASSERT_TRUE(session);
+
+  EXPECT_THAT(session->maybe_unexportable_attestation_key_id(),
+              ValueIs(Optional(*params.attestation_key_id)));
+}
+
+TEST_F(SessionTest, CreateWithNullAttestationKey) {
+  SessionParams params = CreateValidParams();
+  params.attestation_key_id = std::nullopt;
+
+  ASSERT_OK_AND_ASSIGN(std::unique_ptr<Session> session,
+                       Session::CreateIfValid(params));
+  ASSERT_TRUE(session);
+
+  EXPECT_THAT(session->maybe_unexportable_attestation_key_id(),
+              ValueIs(std::nullopt));
 }
 
 TEST_F(SessionTest, ToFromProto) {

@@ -56,6 +56,9 @@ class AppMenuItemViewBinder {
         R.id.button_wrapper_five
     };
 
+    private static final View.AccessibilityDelegate sAccessibilityDelegate =
+            new AppMenuAccessibilityDelegate();
+
     /* package */ static void bindStandardItem(PropertyModel model, View view, PropertyKey key) {
         if (key == AppMenuItemProperties.MENU_ITEM_ID) {
             int id = model.get(AppMenuItemProperties.MENU_ITEM_ID);
@@ -63,7 +66,6 @@ class AppMenuItemViewBinder {
         } else if (key == AppMenuItemProperties.TITLE) {
             CharSequence title = model.get(AppMenuItemProperties.TITLE);
             ((TextView) view.findViewById(R.id.menu_item_text)).setText(title);
-            view.setTooltipText(title);
         } else if (key == AppMenuItemProperties.TITLE_CONDENSED) {
             setContentDescription(view.findViewById(R.id.menu_item_text), model);
         } else if (key == AppMenuItemProperties.ENABLED) {
@@ -236,15 +238,7 @@ class AppMenuItemViewBinder {
                     } else {
                         button.setCheckable(false);
                         button.setSelected(isChecked);
-                        button.setAccessibilityDelegate(
-                                new View.AccessibilityDelegate() {
-                                    @Override
-                                    public void onInitializeAccessibilityNodeInfo(
-                                            View host, AccessibilityNodeInfo info) {
-                                        super.onInitializeAccessibilityNodeInfo(host, info);
-                                        info.setSelected(false);
-                                    }
-                                });
+                        button.setAccessibilityDelegate(sAccessibilityDelegate);
                     }
 
                     setupMenuButton(button, iconList.get(i).model, appMenuClickHandler);
@@ -427,5 +421,13 @@ class AppMenuItemViewBinder {
 
         // Menu items may be hidden by command line flags before they get to this point.
         button.setVisibility(View.VISIBLE);
+    }
+
+    private static final class AppMenuAccessibilityDelegate extends View.AccessibilityDelegate {
+        @Override
+        public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+            super.onInitializeAccessibilityNodeInfo(host, info);
+            info.setSelected(false);
+        }
     }
 }

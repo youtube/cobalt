@@ -185,7 +185,7 @@ std::string ToString(const Codec& codec) {
   return ss.Release();
 }
 
-bool IsCodec(const Codec& codec, const char* ref_name) {
+bool IsCodec(const Codec& codec, absl::string_view ref_name) {
   return absl::EqualsIgnoreCase(codec.name, ref_name);
 }
 
@@ -348,7 +348,8 @@ bool CheckRedParameters(
 
   // Check the FMTP line for the empty parameter which should match
   // <primary codec>/<primary codec>[/...]
-  auto red_parameters = red_codec.params.find(kCodecParamNotInNameValueFormat);
+  auto red_parameters =
+      red_codec.params.find(std::string(kCodecParamNotInNameValueFormat));
   if (red_parameters == red_codec.params.end()) {
     RTC_LOG(LS_WARNING) << "audio/RED missing fmtp parameters.";
     return false;

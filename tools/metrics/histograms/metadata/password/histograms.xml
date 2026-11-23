@@ -4554,7 +4554,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram name="PasswordProtection.CSDCacheContainsDebuggingMetadata"
     enum="BooleanPresent" expires_after="2027-03-02">
-  <owner>andysjlim@chromium.org</owner>
+  <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records whether the CSD Features cache had debugging metadata present for a
@@ -4564,7 +4564,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram name="PasswordProtection.CSDCacheDebuggingMetadataSizeAtHit"
     units="bytes" expires_after="2027-03-02">
-  <owner>andysjlim@chromium.org</owner>
+  <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records the CSD Features debugging metadata cache size at the time when
@@ -4800,7 +4800,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram name="PasswordProtection.VisualFeatureExtractionDuration" units="ms"
     expires_after="2027-02-10">
-  <owner>andysjlim@chromium.org</owner>
+  <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     The time it takes to extract the visual features of a login page before
@@ -4811,7 +4811,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram name="PasswordProtection.VisualFeaturesClearReason"
     enum="CanExtractVisualFeaturesResult" expires_after="2026-12-06">
-  <owner>andysjlim@chromium.org</owner>
+  <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Log the reason why PhishGuard pings does not contain visual features images.

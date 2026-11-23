@@ -90,6 +90,7 @@ android_resources("java_resources") {
     "java/res/layout/pdf_page.xml",
     "java/res/layout/pdf_properties_dialog.xml",
     "java/res/layout/pdf_toolbar.xml",
+    "java/res/values/ids.xml",
   ]
   deps = []
 }

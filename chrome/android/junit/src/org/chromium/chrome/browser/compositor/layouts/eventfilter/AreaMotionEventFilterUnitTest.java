@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.compositor.layouts.eventfilter;
 
 import static org.mockito.ArgumentMatchers.anyFloat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -215,6 +216,57 @@ public class AreaMotionEventFilterUnitTest {
                                 action,
                                 toolType,
                                 source)));
+    }
+
+    @Test
+    public void testSecondaryClickTouchEventsConsumed() {
+        // 1. Send ACTION_DOWN with secondary button.
+        MotionEvent downEvent =
+                createMotionEvent(
+                        MotionEvent.ACTION_DOWN,
+                        50f,
+                        50f,
+                        MotionEvent.BUTTON_SECONDARY,
+                        InputDevice.SOURCE_MOUSE);
+        boolean consumed = mEventFilter.onTouchEvent(downEvent);
+        Assert.assertTrue("Secondary click down event should be consumed.", consumed);
+        verify(mHandler, never()).onDown(anyFloat(), anyFloat(), anyInt());
+
+        // 2. Send ACTION_MOVE with secondary button.
+        MotionEvent moveEvent =
+                createMotionEvent(
+                        MotionEvent.ACTION_MOVE,
+                        51f,
+                        50f,
+                        MotionEvent.BUTTON_SECONDARY,
+                        InputDevice.SOURCE_MOUSE);
+        consumed = mEventFilter.onTouchEvent(moveEvent);
+        Assert.assertTrue("Secondary click move event should be consumed.", consumed);
+        verify(mHandler, never())
+                .drag(anyFloat(), anyFloat(), anyFloat(), anyFloat(), anyFloat(), anyFloat());
+
+        // 3. Send ACTION_UP with no buttons pressed.
+        MotionEvent upEvent =
+                createMotionEvent(MotionEvent.ACTION_UP, 51f, 50f, 0, InputDevice.SOURCE_MOUSE);
+        consumed = mEventFilter.onTouchEvent(upEvent);
+        Assert.assertTrue("Secondary click up event should be consumed.", consumed);
+        verify(mHandler, never()).click(anyFloat(), anyFloat(), anyInt(), anyInt());
+    }
+
+    private static MotionEvent createMotionEvent(
+            int action, float x, float y, int buttonState, int source) {
+        MotionEvent.PointerCoords[] coords = new MotionEvent.PointerCoords[1];
+        coords[0] = new MotionEvent.PointerCoords();
+        coords[0].x = x;
+        coords[0].y = y;
+
+        MotionEvent.PointerProperties[] properties = new MotionEvent.PointerProperties[1];
+        properties[0] = new MotionEvent.PointerProperties();
+        properties[0].id = 0;
+        properties[0].toolType = MotionEvent.TOOL_TYPE_MOUSE;
+
+        return MotionEvent.obtain(
+                0, 0, action, 1, properties, coords, 0, buttonState, x, y, 0, 0, source, 0);
     }
 
     private static MotionEvent createGenericMotionEvent(

@@ -1607,6 +1607,11 @@ RTCError PeerConnection::SetConfiguration(
   transport_controller_s()->SetTransportStates(std::move(new_states));
   sdp_handler_->UpdateCachedIceCredentials(std::move(pooled_credentials));
   configuration_ = modified_config;
+
+  if (needs_ice_restart) {
+    sdp_handler_->UpdateNegotiationNeeded();
+  }
+
   return RTCError::OK();
 }
 

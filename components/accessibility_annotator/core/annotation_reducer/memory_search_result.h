@@ -118,8 +118,8 @@ enum class MemorySearchStatus {
   kUnsupportedQuery,
   // Call to a model inference failed.
   kInferenceFailure,
-  // Failure obtaining from 1P data sources.
-  kDataFetchFailure,
+  // Failure due to lack of internet connection.
+  kNoConnectionFailure,
   // Other internal Failures.
   kInternalFailure
 };

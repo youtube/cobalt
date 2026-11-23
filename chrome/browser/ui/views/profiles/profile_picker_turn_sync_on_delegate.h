@@ -59,6 +59,10 @@ class ProfilePickerTurnSyncOnDelegate : public TurnSyncOnHelper::Delegate,
   // Shows the sync confirmation screen in the profile creation flow.
   void ShowSyncConfirmationScreen();
 
+  // Shows the sign-in celebration if eligible, then runs
+  // `show_next_screen_callback`.
+  void MaybeShowSignInCelebration(base::OnceClosure show_next_screen_callback);
+
   // When ShowSync(Disabled)Confirmation() gets called, this must eventually get
   // called exactly once in all code branches. Handles the callback.
   void FinishSyncConfirmation(

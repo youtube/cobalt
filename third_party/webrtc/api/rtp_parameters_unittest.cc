@@ -16,13 +16,18 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "api/rtp_header_extension_id.h"
 #include "rtc_base/checks.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 
 namespace {
+
+using ::testing::Pair;
+using ::testing::UnorderedElementsAre;
 RtpParameters CreateRtpParametersWithCodecs(
     const std::vector<bool>& active,
     const std::vector<std::optional<RtpCodec>>& codecs) {
@@ -400,6 +405,24 @@ TEST(RtpExtensionTest, ToStringAndStringifySanitize) {
 
   // AbslStringify should do the same
   EXPECT_EQ(absl::StrCat(ext), "[1 http://example.com/test\\r\\n\\\\foo]");
+}
+
+TEST(CodecParameterMapTest, InitializerListWithAbslStringView) {
+  absl::string_view key1 = "key1";
+  absl::string_view val1 = "val1";
+  absl::string_view key2 = "key2";
+  absl::string_view val2 = "val2";
+
+  // Test constructor
+  CodecParameterMap map1 = {{key1, val1}, {key2, val2}};
+  EXPECT_THAT(map1,
+              UnorderedElementsAre(Pair("key1", "val1"), Pair("key2", "val2")));
+
+  // Test assignment
+  CodecParameterMap map2;
+  map2 = {{key1, val2}, {key2, val1}};
+  EXPECT_THAT(map2,
+              UnorderedElementsAre(Pair("key1", "val2"), Pair("key2", "val1")));
 }
 
 }  // namespace

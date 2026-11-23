@@ -8,6 +8,7 @@
 #import "base/test/metrics/user_action_tester.h"
 #import "base/test/task_environment.h"
 #import "ios/chrome/browser/authentication/age_mismatch_signout/coordinator/age_mismatch_signout_constants.h"
+#import "ios/chrome/browser/authentication/age_mismatch_signout/ui/age_mismatch_signout_ui_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"

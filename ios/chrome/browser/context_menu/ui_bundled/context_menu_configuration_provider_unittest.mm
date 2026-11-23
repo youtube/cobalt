@@ -16,10 +16,15 @@
 #import "components/prefs/testing_pref_service.h"
 #import "components/signin/public/base/consent_level.h"
 #import "components/signin/public/base/signin_metrics.h"
+#import "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #import "components/signin/public/identity_manager/identity_test_environment.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/context_menu/ui_bundled/context_menu_configuration_provider+Testing.h"
 #import "ios/chrome/browser/enterprise/data_controls/model/data_controls_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/model/fake_gemini_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
 #import "ios/chrome/browser/menu/ui_bundled/menu_histograms.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
@@ -42,8 +47,11 @@
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/identity_test_environment_browser_state_adaptor.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/components/enterprise/analysis/features.h"
+#import "ios/web/public/test/fakes/fake_web_frame.h"
+#import "ios/web/public/test/fakes/fake_web_frames_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "ios/web/public/ui/context_menu_params.h"
@@ -52,6 +60,10 @@
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "ui/base/l10n/l10n_util.h"
 #import "url/origin.h"
+
+namespace ios::provider {
+void SetMockProtectedUrl(bool is_protected);
+}
 
 namespace {
 
@@ -121,6 +133,12 @@ class ContextMenuConfigurationProviderTest : public PlatformTest {
         OptimizationGuideServiceFactory::GetDefaultFactory());
     builder.AddTestingFactory(PhotosServiceFactory::GetInstance(),
                               PhotosServiceFactory::GetDefaultFactory());
+    builder.AddTestingFactory(
+        GeminiServiceFactory::GetInstance(),
+        base::BindRepeating(
+            [](ProfileIOS* profile) -> std::unique_ptr<KeyedService> {
+              return std::make_unique<FakeGeminiService>();
+            }));
     profile_ = std::move(builder).Build();
     browser_ = std::make_unique<TestBrowser>(profile_.get());
     std::unique_ptr<web::FakeWebState> web_state =
@@ -172,15 +190,21 @@ class ContextMenuConfigurationProviderTest : public PlatformTest {
   }
 
   void TearDown() final {
+    ios::provider::SetMockProtectedUrl(false);
     [configuration_provider_ stop];
     PlatformTest::TearDown();
   }
 
-  // Sign-in with a fake account.
+  // Signs in with a fake primary account and configures it with model execution
+  // capabilities so that Gemini availability checks pass.
   void SignIn() {
-    signin::MakePrimaryAccountAvailable(
-        IdentityManagerFactory::GetForProfile(profile_.get()),
-        kPrimaryAccountEmail, signin::ConsentLevel::kSignin);
+    signin::IdentityManager* identity_manager =
+        IdentityManagerFactory::GetForProfile(profile_.get());
+    AccountInfo account = signin::MakePrimaryAccountAvailable(
+        identity_manager, kPrimaryAccountEmail, signin::ConsentLevel::kSignin);
+    AccountCapabilitiesTestMutator mutator(&account);
+    mutator.set_can_use_model_execution_features(true);
+    signin::UpdateAccountInfoForAccount(identity_manager, account);
   }
 
   // Returns a BrowserActionFactory.
@@ -572,4 +596,63 @@ TEST_F(ContextMenuConfigurationProviderTest,
   EXPECT_EQ(
       base::apple::ObjCCast<UIAction>(foundMenuElementPhotosSave).attributes,
       UIMenuElementAttributesDisabled);
+}
+
+// Tests that the "Edit Image with Gemini" action is not added to the context
+// menu if the page URL is protected.
+TEST_F(ContextMenuConfigurationProviderTest, GeminiImageRemix_ProtectedURL) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeaturesAndParameters(
+      {{kPageActionMenu, {}},
+       {kGeminiImageRemixTool, {{"GeminiImageRemixToolPosition", "0"}}}},
+      {});
+
+  SignIn();
+
+  // Configure WebState to allow page context extraction.
+  web::FakeWebState* web_state = GetActiveWebState();
+  web_state->WasShown();
+  web_state->SetContentIsHTML(true);
+  web_state->SetContentsMimeType("text/html");
+
+  // Configure WebFramesManager and bind GeminiTabHelper to the WebState to
+  // satisfy Gemini availability checks for the active WebState.
+  auto frames_manager = std::make_unique<web::FakeWebFramesManager>();
+  auto main_frame = web::FakeWebFrame::CreateMainWebFrame();
+  frames_manager->AddWebFrame(std::move(main_frame));
+  web_state->SetWebFramesManager(std::move(frames_manager));
+
+  GeminiTabHelper::CreateForWebState(web_state);
+
+  // Configure the mock Gemini service to mark the profile as eligible.
+  FakeGeminiService* fake_gemini_service = static_cast<FakeGeminiService*>(
+      GeminiServiceFactory::GetForProfile(profile_.get()));
+  fake_gemini_service->SetIsEligible(true);
+
+  NSString* expected_title =
+      l10n_util::GetNSString(IDS_IOS_GEMINI_IMAGE_CONTEXT_MENU_ENTRY_POINT);
+  web_state->SetCurrentURL(GURL("https://example.com"));
+
+  // Verify that the action is added to the context menu on an unprotected URL.
+  ios::provider::SetMockProtectedUrl(false);
+  web::ContextMenuParams params = GetContextMenuParamsWithImageUrl(kImageUrl);
+  UIMenu* menu = GetContextMenuForParams(params);
+
+  NSUInteger indexOfGeminiAction =
+      [menu.children indexOfObjectPassingTest:^BOOL(UIMenuElement* menuElement,
+                                                    NSUInteger, BOOL*) {
+        return [menuElement.title isEqualToString:expected_title];
+      }];
+  EXPECT_NE(indexOfGeminiAction, (NSUInteger)NSNotFound);
+
+  // Verify that the action is not added to the context menu on a protected URL.
+  ios::provider::SetMockProtectedUrl(true);
+  UIMenu* protected_menu = GetContextMenuForParams(params);
+
+  NSUInteger indexOfProtectedGeminiAction = [protected_menu.children
+      indexOfObjectPassingTest:^BOOL(UIMenuElement* menuElement, NSUInteger,
+                                     BOOL*) {
+        return [menuElement.title isEqualToString:expected_title];
+      }];
+  EXPECT_EQ(indexOfProtectedGeminiAction, (NSUInteger)NSNotFound);
 }

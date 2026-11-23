@@ -834,6 +834,11 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // payment checkout forms.
   virtual void HideOmniboxAutofillChip() = 0;
 #endif
+
+  // Shows the Payments Churned Users UI. This UI is responsible for providing
+  // users that have turned off autofill with a value prop to turn autofill back
+  // on.
+  virtual void ShowPaymentsChurnedUsersUI() {}
 };
 
 }  // namespace payments

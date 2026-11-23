@@ -8,10 +8,10 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
-#include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "remoting/base/logging.h"
 #include "remoting/host/client_session_details.h"
@@ -64,21 +64,22 @@ bool ConvertListToString(const base::ListValue& bytes, std::string* out) {
 namespace remoting {
 
 SecurityKeyExtensionSession::SecurityKeyExtensionSession(
-    ClientSessionDetails* client_session_details,
-    protocol::ClientStub* client_stub,
-    scoped_refptr<base::SingleThreadTaskRunner> file_task_runner)
-    : client_stub_(client_stub) {
+    base::WeakPtr<SecurityKeyAuthHandler> auth_handler,
+    protocol::ClientStub* client_stub)
+    : client_stub_(client_stub), auth_handler_(auth_handler) {
   DCHECK(client_stub_);
-
-  security_key_auth_handler_ = remoting::SecurityKeyAuthHandler::Create(
-      client_session_details,
-      base::BindRepeating(&SecurityKeyExtensionSession::SendMessageToClient,
-                          base::Unretained(this)),
-      file_task_runner);
+  if (auth_handler_) {
+    auth_handler_->SetSendMessageCallback(
+        base::BindRepeating(&SecurityKeyExtensionSession::SendMessageToClient,
+                            weak_factory_.GetWeakPtr()));
+  }
 }
 
 SecurityKeyExtensionSession::~SecurityKeyExtensionSession() {
   DCHECK(thread_checker_.CalledOnValidThread());
+  if (auth_handler_) {
+    auth_handler_->SetSendMessageCallback(base::NullCallback());
+  }
 }
 
 // Returns true if the |message| is a Security Key ExtensionMessage.
@@ -129,11 +130,6 @@ bool SecurityKeyExtensionSession::OnExtensionMessage(
   return true;
 }
 
-void SecurityKeyExtensionSession::BindSecurityKeyForwarder(
-    mojo::PendingReceiver<mojom::SecurityKeyForwarder> receiver) {
-  security_key_auth_handler_->BindSecurityKeyForwarder(std::move(receiver));
-}
-
 void SecurityKeyExtensionSession::ProcessControlMessage(
     const base::DictValue& message_data) const {
   const std::string* option = message_data.FindString(kControlOption);
@@ -143,7 +139,9 @@ void SecurityKeyExtensionSession::ProcessControlMessage(
   }
 
   if (*option == kSecurityKeyAuthV1) {
-    security_key_auth_handler_->CreateSecurityKeyConnection();
+    if (auth_handler_) {
+      auth_handler_->CreateSecurityKeyConnection();
+    }
   } else {
     VLOG(2) << "Invalid gnubby-auth control option: " << *option;
   }
@@ -151,6 +149,10 @@ void SecurityKeyExtensionSession::ProcessControlMessage(
 
 void SecurityKeyExtensionSession::ProcessDataMessage(
     const base::DictValue& message_data) const {
+  if (!auth_handler_) {
+    return;
+  }
+
   std::optional<int> connection_id_opt = message_data.FindInt(kConnectionId);
   if (!connection_id_opt.has_value()) {
     LOG(WARNING) << "Could not extract connection id from message.";
@@ -158,7 +160,7 @@ void SecurityKeyExtensionSession::ProcessDataMessage(
   }
   auto connection_id = *connection_id_opt;
 
-  if (!security_key_auth_handler_->IsValidConnectionId(connection_id)) {
+  if (!auth_handler_->IsValidConnectionId(connection_id)) {
     LOG(WARNING) << "Unknown gnubby-auth data connection: '" << connection_id
                  << "'";
     return;
@@ -172,24 +174,28 @@ void SecurityKeyExtensionSession::ProcessDataMessage(
     if (bytes_list->size() > kMaxPayloadSize) {
       LOG(ERROR) << "Gnubby data payload exceeds maximum size ("
                  << bytes_list->size() << " > " << kMaxPayloadSize << ").";
-      security_key_auth_handler_->SendErrorAndCloseConnection(connection_id);
+      auth_handler_->SendErrorAndCloseConnection(connection_id);
       return;
     }
 
     if (ConvertListToString(*bytes_list, &response)) {
       HOST_LOG << "Processing security key response: "
                << GetCommandCode(response);
-      security_key_auth_handler_->SendClientResponse(connection_id, response);
+      auth_handler_->SendClientResponse(connection_id, response);
       return;
     }
   }
 
   LOG(WARNING) << "Could not extract response data from message.";
-  security_key_auth_handler_->SendErrorAndCloseConnection(connection_id);
+  auth_handler_->SendErrorAndCloseConnection(connection_id);
 }
 
 void SecurityKeyExtensionSession::ProcessErrorMessage(
     const base::DictValue& message_data) const {
+  if (!auth_handler_) {
+    return;
+  }
+
   std::optional<int> connection_id_opt = message_data.FindInt(kConnectionId);
   if (!connection_id_opt.has_value()) {
     LOG(WARNING) << "Could not extract connection id from message.";
@@ -197,17 +203,16 @@ void SecurityKeyExtensionSession::ProcessErrorMessage(
   }
   auto connection_id = *connection_id_opt;
 
-  if (security_key_auth_handler_->IsValidConnectionId(connection_id)) {
+  if (auth_handler_->IsValidConnectionId(connection_id)) {
     HOST_LOG << "Sending security key error";
-    security_key_auth_handler_->SendErrorAndCloseConnection(connection_id);
+    auth_handler_->SendErrorAndCloseConnection(connection_id);
   } else {
     LOG(WARNING) << "Unknown gnubby-auth connection id: " << connection_id;
   }
 }
 
-void SecurityKeyExtensionSession::SendMessageToClient(
-    int connection_id,
-    const std::string& data) const {
+void SecurityKeyExtensionSession::SendMessageToClient(int connection_id,
+                                                      const std::string& data) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(client_stub_);
 
@@ -228,16 +233,6 @@ void SecurityKeyExtensionSession::SendMessageToClient(
   message.set_data(base::WriteJson(request_dict).value());
 
   client_stub_->DeliverHostMessage(message);
-}
-
-void SecurityKeyExtensionSession::SetSecurityKeyAuthHandlerForTesting(
-    std::unique_ptr<SecurityKeyAuthHandler> security_key_auth_handler) {
-  DCHECK(security_key_auth_handler);
-
-  security_key_auth_handler_ = std::move(security_key_auth_handler);
-  security_key_auth_handler_->SetSendMessageCallback(
-      base::BindRepeating(&SecurityKeyExtensionSession::SendMessageToClient,
-                          base::Unretained(this)));
 }
 
 }  // namespace remoting

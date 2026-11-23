@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ash/file_suggest/file_suggest_keyed_service.h"
 
-#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "base/functional/bind.h"

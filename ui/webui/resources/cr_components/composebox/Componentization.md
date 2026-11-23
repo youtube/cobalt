@@ -43,20 +43,13 @@ add an owner from the OWNERS file to the reviewers list.
 
 Please add a comment
 `"// TODO: crbug.com/486707842 - Move to the Contextual Tasks embedder"` to the
-methods/logic added, and then add `jamesleung@` to the cc list.
+methods/logic added, and then add `jilinyang@` to the cc list.
 
 #### NTP
 
 Please update `NtpComposeboxElement` in
 `chrome/browser/resources/new_tab_page/ntp_composebox.ts` in addition to
 `composebox.ts`.
-
-#### Omnibox
-
-Please update `OmniboxComposeboxElement` in
-`chrome/browser/resources/omnibox_popup/omnibox_composebox.ts` in addition to
-`composebox.ts`, and then add `ryanakiyama@` to the cc list.
-
 ______________________________________________________________________
 
 ## Context

@@ -48,9 +48,15 @@ Vote GetVote(FrameNode::Visibility visibility, bool is_important) {
 // static
 const char FrameVisibilityVoter::kFrameVisibilityReason[] = "Frame visibility.";
 
-FrameVisibilityVoter::FrameVisibilityVoter() = default;
+FrameVisibilityVoter::FrameVisibilityVoter(bool ignore_main_frame_visibility)
+    : ignore_main_frame_visibility_(ignore_main_frame_visibility) {}
 
 FrameVisibilityVoter::~FrameVisibilityVoter() = default;
+
+bool FrameVisibilityVoter::ShouldVoteForFrame(
+    const FrameNode* frame_node) const {
+  return !(frame_node->IsMainFrame() && ignore_main_frame_visibility_);
+}
 
 void FrameVisibilityVoter::InitializeOnGraph(Graph* graph,
                                              VotingChannel voting_channel) {
@@ -71,6 +77,10 @@ void FrameVisibilityVoter::OnBeforeFrameNodeAdded(
     const PageNode* pending_page_node,
     const ProcessNode* pending_process_node,
     const FrameNode* pending_parent_or_outer_document_or_embedder) {
+  if (!ShouldVoteForFrame(frame_node)) {
+    return;
+  }
+
   const Vote vote =
       GetVote(frame_node->GetVisibility(), frame_node->IsImportant());
   voting_channel_.SubmitVote(GetExecutionContext(frame_node), vote);
@@ -78,14 +88,21 @@ void FrameVisibilityVoter::OnBeforeFrameNodeAdded(
 
 void FrameVisibilityVoter::OnBeforeFrameNodeRemoved(
     const FrameNode* frame_node) {
+  if (!ShouldVoteForFrame(frame_node)) {
+    return;
+  }
+
   voting_channel_.InvalidateVote(GetExecutionContext(frame_node));
 }
 
 void FrameVisibilityVoter::OnFrameVisibilityChanged(
     const FrameNode* frame_node,
     FrameNode::Visibility previous_value) {
-  const Vote old_vote = GetVote(previous_value, frame_node->IsImportant());
+  if (!ShouldVoteForFrame(frame_node)) {
+    return;
+  }
 
+  const Vote old_vote = GetVote(previous_value, frame_node->IsImportant());
   const Vote new_vote =
       GetVote(frame_node->GetVisibility(), frame_node->IsImportant());
 
@@ -98,6 +115,10 @@ void FrameVisibilityVoter::OnFrameVisibilityChanged(
 }
 
 void FrameVisibilityVoter::OnIsImportantChanged(const FrameNode* frame_node) {
+  if (!ShouldVoteForFrame(frame_node)) {
+    return;
+  }
+
   const Vote old_vote =
       GetVote(frame_node->GetVisibility(), !frame_node->IsImportant());
   const Vote new_vote =

@@ -36,6 +36,7 @@
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/metrics_proto/omnibox_scoring_signals.pb.h"
 #include "third_party/omnibox_proto/answer_type.pb.h"
+#include "third_party/omnibox_proto/chrome_searchbox_stats.pb.h"
 #include "third_party/omnibox_proto/groups.pb.h"
 #include "third_party/omnibox_proto/navigational_intent.pb.h"
 #include "third_party/omnibox_proto/rich_answer_template.pb.h"
@@ -110,6 +111,10 @@ struct SessionData {
 
   // List of GWS event ID hashes accumulated during the course of the session.
   std::vector<int64_t> gws_event_id_hashes;
+
+  // List of experiment stats accumulated during the course of the session.
+  std::vector<omnibox::metrics::ChromeSearchboxStats::ExperimentStatsV2>
+      experiment_stats_v2s;
 
   // Whether at least one zero-prefix Search/URL suggestion was
   // shown in the session. This is used in order to ensure that the relevant

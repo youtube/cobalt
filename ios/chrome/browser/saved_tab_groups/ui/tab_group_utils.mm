@@ -22,31 +22,6 @@ std::vector<TabGroupColorId> AllPossibleTabGroupColors() {
   };
 }
 
-UIColor* ColorForTabGroupColorId(TabGroupColorId tab_group_color_id) {
-  switch (tab_group_color_id) {
-    case TabGroupColorId::kGrey:
-      return [UIColor colorNamed:kTabGroupGreyColor];
-    case TabGroupColorId::kBlue:
-      return [UIColor colorNamed:kBlue600Color];
-    case TabGroupColorId::kRed:
-      return [UIColor colorNamed:kRed600Color];
-    case TabGroupColorId::kYellow:
-      return [UIColor colorNamed:kYellow600Color];
-    case TabGroupColorId::kGreen:
-      return [UIColor colorNamed:kTabGroupGreenColor];
-    case TabGroupColorId::kPink:
-      return [UIColor colorNamed:kTabGroupPinkColor];
-    case TabGroupColorId::kPurple:
-      return [UIColor colorNamed:kTabGroupPurpleColor];
-    case TabGroupColorId::kCyan:
-      return [UIColor colorNamed:kTabGroupCyanColor];
-    case TabGroupColorId::kOrange:
-      return [UIColor colorNamed:kOrange600Color];
-    case TabGroupColorId::kNumEntries:
-      NOTREACHED() << "kNumEntries is not a supported color enum.";
-  }
-}
-
 UIColor* ForegroundColorForTabGroupColorId(TabGroupColorId tab_group_color_id) {
   switch (tab_group_color_id) {
     case TabGroupColorId::kGrey:    // Fallthrough

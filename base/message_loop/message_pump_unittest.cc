@@ -12,6 +12,7 @@
 #include "base/message_loop/message_pump_for_io.h"
 #include "base/message_loop/message_pump_for_ui.h"
 #include "base/message_loop/message_pump_type.h"
+#include "base/message_loop/message_pump_wakeup_counter.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
@@ -654,5 +655,64 @@ TEST_F(MessagePumpDefaultTest, BusyLoopPredictionAccuracyHistogram) {
   histogram_tester_.ExpectBucketCount(kHistogramName, 2 /*kFalseNegative*/, 1);
 }
 #endif  // !BUILDFLAG(IS_IOS)
+
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_APPLE)
+class MessagePumpWakeupCounterTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    MessagePumpWakeupCounter::GetForCurrentThread().ResetForTesting();
+  }
+};
+
+TEST_F(MessagePumpWakeupCounterTest, IoPumpRecordsWakeup) {
+  SingleThreadTaskExecutor executor(MessagePumpType::IO);
+  MessagePumpWakeupCounter::InitializeForCurrentThread("TestIO");
+  HistogramTester histogram_tester;
+
+  base::RunLoop run_loop;
+  base::Thread background_thread("BackgroundThread");
+  background_thread.Start();
+
+  background_thread.task_runner()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](scoped_refptr<SingleThreadTaskRunner> io_runner,
+             base::OnceClosure quit_closure) {
+            base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
+            io_runner->PostTask(FROM_HERE, std::move(quit_closure));
+          },
+          executor.task_runner(), run_loop.QuitClosure()));
+  run_loop.Run();
+
+  histogram_tester.ExpectBucketCount(
+      "Scheduling.MessagePump.WakeupCount.TestIO", 1, 1);
+}
+
+TEST_F(MessagePumpWakeupCounterTest, BusyLoopSkipsRecordingSample) {
+  MessagePumpWakeupCounter::InitializeForCurrentThread("BusyLoopThread");
+  MessagePumpDefault pump;
+  pump.SetBusyLoop(Milliseconds(10));
+  pump.SetShouldBusyLoopForTesting(true);
+  ASSERT_TRUE(pump.ShouldBusyLoop());
+  testing::NiceMock<MockMessagePumpDelegate> delegate(MessagePumpType::DEFAULT);
+  EXPECT_CALL(delegate, DoWork)
+      .WillOnce([&] {
+        pump.ScheduleWork();
+        return MessagePump::Delegate::NextWorkInfo{
+            .delayed_run_time =
+                TimeTicks::Now() + TestTimeouts::tiny_timeout()};
+      })
+      .WillOnce([&] {
+        pump.Quit();
+        return MessagePump::Delegate::NextWorkInfo{TimeTicks::Max()};
+      });
+  HistogramTester histogram_tester;
+
+  pump.Run(&delegate);
+
+  histogram_tester.ExpectBucketCount(
+      "Scheduling.MessagePump.WakeupCount.BusyLoopThread", 1, 0);
+}
+#endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_APPLE)
 
 }  // namespace base

@@ -22,6 +22,7 @@
 #elif BUILDFLAG(IS_APPLE)
 #include <mach/mach.h>
 
+#include <atomic>
 #include <memory>
 
 #include "base/apple/scoped_mach_port.h"
@@ -178,6 +179,11 @@ class BASE_EXPORT WaitableEvent {
  private:
   friend class WaitableEventWatcher;
 
+  // Returns a faster estimate of IsSignaled(); true if confirmed to be signaled
+  // (which may call IsSignaled()), false if likely not signaled. If this is not
+  // a manual reset event, then this test will cause a reset.
+  bool IsDefinitelySignaled() const;
+
   // The platform specific portions of Signal, TimedWait, and WaitMany (which do
   // the actual signaling and waiting).
   void SignalImpl();
@@ -194,7 +200,11 @@ class BASE_EXPORT WaitableEvent {
   // is present and false if not. If |dequeue| is true, the messsage will be
   // drained from the queue. If |dequeue| is false, the queue will only be
   // peeked. |port| must be a receive right.
-  static bool PeekPort(mach_port_t port, bool dequeue);
+  static bool PeekPortImpl(mach_port_t port, bool dequeue);
+
+  // Member helper that calls PeekPortImpl and updates the
+  // `signal_estimate_` cache.
+  bool PeekPort(bool dequeue) const;
 
   // The Mach receive right is waited on by both WaitableEvent and
   // WaitableEventWatcher. It is valid to signal and then delete an event, and
@@ -227,6 +237,8 @@ class BASE_EXPORT WaitableEvent {
   // the event, unlike the receive right, since a deleted event cannot be
   // signaled.
   apple::ScopedMachSendRight send_right_;
+
+  mutable std::atomic<bool> signal_estimate_{false};
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // On Windows, you must not close a HANDLE which is currently being waited on.
   // The MSDN documentation says that the resulting behaviour is 'undefined'.

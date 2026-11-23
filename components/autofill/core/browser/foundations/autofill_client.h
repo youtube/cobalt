@@ -192,6 +192,8 @@ class AutofillClient {
     kIdentityDocs,
     // Autofill AI travel/booking details (e.g. flights, vehicles).
     kTravel,
+    // Autofill AI shopping details (e.g. orders, shipments).
+    kShopping,
   };
 
   // Represents the user's possible decisions or outcomes in response to a
@@ -839,6 +841,9 @@ class AutofillClient {
 
   // Notifies the user that operation to fetch data from Wallet failed.
   virtual void ShowAutofillAiFetchFromWalletFailureNotification();
+
+  // Notifies the user that prefetching Autofill AI entities failed.
+  virtual void ShowAutofillAiPreFetchFailureNotification();
 
   virtual void ShowEmailVerifiedToast(const GURL& issuer);
 

@@ -24,6 +24,24 @@ public class MediaNotificationManager {
         sControllers = new SparseArray<>();
     }
 
+    private static boolean sMultipleMediaNotificationsEnabled;
+
+    /**
+     * Sets whether multiple media notifications are enabled.
+     *
+     * @param enabled True if multiple media notifications should be enabled.
+     */
+    public static void setMultipleMediaNotificationsEnabled(boolean enabled) {
+        sMultipleMediaNotificationsEnabled = enabled;
+    }
+
+    /**
+     * @return True if multiple media notifications are enabled.
+     */
+    public static boolean isMultipleMediaNotificationsEnabled() {
+        return sMultipleMediaNotificationsEnabled;
+    }
+
     private MediaNotificationManager() {}
 
     /**
@@ -89,6 +107,19 @@ public class MediaNotificationManager {
 
     public static @Nullable MediaNotificationController getController(int notificationId) {
         return sControllers.get(notificationId);
+    }
+
+    /**
+     * Notifies the controller associated with the specified notification ID that the service is
+     * being destroyed.
+     *
+     * @param notificationId the id of the notification.
+     */
+    public static void onServiceDestroyed(int notificationId) {
+        MediaNotificationController controller = getController(notificationId);
+        if (controller != null) {
+            controller.onServiceDestroyed();
+        }
     }
 
     public static void setControllerForTesting(

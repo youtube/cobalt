@@ -344,6 +344,18 @@ D3D12VideoEncodeDelegate::Encode(D3D12PictureBuffer picture_buffer,
       EncodeImpl(picture_buffer.resource.Get(), picture_buffer.subresource,
                  options, output_color_space);
   if (!impl_result.is_ok()) {
+    // EncodeImpl() may bail (e.g. kBadReferenceBuffer) after
+    // D3D12VideoProcessorWrapper::ProcessFrames() has already submitted work
+    // to the video processor queue but before D3D12VideoEncoderWrapper::Encode
+    // would have CPU-synced it. Sync now so resources referenced by that
+    // command list are not released while the GPU is still using them when
+    // teardown follows this error.
+    if (auto status = video_processor_wrapper_->WaitForInFlightWork();
+        !status.is_ok()) {
+      DLOG(ERROR) << "Waiting for in-flight video processing after encode "
+                     "error failed: "
+                  << static_cast<int>(status.code());
+    }
     return std::move(impl_result);
   }
 

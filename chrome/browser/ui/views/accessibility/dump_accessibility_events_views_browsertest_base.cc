@@ -8,13 +8,10 @@
 #include <utility>
 
 #include "base/command_line.h"
-#include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/path_service.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_split.h"
-#include "base/strings/string_util.h"
-#include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "build/build_config.h"
 #include "content/public/browser/browser_accessibility_state.h"

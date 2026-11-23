@@ -9,9 +9,12 @@
 #import "ios/web/public/web_state.h"
 #import "ios/web/public/web_state_observer_bridge.h"
 
+// Defines a block to be executed once the web state is realized.
+using WebStateRealizedCompletionBlock = void (^)(web::WebState*);
+
 // Defines a block to be executed once the web state is loaded, providing a
 // boolean indicating success.
-typedef void (^WebStateLoadedCompletionBlock)(BOOL success);
+using WebStateLoadedCompletionBlock = void (^)(web::WebState*, BOOL);
 
 @protocol WebStateDeferredExecutorDelegate;
 
@@ -21,13 +24,13 @@ typedef void (^WebStateLoadedCompletionBlock)(BOOL success);
 // Delegate for the executor.
 @property(nonatomic, weak) id<WebStateDeferredExecutorDelegate> delegate;
 
-// Executes the given `completion` once the web state is loaded.
-- (void)webState:(web::WebState*)webState
-    executeOnceLoaded:(WebStateLoadedCompletionBlock)completion;
+// Ensures the web state is loaded and executes the given `completion`.
+- (void)ensureWebStateIsLoaded:(web::WebState*)webState
+                withCompletion:(WebStateLoadedCompletionBlock)completion;
 
-// Executes the given `completion` once the web state is realized.
-- (void)webState:(web::WebState*)webState
-    executeOnceRealized:(ProceduralBlock)completion;
+// Ensures the web state is realized and executes the given `completion`.
+- (void)ensureWebStateIsRealized:(web::WebState*)webState
+                  withCompletion:(WebStateRealizedCompletionBlock)completion;
 
 @end
 

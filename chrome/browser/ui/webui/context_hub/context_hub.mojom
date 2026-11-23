@@ -5,6 +5,7 @@
 module browser.context_hub.mojom;
 
 import "url/mojom/url.mojom";
+import "mojo/public/mojom/base/time.mojom";
 
 struct GmailReference {
   url.mojom.Url message_url;
@@ -25,6 +26,21 @@ struct AutoTodoItem {
   array<SourceReference> source_references;
 };
 
+enum EntryType {
+  kTab,
+  kTextSelection,
+};
+
+struct MemoryBankEntry {
+  int64 id;
+  EntryType type;
+  mojo_base.mojom.Time timestamp;
+  url.mojom.Url url;
+  string tab_title;
+  string? selected_text;
+  array<string> tags;
+};
+
 // Factory used by the WebUI page (caller) to create a PageHandler in the
 // browser process (callee) for the Context Hub page.
 interface PageHandlerFactory {
@@ -38,4 +54,7 @@ interface PageHandlerFactory {
 interface PageHandler {
   // Generates and returns a list of Auto Todos.
   GenerateAutoTodos() => (array<AutoTodoItem>? todos);
+
+  // Returns all entries currently stored in the memory bank.
+  GetAllEntries() => (array<MemoryBankEntry> entries);
 };

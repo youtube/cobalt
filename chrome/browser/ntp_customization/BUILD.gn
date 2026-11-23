@@ -9,12 +9,14 @@ assert(is_android)
 
 source_set("ntp_customization") {
   public = [
+    "ntp_android_background_service_factory.h",
     "ntp_android_custom_background_service.h",
     "ntp_android_custom_background_service_factory.h",
     "ntp_synced_theme_bridge.h",
     "ntp_theme_collection_bridge.h",
   ]
   sources = [
+    "ntp_android_background_service_factory.cc",
     "ntp_android_custom_background_service.cc",
     "ntp_android_custom_background_service_factory.cc",
     "ntp_synced_theme_bridge.cc",
@@ -23,12 +25,15 @@ source_set("ntp_customization") {
   public_deps = [
     "//base",
     "//chrome/browser/profiles:profile",
-    "//chrome/browser/search/background",
     "//components/themes",
   ]
   deps = [
     ":jni_headers",
+    "//chrome/browser:browser_process",
+    "//chrome/browser:global_features",
     "//chrome/common:constants",
+    "//components/application_locale_storage",
+    "//content/public/browser",
     "//url",
   ]
 }
@@ -418,7 +423,10 @@ source_set("unit_tests") {
   deps = [
     ":ntp_customization",
     "//base",
+    "//base/test:test_support",
     "//chrome/common:constants",
+    "//chrome/test:test_support",
+    "//components/application_locale_storage",
     "//components/prefs:test_support",
     "//testing/gtest",
   ]

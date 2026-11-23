@@ -7,11 +7,11 @@
 
 #import <Foundation/Foundation.h>
 
-#import "ios/chrome/app/profile/observing_profile_agent.h"
+#import "ios/chrome/app/profile/scene_observing_profile_agent.h"
 
 // A profile agent that initializes the BackendPromoService when the profile is
-// initialized.
-@interface BackendPromoProfileAgent : ObservingProfileAgent
+// initialized, and notifies it when the app becomes foreground active.
+@interface BackendPromoProfileAgent : SceneObservingProfileAgent
 
 @end
 

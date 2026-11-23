@@ -36,6 +36,7 @@
 #include "api/sequence_checker.h"
 #include "api/transport/network_control.h"
 #include "api/transport/sctp_transport_factory_interface.h"
+#include "api/video/timing/video_jitter_timing_factory.h"
 #include "call/call.h"
 #include "media/base/media_engine.h"
 #include "pc/codec_vendor.h"
@@ -139,6 +140,7 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   std::unique_ptr<NetworkControllerFactoryInterface>
       injected_network_controller_factory_;
   std::unique_ptr<NetEqFactory> neteq_factory_;
+  std::unique_ptr<VideoJitterTimingFactory> video_jitter_timing_factory_;
   std::unique_ptr<Metronome> decode_metronome_
       RTC_GUARDED_BY(signaling_thread());
   std::unique_ptr<Metronome> encode_metronome_

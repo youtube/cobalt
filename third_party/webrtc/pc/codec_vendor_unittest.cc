@@ -352,7 +352,7 @@ TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgument) {
   reference_codecs.push_back(some_codec);
   Codec red_codec = CreateAudioCodec(101, "red", 8000, 1);
   ASSERT_EQ(red_codec.GetResiliencyType(), Codec::ResiliencyType::kRed);
-  red_codec.params[kCodecParamNotInNameValueFormat] = "102/102";
+  red_codec.SetParam(kCodecParamNotInNameValueFormat, "102/102");
   reference_codecs.push_back(red_codec);
   // Merging should add the RED codec with parameter 100/100
   RTCError error =
@@ -382,10 +382,10 @@ TEST(CodecVendorMergeTest, MergeRenumbersRedCodecArgumentAndMerges) {
   reference_codecs.push_back(some_codec);
   Codec red_codec = CreateAudioCodec(101, "red", 8000, 1);
   ASSERT_EQ(red_codec.GetResiliencyType(), Codec::ResiliencyType::kRed);
-  red_codec.params[kCodecParamNotInNameValueFormat] = "102/102";
+  red_codec.SetParam(kCodecParamNotInNameValueFormat, "102/102");
   reference_codecs.push_back(red_codec);
   // Push the same red codec into `merged_codecs` with the 100 id
-  red_codec.params[kCodecParamNotInNameValueFormat] = "100/100";
+  red_codec.SetParam(kCodecParamNotInNameValueFormat, "100/100");
   merged_codecs.push_back(red_codec);
   // Merging should note the duplication and not add another codec.
   RTCError error =
@@ -411,7 +411,7 @@ TEST(CodecVendorMergeTest, MergeWithBrokenReferenceRedErrors) {
   Codec some_codec = CreateAudioCodec(100, "foo", 8000, 1);
   Codec red_codec = CreateAudioCodec(101, "red", 8000, 1);
   // Adds a RED codec that refers to codec 102, which does not exist.
-  red_codec.params[kCodecParamNotInNameValueFormat] = "100/102";
+  red_codec.SetParam(kCodecParamNotInNameValueFormat, "100/102");
   reference_codecs.push_back(some_codec);
   reference_codecs.push_back(red_codec);
   // The bogus RED codec should result in an error return.

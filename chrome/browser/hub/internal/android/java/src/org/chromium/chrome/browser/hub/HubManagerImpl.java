@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.FrameLayout.LayoutParams;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ValueChangedCallback;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
@@ -33,6 +34,7 @@ import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.ParentOverrideSlot;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
+import org.chromium.chrome.browser.ui.vertical_tabs.VerticalTabUtils;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
@@ -132,6 +134,11 @@ public class HubManagerImpl implements HubManager, HubController {
         mHubColorMixer =
                 new HubColorMixerImpl(
                         mActivity, mHubVisibilitySupplier, mPaneManager.getFocusedPaneSupplier());
+        mHubColorMixer.registerBlend(
+                new SingleHubViewColorBlend(
+                        HubAnimationConstants.PANE_COLOR_BLEND_ANIMATION_DURATION_MS,
+                        colorScheme -> HubColors.getBackgroundColor(mActivity, colorScheme),
+                        mHubContainerView::setBackgroundColor));
         mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
         mDefaultPaneId = defaultPaneId;
     }
@@ -168,21 +175,24 @@ public class HubManagerImpl implements HubManager, HubController {
 
     @Override
     public void setStatusIndicatorHeight(int height) {
-        LayoutParams params = (LayoutParams) mHubContainerView.getLayoutParams();
-        assert params != null : "HubContainerView should always have layout params.";
         mStatusIndicatorHeight = height;
-        params.topMargin = mStatusIndicatorHeight + mAppHeaderHeight;
-        mHubContainerView.setLayoutParams(params);
+        updateContainerLayoutParams();
     }
 
     @Override
     public void setAppHeaderHeight(int height) {
         if (mAppHeaderHeight == height) return;
+        mAppHeaderHeight = height;
+        updateContainerLayoutParams();
+    }
+
+    private void updateContainerLayoutParams() {
         LayoutParams params = (LayoutParams) mHubContainerView.getLayoutParams();
         assert params != null : "HubContainerView should always have layout params.";
-        mAppHeaderHeight = height;
-        params.topMargin = mStatusIndicatorHeight + mAppHeaderHeight;
+        boolean isVerticalTabsOn = VerticalTabUtils.isVerticalTabsEnabled(mActivity);
+        params.topMargin = mStatusIndicatorHeight + (isVerticalTabsOn ? 0 : mAppHeaderHeight);
         mHubContainerView.setLayoutParams(params);
+        mHubContainerView.setPadding(0, isVerticalTabsOn ? mAppHeaderHeight : 0, 0, 0);
     }
 
     @Override
@@ -299,7 +309,8 @@ public class HubManagerImpl implements HubManager, HubController {
         }
     }
 
-    @Nullable HubCoordinator getHubCoordinatorForTesting() {
+    @VisibleForTesting
+    public @Nullable HubCoordinator getHubCoordinatorForTesting() {
         return mHubCoordinator;
     }
 

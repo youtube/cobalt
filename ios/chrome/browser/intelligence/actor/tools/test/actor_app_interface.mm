@@ -65,20 +65,6 @@ const base::TimeDelta kApcFetchingTimeout = base::Seconds(10);
       service->CreateTask("EG Test Task", /*allow_incognito_web_states=*/false);
 
   std::vector<optimization_guide::proto::Action> actions = {action};
-  actor::CreateActorToolRequestsResult tools_result =
-      service->CreateActorToolRequests(actions, task_id);
-
-  if (!tools_result.has_value()) {
-    NSString* errorMsg = base::SysUTF8ToNSString(base::StringPrintf(
-        "Failed to create tool requests: %s",
-        actor::GetToolExecutionResultMessage(tools_result.error()).c_str()));
-    NSError* error =
-        [NSError errorWithDomain:@"mojom::ActionResultCode"
-                            code:(NSInteger)tools_result.error().code()
-                        userInfo:@{NSLocalizedDescriptionKey : errorMsg}];
-    completion(error);
-    return;
-  }
 
   auto action_performed_callback =
       base::BindOnce(^(actor::PerformActionsResult result) {
@@ -86,8 +72,7 @@ const base::TimeDelta kApcFetchingTimeout = base::Seconds(10);
                                     completion:completion];
       });
 
-  service->PerformActions(task_id, std::move(tools_result.value()),
-                          "Executing EG Test action",
+  service->PerformActions(task_id, actions, "Executing EG Test action",
                           std::move(action_performed_callback));
 }
 

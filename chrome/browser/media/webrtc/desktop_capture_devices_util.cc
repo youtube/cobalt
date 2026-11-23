@@ -365,7 +365,8 @@ void CreateMediaStreamCaptureIndicatorUI(
   if (base::FeatureList::IsEnabled(features::kUserMediaScreenCapturing) &&
       display_notification &&
       media_id.type == content::DesktopMediaID::TYPE_WEB_CONTENTS) {
-    notification_ui = std::make_unique<TabSharingIndicatorAndroid>(media_id);
+    notification_ui =
+        std::make_unique<TabSharingIndicatorAndroid>(web_contents, media_id);
   }
 #else
   // If required, register to display the notification for stream capture.

@@ -37,6 +37,12 @@ class MockFacilitatedPaymentsApiClient : public FacilitatedPaymentsApiClient {
                const SecurePayload&,
                base::OnceCallback<void(PurchaseActionResult)>),
               (override));
+  MOCK_METHOD(void,
+              InvokeInstrumentManager,
+              (CoreAccountInfo,
+               const std::vector<uint8_t>&,
+               base::OnceCallback<void(AccountLinkingResult)>),
+              (override));
 };
 
 }  // namespace payments::facilitated

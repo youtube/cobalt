@@ -1042,29 +1042,30 @@ MinMaxSizesResult BlockNode::ComputeMinMaxSizes(
     }
   }
 
-  bool can_use_cached_intrinsic_inline_sizes =
-      CanUseCachedIntrinsicInlineSizes(constraint_space, float_input, *this);
-
-  // Ensure the cache is invalid if we know we can't use our cached sizes.
-  if (!can_use_cached_intrinsic_inline_sizes) {
-    box_->SetIntrinsicLogicalWidthsDirty(kMarkOnlyThis);
-  }
-
   std::optional<MinMaxSizesResult> result;
 
-  // Use our cached sizes if we don't have a descendant which depends on our
-  // block constraints.
-  if (can_use_cached_intrinsic_inline_sizes &&
-      !box_->IntrinsicLogicalWidthsDependsOnBlockConstraints()) {
-    result = box_->CachedIndefiniteIntrinsicLogicalWidths();
-  }
-
-  // We might still be able to use the cached values for a specific initial
-  // block-size.
-  if (!result && can_use_cached_intrinsic_inline_sizes &&
-      !UseParentPercentageResolutionBlockSizeForChildren()) {
-    result = box_->CachedIntrinsicLogicalWidths(
-        IntrinsicFragmentGeometry().border_box_size.block_size);
+  if (CanUseCachedIntrinsicInlineSizes(constraint_space, float_input, *this)) {
+    if (!box_->IntrinsicLogicalWidthsDependsOnBlockConstraints()) {
+      // If we don't have a descendant which depends on our block constraints,
+      // we can use the cached sizes directly. This means we can avoid
+      // calculating the (expensive) initial block-size for this case.
+      result = box_->CachedIndefiniteIntrinsicLogicalWidths();
+    } else {
+      const LayoutUnit initial_block_size =
+          IntrinsicFragmentGeometry().border_box_size.block_size;
+      const bool will_use_parent_percent_size =
+          initial_block_size == kIndefiniteSize &&
+          UseParentPercentageResolutionBlockSizeForChildren();
+      // We still might be able to find a cache value for a specific block-size.
+      // Skip this if we have an indefinite initial block-size, and we'll use a
+      // parent percent size (we don't store this as part of the cache key).
+      if (!will_use_parent_percent_size) {
+        result = box_->CachedIntrinsicLogicalWidths(initial_block_size);
+      }
+    }
+  } else {
+    // Ensure we invalidate the cache if we can't use our cached sizes.
+    box_->SetIntrinsicLogicalWidthsDirty(kMarkOnlyThis);
   }
 
   if (!result) {

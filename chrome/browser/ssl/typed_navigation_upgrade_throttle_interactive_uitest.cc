@@ -256,7 +256,7 @@ class TypedNavigationUpgradeThrottleBrowserTest
   bool IsFeatureEnabled() const { return GetParam(); }
 
   LocationBar* GetLocationBar() {
-    return browser()->window()->GetLocationBar();
+    return BrowserWindow::FromBrowser(browser())->GetLocationBar();
   }
 
   OmniboxView* omnibox() { return GetLocationBar()->GetOmniboxView(); }
@@ -270,7 +270,7 @@ class TypedNavigationUpgradeThrottleBrowserTest
           ->OnFocusChanged(OMNIBOX_FOCUS_VISIBLE,
                            OMNIBOX_FOCUS_CHANGE_EXPLICIT);
     } else {
-      browser()->window()->GetLocationBar()->FocusLocation(
+      BrowserWindow::FromBrowser(browser())->GetLocationBar()->FocusLocation(
           /*is_user_initiated=*/false, /*clear_focus_if_failed=*/false);
     }
   }

@@ -125,6 +125,7 @@ class SliceNode:
         self.parent_id = parent_id
         self.self_time = dur  # initially dur, updated when children are added
         self.children: list[SliceNode] = []
+        self.args: dict[str, str] = {}
 
     @property
     def dur_ms(self) -> float:
@@ -154,12 +155,50 @@ class AggregatedSliceNode:
         return self.self_time / 1000000.0
 
 
-def extract_slice_hierarchies(session: TraceSession,
-                              target_slice_name: str,
-                              arg_key: str | None = None,
-                              arg_value: str | None = None,
-                              aggregate: bool = False) -> list[SliceNode]:
+def get_boundary_clause(boundary_target: str | None,
+                        boundary_arg_key: str | None,
+                        boundary_arg_value: str | None) -> str:
+    if not boundary_target:
+        return ""
+
+    join_clause = ""
+    filter_clause = ""
+    if boundary_arg_key and boundary_arg_value:
+        join_clause = "JOIN args pa ON p.arg_set_id = pa.arg_set_id"
+        filter_clause = f"""
+            AND (pa.key = '{boundary_arg_key}'
+                 OR pa.flat_key = '{boundary_arg_key}'
+                 OR pa.key = 'debug.{boundary_arg_key}'
+                 OR pa.flat_key = 'debug.{boundary_arg_key}')
+            AND (pa.string_value LIKE '{boundary_arg_value}'
+                 OR CAST(pa.int_value AS TEXT) LIKE '{boundary_arg_value}'
+                 OR CAST(pa.real_value AS TEXT) LIKE '{boundary_arg_value}')
+        """
+
+    return f"""
+        AND EXISTS (
+            SELECT 1 FROM slice p
+            {join_clause}
+            WHERE p.name = '{boundary_target}'
+              {filter_clause}
+              AND s.ts >= p.ts
+              AND s.ts + s.dur <= p.ts + p.dur
+        )
+    """
+
+
+def extract_slice_hierarchies(
+        session: TraceSession,
+        target_slice_name: str,
+        arg_key: str | None = None,
+        arg_value: str | None = None,
+        aggregate: bool = False,
+        boundary_target: str | None = None,
+        boundary_arg_key: str | None = None,
+        boundary_arg_value: str | None = None) -> list[SliceNode]:
     """Finds target slices and extracts their descendant execution trees."""
+    boundary_clause = get_boundary_clause(boundary_target, boundary_arg_key,
+                                          boundary_arg_value)
     if aggregate:
         if arg_key and arg_value:
             query = f"""
@@ -171,17 +210,19 @@ def extract_slice_hierarchies(session: TraceSession,
                        OR a.flat_key = '{arg_key}'
                        OR a.key = 'debug.{arg_key}'
                        OR a.flat_key = 'debug.{arg_key}')
-                  AND (a.string_value = '{arg_value}'
-                       OR CAST(a.int_value AS TEXT) = '{arg_value}'
-                       OR CAST(a.real_value AS TEXT) = '{arg_value}')
+                  AND (a.string_value LIKE '{arg_value}'
+                       OR CAST(a.int_value AS TEXT) LIKE '{arg_value}'
+                       OR CAST(a.real_value AS TEXT) LIKE '{arg_value}')
+                  {boundary_clause}
                 ORDER BY s.ts ASC;
             """
         else:
             query = f"""
-                SELECT id, name, dur, ts
-                FROM slice
-                WHERE name = '{target_slice_name}'
-                ORDER BY ts ASC;
+                SELECT s.id, s.name, s.dur, s.ts
+                FROM slice s
+                WHERE s.name = '{target_slice_name}'
+                  {boundary_clause}
+                ORDER BY s.ts ASC;
             """
     else:
         # Longest single instance
@@ -195,20 +236,23 @@ def extract_slice_hierarchies(session: TraceSession,
                        OR a.flat_key = '{arg_key}'
                        OR a.key = 'debug.{arg_key}'
                        OR a.flat_key = 'debug.{arg_key}')
-                  AND (a.string_value = '{arg_value}'
-                       OR CAST(a.int_value AS TEXT) = '{arg_value}'
-                       OR CAST(a.real_value AS TEXT) = '{arg_value}')
+                  AND (a.string_value LIKE '{arg_value}'
+                       OR CAST(a.int_value AS TEXT) LIKE '{arg_value}'
+                       OR CAST(a.real_value AS TEXT) LIKE '{arg_value}')
+                  {boundary_clause}
                 ORDER BY s.dur DESC
                 LIMIT 1;
             """
         else:
             query = f"""
-                SELECT id, name, dur, ts
-                FROM slice
-                WHERE name = '{target_slice_name}'
-                ORDER BY dur DESC
+                SELECT s.id, s.name, s.dur, s.ts
+                FROM slice s
+                WHERE s.name = '{target_slice_name}'
+                  {boundary_clause}
+                ORDER BY s.dur DESC
                 LIMIT 1;
             """
+
 
     df = session.query(query)
     if df.empty:
@@ -217,24 +261,46 @@ def extract_slice_hierarchies(session: TraceSession,
     root_nodes = []
     for _, row in df.iterrows():
         target_id = int(row['id'])
-        target_name = str(row['name'])
-        target_dur = float(row['dur'])
-        target_ts = int(row['ts'])
 
-        # Query descendants
+        # Query target details and arguments
+        query_target = f"""
+            SELECT s.name, s.dur, s.ts, a.key, a.display_value
+            FROM slice s
+            LEFT JOIN args a ON s.arg_set_id = a.arg_set_id
+            WHERE s.id = {target_id};
+        """
+        df_target = session.query(query_target)
+        if df_target.empty:
+            continue
+
+        root_node = None
+        for _, t_row in df_target.iterrows():
+            if root_node is None:
+                root_node = SliceNode(target_id,
+                                      str(t_row['name']),
+                                      float(t_row['dur']),
+                                      int(t_row['ts']),
+                                      depth=0)
+            arg_key = str(t_row['key']) if 'key' in t_row and pd.notna(
+                t_row['key']) else None
+            arg_val = str(t_row['display_value']
+                          ) if 'display_value' in t_row and pd.notna(
+                              t_row['display_value']) else None
+            if arg_key is not None:
+                root_node.args[arg_key] = arg_val
+
+        # Query descendants with their arguments
         query_desc = f"""
-            SELECT id, name, dur, ts, depth, parent_id
-            FROM descendant_slice({target_id})
-            ORDER BY ts ASC;
+            SELECT
+                d.id, d.name, d.dur, d.ts, d.depth, d.parent_id,
+                a.key, a.display_value
+            FROM descendant_slice({target_id}) d
+            LEFT JOIN args a ON d.arg_set_id = a.arg_set_id
+            ORDER BY d.ts ASC;
         """
         df_desc = session.query(query_desc)
 
         # Build local node map
-        root_node = SliceNode(target_id,
-                              target_name,
-                              target_dur,
-                              target_ts,
-                              depth=0)
         slice_map = {target_id: root_node}
         children_map = defaultdict(list)
 
@@ -246,11 +312,22 @@ def extract_slice_hierarchies(session: TraceSession,
             dur = float(desc_row['dur'])
             ts = int(desc_row['ts'])
             depth = int(desc_row['depth'])
+            arg_key = str(desc_row['key']) if 'key' in desc_row and pd.notna(
+                desc_row['key']) else None
+            arg_val = str(desc_row['display_value']
+                          ) if 'display_value' in desc_row and pd.notna(
+                              desc_row['display_value']) else None
 
-            node = SliceNode(s_id, name, dur, ts, depth, p_id)
-            slice_map[s_id] = node
-            if p_id is not None:
-                children_map[p_id].append(node)
+            if s_id not in slice_map:
+                node = SliceNode(s_id, name, dur, ts, depth, p_id)
+                slice_map[s_id] = node
+                if p_id is not None:
+                    children_map[p_id].append(node)
+            else:
+                node = slice_map[s_id]
+
+            if arg_key is not None:
+                node.args[arg_key] = arg_val
 
         # Link children and calculate self-times
         for node_id, node in slice_map.items():
@@ -270,8 +347,8 @@ def aggregate_trees(root_nodes: list[SliceNode]) -> AggregatedSliceNode | None:
     if not root_nodes:
         return None
 
-    # Use first root's name as the aggregated root name
-    agg_root = AggregatedSliceNode(root_nodes[0].name)
+    # Use first root's signature as the aggregated root name
+    agg_root = AggregatedSliceNode(get_slice_signature(root_nodes[0]))
 
     def merge_to_agg(node: SliceNode, agg_node: AggregatedSliceNode):
         agg_node.dur += node.dur
@@ -279,14 +356,44 @@ def aggregate_trees(root_nodes: list[SliceNode]) -> AggregatedSliceNode | None:
         agg_node.count += 1
 
         for child in node.children:
-            if child.name not in agg_node.children:
-                agg_node.children[child.name] = AggregatedSliceNode(child.name)
-            merge_to_agg(child, agg_node.children[child.name])
+            sig = get_slice_signature(child)
+            if sig not in agg_node.children:
+                agg_node.children[sig] = AggregatedSliceNode(sig)
+            merge_to_agg(child, agg_node.children[sig])
 
     for r in root_nodes:
         merge_to_agg(r, agg_root)
 
     return agg_root
+
+
+def get_slice_signature(node: SliceNode) -> str:
+    if not node.args:
+        return node.name
+
+    if "IsSuitableForUrlInfo" in node.name:
+        url = node.args.get("debug.url_info.url") or node.args.get(
+            "url_info.url") or ""
+        si_id = (
+            node.args.get("site_instance.site_instance_id")
+            or node.args.get("site_instance_id") or
+            node.args.get("site_instance_group.site_instance.site_instance_id")
+            or "")
+        return f"{node.name} (url: {url}, site_instance: {si_id})"
+
+    if "DetermineSiteInstanceForURL" in node.name:
+        url = node.args.get("debug.url_info.url") or node.args.get(
+            "url_info.url") or ""
+        return f"{node.name} (url: {url})"
+
+    if "SetSite" in node.name:
+        url = node.args.get("debug.url_info.url") or node.args.get(
+            "url_info.url") or ""
+        si_id = node.args.get("debug.site id") or node.args.get(
+            "site_instance_id") or ""
+        return f"{node.name} (url: {url}, site_instance: {si_id})"
+
+    return node.name
 
 
 def get_flat_metrics(root_nodes: list[SliceNode]) -> dict[str, dict]:
@@ -298,9 +405,10 @@ def get_flat_metrics(root_nodes: list[SliceNode]) -> dict[str, dict]:
     })
 
     def traverse(node: SliceNode):
-        flat_metrics[node.name]['count'] += 1
-        flat_metrics[node.name]['dur_ms'] += node.dur_ms
-        flat_metrics[node.name]['self_ms'] += node.self_ms
+        sig = get_slice_signature(node)
+        flat_metrics[sig]['count'] += 1
+        flat_metrics[sig]['dur_ms'] += node.dur_ms
+        flat_metrics[sig]['self_ms'] += node.self_ms
         for child in node.children:
             traverse(child)
 
@@ -329,9 +437,9 @@ def fetch_windowed_slices(
                    OR a.flat_key = '{arg_key}'
                    OR a.key = 'debug.{arg_key}'
                    OR a.flat_key = 'debug.{arg_key}')
-              AND (a.string_value = '{arg_value}'
-                   OR CAST(a.int_value AS TEXT) = '{arg_value}'
-                   OR CAST(a.real_value AS TEXT) = '{arg_value}')
+              AND (a.string_value LIKE '{arg_value}'
+                   OR CAST(a.int_value AS TEXT) LIKE '{arg_value}'
+                   OR CAST(a.real_value AS TEXT) LIKE '{arg_value}')
             ORDER BY s.dur DESC
             LIMIT 1;
         """

@@ -17,9 +17,11 @@
 <translation id="1052842760770519282">חלק מהסיסמאות שלך לא זמינות</translation>
 <translation id="1057623954802068161">גלילה לראש הדף</translation>
 <translation id="1066338698580889414">ההודעה עם הטיפים פתוחה בגובה מלא</translation>
+<translation id="1067048845568873861">נוצר</translation>
 <translation id="1070689840697074178">‏אפשר להוריד קובצי PDF כאן</translation>
 <translation id="107147699690128016">שינוי של סיומת הקובץ עשוי לגרום לכך שהקובץ ייפתח באפליקציה אחרת. מצב זה עלול לסכן את המכשיר.</translation>
 <translation id="1073328695547557412">‏לוחצים על סמל ה-Google Lens</translation>
+<translation id="1075811647922107217">גודל הדף</translation>
 <translation id="1080116354587839789">התאמה לרוחב</translation>
 <translation id="1086486568852410168">‏חיפוש באמצעות Google Lens</translation>
 <translation id="1087799850623149508">אפשר ללחוץ לחיצה ארוכה כדי להעביר את סרגל הכתובות לתחתית</translation>
@@ -32,7 +34,6 @@
 <translation id="1108938384783527433">סנכרון ההיסטוריה</translation>
 <translation id="1111673857033749125">סימניות שנשמרו במכשירים האחרים שלך יופיעו כאן.</translation>
 <translation id="1123537484474186311">‫<ph name="TAB_TITLE" />, כרטיסייה במצב "תמונה בתוך תמונה"</translation>
-<translation id="1124357650933674597">{NUM_WINDOWS,plural, =1{שחזור חלון אחד}one{שחזור # חלונות}two{שחזור # חלונות}other{שחזור # חלונות}}</translation>
 <translation id="1126696498560056882">ניהול החשבונות במכשיר הזה</translation>
 <translation id="1135018701024399762">'מצב פרטי' מאפשר לך לגלוש באופן פרטי שלא יהיה גלוי למשתמשים אחרים במכשיר</translation>
 <translation id="113752097246673894">‏כדי לקבל גישה לסימניות ולנתונים נוספים בכל המכשירים שלך, צריך להיכנס ל-Chrome עם <ph name="EMAIL" /></translation>
@@ -183,6 +184,7 @@
 <translation id="1792959175193046959">אפשר תמיד לשנות את מיקום ההורדות</translation>
 <translation id="1796666869097395659">מזעור הכרטיסייה כדי לחזור אליה מאוחר יותר</translation>
 <translation id="1799920918471566157">‏טיפים ל-Chrome</translation>
+<translation id="1803799720926799756">גודל הקובץ</translation>
 <translation id="1807246157184219062">בהיר</translation>
 <translation id="1807709131360304325">פתיחת חלון חדש</translation>
 <translation id="1812027881030482584">ל-<ph name="SITE_ETLD_PLUS_ONE" /> אין אפשרות להמשיך להשתמש ב-<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /></translation>
@@ -518,7 +520,6 @@
 <translation id="3166827708714933426">מקשי קיצור לכרטיסיות ולחלונות</translation>
 <translation id="3167258285411721858">ניתן לבקש את האתר לנייד של <ph name="HOST_NAME" /></translation>
 <translation id="3181145110929454111">‫<ph name="TAB_TITLE" />, כרטיסייה פרטית מתוך סדרת כרטיסיות פרטית שנבחרו והוצמדו, והתוכן בה מושתק</translation>
-<translation id="3183941812169784232">לשחזר את כל החלונות?</translation>
 <translation id="3187472288455401631">מדידת המודעות</translation>
 <translation id="3189635831478931757">קבוצת הכרטיסיות "<ph name="GROUP_TITLE" />"</translation>
 <translation id="3200536777393523575">לסגור את החלון הנוכחי?</translation>
@@ -567,6 +568,7 @@
 <translation id="3435575784518354875">‏כדי לשמור על הגישה לסיסמאות, צריך לייצא אותן עכשיו, לעדכן את Google Play Services ואז לייבא אותן חזרה למנהל הסיסמאות של Google. <ph name="BEGIN_LINK" />לצפייה בהוראות המלאות<ph name="END_LINK" />.</translation>
 <translation id="3435738964857648380">אבטחה</translation>
 <translation id="3435914367318771664">הוספת הכרטיסייה לקבוצה חדשה</translation>
+<translation id="3436118221454753036">‏מצב AI: רוצה לשאול משהו?</translation>
 <translation id="3438681572027105609">‏כדי לקבל גישה לסיסמאות ולנתונים נוספים בכל המכשירים שלך, כדאי להיכנס ל-Chrome</translation>
 <translation id="3439276997620616816">הכרטיסיות האחרונות יופיעו כאן</translation>
 <translation id="3443221991560634068">טעינה מחדש של הדף הנוכחי</translation>
@@ -642,6 +644,7 @@
 <translation id="3739899004075612870">נוסף לסימניות ב-<ph name="PRODUCT_NAME" /></translation>
 <translation id="3740290940447881599">חשוב לוודא שהאתר הזה מהימן</translation>
 <translation id="3740525748616366977">חיפוש קולי לא זמין במכשיר הזה</translation>
+<translation id="3749289110408117711">שם קובץ</translation>
 <translation id="3756823472711156529">שחזור קבוצת הכרטיסיות</translation>
 <translation id="3763110477555836428">‏כדי להגן על הפרטים האמיתיים שלך במהלך התשלום בכרטיס הזה, המערכת תמלא אוטומטית מספר כרטיס וירטואלי. אפשר לערוך את ההגדרה הזו ב-Google Wallet. <ph name="BEGIN_LINK1" />מידע נוסף על כרטיסים וירטואליים<ph name="END_LINK1" /></translation>
 <translation id="376561056759077985">חלק מהנתונים עדיין לא נשמרו</translation>
@@ -673,6 +676,7 @@
 <translation id="3870538285500327859">‫<ph name="TAB_TITLE" />, כרטיסייה שנבחרה במצב "תמונה בתוך תמונה"</translation>
 <translation id="3870908470613821006">כולם יאבדו באופן מיידי את הגישה לקבוצת הכרטיסיות '<ph name="GROUP_NAME" />', והיא תימחק מכל המכשירים</translation>
 <translation id="3873174561423636563">כדי להמשיך, פרטים מסוימים (<ph name="FIELDS_STRING" />) ישותפו על ידי <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> עם האתר הזה. <ph name="BEGIN_LINK1" />כאן מפורטים התנאים וההגבלות<ph name="END_LINK1" /> של האתר הזה.</translation>
+<translation id="3882323608730650973">עבר שינוי</translation>
 <translation id="3892148308691398805">העתקת הטקסט</translation>
 <translation id="3893858854379998374">כדי לשמור סימניות בחשבון, צריך למחוק סימניות שלא בשימוש</translation>
 <translation id="3898498281932368596">חסימה ויציאה</translation>
@@ -703,6 +707,7 @@
 <translation id="399788104667917863">הצמדה לסרגל הכלים</translation>
 <translation id="4000212216660919741">דף הבית במצב אופליין</translation>
 <translation id="4000670338830950598">‏התאמה אישית של Google Chrome ושליטה בו באמצעות פריט מודגש</translation>
+<translation id="4002066346123236978">כותרת</translation>
 <translation id="4015643064997321279">{NUM_PASSWORDS,plural, =1{‏סיסמה אחת שנחשפה בחשבון שלך ב-Google}one{‏‫# סיסמאות שנחשפו בחשבון שלך ב-Google}two{‏‫# סיסמאות שנחשפו בחשבון שלך ב-Google}other{‏‫# סיסמאות שנחשפו בחשבון שלך ב-Google}}</translation>
 <translation id="4023638601467301498">‏כדי לקבל גישה לסימניות ולנתונים נוספים בכל המכשירים שלך, צריך להיכנס ל-Chrome</translation>
 <translation id="4024768890073681126">הדפדפן מנוהל על ידי ההורה שלך</translation>
@@ -1411,6 +1416,7 @@
 <translation id="6846298663435243399">הטעינה מתבצעת...</translation>
 <translation id="6850409657436465440">ההורדה עדיין מתבצעת</translation>
 <translation id="6850830437481525139"><ph name="TAB_COUNT" /> כרטיסיות נסגרו</translation>
+<translation id="6852437757508328589">{NUM_RESULTS,plural, =1{נמצאה תוצאה אחת}one{נמצאו # תוצאות}two{נמצאו # תוצאות}other{נמצאו # תוצאות}}</translation>
 <translation id="685340923442249391">{FILE_COUNT,plural, =1{קובצי אודיו, קובץ אודיו אחד ברשימה}one{קובצי אודיו, # קובצי אודיו ברשימה}two{קובצי אודיו, # קובצי אודיו ברשימה}other{קובצי אודיו, # קובצי אודיו ברשימה}}</translation>
 <translation id="685850645784703949">‏Discover by Google – מושבת</translation>
 <translation id="6864459304226931083">הורדת תמונה</translation>
@@ -1987,6 +1993,7 @@
 <translation id="9093915805850895575">‏פתיחה בחלון של Chrome</translation>
 <translation id="909756639352028172">‏כדי ליהנות מחוויה מותאמת אישית ברמה גבוהה, כדאי לכלול את Chrome ב'פעילות באינטרנט ובאפליקציות' ובשירותי Google המקושרים.</translation>
 <translation id="9099220545925418560">על סמך היסטוריית הגלישה שלך. ההגדרה הזו מושבתת.</translation>
+<translation id="9099674669267916096">מספר עמודים</translation>
 <translation id="9100610230175265781">יש להזין ביטוי סיסמה</translation>
 <translation id="9101137867221042551">ניהול</translation>
 <translation id="9102803872260866941">כרטיסיית התצוגה המקדימה נפתחה</translation>
@@ -2032,7 +2039,6 @@
 <translation id="939598580284253335">הזנת ביטוי סיסמה</translation>
 <translation id="94161319503679839">‫<ph name="TAB_TITLE" />, כרטיסייה פרטית מוצמדת, במצב "תמונה בתוך תמונה"</translation>
 <translation id="945522503751344254"> שליחת משוב</translation>
-<translation id="949667118776341807">סיבוב</translation>
 <translation id="95817756606698420">‏דפדפן Chrome יכול להשתמש ב-<ph name="BEGIN_BOLD" />Sogou‏<ph name="END_BOLD" /> כדי לבצע חיפוש מסין. אפשר לשנות את ההעדפה הזאת ב<ph name="BEGIN_LINK" />הגדרות<ph name="END_LINK" />.</translation>
 <translation id="961856697154696964">מחיקת נתוני הגלישה</translation>
 <translation id="963246339335003378">פתיחת מנהל המשימות</translation>

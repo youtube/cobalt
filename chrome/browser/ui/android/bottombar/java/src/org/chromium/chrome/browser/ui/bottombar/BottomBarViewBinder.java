@@ -27,9 +27,14 @@ public class BottomBarViewBinder {
         } else if (BottomBarProperties.IS_HOME_BUTTON_VISIBLE == propertyKey) {
             view.setButtonVisibility(
                     ActionId.HOME_BUTTON, model.get(BottomBarProperties.IS_HOME_BUTTON_VISIBLE));
-        } else if (BottomBarProperties.IS_GLIC_BUTTON_VISIBLE == propertyKey) {
+        } else if (BottomBarProperties.IS_EXTRA_BUTTON_VISIBLE == propertyKey
+                || BottomBarProperties.EXTRA_BUTTON_ACTION_ID == propertyKey) {
+            // NOTE: EXTRA_BUTTON_ACTION_ID must always be set in the model BEFORE updating
+            // IS_EXTRA_BUTTON_VISIBLE, so that the view binder can query and resolve the correct
+            // active action ID when the visibility property change event is dispatched.
+            int activeActionId = model.get(BottomBarProperties.EXTRA_BUTTON_ACTION_ID);
             view.setButtonVisibility(
-                    ActionId.GLIC, model.get(BottomBarProperties.IS_GLIC_BUTTON_VISIBLE));
+                    activeActionId, model.get(BottomBarProperties.IS_EXTRA_BUTTON_VISIBLE));
         } else if (BottomBarProperties.IS_NEW_TAB_BUTTON_VISIBLE == propertyKey) {
             view.setButtonVisibility(
                     ActionId.NEW_TAB, model.get(BottomBarProperties.IS_NEW_TAB_BUTTON_VISIBLE));

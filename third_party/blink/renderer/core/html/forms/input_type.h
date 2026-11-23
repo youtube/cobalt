@@ -269,6 +269,9 @@ class CORE_EXPORT InputType : public GarbageCollected<InputType> {
   virtual void CountUsage();
   virtual void DidRecalcStyle(const StyleRecalcChange);
   virtual void SanitizeValueInResponseToMinOrMaxAttributeChange();
+  // Called when the `colorspace` or `alpha` content attribute changes (only
+  // meaningful for <input type=color>) so the value can be re-sanitized.
+  virtual void ColorSpaceOrAlphaAttributeChanged();
   virtual bool ShouldRespectAlignAttribute();
   virtual FileList* Files();
   // Should return true if the file list was were changed.

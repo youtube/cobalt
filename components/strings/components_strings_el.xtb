@@ -477,6 +477,7 @@
 <translation id="173080396488393970">Αυτός ο τύπος κάρτας δεν υποστηρίζεται</translation>
 <translation id="1731563515262205847">ML-DSA-65</translation>
 <translation id="1732445923934584865">Εναλλακτικά, κάνε την ερώτηση αυτοπροσώπως</translation>
+<translation id="1732796940245838248">Ενημέρωση αριθμού redress στο Πορτοφόλι Google</translation>
 <translation id="1733064249834771892">γραμματοσειρές</translation>
 <translation id="1733631169686303142">Εξοπλισμός ήχου</translation>
 <translation id="1733762317901693627">Ακόμη και ιστότοποι που είναι ασφαλείς υπό φυσιολογικές συνθήκες μερικές φορές παραβιάζονται από υπευθύνους επίθεσης. Επισκεφτείτε <ph name="BEGIN_LINK" />αυτόν τον μη ασφαλή ιστότοπο<ph name="END_LINK" /> μόνο αν είστε βέβαιοι ότι έχετε κατανοήσει τους κινδύνους.</translation>
@@ -581,6 +582,7 @@
 <translation id="1902576642799138955">Περίοδος εγκυρότητας</translation>
 <translation id="1908217026282415406">Χρήση και μετακίνηση κάμερας</translation>
 <translation id="1908690643053136980">Ο διαχειριστής σας δεν επιτρέπει την άδεια <ph name="PERMISSION" /> για αυτόν τον ιστότοπο</translation>
+<translation id="1912750443952232242">Αποθήκευση εγγράφου ταυτοποίησης στο Πορτοφόλι Google</translation>
 <translation id="1913037223029790376">Χρήση CVC για αυτή την εικονική κάρτα</translation>
 <translation id="191374271204266022">Αντιγραφή ως JSON</translation>
 <translation id="1914326953223720820">Υπηρεσία αποσυμπίεσης</translation>
@@ -711,6 +713,7 @@
 <translation id="2122165854541876335">Πόροι καταναλωτών</translation>
 <translation id="2122214041802369259">Η τιμή είναι υψηλή</translation>
 <translation id="2122719317867821810">Αυτή η πολιτική λειτουργεί με τον αναμενόμενο τρόπο αλλά μια τιμή σε διένεξη έχει οριστεί αλλού και παρακάμπτεται από αυτή την πολιτική.</translation>
+<translation id="2124081665399116863">Ενημέρωση οχήματος στο Πορτοφόλι Google</translation>
 <translation id="2126374524350484896">Εργαλείο παραγωγής PDF:</translation>
 <translation id="2127090458081644412">Ο κωδικός πρόσβασης αποθηκεύτηκε σε αυτή τη συσκευή</translation>
 <translation id="2127747486437921899">Πλάγια γραφή</translation>
@@ -993,6 +996,7 @@
 <translation id="2524962131655207565"><ph name="BEGIN_BOLD" />Το περιεχόμενο της σελίδας ολοκλήρωσης αγοράς κοινοποιείται στην Google για την παροχή αυτών των επιλογών.<ph name="END_BOLD" /> Τα προγράμματα πληρωμών εξαρτώνται από την καταλληλότητα. Για να αποκρύψετε τις επιλογές πληρωμής αργότερα, μεταβείτε στις <ph name="BEGIN_LINK" />ρυθμίσεις πληρωμής<ph name="END_LINK" />.</translation>
 <translation id="2526062290525841862">Για να εκτελέσετε αυτή την εφαρμογή, ενεργοποιήστε ξανά τη λειτουργία προγραμματιστή απομονωμένης εφαρμογής ιστού</translation>
 <translation id="2526280916094749336">Μπορείτε να χρησιμοποιήσετε τις αποθηκευμένες διευθύνσεις σε όλα τα προϊόντα Google. Αυτή η διεύθυνση θα αποθηκευτεί στον Λογαριασμό σας Google, <ph name="ACCOUNT" />.</translation>
+<translation id="2526590354069164005">Επιφάνεια εργασίας</translation>
 <translation id="2527451058878391043">Ο κωδικός CVC βρίσκεται στο μπροστινό μέρος της κάρτας σας. Είναι ο 4ψήφιος κωδικός στην επάνω δεξιά γωνία, πάνω από τον αριθμό της κάρτας σας.</translation>
 <translation id="2529899080962247600">Αυτό το πεδίο δεν θα πρέπει να έχει περισσότερες από <ph name="MAX_ITEMS_LIMIT" /> καταχωρίσεις. Τυχόν επιπλέον καταχωρίσεις θα παραβλέπονται.</translation>
 <translation id="2530042584066815841">Κλείδωμα και χρήση ποντικιού</translation>
@@ -1232,6 +1236,7 @@
 <translation id="2929525460561903222">{SHIPPING_ADDRESS,plural, =0{<ph name="SHIPPING_ADDRESS_PREVIEW" />}=1{<ph name="SHIPPING_ADDRESS_PREVIEW" /> και <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ακόμη}other{<ph name="SHIPPING_ADDRESS_PREVIEW" /> και <ph name="NUMBER_OF_ADDITIONAL_ADDRESSES" /> ακόμη}}</translation>
 <translation id="2930531075747147366">Καρτέλα από την άλλη συσκευή σας</translation>
 <translation id="2930577230479659665">Περικοπή μετά από κάθε αντίγραφο</translation>
+<translation id="2931453528659195355">Διαχείριση πληροφοριών αγορών</translation>
 <translation id="2933624813161016821">Ανάγλυφο φύλλο αλουμινίου</translation>
 <translation id="2935726091208500473">κοινοποίηση των καρτελών σας</translation>
 <translation id="293796669683825859">Σχόλια</translation>
@@ -1493,6 +1498,7 @@
 <translation id="3325568918769906282">σε φθίνουσα σειρά</translation>
 <translation id="3325662270238538525">Πρόσφατη πρόσβαση και τροποποιήσεις αρχείων, συμπεριλαμβανομένων των ονομάτων αρχείων, των ψηφιακών μοναδικών χαρακτηριστικών του περιεχομένου του αρχείου, της πηγής λήψης και των μεταδεδομένων</translation>
 <translation id="3329013043687509092">Κορεσμός</translation>
+<translation id="3330483197654063678">Όταν είναι ενεργή, το Chrome θα κάνει κοινή χρήση των ανοιχτών καρτελών σε αυτό το παράθυρο, για να σας βοηθά να λαμβάνετε πιο σχετικές απαντήσεις.</translation>
 <translation id="3333762389743153920">Δεν είναι κατάλληλη για έκδοση εικονικής κάρτας</translation>
 <translation id="3338095232262050444">Ασφαλές</translation>
 <translation id="333839153442689579">Υψηλής έντασης διαλειμματική προπόνηση</translation>
@@ -1546,6 +1552,7 @@
 <translation id="3422472998109090673">Προς το παρόν, δεν είναι δυνατή η πρόσβαση στον κεντρικό υπολογιστή <ph name="HOST_NAME" />.</translation>
 <translation id="3422794267539320056">Πατήστε τον δεινόσαυρο ή το πλήκτρο διαστήματος για να παίξετε</translation>
 <translation id="3423742043356668186">Προσδιορισμός από το σύστημα</translation>
+<translation id="3426672782316020729">Ενημέρωση πληροφοριών διαβατηρίου στο Πορτοφόλι Google</translation>
 <translation id="3427342743765426898">&amp;Επανάληψη επεξεργασίας</translation>
 <translation id="342781501876943858">Το Chromium συνιστά την επαναφορά του κωδικού πρόσβασης, εάν τον έχετε χρησιμοποιήσει και σε άλλους ιστοτόπους.</translation>
 <translation id="3428151540071562330">Ένα ή περισσότερα από τα URI προτύπου διακομιστή DnsOverHttpsTemplates δεν είναι έγκυρα και δεν θα χρησιμοποιηθούν.</translation>
@@ -1722,6 +1729,7 @@
 <translation id="3681841880472207951">Βίντεο QuickTime</translation>
 <translation id="3687920599421452763">Φορτηγάκια και μίνιβαν</translation>
 <translation id="3693327506115126094">Επιλέξτε τον τρόπο επαλήθευσης της ταυτότητάς σας</translation>
+<translation id="3693516565203081475">Επιλογή τρόπου πληρωμής</translation>
 <translation id="3698353241727597930">Ο διαχειριστής σας έχει πραγματοποιήσει μια διαμόρφωση, έτσι ώστε τα αρχεία <ph name="FILES" /> να αποθηκεύονται στον αποθηκευτικό χώρο <ph name="CLOUD_STORAGE" /> που διαχειρίζεται η επιχείρηση. Αυτά τα αρχεία ενδέχεται να παρακολουθούνται, να ελέγχονται και να διατηρούνται όταν τα διαγράφετε.</translation>
 <translation id="3698629142018988477">Κουμπί Δημιουργία ιστοτόπου, ενεργοποιήστε το για να δημιουργήσετε γρήγορα έναν νέο ιστότοπο στους Ιστοτόπους Google</translation>
 <translation id="3700094625653511150">Για να αποκρύψετε τις επιλογές πληρωμής αργότερα, μεταβείτε στις <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /></translation>
@@ -2407,6 +2415,7 @@
 <translation id="4766713847338118463">Διπλή συρραφή στο κάτω μέρος</translation>
 <translation id="4768816584204270288">Όταν πληρώνετε σε βάθος χρόνου, συμπληρώνεται ένας αριθμός εικονικής κάρτας μίας χρήσης. Μπορείτε να κάνετε κλικ, για να αντιγράψετε και να επικολλήσετε τα στοιχεία της κάρτας για αυτή την αγορά.</translation>
 <translation id="4768864802656530630">Λεπτομερή αρχεία καταγραφής συστήματος. <ph name="BEGIN_LINK" />Μάθετε περισσότερα<ph name="END_LINK" /></translation>
+<translation id="4770909831299304090">Ενημέρωση πληροφοριών KTN στο Πορτοφόλι Google</translation>
 <translation id="4771249073710170730">Τηλεχειρισμός και μοντελισμός</translation>
 <translation id="4771973620359291008">Παρουσιάστηκε άγνωστο σφάλμα.</translation>
 <translation id="4774055414220872623">Αναλώσιμα για είδη τέχνης και κατασκευές</translation>
@@ -2847,6 +2856,7 @@
 <translation id="5458150163479425638">{CONTACT,plural, =0{<ph name="CONTACT_PREVIEW" />}=1{<ph name="CONTACT_PREVIEW" /> και <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> ακόμη}other{<ph name="CONTACT_PREVIEW" /> και <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> ακόμη}}</translation>
 <translation id="5463625433003343978">Εύρεση συσκευών…</translation>
 <translation id="5464236009658034488">Προϊόντα γραφείου</translation>
+<translation id="5465128270485645058">Λάβετε πιο προσαρμοσμένες απαντήσεις με αυτόματη κοινή χρήση των ανοιχτών καρτελών σε αυτό το παράθυρο, αν σχετίζονται με αυτό το νήμα.</translation>
 <translation id="5465724643247062031">Γυαλί (Αδιαφανές)</translation>
 <translation id="5466018172325111652">Δεν λάβατε τον κωδικό σας; <ph name="BEGIN_LINK" />Λήψη νέου κωδικού<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">Εφαρμογές πληρωμών</translation>
@@ -3129,6 +3139,7 @@
 <translation id="5911020115933784199">Εκδηλώσεις και καταχωρίσεις</translation>
 <translation id="5911110632211230665">Το άνοιγμα έχει αποκλειστεί</translation>
 <translation id="5912796581727968237">Άνοιγμα Πορτοφολιού Google</translation>
+<translation id="5914185423510719251">Αποθήκευση KTN στο Πορτοφόλι Google</translation>
 <translation id="5914465277418006379">Ο χρήστης <ph name="MEMBER_FIRST_NAME" /> πρόσθεσε αυτή την καρτέλα</translation>
 <translation id="5915189366813702112">Ευέλικτες συνθήκες εργασίας</translation>
 <translation id="59174027418879706">Ενεργοποιημένο</translation>
@@ -3653,6 +3664,7 @@
 <translation id="6702851555558236418">Λογισμικό ήχου και μουσικής</translation>
 <translation id="6702919718839027939">Παρουσίαση</translation>
 <translation id="6704458454638854812">Η ιδιότητα custom_size έχει οριστεί. Το αναμενόμενο όνομα είναι custom.</translation>
+<translation id="670477556876354552">Απαιτείται επανεκκίνηση</translation>
 <translation id="6706005862292023715">Κουρτίνες και είδη σκίασης παραθύρων</translation>
 <translation id="6706210727756204531">Εύρος</translation>
 <translation id="6706678697074905703">Δεν ήταν δυνατή η αποθήκευση αυτού του IBAN στον Λογαριασμό σας Google. Αντ' αυτού, αποθηκεύτηκε στο Chrome σε αυτή τη συσκευή.</translation>
@@ -3910,6 +3922,7 @@
 <translation id="7110116949943042888">Προσωρινές και εποχικές θέσεις εργασίας</translation>
 <translation id="7110368079836707726">Κολέγια και πανεπιστήμια</translation>
 <translation id="7111507312244504964">Αξιολογήσεις και εκτιμήσεις ακινήτων</translation>
+<translation id="7117290130383718594">Σχολιασμοί κειμένου</translation>
 <translation id="7118618213916969306">Αναζήτηση URL στο πρόχειρο, <ph name="SHORT_URL" /></translation>
 <translation id="7118852830504022370">Η συγκεκριμένη ειδοποίηση εμφανίζεται επειδή αυτός ο ιστότοπος δεν υποστηρίζει HTTPS. <ph name="BEGIN_LEARN_MORE_LINK" />Μάθετε περισσότερα σχετικά με αυτή την ειδοποίηση<ph name="END_LEARN_MORE_LINK" />.</translation>
 <translation id="7119063404975271297">Τηλεοπτικά δράματα</translation>
@@ -4219,6 +4232,7 @@
 <translation id="7569490014721427265">Γκολφ</translation>
 <translation id="7569952961197462199">Κατάργηση πιστωτικής κάρτας από το Chrome;</translation>
 <translation id="7569983096843329377">Μαύρο</translation>
+<translation id="7570524564113479209">Ενημέρωση πληροφοριών ταυτότητας στο Πορτοφόλι Google</translation>
 <translation id="7570862164055912832">Αριθμοί επανεξέτασης</translation>
 <translation id="7571813784389228510">Λειτουργία AI της Google</translation>
 <translation id="7574998639136359461">Εξοπλισμός χειμερινών σπορ</translation>
@@ -4740,6 +4754,7 @@
 <translation id="8389940864052787379">Προσαρμοσμένα οχήματα και οχήματα επιδόσεων</translation>
 <translation id="8390725133630534698">Η κοινοποίηση από το <ph name="ORIGIN_NAME" /> στο <ph name="VM_NAME" /> έχει αποκλειστεί από την πολιτική του διαχειριστή.</translation>
 <translation id="8392783408127179588">Επανάληψη φόρτωσης πολιτικών</translation>
+<translation id="8393948304336153065">Ενημέρωση πληροφοριών διπλώματος οδήγησης στο Πορτοφόλι Google</translation>
 <translation id="8396522675989118466">Αυτός είναι ο <ph name="NUMBER_OF_DIGITS" />-ψήφιος κωδικός στην <ph name="SIDE_OF_CARD" /></translation>
 <translation id="8398335999901363925">Η λίστα των τρόπων πληρωμής που είναι διαθέσιμοι για συμπλήρωση μέσω αφής είναι ανοιχτή σε πλήρες ύψος.</translation>
 <translation id="8398446215576328011">Επαναφορά πολιτικών που ισχύουν</translation>
@@ -4902,7 +4917,6 @@
 <translation id="8671519637524426245">Η τιμή <ph name="SECURE_DNS_SALT" /> δεν πληροί τις απαιτήσεις μεγέθους.</translation>
 <translation id="867224526087042813">Υπογραφή</translation>
 <translation id="8672535691554698269">Δίκτυα υπολογιστών</translation>
-<translation id="8673710317985154384">{NUM_TABS,plural, =1{Εμφάνιση λεπτομερειών κοινής χρήσης καρτέλας. Κοινή χρήση 1 καρτέλας από {WEBSITE_LIST_STR}}other{Εμφάνιση λεπτομερειών κοινής χρήσης καρτελών. Κοινή χρήση {NUM_TABS} καρτελών από {WEBSITE_LIST_STR}}}</translation>
 <translation id="8675446170353411473">Τα αρχεία σας ανεβαίνουν στο <ph name="CLOUD_PROVIDER" /></translation>
 <translation id="8676424191133491403">Χωρίς καθυστέρηση</translation>
 <translation id="8680536109547170164"><ph name="QUERY" />, απάντηση, <ph name="ANSWER" /></translation>
@@ -5142,6 +5156,7 @@
 <translation id="9063800855227801443">Δεν είναι δυνατή η λήψη εμπιστευτικού περιεχομένου</translation>
 <translation id="9065203028668620118">Επεξεργασία</translation>
 <translation id="9065745800631924235">Αναζήτηση <ph name="TEXT" /> από το ιστορικό</translation>
+<translation id="9066116644715286230">{NUM_TABS,plural, =1{Λεπτομέρειες κοινής χρήσης καρτέλας. Κοινή χρήση 1 καρτέλας από {WEBSITE_LIST_STR}}other{Λεπτομέρειες κοινής χρήσης καρτελών. Κοινή χρήση {NUM_TABS} καρτελών από {WEBSITE_LIST_STR}}}</translation>
 <translation id="90695670378604968">Πλαστικό (Ματ)</translation>
 <translation id="9069693763241529744">Αποκλείστηκε από μια επέκταση</translation>
 <translation id="9073799351042754113">Έχετε επιλέξει να απενεργοποιήσετε τις ειδοποιήσεις ασφάλειας για αυτόν τον ιστότοπο.</translation>

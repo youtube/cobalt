@@ -28,9 +28,11 @@ class EntityType;
 - (void)setWritableEntityTypes:
     (const std::vector<autofill::EntityType>&)writableEntityTypes;
 
-// Sets the toggle state for "save and fill identity docs" and its enabled
-// state.
-- (void)setIdentityDocsToggleState:(BOOL)on enabled:(BOOL)enabled;
+// Sets the toggle state for "save and fill identity docs", its enabled and
+// managed states.
+- (void)setIdentityDocsToggleState:(BOOL)on
+                           enabled:(BOOL)enabled
+                           managed:(BOOL)managed;
 
 @end
 

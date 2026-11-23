@@ -96,6 +96,7 @@
 
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/lens/lens_media_link_handler.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"  // nogncheck
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #endif
 
@@ -241,6 +242,18 @@ EntrypointSource ConvertContextualSearchSourceToEntrypointSource(
       return EntrypointSource::kFromWeb;
   }
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+bool ShouldReloadZeroState(const GURL& url, ContextualTasksUiService* service) {
+  return base::FeatureList::IsEnabled(
+             omnibox::kWebUIOmniboxAskGAboutThisPage) &&
+         ContextualTasksUI::IsZeroState(url, service);
+}
+#else
+bool ShouldReloadZeroState(const GURL& url, ContextualTasksUiService* service) {
+  return false;
+}
+#endif
 
 }  // namespace
 
@@ -1351,10 +1364,31 @@ bool ContextualTasksUiService::HandleNavigationImpl(
     return true;
   }
 
+  // Whether the navigation is from forward navigation and originally from
+  // a link click. `page_transition` can contain both the original navigation
+  // information (from link click or typed, etc) and the modified one(from
+  // forward/back).
+  ui::PageTransition page_transition = url_params.transition;
+  bool is_forward_link_navigation =
+      (page_transition & ui::PAGE_TRANSITION_FORWARD_BACK) && source_contents &&
+      (source_contents->GetController().GetPendingEntryIndex() >
+       source_contents->GetController().GetLastCommittedEntryIndex()) &&
+      (ui::PageTransitionCoreTypeIs(page_transition,
+                                    ui::PAGE_TRANSITION_LINK) ||
+       ui::PageTransitionCoreTypeIs(page_transition,
+                                    ui::PAGE_TRANSITION_RELOAD));
+
+  bool is_nav_within_existing_session =
+      lens::features::IsLensSidePanelUnificationEnabled() &&
+      (is_from_embedded_page || is_forward_link_navigation) &&
+      source_contents &&
+      IsContextualTasksUrl(source_contents->GetLastCommittedURL());
+
   // Make sure the user is eligible to use the feature before attempting to
   // intercept.
-  if (!eligibility_manager_ ||
-      !eligibility_manager_->IsEligibleWithoutIdentity()) {
+  if (!is_nav_within_existing_session &&
+      (!eligibility_manager_ ||
+       !eligibility_manager_->IsEligibleWithoutIdentity())) {
     OMNIBOX_LOG("nav_trace")
         << "ContextualTasks navigation trace: HandleNavigationImpl "
            "returning early, not eligible";
@@ -1491,7 +1525,8 @@ bool ContextualTasksUiService::HandleNavigationImpl(
   }
 
   // If the user is not signed in to Chrome, do not intercept.
-  if (!IsSignedInToBrowserWithValidCredentials()) {
+  if (!is_nav_within_existing_session &&
+      !IsSignedInToBrowserWithValidCredentials()) {
     OMNIBOX_LOG("nav_trace")
         << "ContextualTasks navigation trace: HandleNavigationImpl "
            "returning false, not signed into browser";
@@ -1500,7 +1535,8 @@ bool ContextualTasksUiService::HandleNavigationImpl(
 
   // If the user is not signed in to the account that is using the URL, do not
   // intercept.
-  if (is_nav_to_ai && !IsUrlForPrimaryAccount(url_params.url)) {
+  if (!is_nav_within_existing_session && is_nav_to_ai &&
+      !IsUrlForPrimaryAccount(url_params.url)) {
     OMNIBOX_LOG("nav_trace")
         << "ContextualTasks navigation trace: HandleNavigationImpl "
            "returning false, not signed into account for AI URL";
@@ -1514,20 +1550,6 @@ bool ContextualTasksUiService::HandleNavigationImpl(
   BrowserWindowInterface* browser =
       tab ? tab->GetBrowserWindowInterface()
           : webui::GetBrowserWindowInterface(source_contents);
-
-  // Whether the navigation is from forward navigation and originally from
-  // a link click. `page_transition` can contain both the original navigation
-  // information (from link click or typed, etc) and the modified one(from
-  // forward/back).
-  ui::PageTransition page_transition = url_params.transition;
-  bool is_forward_link_navigation =
-      (page_transition & ui::PAGE_TRANSITION_FORWARD_BACK) &&
-      (source_contents->GetController().GetPendingEntryIndex() >
-       source_contents->GetController().GetLastCommittedEntryIndex()) &&
-      (ui::PageTransitionCoreTypeIs(page_transition,
-                                    ui::PAGE_TRANSITION_LINK) ||
-       ui::PageTransitionCoreTypeIs(page_transition,
-                                    ui::PAGE_TRANSITION_RELOAD));
 
   // Retrieve the stored open url params from the pending tracker. If found, use
   // those params for this navigation. This is required as the second call to
@@ -1922,6 +1944,14 @@ void ContextualTasksUiService::OnBackButtonExpandsSidePanel(
   auto* controller =
       contextual_tasks::ContextualTasksPanelController::From(browser);
   if (controller && controller->IsPanelOpenForContextualTask()) {
+    base::RecordAction(
+        base::UserMetricsAction("ContextualTasks.BackButton.UserAction."
+                                "NavigatedFromSidePanelToFullTab"));
+    base::UmaHistogramBoolean(
+        "ContextualTasks.BackButton.UserAction."
+        "NavigatedFromSidePanelToFullTab",
+        true);
+
     content::WebContents* side_panel_contents =
         controller->GetActiveWebContents();
     controller->MoveTaskUiToNewTab();
@@ -2447,10 +2477,11 @@ void ContextualTasksUiService::StartTaskUiInSidePanel(
     tabs::TabInterface* tab_interface,
     const GURL& url,
     std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
-        session_handle) {
+        session_handle,
+    omnibox::ChromeAimEntryPoint entry_point) {
   StartTaskUiInSidePanel(browser_window_interface, tab_interface, url,
                          std::move(session_handle),
-                         /*associate_web_contents=*/true);
+                         /*associate_web_contents=*/true, entry_point);
 }
 
 void ContextualTasksUiService::StartTaskUiInSidePanel(
@@ -2459,7 +2490,8 @@ void ContextualTasksUiService::StartTaskUiInSidePanel(
     const GURL& url,
     std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
         session_handle,
-    bool associate_web_contents) {
+    bool associate_web_contents,
+    omnibox::ChromeAimEntryPoint entry_point) {
   CHECK(!url.is_empty());
   CHECK(contextual_tasks_service_);
 
@@ -2492,7 +2524,7 @@ void ContextualTasksUiService::StartTaskUiInSidePanel(
       pending_session_handles_.emplace(task.GetTaskId(),
                                        std::move(session_handle));
     }
-    controller->Show();
+    controller->Show(/*transition_from_tab=*/false, entry_point);
 
     InitializeTaskInSidePanel(controller->GetActiveWebContents(),
                               task.GetTaskId(), nullptr);
@@ -2516,6 +2548,22 @@ void ContextualTasksUiService::StartTaskUiInSidePanel(
   // navigation directly to the embedded page.
   if (ContextualTasksUIInterface* web_ui_interface =
           GetWebUiInterface(panel_contents)) {
+    if (ShouldReloadZeroState(url, this)) {
+      // Cleanly start over: Create a new task and reload the parent WebUI.
+      ContextualTask task = contextual_tasks_service_->CreateTaskFromUrl(url);
+      task_id_to_creation_url_[task.GetTaskId()] = url;
+      AssociateWebContentsToTask(tab_interface->GetContents(),
+                                 task.GetTaskId());
+
+      content::NavigationController::LoadURLParams load_params(
+          GetContextualTaskUrlForTask(task.GetTaskId()));
+      panel_contents->GetController().LoadURLWithParams(load_params);
+
+      InitializeTaskInSidePanel(panel_contents, task.GetTaskId(),
+                                std::move(session_handle));
+      return;
+    }
+
     content::OpenURLParams url_params(
         url, content::Referrer(), WindowOpenDisposition::CURRENT_TAB,
         ui::PAGE_TRANSITION_LINK, /*is_renderer_initiated=*/false);
@@ -2527,7 +2575,8 @@ void ContextualTasksUiService::InitSidePanelWithGhostLoader(
     BrowserWindowInterface* browser_window_interface,
     tabs::TabInterface* tab_interface,
     std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
-        session_handle) {
+        session_handle,
+    omnibox::ChromeAimEntryPoint entry_point) {
   CHECK(contextual_tasks_service_);
 
   // Get the controller for the current window.
@@ -2549,7 +2598,7 @@ void ContextualTasksUiService::InitSidePanelWithGhostLoader(
     pending_session_handles_.emplace(task.GetTaskId(),
                                      std::move(session_handle));
   }
-  controller->Show();
+  controller->Show(/*transition_from_tab=*/false, entry_point);
 
   InitializeTaskInSidePanel(controller->GetActiveWebContents(),
                             task.GetTaskId(), nullptr);
@@ -2559,7 +2608,8 @@ void ContextualTasksUiService::StartTaskUiInSidePanelWithErrorPage(
     BrowserWindowInterface* browser_window_interface,
     tabs::TabInterface* tab_interface,
     std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
-        session_handle) {
+        session_handle,
+    omnibox::ChromeAimEntryPoint entry_point) {
   // Abort if the tab is no longer active to prevent opening the panel on the
   // wrong tab.
   if (!tab_interface || !tab_interface->IsActivated()) {
@@ -2587,7 +2637,7 @@ void ContextualTasksUiService::StartTaskUiInSidePanelWithErrorPage(
       pending_session_handles_.emplace(task.GetTaskId(),
                                        std::move(session_handle));
     }
-    controller->Show();
+    controller->Show(/*transition_from_tab=*/false, entry_point);
   }
 
   content::WebContents* web_contents = controller->GetActiveWebContents();

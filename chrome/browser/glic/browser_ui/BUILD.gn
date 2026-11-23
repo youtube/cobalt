@@ -109,9 +109,11 @@ source_set("impl") {
       "//chrome/browser/ui/views/toolbar",
       "//chrome/common:buildflags",
       "//chrome/common:chrome_features",
+      "//components/constrained_window",
       "//components/omnibox/browser:vector_icons",
       "//components/prefs",
       "//content/public/browser",
+      "//ui/strings",
       "//ui/strings:ui_strings__strings_grit",
     ]
   } else {

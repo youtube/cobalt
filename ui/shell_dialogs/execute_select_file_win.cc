@@ -8,6 +8,7 @@
 #include <wrl/client.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/check.h"
 #include "base/feature_list.h"
@@ -23,6 +24,7 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/shell_dialogs/auto_close_dialog_event_handler_win.h"
 #include "ui/shell_dialogs/base_shell_dialog_win.h"
+#include "ui/shell_dialogs/safe_accept_file_dialog_event_handler_win.h"
 #include "ui/shell_dialogs/select_file_utils_win.h"
 #include "ui/strings/grit/ui_strings.h"
 
@@ -33,35 +35,27 @@ namespace {
 // Stop switch for the AutoCloseDialogEventHandler.
 BASE_FEATURE(kAutoCloseFileDialogs, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// RAII wrapper around AutoCloseDialogEventHandler.
-class ScopedAutoCloseDialogEventHandler {
+// Stop switch for the `SafeAcceptFileDialogEventHandler`.
+BASE_FEATURE(kSafeAcceptFileDialogs, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// RAII wrapper around a single `IFileDialogEvents` registration.
+class ScopedFileDialogEvents {
  public:
-  ScopedAutoCloseDialogEventHandler(HWND owner_window, IFileDialog* file_dialog)
+  ScopedFileDialogEvents(IFileDialog* file_dialog, IFileDialogEvents* handler)
       : file_dialog_(file_dialog) {
     CHECK(file_dialog_);
-
-    if (!owner_window) {
-      return;
-    }
-
-    if (!base::FeatureList::IsEnabled(kAutoCloseFileDialogs)) {
-      return;
-    }
-
-    Microsoft::WRL::ComPtr<IFileDialogEvents> dialog_event_handler =
-        Microsoft::WRL::Make<AutoCloseDialogEventHandler>(owner_window);
-    if (!dialog_event_handler) {
-      return;
-    }
-
-    file_dialog_->Advise(dialog_event_handler.Get(), &cookie_);
+    CHECK(handler);
+    file_dialog_->Advise(handler, &cookie_);
   }
 
-  ~ScopedAutoCloseDialogEventHandler() {
+  ~ScopedFileDialogEvents() {
     if (cookie_) {
       file_dialog_->Unadvise(cookie_);
     }
   }
+
+  ScopedFileDialogEvents(const ScopedFileDialogEvents&) = delete;
+  ScopedFileDialogEvents& operator=(const ScopedFileDialogEvents&) = delete;
 
  private:
   Microsoft::WRL::ComPtr<IFileDialog> file_dialog_;
@@ -196,10 +190,20 @@ bool RunSaveFileDialog(HWND owner,
 
   file_save_dialog->SetDefaultExtension(def_ext.c_str());
 
-  // This handler auto-closes the file dialog if its owner window is closed.
-  auto auto_close_dialog_event_handler =
-      std::make_unique<ScopedAutoCloseDialogEventHandler>(
-          owner, file_save_dialog.Get());
+  // Set up event handlers for the dialog.
+  std::optional<ScopedFileDialogEvents> auto_close_event;
+  if (owner && base::FeatureList::IsEnabled(kAutoCloseFileDialogs)) {
+    auto_close_event.emplace(
+        file_save_dialog.Get(),
+        Microsoft::WRL::Make<AutoCloseDialogEventHandler>(owner).Get());
+  }
+
+  std::optional<ScopedFileDialogEvents> safe_accept_event;
+  if (base::FeatureList::IsEnabled(kSafeAcceptFileDialogs)) {
+    safe_accept_event.emplace(
+        file_save_dialog.Get(),
+        Microsoft::WRL::Make<SafeAcceptFileDialogEventHandler>().Get());
+  }
 
   // Never consider the current scope as hung. The hang watching deadline (if
   // any) is not valid since the user can take unbounded time to choose the
@@ -209,9 +213,9 @@ bool RunSaveFileDialog(HWND owner,
   HRESULT hr = file_save_dialog->Show(owner);
   BaseShellDialogImpl::DisableOwner(owner);
 
-  // Remove the event handler regardless of the return value of Show().
-  auto_close_dialog_event_handler = nullptr;
-
+  // Remove the event handlers regardless of the return value of `Show()`.
+  auto_close_event.reset();
+  safe_accept_event.reset();
   if (FAILED(hr))
     return false;
 
@@ -263,10 +267,20 @@ bool RunOpenFileDialog(HWND owner,
     return false;
   }
 
-  // This handler auto-closes the file dialog if its owner window is closed.
-  auto auto_close_dialog_event_handler =
-      std::make_unique<ScopedAutoCloseDialogEventHandler>(
-          owner, file_open_dialog.Get());
+  // Set up event handlers for the dialog.
+  std::optional<ScopedFileDialogEvents> auto_close_event;
+  if (owner && base::FeatureList::IsEnabled(kAutoCloseFileDialogs)) {
+    auto_close_event.emplace(
+        file_open_dialog.Get(),
+        Microsoft::WRL::Make<AutoCloseDialogEventHandler>(owner).Get());
+  }
+
+  std::optional<ScopedFileDialogEvents> safe_accept_event;
+  if (base::FeatureList::IsEnabled(kSafeAcceptFileDialogs)) {
+    safe_accept_event.emplace(
+        file_open_dialog.Get(),
+        Microsoft::WRL::Make<SafeAcceptFileDialogEventHandler>().Get());
+  }
 
   // Never consider the current scope as hung. The hang watching deadline (if
   // any) is not valid since the user can take unbounded time to choose the
@@ -276,8 +290,9 @@ bool RunOpenFileDialog(HWND owner,
   HRESULT hr = file_open_dialog->Show(owner);
   BaseShellDialogImpl::DisableOwner(owner);
 
-  // Remove the event handler regardless of the return value of Show().
-  auto_close_dialog_event_handler = nullptr;
+  // Remove the event handlers regardless of the return value of `Show()`.
+  auto_close_event.reset();
+  safe_accept_event.reset();
 
   if (FAILED(hr))
     return false;

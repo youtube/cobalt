@@ -14,6 +14,10 @@
 #include "extensions/browser/extension_host.h"
 #include "extensions/common/constants.h"
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_extension_constants.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 namespace performance_manager {
 
 namespace {

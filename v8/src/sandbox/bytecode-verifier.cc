@@ -132,7 +132,7 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
   interpreter::Register incoming_new_target_or_generator =
       bytecode->incoming_new_target_or_generator_register();
   if (incoming_new_target_or_generator.is_valid()) {
-    VerifyRegister(incoming_new_target_or_generator, false);
+    VerifyRegister(incoming_new_target_or_generator, true);
   }
 
   uint32_t constant_pool_length = bytecode->constant_pool()->ulength().value();
@@ -249,6 +249,8 @@ void BytecodeVerifier::VerifyFull(IsolateForSandbox isolate,
   }
 
   Check(bytecode->frame_size() >= 0, "Invalid bytecode array frame size");
+  Check(bytecode->parameter_count() >= kJSArgcReceiverSlots,
+        "Invalid bytecode array parameter count");
 
   // Finally perform lightweight verification for CFI. If we ever enable full
   // verification in production then we'd most likely want to avoid iterating
@@ -274,6 +276,12 @@ bool BytecodeVerifier::IsAllowedRuntimeFunction(Runtime::FunctionId id) {
   if (!v8_flags.fuzzing) return true;
 
   switch (id) {
+    case Runtime::kLoadLookupSlotForCall_Baseline:
+    case Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug:
+    case Runtime::kBytecodeBudgetInterrupt_Sparkplug:
+    case Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev:
+    case Runtime::kBytecodeBudgetInterrupt_Maglev:
+      return false;
 #if V8_ENABLE_WEBASSEMBLY
 #define CASE_WASM_INTRINSIC(Name, ...) case Runtime::k##Name:
 #define CASE_WASM_INTRINSIC_INLINE(Name, ...) case Runtime::kInline##Name:

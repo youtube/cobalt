@@ -446,6 +446,8 @@ class WebAppIntegrationTestDriver {
       UpdateDialogResponse response,
       std::unique_ptr<WebAppMenuModel> menu_model);
 
+  void WaitForAndAcceptInstallDialogForSite(Site site);
+
   void OnWidgetShown(views::Widget* widget);
   void OnWidgetClosing(views::Widget* widget);
 

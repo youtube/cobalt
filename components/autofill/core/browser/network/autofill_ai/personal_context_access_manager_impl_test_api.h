@@ -25,6 +25,14 @@ class PersonalContextAccessManagerImplTestApi {
     manager_->CacheUnmaskedSpiiEntity(std::move(entity));
   }
 
+  void CachePresenceSignal(EntityType type) {
+    manager_->CachePresenceSignal(type);
+  }
+
+  bool IsPresenceSignalCached(EntityType type) const {
+    return manager_->spii_presence_signal_cache_.contains(type);
+  }
+
  private:
   raw_ref<PersonalContextAccessManagerImpl> manager_;
 };

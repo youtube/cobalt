@@ -38,6 +38,8 @@
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/history_clusters/history_clusters_tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/search_engines/ai_mode_button_service_factory.h"
+#include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -46,8 +48,8 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
-#include "chrome/browser/ui/omnibox/ai_mode_button_service_factory.h"
 #include "chrome/browser/ui/omnibox/clipboard_utils.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
@@ -58,7 +60,6 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
@@ -72,8 +73,6 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_features.h"
-#include "components/omnibox/browser/ai_mode_button_config.h"
-#include "components/omnibox/browser/ai_mode_button_service.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -85,6 +84,8 @@
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/search/search.h"
+#include "components/search_engines/ai_mode_button_config.h"
+#include "components/search_engines/ai_mode_button_service.h"
 #include "components/search_engines/search_engines_switches.h"
 #include "components/security_state/core/security_state.h"
 #include "components/send_tab_to_self/metrics_util.h"
@@ -1489,8 +1490,6 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
     next_double_click_selection_len_ = 0;
   }
 
-  bool is_double_click = false;
-
   if (!select_all_on_mouse_release_) {
     if (UnapplySteadyStateElisions(UnelisionGesture::kOther)) {
       // This ensures that when the user makes a double-click partial select, we
@@ -1498,7 +1497,6 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
       // selection, which is on mousedown.
       TextChanged();
       filter_drag_events_for_unelision_ = true;
-      is_double_click = true;
     } else if (event.GetClickCount() == 1 && event.IsLeftMouseButton()) {
       // Select the current word and record it for later. This is done to handle
       // an edge case where the wrong word is selected on a double click when
@@ -1529,21 +1527,8 @@ bool OmniboxViewViews::OnMousePressed(const ui::MouseEvent& event) {
         SetSelectedRange(gfx::Range(next_double_click_selection_offset_,
                                     next_double_click_selection_offset_ +
                                         next_double_click_selection_len_));
-        is_double_click = true;
       }
     }
-  }
-
-  // When mouse clicks are being forwarded from the WebUI popup to this native
-  // textfield, push the newly calculated selection range (e.g. word highlights)
-  // back to the WebUI searchbox so it maintains perfect visual sync. Whenever
-  // selection is set on the omnibox_view_views, it should be pushed to the
-  // popup.
-  if (location_bar_view_ && location_bar_view_->GetOmniboxPopupView() &&
-      base::FeatureList::IsEnabled(
-          omnibox::kWebUIOmniboxFullPopupDoubleClick)) {
-    location_bar_view_->GetOmniboxPopupView()->SyncNativeStateToWebUI(
-        is_double_click);
   }
 
   return handled;
@@ -1556,8 +1541,6 @@ bool OmniboxViewViews::OnMouseDragged(const ui::MouseEvent& event) {
     return true;
   }
 
-  // TODO(crbug.com/514810983): Figure out dragging behavior for full webui
-  // popup.
   if (HasTextBeingDragged()) {
     if (auto* popup_closer = controller()->client()->GetOmniboxPopupCloser()) {
       popup_closer->CloseWithReason(omnibox::PopupCloseReason::kTextDrag);
@@ -1609,6 +1592,17 @@ void OmniboxViewViews::OnMouseReleased(const ui::MouseEvent& event) {
   // case, in which we defer uneliding until mouse release.
   if (UnapplySteadyStateElisions(UnelisionGesture::kMouseRelease)) {
     TextChanged();
+  }
+
+  if (location_bar_view_) {
+    location_bar_view_->OpenOmniboxPopup();
+
+    // Transfer selection to the full webui popup.
+    if (location_bar_view_->GetOmniboxPopupView() &&
+        base::FeatureList::IsEnabled(
+            omnibox::kWebUIOmniboxFullPopupDoubleClick)) {
+      location_bar_view_->GetOmniboxPopupView()->SyncNativeStateToWebUI();
+    }
   }
 }
 
@@ -1789,7 +1783,7 @@ void OmniboxViewViews::OnBlur() {
       !controller()->edit_model()->is_keyword_selected()) {
     // Bypass native RevertAll when Full WebUI V2 is enabled to prevent wiping
     // out active WebUI drafting states.
-    if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2) &&
+    if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) &&
         ((!controller()->edit_model()->user_input_in_progress() &&
           GetText() != controller()->edit_model()->GetPermanentDisplayText()) ||
          (controller()->edit_model()->user_input_in_progress() &&
@@ -1812,8 +1806,13 @@ void OmniboxViewViews::OnBlur() {
     RevertAll();
   } else if (auto* popup_closer =
                  controller()->client()->GetOmniboxPopupCloser()) {
-    if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) {
+    if (!base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
       popup_closer->CloseWithReason(omnibox::PopupCloseReason::kBlur);
+    } else {
+      // In the dragging case of the full webUI popup we still need to revert
+      // the text to reapply elision. Since the dropdown is not visible (popup
+      // is not open), it skips the `RevertAll` above.
+      RevertAll();
     }
   }
 
@@ -2033,11 +2032,13 @@ bool OmniboxViewViews::ShouldShowPlaceholderText() const {
           omnibox::kOmniboxAimDeferShowUntilVisualStateReady)) {
     // Suppress the hint text while the AIM popup is displayed or in deferred
     // transition.
-    bool is_aim_popup = controller()->popup_state_manager()->popup_state() ==
-                        OmniboxPopupState::kAim;
+    OmniboxPopupState state =
+        controller()->popup_state_manager()->popup_state();
+    bool is_webui_popup =
+        state == OmniboxPopupState::kAim || state == OmniboxPopupState::kFull;
     bool is_transitioning =
         location_bar_view_ && location_bar_view_->in_popup_state_transition();
-    if (is_aim_popup || is_transitioning) {
+    if (is_webui_popup || is_transitioning) {
       return false;
     }
   }
@@ -2136,8 +2137,8 @@ bool OmniboxViewViews::HandleKeyEvent(views::Textfield* textfield,
         const bool ai_mode_modifier = control;
 #endif
         if (ai_mode_modifier && !shift) {
-          controller()->edit_model()->OpenAiMode(/*via_keyboard=*/true,
-                                                 /*via_context_menu=*/false);
+          controller()->edit_model()->OpenAiMode(
+              OmniboxEditModel::AimActivation::kKeyboard);
           return true;
         }
       }
@@ -2733,8 +2734,15 @@ bool OmniboxViewViews::ShouldInstallAimPlaceholderText() const {
   const auto* aim_eligibility_service =
       AimEligibilityServiceFactory::GetForProfile(
           location_bar_view_->GetProfile());
+  const auto* ai_mode_button_service =
+      AiModeButtonServiceFactory::GetForProfile(
+          location_bar_view_->GetProfile());
+  const auto* template_url_service = TemplateURLServiceFactory::GetForProfile(
+      location_bar_view_->GetProfile());
   const bool is_aim_entrypoint_enabled =
-      OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(aim_eligibility_service);
+      OmniboxFieldTrial::IsAimOmniboxEntrypointEnabled(aim_eligibility_service,
+                                                       ai_mode_button_service,
+                                                       template_url_service);
 
   return is_aim_entrypoint_enabled &&
          controller()->edit_model()->is_caret_visible() && GetAiModeConfig();

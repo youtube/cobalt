@@ -59,6 +59,7 @@ public class TabListEditorShareAction extends TabListEditorAction {
     private final Context mContext;
     private final BroadcastReceiver mBroadcastReceiver;
 
+    private boolean mIsReceiverRegistered;
     private boolean mSkipUrlCheckForTesting;
 
     // These values are persisted to logs. Entries should not be renumbered and
@@ -116,13 +117,14 @@ public class TabListEditorShareAction extends TabListEditorAction {
                 new BroadcastReceiver() {
                     @Override
                     public void onReceive(Context context, Intent intent) {
-                        context.unregisterReceiver(mBroadcastReceiver);
+                        unregisterReceiver();
                         // Hide the selection editor if the custom share intent is sent and received
                         // by another app, indicating that the user has completed the share tabs
                         // workflow.
                         getActionDelegate().hideByAction();
                     }
                 };
+        setDestroyable(this::destroy);
     }
 
     @Override
@@ -200,10 +202,23 @@ public class TabListEditorShareAction extends TabListEditorAction {
         Intent receiver = new Intent("SHARE_ACTION");
         PendingIntent pendingIntent =
                 PendingIntent.getBroadcast(context, 0, receiver, PendingIntent.FLAG_IMMUTABLE);
+        unregisterReceiver();
         ContextUtils.registerNonExportedBroadcastReceiver(
                 context, mBroadcastReceiver, new IntentFilter("SHARE_ACTION"));
+        mIsReceiverRegistered = true;
         createShareableImageAndSendIntent(shareIntent, drawable, actionId, pendingIntent);
         return true;
+    }
+
+    private void unregisterReceiver() {
+        if (mIsReceiverRegistered) {
+            mContext.unregisterReceiver(mBroadcastReceiver);
+            mIsReceiverRegistered = false;
+        }
+    }
+
+    private void destroy() {
+        unregisterReceiver();
     }
 
     @Override

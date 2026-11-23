@@ -22,7 +22,7 @@ class EditingTestBase : public PageTestBase {
   USING_FAST_MALLOC(EditingTestBase);
 
  public:
-  static ShadowRoot* CreateShadowRootForElementWithIDAndSetInnerHTML(
+  static ShadowRoot* CreateShadowRootForElementWithIdAndSetInnerHtml(
       TreeScope&,
       const char* host_element_id,
       const char* shadow_root_content);

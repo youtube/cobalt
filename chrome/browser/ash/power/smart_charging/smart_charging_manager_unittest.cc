@@ -116,14 +116,14 @@ class SmartChargingManagerTest : public ChromeRenderViewHostTestHarness {
   }
 
   void ReportLidEvent(const chromeos::PowerManagerClient::LidState state) {
-    chromeos::FakePowerManagerClient::Get()->SetLidState(
-        state, base::TimeTicks::UnixEpoch());
+    chromeos::FakePowerManagerClient::Get()->SetLidState(state,
+                                                         base::TimeTicks());
   }
 
   void ReportTabletModeEvent(
       const chromeos::PowerManagerClient::TabletMode mode) {
-    chromeos::FakePowerManagerClient::Get()->SetTabletMode(
-        mode, base::TimeTicks::UnixEpoch());
+    chromeos::FakePowerManagerClient::Get()->SetTabletMode(mode,
+                                                           base::TimeTicks());
   }
 
   void ReportVideoStart() { smart_charging_manager_->OnVideoActivityStarted(); }

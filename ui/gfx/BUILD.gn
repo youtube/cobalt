@@ -711,6 +711,12 @@ static_library("test_support") {
   if (is_apple) {
     sources += [ "image/image_unittest_util_apple.mm" ]
   }
+  if (is_android) {
+    sources += [
+      "android/fake_achoreographer_compat.cc",
+      "android/fake_achoreographer_compat.h",
+    ]
+  }
   if (use_fuzzing_engine) {
     sources += [
       "geometry/test/fuzzer_util.cc",

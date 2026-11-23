@@ -40,12 +40,6 @@ const char kVideoMimeType[] = "video";
 RecentDriveSource::CallContext::CallContext(GetRecentFilesCallback callback)
     : callback(std::move(callback)), build_start_time(base::TimeTicks::Now()) {}
 
-RecentDriveSource::CallContext::CallContext(CallContext&& context)
-    : callback(std::move(context.callback)),
-      build_start_time(context.build_start_time),
-      files(std::move(context.files)),
-      search_query(std::move(context.search_query)) {}
-
 RecentDriveSource::CallContext::~CallContext() = default;
 
 RecentDriveSource::RecentDriveSource(Profile* profile)

@@ -30,6 +30,7 @@
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/search/search.h"
+#include "components/search_engines/ai_mode_button_service.h"
 #include "components/variations/active_field_trials.h"
 #include "components/variations/hashing.h"
 #include "components/variations/variations_associated_data.h"
@@ -620,9 +621,31 @@ bool IsHideSuggestionGroupHeadersEnabledInContext(
 }
 
 bool IsAimOmniboxEntrypointEnabled(
-    const AimEligibilityService* aim_eligibility_service) {
+    const AimEligibilityService* aim_eligibility_service,
+    const AiModeButtonService* ai_mode_button_service,
+    const TemplateURLService* template_url_service) {
   // `aim_eligibility_service` can be null in tests.
-  return aim_eligibility_service && aim_eligibility_service->IsAimEligible();
+  if (!aim_eligibility_service) {
+    return false;
+  }
+
+  // Entrypoint can't be shown if it can't be configured.
+  if (!ai_mode_button_service || !ai_mode_button_service->GetCurrentConfig()) {
+    return false;
+  }
+
+  // If the DSE is Google, the entrypoint should respect Google server
+  // eligibility regardless of the 3p feature state.
+  if (search::DefaultSearchProviderIsGoogle(template_url_service)) {
+    return aim_eligibility_service->IsAimEligible();
+  }
+
+  // If DSE is not Google, then entrypoint should ignore Google server
+  // eligibility. Instead, it requires the 3p flag and local checks excluding
+  // DSE.
+  return base::FeatureList::IsEnabled(omnibox::kAim3pEntrypoint) &&
+         aim_eligibility_service->IsAimAllowedByFeatureAndPolicy() &&
+         aim_eligibility_service->IsAimAllowedByThirdPartyPolicy();
 }
 
 bool IsAimStarterPackEnabled(

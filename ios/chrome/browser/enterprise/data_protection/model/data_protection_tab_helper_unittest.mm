@@ -553,3 +553,20 @@ TEST_F(DataProtectionTabHelperTest, RedirectLatched) {
   EXPECT_TRUE(tab_helper()->IsScreenshotProtectionEnabled());
   EXPECT_EQ(fake_rt_lookup_service_->start_lookup_count(), 0u);
 }
+
+// Tests that screenshot protection is skipped for localhost URLs.
+TEST_F(DataProtectionTabHelperTest, LocalhostSkipped) {
+  for (const char* url_str :
+       {"http://localhost:8080", "http://127.0.0.1:8080"}) {
+    GURL localhost_url(url_str);
+    SetScreenshotBlockRule("*");
+
+    auto context = CreateNavigationContext(localhost_url);
+
+    tab_helper()->DidStartNavigation(web_state_.get(), context.get());
+    tab_helper()->DidFinishNavigation(web_state_.get(), context.get());
+
+    EXPECT_FALSE(tab_helper()->IsScreenshotProtectionEnabled());
+    EXPECT_EQ(fake_rt_lookup_service_->start_lookup_count(), 0u);
+  }
+}

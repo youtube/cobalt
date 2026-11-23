@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/web/web_document.h"
@@ -14,14 +15,35 @@
 #include "third_party/blink/renderer/bindings/core/v8/v8_shadow_root_init.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/element.h"
+#include "third_party/blink/renderer/core/dom/events/event.h"
+#include "third_party/blink/renderer/core/dom/events/native_event_listener.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/forms/html_text_area_element.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
+
+namespace {
+
+class EventTypeRecorder final : public NativeEventListener {
+ public:
+  void Invoke(ExecutionContext*, Event* event) override {
+    event_types_.push_back(event->type());
+  }
+
+  const Vector<AtomicString>& event_types() const { return event_types_; }
+
+ private:
+  Vector<AtomicString> event_types_;
+};
+
+}  // namespace
 
 class WebElementTest : public PageTestBase {
  protected:
@@ -206,6 +228,169 @@ TEST_F(WebElementTest, SelectTextOfContentEditable) {
 
   TestElement().SelectText(/*select_all=*/true);
   EXPECT_EQ(Selection().SelectedText(), "Some rich text here.");
+}
+
+TEST_F(WebElementTest,
+       SimulateAccessibilityClickDispatchesPointerMouseAndClickEvents) {
+  InsertHTML("<button id=testElement>Press</button>");
+  auto* element = GetDocument().getElementById(AtomicString("testElement"));
+  ASSERT_TRUE(element);
+
+  Persistent<EventTypeRecorder> recorder =
+      MakeGarbageCollected<EventTypeRecorder>();
+  element->addEventListener(event_type_names::kPointerdown, recorder);
+  element->addEventListener(event_type_names::kMousedown, recorder);
+  element->addEventListener(event_type_names::kPointerup, recorder);
+  element->addEventListener(event_type_names::kMouseup, recorder);
+  element->addEventListener(event_type_names::kClick, recorder);
+
+  // Accessibility-style click simulation sends the same pointer/mouse/click
+  // sequence as Blink's accessibility activation path. A plain
+  // WebElement::Click() would only send click, which is not close enough for
+  // pages that listen to pointer or mouse events.
+  EXPECT_TRUE(TestElement().SimulateAccessibilityClick());
+
+  const Vector<AtomicString>& event_types = recorder->event_types();
+  ASSERT_EQ(event_types.size(), 5u);
+  EXPECT_EQ(event_types[0], event_type_names::kPointerdown);
+  EXPECT_EQ(event_types[1], event_type_names::kMousedown);
+  EXPECT_EQ(event_types[2], event_type_names::kPointerup);
+  EXPECT_EQ(event_types[3], event_type_names::kMouseup);
+  EXPECT_EQ(event_types[4], event_type_names::kClick);
+}
+
+TEST_F(WebElementTest, SimulateAccessibilityClickDoesNotGrantUserGesture) {
+  InsertHTML("<button id=testElement>Press</button>");
+  ASSERT_FALSE(LocalFrame::HasTransientUserActivation(&GetFrame()));
+
+  Persistent<EventTypeRecorder> recorder =
+      MakeGarbageCollected<EventTypeRecorder>();
+  auto* element = GetDocument().getElementById(AtomicString("testElement"));
+  ASSERT_TRUE(element);
+  element->addEventListener(event_type_names::kClick, recorder);
+
+  // Accessibility-style click simulation still sends a trusted page click, but
+  // it does not unlock APIs that require a recent user gesture.
+  EXPECT_TRUE(TestElement().SimulateAccessibilityClick());
+  EXPECT_FALSE(LocalFrame::HasTransientUserActivation(&GetFrame()));
+  ASSERT_EQ(recorder->event_types().size(), 1u);
+  EXPECT_EQ(recorder->event_types()[0], event_type_names::kClick);
+}
+
+TEST_F(WebElementTest, SimulateAccessibilityClickDoesNotMoveFocus) {
+  InsertHTML(R"HTML(
+    <input id=initialFocus>
+    <button id=testElement>Press</button>
+  )HTML");
+  auto* initially_focused =
+      GetDocument().getElementById(AtomicString("initialFocus"));
+  ASSERT_TRUE(initially_focused);
+  initially_focused->Focus();
+  ASSERT_EQ(initially_focused, GetDocument().FocusedElement());
+
+  // Accessibility-style click simulation sends trusted click events, but it
+  // must not change activeElement. Focus is a separate page state with its own
+  // semantics.
+  EXPECT_TRUE(TestElement().SimulateAccessibilityClick());
+  EXPECT_EQ(initially_focused, GetDocument().FocusedElement());
+}
+
+TEST_F(WebElementTest, IsEffectivelyDisabledOrInertDetectsUnavailableStates) {
+  struct TestCase {
+    const char* html;
+    bool expected_unavailable;
+  };
+
+  const TestCase test_cases[] = {
+      {"<button id=testElement>Target</button>", false},
+      {"<button id=testElement disabled>Target</button>", true},
+      {"<fieldset disabled><button id=testElement>Target</button></fieldset>",
+       true},
+      {"<button id=testElement style='display:none'>Target</button>", true},
+      {"<div id=testElement style='display:contents'>Target</div>", true},
+      {"<button id=testElement style='pointer-events:none'>Target</button>",
+       true},
+      {"<div inert><button id=testElement>Target</button></div>", true},
+      {"<div aria-disabled=true><button id=testElement>Target</button></div>",
+       true},
+      {"<div aria-hidden=' true '><button id=testElement>Target</button></div>",
+       true},
+      {R"HTML(
+        <div role=dialog aria-modal=true>Modal</div>
+        <button id=testElement>Target</button>
+      )HTML",
+       false},
+      {R"HTML(
+        <div role=alertdialog>Alert dialog</div>
+        <button id=testElement>Target</button>
+      )HTML",
+       false},
+      {"<button id=testElement aria-disabled=false>Target</button>", false},
+      {"<button id=testElement aria-hidden=false>Target</button>", false},
+      {R"HTML(
+        <div role=dialog aria-modal=true>
+          <button id=testElement>Target</button>
+        </div>
+      )HTML",
+       false},
+      {R"HTML(
+        <div role=dialog aria-modal=false>Modeless</div>
+        <button id=testElement>Target</button>
+      )HTML",
+       false},
+      {R"HTML(
+        <div role=alertdialog aria-modal=false>Modeless alert dialog</div>
+        <button id=testElement>Target</button>
+      )HTML",
+       false},
+      {R"HTML(
+        <div role=dialog aria-modal=true hidden>Hidden modal template</div>
+        <button id=testElement>Target</button>
+      )HTML",
+       false},
+      {R"HTML(
+        <div role=alertdialog style='display:none'>Hidden alert dialog</div>
+        <button id=testElement>Target</button>
+      )HTML",
+       false},
+      {R"HTML(
+        <div role=dialog aria-modal=true aria-hidden=true>Hidden modal</div>
+        <button id=testElement>Target</button>
+      )HTML",
+       false},
+      {"<div id=testElement role=none>Target</div>", true},
+      {"<div id=testElement role=presentation>Target</div>", true},
+      {"<div id=testElement role=' none '>Target</div>", true},
+      // Multiple ARIA roles are intentionally not supported by this helper.
+      {"<div id=testElement role='none button'>Target</div>", false},
+  };
+
+  for (const auto& test_case : test_cases) {
+    InsertHTML(String(test_case.html));
+    EXPECT_EQ(test_case.expected_unavailable,
+              TestElement().IsEffectivelyDisabledOrInert())
+        << test_case.html;
+  }
+}
+
+TEST_F(WebElementTest, SimulateAccessibilityClickRejectsUnavailableTarget) {
+  const char* test_cases[] = {
+      "<button id=testElement disabled>Target</button>",
+      "<button id=testElement style='display:none'>Target</button>",
+      "<button id=testElement style='pointer-events:none'>Target</button>",
+      "<div inert><button id=testElement>Target</button></div>",
+      "<div aria-disabled=true><button id=testElement>Target</button></div>",
+      "<div aria-hidden=true><button id=testElement>Target</button></div>",
+      "<div id=testElement role=none>Target</div>",
+  };
+
+  for (const char* html : test_cases) {
+    InsertHTML(String(html));
+    // The click helper should fail closed for targets that actor policy treats
+    // as unavailable. Callers can use IsEffectivelyDisabledOrInert() directly
+    // when they need a pre-dispatch reason.
+    EXPECT_FALSE(TestElement().SimulateAccessibilityClick()) << html;
+  }
 }
 
 TEST_F(WebElementTest, PasteTextIntoContentEditable) {

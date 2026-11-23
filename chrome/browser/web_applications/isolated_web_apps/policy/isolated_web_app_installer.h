@@ -26,6 +26,8 @@
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+class Profile;
+
 namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
@@ -75,13 +77,11 @@ class IwaInstaller {
     kKiosk = 1,   // Kiosk app defined via DeviceLocalAccount policy.
   };
 
-  IwaInstaller(
-      IsolatedWebAppExternalInstallOptions install_options,
-      InstallSourceType install_source_type,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      base::ListValue& log,
-      WebAppProvider* provider,
-      ResultCallback callback);
+  IwaInstaller(IsolatedWebAppExternalInstallOptions install_options,
+               InstallSourceType install_source_type,
+               Profile* profile,
+               base::ListValue& log,
+               ResultCallback callback);
   ~IwaInstaller();
 
   // Starts installing the IWA in session (user, MGS or kiosk).
@@ -141,10 +141,9 @@ class IwaInstaller {
 
   IsolatedWebAppExternalInstallOptions install_options_;
   InstallSourceType install_source_type_;
-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
+  const raw_ptr<Profile> profile_;
   raw_ref<base::ListValue> log_;
-  const raw_ptr<web_app::WebAppProvider> provider_;
   ResultCallback callback_;
 
   ScopedTempWebBundleFile bundle_;

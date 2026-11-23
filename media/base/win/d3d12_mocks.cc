@@ -15,6 +15,12 @@ D3D12ResourceMock::~D3D12ResourceMock() = default;
 D3D12GraphicsCommandListMock::D3D12GraphicsCommandListMock() = default;
 D3D12GraphicsCommandListMock::~D3D12GraphicsCommandListMock() = default;
 
+D3D12CommandQueueMock::D3D12CommandQueueMock() = default;
+D3D12CommandQueueMock::~D3D12CommandQueueMock() = default;
+
+D3D12CommandAllocatorMock::D3D12CommandAllocatorMock() = default;
+D3D12CommandAllocatorMock::~D3D12CommandAllocatorMock() = default;
+
 D3D12FenceMock::D3D12FenceMock() = default;
 D3D12FenceMock::~D3D12FenceMock() = default;
 

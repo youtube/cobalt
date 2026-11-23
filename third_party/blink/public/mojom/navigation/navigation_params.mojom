@@ -574,6 +574,16 @@ struct CommitNavigationParams {
   // structs containing the parsed href, as, and crossorigin attributes.
   array<network.mojom.LinkHeader> early_hints_preloaded_resources;
 
+  // Origins preconnected to by Early Hints responses, represented as LinkHeader
+  // structs containing the parsed href and crossorigin attribute. Deduped by
+  // (origin, crossorigin). Used by the SpeculationMeasurement API.
+  array<network.mojom.LinkHeader> early_hints_preconnects;
+
+  // Origins preconnected to by `Link: rel=preconnect` headers on the final
+  // navigation response (as opposed to a 103 Early Hints response). Used by the
+  // SpeculationMeasurement API.
+  array<network.mojom.LinkHeader> navigation_preconnects;
+
   // The time the commit was sent from the browser.
   mojo_base.mojom.TimeTicks commit_sent;
 

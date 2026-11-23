@@ -7,8 +7,8 @@
 
 #import <Foundation/Foundation.h>
 
-#import "base/memory/raw_ptr.h"
-#include "components/infobars/core/confirm_infobar_delegate.h"
+#import "base/memory/weak_ptr.h"
+#import "components/infobars/core/confirm_infobar_delegate.h"
 
 namespace web {
 class WebState;
@@ -39,7 +39,7 @@ class PermissionsInfobarDelegate : public ConfirmInfoBarDelegate {
  private:
   NSArray<NSNumber*>* recently_accessible_permissions_;
 
-  raw_ptr<web::WebState, DanglingUntriaged> web_state_;
+  base::WeakPtr<web::WebState> web_state_;
 };
 
 #endif  // IOS_CHROME_BROWSER_PERMISSIONS_MODEL_PERMISSIONS_INFOBAR_DELEGATE_H_

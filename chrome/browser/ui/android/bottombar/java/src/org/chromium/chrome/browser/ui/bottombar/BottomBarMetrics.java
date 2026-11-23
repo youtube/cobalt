@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.ui.bottombar;
 
 import androidx.annotation.IntDef;
+import androidx.annotation.StringDef;
 
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
@@ -40,6 +41,17 @@ public class BottomBarMetrics {
     }
 
     // LINT.ThenChange(//tools/metrics/histograms/metadata/android/enums.xml:AndroidBottomBarIphEvent)
+
+    // LINT.IfChange(AndroidBottomBarIphFeature)
+    @StringDef({IphFeature.GLIC, IphFeature.NEW_TAB, IphFeature.AIM})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface IphFeature {
+        String GLIC = "Glic";
+        String NEW_TAB = "NewTab";
+        String AIM = "Aim";
+    }
+
+    // LINT.ThenChange(//tools/metrics/histograms/metadata/android/histograms.xml:AndroidBottomBarIphFeature)
 
     // LINT.IfChange(AndroidBottomBarGlicButtonState)
     /** States representing the visual state of the Gemini/Glic button inside the bottom bar. */
@@ -131,15 +143,11 @@ public class BottomBarMetrics {
      * Records In-Product Help (IPH) trigger events for Bottom Bar actions.
      *
      * @param event The IPH event (Shown or Dismissed).
-     * @param isNewTabIph True if recording for the New Tab action IPH, false for the Glic action
-     *     IPH.
+     * @param featureType The feature type suffix for the histogram (e.g. "Glic", "NewTab", "Aim").
      */
-    public static void recordIphEvent(@IphEvent int event, boolean isNewTabIph) {
-        String histogramName =
-                isNewTabIph
-                        ? "Android.BottomBar.IPH.NewTab.Event"
-                        : "Android.BottomBar.IPH.Glic.Event";
-        RecordHistogram.recordEnumeratedHistogram(histogramName, event, IphEvent.COUNT);
+    public static void recordIphEvent(@IphEvent int event, @IphFeature String featureType) {
+        RecordHistogram.recordEnumeratedHistogram(
+                "Android.BottomBar.IPH." + featureType + ".Event", event, IphEvent.COUNT);
     }
 
     /**

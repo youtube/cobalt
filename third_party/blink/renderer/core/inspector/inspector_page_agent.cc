@@ -42,6 +42,7 @@
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/ad_tagging/ad_evidence.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/same_document_navigation_type.mojom-blink.h"
+#include "third_party/blink/renderer/bindings/core/v8/isolated_world_csp.h"
 #include "third_party/blink/renderer/bindings/core/v8/local_window_proxy.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_evaluation_result.h"
@@ -1014,7 +1015,8 @@ void InspectorPageAgent::DidNavigateWithinDocument(
 DOMWrapperWorld* InspectorPageAgent::EnsureDOMWrapperWorld(
     LocalFrame* frame,
     const String& world_name,
-    bool grant_universal_access) {
+    bool grant_universal_access,
+    const String& content_security_policy) {
   LocalDOMWindow* window = frame->DomWindow();
   DOMWrapperWorld* world =
       DOMWrapperWorld::EnsureInspectorIsolatedWorldWithName(
@@ -1029,6 +1031,8 @@ DOMWrapperWorld* InspectorPageAgent::EnsureDOMWrapperWorld(
   }
   DOMWrapperWorld::SetIsolatedWorldSecurityOrigin(world->GetWorldId(),
                                                   security_origin);
+  IsolatedWorldCSP::Get().SetContentSecurityPolicy(
+      world->GetWorldId(), content_security_policy, security_origin);
   return world;
 }
 
@@ -1038,9 +1042,9 @@ void InspectorPageAgent::DidCreateMainWorldContext(LocalFrame* frame) {
   }
 
   for (auto& request : pending_isolated_worlds_.Take(frame)) {
-    CreateIsolatedWorldImpl(*frame, request.world_name,
-                            request.grant_universal_access,
-                            std::move(request.callback));
+    CreateIsolatedWorldImpl(
+        *frame, request.world_name, request.grant_universal_access,
+        request.content_security_policy, std::move(request.callback));
   }
   CHECK(injected_script_manager_);  // It would only be null after Dispose(),
                                     // which we tested for first thing.
@@ -1703,6 +1707,7 @@ void InspectorPageAgent::createIsolatedWorld(
     const String& frame_id,
     std::optional<String> world_name,
     std::optional<bool> grant_universal_access,
+    std::optional<String> content_security_policy,
     std::unique_ptr<CreateIsolatedWorldCallback> callback) {
   LocalFrame* frame =
       IdentifiersFactory::FrameById(inspected_frames_, frame_id);
@@ -1722,22 +1727,23 @@ void InspectorPageAgent::createIsolatedWorld(
     pending_isolated_worlds_.insert(frame, Vector<IsolatedWorldRequest>())
         .stored_value->value.push_back(IsolatedWorldRequest(
             world_name.value_or(""), grant_universal_access.value_or(false),
-            std::move(callback)));
+            content_security_policy.value_or(String()), std::move(callback)));
     return;
   }
-  CreateIsolatedWorldImpl(*frame, world_name.value_or(""),
-                          grant_universal_access.value_or(false),
-                          std::move(callback));
+  CreateIsolatedWorldImpl(
+      *frame, world_name.value_or(""), grant_universal_access.value_or(false),
+      content_security_policy.value_or(String()), std::move(callback));
 }
 
 void InspectorPageAgent::CreateIsolatedWorldImpl(
     LocalFrame& frame,
-    String world_name,
+    const String& world_name,
     bool grant_universal_access,
+    const String& content_security_policy,
     std::unique_ptr<CreateIsolatedWorldCallback> callback) {
   DCHECK(!frame.IsProvisional());
-  DOMWrapperWorld* world =
-      EnsureDOMWrapperWorld(&frame, world_name, grant_universal_access);
+  DOMWrapperWorld* world = EnsureDOMWrapperWorld(
+      &frame, world_name, grant_universal_access, content_security_policy);
   if (!world) {
     callback->sendFailure(
         protocol::Response::ServerError("Could not create isolated world"));

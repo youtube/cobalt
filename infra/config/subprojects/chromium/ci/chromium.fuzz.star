@@ -525,10 +525,13 @@ ci_builder(
     # Same as android-desktop-x64-compile-rel builder.
     android_config_name = "base_config",
     chromium_config_name = "main_builder",
-
-    # gs://chromium-browser-asan/android-release-desktop-x64/asan-android-release-$REV.zip
     clusterfuzz_archive = builder_config.clusterfuzz_archive(
         archive_name_prefix = "asan",
+
+        # TODO(https://crbug.com/525381517): Replace this with
+        # "android-release-desktop-x64/asan-android-release" and set
+        # `use_archive_path` to True.
+        archive_path = "linux-release-desktop-x64/asan-linux-release",
         archive_subdir = "desktop-x64",
         gs_acl = "public-read",
         gs_bucket = "chromium-browser-asan",

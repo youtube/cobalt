@@ -10,12 +10,14 @@
 #include <tuple>
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "media/audio/audio_features.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
+#include "media/media_buildflags.h"
 #include "media/webrtc/constants.h"
 #include "media/webrtc/webrtc_features.h"
 #include "third_party/blink/public/common/mediastream/media_stream_controls.h"
@@ -28,6 +30,7 @@
 #include "third_party/blink/renderer/modules/mediastream/processed_local_audio_source.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_processor_options.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_source.h"
+#include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -478,7 +481,7 @@ class EchoCancellationContainer {
                             std::optional<SourceInfo> source_info,
                             AudioCaptureApi api,
                             media::AudioParameters device_parameters,
-                            bool is_reconfiguration_allowed)
+                            bool is_full_reconfiguration_allowed)
       : ec_allowed_values_(EchoCancellationModeSet(std::move(allowed_values))),
         device_parameters_(device_parameters),
         api_(api) {
@@ -507,7 +510,7 @@ class EchoCancellationContainer {
                               device_parameters.effects())
               .IsPlatformProvided());
 #endif
-    if (is_reconfiguration_allowed && is_aec_reconfiguration_supported) {
+    if (is_full_reconfiguration_allowed && is_aec_reconfiguration_supported) {
       return;
     }
 
@@ -774,7 +777,8 @@ class ProcessingBasedContainer {
       std::optional<SourceInfo> source_info,
       AudioCaptureApi api,
       const media::AudioParameters& device_parameters,
-      bool is_reconfiguration_allowed) {
+      bool is_full_reconfiguration_allowed,
+      std::optional<bool> voice_isolation_value) {
     Vector<EchoCancellationMode> echo_cancellation_modes;
     echo_cancellation_modes.push_back(EchoCancellationMode::kBrowserDecides);
     if (ShouldSupportExtendedEchoCancellationModes(api)) {
@@ -789,10 +793,11 @@ class ProcessingBasedContainer {
     }
     echo_cancellation_modes.push_back(EchoCancellationMode::kDisabled);
     BoolSet voice_isolation_set;
-#if !BUILDFLAG(IS_CHROMEOS)
-    // Voice Isolation is only supported on ChromeOS.
-    voice_isolation_set = BoolSet({false});
-#endif
+    if (!IsVoiceIsolationSupported()) {
+      voice_isolation_set = BoolSet({false});
+    } else if (voice_isolation_value.has_value()) {
+      voice_isolation_set = BoolSet({*voice_isolation_value});
+    }
     return ProcessingBasedContainer(
         ProcessingType::kApmProcessed, std::move(echo_cancellation_modes),
         /*auto_gain_control_set=*/BoolSet(),
@@ -801,18 +806,18 @@ class ProcessingBasedContainer {
         /*channels_set=*/GetApmSupportedChannels(device_parameters),
         /*sample_rate_range=*/
         IntRangeSet::FromValue(media::WebRtcAudioProcessingSampleRateHz()),
-        source_info, api, device_parameters, is_reconfiguration_allowed);
+        source_info, api, device_parameters, is_full_reconfiguration_allowed);
   }
 
-  // Creates an instance of ProcessingBasedContainer for the processed source
-  // type. The source type allows (a) either system echo cancellation, if
-  // allowed by the |parameters.effects()|, or none, while (b) all other
+  // Creates an instance of ProcessingBasedContainer for the processed
+  // source type. The source type allows (a) either system echo cancellation,
+  // if allowed by the |parameters.effects()|, or none, while (b) all
   // processing properties settings cannot be enabled.
   static ProcessingBasedContainer CreateNoApmProcessedContainer(
       std::optional<SourceInfo> source_info,
       AudioCaptureApi api,
       const media::AudioParameters& device_parameters,
-      bool is_reconfiguration_allowed) {
+      bool is_full_reconfiguration_allowed) {
     BoolSet voice_isolation_set;
 #if !BUILDFLAG(IS_CHROMEOS)
     // Voice Isolation is only supported on ChromeOS.
@@ -826,7 +831,7 @@ class ProcessingBasedContainer {
         /*channels_set=*/{device_parameters.channels()},
         /*sample_rate_range=*/
         IntRangeSet::FromValue(device_parameters.sample_rate()), source_info,
-        api, device_parameters, is_reconfiguration_allowed);
+        api, device_parameters, is_full_reconfiguration_allowed);
   }
 
   // Creates an instance of ProcessingBasedContainer for the unprocessed
@@ -837,7 +842,7 @@ class ProcessingBasedContainer {
       std::optional<SourceInfo> source_info,
       AudioCaptureApi api,
       const media::AudioParameters& device_parameters,
-      bool is_reconfiguration_allowed) {
+      bool is_full_reconfiguration_allowed) {
     return ProcessingBasedContainer(
         ProcessingType::kUnprocessed, {EchoCancellationMode::kDisabled},
         /*auto_gain_control_set=*/BoolSet({false}),
@@ -847,7 +852,7 @@ class ProcessingBasedContainer {
         /*channels_set=*/{device_parameters.channels()},
         /*sample_rate_range=*/
         IntRangeSet::FromValue(device_parameters.sample_rate()), source_info,
-        api, device_parameters, is_reconfiguration_allowed);
+        api, device_parameters, is_full_reconfiguration_allowed);
   }
 
   const char* ApplyConstraintSet(const ConstraintSet& constraint_set) {
@@ -1012,7 +1017,7 @@ class ProcessingBasedContainer {
                            std::optional<SourceInfo> source_info,
                            AudioCaptureApi api,
                            media::AudioParameters device_parameters,
-                           bool is_reconfiguration_allowed)
+                           bool is_full_reconfiguration_allowed)
       : processing_type_(processing_type),
         sample_size_container_(sample_size_range),
         channels_container_(std::move(channels_set)),
@@ -1035,7 +1040,7 @@ class ProcessingBasedContainer {
     }
     echo_cancellation_container_ = EchoCancellationContainer(
         std::move(echo_cancellation_modes), source_info, api, device_parameters,
-        is_reconfiguration_allowed);
+        is_full_reconfiguration_allowed);
 
     auto_gain_control_container_ =
         AutoGainControlContainer(auto_gain_control_set);
@@ -1047,7 +1052,7 @@ class ProcessingBasedContainer {
     // Allow the full set of supported values when the device is not open or
     // when the candidate settings would open the device using an unprocessed
     // source.
-    if (!source_info || (is_reconfiguration_allowed &&
+    if (!source_info || (is_full_reconfiguration_allowed &&
                          processing_type_ == ProcessingType::kUnprocessed)) {
       return;
     }
@@ -1130,7 +1135,8 @@ class DeviceContainer {
   DeviceContainer(const AudioDeviceCaptureCapability& capability,
                   mojom::blink::MediaStreamType stream_type,
                   AudioCaptureApi api,
-                  bool is_reconfiguration_allowed)
+                  bool is_full_reconfiguration_allowed,
+                  const MediaStreamAudioTrack* current_track = nullptr)
       : device_parameters_(capability.Parameters()) {
     if (!capability.DeviceID().empty()) {
       device_id_container_ =
@@ -1142,26 +1148,71 @@ class DeviceContainer {
           StringContainer(StringSet({capability.GroupID().Utf8()}));
     }
 
-    // If the device is in use, a source will be provided and all containers
-    // must be initialized such that their only supported values correspond to
-    // the source settings. Otherwise, the containers are initialized to
-    // contain all possible values.
+    // If the device is in use, a source will be provided. If reconfiguration
+    // is not allowed (e.g., for applyConstraints), the containers are
+    // restricted to match the active source's settings. Otherwise, we can
+    // still open new sources of different types (e.g., an unprocessed source
+    // alongside a processed one).
     std::optional<SourceInfo> source_info =
         SourceInfo::FromSource(capability.source());
 
     // Three variations of the processing-based container. Each variant is
     // associated to a different type of audio processing configuration,
     // namely unprocessed, processed by WebRTC, or processed by other means.
-    processing_based_containers_.push_back(
-        ProcessingBasedContainer::CreateUnprocessedContainer(
-            source_info, api, device_parameters_, is_reconfiguration_allowed));
-    processing_based_containers_.push_back(
-        ProcessingBasedContainer::CreateNoApmProcessedContainer(
-            source_info, api, device_parameters_, is_reconfiguration_allowed));
-    processing_based_containers_.push_back(
-        ProcessingBasedContainer::CreateApmProcessedContainer(
-            source_info, api, device_parameters_, is_reconfiguration_allowed));
-    DCHECK_EQ(processing_based_containers_.size(), 3u);
+    std::optional<bool> voice_isolation_value =
+        capability.GetVoiceIsolationExactConstraint(current_track);
+
+    bool add_unprocessed = true;
+    bool add_no_apm_processed = true;
+    bool add_apm_processed = true;
+
+    // If reconfiguration is not allowed (e.g., for applyConstraints on an
+    // existing or cloned track), we must restrict the candidate containers
+    // to the active source's processing type. This ensures we don't try to
+    // transition the track to a different source type (which is not allowed
+    // and would bypass exact constraint checks on sibling tracks).
+    if (!is_full_reconfiguration_allowed && source_info) {
+      if (capability.source()->IsProcessedSource()) {
+        add_unprocessed = false;
+        if (capability.source()->IsApmProcessedSource()) {
+          add_no_apm_processed = false;
+        } else {
+          add_apm_processed = false;
+        }
+      } else {
+        add_no_apm_processed = false;
+        add_apm_processed = false;
+      }
+    }
+
+    if (add_unprocessed) {
+      processing_based_containers_.push_back(
+          ProcessingBasedContainer::CreateUnprocessedContainer(
+              source_info, api, device_parameters_,
+              is_full_reconfiguration_allowed));
+    }
+    if (add_no_apm_processed) {
+      processing_based_containers_.push_back(
+          ProcessingBasedContainer::CreateNoApmProcessedContainer(
+              source_info, api, device_parameters_,
+              is_full_reconfiguration_allowed));
+    }
+    if (add_apm_processed) {
+      processing_based_containers_.push_back(
+          ProcessingBasedContainer::CreateApmProcessedContainer(
+              source_info, api, device_parameters_,
+              is_full_reconfiguration_allowed, voice_isolation_value));
+    }
+#if DCHECK_IS_ON()
+    size_t expected_size = 3u;
+    if (!is_full_reconfiguration_allowed && source_info) {
+      expected_size = 1u;
+    }
+    DCHECK_EQ(processing_based_containers_.size(), expected_size);
+    for (const auto& container : processing_based_containers_) {
+      DCHECK(!container.IsEmpty());
+    }
+#endif
 
     if (!source_info) {
       return;
@@ -1345,12 +1396,13 @@ class CandidatesContainer {
                       mojom::blink::MediaStreamType stream_type,
                       std::string& media_stream_source,
                       std::string& default_device_id,
-                      bool is_reconfiguration_allowed)
+                      bool is_full_reconfiguration_allowed,
+                      const MediaStreamAudioTrack* current_track = nullptr)
       : default_device_id_(default_device_id) {
     AudioCaptureApi api = GetAudioCaptureApi(stream_type, media_stream_source);
     for (const auto& capability : capabilities) {
       devices_.emplace_back(capability, stream_type, api,
-                            is_reconfiguration_allowed);
+                            is_full_reconfiguration_allowed, current_track);
       DCHECK(!devices_.back().IsEmpty());
     }
   }
@@ -1448,6 +1500,16 @@ Vector<EchoCancellationMode> GetSupportedEchoCancellationModes(
   return result;
 }
 
+bool IsVoiceIsolationSupported() {
+#if BUILDFLAG(IS_CHROMEOS)
+  return true;
+#elif BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
+  return base::FeatureList::IsEnabled(media::kWebRtcVoiceIsolationDenoiser);
+#else
+  return false;
+#endif
+}
+
 AudioDeviceCaptureCapability::AudioDeviceCaptureCapability()
     : parameters_(media::AudioParameters::UnavailableDeviceParams()) {}
 
@@ -1485,11 +1547,31 @@ const media::AudioParameters& AudioDeviceCaptureCapability::Parameters() const {
   return source_ ? source_->device().input : parameters_;
 }
 
+std::optional<bool>
+AudioDeviceCaptureCapability::GetVoiceIsolationExactConstraint(
+    const MediaStreamAudioTrack* current_track) const {
+  if (!source_) {
+    return std::nullopt;
+  }
+  for (MediaStreamAudioTrack* track : source_->GetTracks()) {
+    if (track == current_track) {
+      continue;
+    }
+    std::optional<bool> voice_isolation =
+        track->VoiceIsolationExactConstraint();
+    if (voice_isolation.has_value()) {
+      return voice_isolation;
+    }
+  }
+  return std::nullopt;
+}
+
 AudioCaptureSettings SelectSettingsAudioCapture(
     const AudioDeviceCaptureCapabilities& capabilities,
     const MediaConstraints& constraints,
     mojom::blink::MediaStreamType stream_type,
-    bool is_reconfiguration_allowed) {
+    bool is_full_reconfiguration_allowed,
+    const MediaStreamAudioTrack* current_track) {
   if (capabilities.empty())
     return AudioCaptureSettings();
 
@@ -1502,7 +1584,8 @@ AudioCaptureSettings SelectSettingsAudioCapture(
   }
 
   CandidatesContainer candidates(capabilities, stream_type, media_stream_source,
-                                 default_device_id, is_reconfiguration_allowed);
+                                 default_device_id, is_full_reconfiguration_allowed,
+                                 current_track);
   DCHECK(!candidates.IsEmpty());
 
   auto* failed_constraint_name =
@@ -1529,7 +1612,8 @@ AudioCaptureSettings SelectSettingsAudioCapture(
 
 AudioCaptureSettings SelectSettingsAudioCapture(
     blink::MediaStreamAudioSource* source,
-    const MediaConstraints& constraints) {
+    const MediaConstraints& constraints,
+    const MediaStreamAudioTrack* current_track) {
   DCHECK(source);
   if (source->device().type !=
           blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE &&
@@ -1567,9 +1651,9 @@ AudioCaptureSettings SelectSettingsAudioCapture(
   AudioDeviceCaptureCapabilities capabilities = {
       AudioDeviceCaptureCapability(source)};
 
-  return SelectSettingsAudioCapture(capabilities, constraints,
-                                    source->device().type,
-                                    /*is_reconfiguration_allowed=*/false);
+  return SelectSettingsAudioCapture(
+      capabilities, constraints, source->device().type,
+      /*is_full_reconfiguration_allowed=*/false, current_track);
 }
 
 MODULES_EXPORT base::expected<Vector<blink::AudioCaptureSettings>, std::string>
@@ -1577,12 +1661,12 @@ SelectEligibleSettingsAudioCapture(
     const AudioDeviceCaptureCapabilities& capabilities,
     const MediaConstraints& constraints,
     mojom::blink::MediaStreamType stream_type,
-    bool is_reconfiguration_allowed) {
+    bool is_full_reconfiguration_allowed) {
   Vector<AudioCaptureSettings> settings;
   std::string failed_constraint_name;
   for (const auto& device : capabilities) {
     const auto device_settings = SelectSettingsAudioCapture(
-        {device}, constraints, stream_type, is_reconfiguration_allowed);
+        {device}, constraints, stream_type, is_full_reconfiguration_allowed);
     if (device_settings.HasValue()) {
       settings.push_back(device_settings);
     } else {

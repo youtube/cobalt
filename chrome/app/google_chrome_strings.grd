@@ -822,6 +822,9 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_PDF_GLIC_SUMMARIZE_IPH_TEXT" desc="Text of the In Product Help message shown for the button to summarize PDF.">
           Get a quick overview of this document and ask questions with Gemini in Chrome
         </message>
+        <message name="IDS_PDF_GLIC_SUMMARIZE_IPH_TEXT_NEW" desc="Text of the In Product Help message shown for the button to summarize PDF.">
+          Share this document with Gemini in Chrome to get a quick overview and ask follow-up questions
+        </message>
       </if>
       <!-- Download Bubble Items -->
       <message name="IDS_DOWNLOAD_BUBBLE_SUBPAGE_SUMMARY_UNKNOWN_SOURCE"
@@ -1515,6 +1518,11 @@ Google Chrome is unable to recover your settings.
         </message>
       </if>
 
+      <!-- Sign in on your phone (QR code) strings  -->
+      <message name="IDS_QR_CODE_BUBBLE_SIGNIN_ON_PHONE_TITLE" desc="Title of the QR Code bubble showing a code for the user to sign in on their phone.">
+        Sign in to Chrome on your phone
+      </message>
+
       <!-- App list -->
       <if expr="is_chromeos">
         <message name="IDS_APP_LIST_EXTENSIONS_UNINSTALL" desc="Title text for the context menu item of a non-platform-app app list item that removes the app.">
@@ -2059,6 +2067,10 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_LENS_OVERLAY_INITIAL_TOAST_LABEL"
           desc="Accessibility label for the initial user eduction bubble that appears at the top of the screen after the user invokes the Lens Overlay feature. Informs the user to select an object to search with Google Lens, or use the escape key to exit the feature.">
           Select anything to search with Google Lens or press escape to exit Google Lens
+        </message>
+        <message name="IDS_LENS_OVERLAY_COBROWSE_INITIAL_TOAST_LABEL"
+          desc="Label for the initial user education bubble when invoking the Lens Overlay along side the cobrowse side panel, instructing the user to select a region of the screen.">
+          Select region of screen to search
         </message>
         <message name="IDS_LENS_OVERLAY_INITIAL_TOAST_MESSAGE"
           desc="Text that is shown in the Lens Overlay education bubble when starting the feature. Informs the user to tap an object or drag over the screen to select a region to search with Google Lens.">
@@ -2722,6 +2734,11 @@ Google Chrome is unable to recover your settings.
         </message>
       </if>
 
+      <!-- Feature Showcase - Lens Overlay -->
+      <message name="IDS_FEATURE_SHOWCASE_THEMES_TITLE" desc="This is the headline for a customization onboarding screen. It focuses on personalization and user choice. (CHAR LIMIT = 30)">
+        Make Chrome yours
+      </message>
+
       <!-- ChromeLabs bubble -->
       <message name="IDS_CHROMELABS_RELAUNCH_FOOTER_MESSAGE" desc="Text that shows in the footer of the Chrome Labs bubble when relaunch is needed for changes to take effect.">
         Your changes will take effect the next time you relaunch Google Chrome.
@@ -3263,6 +3280,41 @@ Google Chrome is unable to recover your settings.
             Your account in Chrome
           </message>
         </if>
+      </if>
+
+      <!-- Dictation strings -->
+      <!-- TODO(b/510738735): Marked non-translateable as the feature
+      isn't yet shipping these aren't yet finalized. -->
+      <if expr="not is_android">
+        <if expr="use_titlecase">
+          <message name="IDS_DICTATION_CONTEXT_MENU_STRING" desc="The string shown in the right-click context menu to start using the dictation feature." translateable="false">
+            Voice Typing
+          </message>
+        </if>
+        <if expr="not use_titlecase">
+          <message name="IDS_DICTATION_CONTEXT_MENU_STRING" desc="The string shown in the right-click context menu to start using the dictation feature." translateable="false">
+            Voice typing
+          </message>
+        </if>
+
+        <message name="IDS_DICTATION_ONBOARDING_TITLE" desc="The title string in the onboarding dialog for the dictation feature." translateable="false">
+          Turn your spoken thoughts into polished text with voice typing
+        </message>
+        <message name="IDS_DICTATION_ONBOARDING_BULLET_MICROPHONE" desc="The first paragraph in the onboarding dialog describing how the microphone is used." translateable="false">
+          Chrome will use your microphone to capture your voice and fill in text fields with cleaned up text.
+        </message>
+        <message name="IDS_DICTATION_ONBOARDING_BULLET_DATA_SHARING" desc="The second paragraph in the onboarding dialog describing data sharing with Google servers." translateable="false">
+          Your spoken audio, the transcribed text, and the content and URL of the page you're interacting with will be sent to Google.
+        </message>
+        <message name="IDS_DICTATION_ONBOARDING_BULLET_DISCLAIMER" desc="The disclaimer text in the onboarding dialog describing the use of AI and potential for mistakes and providing a link for more details." translateable="false">
+          Chrome uses AI and can make mistakes. <ph name="LEARN_MORE_LINK">$1<ex>Learn more</ex></ph>
+        </message>
+        <message name="IDS_DICTATION_ONBOARDING_BUTTON_ACCEPT" desc="Button label on the onboarding dialog to confirm the provided information and use the feature." translateable="false">
+          Ok, got it
+        </message>
+        <message name="IDS_DICTATION_BUTTON_START" desc="Button label on the dictation UI that turns on the microphone to start dictating text." translateable="false">
+          Start
+        </message>
       </if>
 
       <!--Desktop to iOS promo strings-->

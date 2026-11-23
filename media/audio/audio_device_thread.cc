@@ -71,7 +71,13 @@ AudioDeviceThread::AudioDeviceThread(Callback* callback,
 
 AudioDeviceThread::~AudioDeviceThread() {
   in_shutdown_ = true;
+#if BUILDFLAG(IS_IOS)
+  // shutdown() does not reliably unblock Receive() on iOS. See
+  // crbug.com/361250560.
+  socket_.Close();
+#else
   socket_.Shutdown();
+#endif  // BUILDFLAG(IS_IOS)
   if (thread_handle_.is_null())
     return;
   base::PlatformThread::Join(thread_handle_);
@@ -89,6 +95,9 @@ void AudioDeviceThread::ThreadMain() {
 
   uint32_t buffer_index = 0;
   while (true) {
+    if (in_shutdown_.load()) {
+      break;
+    }
     uint32_t pending_data = 0;
     size_t bytes_read = socket_.Receive(base::byte_span_from_ref(pending_data));
     if (bytes_read != sizeof(pending_data))

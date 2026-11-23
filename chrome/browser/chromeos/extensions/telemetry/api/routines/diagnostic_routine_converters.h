@@ -59,13 +59,6 @@ api::os_diagnostics::LegacyMemoryRoutineFinishedInfo UncheckedConvertPtr(
 
 // For legacy finished events.
 // TODO(b/331540565): Remove this function after the legacy event is removed.
-api::os_diagnostics::LegacyVolumeButtonRoutineFinishedInfo UncheckedConvertPtr(
-    crosapi::mojom::TelemetryDiagnosticVolumeButtonRoutineDetailPtr input,
-    base::Uuid uuid,
-    bool has_passed);
-
-// For legacy finished events.
-// TODO(b/331540565): Remove this function after the legacy event is removed.
 api::os_diagnostics::LegacyFanRoutineFinishedInfo UncheckedConvertPtr(
     crosapi::mojom::TelemetryDiagnosticFanRoutineDetailPtr input,
     base::Uuid uuid,

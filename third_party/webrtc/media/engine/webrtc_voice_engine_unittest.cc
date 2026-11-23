@@ -563,9 +563,9 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
     auto& codecs = send_parameters_.codecs;
     codecs.clear();
     codecs.push_back(kOpusCodec);
-    codecs[0].params[kCodecParamMinBitrate] = min_bitrate_kbps;
-    codecs[0].params[kCodecParamStartBitrate] = start_bitrate_kbps;
-    codecs[0].params[kCodecParamMaxBitrate] = max_bitrate_kbps;
+    codecs[0].SetParam(kCodecParamMinBitrate, min_bitrate_kbps);
+    codecs[0].SetParam(kCodecParamStartBitrate, start_bitrate_kbps);
+    codecs[0].SetParam(kCodecParamMaxBitrate, max_bitrate_kbps);
     EXPECT_CALL(*call_.GetMockTransportControllerSend(),
                 SetSdpBitrateParameters(
                     AllOf(Field(&BitrateConstraints::min_bitrate_bps,

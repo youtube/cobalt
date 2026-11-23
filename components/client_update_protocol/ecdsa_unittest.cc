@@ -48,62 +48,46 @@ class CupEcdsaTest : public testing::Test {
   Ecdsa cup_{8, kCupEcdsaTestKey};
 };
 
-TEST_F(CupEcdsaTest, SignRequest) {
+TEST_F(CupEcdsaTest, PrepareRequestParameters) {
   static const char kRequest[] = "TestSequenceForCupEcdsaUnitTest";
-  static const char kRequestHash[] =
-      "cde1f7dc1311ed96813057ca321c2f5a17ea2c9c776ee0eb31965f7985a3074a";
   static const char kRequestHashWithName[] =
       "&cup2hreq="
       "cde1f7dc1311ed96813057ca321c2f5a17ea2c9c776ee0eb31965f7985a3074a";
-  static const char kKeyId[] = "8:";
   static const char kKeyIdWithName[] = "cup2key=8:";
 
-  std::string query;
-  CUP().SignRequest(kRequest, &query);
-  std::string query2;
-  CUP().SignRequest(kRequest, &query2);
-  Ecdsa::RequestParameters request_parameters = CUP().SignRequest(kRequest);
+  std::string query = CUP().PrepareRequestParameters(kRequest);
+  std::string query2 = CUP().PrepareRequestParameters(kRequest);
+  std::string query3 = CUP().PrepareRequestParameters(kRequest);
 
   EXPECT_TRUE(base::StartsWith(query, kKeyIdWithName));
   EXPECT_TRUE(base::StartsWith(query2, kKeyIdWithName));
-  EXPECT_TRUE(base::StartsWith(request_parameters.query_cup2key, kKeyId));
+  EXPECT_TRUE(base::StartsWith(query3, kKeyIdWithName));
   EXPECT_TRUE(base::EndsWith(query, kRequestHashWithName));
   EXPECT_TRUE(base::EndsWith(query2, kRequestHashWithName));
-  EXPECT_EQ(request_parameters.hash_hex, kRequestHash);
+  EXPECT_TRUE(base::EndsWith(query3, kRequestHashWithName));
 
-  // The nonce should be a base64url-encoded, 32-byte (256-bit) string.
-  std::string_view nonce_b64 = query;
-  nonce_b64.remove_prefix(strlen(kKeyIdWithName));
-  nonce_b64.remove_suffix(strlen(kRequestHashWithName));
-  std::string nonce;
-  EXPECT_TRUE(base::Base64UrlDecode(
-      nonce_b64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &nonce));
-  EXPECT_EQ(32u, nonce.size());
-
-  nonce_b64 = request_parameters.query_cup2key;
-  nonce_b64.remove_prefix(strlen(kKeyId));
-  EXPECT_TRUE(base::Base64UrlDecode(
-      nonce_b64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &nonce));
-  EXPECT_EQ(32u, nonce.size());
-
-  nonce_b64 = query2;
-  nonce_b64.remove_prefix(strlen(kKeyIdWithName));
-  nonce_b64.remove_suffix(strlen(kRequestHashWithName));
-  EXPECT_TRUE(base::Base64UrlDecode(
-      nonce_b64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &nonce));
-  EXPECT_EQ(32u, nonce.size());
+  for (const std::string& q : {query, query2, query3}) {
+    [](std::string_view q) {
+      // The nonce is a base64url-encoded, 32-byte (256-bit) string.
+      std::string_view nonce_b64 = q;
+      nonce_b64.remove_prefix(strlen(kKeyIdWithName));
+      nonce_b64.remove_suffix(strlen(kRequestHashWithName));
+      std::string nonce;
+      EXPECT_TRUE(base::Base64UrlDecode(
+          nonce_b64, base::Base64UrlDecodePolicy::DISALLOW_PADDING, &nonce));
+      EXPECT_EQ(32u, nonce.size());
+    }(q);
+  }
 
   // With a 256-bit nonce, the probability of collision is negligible.
   EXPECT_NE(query, query2);
-  EXPECT_NE(query, base::StringPrintf("cup2key=%s&cup2hreq=%s",
-                                      request_parameters.query_cup2key.c_str(),
-                                      request_parameters.hash_hex.c_str()));
+  EXPECT_NE(query, query3);
+  EXPECT_NE(query2, query3);
 }
 
 TEST_F(CupEcdsaTest, ValidateResponse_TestETagParsing) {
-  // Invalid ETags must be gracefully rejected without a crash.
-  std::string query_discard;
-  CUP().SignRequest("Request_A", &query_discard);
+  // Invalid ETags are gracefully rejected without a crash.
+  CUP().PrepareRequestParameters("Request_A");
   CUP().OverrideNonceForTesting(8, 12345);
 
   // Expect a pass for a well-formed etag.
@@ -254,8 +238,7 @@ TEST_F(CupEcdsaTest, ValidateResponse_TestETagParsing) {
 }
 
 TEST_F(CupEcdsaTest, ValidateResponse_TestSigning) {
-  std::string query_discard;
-  CUP().SignRequest("Request_A", &query_discard);
+  std::string query_discard = CUP().PrepareRequestParameters("Request_A");
   CUP().OverrideNonceForTesting(8, 12345);
 
   // How to generate an ECDSA signature:

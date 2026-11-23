@@ -155,4 +155,50 @@ public class VerticalTabGroupSpineDecorationUnitTest {
 
         verify(mInvalidationTrigger).run();
     }
+
+    @Test
+    @SmallTest
+    public void testOnDraw_ScrambledChildren_SortsAndDrawsCorrectly() {
+        Token groupId = new Token(1L, 2L);
+        when(mTabModel.getTabGroupColorWithFallback(groupId)).thenReturn(0);
+
+        PropertyModel headerModel = mock(PropertyModel.class);
+        when(headerModel.get(TabProperties.TAB_GROUP_HEADER_ID)).thenReturn(groupId);
+        when(headerModel.get(TabProperties.IS_COLLAPSED)).thenReturn(false);
+        mModel.add(new ListItem(0, headerModel));
+
+        PropertyModel tabModel = mock(PropertyModel.class);
+        when(tabModel.get(TabProperties.TAB_GROUP_ID)).thenReturn(groupId);
+        mModel.add(new ListItem(0, tabModel));
+
+        when(mParent.getChildCount()).thenReturn(2);
+
+        View headerView = mock(View.class);
+        when(headerView.getHeight()).thenReturn(100);
+        when(headerView.getTop()).thenReturn(0);
+        when(headerView.getBottom()).thenReturn(100);
+        when(headerView.getAlpha()).thenReturn(1f);
+
+        View tabView = mock(View.class);
+        when(tabView.getHeight()).thenReturn(100);
+        when(tabView.getTop()).thenReturn(112);
+        when(tabView.getBottom()).thenReturn(212);
+        when(tabView.getAlpha()).thenReturn(1f);
+
+        // DELIBERATELY SCRAMBLE the physical ViewGroup order:
+        // parent.getChildAt(0) returns the child tab (Adapter position 1)
+        // parent.getChildAt(1) returns the Header (Adapter position 0)
+        when(mParent.getChildAt(0)).thenReturn(tabView);
+        when(mParent.getChildAdapterPosition(tabView)).thenReturn(1);
+
+        when(mParent.getChildAt(1)).thenReturn(headerView);
+        when(mParent.getChildAdapterPosition(headerView)).thenReturn(0);
+
+        mSpineDecoration.onDraw(mCanvas, mParent, mState);
+
+        // If the sorting algorithm is working correctly, it should recognize the header is
+        // logically first, and calculate the bottom correctly, invoking drawRoundRect.
+        // If sorting failed, bottom calculation would break and it would skip drawing.
+        verify(mCanvas).drawRoundRect(any(), anyFloat(), anyFloat(), any());
+    }
 }

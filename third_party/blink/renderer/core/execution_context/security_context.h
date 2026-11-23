@@ -104,6 +104,10 @@ class CORE_EXPORT SecurityContext {
   // Like SetSecurityOrigin(), but no security CHECKs.
   void SetSecurityOriginForTesting(scoped_refptr<SecurityOrigin>);
 
+  void SetSecureContextModeForTesting(SecureContextMode mode) {
+    secure_context_mode_ = mode;
+  }
+
   network::mojom::blink::WebSandboxFlags GetSandboxFlags() const {
     return sandbox_flags_;
   }

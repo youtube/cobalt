@@ -294,7 +294,7 @@ int ResourceRequestSender::SendAsync(
   auto url_loader_client = std::make_unique<MojoURLLoaderClient>(
       this, loading_task_runner, url_loader_factory->BypassRedirectChecks(),
       request->url, std::move(evict_from_bfcache_callback),
-      std::move(did_buffer_load_while_in_bfcache_callback));
+      std::move(did_buffer_load_while_in_bfcache_callback), request->keepalive);
 
   std::vector<std::string> std_cors_exempt_header_list =
       base::ToVector(cors_exempt_header_list,

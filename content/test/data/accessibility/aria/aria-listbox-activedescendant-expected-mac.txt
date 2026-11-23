@@ -3,7 +3,7 @@ AXWebArea AXSelected=0
 ++++AXMenuItem AXSelected=0 AXValue='1'
 ++++AXMenuItem AXSelected=0 AXValue='2'
 ++++AXMenuItem AXSelected=0 AXValue='3'
-++AXGroup AXSelected=0
+++AXGroup AXSubrole=AXEmptyGroup AXSelected=0
 === Start Continuation ===
 AXWebArea AXSelected=0
 ++AXList AXOrientation='AXVerticalOrientation' AXSelected=0 AXSelectedChildren=[:5] AXVisibleChildren=[:3, :4, :5]

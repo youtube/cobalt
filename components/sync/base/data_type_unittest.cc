@@ -144,5 +144,16 @@ TEST(DataTypeTest, DataTypeSetFromSpecificsFieldNumberList) {
             ProtocolTypes());
 }
 
+TEST(DataTypeTest, LocalSyncSupportedTypes) {
+  EXPECT_TRUE(LocalSyncSupportedTypes().Has(BOOKMARKS));
+  EXPECT_TRUE(LocalSyncSupportedTypes().Has(PREFERENCES));
+  EXPECT_TRUE(LocalSyncSupportedTypes().Has(PASSWORDS));
+
+  EXPECT_FALSE(LocalSyncSupportedTypes().Has(ACCOUNT_SETTING));
+  EXPECT_FALSE(LocalSyncSupportedTypes().Has(APP_LIST));
+  EXPECT_FALSE(LocalSyncSupportedTypes().Has(HISTORY));
+  EXPECT_FALSE(LocalSyncSupportedTypes().Has(THEMES_ANDROID));
+}
+
 }  // namespace
 }  // namespace syncer

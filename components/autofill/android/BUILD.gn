@@ -197,7 +197,9 @@ android_resources("autofill_unbranded_browser_resources") {
 android_resources("autofill_browser_resources") {
   sources = [
     "browser/java/res/drawable/autofill_external_link.xml",
+    "browser/java/res/drawable/autofill_sad_tab.xml",
     "browser/java/res/drawable/car_spark.xml",
+    "browser/java/res/drawable/chrome_product.xml",
     "browser/java/res/drawable/directions_car.xml",
     "browser/java/res/drawable/flight.xml",
     "browser/java/res/drawable/flight_spark.xml",

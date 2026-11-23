@@ -19,7 +19,7 @@ TEST_F(InfoBarSpecTest, BuildDefaultSpec) {
 
   EXPECT_EQ(spec.identifier(), InfoBarDelegate::TEST_INFOBAR);
   EXPECT_EQ(spec.priority(), InfoBarPriority::kDefault);
-  EXPECT_EQ(spec.scope(), InfoBarScope::kCurrentTab);
+  EXPECT_EQ(spec.scope(), InfoBarScope::kTab);
   EXPECT_EQ(spec.icon(), nullptr);
   EXPECT_EQ(spec.icon_id(), 0);
   EXPECT_TRUE(spec.expire_on_navigation());

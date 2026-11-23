@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">আপুনি নেটৱৰ্কৰ এই সমস্যাটো সমাধান কৰিবলৈ <ph name="GUEST_SIGNIN_LINK_START" />অতিথি হিচাপে ব্ৰাউজিং কৰি<ph name="GUEST_SIGNIN_LINK_END" /> চাব পাৰে।</translation>
 <translation id="1201402288615127009">পৰৱৰ্তী</translation>
 <translation id="1222835797152767346">ছাইন ইন কৰাটো সহজ কৰিবলৈ এটা পিন ছেট কৰক</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />ডিবাগ কৰাৰ সুবিধা<ph name="END_H3" />
+          <ph name="BR" />
+          আপোনাৰ ডিভাইচত কাষ্টম ক’ড ইনষ্টল আৰু পৰীক্ষা কৰিবলৈ আপুনি আপোনাৰ ChromeOS ডিভাইচটোত ডিবাগ কৰাৰ সুবিধাটো সক্ষম কৰিব পাৰে।  এইটোৱে আপোনাক:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs সত্যাপন আঁতৰাবলৈ দিয়ে যাতে আপুনি OS ফাইল সংশোধন কৰিব পাৰে
+            <ph name="LIST_ITEM" />মান্য পৰীক্ষা সম্পৰ্কীয় চাবি ব্যৱহাৰ কৰি ডিভাইচটোত SSH এক্সেছ সক্ষম কৰিবলৈ দিয়ে যাতে আপুনি ডিভাইচটো এক্সেছ কৰিবলৈ <ph name="BEGIN_CODE" />'ক্ৰছ ফ্লেশ্ব‘<ph name="END_CODE" />ৰ দৰে সঁজুলি ব্যৱহাৰ কৰিব পাৰে
+            <ph name="LIST_ITEM" />ইউএছবিৰ পৰা বুট কৰাটো সক্ষম কৰিবলৈ দিয়ে যাতে আপুনি এটা ইউএছবি ড্ৰাইভৰ পৰা কোনো OS প্ৰতিচ্ছবি ইনষ্টল কৰিব পাৰে
+        <ph name="LIST_ITEM" />dev আৰু ছিষ্টেম ৰুট লগইন পাছৱৰ্ড উভয়কে এটা কাষ্টম মান হিচাপে ছেট কৰিবলৈ দিয়ে যাতে আপুনি ডিভাইচটোত মেনুৱেলভাৱে SSH কৰিব পাৰে
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          সক্ষম কৰাৰ পাছত ডিবাগ কৰা বিষয়ক বেছিভাগ সুবিধা পাৱাৰৱাশ্ব কৰাৰ পাছত অথবা এণ্টাৰপ্ৰাইজে পৰিচালনা কৰা কোনো ডিভাইচৰ ডেটা মচাৰ পাছতো সক্ষম কৰাই থাকিব।  ডিবাগ কৰাৰ আটাইবোৰ সুবিধা সম্পূৰ্ণৰূপে অক্ষম কৰিবলৈ ChromeOS পুনৰুদ্ধাৰৰ প্ৰক্ৰিয়াটো সম্পূৰ্ণ কৰক (https://support.google.com/chromebook/answer/1080595)।
+          <ph name="BR" />
+          <ph name="BR" />
+          ডিবাগ কৰাৰ সুবিধাৰ বিষয়ে অধিক তথ্য পাবলৈ এয়া চাওক:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />টোকা:<ph name="END_BOLD" />  প্ৰক্ৰিয়াটো চলি থাকোঁতে ছিষ্টেমটো ৰিবুট হ’ব।</translation>
 <translation id="1347625331607114917">আপোনাৰ Android ফ'নত ক'ডটো সত্যাপন কৰক</translation>
 <translation id="1347975661240122359">বেটাৰী <ph name="BATTERY_LEVEL" />% হ’লে আপডে’ট প্ৰক্ৰিয়া আৰম্ভ হ’ব।</translation>
 <translation id="1375938286942050085">ছেটআপ সম্পূৰ্ণ হৈছে! আপোনাৰ ডিভাইচটো পৰৱৰ্তী গে’মিঙৰ বাবে সাজু কৰক</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">এপ্‌ ডাউনল’ড হৈ আছে</translation>
 <translation id="5045550434625856497">ভুল পাছৱৰ্ড</translation>
 <translation id="5062930723426326933">ছাইন ইন কৰিব পৰা নগ’ল, অনুগ্ৰহ কৰি ইণ্টাৰনেটৰ সৈতে সংযোগ কৰি আকৌ চেষ্টা কৰক।</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Google AI-ৰ সৈতে লিখা, পৰিকল্পনা কৰা, শিকা আৰু অধিক কাৰ্য কৰিবলৈ আৰম্ভ কৰাৰ বাবে Geminiৰ সৈতে চাট কৰক।<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />ছেট আপ কৰাৰ পাছত, আপোনাৰ স্ক্ৰীনখনৰ একেবাৰে তলত থকা শ্বেল্ফত Gemini এপ্‌টো বাছনি কৰি Gemini ব্যৱহাৰ কৰিবলৈ আৰম্ভ কৰক।<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">অনুগ্ৰহ কৰি আপোনাৰ <ph name="DEVICE_TYPE" />টো কোনো পাৱাৰৰ উৎসত প্লাগইন কৰক।</translation>
 <translation id="5147516217412920887">ক’ডটো সত্যাপন কৰিবলৈ আপোনাৰ ফ’নত থকা নিৰ্দেশাৱলী অনুসৰণ কৰক</translation>
 <translation id="5160857336552977725">আপোনাৰ <ph name="DEVICE_TYPE" />ত ছাইন ইন কৰক</translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />ডিবাগ কৰাৰ সুবিধা<ph name="END_H3" />
+          <ph name="BR" />
+          আপোনাৰ ডিভাইচত কাষ্টম ক’ড ইনষ্টল আৰু পৰীক্ষা কৰিবলৈ আপুনি আপোনাৰ ChromeOS Flex ডিভাইচটোত ডিবাগ কৰাৰ সুবিধাটো সক্ষম কৰিব পাৰে।  এইটোৱে আপোনাক:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />rootfs সত্যাপন আঁতৰাবলৈ দিয়ে যাতে আপুনি OS ফাইল সংশোধন কৰিব পাৰে
+            <ph name="LIST_ITEM" />মান্য পৰীক্ষা সম্পৰ্কীয় চাবি ব্যৱহাৰ কৰি ডিভাইচটোত SSH এক্সেছ সক্ষম কৰিবলৈ দিয়ে যাতে আপুনি ডিভাইচটো এক্সেছ কৰিবলৈ <ph name="BEGIN_CODE" />'ক্ৰছ ফ্লেশ্ব‘<ph name="END_CODE" />ৰ দৰে সঁজুলি ব্যৱহাৰ কৰিব পাৰে
+            <ph name="LIST_ITEM" />ইউএছবিৰ পৰা বুট কৰাটো সক্ষম কৰিবলৈ দিয়ে যাতে আপুনি এটা ইউএছবি ড্ৰাইভৰ পৰা কোনো OS প্ৰতিচ্ছবি ইনষ্টল কৰিব পাৰে
+        <ph name="LIST_ITEM" />dev আৰু ছিষ্টেম ৰুট লগইন পাছৱৰ্ড উভয়কে এটা কাষ্টম মান হিচাপে ছেট কৰিবলৈ দিয়ে যাতে আপুনি ডিভাইচটোত মেনুৱেলভাৱে SSH কৰিব পাৰে
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          সক্ষম কৰাৰ পাছত ডিবাগ কৰা বিষয়ক বেছিভাগ সুবিধা পাৱাৰৱাশ্ব কৰাৰ পাছত অথবা এণ্টাৰপ্ৰাইজে পৰিচালনা কৰা কোনো ডিভাইচৰ ডেটা মচাৰ পাছতো সক্ষম কৰাই থাকিব।  ডিবাগ কৰাৰ আটাইবোৰ সুবিধা সম্পূৰ্ণৰূপে অক্ষম কৰিবলৈ ChromeOS পুনৰুদ্ধাৰৰ প্ৰক্ৰিয়াটো সম্পূৰ্ণ কৰক (https://support.google.com/chromebook/answer/1080595)।
+          <ph name="BR" />
+          <ph name="BR" />
+          ডিবাগ কৰাৰ সুবিধাৰ বিষয়ে অধিক তথ্য পাবলৈ এয়া চাওক:<ph name="BR" />
+          https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+          <ph name="BR" />
+          <ph name="BR" />
+          <ph name="BEGIN_BOLD" />টোকা:<ph name="END_BOLD" />  প্ৰক্ৰিয়াটো চলি থাকোঁতে ছিষ্টেমটো ৰিবুট হ’ব।</translation>
 <translation id="523505283826916779">সাধ্য সুবিধাৰ ছেটিংসমূহ</translation>
 <translation id="5240931875940563122">Android ফ’নৰ জৰিয়তে ছাইন ইন কৰক</translation>
 <translation id="5255859108402770436">আকৌ ছাইন ইন কৰক</translation>
@@ -193,6 +231,10 @@
 <translation id="6955698182324067397">আপুনি ChromeOSৰ ডিবাগ কৰাৰ সুবিধাসমূহ সক্ষম কৰিবলৈ লৈছে যিয়ে sshd daemon ছেট আপ কৰিব আৰু ইউএছবি ড্ৰাইভৰ পৰা বুট কৰাটো সক্ষম কৰিব।</translation>
 <translation id="6965382102122355670">ঠিক আছে</translation>
 <translation id="6981982820502123353">সাধ্য সুবিধাসমূহ</translation>
+<translation id="6984652455487792101">আপুনি যদি এটা প্ৰক্সি ছাৰ্ভাৰ ব্যৱহাৰ কৰি আছে, তেন্তে প্ৰক্সি ছার্ভাৰে কাম
+         কৰি থকাটো পৰীক্ষা কৰিবলৈ প্ৰক্সি ছেটিং পৰীক্ষা কৰক বা নিজৰ নেটৱর্ক প্ৰশাসকৰ
+        সৈতে যোগাযোগ কৰক। যদি আপুনি বিশ্বাস কৰে যে আপুনি কোনো
+        প্ৰ’ক্সি ছার্ভাৰ ব্যৱহাৰ কৰা উচিত নহয়, অনুগ্ৰহ কৰি আপোনাৰ : <ph name="LINK_START" />প্ৰক্সি ছেটিং<ph name="LINK_END" /> মিলাওক।</translation>
 <translation id="6996245928508281884">আপোনাৰ ফ'নৰ ব্লুটুথ আৰু ৱাই-ফাই অন কৰক</translation>
 <translation id="7077829361966535409">ছাইন ইন কৰা পৃষ্ঠায়ে বৰ্তমানৰ প্ৰক্সি ছেটিং ব্যৱহাৰ কৰি ল’ড হ’ব নোৱাৰিলে। অনুগ্ৰহ কৰি <ph name="GAIA_RELOAD_LINK_START" />পুনৰ ছাইন ইন কৰিবলৈ চেষ্টা কৰক<ph name="GAIA_RELOAD_LINK_END" /> বা অন্য <ph name="PROXY_SETTINGS_LINK_START" />প্ৰক্সি ছেটিংসমূহ<ph name="PROXY_SETTINGS_LINK_END" /> ব্যৱহাৰ কৰক।</translation>
 <translation id="7114054701490058191">পাছৱৰ্ড মিলা নাই</translation>
@@ -205,6 +247,9 @@
 <translation id="7345706641791090287">আপোনাৰ পাছৱৰ্ড নিশ্চিত কৰক</translation>
 <translation id="7352651011704765696">কিবা সমস্যা হৈছে</translation>
 <translation id="7476454130948140105">আপডে’ট কৰিবলৈ বেটাৰীৰ চ্চার্জ অতি কম আছে (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />পঞ্জীয়ন কৰাৰ আগতে আপুনি TPM আঁতৰাব লাগিব যাতে <ph name="DEVICE_OS" />এ ডিভাইচটোৰ মালিকীস্বত্ব ল’ব পাৰে।<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />আপুনি TPM ডিভাইচটো সম্পূৰ্ণৰূপে অফ কৰিবও পাৰে। আপোনাৰ ডেটা তথাপি ছফ্টৱেৰ এনক্ৰিপশ্বনৰ সৈতে সুৰক্ষিতভাৱে ষ্ট’ৰ কৰা হ’ব, কিন্তু হাৰ্ডৱেৰ-সমৰ্থিত প্ৰমাণপত্ৰৰ দৰে নিৰ্দিষ্ট কিছুমান সুৰক্ষা সম্পৰ্কীয় সুবিধা অক্ষম কৰা হ’ব।<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />আপুনি ৰিবুট কৰি ছিষ্টেমৰ BIOS/UEFI ছেটিঙলৈ গৈ আপোনাৰ TPM ছেটিং সলনি কৰিব পাৰে। ডিভাইচৰ মডেল অনুসৰি পদক্ষেপসমূহ ভিন্ন হয়। অধিক তথ্যৰ বাবে আপুনি ৰিবুট কৰাৰ আগতে অন্য এটা ডিভাইচত <ph name="DEVICE_OS" />ৰ বিষয়ে থকা নথি খোলক: g.co/flex/TPMHelp।<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">এই <ph name="IDS_SHORT_PRODUCT_NAME" /> ডিভাইচত ডিবাগ কৰা সুবিধাটো সক্ষম কৰক</translation>
 <translation id="7553242001898162573">আপোনাৰ পাছৱৰ্ড দিয়ক</translation>
 <translation id="7556242789364317684">দুৰ্ভাগ্যবশতঃ, <ph name="SHORT_PRODUCT_NAME" />এ আপোনাৰ ছেটিংসমূহ পুনৰুদ্ধাৰ কৰিব নোৱাৰিলে। আসোঁৱাহ সমাধান কৰিবলৈ <ph name="SHORT_PRODUCT_NAME" />এ আপোনাৰ ডিভাইচটো পাৱাৰৱাশ্বৰ দ্বাৰা ৰিছেট কৰিবই লাগিব।</translation>
@@ -251,6 +296,10 @@
 <translation id="8452105022015742247">আপোনাৰ Android ফ’নৰ পৰা Google একাউণ্টৰ তথ্য স্থানান্তৰ কৰি থকা হৈছে</translation>
 <translation id="8524841856047224176">ভিডিঅ’ কল আৰু আন বহুতো সুবিধাৰ বাবে আপোনাৰ কেমেৰাৰ পটভূমি ব্যক্তিগতকৰণ কৰক</translation>
 <translation id="8569673829373920831"><ph name="APP_NAME" />ৰ বিষয়ে অধিক</translation>
+<translation id="8628232294964836490">কিউআৰ ক’ডটো স্কেন কৰিবলৈ আপোনাৰ ফ’নৰ নিৰ্দেশাৱলী অনুসৰণ কৰক। আপোনাৰ ফ’নৰ ব্লুটুথ অন হৈ থকাটো নিশ্চিত কৰক।
+        <ph name="BR" />
+        <ph name="BR" />
+        নিকটৱৰ্তী ডিভাইচসমূহে <ph name="QUICK_START_DEVICE_DISPLAY_NAME" /> হিচাপে দেখা পাব</translation>
 <translation id="8655972064210167941">ছাইন ইন বিফল হ’ল কিয়নো আপোনাৰ পাছৱৰ্ডটোৰ প্ৰমাণীকৰণ কৰিব পৰা নগ’ল। অনুগ্ৰহ কৰি আপোনাৰ প্ৰশাসকৰ সৈতে যোগাযোগ কৰক বা আকৌ চেষ্টা কৰক।</translation>
 <translation id="8674903726754070732">দুৰ্ভাগ্যবশতঃ, আপোনাৰ কম্পিউটাৰটো এটা ভুল হাৰ্ডৱেৰ আইডিৰ সৈতে কনফিগাৰ কৰা আছে। ই ChromeOSক সুৰক্ষা সম্পৰ্কীয় শেহতীয়া সমস্যাৰ সমাধান ব্যৱহাৰ কৰি আপডে’ট কৰিবলৈ নিদিয়ে আৰু আপোনাৰ কম্পিউটাৰটো <ph name="BEGIN_BOLD" />ক্ষতিকাৰক আক্ৰমণৰ বলি হোৱাৰ সম্ভাৱনা থাকিব পাৰে<ph name="END_BOLD" />।</translation>
 <translation id="8695139659682234808">ছেটআপ কৰাৰ পাছত অভিভাৱকীয় নিয়ন্ত্ৰণসমূহ যোগ দিয়ক</translation>
@@ -264,10 +313,20 @@
 <translation id="8830796635868321089">বৰ্তমানৰ প্ৰক্সি ছেটিং ব্যৱহাৰ কৰি কৰা আপডে’টৰ সন্ধানটো বিফল হ’ল। অনুগ্ৰহ কৰি আপোনাৰ <ph name="PROXY_SETTINGS_LINK_START" />প্ৰক্সি ছেটিংসমূহ <ph name="PROXY_SETTINGS_LINK_END" /> মিলাওক।</translation>
 <translation id="885746075120788020">আপুনি আপোনাৰ Google একাউণ্টটোৰ জৰিয়তে ছাইন ইন কৰিলে আপুনি ছেভ কৰি থোৱা অগ্ৰাধিকাৰ আৰু কাৰ্যকলাপ যিকোনো ChromeOS ডিভাইচত সাজু হ’ব। আপুনি কি ছিংক কৰিব লাগে সেয়া ছেটিঙত বাছনি কৰিব পাৰে।</translation>
 <translation id="8875221558267407626">সমলৰ সাৰাংশ প্ৰস্তুত কৰক, জটিল ভাষা সৰল কৰক বা প্ৰশ্ন সোধক</translation>
+<translation id="8913163265790894442">আপোনাৰ ফ’নৰ জৰিয়তে সহজে নিজৰ <ph name="DEVICE_TYPE" /> ছেট আপ কৰক। আপুনি মেনুৱেলী নিজৰ পাছৱৰ্ড নিদিয়াকৈয়ে নিজৰ ৱাই-ফাই আৰু Google একাউণ্ট যোগ দিব পাৰে।
+        <ph name="BR" />
+        <ph name="BR" />
+         <ph name="DEVICE_TYPE" /> হিচাপে দৃশ্যমান</translation>
 <translation id="8946359700442089734">ডিবাগিঙৰ সুবিধাসমূহ এই <ph name="IDS_SHORT_PRODUCT_NAME" /> ডিভাইচটোত সম্পূৰ্ণৰূপে সক্ষম কৰা হোৱা নাছিল।</translation>
 <translation id="8965037249707889821">পুৰণি পাছৱৰ্ড দিয়ক</translation>
 <translation id="8975396729541388937">আপুনি পোৱা ইমেইলত থকা লিংকটোত ক্লিক কৰি যিকোনো সময়তে আনছাবস্ক্ৰাইব কৰক।</translation>
 <translation id="9033765790910064284">যি হ’লেও অব্যাহত ৰাখক</translation>
 <translation id="903480517321259405">পিনটো পুনৰ টাইপ কৰক</translation>
 <translation id="9076523132036239772">দুঃখিত, আপোনাৰ ইমেইল বা পাছৱর্ড সত্যাপন কৰিব পৰা নগ'ল। প্ৰথমে কোনো নেটৱর্কত সংযোগ হ'বলৈ চেষ্টা কৰক।</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" /> বিশেষকৈ <ph name="DEVICE_TYPE" />ৰ বাবে।<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Generative AI পৰীক্ষামূলক, বিকাশৰ প্ৰাৰম্ভিক স্থিতিত আছে আৰু বৰ্তমান ইয়াৰ উপলব্ধতা সীমিত।<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">আপোনাৰ ফ’নৰ জৰিয়তে সহজে নিজৰ <ph name="DEVICE_TYPE" /> ছেট আপ কৰক। আপুনি মেনুৱেলী নিজৰ পাছৱৰ্ড নিদিয়াকৈয়ে নিজৰ Google একাউণ্ট যোগ দিব পাৰে।
+        <ph name="BR" />
+        <ph name="BR" />
+         <ph name="DEVICE_TYPE" /> হিচাপে দৃশ্যমান</translation>
 </translationbundle>

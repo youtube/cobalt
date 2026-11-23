@@ -86,6 +86,8 @@
 #include "components/js_injection/browser/js_communication_host.h"
 #include "components/js_injection/common/enum.mojom.h"
 #include "components/navigation_interception/intercept_navigation_delegate.h"
+#include "components/performance_manager/embedder/performance_manager_registry.h"
+#include "components/performance_manager/public/graph/page_node.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/security_interstitials/content/security_interstitial_tab_helper.h"
 #include "components/sensitive_content/android/android_sensitive_content_client.h"
@@ -292,6 +294,12 @@ AwContents::AwContents(std::unique_ptr<WebContents> web_contents)
   icon_helper_->SetListener(this);
   web_contents_->SetUserData(android_webview::kAwContentsUserDataKey,
                              std::make_unique<AwContentsUserData>(this));
+  if (auto* pm_registry =
+          performance_manager::PerformanceManagerRegistry::GetInstance()) {
+    pm_registry->MaybeCreatePageNodeForWebContents(web_contents_.get());
+    pm_registry->SetPageType(web_contents_.get(),
+                             performance_manager::PageType::kTab);
+  }
   browser_view_renderer_.RegisterWithWebContents(web_contents_.get());
 
   viz::FrameSinkId frame_sink_id;

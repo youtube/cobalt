@@ -41,22 +41,20 @@
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/instance-type-checker.h"
-#include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
+#include "src/objects/js-proxy.h"
 #include "src/objects/keys.h"
 #include "src/objects/literal-objects.h"
-#include "src/objects/lookup-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/map-word-inl.h"
 #include "src/objects/number-string-cache-inl.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/object-predicates-inl.h"
 #include "src/objects/oddball-inl.h"
-#include "src/objects/property-details.h"
+#include "src/objects/property-details-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/regexp-match-info-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
-#include "src/objects/slots.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/tagged-impl-inl.h"
@@ -69,7 +67,6 @@
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/isolate-inl.h"
-#include "src/sandbox/isolate.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -82,20 +79,6 @@ template <typename T>
 class Managed;
 template <typename T>
 class TrustedManaged;
-
-PropertyDetails::PropertyDetails(Tagged<Smi> smi) { value_ = smi.value(); }
-
-Tagged<Smi> PropertyDetails::AsSmi() const {
-  // Ensure the upper 2 bits have the same value by sign extending it. This is
-  // necessary to be able to use the 31st bit of the property details.
-  int value = value_ << 1;
-  return Smi::FromInt(value >> 1);
-}
-
-int PropertyDetails::field_width_in_words() const {
-  DCHECK_EQ(location(), PropertyLocation::kField);
-  return 1;
-}
 
 // TODO(jkummerow): Most DEF_CAST_TRAITS(Foo) macro invocations should move to
 // wherever `IsFoo(Tagged<HeapObject>)` is defined.
@@ -179,7 +162,6 @@ DEF_CAST_TRAITS(JSAPIObjectWithEmbedderSlots)
 DEF_CAST_TRAITS(JSObjectWithEmbedderSlots)
 DEF_CAST_TRAITS(JSPrimitiveWrapper)
 DEF_CAST_TRAITS(JSPromise)
-DEF_CAST_TRAITS(JSProxy)
 DEF_CAST_TRAITS(JSRabGsabDataView)
 DEF_CAST_TRAITS(JSRawJson)
 DEF_CAST_TRAITS(JSReceiver)
@@ -900,33 +882,6 @@ typename HandleType<Object>::MaybeType Object::ToIndex(
   return ConvertToIndex(isolate, Cast<Object>(input), error_index);
 }
 
-MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
-                                        DirectHandle<JSAny> object,
-                                        DirectHandle<Name> name) {
-  LookupIterator it(isolate, object, name);
-  if (!it.IsFound()) return it.factory()->undefined_value();
-  return GetProperty(&it);
-}
-
-MaybeHandle<Object> Object::GetElement(Isolate* isolate,
-                                       DirectHandle<JSAny> object,
-                                       uint32_t index) {
-  LookupIterator it(isolate, object, index);
-  if (!it.IsFound()) return it.factory()->undefined_value();
-  return GetProperty(&it);
-}
-
-MaybeDirectHandle<Object> Object::SetElement(Isolate* isolate,
-                                             DirectHandle<JSAny> object,
-                                             uint32_t index,
-                                             DirectHandle<Object> value,
-                                             ShouldThrow should_throw) {
-  LookupIterator it(isolate, object, index);
-  MAYBE_RETURN_NULL(
-      SetProperty(&it, value, StoreOrigin::kMaybeKeyed, Just(should_throw)));
-  return value;
-}
-
 Address HeapObject::ReadSandboxedPointerField(
     size_t offset, PtrComprCageBase cage_base) const {
   return i::ReadSandboxedPointerField(field_address(offset), cage_base);
@@ -1265,7 +1220,7 @@ AllocationAlignment HeapObject::RequiredAlignment(InSharedSpace in_shared_space,
     if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (in_shared_space && v8_flags.experimental_wasm_shared) [[unlikely]] {
+  if (in_shared_space && v8_flags.wasm_shared) [[unlikely]] {
     int instance_type = map->instance_type();
     if (instance_type == WASM_STRUCT_TYPE) {
       // The map of a shared wasm struct needs to be in the shared space.
@@ -1363,36 +1318,6 @@ Maybe<bool> Object::LessThanOrEqual(Isolate* isolate, DirectHandle<Object> x,
   return Nothing<bool>();
 }
 
-MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
-                                                 DirectHandle<JSAny> object,
-                                                 DirectHandle<Name> name) {
-  return GetPropertyOrElement(isolate, object, PropertyKey(isolate, name));
-}
-
-MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
-                                                 DirectHandle<JSAny> object,
-                                                 PropertyKey key) {
-  LookupIterator it(isolate, object, key);
-  return GetProperty(&it);
-}
-
-MaybeDirectHandle<Object> Object::SetPropertyOrElement(
-    Isolate* isolate, DirectHandle<JSAny> object, DirectHandle<Name> name,
-    DirectHandle<Object> value, Maybe<ShouldThrow> should_throw,
-    StoreOrigin store_origin) {
-  return SetPropertyOrElement(isolate, object, PropertyKey(isolate, name),
-                              value, should_throw, store_origin);
-}
-
-MaybeDirectHandle<Object> Object::SetPropertyOrElement(
-    Isolate* isolate, DirectHandle<JSAny> object, PropertyKey key,
-    DirectHandle<Object> value, Maybe<ShouldThrow> should_throw,
-    StoreOrigin store_origin) {
-  LookupIterator it(isolate, object, key);
-  MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, should_throw));
-  return value;
-}
-
 // static
 Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
   DisallowGarbageCollection no_gc;
@@ -1474,8 +1399,7 @@ bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
     // to shared values in weak collections. For now, disallow them as weak
     // collection keys.
 #if V8_ENABLE_WEBASSEMBLY
-    if (v8_flags.experimental_wasm_shared &&
-        (IsWasmStruct(obj) || IsWasmArray(obj)) &&
+    if (v8_flags.wasm_shared && (IsWasmStruct(obj) || IsWasmArray(obj)) &&
         HeapLayout::InAnySharedSpace(Cast<HeapObject>(obj))) {
       return false;
     }

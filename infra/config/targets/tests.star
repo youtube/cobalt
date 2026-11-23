@@ -551,6 +551,10 @@ targets.tests.gtest_test(
 )
 
 targets.tests.gtest_test(
+    name = "chrome_flaky_tast_tests",
+)
+
+targets.tests.gtest_test(
     name = "chrome_elf_unittests",
 )
 
@@ -2743,6 +2747,10 @@ targets.tests.isolated_script_test(
 
 targets.tests.gtest_test(
     name = "views_unittests",
+)
+
+targets.tests.gtest_test(
+    name = "gtk_unittests",
 )
 
 targets.tests.gtest_test(

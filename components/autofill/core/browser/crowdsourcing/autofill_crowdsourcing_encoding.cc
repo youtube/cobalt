@@ -890,11 +890,6 @@ void ClearSmallAddressFormPredictions(
   auto is_address_or_undetermined_type = [](const FieldPrediction& prediction) {
     FieldType type =
         ToSafeFieldType(prediction.type()).value_or(NO_SERVER_DATA);
-    // For historic reasons, AutofillAI types are treated as "unknown type".
-    // They don't influence the small form handling.
-    if (GroupTypeOfFieldType(type) == FieldTypeGroup::kAutofillAi) {
-      return true;
-    }
     return type == NO_SERVER_DATA || type == UNKNOWN_TYPE ||
            IsAddressType(type);
   };

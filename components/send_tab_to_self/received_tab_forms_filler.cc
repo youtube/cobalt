@@ -394,6 +394,19 @@ void ReceivedTabFormsFiller::FillForms(
         continue;
       }
 
+      // Don't fill fields that are considered sensitive, or that were
+      // considered sensitive on the sender's side. (The sender shouldn't have
+      // sent the contents of sensitive fields in the first place, but check
+      // again just to be sure.)
+      std::optional<autofill::FormControlType> incoming_field_type =
+          autofill::StringToFormControlTypeDiscouraged(
+              match.field->form_control_type);
+      if (IsSensitiveFieldType(field->form_control_type()) ||
+          (incoming_field_type && IsSensitiveFieldType(*incoming_field_type))) {
+        pending_fields_.erase(*match.field);
+        continue;
+      }
+
       switch (match.outcome) {
         case FormFieldMatchOutcome::kMatchedByIdNameAndType:
           ++matched_id_name_type_count_;

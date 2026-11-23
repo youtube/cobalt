@@ -194,14 +194,6 @@ void GeminiTabHelper::ExecuteZeroStateSuggestions(
       std::move(callback));
 }
 
-void GeminiTabHelper::SetIsFirstRun(bool is_first_run) {
-  is_first_run_ = is_first_run;
-}
-
-bool GeminiTabHelper::GetIsFirstRun() {
-  return is_first_run_;
-}
-
 bool GeminiTabHelper::ShouldPreventContextualPanelEntryPoint() {
   return prevent_contextual_panel_entry_point_;
 }
@@ -336,6 +328,15 @@ bool GeminiTabHelper::IsGeminiAvailableForWebState() {
     return true;
   }
   return IsGeminiChatAvailableForWebState();
+}
+
+bool GeminiTabHelper::IsContextualEntryPointAllowed() {
+  // Block context-based entry points on protected URLs.
+  if (web_state_ &&
+      ios::provider::IsProtectedUrl(web_state_->GetLastCommittedURL().spec())) {
+    return false;
+  }
+  return true;
 }
 
 bool GeminiTabHelper::IsGeminiChatAvailableForWebState() {
@@ -827,8 +828,11 @@ bool GeminiTabHelper::CanExtractPageContextForGemini() {
 }
 
 bool GeminiTabHelper::IsInGeminiLiveMode() const {
-  return IsGeminiLiveEnabled() && ios::provider::GetCurrentMode() ==
-                                      ios::provider::GeminiViewMode::kLive;
+  ProfileIOS* profile =
+      ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
+  return gemini::IsFeatureAvailable(gemini::Feature::kLive, profile) &&
+         ios::provider::GetCurrentMode() ==
+             ios::provider::GeminiViewMode::kLive;
 }
 
 bool GeminiTabHelper::IsNextIaOrLiveMode() const {

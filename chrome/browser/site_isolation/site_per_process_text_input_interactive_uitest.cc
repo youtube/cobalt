@@ -609,7 +609,7 @@ IN_PROC_BROWSER_TEST_F(SitePerProcessTextInputManagerTest,
   focus_input_and_wait_for_selection_bounds_change();
 
   // Focus location bar.
-  BrowserWindow* window = browser()->window();
+  BrowserWindow* window = BrowserWindow::FromBrowser(browser());
   ASSERT_TRUE(window);
   LocationBar* location_bar = window->GetLocationBar();
   ASSERT_TRUE(location_bar);

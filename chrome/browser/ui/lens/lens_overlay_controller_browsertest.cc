@@ -1236,6 +1236,32 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, CreateAndLoadWebUI) {
             GURL(chrome::kChromeUILensOverlayUntrustedURL));
 }
 
+IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
+                       IsSidePanelOpenInitializedCorrectlyWithPendingRegion) {
+  WaitForPaint();
+
+  auto* controller = GetLensOverlayController();
+  ASSERT_EQ(controller->state(), State::kOff);
+
+  // Open the overlay with a pending region.
+  OpenLensOverlayWithPendingRegion(
+      LensOverlayInvocationSource::kContentAreaContextMenuImage,
+      kTestRegion->Clone(), CreateNonEmptyBitmap(100, 100));
+
+  // The state should move to kScreenshot and then kOverlay.
+  ASSERT_EQ(controller->state(), State::kScreenshot);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return controller->state() == State::kOverlay; }));
+
+  // Verify that the fake page received `is_side_panel_open` as true.
+  auto* fake_controller = static_cast<LensOverlayControllerFake*>(controller);
+  ASSERT_TRUE(fake_controller);
+  // We need to flush mojo to ensure the call reached the fake page.
+  fake_controller->FlushForTesting();
+  EXPECT_TRUE(fake_controller->fake_overlay_page_
+                  .last_received_is_side_panel_open_.value_or(false));
+}
+
 IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest, ShowSidePanel) {
   WaitForPaint();
 

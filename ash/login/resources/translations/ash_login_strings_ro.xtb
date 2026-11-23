@@ -14,6 +14,24 @@
 <translation id="1185924365081634987">Pentru a remedia eroarea de rețea, poți încerca și să <ph name="GUEST_SIGNIN_LINK_START" />navighezi ca invitat<ph name="GUEST_SIGNIN_LINK_END" />.</translation>
 <translation id="1201402288615127009">Înainte</translation>
 <translation id="1222835797152767346">Setează un cod PIN ca să te conectezi mai ușor</translation>
+<translation id="1346669614038013595"><ph name="BEGIN_H3" />Funcțiile de remediere a erorilor<ph name="END_H3" />
+          <ph name="BR" />
+          Pentru a instala și a testa cod personalizat pe dispozitiv, poți activa funcțiile de remediere a erorilor pe dispozitivul ChromeOS. Astfel, vei putea:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />să elimini verificarea sistemului rootfs, pentru a putea modifica fișierele sistemului de operare;
+      <ph name="LIST_ITEM" />să activezi accesul SSH la dispozitiv folosind cheile de testare standard, pentru a putea folosi instrumente precum <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> pentru a accesa dispozitivul;
+      <ph name="LIST_ITEM" />să activezi pornirea de pe USB, pentru a putea instala imaginea unui sistem de operare de pe o unitate USB;
+      <ph name="LIST_ITEM" />să setezi parola de conectare, atât pentru dezvoltator, cât și pentru rădăcina sistemului, la o valoare personalizată, pentru a putea instala manual SSH pe dispozitiv.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          După activare, majoritatea funcțiilor de remediere a erorilor vor rămâne activate, chiar și după realizarea unui powerwash sau ștergerea datelor pe un dispozitiv gestionat de companie. Pentru a dezactiva complet toate funcțiile de remediere a erorilor, finalizează procesul de recuperare a sistemului de operare ChromeOS (https://support.google.com/chromebook/answer/1080595).
+    <ph name="BR" />
+    <ph name="BR" />
+    Pentru mai multe informații despre funcțiile de remediere a erorilor, consultă<ph name="BR" />
+    https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+    <ph name="BR" />
+    <ph name="BR" />
+    <ph name="BEGIN_BOLD" />Notă:<ph name="END_BOLD" /> sistemul va reporni în timpul acestui proces.</translation>
 <translation id="1347625331607114917">Confirmă codul pe telefonul Android</translation>
 <translation id="1347975661240122359">Actualizarea va începe când bateria va ajunge la <ph name="BATTERY_LEVEL" />%.</translation>
 <translation id="1375938286942050085">Configurarea este finalizată. Pregătește-ți dispozitivul pentru jocuri</translation>
@@ -126,9 +144,29 @@
 <translation id="503155457707535043">Aplicațiile se descarcă</translation>
 <translation id="5045550434625856497">Parolă incorectă</translation>
 <translation id="5062930723426326933">Conectarea nu a reușit, conectați-vă la internet și încercați din nou.</translation>
+<translation id="5107486920067578245"><ph name="BEGIN_PARAGRAPH1" />Conversează prin chat cu Gemini pentru a începe să scrii, să planifici, să înveți și multe altele cu Google AI.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />După configurare, începe să folosești Gemini selectând aplicația Gemini de pe raft, din partea de jos a ecranului.<ph name="END_PARAGRAPH2" /></translation>
 <translation id="5115309401544567011">Conectează dispozitivul <ph name="DEVICE_TYPE" /> la o sursă de alimentare.</translation>
 <translation id="5147516217412920887">Urmează instrucțiunile de pe telefon pentru verificarea codului</translation>
 <translation id="5160857336552977725">Conectează-te la <ph name="DEVICE_TYPE" /></translation>
+<translation id="5171185788583376591"><ph name="BEGIN_H3" />Funcțiile de remediere a erorilor<ph name="END_H3" />
+          <ph name="BR" />
+          Pentru a instala și a testa cod personalizat pe dispozitiv, poți activa funcțiile de remediere a erorilor pe dispozitivul cu sistem de operare ChromeOS Flex. Astfel, vei putea:<ph name="BR" />
+          <ph name="BEGIN_LIST" />
+            <ph name="LIST_ITEM" />să elimini verificarea sistemului rootfs, pentru a putea modifica fișierele sistemului de operare;
+      <ph name="LIST_ITEM" />să activezi accesul SSH la dispozitiv folosind cheile de testare standard, pentru a putea folosi instrumente precum <ph name="BEGIN_CODE" />cros flash<ph name="END_CODE" /> pentru a accesa dispozitivul;
+      <ph name="LIST_ITEM" />să activezi pornirea de pe USB, pentru a putea instala imaginea unui sistem de operare de pe o unitate USB;
+      <ph name="LIST_ITEM" />să setezi parola de conectare, atât pentru dezvoltator, cât și pentru rădăcina sistemului, la o valoare personalizată, pentru a putea instala manual SSH pe dispozitiv.
+          <ph name="END_LIST" />
+          <ph name="BR" />
+          După activare, majoritatea funcțiilor de remediere a erorilor vor rămâne activate, chiar și după realizarea unui powerwash sau ștergerea datelor pe un dispozitiv gestionat de companie. Pentru a dezactiva complet toate funcțiile de remediere a erorilor, finalizează procesul de recuperare a sistemului de operare ChromeOS (https://support.google.com/chromebook/answer/1080595).
+    <ph name="BR" />
+    <ph name="BR" />
+    Pentru mai multe informații despre funcțiile de remediere a erorilor, consultă<ph name="BR" />
+    https://www.chromium.org/chromium-os/how-tos-and-troubleshooting/debugging-features
+    <ph name="BR" />
+    <ph name="BR" />
+    <ph name="BEGIN_BOLD" />Notă:<ph name="END_BOLD" /> sistemul va reporni în timpul acestui proces.</translation>
 <translation id="523505283826916779">Setări de accesibilitate</translation>
 <translation id="5240931875940563122">Conectează-te cu telefonul Android</translation>
 <translation id="5255859108402770436">Conectează-te din nou</translation>
@@ -193,6 +231,7 @@
 <translation id="6955698182324067397">Activezi funcțiile de remediere a erorilor în sistemul de operare Chrome, care vor configura SSH daemon și vor activa pornirea de pe unități USB.</translation>
 <translation id="6965382102122355670">OK</translation>
 <translation id="6981982820502123353">Accesibilitate</translation>
+<translation id="6984652455487792101">Dacă folosești un server proxy, verifică setările de proxy sau contactează administratorul de rețea pentru a verifica dacă serverul proxy funcționează. Dacă nu crezi că ar trebui să folosești un server proxy, modifică <ph name="LINK_START" />setările de proxy<ph name="LINK_END" />.</translation>
 <translation id="6996245928508281884">Activează funcția Bluetooth și Wi-Fi a telefonului</translation>
 <translation id="7077829361966535409">Pagina de conectare nu s-a putut încărca utilizând setările de proxy actuale. <ph name="GAIA_RELOAD_LINK_START" />Încercați să vă conectați din nou<ph name="GAIA_RELOAD_LINK_END" /> sau utilizați alte <ph name="PROXY_SETTINGS_LINK_START" />setări de proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="7114054701490058191">Parolele nu corespund</translation>
@@ -205,6 +244,9 @@
 <translation id="7345706641791090287">Confirmă parola</translation>
 <translation id="7352651011704765696">A apărut o eroare</translation>
 <translation id="7476454130948140105">Bateria este prea descărcată pentru actualizare (<ph name="BATTERY_PERCENT" />%)</translation>
+<translation id="7504187084873714912"><ph name="BEGIN_PARAGRAPH1" />Înainte să te înregistrezi, trebuie să ștergi TPM-ul pentru ca <ph name="DEVICE_OS" /> să preia controlul asupra dispozitivului.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />Poți și să dezactivezi complet dispozitivul TPM. Datele tale vor fi stocate în siguranță prin criptarea software-ului, dar anumite funcții de securitate, cum ar fi certificatele stocate pe hardware, vor fi dezactivate.<ph name="END_PARAGRAPH2" />
+        <ph name="BEGIN_PARAGRAPH3" />Poți modifica setările TPM prin repornirea sistemului și accesarea setărilor BIOS / UEFI. Pașii variază în funcție de modelul dispozitivului. Pentru mai multe informații, deschide documentația <ph name="DEVICE_OS" /> pe alt dispozitiv înainte de repornire: g.co/flex/TPMHelp.<ph name="END_PARAGRAPH3" /></translation>
 <translation id="7543104066686362383">Activează funcțiile de remediere a erorilor pe acest dispozitiv <ph name="IDS_SHORT_PRODUCT_NAME" /></translation>
 <translation id="7553242001898162573">Introdu parola</translation>
 <translation id="7556242789364317684">Din păcate, <ph name="SHORT_PRODUCT_NAME" /> nu vă poate recupera setările. Pentru a remedia eroarea, este necesar ca <ph name="SHORT_PRODUCT_NAME" /> să reseteze dispozitivul utilizând Powerwash.</translation>
@@ -251,6 +293,10 @@
 <translation id="8452105022015742247">Transferarea informațiilor din Contul Google de pe telefonul Android</translation>
 <translation id="8524841856047224176">Personalizează fundalurile camerei pentru apeluri video și altele</translation>
 <translation id="8569673829373920831">Mai multe despre <ph name="APP_NAME" /></translation>
+<translation id="8628232294964836490">Urmează instrucțiunile de pe telefon pentru a scana codul QR. Asigură-te că funcția Bluetooth a telefonului este activată.
+        <ph name="BR" />
+        <ph name="BR" />
+        Vizibil pentru dispozitivele din apropiere ca <ph name="QUICK_START_DEVICE_DISPLAY_NAME" />...</translation>
 <translation id="8655972064210167941">Nu s-a conectat, deoarece parola nu a putut fi confirmată. Contactează administratorul sau încearcă din nou.</translation>
 <translation id="8674903726754070732">Din păcate, computerul este configurat cu un ID de hardware incorect. Acest lucru împiedică actualizarea sistemului de operare Chrome cu cele mai recente remedieri de securitate, iar computerul <ph name="BEGIN_BOLD" />ar putea fi vulnerabil la atacuri<ph name="END_BOLD" />.</translation>
 <translation id="8695139659682234808">Adaugă opțiuni de control parental după configurare</translation>
@@ -264,10 +310,20 @@
 <translation id="8830796635868321089">Căutarea actualizărilor utilizând setările de proxy actuale nu a reușit. Ajustați <ph name="PROXY_SETTINGS_LINK_START" />setările de proxy<ph name="PROXY_SETTINGS_LINK_END" />.</translation>
 <translation id="885746075120788020">Preferințele și activitățile salvate vor fi disponibile pe orice dispozitiv cu sistemul de operare Chrome dacă te conectezi folosind Contul Google. Poți să alegi ce să sincronizezi în Setări.</translation>
 <translation id="8875221558267407626">Rezumă conținut, simplifică limbajul complex sau pune întrebări</translation>
+<translation id="8913163265790894442">Configurează cu ușurință dispozitivul <ph name="DEVICE_TYPE" /> cu telefonul. Poți adăuga rețeaua Wi-Fi și Contul Google fără să introduci manual parolele.
+        <ph name="BR" />
+        <ph name="BR" />
+        Vizibil ca <ph name="DEVICE_TYPE" />...</translation>
 <translation id="8946359700442089734">Funcțiile de remediere a erorilor nu au fost activate complet pe acest dispozitiv <ph name="IDS_SHORT_PRODUCT_NAME" />.</translation>
 <translation id="8965037249707889821">Introduceți parola veche</translation>
 <translation id="8975396729541388937">Dezabonează-te oricând dând clic pe linkul din e-mailurile pe care le primești.</translation>
 <translation id="9033765790910064284">Continuă oricum</translation>
 <translation id="903480517321259405">Introdu din nou codul PIN</translation>
 <translation id="9076523132036239772">Din păcate, adresa de e-mail sau parola nu a putut fi verificată. Încearcă să te conectezi mai întâi la o rețea.</translation>
+<translation id="9217002308921247002"><ph name="BEGIN_PARAGRAPH1" />Exclusiv pentru <ph name="DEVICE_TYPE" />.<ph name="END_PARAGRAPH1" />
+        <ph name="BEGIN_PARAGRAPH2" />AI generativ este o funcție experimentală, în primele etape de dezvoltare și, momentan, are disponibilitate limitată.<ph name="END_PARAGRAPH2" /></translation>
+<translation id="936479314588646618">Configurează cu ușurință dispozitivul <ph name="DEVICE_TYPE" /> cu telefonul. Poți adăuga Contul Google fără să introduci manual parola.
+        <ph name="BR" />
+        <ph name="BR" />
+        Vizibil ca <ph name="DEVICE_TYPE" />...</translation>
 </translationbundle>

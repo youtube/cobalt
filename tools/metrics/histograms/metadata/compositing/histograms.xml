@@ -80,11 +80,6 @@ chromium-metrics-reviews@google.com.
   <variant name="Renderer"/>
 </variants>
 
-<variants name="VizCodePathName">
-  <variant name="Aggregate"/>
-  <variant name="DrawAndSwap"/>
-</variants>
-
 <histogram name="Compositing.Animation.MissingPropertyNodeForElementId"
     enum="PropertyMutation" expires_after="2026-01-31">
   <owner>kevers@chromium.org</owner>
@@ -451,19 +446,6 @@ chromium-metrics-reviews@google.com.
     draw call issuances to the driver and their final completion. Only reported
     for clients with high-resolution clocks.
   </summary>
-</histogram>
-
-<histogram name="Compositing.Display.VizCodePath.{VizCodePathName}"
-    enum="Boolean" expires_after="2026-06-09">
-  <owner>fangzhoug@chromium.org</owner>
-  <owner>jonross@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
-  <summary>
-    Track usage of different code paths in Viz display compositor. We want to
-    monitor code paths and see if some code paths will not be executed each
-    frame.
-  </summary>
-  <token key="VizCodePathName" variants="VizCodePathName"/>
 </histogram>
 
 <histogram name="Compositing.Display.VizDependencyResolvedToGpuStartedDrawUs"

@@ -3795,6 +3795,18 @@
       "features": [
         "reattach_fbo_depth_stencil_on_reallocation"
       ]
+    },
+    {
+      "id": 481,
+      "cr_bugs": [443107135],
+      "description": "Disable Media Foundation D3D video processing on Qualcomm GPUs.",
+      "os": {
+        "type": "win"
+      },
+      "vendor_id": "0x4d4f4351",
+      "features": [
+        "disable_media_foundation_d3d_video_processing"
+      ]
     }
   ]
 }

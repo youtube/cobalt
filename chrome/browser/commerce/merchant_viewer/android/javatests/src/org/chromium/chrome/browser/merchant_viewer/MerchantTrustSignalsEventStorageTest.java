@@ -72,6 +72,7 @@ public class MerchantTrustSignalsEventStorageTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mStorage.deleteAll();
+                    mStorage.destroy();
                 });
     }
 

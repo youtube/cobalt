@@ -104,7 +104,7 @@ class ActorEngineTest : public PlatformTest {
 
 // Tests that a single action executing successfully completes the engine
 // sequence with a success result.
-TEST_F(ActorEngineTest, DISABLED_ActSuccess) {
+TEST_F(ActorEngineTest, ActSuccess) {
   std::vector<std::unique_ptr<ActorToolRequest>> actions;
   actions.push_back(MakeSuccessfulActorToolRequest());
 
@@ -131,7 +131,7 @@ TEST_F(ActorEngineTest, DISABLED_ActSuccess) {
 
 // Tests that a single action failing aborts the engine sequence and returns a
 // failure result.
-TEST_F(ActorEngineTest, DISABLED_ActFailure) {
+TEST_F(ActorEngineTest, ActFailure) {
   std::vector<std::unique_ptr<ActorToolRequest>> actions;
   actions.push_back(MakeFailingActorToolRequest());
 
@@ -158,7 +158,7 @@ TEST_F(ActorEngineTest, DISABLED_ActFailure) {
 
 // Tests that a sequence where the first action succeeds and the second fails
 // returns both results, with the second one indicating failure.
-TEST_F(ActorEngineTest, DISABLED_ActSequenceSuccessFailure) {
+TEST_F(ActorEngineTest, ActSequenceSuccessFailure) {
   std::vector<std::unique_ptr<ActorToolRequest>> actions;
   actions.push_back(MakeSuccessfulActorToolRequest());
   actions.push_back(MakeFailingActorToolRequest());
@@ -187,7 +187,7 @@ TEST_F(ActorEngineTest, DISABLED_ActSequenceSuccessFailure) {
 
 // Tests that an empty sequence of actions completes immediately with success
 // and empty results.
-TEST_F(ActorEngineTest, DISABLED_ActEmptySequence) {
+TEST_F(ActorEngineTest, ActEmptySequence) {
   std::vector<std::unique_ptr<ActorToolRequest>> actions;
 
   base::RunLoop run_loop;
@@ -212,7 +212,7 @@ TEST_F(ActorEngineTest, DISABLED_ActEmptySequence) {
 
 // Tests that multiple actions all executing successfully return success results
 // for all actions.
-TEST_F(ActorEngineTest, DISABLED_ActMultipleSuccess) {
+TEST_F(ActorEngineTest, ActMultipleSuccess) {
   std::vector<std::unique_ptr<ActorToolRequest>> actions;
   actions.push_back(MakeSuccessfulActorToolRequest());
   actions.push_back(MakeSuccessfulActorToolRequest());
@@ -241,7 +241,7 @@ TEST_F(ActorEngineTest, DISABLED_ActMultipleSuccess) {
 
 // Tests the helper method that maps the 1-based `next_action_index_` to the
 // 0-based current action index.
-TEST_F(ActorEngineTest, DISABLED_InProgressActionIndex) {
+TEST_F(ActorEngineTest, InProgressActionIndex) {
   SetNextActionIndex(1);
   EXPECT_EQ(InProgressActionIndex(), 0U);
 
@@ -252,7 +252,7 @@ TEST_F(ActorEngineTest, DISABLED_InProgressActionIndex) {
 // Tests the specific codepath in `CompleteActions` where a failure result
 // overwrites a previously recorded success for the same action (e.g., if a
 // post-invoke step fails).
-TEST_F(ActorEngineTest, DISABLED_CompleteActionsOverwrite) {
+TEST_F(ActorEngineTest, CompleteActionsOverwrite) {
   PushActionResult(ActionResult(ToolExecutionResult::Ok()));
   SetNextActionIndex(1);
 
@@ -267,7 +267,7 @@ TEST_F(ActorEngineTest, DISABLED_CompleteActionsOverwrite) {
 // Tests that the delegate's OnWillExecuteTool callback is fired
 // just before tool execution with correct, unique parameters for every tool in
 // the sequence.
-TEST_F(ActorEngineTest, DISABLED_OnWillExecuteToolCalled) {
+TEST_F(ActorEngineTest, OnWillExecuteToolCalled) {
   web::WebStateID id1 = web::WebStateID::FromSerializedValue(1);
   web::WebStateID id2 = web::WebStateID::FromSerializedValue(2);
 
@@ -306,7 +306,7 @@ TEST_F(ActorEngineTest, DISABLED_OnWillExecuteToolCalled) {
 
 // Tests that executing a sequence containing a null tool completes
 // with a failure result code (kToolUnknown) instead of crashing.
-TEST_F(ActorEngineTest, DISABLED_ActWithNullTool) {
+TEST_F(ActorEngineTest, ActWithNullTool) {
   std::vector<std::unique_ptr<ActorToolRequest>> actions;
   actions.push_back(nullptr);
 

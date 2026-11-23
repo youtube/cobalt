@@ -40,11 +40,10 @@ HeadlessDevToolsManagerDelegate::CreateNewTarget(
     return nullptr;
 
   HeadlessBrowserContext* context = browser_->GetDefaultBrowserContext();
-  HeadlessWebContentsImpl* web_contents_impl = HeadlessWebContentsImpl::From(
-      context->CreateWebContentsBuilder()
-          .SetInitialURL(url)
-          .SetWindowBounds(gfx::Rect(browser_->options()->window_size))
-          .Build());
+  HeadlessWebContents::CreateParams create_params(context, url);
+  create_params.window_bounds = gfx::Rect(browser_->options()->window_size);
+  HeadlessWebContentsImpl* web_contents_impl =
+      HeadlessWebContentsImpl::From(context->CreateWebContents(create_params));
   return target_type == content::DevToolsManagerDelegate::kTab
              ? content::DevToolsAgentHost::GetOrCreateForTab(
                    web_contents_impl->web_contents())
@@ -91,9 +90,11 @@ content::BrowserContext*
 HeadlessDevToolsManagerDelegate::CreateBrowserContext() {
   if (!browser_)
     return nullptr;
-  auto builder = browser_->CreateBrowserContextBuilder();
-  builder.SetIncognitoMode(true);
-  HeadlessBrowserContext* browser_context = builder.Build();
+  HeadlessBrowserContext::CreateParams params;
+  params.incognito_mode = true;
+  HeadlessBrowserContext* browser_context =
+      browser_->CreateBrowserContext(std::move(params));
+  CHECK(browser_context);
   return HeadlessBrowserContextImpl::From(browser_context);
 }
 

@@ -97,7 +97,7 @@ bool WindowSizerChromeOS::GetBrowserBounds(
     if (browser()->is_type_normal()) {
       GetTabbedBrowserBounds(bounds, show_state);
       determined = true;
-    } else if (browser()->is_trusted_source()) {
+    } else if (WindowFeatureController::From(browser())->IsTrustedSource()) {
       // For trusted popups (v1 apps and system windows), do not use the last
       // active window bounds, only use saved or default bounds.
       // For PWA app windows (which are also a trusted source) we do want to use
