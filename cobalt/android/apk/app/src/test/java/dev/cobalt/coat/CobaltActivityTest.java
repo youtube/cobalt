@@ -766,19 +766,22 @@ public class CobaltActivityTest {
       final boolean flushOnFreezeEnabled,
       final boolean optimizeFlushEnabled) {
     final StarboardBridge mockBridge = mock(StarboardBridge.class);
-    TestLifecycleFlushActivity activity =
-        org.robolectric.Robolectric.buildActivity(TestLifecycleFlushActivity.class)
-            .get()
-            .configure(
-                mockBridge, webContents, delayMs, flushOnFreezeEnabled, optimizeFlushEnabled);
-    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.CREATED);
-    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.STARTED);
-    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.RESUMED);
-    return activity;
+    final android.view.Window mockWindow = mock(android.view.Window.class);
+    final android.view.View mockDecorView = mock(android.view.View.class);
+    when(mockWindow.getDecorView()).thenReturn(mockDecorView);
+    return new TestLifecycleFlushActivity()
+        .configure(
+            mockBridge,
+            mockWindow,
+            webContents,
+            delayMs,
+            flushOnFreezeEnabled,
+            optimizeFlushEnabled);
   }
 
   private static class TestLifecycleFlushActivity extends CobaltActivity {
     private StarboardBridge mBridge;
+    private android.view.Window mWindow;
     private WebContents mWebContents;
     private long mDelayMs;
     private boolean mFlushOnFreeze;
@@ -786,16 +789,32 @@ public class CobaltActivityTest {
 
     TestLifecycleFlushActivity configure(
         StarboardBridge bridge,
+        android.view.Window window,
         WebContents webContents,
         long delayMs,
         boolean flushOnFreeze,
         boolean optimizeFlush) {
+      attachBaseContext(RuntimeEnvironment.getApplication());
+      try {
+        java.lang.reflect.Field appField =
+            android.app.Activity.class.getDeclaredField("mApplication");
+        appField.setAccessible(true);
+        appField.set(this, new android.app.Application());
+      } catch (ReflectiveOperationException e) {
+        throw new RuntimeException(e);
+      }
       mBridge = bridge;
+      mWindow = window;
       mWebContents = webContents;
       mDelayMs = delayMs;
       mFlushOnFreeze = flushOnFreeze;
       mOptimizeFlush = optimizeFlush;
       return this;
+    }
+
+    @Override
+    public android.view.Window getWindow() {
+      return mWindow;
     }
 
     @Override
