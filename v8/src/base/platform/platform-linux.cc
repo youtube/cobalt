@@ -46,15 +46,13 @@
 #include "src/base/platform/platform-posix.h"
 #include "src/base/platform/platform.h"
 
-<<<<<<< HEAD
+#include "build/build_config.h"
+
 #if !defined(MREMAP_DONTUNMAP)
 // We define this to support building against versions that do not yet expose
 // it. Instead, we check at runtime in KernelSupportsRemapDontUnmap.
 #define MREMAP_DONTUNMAP 4
 #endif
-=======
-#include "build/build_config.h"
->>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 namespace v8 {
 namespace base {
