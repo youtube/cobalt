@@ -13,11 +13,8 @@
 #include <utility>
 #include <vector>
 
-<<<<<<< HEAD
 #include "base/containers/span.h"
-=======
 #include "base/feature_list.h"
->>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
