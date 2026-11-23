@@ -801,10 +801,7 @@ void EmbeddedWorkerInstance::BindCacheStorage(
   BindCacheStorageInternal();
 }
 
-<<<<<<< HEAD
-=======
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#if !BUILDFLAG(IS_COBALT)
 void EmbeddedWorkerInstance::BindHidService(
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
@@ -818,10 +815,7 @@ void EmbeddedWorkerInstance::BindHidService(
                        std::move(receiver));
   }
 }
-<<<<<<< HEAD
-=======
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_COBALT)
 void EmbeddedWorkerInstance::BindUsbService(
