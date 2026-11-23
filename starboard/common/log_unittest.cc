@@ -104,6 +104,7 @@ CapturedSbLogState& GetCapturedSbLogState() {
   return *state;
 }
 
+// Restores the global Starboard log message handler when leaving scope.
 class ScopedSbLogHandlerRestorer {
  public:
   explicit ScopedSbLogHandlerRestorer(LogMessageHandlerFunction saved_handler)

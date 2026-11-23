@@ -15,11 +15,11 @@
 #include "cobalt/browser/logging/cobalt_log_collector.h"
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/run_loop.h"
@@ -160,7 +160,12 @@ TEST(CobaltLogCollectorTest, RingOverflowDropAccountingAndUtf8Truncation) {
   // 1) "ab" (2 bytes) + 3-byte euro sign + "z" = 6 bytes -> keeps
   // "ab\xE2\x82\xAC". 2) "abc" (3 bytes) + 3-byte euro sign = 6 bytes -> backs
   // up to "abc". 3) "ab" + orphan continuation bytes -> backs up to "ab".
-  CobaltLogCollector utf8_collector(config);
+  // 4) "a" (1 byte) + 4-byte code point + "z" = 6 bytes -> keeps
+  // "a\xF0\x9F\x98\x80". 5) "ab" (2 bytes) + 4-byte code point = 6 bytes ->
+  // backs up to "ab".
+  CobaltLogCollector::Config utf8_config = config;
+  utf8_config.max_entries = 10;
+  CobaltLogCollector utf8_collector(utf8_config);
   CobaltLogCollector::ScopedConsumer utf8_consumer =
       utf8_collector.RegisterConsumer();
   utf8_collector.RecordLogMessage(LogSeverity::kInfo, "f.cc", 1,
@@ -169,16 +174,24 @@ TEST(CobaltLogCollectorTest, RingOverflowDropAccountingAndUtf8Truncation) {
                                   "abc\xE2\x82\xAC");
   utf8_collector.RecordLogMessage(LogSeverity::kInfo, "f.cc", 3,
                                   "ab\x80\x80\x80\x80");
+  utf8_collector.RecordLogMessage(LogSeverity::kInfo, "f.cc", 4,
+                                  "a\xF0\x9F\x98\x80z");
+  utf8_collector.RecordLogMessage(LogSeverity::kInfo, "f.cc", 5,
+                                  "ab\xF0\x9F\x98\x80");
   CobaltLogCollector::ReadResult utf8_result =
       utf8_collector.ReadSince(/*after_seq=*/0, /*max_entries=*/10,
                                /*max_bytes=*/64 * 1024);
-  ASSERT_EQ(utf8_result.entries.size(), 3u);
+  ASSERT_EQ(utf8_result.entries.size(), 5u);
   EXPECT_TRUE(utf8_result.entries[0].message_truncated);
   EXPECT_EQ(utf8_result.entries[0].message, "ab\xE2\x82\xAC");
   EXPECT_TRUE(utf8_result.entries[1].message_truncated);
   EXPECT_EQ(utf8_result.entries[1].message, "abc");
   EXPECT_TRUE(utf8_result.entries[2].message_truncated);
   EXPECT_EQ(utf8_result.entries[2].message, "ab");
+  EXPECT_TRUE(utf8_result.entries[3].message_truncated);
+  EXPECT_EQ(utf8_result.entries[3].message, "a\xF0\x9F\x98\x80");
+  EXPECT_TRUE(utf8_result.entries[4].message_truncated);
+  EXPECT_EQ(utf8_result.entries[4].message, "ab");
 }
 
 // Verifies that byte-budget pagination splits batches cleanly, still delivers
@@ -478,8 +491,41 @@ TEST(CobaltLogCollectorTest, ConcurrentWorkerThreadsSafeWithoutSequence) {
   }
 }
 
+// Verifies that replacing or clearing the notification callback destroys the
+// previous callback outside the collector lock so a bound object's destructor
+// can log or query collector stats without self-deadlocking.
+TEST(CobaltLogCollectorTest, SetNotifyCallbackDestroysOldCallbackOutsideLock) {
+  base::test::TaskEnvironment task_environment;
+  CobaltLogCollector collector;
+  CobaltLogCollector::ScopedConsumer consumer = collector.RegisterConsumer();
+
+  bool destructor_ran = false;
+  auto guard = std::make_shared<base::ScopedClosureRunner>(
+      base::BindLambdaForTesting([&]() {
+        destructor_ran = true;
+        collector.RecordLogMessage(LogSeverity::kInfo, "dtor.cc", 1,
+                                   "from-callback-dtor");
+        EXPECT_TRUE(collector.SnapshotStats().active);
+      }));
+  collector.SetNotifyCallback(
+      base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([guard]() { (void)guard; }));
+  guard.reset();
+  ASSERT_FALSE(destructor_ran);
+
+  collector.SetNotifyCallback(nullptr, base::RepeatingClosure());
+  EXPECT_TRUE(destructor_ran);
+
+  CobaltLogCollector::ReadResult result =
+      collector.ReadSince(/*after_seq=*/0, /*max_entries=*/10,
+                          /*max_bytes=*/64 * 1024);
+  ASSERT_EQ(result.entries.size(), 1u);
+  EXPECT_EQ(result.entries[0].message, "from-callback-dtor");
+}
+
 std::atomic<int> g_chained_handler_calls{0};
 std::atomic<bool> g_trigger_reentrant_log{false};
+constexpr char kBaseHookTestSentinel[] = "cobalt-collector-global-hook-test";
 
 bool TestPreviousLogHandler(int severity,
                             const char* file,
@@ -487,7 +533,8 @@ bool TestPreviousLogHandler(int severity,
                             size_t message_start,
                             const std::string& str) {
   g_chained_handler_calls.fetch_add(1, std::memory_order_relaxed);
-  if (g_trigger_reentrant_log.exchange(false, std::memory_order_acq_rel)) {
+  if (str.find(kBaseHookTestSentinel) != std::string::npos &&
+      g_trigger_reentrant_log.exchange(false, std::memory_order_acq_rel)) {
     LOG(INFO) << "dropped-reentrant-log";
   }
   return false;
@@ -507,7 +554,6 @@ TEST(CobaltLogCollectorTest, GlobalBaseLoggingHookChainingAndIdempotency) {
   }));
 
   g_chained_handler_calls.store(0, std::memory_order_relaxed);
-  g_trigger_reentrant_log.store(true, std::memory_order_release);
   logging::SetLogMessageHandler(&TestPreviousLogHandler);
 
   collector->UninstallHooksForTesting();
@@ -518,7 +564,8 @@ TEST(CobaltLogCollectorTest, GlobalBaseLoggingHookChainingAndIdempotency) {
   const uint64_t start_seq = collector->SnapshotStats().latest_seq;
   {
     CobaltLogCollector::ScopedConsumer consumer = collector->RegisterConsumer();
-    LOG(WARNING) << "cobalt-collector-global-hook-test";
+    g_trigger_reentrant_log.store(true, std::memory_order_release);
+    LOG(WARNING) << kBaseHookTestSentinel;
 
     CobaltLogCollector::ReadResult result =
         collector->ReadSince(start_seq, /*max_entries=*/50,
@@ -526,7 +573,7 @@ TEST(CobaltLogCollectorTest, GlobalBaseLoggingHookChainingAndIdempotency) {
     bool found_warning = false;
     bool found_reentrant = false;
     for (const CobaltLogCollector::LogEntry& entry : result.entries) {
-      if (entry.message == "cobalt-collector-global-hook-test" &&
+      if (entry.message == kBaseHookTestSentinel &&
           entry.severity == LogSeverity::kWarning) {
         found_warning = true;
       }
@@ -547,6 +594,8 @@ TEST(CobaltLogCollectorTest, GlobalBaseLoggingHookChainingAndIdempotency) {
 
 std::atomic<int> g_chained_sb_handler_calls{0};
 std::atomic<bool> g_trigger_reentrant_sb_log{false};
+constexpr char kStarboardHookTestSentinel[] =
+    "cobalt-collector-sblog-hook-test";
 
 bool TestPreviousStarboardLogHandler(SbLogPriority priority,
                                      const char* file,
@@ -554,7 +603,8 @@ bool TestPreviousStarboardLogHandler(SbLogPriority priority,
                                      size_t message_start,
                                      const std::string& str) {
   g_chained_sb_handler_calls.fetch_add(1, std::memory_order_relaxed);
-  if (g_trigger_reentrant_sb_log.exchange(false, std::memory_order_acq_rel)) {
+  if (str.find(kStarboardHookTestSentinel) != std::string::npos &&
+      g_trigger_reentrant_sb_log.exchange(false, std::memory_order_acq_rel)) {
     SB_LOG(INFO) << "dropped-reentrant-sb-log";
   }
   return false;
@@ -574,7 +624,6 @@ TEST(CobaltLogCollectorTest, GlobalStarboardLogHookCapturesSbLogAndChains) {
   }));
 
   g_chained_sb_handler_calls.store(0, std::memory_order_relaxed);
-  g_trigger_reentrant_sb_log.store(true, std::memory_order_release);
   starboard::SetLogMessageHandler(&TestPreviousStarboardLogHandler);
 
   collector->UninstallHooksForTesting();
@@ -584,7 +633,8 @@ TEST(CobaltLogCollectorTest, GlobalStarboardLogHookCapturesSbLogAndChains) {
   const uint64_t start_seq = collector->SnapshotStats().latest_seq;
   {
     CobaltLogCollector::ScopedConsumer consumer = collector->RegisterConsumer();
-    SB_LOG(ERROR) << "cobalt-collector-sblog-hook-test";
+    g_trigger_reentrant_sb_log.store(true, std::memory_order_release);
+    SB_LOG(ERROR) << kStarboardHookTestSentinel;
 
     CobaltLogCollector::ReadResult result =
         collector->ReadSince(start_seq, /*max_entries=*/50,
@@ -592,7 +642,7 @@ TEST(CobaltLogCollectorTest, GlobalStarboardLogHookCapturesSbLogAndChains) {
     bool found_error = false;
     bool found_reentrant = false;
     for (const CobaltLogCollector::LogEntry& entry : result.entries) {
-      if (entry.message == "cobalt-collector-sblog-hook-test" &&
+      if (entry.message == kStarboardHookTestSentinel &&
           entry.severity == LogSeverity::kError) {
         found_error = true;
       }

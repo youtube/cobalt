@@ -85,7 +85,8 @@ class CobaltLogCollector {
   };
 
   // Move-only RAII token keeping log collection active while alive. A
-  // ScopedConsumer must not outlive the CobaltLogCollector that created it.
+  // ScopedConsumer must not outlive the CobaltLogCollector that created it,
+  // and is safe to reset or destroy from any thread.
   class ScopedConsumer {
    public:
     ScopedConsumer() = default;

@@ -23,7 +23,7 @@
 #include "base/location.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
-#include "base/threading/platform_thread.h"
+#include "base/threading/thread_id_name_manager.h"
 
 namespace cobalt {
 namespace {
@@ -186,17 +186,19 @@ void CobaltLogCollector::UninstallHooksForTesting() {
     return;
   }
   logging::LogMessageHandlerFunction previous_base =
-      previous_base_handler_.exchange(nullptr, std::memory_order_acq_rel);
+      previous_base_handler_.load(std::memory_order_acquire);
   if (logging::GetLogMessageHandler() ==
       &CobaltLogCollector::BaseLogMessageHandler) {
     logging::SetLogMessageHandler(previous_base);
   }
+  previous_base_handler_.store(nullptr, std::memory_order_release);
   starboard::LogMessageHandlerFunction previous_starboard =
-      previous_starboard_handler_.exchange(nullptr, std::memory_order_acq_rel);
+      previous_starboard_handler_.load(std::memory_order_acquire);
   if (starboard::GetLogMessageHandler() ==
       &CobaltLogCollector::StarboardLogMessageHandler) {
     starboard::SetLogMessageHandler(previous_starboard);
   }
+  previous_starboard_handler_.store(nullptr, std::memory_order_release);
   hooks_installed_.store(false, std::memory_order_release);
 }
 
@@ -207,32 +209,39 @@ CobaltLogCollector::ScopedConsumer CobaltLogCollector::RegisterConsumer() {
 }
 
 void CobaltLogCollector::UnregisterConsumer() {
-  base::AutoLock lock(lock_);
-  uint32_t previous = active_consumers_.fetch_sub(1, std::memory_order_acq_rel);
-  DCHECK_GT(previous, 0u);
-  if (previous <= 1) {
-    // Release ring memory immediately once the last consumer stops.
-    std::deque<LogEntry>().swap(entries_);
-    buffered_bytes_ = 0;
-    notify_pending_ = false;
-    ++notify_generation_;
+  std::deque<LogEntry> entries_to_free;
+  {
+    base::AutoLock lock(lock_);
+    uint32_t previous =
+        active_consumers_.fetch_sub(1, std::memory_order_acq_rel);
+    DCHECK_GT(previous, 0u);
+    if (previous <= 1) {
+      // Release ring memory immediately once the last consumer stops, freeing
+      // the swapped storage outside lock_.
+      entries_to_free.swap(entries_);
+      buffered_bytes_ = 0;
+      notify_pending_ = false;
+      ++notify_generation_;
+    }
   }
 }
 
 void CobaltLogCollector::SetNotifyCallback(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     base::RepeatingClosure callback) {
-  base::AutoLock lock(lock_);
-  ++notify_generation_;
-  if (!task_runner || !callback) {
-    notify_task_runner_.reset();
-    notify_callback_.Reset();
+  scoped_refptr<base::SequencedTaskRunner> old_task_runner;
+  base::RepeatingClosure old_callback;
+  {
+    base::AutoLock lock(lock_);
+    ++notify_generation_;
+    old_task_runner = std::move(notify_task_runner_);
+    old_callback = std::move(notify_callback_);
     notify_pending_ = false;
-    return;
+    if (task_runner && callback) {
+      notify_task_runner_ = std::move(task_runner);
+      notify_callback_ = std::move(callback);
+    }
   }
-  notify_task_runner_ = std::move(task_runner);
-  notify_callback_ = std::move(callback);
-  notify_pending_ = false;
 }
 
 void CobaltLogCollector::RecordLogMessage(LogSeverity severity,
@@ -258,7 +267,8 @@ void CobaltLogCollector::RecordLogMessageInternal(LogSeverity severity,
   entry.severity = severity;
   entry.file = ExtractBasename(file);
   entry.line = line;
-  const char* thread_name = base::PlatformThread::GetName();
+  const char* thread_name =
+      base::ThreadIdNameManager::GetInstance()->GetNameForCurrentThread();
   std::string_view thread_view =
       thread_name ? std::string_view(thread_name) : std::string_view();
   if (!thread_view.empty()) {
