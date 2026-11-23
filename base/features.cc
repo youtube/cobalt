@@ -223,6 +223,11 @@ BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
              "CobaltLocalStorageReuseLogsAndSkipEmptyCommits",
              FEATURE_DISABLED_BY_DEFAULT);
 
+// Coalesces and skips redundant lifecycle storage flushes (b/558718401).
+BASE_FEATURE(kCobaltOptimizeLifecycleStorageFlush,
+             "CobaltOptimizeLifecycleStorageFlush",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",

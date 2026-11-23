@@ -215,6 +215,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
                                         const url::Origin& app_origin) override;
 
   virtual void CreateFeatureListAndFieldTrials();
+  virtual bool FlushCookies(StoragePartition* storage_partition,
+                            base::OnceClosure* callback) {
+    return false;
+  }
   ShellBrowserContext* browser_context();
   ShellBrowserContext* off_the_record_browser_context();
   ShellBrowserMainParts* shell_browser_main_parts();

@@ -51,6 +51,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"
+#include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_functions.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -409,6 +410,10 @@ class SQLitePersistentCookieStore::Backend
   // Post background delete of all cookies that match |cookies|.
   void DeleteAllInList(const std::list<CookieOrigin>& cookies);
 
+#if BUILDFLAG(IS_COBALT)
+  void Flush(base::OnceClosure callback);
+#endif  // BUILDFLAG(IS_COBALT)
+
  private:
   // You should call Close() before destructing this object.
   ~Backend() override {
@@ -517,6 +522,13 @@ class SQLitePersistentCookieStore::Backend
   std::unique_ptr<CookieCryptoDelegate> crypto_;
 
 #if BUILDFLAG(IS_COBALT)
+  void OnCommitComplete() {
+    base::AutoLock locked(lock_);
+    DCHECK_GT(in_flight_commits_, 0u);
+    --in_flight_commits_;
+  }
+  bool load_complete_ GUARDED_BY(lock_) = false;
+  size_t in_flight_commits_ GUARDED_BY(lock_) = 0;
   // Timer for the total load time of the cookie database.
   std::unique_ptr<base::ElapsedTimer> load_timer_;
 #endif  // BUILDFLAG(IS_COBALT)
@@ -1572,6 +1584,7 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
 #if BUILDFLAG(IS_COBALT)
   size_t op_count = 0;
   base::ElapsedTimer commit_timer;
+  base::ScopedClosureRunner commit_done;
 #endif  // BUILDFLAG(IS_COBALT)
 
   PendingOperationsMap ops;
@@ -1579,6 +1592,13 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     base::AutoLock locked(lock_);
     pending_.swap(ops);
     num_pending_ = 0;
+#if BUILDFLAG(IS_COBALT)
+    if (!ops.empty()) {
+      ++in_flight_commits_;
+      commit_done.ReplaceClosure(
+          base::BindOnce(&Backend::OnCommitComplete, this));
+    }
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
   // Maybe an old timer fired or we are already Close()'ed.
@@ -1771,6 +1791,28 @@ void SQLitePersistentCookieStore::Backend::DeleteAllInList(
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+void SQLitePersistentCookieStore::Backend::Flush(base::OnceClosure callback) {
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltOptimizeLifecycleStorageFlush)) {
+    DCHECK(!background_task_runner()->RunsTasksInCurrentSequence());
+    bool skip_background_hop = false;
+    {
+      base::AutoLock locked(lock_);
+      skip_background_hop = load_complete_ && pending_.empty() &&
+                            num_pending_ == 0 && in_flight_commits_ == 0;
+    }
+    if (skip_background_hop) {
+      if (callback) {
+        PostClientTask(FROM_HERE, std::move(callback));
+      }
+      return;
+    }
+  }
+  SQLitePersistentStoreBackendBase::Flush(std::move(callback));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void SQLitePersistentCookieStore::Backend::DeleteSessionCookiesOnStartup() {
   DCHECK(background_task_runner()->RunsTasksInCurrentSequence());
   if (!db()->Execute("DELETE FROM cookies WHERE is_persistent != 1"))
@@ -1829,6 +1871,10 @@ void SQLitePersistentCookieStore::Backend::FinishedLoadingCookies(
     UMA_HISTOGRAM_TIMES("Cobalt.Storage.Cookie.LoadDuration",
                         load_timer_->Elapsed());
     load_timer_.reset();
+  }
+  if (success && keys_to_load_.empty()) {
+    base::AutoLock locked(lock_);
+    load_complete_ = true;
   }
 #endif  // BUILDFLAG(IS_COBALT)
   PostClientTask(FROM_HERE,

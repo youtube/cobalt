@@ -3107,6 +3107,152 @@ TEST_F(SQLitePersistentCookieStoreTest, CobaltSkipCookieUpdateAccess) {
 
   DestroyStore();
 }
+
+TEST_F(SQLitePersistentCookieStoreTest,
+       CobaltOptimizeLifecycleStorageFlushFastPathAndSafety) {
+  EXPECT_FALSE(base::FeatureList::IsEnabled(
+      base::features::kCobaltOptimizeLifecycleStorageFlush));
+
+  // 1. Default-off: 0-op Flush still hops through background_task_runner_.
+  Create(/*crypt_cookies=*/false, /*restore_old_session_cookies=*/false,
+         /*use_current_thread=*/true, /*enable_exclusive_access=*/false);
+  ASSERT_EQ(0u, Load().size());
+  background_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&SQLitePersistentCookieStoreTest::WaitOnDBEvent,
+                                base::Unretained(this)));
+  base::RunLoop default_flush_loop;
+  bool default_flush_done = false;
+  store_->Flush(base::BindLambdaForTesting([&] {
+    default_flush_done = true;
+    default_flush_loop.Quit();
+  }));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(default_flush_done);
+  db_thread_event_.Signal();
+  default_flush_loop.Run();
+  EXPECT_TRUE(default_flush_done);
+  DestroyStore();
+
+  // 2. Enabled: uninitialized store (Load in flight) must NOT skip background
+  // runner.
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltOptimizeLifecycleStorageFlush);
+  Create(/*crypt_cookies=*/false, /*restore_old_session_cookies=*/false,
+         /*use_current_thread=*/true, /*enable_exclusive_access=*/false);
+  background_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&SQLitePersistentCookieStoreTest::WaitOnDBEvent,
+                                base::Unretained(this)));
+  base::RunLoop load_loop;
+  store_->Load(base::BindLambdaForTesting(
+                   [&](CanonicalCookieVector) { load_loop.Quit(); }),
+               NetLogWithSource::Make(NetLogSourceType::NONE));
+  base::RunLoop uninit_flush_loop;
+  bool uninit_flush_completed = false;
+  store_->Flush(base::BindLambdaForTesting([&] {
+    uninit_flush_completed = true;
+    uninit_flush_loop.Quit();
+  }));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(uninit_flush_completed);
+  db_thread_event_.Signal();
+  load_loop.Run();
+  uninit_flush_loop.Run();
+  EXPECT_TRUE(uninit_flush_completed);
+
+  // 3. Enabled + initialized + 0 pending ops + 0 in-flight commits: skips
+  // wedged background_task_runner_ and posts directly to client_task_runner_.
+  background_task_runner_->PostTask(
+      FROM_HERE, base::BindOnce(&SQLitePersistentCookieStoreTest::WaitOnDBEvent,
+                                base::Unretained(this)));
+  bool fast_flush_completed = false;
+  store_->Flush(
+      base::BindLambdaForTesting([&] { fast_flush_completed = true; }));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_TRUE(fast_flush_completed);
+
+  // 4. Enabled + pending op (!pending_.empty()): waits for background commit.
+  AddCookie("PendingName", "PendingVal", "foo.bar", "/", base::Time::Now());
+  base::RunLoop dirty_flush_loop;
+  bool dirty_flush_completed = false;
+  store_->Flush(base::BindLambdaForTesting([&] {
+    dirty_flush_completed = true;
+    dirty_flush_loop.Quit();
+  }));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(dirty_flush_completed);
+  db_thread_event_.Signal();
+  dirty_flush_loop.Run();
+  EXPECT_TRUE(dirty_flush_completed);
+  DestroyStore();
+
+  // 5. Enabled + in-flight DoCommit (pending_ already swapped to empty, while
+  // transaction has not yet committed): Flush must wait for transaction commit.
+  class BlockingCryptor : public CookieCryptor {
+   public:
+    BlockingCryptor(base::WaitableEvent* entered, base::WaitableEvent* release)
+        : entered_(entered), release_(release) {}
+    bool EncryptString(const std::string& plaintext,
+                       std::string* ciphertext) override {
+      if (entered_) {
+        entered_->Signal();
+        entered_ = nullptr;
+        base::ScopedAllowBaseSyncPrimitivesForTesting allow_wait;
+        release_->Wait();
+      }
+      return CookieCryptor::EncryptString(plaintext, ciphertext);
+    }
+
+   private:
+    raw_ptr<base::WaitableEvent> entered_;
+    raw_ptr<base::WaitableEvent> release_;
+  };
+
+  base::WaitableEvent entered_encrypt;
+  base::WaitableEvent release_encrypt;
+  store_ = base::MakeRefCounted<SQLitePersistentCookieStore>(
+      temp_dir_.GetPath().Append(kCookieFilename),
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      background_task_runner_, /*restore_old_session_cookies=*/false,
+      std::make_unique<BlockingCryptor>(&entered_encrypt, &release_encrypt),
+      /*enable_exclusive_access=*/false);
+  ASSERT_EQ(1u, Load().size());
+
+  AddCookie("InFlight", "Secret", "foo.bar", "/",
+            base::Time::Now() + base::Seconds(1));
+  base::RunLoop first_flush_loop;
+  bool first_flush_done = false;
+  store_->Flush(base::BindLambdaForTesting([&] {
+    first_flush_done = true;
+    first_flush_loop.Quit();
+  }));
+  {
+    base::ScopedAllowBaseSyncPrimitivesForTesting allow_wait;
+    entered_encrypt.Wait();
+  }
+  // pending_ has already been swapped out inside DoCommit(), so queue length is
+  // 0, while in_flight_commits_ == 1.
+  EXPECT_EQ(0u, store_->GetQueueLengthForTesting());
+  base::RunLoop second_flush_loop;
+  bool second_flush_done = false;
+  store_->Flush(base::BindLambdaForTesting([&] {
+    second_flush_done = true;
+    second_flush_loop.Quit();
+  }));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(second_flush_done);
+
+  release_encrypt.Signal();
+  first_flush_loop.Run();
+  second_flush_loop.Run();
+  EXPECT_TRUE(first_flush_done);
+  EXPECT_TRUE(second_flush_done);
+  DestroyStore();
+
+  auto reloaded = CreateAndLoad(/*crypt_cookies=*/true,
+                                /*restore_old_session_cookies=*/false);
+  ASSERT_EQ(2u, reloaded.size());
+  DestroyStore();
+}
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net

@@ -56,6 +56,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/site_instance.h"
+#include "content/public/test/test_storage_partition.h"
 #include "content/test/test_web_contents.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -67,6 +68,7 @@
 #include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
+#include "services/network/public/mojom/cookie_manager.mojom-test-utils.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/ssl_config.mojom.h"
 #include "sql/database.h"
@@ -1376,6 +1378,132 @@ TEST_F(CobaltPlatformServiceBinderTest,
   state_.on_close = close_loop.QuitClosure();
   service.reset();
   close_loop.Run();
+}
+
+class QueuingCookieManager
+    : public network::mojom::CookieManagerInterceptorForTesting {
+ public:
+  network::mojom::CookieManager* GetForwardingInterface() override {
+    NOTREACHED();
+  }
+  void FlushCookieStore(FlushCookieStoreCallback callback) override {
+    pending_callbacks_.push_back(std::move(callback));
+  }
+
+  size_t total_flush_calls() const {
+    return completed_flushes_ + pending_callbacks_.size();
+  }
+  size_t pending_count() const { return pending_callbacks_.size(); }
+
+  void CompleteNextFlush() {
+    ASSERT_FALSE(pending_callbacks_.empty());
+    auto cb = std::move(pending_callbacks_.front());
+    pending_callbacks_.erase(pending_callbacks_.begin());
+    ++completed_flushes_;
+    std::move(cb).Run();
+  }
+
+ private:
+  size_t completed_flushes_ = 0;
+  std::vector<FlushCookieStoreCallback> pending_callbacks_;
+};
+
+class CountingStoragePartition : public content::TestStoragePartition {
+ public:
+  void Flush() override { ++flush_count_; }
+  size_t flush_count() const { return flush_count_; }
+
+ private:
+  size_t flush_count_ = 0;
+};
+
+class StorageFlushTestBrowserClient : public CobaltContentBrowserClient {
+ public:
+  explicit StorageFlushTestBrowserClient(content::StoragePartition* partition)
+      : CobaltContentBrowserClient(/*startup_timestamp=*/std::nullopt,
+                                   /*deep_link=*/""),
+        partition_(partition) {}
+
+  content::StoragePartition* GetPrimaryStoragePartition() override {
+    return partition_;
+  }
+
+ private:
+  raw_ptr<content::StoragePartition> partition_;
+};
+
+TEST_F(CobaltContentBrowserClientTest,
+       FlushCookiesAndLocalStorageDefaultOffDoesNotCoalesce) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      base::features::kCobaltOptimizeLifecycleStorageFlush);
+
+  QueuingCookieManager cookie_manager;
+  CountingStoragePartition partition;
+  partition.set_cookie_manager_for_browser_process(&cookie_manager);
+  StorageFlushTestBrowserClient client(&partition);
+
+  std::vector<int> completed_order;
+  client.FlushCookiesAndLocalStorage(
+      base::BindLambdaForTesting([&] { completed_order.push_back(1); }));
+  client.FlushCookiesAndLocalStorage(
+      base::BindLambdaForTesting([&] { completed_order.push_back(2); }));
+  base::OnceClosure cb3 =
+      base::BindLambdaForTesting([&] { completed_order.push_back(3); });
+  EXPECT_TRUE(client.FlushCookies(&partition, &cb3));
+
+  EXPECT_EQ(partition.flush_count(), 2u);
+  EXPECT_EQ(cookie_manager.total_flush_calls(), 3u);
+  ASSERT_EQ(cookie_manager.pending_count(), 3u);
+
+  cookie_manager.CompleteNextFlush();
+  cookie_manager.CompleteNextFlush();
+  cookie_manager.CompleteNextFlush();
+  EXPECT_THAT(completed_order, testing::ElementsAre(1, 2, 3));
+}
+
+TEST_F(CobaltContentBrowserClientTest,
+       FlushCookiesAndLocalStorageCoalescesConcurrentCallsWhenEnabled) {
+  base::test::ScopedFeatureList feature_list(
+      base::features::kCobaltOptimizeLifecycleStorageFlush);
+  base::HistogramTester histogram_tester;
+
+  QueuingCookieManager cookie_manager;
+  CountingStoragePartition partition;
+  partition.set_cookie_manager_for_browser_process(&cookie_manager);
+  StorageFlushTestBrowserClient client(&partition);
+
+  std::vector<int> completed_order;
+  base::OnceClosure exit_cb =
+      base::BindLambdaForTesting([&] { completed_order.push_back(1); });
+  EXPECT_TRUE(client.FlushCookies(&partition, &exit_cb));
+  client.FlushCookiesAndLocalStorageOnPause();
+  client.FlushCookiesAndLocalStorage(
+      base::BindLambdaForTesting([&] { completed_order.push_back(2); }));
+  client.FlushCookiesAndLocalStorage(
+      base::BindLambdaForTesting([&] { completed_order.push_back(3); }));
+
+  // LocalStorage flushes still trigger immediately, while overlapping cookie
+  // flushes coalesce behind the single in-flight FlushCookieStore.
+  EXPECT_EQ(partition.flush_count(), 3u);
+  EXPECT_EQ(cookie_manager.total_flush_calls(), 1u);
+  ASSERT_EQ(cookie_manager.pending_count(), 1u);
+
+  // Completing wave 1 runs caller 1's callback and schedules a single trailing
+  // FlushCookieStore for all coalesced callers.
+  cookie_manager.CompleteNextFlush();
+  EXPECT_THAT(completed_order, testing::ElementsAre(1));
+  EXPECT_EQ(cookie_manager.total_flush_calls(), 2u);
+  ASSERT_EQ(cookie_manager.pending_count(), 1u);
+  histogram_tester.ExpectTotalCount("Cobalt.Storage.OnPause.FlushDuration", 0);
+
+  // Completing the trailing flush notifies all coalesced callers in FIFO order
+  // and leaves no extra flushes pending.
+  cookie_manager.CompleteNextFlush();
+  EXPECT_THAT(completed_order, testing::ElementsAre(1, 2, 3));
+  EXPECT_EQ(cookie_manager.total_flush_calls(), 2u);
+  EXPECT_EQ(cookie_manager.pending_count(), 0u);
+  histogram_tester.ExpectTotalCount("Cobalt.Storage.OnPause.FlushDuration", 1);
 }
 
 }  // namespace

@@ -26,6 +26,8 @@
 #include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -190,7 +192,9 @@ class AppEventRunnerImpl : public AppEventRunner,
   void DoBlur() override {
     content::Shell::OnBlur();
     auto* client = cobalt::CobaltContentBrowserClient::Get();
-    if (client) {
+    const bool flush_after_ack = base::FeatureList::IsEnabled(
+        base::features::kCobaltOptimizeLifecycleStorageFlush);
+    if (client && !flush_after_ack) {
       client->FlushCookiesAndLocalStorageOnPause();
     }
 #if BUILDFLAG(IS_STARBOARD)
@@ -204,6 +208,11 @@ class AppEventRunnerImpl : public AppEventRunner,
     // WindowAndroid.
 #endif
     WaitForAck(PendingAck::kBlur);
+    if (client && flush_after_ack) {
+      if (auto* post_ack_client = cobalt::CobaltContentBrowserClient::Get()) {
+        post_ack_client->FlushCookiesAndLocalStorageOnPause();
+      }
+    }
   }
 
   void DoFocus() override {

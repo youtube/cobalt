@@ -45,6 +45,7 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.content.browser.input.ImeAdapterImpl;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.NetworkChangeNotifier;
 import org.junit.After;
 import org.junit.Before;
@@ -757,5 +758,170 @@ public class CobaltActivityTest {
     activity.onPrimaryMainFrameNavigationStarted();
     activity.checkAndRetryOnNetworkOnline();
     verify(platformError).retry();
+  }
+
+  private static CobaltActivity createActivityForLifecycleFlushTests(
+      final WebContents webContents,
+      final long delayMs,
+      final boolean flushOnFreezeEnabled,
+      final boolean optimizeFlushEnabled) {
+    final StarboardBridge mockBridge = mock(StarboardBridge.class);
+    TestLifecycleFlushActivity activity =
+        org.robolectric.Robolectric.buildActivity(TestLifecycleFlushActivity.class)
+            .get()
+            .configure(
+                mockBridge, webContents, delayMs, flushOnFreezeEnabled, optimizeFlushEnabled);
+    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.CREATED);
+    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.STARTED);
+    ApplicationStatus.onStateChangeForTesting(activity, ActivityState.RESUMED);
+    return activity;
+  }
+
+  private static class TestLifecycleFlushActivity extends CobaltActivity {
+    private StarboardBridge mBridge;
+    private WebContents mWebContents;
+    private long mDelayMs;
+    private boolean mFlushOnFreeze;
+    private boolean mOptimizeFlush;
+
+    TestLifecycleFlushActivity configure(
+        StarboardBridge bridge,
+        WebContents webContents,
+        long delayMs,
+        boolean flushOnFreeze,
+        boolean optimizeFlush) {
+      mBridge = bridge;
+      mWebContents = webContents;
+      mDelayMs = delayMs;
+      mFlushOnFreeze = flushOnFreeze;
+      mOptimizeFlush = optimizeFlush;
+      return this;
+    }
+
+    @Override
+    public boolean useStarboardLifeCycle() {
+      return false;
+    }
+
+    @Override
+    protected StarboardBridge getStarboardBridge() {
+      return mBridge;
+    }
+
+    @Override
+    public WebContents getActiveWebContents() {
+      return mWebContents;
+    }
+
+    @Override
+    protected boolean shouldFreezeOnBackground() {
+      return true;
+    }
+
+    @Override
+    protected long getFreezeOnBackgroundDelayMs() {
+      return mDelayMs;
+    }
+
+    @Override
+    protected boolean isFlushStorageOnFreezeFeatureEnabled() {
+      return mFlushOnFreeze;
+    }
+
+    @Override
+    protected boolean isOptimizeLifecycleStorageFlushFeatureEnabled() {
+      return mOptimizeFlush;
+    }
+
+    @Override
+    protected ImeAdapterImpl getImeAdapterImpl() {
+      return null;
+    }
+
+    @Override
+    protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
+      return mBridge;
+    }
+  }
+
+  @Test
+  public void testOnStop_DefersFlushToDelayedFreeze_WhenBothFeaturesEnabled() {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+    WebContents webContents = mock(WebContents.class);
+    CobaltActivity activity =
+        createActivityForLifecycleFlushTests(
+            webContents,
+            /* delayMs= */ 1500L,
+            /* flushOnFreezeEnabled= */ true,
+            /* optimizeFlushEnabled= */ true);
+
+    activity.onStop();
+    verify(natives, never()).flushCookiesAndLocalStorage();
+    verify(natives, never()).freezeAndFlushCookiesAndLocalStorage(any());
+
+    ShadowLooper.shadowMainLooper().idleFor(Duration.ofMillis(1500));
+    verify(natives, never()).flushCookiesAndLocalStorage();
+    verify(natives, times(1)).freezeAndFlushCookiesAndLocalStorage(webContents);
+
+    activity.onDestroy();
+    verify(natives, never()).flushCookiesAndLocalStorage();
+  }
+
+  @Test
+  public void testOnStop_FlushesImmediately_WhenOptimizeDisabled() {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+    WebContents webContents = mock(WebContents.class);
+    CobaltActivity activity =
+        createActivityForLifecycleFlushTests(
+            webContents,
+            /* delayMs= */ 1500L,
+            /* flushOnFreezeEnabled= */ true,
+            /* optimizeFlushEnabled= */ false);
+
+    activity.onStop();
+    verify(natives, times(1)).flushCookiesAndLocalStorage();
+    ShadowLooper.shadowMainLooper().idleFor(Duration.ofMillis(1500));
+    verify(natives, times(1)).freezeAndFlushCookiesAndLocalStorage(webContents);
+  }
+
+  @Test
+  public void testOnStop_DelayZero_RoutesThroughFreezeAndFlushOnce_WhenBothEnabled() {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+    WebContents webContents = mock(WebContents.class);
+    CobaltActivity activity =
+        createActivityForLifecycleFlushTests(
+            webContents,
+            /* delayMs= */ 0L,
+            /* flushOnFreezeEnabled= */ true,
+            /* optimizeFlushEnabled= */ true);
+
+    activity.onStop();
+    verify(natives, never()).flushCookiesAndLocalStorage();
+    verify(webContents, never()).onFreeze();
+    verify(natives, times(1)).freezeAndFlushCookiesAndLocalStorage(webContents);
+  }
+
+  @Test
+  public void testOnDestroy_FlushesOnce_WhenDeferredFreezeCancelledBeforeFiring() {
+    CobaltContentBrowserClient.Natives natives = mock(CobaltContentBrowserClient.Natives.class);
+    CobaltContentBrowserClientJni.setInstanceForTesting(natives);
+    WebContents webContents = mock(WebContents.class);
+    CobaltActivity activity =
+        createActivityForLifecycleFlushTests(
+            webContents,
+            /* delayMs= */ 1500L,
+            /* flushOnFreezeEnabled= */ true,
+            /* optimizeFlushEnabled= */ true);
+
+    activity.onStop();
+    verify(natives, never()).flushCookiesAndLocalStorage();
+
+    activity.onDestroy();
+    verify(natives, times(1)).flushCookiesAndLocalStorage();
+    ShadowLooper.shadowMainLooper().idleFor(Duration.ofMillis(1500));
+    verify(natives, never()).freezeAndFlushCookiesAndLocalStorage(any());
   }
 }

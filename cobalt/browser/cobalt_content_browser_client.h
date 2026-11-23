@@ -187,13 +187,15 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   // Returns the StoragePartition of the primary main frame, or nullptr if there
   // is no WebContents yet.
-  content::StoragePartition* GetPrimaryStoragePartition();
+  virtual content::StoragePartition* GetPrimaryStoragePartition();
 
   // Flushes dirty cookies and localStorage when backgrounding/exiting.
   // Note: the completion callback is invoked when the cookie store flush
   // completes; localStorage flush runs asynchronously on the background DB
   // thread.
   void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+  bool FlushCookies(content::StoragePartition* storage_partition,
+                    base::OnceClosure* callback) override;
   // Triggers FlushCookiesAndLocalStorage and records
   // Cobalt.Storage.OnPause.FlushDuration.
   void FlushCookiesAndLocalStorageOnPause();
@@ -238,6 +240,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
  private:
+  void OnCookieFlushComplete(base::OnceClosure callback);
   void DispatchEvent(const std::string&, base::OnceClosure);
   void OnSbWindowCreated(SbWindow window);
   void OnSbWindowDestroyed(SbWindow window);
@@ -246,6 +249,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   bool is_visible_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
+  bool cookie_flush_in_flight_ = false;
+  std::vector<base::OnceClosure> coalesced_cookie_flush_callbacks_;
 
   uint64_t cached_sb_window_ = 0;
   std::vector<

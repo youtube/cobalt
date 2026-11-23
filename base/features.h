@@ -147,6 +147,7 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipCookieUpdateAccess);
 // experimentation (--enable-features=CobaltLocalStorageReuseLogsAndSkipEmptyCommits).
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltOptimizeLifecycleStorageFlush);
 
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type

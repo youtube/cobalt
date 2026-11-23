@@ -85,6 +85,7 @@
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/network/public/cpp/features.h"
@@ -330,6 +331,12 @@ static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
 static jboolean JNI_CobaltContentBrowserClient_IsFlushStorageOnFreezeEnabled(
     JNIEnv*) {
   return base::FeatureList::IsEnabled(features::kCobaltFlushStorageOnFreeze);
+}
+
+static jboolean
+JNI_CobaltContentBrowserClient_IsOptimizeLifecycleStorageFlushEnabled(JNIEnv*) {
+  return base::FeatureList::IsEnabled(
+      base::features::kCobaltOptimizeLifecycleStorageFlush);
 }
 
 static jboolean
@@ -1036,13 +1043,57 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   }
   // Flushes localStorage asynchronously on the background database thread.
   storage_partition->Flush();
-  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
+  FlushCookies(storage_partition, &callback);
+}
+
+bool CobaltContentBrowserClient::FlushCookies(
+    content::StoragePartition* storage_partition,
+    base::OnceClosure* callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* cookie_manager =
+      storage_partition ? storage_partition->GetCookieManagerForBrowserProcess()
+                        : nullptr;
   if (!cookie_manager) {
-    std::move(callback).Run();
+    std::move(*callback).Run();
+    return true;
+  }
+  if (!base::FeatureList::IsEnabled(
+          base::features::kCobaltOptimizeLifecycleStorageFlush)) {
+    cookie_manager->FlushCookieStore(std::move(*callback));
+    return true;
+  }
+  if (cookie_flush_in_flight_) {
+    coalesced_cookie_flush_callbacks_.push_back(std::move(*callback));
+    return true;
+  }
+  cookie_flush_in_flight_ = true;
+  cookie_manager->FlushCookieStore(mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      base::BindOnce(&CobaltContentBrowserClient::OnCookieFlushComplete,
+                     weak_factory_.GetWeakPtr(), std::move(*callback))));
+  return true;
+}
+
+void CobaltContentBrowserClient::OnCookieFlushComplete(
+    base::OnceClosure callback) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto self = weak_factory_.GetWeakPtr();
+  std::move(callback).Run();
+  if (!self) {
     return;
   }
-  // Flushes cookies; invokes callback upon SQLite commit completion.
-  cookie_manager->FlushCookieStore(std::move(callback));
+  cookie_flush_in_flight_ = false;
+  if (!coalesced_cookie_flush_callbacks_.empty()) {
+    std::vector<base::OnceClosure> batch;
+    batch.swap(coalesced_cookie_flush_callbacks_);
+    base::OnceClosure done = base::BindOnce(
+        [](std::vector<base::OnceClosure> cbs) {
+          for (auto& cb : cbs) {
+            std::move(cb).Run();
+          }
+        },
+        std::move(batch));
+    FlushCookies(GetPrimaryStoragePartition(), &done);
+  }
 }
 
 void CobaltContentBrowserClient::FlushHttpServerProperties(
