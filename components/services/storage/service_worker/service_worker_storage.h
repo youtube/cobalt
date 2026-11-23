@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
+#include "build/build_config.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/service_worker_storage_control.mojom.h"
 #include "components/services/storage/public/mojom/storage_policy_update.mojom.h"
@@ -32,10 +33,20 @@
 
 namespace storage {
 
+<<<<<<< HEAD
 class ServiceWorkerDiskCache;
 class ServiceWorkerResourceMetadataWriterImpl;
 class ServiceWorkerResourceReaderImpl;
 class ServiceWorkerResourceWriterImpl;
+=======
+#if BUILDFLAG(IS_COBALT)
+// Reclaims leftover 0-registration ServiceWorker LevelDB directories once on
+// initialization so subsequent launches take upstream LazyOpen(false)'s fast
+// path without opening an empty LevelDB on disk.
+BASE_DECLARE_FEATURE(kCobaltReclaimEmptyServiceWorkerDatabase);
+#endif  // BUILDFLAG(IS_COBALT)
+
+>>>>>>> a16241947f0 (cobalt: Reclaim empty ServiceWorker LevelDB directories on initialization (#14155))
 class ServiceWorkerStorageControlImplTest;
 
 namespace service_worker_storage_unittest {
