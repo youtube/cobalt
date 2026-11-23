@@ -190,7 +190,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
 #if BUILDFLAG(IS_IOS_TVOS)
   bool IsUrlPlayer() const;
-  // Pushes the platform duration before init_cb_ runs.
+  // Pushes the platform duration and video size before init_cb_ runs.
   void OnUrlPlayerInitialized();
   // Handles presenting state for URL player: propagates video resolution
   // for hole-punch rendering and re-applies playback rate.
