@@ -1,4 +1,4 @@
-name: android_23.lts.1+
+name: android
 
 on:
   pull_request:

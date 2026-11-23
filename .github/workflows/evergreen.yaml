@@ -1,4 +1,4 @@
-name: evergreen_23.lts.1+
+name: evergreen
 
 on:
   pull_request:

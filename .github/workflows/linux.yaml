@@ -1,4 +1,4 @@
-name: stub_23.lts.1+
+name: linux
 
 on:
   pull_request:
@@ -17,11 +17,11 @@ on:
         default: false
 
 jobs:
-  stub:
+  linux:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: stub
-      nightly: 'false'
+      platform: linux
+      nightly: ${{ github.event.inputs.nightly }}
