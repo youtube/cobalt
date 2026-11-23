@@ -727,17 +727,18 @@ def _snapshot_histograms(session: _CdpSession,
   lines = []
   merged = {}
   for query in histograms:
+    cdp_query = query.rstrip('*')
     try:
-      response = session.call('Browser.getHistograms', {'query': query})
+      response = session.call('Browser.getHistograms', {'query': cdp_query})
     except Exception:  # pylint: disable=broad-exception-caught
       if reconnect is None:
         raise
       session = reconnect(session)
-      response = session.call('Browser.getHistograms', {'query': query})
+      response = session.call('Browser.getHistograms', {'query': cdp_query})
     raw_hists = response.get('result', {}).get('histograms', [])
     filtered = [
         h for h in raw_hists if isinstance(h, dict) and
-        uma_dump.matches_query(h.get('name', ''), query)
+        uma_dump.matches_query(h.get('name', ''), cdp_query)
     ]
     if isinstance(response.get('result'), dict):
       response = dict(

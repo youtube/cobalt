@@ -117,6 +117,7 @@ LOWER_COUNT_IS_BETTER = (
     'ServiceWorker.Database.OpenResult',
     'Sql.Database.Success.OpenInternalTime.',
     'Sql.Statement.ExecutionTime.',
+    'Sql.vfs.SyncTime',
     'ImportantFile.WriteDuration.',
 )
 # Histograms where a higher value/mean/sum is an intentional improvement

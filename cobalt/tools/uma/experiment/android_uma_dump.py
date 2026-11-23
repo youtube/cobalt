@@ -77,6 +77,7 @@ def matches_query(name: str, query: str) -> bool:
   `HttpCache.Pattern.*`, `V8.CompileScriptMicroSeconds.*`) while rejecting
   unrelated suffix extensions.
   """
+  query = query.rstrip('*')
   if not query:
     return True
   if query.endswith('.'):
