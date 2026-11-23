@@ -100,12 +100,12 @@ void FakeAudioTrack::SetVolume(double volume) {
   volume_ = volume;
 }
 
-int64_t FakeAudioTrack::GetAudioTimestamp(int64_t* updated_at) {
+AudioTrack::AudioTimestamp FakeAudioTrack::GetAudioTimestamp() {
   std::lock_guard lock(mutex_);
-  if (updated_at) {
-    *updated_at = CurrentMonotonicTime();
-  }
-  return consumed_frames_;
+  AudioTimestamp timestamp;
+  timestamp.updated_at_us = CurrentMonotonicTime();
+  timestamp.frame_position = consumed_frames_;
+  return timestamp;
 }
 
 AudioTrack::AudioDeviceChange FakeAudioTrack::GetAndResetAudioDeviceChange() {
