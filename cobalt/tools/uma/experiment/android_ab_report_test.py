@@ -197,6 +197,17 @@ class ReportLogicTest(unittest.TestCase):
         ab_report.polarity(
             'Memory.Experimental.Browser2.Small.ParkableImage.UnparkedSize',
             'mean'), 0)
+    self.assertEqual(
+        ab_report.polarity('Memory.ParkableImage.OnDiskSize.5min', 'value'), -1)
+    self.assertEqual(
+        ab_report.polarity('Memory.ParkableImage.UnparkedSize.5min', 'value'),
+        0)
+    self.assertEqual(
+        ab_report.polarity('Memory.ParkableImage.Read.Throughput', 'count'), -1)
+    self.assertEqual(
+        ab_report.polarity('Memory.ParkableImage.Read.Throughput', 'mean'), 1)
+    self.assertEqual(
+        ab_report.polarity('Memory.ParkableImage.Read.Throughput', 'sum'), 0)
 
   def test_stat_value(self):
     h = _hist('X', 4, 10)

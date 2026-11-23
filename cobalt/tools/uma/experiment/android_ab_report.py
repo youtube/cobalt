@@ -112,6 +112,7 @@ LOWER_COUNT_IS_BETTER = (
     'Memory.ParkableImage.Write.Size',
     'Memory.ParkableImage.Write.Latency',
     'Memory.ParkableImage.Read.Latency',
+    'Memory.ParkableImage.Read.Throughput',
     'Memory.ParkableString.Decompression.Latency',
     'Memory.ParkableString.Read.Latency',
     'ServiceWorker.Database.OpenResult',
@@ -143,6 +144,8 @@ NEUTRAL_VALUE = (
     'Cobalt.Storage.GpuShaderCache.LoadedBytesKB',
     'Cobalt.StorageMigration.',
     'V8.ProduceCodeCacheMicroseconds',
+    'Memory.ParkableImage.UnparkedSize.5min',
+    'Memory.ParkableImage.TotalSize.5min',
     'Memory.Experimental.Browser2.Small.ParkableImage.UnparkedSize',
     'Memory.Experimental.Browser2.Small.ParkableImage.TotalSize',
     'Memory.Experimental.Browser2.Small.ParkableString.CompressedSize',
@@ -351,6 +354,8 @@ def polarity(name: str, stat: str) -> int:
     return 0
   if name == 'DOMStorage.CommitSizeBytesAggregated':
     return -1 if stat == 'sum' else 0
+  if name == 'Memory.ParkableImage.Read.Throughput':
+    return 1 if stat == 'mean' else 0
   if _matches(name, HIGHER_VALUE_IS_BETTER):
     return 1
   if _matches(name, NEUTRAL_VALUE):

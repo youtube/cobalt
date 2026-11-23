@@ -36,13 +36,11 @@ Cobalt.Storage.UserData.StartupTotalSizeKB2
 Cobalt.Storage.DirCache.StartupTotalSizeKB
 Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
-Memory.Experimental.Browser2.Small.ParkableImage.OnDiskSize
-Memory.Experimental.Browser2.Small.ParkableImage.UnparkedSize
-Memory.Experimental.Browser2.Small.ParkableImage.TotalSize
-Memory.Experimental.Browser2.Small.ParkableString.CompressedSize
-Memory.Experimental.Browser2.Small.ParkableString.OnDiskSize
-Memory.Experimental.Browser2.Small.ParkableString.SavingsSize
-Memory.Experimental.Browser2.Small.ParkableString.TotalSize
+Memory.ParkableImage.OnDiskSize.5min
+Memory.ParkableImage.UnparkedSize.5min
+Memory.ParkableImage.TotalSize.5min
+Memory.ParkableImage.TotalWriteTime.5min
+Memory.ParkableImage.TotalReadTime.5min
 Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.Buffer
 Memory.Experimental.Browser2.PartitionAlloc.Partitions.Buffer
 Memory.Browser.PrivateMemoryFootprint
@@ -71,6 +69,7 @@ Cobalt.Storage.LocalStorage.CommitDuration
 DOMStorage.CommitSizeBytesAggregated
 LevelDBEnv.SyncResult
 SessionStorageContext.CommitResult
+Sql.vfs.SyncTime
 
 # ==============================================================================
 # P1: Subsystem Latency, Throughput & Delay UMAs
@@ -98,6 +97,7 @@ SimpleCache.Code.DiskOpenLatency
 SimpleCache.Code.DiskWriteLatency
 Memory.ParkableImage.Write.Latency
 Memory.ParkableImage.Read.Latency
+Memory.ParkableImage.Read.Throughput
 Memory.ParkableString.Compression.SizeKb
 Memory.ParkableString.Read.Latency
 V8.CompileScriptMicroSeconds
