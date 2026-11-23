@@ -31,6 +31,7 @@
 #include <optional>
 
 #include "base/time/time.h"
+#include "base/timer/timer.h"
 #include "starboard/extension/graphics.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
 
@@ -88,6 +89,14 @@ void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir);
 std::optional<base::TimeDelta> GetThrottledFrameInterval(
     const CobaltExtensionGraphicsApi* graphics_extension,
     base::TimeDelta refresh_interval);
+
+// The platform's maximum frame interval is the longest time allowed between
+// two frames, even when nothing on screen changes. Returns that time, never
+// shorter than the frame rate cap or one |refresh_interval| allows, or nullopt
+// if frames are only presented when something changes.
+std::optional<base::TimeDelta> GetMaxTimeBetweenFrames(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval);
 #endif  // BUILDFLAG(IS_STARBOARD)
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
@@ -134,6 +143,13 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   void MaybeClearCachedSplashFiles();
   void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override;
 
+#if BUILDFLAG(IS_STARBOARD)
+  // Presents a frame, then runs again once the platform's maximum frame
+  // interval has passed, as Cobalt 25 did. Some platforms need a frame
+  // presented every so often even when nothing on screen changes.
+  void PresentFrameAtMaximumFrameInterval();
+#endif  // BUILDFLAG(IS_STARBOARD)
+
  protected:
   void InitializeMessageLoopContext() override;
 
@@ -151,6 +167,11 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   std::unique_ptr<memory::AndroidOsSignalEvaluator>
       android_os_signal_evaluator_;
 #endif
+#if BUILDFLAG(IS_STARBOARD)
+  base::DeadlineTimer maximum_frame_interval_timer_;
+  // When |maximum_frame_interval_timer_| is next due.
+  base::TimeTicks maximum_frame_interval_deadline_;
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };

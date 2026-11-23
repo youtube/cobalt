@@ -26,12 +26,15 @@ namespace {
 constexpr base::TimeDelta kRefreshInterval = base::Hertz(60);
 
 CobaltExtensionGraphicsApi GraphicsExtension(
-    float (*minimum_frame_interval)()) {
+    float (*minimum_frame_interval)(),
+    float (*maximum_frame_interval)() = nullptr) {
   CobaltExtensionGraphicsApi graphics_extension = {};
   graphics_extension.name = kCobaltExtensionGraphicsName;
   graphics_extension.version = 2;
   graphics_extension.GetMinimumFrameIntervalInMilliseconds =
       minimum_frame_interval;
+  graphics_extension.GetMaximumFrameIntervalInMilliseconds =
+      maximum_frame_interval;
   return graphics_extension;
 }
 
@@ -114,6 +117,64 @@ TEST(FrameIntervalTest, InvalidAndDefaultIntervalsDoNotCapFrameRate) {
   const CobaltExtensionGraphicsApi sixteen_ms =
       GraphicsExtension([] { return 16.0f; });
   EXPECT_EQ(GetThrottledFrameInterval(&sixteen_ms, kRefreshInterval),
+            std::nullopt);
+}
+
+// A platform that needs a frame at least every 100 ms gets one that often
+// while nothing on screen changes. A maximum frame interval of 0 asks for a
+// frame on every display refresh.
+TEST(FrameIntervalTest, MaximumFrameIntervalSetsMaxTimeBetweenFrames) {
+  const CobaltExtensionGraphicsApi every_100_ms =
+      GraphicsExtension([] { return -1.0f; }, [] { return 100.0f; });
+  EXPECT_EQ(GetMaxTimeBetweenFrames(&every_100_ms, kRefreshInterval),
+            base::Milliseconds(100));
+
+  const CobaltExtensionGraphicsApi every_refresh =
+      GraphicsExtension([] { return -1.0f; }, [] { return 0.0f; });
+  EXPECT_EQ(GetMaxTimeBetweenFrames(&every_refresh, kRefreshInterval),
+            kRefreshInterval);
+}
+
+// The minimum frame interval takes precedence: a platform capped at 30 frames
+// a second is not presented frames more often than that, whatever its maximum
+// frame interval is.
+TEST(FrameIntervalTest, MinimumFrameIntervalLimitsMaxTimeBetweenFrames) {
+  const CobaltExtensionGraphicsApi capped_at_30_every_refresh =
+      GraphicsExtension([] { return 33.0f; }, [] { return 0.0f; });
+  EXPECT_EQ(
+      GetMaxTimeBetweenFrames(&capped_at_30_every_refresh, kRefreshInterval),
+      kRefreshInterval * 2);
+
+  const CobaltExtensionGraphicsApi capped_at_30_every_100_ms =
+      GraphicsExtension([] { return 33.0f; }, [] { return 100.0f; });
+  EXPECT_EQ(
+      GetMaxTimeBetweenFrames(&capped_at_30_every_100_ms, kRefreshInterval),
+      base::Milliseconds(100));
+}
+
+// A platform that sets no maximum frame interval, has no Graphics extension,
+// leaves the callback unset or returns a value that is not a number is only
+// presented frames when something on screen changes.
+TEST(FrameIntervalTest, NoMaximumFrameIntervalPresentsOnlyOnChange) {
+  const CobaltExtensionGraphicsApi not_set =
+      GraphicsExtension([] { return -1.0f; }, [] { return -1.0f; });
+  EXPECT_EQ(GetMaxTimeBetweenFrames(&not_set, kRefreshInterval), std::nullopt);
+
+  EXPECT_EQ(GetMaxTimeBetweenFrames(nullptr, kRefreshInterval), std::nullopt);
+
+  const CobaltExtensionGraphicsApi null_callback =
+      GraphicsExtension([] { return -1.0f; });
+  EXPECT_EQ(GetMaxTimeBetweenFrames(&null_callback, kRefreshInterval),
+            std::nullopt);
+
+  const CobaltExtensionGraphicsApi nan =
+      GraphicsExtension([] { return -1.0f; },
+                        [] { return std::numeric_limits<float>::quiet_NaN(); });
+  EXPECT_EQ(GetMaxTimeBetweenFrames(&nan, kRefreshInterval), std::nullopt);
+
+  const CobaltExtensionGraphicsApi every_100_ms =
+      GraphicsExtension([] { return -1.0f; }, [] { return 100.0f; });
+  EXPECT_EQ(GetMaxTimeBetweenFrames(&every_100_ms, base::TimeDelta()),
             std::nullopt);
 }
 

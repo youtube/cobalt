@@ -165,6 +165,8 @@ source_set("browser") {
       "//components/memory_pressure",
       "//media",
       "//media:media_buildflags",
+      "//ui/aura",
+      "//ui/compositor",
       "//ui/ozone/platform/starboard",
     ]
   }
