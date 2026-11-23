@@ -32,6 +32,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
@@ -686,6 +687,9 @@ TEST_F(MigrationManagerTest,
 
 TEST_F(MigrationManagerTest,
        OptimizationFlagsTruncatedHeaderAndMigratesDefaultFallbackRecord) {
+#if BUILDFLAG(IS_IOS)
+  GTEST_SKIP() << "SbStorageWriteRecord is stubbed on tvOS.";
+#endif
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(kCobaltStorageMigrationOptimization);
 
