@@ -167,6 +167,7 @@ class PLATFORM_EXPORT ParkableImageManager
   std::unique_ptr<DiskDataAllocator> allocator_for_testing_;
 #if BUILDFLAG(IS_COBALT)
   bool renderer_backgrounded_ = false;
+  bool force_park_all_ = false;
   base::OneShotTimer background_parking_timer_;
   std::optional<base::MemoryPressureListener> memory_pressure_listener_;
 #endif  // BUILDFLAG(IS_COBALT)

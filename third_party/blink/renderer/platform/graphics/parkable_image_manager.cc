@@ -6,6 +6,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include <algorithm>
+#include <utility>
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -20,6 +21,15 @@
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 namespace blink {
+
+#if BUILDFLAG(IS_COBALT)
+namespace {
+// Upper safety cap (64 MiB) for Finch overrides of
+// `CobaltParkableMemoryOptimization_max_unparked_kb`; clamping at >= 0 also
+// guards against negative overrides wrapping `size_t`.
+constexpr int kMaxUnparkedBudgetKb = 64 * 1024;
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
 
 struct ParkableImageManager::Statistics {
   size_t unparked_size = 0;
@@ -100,6 +110,7 @@ DiskDataAllocator& ParkableImageManager::data_allocator() const {
 void ParkableImageManager::ResetForTesting() {
 #if BUILDFLAG(IS_COBALT)
   renderer_backgrounded_ = false;
+  force_park_all_ = false;
   background_parking_timer_.Stop();
   memory_pressure_listener_.reset();
 #endif  // BUILDFLAG(IS_COBALT)
@@ -277,11 +288,13 @@ void ParkableImageManager::MaybeParkImages() {
 
   bool should_reschedule = false;
 #if BUILDFLAG(IS_COBALT)
-  if (IsUnparkedBudgetEnabled()) {
-    const size_t budget_bytes =
-        (renderer_backgrounded_ && !background_parking_timer_.IsRunning())
-            ? 0
-            : UnparkedBudgetBytes();
+  const size_t budget_bytes =
+      !IsUnparkedBudgetEnabled() || force_park_all_ ||
+              (renderer_backgrounded_ && !background_parking_timer_.IsRunning())
+          ? 0
+          : UnparkedBudgetBytes();
+  force_park_all_ = false;
+  if (budget_bytes > 0) {
     ParkImagesToBudget(unparked_images, budget_bytes, &should_reschedule);
   } else {
 #endif  // BUILDFLAG(IS_COBALT)
@@ -314,8 +327,9 @@ bool ParkableImageManager::IsUnparkedBudgetEnabled() {
 
 // static
 size_t ParkableImageManager::UnparkedBudgetBytes() {
-  const int kb = std::clamp(
-      features::kCobaltParkableMemoryOptimizationMaxUnparkedKb.Get(), 0, 65536);
+  const int kb =
+      std::clamp(features::kCobaltParkableMemoryOptimizationMaxUnparkedKb.Get(),
+                 0, kMaxUnparkedBudgetKb);
   return static_cast<size_t>(kb) * 1024;
 }
 
@@ -337,50 +351,53 @@ void ParkableImageManager::SetRendererBackgrounded(bool backgrounded) {
   }
 }
 
+// Upstream `MaybeParkImages()` parks every image in the unordered
+// `unparked_images_` HashSet (`0`-byte RAM budget) and has no byte-cap or LRU
+// helper. When a positive foreground RAM budget is active:
+//   1. Sum unparked bytes (skipping images whose disk write is already in
+//      flight) and snapshot each image's last-used timestamp under one lock.
+//   2. Return immediately if total unparked RAM fits within `budget_bytes`.
+//   3. Sort oldest-first (LRU) and call `MaybePark()` until unparked RAM drops
+//      to `<= budget_bytes`.
 void ParkableImageManager::ParkImagesToBudget(
     const WTF::Vector<ParkableImageImpl*>& unparked_images,
     size_t budget_bytes,
     bool* should_reschedule) {
   DCHECK(IsMainThread());
 
-  struct Candidate {
-    raw_ptr<ParkableImageImpl> image;
-    base::TimeTicks last_used;
-  };
-  WTF::Vector<Candidate> candidates;
+  using TimedImage = std::pair<base::TimeTicks, raw_ptr<ParkableImageImpl>>;
+  WTF::Vector<TimedImage> candidates;
   candidates.reserve(unparked_images.size());
   size_t unparked_bytes = 0;
   for (ParkableImageImpl* image : unparked_images) {
-    if (image->ShouldReschedule()) {
-      *should_reschedule = true;
-    }
-    base::TimeTicks last_used = image->frozen_time_;
+    base::TimeTicks last_used;
     {
       base::AutoLock image_lock(image->lock_);
+      if (image->TransientlyUnableToPark()) {
+        *should_reschedule = true;
+      }
       if (image->background_task_in_progress_) {
         continue;
       }
-      if (!image->last_used_time_.is_null()) {
-        last_used = image->last_used_time_;
-      }
+      last_used = std::max(image->frozen_time_, image->last_used_time_);
     }
     unparked_bytes += image->size();
-    candidates.push_back(Candidate{image, last_used});
+    candidates.emplace_back(last_used, image);
   }
   if (unparked_bytes <= budget_bytes) {
     return;
   }
 
   std::stable_sort(candidates.begin(), candidates.end(),
-                   [](const Candidate& a, const Candidate& b) {
-                     return a.last_used < b.last_used;
+                   [](const TimedImage& a, const TimedImage& b) {
+                     return a.first < b.first;
                    });
-  for (const Candidate& candidate : candidates) {
+  for (const auto& [last_used, image] : candidates) {
     if (unparked_bytes <= budget_bytes) {
       break;
     }
-    if (candidate.image->MaybePark(task_runner_)) {
-      unparked_bytes -= candidate.image->size();
+    if (image->MaybePark(task_runner_)) {
+      unparked_bytes -= image->size();
     }
   }
   if (unparked_bytes > budget_bytes && data_allocator().may_write()) {
@@ -393,17 +410,8 @@ void ParkableImageManager::ParkAllImages() {
   if (!IsUnparkedBudgetEnabled()) {
     return;
   }
-  WTF::Vector<ParkableImageImpl*> unparked_images;
-  {
-    base::AutoLock lock(lock_);
-    unparked_images = WTF::Vector<ParkableImageImpl*>(unparked_images_);
-  }
-  bool should_reschedule = false;
-  ParkImagesToBudget(unparked_images, /*budget_bytes=*/0, &should_reschedule);
-  if (should_reschedule) {
-    base::AutoLock lock(lock_);
-    ScheduleDelayedParkingTaskIfNeeded();
-  }
+  force_park_all_ = true;
+  MaybeParkImages();
 }
 
 void ParkableImageManager::OnMemoryPressure(
