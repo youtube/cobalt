@@ -79,7 +79,7 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
           base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache))
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 {
->>>>>>> parent of d4d21cea468 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 561957e6603 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
         this, "GrShaderCache",

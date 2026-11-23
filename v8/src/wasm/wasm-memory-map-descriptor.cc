@@ -79,7 +79,7 @@ v8::MaybeLocal<v8::Object> WasmMemoryMapDescriptor::NewFromAnonymous(
 =======
   CHECK(v8_flags.experimental_wasm_memory_control);
 #if V8_TARGET_OS_LINUX && !BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of d4d21cea468 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 561957e6603 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   int fd = memfd_create("wasm_memory_map_descriptor", MFD_CLOEXEC);
   if (fd == -1) return {};
   if (ftruncate(fd, length) == -1) {

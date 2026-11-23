@@ -734,7 +734,7 @@ void MediaStreamDispatcherHost::ApplySubCaptureTarget(
 =======
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
->>>>>>> parent of d4d21cea468 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 561957e6603 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   const GlobalRenderFrameHostId captured_id =
       media_stream_manager_->video_capture_manager()
