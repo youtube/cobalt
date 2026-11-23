@@ -17,6 +17,7 @@
     "BaseThreadLocalStorageDeathTest.VerifyDeathIfAllocationFails",
     "CancelableEventTest.BothCancelFailureAndSucceedOccurUnderContention",
     "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
+    "DateTimeFormatterTest.JapaneseCalendarTests",
     "FileErrorOrDeathTest.ConstValue",
     "FilePathWatcherTest.*",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/0",

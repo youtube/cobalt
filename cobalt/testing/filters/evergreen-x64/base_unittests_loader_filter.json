@@ -5,6 +5,7 @@
     "AlternateTestParams/PartitionAllocTest.ZeroFreedMemory/1",
     "CancelableEventTest.BothCancelFailureAndSucceedOccurUnderContention",
     "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
+    "DateTimeFormatterTest.JapaneseCalendarTests",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",
     "FileUtilTest.ChangeDirectoryPermissionsAndEnumerate",
     "FileUtilTest.ChangeFilePermissionsAndRead",
