@@ -189,6 +189,55 @@ body {
   gap: 10px;
 }
 
+.native-logs-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.severity-select {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-bright);
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.severity-select:focus {
+  outline: none;
+  border-color: var(--accent-cobalt);
+}
+
+.severity-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-native-logs-active {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: var(--status-connected);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+}
+
+.btn-native-logs-active:hover:not(:disabled) {
+  background-color: rgba(34, 197, 94, 0.3);
+}
+
 /* Real-Time Live Memory Chart Section */
 .chart-section {
   background-color: var(--bg-card);

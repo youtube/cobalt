@@ -125,7 +125,9 @@
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "cobalt/browser/devtools/cobalt_devtools_manager_delegate.h"
 #include "cobalt/browser/proxy_server_support.h"
+#include "cobalt/shell/browser/shell_browser_context.h"
 #endif
 
 #include "starboard/configuration_constants.h"
@@ -515,7 +517,7 @@ CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return nullptr;
 #else
-  return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
+  return std::make_unique<CobaltDevToolsManagerDelegate>(browser_context());
 #endif
 }
 

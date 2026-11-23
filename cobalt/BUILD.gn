@@ -564,4 +564,8 @@ test("cobalt_unittests") {
       "//net:test_support",
     ]
   }
+
+  if (!cobalt_is_release_build) {
+    deps += [ "//cobalt/browser/devtools:unit_tests" ]
+  }
 }

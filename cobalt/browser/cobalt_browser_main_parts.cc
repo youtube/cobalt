@@ -101,6 +101,7 @@
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
+#include "cobalt/browser/devtools/cobalt_devtools_manager_delegate.h"
 #include "components/services/heap_profiling/heap_profiling_service.h"  // nogncheck
 #include "components/services/heap_profiling/public/cpp/profiling_client.h"  // nogncheck
 #include "components/services/heap_profiling/public/mojom/heap_profiling_service.mojom.h"  // nogncheck
@@ -502,6 +503,10 @@ void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir) {
 }
 
 int CobaltBrowserMainParts::PreEarlyInitialization() {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  CobaltDevToolsManagerDelegate::InitializeNativeLogging();
+#endif
+
   if (!base::GlobalHistogramAllocator::Get()) {
     base::FilePath base_dir;
     if (!GetStabilityMetricsBaseDirectory(&base_dir)) {
@@ -835,6 +840,9 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  CobaltDevToolsManagerDelegate::ShutdownNativeLogging();
+#endif
 #if BUILDFLAG(IS_ANDROID)
   android_os_signal_evaluator_.reset();
 #endif

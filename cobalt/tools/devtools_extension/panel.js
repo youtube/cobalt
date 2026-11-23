@@ -89,14 +89,20 @@ const MAX_HISTORY_SAMPLES = 60;
 const liveHistory = [];
 
 let ws = null;
+let connectionGeneration = 0;
 let pollInterval = null;
 let nextRequestId = 1;
 let latestMetrics = {};
+const pendingRequests = new Map();
+let nativeLoggingEnabled = false;
+let nativeLoggingSupported = false;
 
 // DOM Elements
 const cdpUrlInput = document.getElementById("cdp-url");
 const btnConnect = document.getElementById("btn-connect");
 const btnRefresh = document.getElementById("btn-refresh");
+const btnNativeLogs = document.getElementById("btn-native-logs");
+const nativeLogSeveritySelect = document.getElementById("native-log-severity");
 const statusBadge = document.getElementById("connection-status");
 const streamingBadge = document.getElementById("streaming-badge");
 const tableBody = document.getElementById("metrics-table-body");
@@ -181,18 +187,125 @@ async function resolveWebSocketUrl(baseHostUrl) {
   return pageTarget.webSocketDebuggerUrl;
 }
 
-function sendCdpCommand(method, params = {}) {
+function sendCdpCommand(method, params = {}, callbacks = null) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     const id = nextRequestId++;
+    if (callbacks) {
+      pendingRequests.set(id, callbacks);
+    }
     ws.send(JSON.stringify({ id, method, params }));
+    return id;
   }
+  return null;
+}
+
+function resetNativeLogsUi(tooltip) {
+  nativeLoggingEnabled = false;
+  nativeLoggingSupported = false;
+  btnNativeLogs.disabled = true;
+  btnNativeLogs.textContent = "Native Logs: Off";
+  btnNativeLogs.className = "btn btn-secondary";
+  btnNativeLogs.setAttribute("aria-pressed", "false");
+  btnNativeLogs.title = tooltip;
+  nativeLogSeveritySelect.disabled = true;
+}
+
+function renderNativeLogsUi(state) {
+  nativeLoggingEnabled = Boolean(state && state.enabled);
+  if (state && typeof state.minSeverity === "string") {
+    const hasOption = Array.from(nativeLogSeveritySelect.options).some(
+      (opt) => opt.value === state.minSeverity
+    );
+    if (hasOption) {
+      nativeLogSeveritySelect.value = state.minSeverity;
+    }
+  }
+  btnNativeLogs.disabled = !nativeLoggingSupported;
+  nativeLogSeveritySelect.disabled = !nativeLoggingSupported;
+  btnNativeLogs.textContent = nativeLoggingEnabled
+    ? "Native Logs: On"
+    : "Native Logs: Off";
+  btnNativeLogs.className = nativeLoggingEnabled
+    ? "btn btn-native-logs-active"
+    : "btn btn-secondary";
+  btnNativeLogs.setAttribute("aria-pressed", String(nativeLoggingEnabled));
+  btnNativeLogs.title = nativeLoggingEnabled
+    ? "Streaming native Cobalt logs to Chrome DevTools Console (click to stop)"
+    : "Stream native Cobalt logs to Chrome DevTools Console (click to start)";
+}
+
+function queryNativeLoggingState() {
+  sendCdpCommand("Cobalt.getNativeLoggingState", {}, {
+    onResult: (result) => {
+      nativeLoggingSupported = true;
+      renderNativeLogsUi(result);
+    },
+    onError: () => {
+      resetNativeLogsUi(
+        "Native log toggle is not supported by this Cobalt target"
+      );
+    },
+  });
+}
+
+function setNativeLogging(enabled, replayBacklog) {
+  if (!nativeLoggingSupported || !ws || ws.readyState !== WebSocket.OPEN) {
+    return;
+  }
+  btnNativeLogs.disabled = true;
+  nativeLogSeveritySelect.disabled = true;
+  sendCdpCommand(
+    "Cobalt.setNativeLogging",
+    {
+      enabled,
+      minSeverity: nativeLogSeveritySelect.value,
+      replayBacklog,
+    },
+    {
+      onResult: (result) => {
+        renderNativeLogsUi(result);
+      },
+      onError: (err) => {
+        console.error("Failed to toggle Cobalt native logging:", err);
+        queryNativeLoggingState();
+      },
+    }
+  );
+}
+
+function toggleNativeLogs() {
+  const nextEnabled = !nativeLoggingEnabled;
+  setNativeLogging(nextEnabled, nextEnabled);
+}
+
+function onNativeLogSeverityChange() {
+  if (nativeLoggingSupported && nativeLoggingEnabled) {
+    setNativeLogging(true, false);
+  }
+}
+
+function setDisconnectedUi(badgeText) {
+  clearPolling();
+  pendingRequests.clear();
+  statusBadge.textContent = badgeText;
+  statusBadge.className = "status-badge disconnected";
+  streamingBadge.textContent = "● 1 Hz Inactive";
+  streamingBadge.className = "streaming-badge inactive";
+  btnConnect.textContent = "Connect";
+  btnConnect.className = "btn btn-primary";
+  btnRefresh.disabled = true;
+  resetNativeLogsUi(
+    "Connect to Cobalt to toggle native C++ logs in DevTools Console"
+  );
 }
 
 async function connectCDP() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    clearPolling();
-    ws.close();
+    connectionGeneration++;
+    const oldSocket = ws;
     ws = null;
+    oldSocket.close();
+    setDisconnectedUi("Disconnected");
     return;
   }
 
@@ -203,14 +316,20 @@ async function connectCDP() {
     return;
   }
 
+  const generation = ++connectionGeneration;
   try {
     statusBadge.textContent = "Connecting...";
     statusBadge.className = "status-badge";
 
     const wsUrl = await resolveWebSocketUrl(targetUrl);
-    ws = new WebSocket(wsUrl);
+    if (generation !== connectionGeneration) {
+      return;
+    }
+    const socket = new WebSocket(wsUrl);
+    ws = socket;
 
-    ws.onopen = () => {
+    socket.onopen = () => {
+      if (generation !== connectionGeneration || ws !== socket) return;
       statusBadge.textContent = "Connected ●";
       statusBadge.className = "status-badge connected";
       streamingBadge.textContent = "● 1 Hz Active";
@@ -225,16 +344,31 @@ async function connectCDP() {
 
       sendCdpCommand("Performance.enable");
       requestMetrics();
+      queryNativeLoggingState();
 
       // Static 1 Hz live telemetry streaming polling
       clearPolling();
       pollInterval = setInterval(requestMetrics, 1000);
     };
 
-    ws.onmessage = (event) => {
+    socket.onmessage = (event) => {
+      if (generation !== connectionGeneration || ws !== socket) return;
       try {
         const msg = JSON.parse(event.data);
         if (!msg || typeof msg !== "object") return;
+        const pending =
+          typeof msg.id === "number" ? pendingRequests.get(msg.id) : null;
+        if (pending) {
+          pendingRequests.delete(msg.id);
+          if (msg.error) {
+            if (pending.onError) {
+              pending.onError(msg.error);
+            }
+          } else if (pending.onResult) {
+            pending.onResult(msg.result || {});
+          }
+          return;
+        }
         if (msg.error) {
           console.error("CDP Protocol Error:", msg.error);
           return;
@@ -247,34 +381,23 @@ async function connectCDP() {
       }
     };
 
-    ws.onclose = () => {
-      clearPolling();
-      statusBadge.textContent = "Disconnected";
-      statusBadge.className = "status-badge disconnected";
-      streamingBadge.textContent = "● 1 Hz Inactive";
-      streamingBadge.className = "streaming-badge inactive";
-      btnConnect.textContent = "Connect";
-      btnConnect.className = "btn btn-primary";
-      btnRefresh.disabled = true;
+    socket.onclose = () => {
+      if (generation !== connectionGeneration || ws !== socket) return;
+      ws = null;
+      setDisconnectedUi("Disconnected");
     };
 
-    ws.onerror = (err) => {
+    socket.onerror = (err) => {
+      if (generation !== connectionGeneration || ws !== socket) return;
       console.error("WebSocket error:", err);
-      clearPolling();
-      statusBadge.textContent = "Error";
-      statusBadge.className = "status-badge disconnected";
-      streamingBadge.textContent = "● 1 Hz Inactive";
-      streamingBadge.className = "streaming-badge inactive";
-      btnRefresh.disabled = true;
+      setDisconnectedUi("Error");
     };
   } catch (error) {
+    if (generation !== connectionGeneration) {
+      return;
+    }
     console.error("Connection failed:", error);
-    clearPolling();
-    statusBadge.textContent = "Failed";
-    statusBadge.className = "status-badge disconnected";
-    streamingBadge.textContent = "● 1 Hz Inactive";
-    streamingBadge.className = "streaming-badge inactive";
-    btnRefresh.disabled = true;
+    setDisconnectedUi("Failed");
   }
 }
 
@@ -679,3 +802,5 @@ function setupChartInteractivity() {
 // Event Listeners
 btnConnect.addEventListener("click", connectCDP);
 btnRefresh.addEventListener("click", requestMetrics);
+btnNativeLogs.addEventListener("click", toggleNativeLogs);
+nativeLogSeveritySelect.addEventListener("change", onNativeLogSeverityChange);
