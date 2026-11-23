@@ -255,6 +255,10 @@ jobs:
           PREFIX="refs/heads/autoroll-${SOURCE_BRANCH}-to-${TARGET_BRANCH}"
           for BRANCH in $(git for-each-ref --format='%(refname:short)' \
             "${PREFIX}-conflict-*"); do
+            # `gh stack init` checks out the adopted branch, and refuses to run
+            # while the current branch is already part of a stack. Return to
+            # the roll branch so each conflict branch gets its own stack.
+            git checkout "${ROLL_BRANCH}"
             gh stack init --base "${ROLL_BRANCH}" "${BRANCH}"
             gh stack submit --auto
             PR_NUMBER=$(gh pr view "${BRANCH}" --json number --jq .number)
