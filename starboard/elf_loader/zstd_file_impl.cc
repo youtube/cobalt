@@ -59,15 +59,11 @@ bool ZstdFileImpl::Open(const char* name) {
     return false;
   }
 
-  struct stat st;
-  if (fstat(file_, &st) != 0) {
+  if (size_ <= 0 ||
+      static_cast<uint64_t>(size_) > std::numeric_limits<size_t>::max()) {
     return false;
   }
-  if (st.st_size <= 0 ||
-      static_cast<uint64_t>(st.st_size) > std::numeric_limits<size_t>::max()) {
-    return false;
-  }
-  compressed_data_size_ = static_cast<size_t>(st.st_size);
+  compressed_data_size_ = static_cast<size_t>(size_);
 
   SB_LOG(INFO) << "Reading " << compressed_data_size_
                << " bytes from zstd file...";
