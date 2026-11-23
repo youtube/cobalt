@@ -94,10 +94,8 @@ config("starboard_implementation") {
 
 config("cpp20_supported_config") {
   if (current_toolchain == default_toolchain) {
-    if (sb_is_modular || is_android) {
+    if (is_linux || is_android) {
       configs = [ ":modular_cpp20_config" ]
-    } else if (is_linux) {
-      configs = [ ":linux_non_modular_cpp20_config" ]
     } else if (is_apple) {
       configs = [ ":apple_cpp20_config" ]
     } else {
@@ -111,10 +109,6 @@ config("cpp20_supported_config") {
 config("apple_cpp20_config") {
   cflags_cc = [ "-std=gnu++20" ]
   cflags_objcc = [ "-std=gnu++20" ]
-}
-
-config("linux_non_modular_cpp20_config") {
-  cflags_cc = [ "-std=gnu++20" ]
 }
 
 config("modular_cpp20_config") {
