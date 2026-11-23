@@ -361,8 +361,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
             !is_flushed_));
     }
     if (should_update_media_time) {
-      playback_head_position =
-          audio_track_->GetAudioTimestamp(&frames_consumed_at);
+      const AudioTrack::AudioTimestamp audio_timestamp =
+          audio_track_->GetAudioTimestamp();
+      playback_head_position = audio_timestamp.frame_position;
+      frames_consumed_at = audio_timestamp.updated_at_us;
 
       int frames_consumed = 0;
       if (last_playback_head_position == -1) {
