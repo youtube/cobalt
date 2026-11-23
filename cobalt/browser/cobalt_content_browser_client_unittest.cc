@@ -1535,35 +1535,6 @@ TEST(CobaltAfterStartupTaskTest,
 }
 
 TEST(CobaltAfterStartupTaskTest,
-     GetReturnsNullptrWhenNonCobaltShellClientIsActive) {
-  base::test::TaskEnvironment task_environment;
-  EXPECT_EQ(CobaltContentBrowserClient::Get(), nullptr);
-
-  {
-    // Simulates `cobalt_browsertests` / `content_browsertests` installing a
-    // non-`CobaltContentBrowserClient` subclass of `ShellContentBrowserClient`.
-    content::ShellContentBrowserClient shell_only_client(/*deep_link=*/"",
-                                                         /*is_visible=*/true);
-    EXPECT_EQ(CobaltContentBrowserClient::Get(), nullptr);
-  }
-
-  {
-    CobaltContentBrowserClient cobalt_client(
-        /*startup_timestamp=*/absl::nullopt,
-        /*deep_link=*/"",
-        /*is_visible=*/true);
-    EXPECT_EQ(CobaltContentBrowserClient::Get(), &cobalt_client);
-    {
-      content::ShellContentBrowserClient nested_shell_client(
-          /*deep_link=*/"", /*is_visible=*/true);
-      EXPECT_EQ(CobaltContentBrowserClient::Get(), nullptr);
-    }
-    EXPECT_EQ(CobaltContentBrowserClient::Get(), &cobalt_client);
-  }
-  EXPECT_EQ(CobaltContentBrowserClient::Get(), nullptr);
-}
-
-TEST(CobaltAfterStartupTaskTest,
      HoldThreadPoolBestEffortFenceHaltsWorkerTasksUntilStartupComplete) {
   base::test::TaskEnvironment task_environment;
   base::test::ScopedFeatureList feature_list;

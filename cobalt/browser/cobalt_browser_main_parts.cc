@@ -580,9 +580,12 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
 #endif
 }
 
-CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
-                                               bool is_visible)
-    : ShellBrowserMainParts(deep_link, is_visible) {}
+CobaltBrowserMainParts::CobaltBrowserMainParts(
+    const std::string& deep_link,
+    bool is_visible,
+    CobaltContentBrowserClient* browser_client)
+    : ShellBrowserMainParts(deep_link, is_visible),
+      browser_client_(browser_client) {}
 
 CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
 
@@ -614,13 +617,19 @@ int CobaltBrowserMainParts::PreCreateThreads() {
       base::android::AttachCurrentThread());
 #endif
 #if BUILDFLAG(IS_ANDROID)
-  // Upstream `BrowserMainLoop` only instantiates
-  // `scoped_best_effort_execution_fence_` on `!BUILDFLAG(IS_ANDROID)`
-  // (`content/browser/browser_main_loop.cc:492`). Hold an explicit `ThreadPool`
-  // `BEST_EFFORT` fence before `BrowserMainLoop::CreateThreads()` releases
-  // `scoped_execution_fence_` when `kCobaltDeferAfterStartupTasks` is enabled.
-  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
-    browser_client->HoldThreadPoolBestEffortFenceIfDeferred();
+  // All Cobalt platforms previously ran `PostAfterStartupTask()` and
+  // `BEST_EFFORT` tasks at t=0ms because base `ContentBrowserClient` did not
+  // defer `BrowserMainLoop::CreateThreads()`'s startup-complete callback
+  // (`content/browser/browser_main_loop.cc:969`). With
+  // `CobaltContentBrowserClient::PostAfterStartupTask()` deferred,
+  // `!BUILDFLAG(IS_ANDROID)` platforms automatically hold `ThreadPool`
+  // `BEST_EFFORT` tasks via `BrowserMainLoop`'s
+  // `scoped_best_effort_execution_fence_` (`browser_main_loop.cc:492,975`),
+  // whereas upstream omits that fence on `BUILDFLAG(IS_ANDROID)`
+  // (`crbug.com/887407`). Hold an explicit `ScopedBestEffortExecutionFence`
+  // here so Android TV achieves the same `ThreadPool` `BEST_EFFORT` deferral.
+  if (browser_client_) {
+    browser_client_->HoldThreadPoolBestEffortFenceIfDeferred();
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   return ShellBrowserMainParts::PreCreateThreads();
@@ -628,8 +637,8 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
-  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
-    browser_client->StartAfterStartupTaskFailsafeTimer();
+  if (browser_client_) {
+    browser_client_->StartAfterStartupTaskFailsafeTimer();
   }
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
@@ -699,9 +708,10 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   MaybeApplyMemoryAblation();
 
 #if !BUILDFLAG(IS_ANDROIDTV)
-  if (auto* client = CobaltContentBrowserClient::Get()) {
-    client->SetUserAgentCrashAnnotation();
-  }
+  auto* client = CobaltContentBrowserClient::Get();
+  CHECK(client) << "CobaltContentBrowserClient::Get() returned NULL in "
+                << "PreMainMessageLoopRun!";
+  client->SetUserAgentCrashAnnotation();
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
 #if BUILDFLAG(USE_EVERGREEN) || BUILDFLAG(IS_ANDROIDTV)
@@ -847,8 +857,8 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
-  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
-    browser_client->CancelDeferredAfterStartupTasks();
+  if (browser_client_) {
+    browser_client_->CancelDeferredAfterStartupTasks();
   }
 #if BUILDFLAG(IS_ANDROID)
   android_os_signal_evaluator_.reset();
@@ -861,8 +871,8 @@ void CobaltBrowserMainParts::PostMainMessageLoopRun() {
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
 #if BUILDFLAG(IS_ANDROID)
-  if (auto* browser_client = CobaltContentBrowserClient::Get()) {
-    browser_client->ReleaseThreadPoolBestEffortFence();
+  if (browser_client_) {
+    browser_client_->ReleaseThreadPoolBestEffortFence();
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   GlobalFeatures::GetInstance()->Shutdown();
