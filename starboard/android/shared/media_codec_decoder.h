@@ -107,6 +107,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       SbDrmSystem drm_system,
       const SbMediaColorMetadata* color_metadata,
       bool require_software_codec,
+      bool is_high_bit_depth,
       const FrameRenderedCB& frame_rendered_cb,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
@@ -138,6 +139,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
       SbDrmSystem drm_system,
       const SbMediaColorMetadata* color_metadata,
       bool require_software_codec,
+      bool is_high_bit_depth,
       const FrameRenderedCB& frame_rendered_cb,
       const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
       std::optional<int> tunnel_mode_audio_session_id,
@@ -223,6 +225,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
+  // Invoked by |drm_system_| with its callback lock held; acquires |mutex_|.
+  // Never register or unregister while holding |mutex_|.
+  void OnDrmKeyStateChanged();
 
   // MediaCodec::Handler methods
   void OnMediaCodecError(bool is_recoverable,

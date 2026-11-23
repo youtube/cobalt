@@ -50,6 +50,11 @@ SessionStorageContext.CommitResult
 Cobalt.Storage.Cookie.LoadDuration
 Cookie.TimeBlockedOnLoad
 Cobalt.Storage.OnPause.FlushDuration
+# HttpServerProperties flush on onPause when
+# CobaltFlushHttpServerPropertiesOnPause is enabled (duration only when an
+# update was actually written; Flushed gives the pending/no-op ratio).
+Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration
+Cobalt.Storage.OnPause.HttpServerPropertiesFlushed
 Cobalt.Storage.Exit.CookieFlushDuration
 DOMStorage.CommitMeasuredDelay
 
@@ -76,7 +81,7 @@ Cobalt.Storage.ProcessIo.WriteRateKBPerMin
 # --- P2.1 Cold-Start Latency & Thread Congestion Guardrails ---
 Cobalt.Startup.Time.NavigationDispatchToCommit
 Cobalt.Startup.MilestoneReached
-Cobalt.Startup.MilestoneDuration.
+Cobalt.Startup.TimeToMilestone.
 Browser.MainThreadsCongestion
 
 # --- P2.2 Data Integrity & Error Guardrails ---

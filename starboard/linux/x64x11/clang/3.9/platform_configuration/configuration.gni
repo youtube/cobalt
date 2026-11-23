@@ -18,16 +18,12 @@ if (current_toolchain == default_toolchain &&
   platform_tests_path =
       "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
   cobalt_font_package = "standard"
-
-  sb_has_unused_symbol_issue = true
 } else {
   import("//starboard/linux/shared/platform_configuration/configuration.gni")
 
   sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 
   gl_type = "system_gles2"
-
-  cobalt_v8_emit_builtins_as_inline_asm = true
 
   v8_enable_webassembly = false
 }

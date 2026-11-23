@@ -39,6 +39,7 @@ import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
+import dev.cobalt.features.CobaltFeatureList;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
@@ -94,8 +95,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
-
-  private boolean mForceCreateNewVideoSurfaceView;
 
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
@@ -209,6 +208,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
+
+    // Apply feature params cached by the previous launch that must take effect before native code
+    // runs, e.g., the low-end device threshold used by base::SysInfo::IsLowEndDevice(), which is
+    // evaluated during library loading, before the FeatureList is initialized.
+    CobaltFeatureList.applyCachedValuesBeforeNative();
 
     StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_LIBRARY_LOADER_INIT);
     // This initializes JNI and ends up calling JNI_OnLoad in native code
@@ -342,6 +346,11 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
+    // Persist feature params (from Finch or --enable-features) for the next launch, see
+    // CobaltFeatureList.applyCachedValuesBeforeNative(). Like the call above, this must come after
+    // CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
+    CobaltFeatureList.cacheNativeValues();
+
     // Load an empty page to let shell create WebContents. Override Shell.java's
     // onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
@@ -463,6 +472,23 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @VisibleForTesting
   void setupStartupGuard() {
+    StartupGuard.getInstance()
+        .setObserver(
+            new StartupGuard.Observer() {
+              @Override
+              public void onMilestoneReached(int milestone) {
+                CobaltProcessStateSummary.onStartupMilestoneReached(
+                    milestone,
+                    StartupGuard.getInstance().getStartupStatus(),
+                    StartupGuard.getInstance().isArmed());
+              }
+
+              @Override
+              public void onArmedChanged(boolean armed) {
+                CobaltProcessStateSummary.onStartupGuardArmedChanged(
+                    armed, StartupGuard.getInstance().getStartupStatus());
+              }
+            });
     Map<String, String> switches = getJavaSwitches();
     if (switches.containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
       Log.i(TAG, "StartupGuard is disabled by Java switch.");
@@ -522,7 +548,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     } else {
       Log.i(TAG, "Do not create VideoSurfaceView.");
     }
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_START);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_CREATE);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
       mBackInvokedCallback = OnBackInvokedHelper.register(this);
@@ -582,16 +608,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStart() {
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_RESUME);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_ACTIVITY_ON_START);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
     if (mIsCobaltUsingAndroidOverlay) {
       Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
-    } else if (mForceCreateNewVideoSurfaceView) {
-      Log.w(TAG, "Force to create a new video surface.");
-      createNewSurfaceView();
     }
 
     DisplayUtil.cacheDefaultDisplay(this);
@@ -626,7 +649,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     }
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_PAUSE);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_START);
   }
 
   @Override
@@ -675,20 +698,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // process is killed while the app is in the background.
     CobaltContentBrowserClient.flushCookiesAndLocalStorage();
 
-    if (VideoSurfaceView.getCurrentSurface() != null) {
-      mForceCreateNewVideoSurfaceView = true;
-    }
     MemoryPressureMonitor.INSTANCE.disablePolling();
-
-    // Set the SurfaceView to fullscreen.
-    View rootView = getWindow().getDecorView();
-    setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_STOP);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.PRE_ACTIVITY_ON_RESUME);
     checkAndRetryOnNetworkOnline();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
@@ -700,7 +716,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     } else {
       CobaltContentBrowserClient.dispatchFocus();
     }
-    StartupGuard.getInstance().setStartupMilestone(StartupGuard.ACTIVITY_ON_DESTROY);
+    StartupGuard.getInstance().setStartupMilestone(StartupGuard.POST_ACTIVITY_ON_RESUME);
   }
 
   @Override
@@ -909,6 +925,16 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   }
 
   /**
+   * Returns whether the CobaltFlushStorageOnFreeze Finch feature is enabled. Finch state lives in
+   * native, so this is false until the native library and base::FeatureList are initialized.
+   */
+  @VisibleForTesting
+  protected boolean isFlushStorageOnFreezeFeatureEnabled() {
+    return FeatureList.isNativeInitialized()
+        && CobaltContentBrowserClient.isFlushStorageOnFreezeEnabled();
+  }
+
+  /**
    * Returns whether the web app should receive a freeze event when the Activity is stopped. NVIDIA
    * Shield always freezes (see {@link #SHIELD_FREEZE_DELAY_MS}); every other device follows the
    * CobaltFreezeOnBackground Finch feature.
@@ -956,6 +982,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   /** Dispatches the document freeze event to the active WebContents, if there still is one. */
   private void freezeActiveWebContents() {
     WebContents webContents = getActiveWebContents();
+    if (isFlushStorageOnFreezeFeatureEnabled()) {
+      CobaltContentBrowserClient.freezeAndFlushCookiesAndLocalStorage(webContents);
+      return;
+    }
     if (webContents != null) {
       webContents.onFreeze();
     }

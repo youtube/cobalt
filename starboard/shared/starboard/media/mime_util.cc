@@ -128,8 +128,9 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
 
   const MimeType& mime_type = mime_info.mime_type();
   const ParsedMimeInfo::VideoCodecInfo& video_info = mime_info.video_info();
+  const ParsedVideoCodec& codec_info = video_info.codec_info;
 
-  switch (video_info.codec) {
+  switch (codec_info.codec) {
     case kSbMediaVideoCodecNone:
       SB_NOTREACHED();
       return false;
@@ -163,7 +164,7 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
   }
 
   std::string cryptoblockformat =
-      mime_type.GetParamStringValue("cryptoblockformat", "");
+      mime_type.GetParamStringValue(kMimeParamCryptoBlockFormat, "");
   if (!cryptoblockformat.empty()) {
     if ((mime_type.subtype() != "mp4" && mime_type.subtype() != "webm") ||
         cryptoblockformat != "subsample") {
@@ -171,12 +172,13 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
     }
   }
 
-  return MediaIsVideoSupported(
-      video_info.codec, &mime_type, video_info.profile, video_info.level,
-      video_info.bit_depth, video_info.primary_id, video_info.transfer_id,
-      video_info.matrix_id, video_info.frame_width, video_info.frame_height,
-      video_info.bitrate, video_info.fps,
-      video_info.decode_to_texture_required);
+  VideoSupportQueryParams params;
+  params.codec_info = codec_info;
+  params.frame_size = video_info.frame_size;
+  params.bitrate = video_info.bitrate;
+  params.fps = video_info.fps;
+  params.decode_to_texture_required = video_info.decode_to_texture_required;
+  return MediaIsVideoSupported(&mime_type, params);
 }
 
 }  // namespace
@@ -246,14 +248,16 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
   if (mime_info->has_video_info()) {
     Supportability key_system_supportability =
         KeySystemSupportabilityCache::GetInstance()->GetKeySystemSupportability(
-            mime_info->video_info().codec, key_system);
+            mime_info->video_info().codec_info.codec, key_system);
     if (key_system_supportability == kSupportabilityUnknown) {
       key_system_supportability =
-          IsSupportedKeySystem(mime_info->video_info().codec, key_system)
+          IsSupportedKeySystem(mime_info->video_info().codec_info.codec,
+                               key_system)
               ? kSupportabilitySupported
               : kSupportabilityNotSupported;
       KeySystemSupportabilityCache::GetInstance()->CacheKeySystemSupportability(
-          mime_info->video_info().codec, key_system, key_system_supportability);
+          mime_info->video_info().codec_info.codec, key_system,
+          key_system_supportability);
     }
     // Reject mime if video codec doesn't the key system.
     if (key_system_supportability == kSupportabilityNotSupported) {

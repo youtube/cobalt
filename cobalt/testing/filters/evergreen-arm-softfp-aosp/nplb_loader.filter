@@ -1,20 +1,5 @@
--*MaximumPlayerConfigurationExplorer*
--*MultiplePlayer*
--*SbMediaSetAudioWriteDuration*
--*SbPlayerGetAudioConfigurationTest.MultipleSeeks/*
--*SbPlayerGetAudioConfigurationTest.SunnyDay/*
--*SbPlayerGetMediaTimeTest.*
--*SbPlayerWriteSampleTest.AudioCodecSwitching/*
--*SbPlayerWriteSampleTest.DiscardAllAudio/*
--*SbPlayerWriteSampleTest.LimitedAudioInput/*
--*SbPlayerWriteSampleTest.PartialAudio/*
--*SbPlayerWriteSampleTest.SecondaryPlayerTest/*
--*SbPlayerWriteSampleTest.SeekAndDestroy/*
--*SbPlayerWriteSampleTest.VideoCodecSwitching/*
--*SbPlayerWriteSampleTest.WriteMultipleBatches/*
--*SbPlayerWriteSampleTest.WriteSingleBatch/*
--*VerticalVideoTest*
--SbDrmSessionTest.InvalidSessionUpdateRequestParams
--SbPlayerGetPreferredOutputModeTest.*
--SbPlayerTest.*
--SbPlayerUrlTest.*
+# AOSP nplb exclusions.
+-*SbPlayerWriteSampleTest.SecondaryPlayerTest/*_dmp_output_*widevine*
+-*SbPlayerWriteSampleTest.WriteSingleBatch/*_137_avc_*
+-*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*
+-MultiplePlayerTest.SunnyDay

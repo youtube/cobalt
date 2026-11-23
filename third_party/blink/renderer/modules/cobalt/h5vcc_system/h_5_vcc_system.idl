@@ -18,13 +18,39 @@ enum UserOnExitStrategy {
   "no-exit",
 };
 
+enum LowMemoryKillForegroundStatus {
+  "foreground",
+  "background",
+};
+
+enum LowMemoryKillPressureSource {
+  "system",
+  "cobalt",
+};
+
+// `timestamp` is required. All other fields are optional; unknown enum
+// values are omitted (`undefined`), and unavailable memory or reason values are
+// null.
+dictionary LowMemoryKillDetails {
+  // Wall-clock time of the kill in milliseconds since the POSIX epoch
+  // (1970-01-01T00:00:00Z).
+  required DOMHighResTimeStamp timestamp;
+  LowMemoryKillForegroundStatus foregroundStatus;
+  LowMemoryKillPressureSource pressureSource;
+  long long? systemMemoryAvailable;
+  long long? systemMemoryTotal;
+  long long? cobaltMemoryUsage;
+  long long? cobaltMemoryLimit;
+  DOMString? reason;
+};
+
 // This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
 // https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
 [
   Exposed=Window,
   SecureContext
 ]
-interface H5vccSystem : EventTarget {
+interface H5vccSystem {
   // Synchronous versions of ad APIs were provided for ease-of-use in the
   // clients during the initial migration from Cobalt 25. Asynchronous APIs are
   // preferred here as they offload work and won't affect performance as much.
@@ -79,8 +105,16 @@ interface H5vccSystem : EventTarget {
   void hideSplashScreen();
 
   // Returns true if the previous Cobalt session was killed by the system due to
-  // memory pressure. Returns false if the platform does not report LMK or does
-  // not implement the LowMemoryKill extension.
-  [CallWith=ScriptState]
+  // memory pressure, or false if not. Rejects with NotSupportedError if the
+  // platform does not support low-memory kill detection.
+  [CallWith=ScriptState, RaisesException]
   Promise<boolean> wasLowMemoryKilled();
+
+  // If the previous Cobalt session was killed by the system due to memory
+  // pressure, returns a dictionary containing LowMemoryKill v2 details, or
+  // null if the previous session was not low-memory killed. Rejects with
+  // NotSupportedError if the platform does not provide LowMemoryKill v2
+  // details.
+  [CallWith=ScriptState, RaisesException]
+  Promise<LowMemoryKillDetails?> getLowMemoryKillDetails();
 };

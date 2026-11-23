@@ -69,7 +69,7 @@ jobs:
   wait-for-kokoro-build:
     needs: get-sha
     runs-on: ubuntu-latest
-    timeout-minutes: 150 # 2.5 hours timeout to ensure we don't block forever but allow 2h polling
+    timeout-minutes: 160 # Up to 30 min for the label, then 2h polling for the build.
     outputs:
       invocation_id: ${{ steps.poll-status.outputs.invocation_id }}
       skipped: ${{ steps.check-skip.outputs.skipped }}
@@ -89,12 +89,23 @@ jobs:
           skip() { echo "$1"; echo "skipped=true" >> "${GITHUB_OUTPUT}"; exit 0; }
           [[ "${IS_DRAFT}" == "true" ]] && skip "Draft PR."
 
-          # Wait up to 20 min for the Auto Label Kokoro run of this commit and
-          # event, which decides whether to add the kokoro:run label.
-          for _ in {1..120}; do
-            run=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=pull_request_target&per_page=100" \
-              --jq "[.workflow_runs[] | select(.display_title | endswith(\"${RUN_NAME_SUFFIX}\"))][0] // {}" || echo '{}')
-            [[ "$(jq -r .status <<< "${run}")" == "completed" ]] && break
+          # Wait up to 30 min for the tvOS Impact run of this commit and event
+          # (20 min timeout), then for the Auto Label Kokoro run that adds the
+          # kokoro:run label from its result. Auto Label Kokoro runs after every
+          # tvOS Impact run, including cancelled and timed out ones.
+          impact='{}'
+          label='{}'
+          for _ in {1..180}; do
+            if [[ "$(jq -r .status <<< "${impact}")" != "completed" ]]; then
+              impact=$(gh api "repos/${REPO}/actions/workflows/tvos_impact.yaml/runs?event=pull_request&head_sha=${COMMIT_SHA}&per_page=100" \
+                --jq "[.workflow_runs[] | select(.display_title | endswith(\"${RUN_NAME_SUFFIX}\"))][0] // {}" || echo '{}')
+            fi
+            if [[ "$(jq -r .status <<< "${impact}")" == "completed" ]]; then
+              label_title="Auto Label Kokoro (tvOS Impact run $(jq -r .id <<< "${impact}"))"
+              label=$(gh api "repos/${REPO}/actions/workflows/auto_label_kokoro.yaml/runs?event=workflow_run&per_page=100" \
+                --jq "[.workflow_runs[] | select(.display_title == \"${label_title}\")][0] // {}" || echo '{}')
+              [[ "$(jq -r .status <<< "${label}")" == "completed" ]] && break
+            fi
             sleep 10
           done
 
@@ -108,10 +119,10 @@ jobs:
 
           # No build requested. Skip if Auto Label Kokoro decided so, or if this
           # commit is outdated. Otherwise it didn't finish: fail rather than skip.
-          conclusion=$(jq -r '.conclusion // "timed out"' <<< "${run}")
+          conclusion=$(jq -r '.conclusion // "timed out"' <<< "${label}")
           [[ "${conclusion}" == "success" ]] && skip "Kokoro build not requested."
           head_sha=$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid --jq .headRefOid || true)
-          [[ "${conclusion}" == "cancelled" && -n "${head_sha}" && "${head_sha}" != "${COMMIT_SHA}" ]] && skip "Outdated commit."
+          [[ -n "${head_sha}" && "${head_sha}" != "${COMMIT_SHA}" ]] && skip "Outdated commit."
           echo "::error::Auto Label Kokoro run: ${conclusion}. Add the kokoro:run label to build."
           exit 1
 

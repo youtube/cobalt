@@ -67,6 +67,11 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   // Returns true if the application is in a visible state.
   bool IsVisible() const;
 
+  // Returns true if a Shell has a platform window to draw into. On Starboard
+  // that's false when SbWindowCreate() failed. Platforms that manage their
+  // windows natively always return true.
+  virtual bool HasPlatformWindow() const;
+
   // Lifecycle signals called from the application.
   virtual void OnBlur();
   virtual void OnFocus();
@@ -142,8 +147,7 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   // destruction. Returns false if the Shell should destroy itself.
   virtual bool DestroyShell(Shell* shell);
 
-  void AddPreviouslyVisibleWebContentsForTesting(
-      content::WebContents* web_contents);
+  void AddWebContentsToRevealForTesting(content::WebContents* web_contents);
 
 #if !BUILDFLAG(IS_ANDROID)
   // Returns the native window. Valid after calling CreatePlatformWindow().
@@ -197,6 +201,9 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   // CobaltLifecycleManagerObserver implementation.
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
   void OnProactiveMapWindow(content::WebContents* web_contents) override;
+
+  // Puts the WebContents to show on reveal into the window of |shell|.
+  void SetContentsOnReveal(Shell* shell);
 #endif
   void OnAllFramesVisible(content::WebContents* web_contents) override;
   void OnAllFramesConcealed(content::WebContents* web_contents) override;
@@ -231,19 +238,18 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
     void operator()(WebContentsTracker* ptr) const;
   };
 
-  // Set of WebContents that were visible before the application was concealed.
-  // This is used on reveal to decide which WebContents we should wait for
-  // Reveal ACK from. We only wait for those that were active before.
-  // The map stores self-unregistering observers to guarantee clean container
-  // state upon WebContents destruction.
+  // Set of WebContents to show again when the application is revealed, saved
+  // when it is concealed. This is used on reveal to decide which WebContents
+  // we should wait for Reveal ACK from. The map stores self-unregistering
+  // observers to guarantee clean container state upon WebContents destruction.
   base::flat_map<content::WebContents*,
                  std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>>
-      previously_visible_web_contents_;
+      web_contents_to_reveal_;
   std::set<content::WebContents*> pending_conceal_web_contents_;
   std::set<content::WebContents*> pending_reveal_web_contents_;
 
-  void TrackPreviouslyVisibleWebContents(content::WebContents* web_contents);
-  void RemovePreviouslyVisibleWebContents(content::WebContents* web_contents);
+  void TrackWebContentsToReveal(content::WebContents* web_contents);
+  void RemoveWebContentsToReveal(content::WebContents* web_contents);
   friend class WebContentsTracker;
 
   // Data held in ShellPlatformDelegate that is shared between all Shells. This

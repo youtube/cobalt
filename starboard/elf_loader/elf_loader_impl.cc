@@ -18,7 +18,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
@@ -169,6 +169,8 @@ bool ElfLoaderImpl::Load(const char* name,
     metrics_extension->RecordUsedCpuBytesDuringElfLoad(
         SbSystemGetUsedCPUMemory());
   }
+
+  relocations_->DiscardRelocationPages();
 
   program_table_->PublishEvergreenInfo(name);
   SB_DLOG(INFO) << "Published Evergreen Info";

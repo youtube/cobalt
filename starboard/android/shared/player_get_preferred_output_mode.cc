@@ -62,7 +62,7 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
   bool is_sdr = true;
   if (codec != kSbMediaVideoCodecNone) {
     const auto& color_metadata = video_stream_info.color_metadata;
-    is_sdr = starboard::IsSDRVideo(
+    is_sdr = starboard::Is8BitSDRVideo(
         color_metadata.bits_per_channel, color_metadata.primaries,
         color_metadata.transfer, color_metadata.matrix);
   }

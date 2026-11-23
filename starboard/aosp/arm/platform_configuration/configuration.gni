@@ -13,8 +13,12 @@
 # limitations under the License.
 
 if (current_toolchain == default_toolchain) {
-  import(
-      "//starboard/evergreen/arm/softfp/platform_configuration/configuration.gni")
+  if (use_evergreen) {
+    import(
+        "//starboard/evergreen/arm/softfp/platform_configuration/configuration.gni")
+  } else {
+    import("//starboard/build/config/modular/arm/softfp/configuration.gni")
+  }
 } else {
   import("//starboard/android/arm/platform_configuration/configuration.gni")
   sb_evergreen_compatible_use_libunwind = true

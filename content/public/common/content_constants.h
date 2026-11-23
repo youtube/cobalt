@@ -75,6 +75,11 @@ CONTENT_EXPORT extern const int kPluginOomScore;
 CONTENT_EXPORT extern const int kAndroidMinimumTabletWidthDp;
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+// Maximum size of the WebAssembly compiled code cache (Code Cache/wasm/).
+inline constexpr int kGeneratedWasmCodeCacheBytes = 1 * 1024 * 1024;
+#endif
+
 }  // namespace content
 
 #endif  // CONTENT_PUBLIC_COMMON_CONTENT_CONSTANTS_H_

@@ -20,6 +20,27 @@ enum UserOnExitStrategy {
   kNoExit,
 };
 
+enum LowMemoryKillForegroundStatus {
+  kForeground,
+  kBackground,
+};
+
+enum LowMemoryKillPressureSource {
+  kSystem,
+  kCobalt,
+};
+
+struct LowMemoryKillDetails {
+  int64 timestamp_posix_usec;
+  LowMemoryKillForegroundStatus? foreground_status;
+  LowMemoryKillPressureSource? pressure_source;
+  uint64? system_memory_available;
+  uint64? system_memory_total;
+  uint64? cobalt_memory_usage;
+  uint64? cobalt_memory_limit;
+  string? reason;
+};
+
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccSystem Blink API.
 interface H5vccSystem {
@@ -51,8 +72,13 @@ interface H5vccSystem {
   // YouTube request to hide the splash screen.
   HideSplashScreen();
 
-  // Returns true if the previous Cobalt session was killed by the system due to
-  // memory pressure. If the platform does not implement the LowMemoryKill
-  // extension or does not report LMK, this resolves to false.
-  GetWasLowMemoryKilled() => (bool was_low_memory_killed);
+  // Resolves to true/false if the platform supports LowMemoryKill v1, or null
+  // if the platform does not implement the LowMemoryKill extension.
+  GetWasLowMemoryKilled() => (bool? was_low_memory_killed);
+
+  // If the platform provides LowMemoryKill v2 details, resolves with
+  // `supported` true and `details` populated if the previous Cobalt session was
+  // killed by the system due to memory pressure (or null if not). Otherwise
+  // resolves with `supported` false and `details` null.
+  GetLowMemoryKillDetails() => (bool supported, LowMemoryKillDetails? details);
 };

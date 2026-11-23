@@ -33,7 +33,8 @@ runs:
 
         generate_filter_file() {
           local output_file="$1"
-          shift
+          local filter_outcome="$2"
+          shift 2
           local xml_files=("$@")
 
           # Check if any XML file has an associated crash marker file.
@@ -47,30 +48,44 @@ runs:
           raw_filter=$(python3 cobalt/tools/junit_mini_parser.py \
             --format=filter "${xml_files[@]}" || true)
 
-          # If target failed but no failing tests were identified (e.g. runner crash or timeout),
-          # do not write a filter so the original test set is retried.
-          if [ "${OUTCOME}" != "success" ] && [ "${raw_filter}" = "-*" ]; then
+          # If XML parsing failed (empty output), do not write a filter so
+          # the original filters are re-used.
+          if [ -z "${raw_filter}" ]; then
             return 0
           fi
 
-          if [ -n "${raw_filter}" ]; then
-            echo "${raw_filter}" > "${output_file}"
+          # If target failed but no failing tests were identified (e.g. runner
+          # crash or timeout), do not write a filter so the original test set is
+          # retried.
+          if [ "${filter_outcome}" != "success" ] && [ "${raw_filter}" = "-*" ]; then
+            return 0
           fi
+
+          echo "${raw_filter}" > "${output_file}"
         }
 
         shopt -s globstar nullglob
         xml_files=("${RESULTS_DIR}"/**/"${TEST_TARGET}"*.xml)
         if [ ${#xml_files[@]} -gt 0 ]; then
-          # Generate global filter
-          generate_filter_file "${FILTER_DIR}/${TEST_TARGET}.filter" "${xml_files[@]}"
-
-          # Also generate shard-specific filter files if shards exist
+          has_shard_xmls="false"
           for xml_file in "${xml_files[@]}"; do
             if [[ "${xml_file}" =~ /shard_([0-9]+)/ ]]; then
+              has_shard_xmls="true"
               shard_id="${BASH_REMATCH[1]}"
-              generate_filter_file "${FILTER_DIR}/${TEST_TARGET}_${shard_id}.filter" "${xml_file}"
+              generate_filter_file \
+                "${FILTER_DIR}/${TEST_TARGET}_${shard_id}.filter" \
+                "success" "${xml_file}"
             fi
           done
+
+          # For sharded targets, only emit the target-level filter when the
+          # whole target succeeded so crashed or missing shards still fall back
+          # to the platform base filter on retry instead of another shard's
+          # failing test list.
+          if [ "${has_shard_xmls}" != "true" ] || [ "${OUTCOME}" = "success" ]; then
+            generate_filter_file \
+              "${FILTER_DIR}/${TEST_TARGET}.filter" "${OUTCOME}" "${xml_files[@]}"
+          fi
         fi
       shell: bash
     - name: Upload Retry Filter

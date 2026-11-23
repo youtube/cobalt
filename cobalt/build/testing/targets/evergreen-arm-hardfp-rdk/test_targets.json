@@ -15,7 +15,6 @@
       "third_party/zlib:zlib_unittests_loader"
     ],
     "TODO(b/486053350): Crashes on missing SbEventHandle": [
-      "gl:gl_unittests_loader",
       "gl:ozone_gl_unittests_loader",
       "third_party/blink/renderer/platform/heap:blink_heap_unittests_loader",
       "third_party/ipcz/src:ipcz_tests_loader"
@@ -74,6 +73,12 @@
     "test_type": "gtest"
   },
   {
+    "target": "ui/gl:gl_unittests_loader",
+    "executable": "out/evergreen-arm-hardfp-rdk_devel/gl_unittests_loader.py",
+    "runs_on": "device",
+    "test_type": "gtest"
+  },
+  {
     "target": "ui/ozone:ozone_unittests_loader",
     "executable": "out/evergreen-arm-hardfp-rdk_devel/ozone_unittests_loader.py",
     "runs_on": "device",
@@ -125,5 +130,23 @@
     "runs_on": "device",
     "test_type": "gtest",
     "required": false
+  },
+  {
+    "internal_target": "//video/youtube/web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_cobalt_rdk",
+    "runs_on": "device",
+    "test_type": "e2e_test",
+    "test_attempts": 6
+  },
+  {
+    "internal_target": "testing/maneki/cobalt/evergreen_tests:yts_rdk_custom_cobalt_dom_document_tests",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "test_attempts": 6
+  },
+  {
+    "internal_target": "testing/maneki/cobalt/evergreen_tests:yts_rdk_custom_cobalt_html_dom_element_tests",
+    "runs_on": "device",
+    "test_type": "yts_test",
+    "test_attempts": 6
   }
 ]

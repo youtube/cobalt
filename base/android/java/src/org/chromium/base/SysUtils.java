@@ -29,12 +29,13 @@ public class SysUtils {
     // A device reporting strictly more total memory in megabytes cannot be considered 'low-end'.
     // Keep in sync with LOW_MEMORY_DEVICE_THRESHOLD_MB in C++.
     // LINT.IfChange
-    private static final int LOW_MEMORY_DEVICE_THRESHOLD_MB = 1024;
+    public static final int LOW_MEMORY_DEVICE_THRESHOLD_MB = 1024;
     // LINT.ThenChange(//base/features.cc)
     private static final String TAG = "SysUtils";
 
     private static @Nullable Boolean sLowEndDevice;
     private static @Nullable Integer sAmountOfPhysicalMemoryKB;
+    private static int sLowMemoryThresholdMB = LOW_MEMORY_DEVICE_THRESHOLD_MB;
 
     private SysUtils() {}
 
@@ -149,11 +150,20 @@ public class SysUtils {
         if (physicalMemoryKb <= 0) {
             isLowEnd = false;
         } else {
-            isLowEnd = physicalMemoryKb / 1024 <= LOW_MEMORY_DEVICE_THRESHOLD_MB;
+            isLowEnd = physicalMemoryKb / 1024 <= sLowMemoryThresholdMB;
         }
 
         return isLowEnd;
         // LINT.ThenChange(//base/system/sys_info.cc)
+    }
+
+    public static void setLowMemoryDeviceThresholdMb(int thresholdMb) {
+        sLowMemoryThresholdMB = thresholdMb;
+    }
+
+    @CalledByNative
+    private static int getLowMemoryDeviceThresholdMb() {
+        return sLowMemoryThresholdMB;
     }
 
     /**

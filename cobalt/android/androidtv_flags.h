@@ -37,16 +37,6 @@ inline constexpr char kAreaBasedVideoBufferBudget[] =
 // See b/424591313.
 inline constexpr char kAvoidCcReuseResource[] = "AvoidCCReuseResource";
 
-// Bypasses Blink HTMLPreloadScanner and HTMLResourcePreloader.
-// See b/545695147.
-inline constexpr char kCobaltBypassHtmlPreloadScanner[] =
-    "CobaltBypassHTMLPreloadScanner";
-
-// Bypasses ResourceLoadScheduler subresource queueing and throttling.
-// See b/545658521.
-inline constexpr char kCobaltBypassResourceLoadScheduler[] =
-    "CobaltBypassResourceLoadScheduler";
-
 // Tunes dynamic Mojo data pipe size in bytes for media requests.
 // See b/520888239.
 inline constexpr char kCobaltDynamicMojoPipeMediaSize[] =
@@ -99,7 +89,8 @@ inline constexpr char kEnableCobaltMmapFontCache[] =
 inline constexpr char kEnableModerateMemoryPressure[] =
     "EnableModerateMemoryPressure";
 
-// Enables QUIC for network requests; otherwise --disable-quic is passed.
+// Enables QUIC for network requests; otherwise --disable-quic is passed,
+// unless --enable-quic is already on the command line.
 // See b/467778593.
 inline constexpr char kEnableQuic[] = "EnableQUIC";
 
@@ -152,14 +143,6 @@ inline constexpr char kUseStarboardLifecycle[] = "UseStarboardLifeCycle";
 // Disables V8 Sparkplug baseline compiler.
 // See b/512163617.
 inline constexpr char kV8DisableSparkplug[] = "V8DisableSparkplug";
-
-// Overrides V8 initial old space size in MB; defaults to 64 MB.
-// See b/540879465.
-inline constexpr char kV8InitialOldSpaceSize[] = "V8InitialOldSpaceSize";
-
-// Overrides V8 max old space size in MB; defaults to 512 MB.
-// See b/549674099.
-inline constexpr char kV8MaxOldSpaceSize[] = "V8MaxOldSpaceSize";
 
 // Sets V8 bytecode aging threshold in seconds for aggressive bytecode flushing.
 // See b/535719369.

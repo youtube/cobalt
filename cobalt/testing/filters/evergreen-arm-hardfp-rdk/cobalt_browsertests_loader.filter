@@ -23,6 +23,7 @@
 -H5vccSchemeURLLoaderFactoryCacheBrowserTest.*
 -H5vccSystemBrowserTest.*
 -HstsUpgradeBrowserTest.*
+-MediaConcealLifecycleBrowserTest.*
 -MediaNavigationBrowserTest.*
 -MediaSessionBrowserTest.*
 -MediaTest.*
@@ -44,6 +45,7 @@
 -PrivacySandboxDisabledBrowserTest.NetworkContextTrustTokenMethodsReturnEmpty
 -PrivacySandboxDisabledBrowserTest.VerifyPrivacySandboxApisDisabled
 -SitePerProcessBrowserTest.*
+-SplashCacheBrowserTest.*
 -SubresourceLoadingTest.*
 -UndoCommitNavigationBrowserTest.*
 -VisualPropertiesSynchronization.*

@@ -20,6 +20,8 @@
 #include <sys/prctl.h>
 #include <unistd.h>
 
+#include <string_view>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 // From third_party/musl/include/sys/prctl.h
@@ -35,7 +37,7 @@ namespace {
 
 // Checks /proc/self/maps to see if the memory mapping containing |addr| has
 // the specified |name|.
-bool VmaIsNamed(void* addr, const char* name) {
+bool VmaIsNamed(void* addr, std::string_view name) {
   FILE* fp = fopen("/proc/self/maps", "r");
   if (!fp) {
     return false;
@@ -51,7 +53,7 @@ bool VmaIsNamed(void* addr, const char* name) {
       continue;
     }
     if (target_addr >= start && target_addr < end) {
-      if (strstr(line, name)) {
+      if (std::string_view(line).find(name) != std::string_view::npos) {
         found = true;
       }
       break;

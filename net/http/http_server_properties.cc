@@ -17,6 +17,7 @@
 #include "base/time/default_clock.h"
 #include "base/time/default_tick_clock.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/url_util.h"
@@ -1253,6 +1254,28 @@ void HttpServerProperties::FlushWritePropertiesForTesting(
   prefs_update_timer_.Stop();
   WriteProperties(std::move(callback));
 }
+
+#if BUILDFLAG(IS_COBALT)
+void HttpServerProperties::FlushWriteProperties(
+    base::OnceCallback<void(bool flushed)> callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(callback);
+  if (!properties_manager_ || !is_initialized_) {
+    // Either there is no backing store, or the stored properties have not been
+    // loaded yet and writing now would clobber them. Any update made in the
+    // meantime is written once loading completes.
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), /*flushed=*/false));
+    return;
+  }
+
+  // A running timer means an update is queued and has not reached disk yet.
+  // Stop it, since this writes to the properties file immediately.
+  const bool flushed = prefs_update_timer_.IsRunning();
+  prefs_update_timer_.Stop();
+  WriteProperties(base::BindOnce(std::move(callback), flushed));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 void HttpServerProperties::WriteProperties(base::OnceClosure callback) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);

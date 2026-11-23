@@ -16,7 +16,6 @@
 #include <time.h>
 
 #include "starboard/configuration.h"
-#include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/event.h"
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/debug_signals.h"

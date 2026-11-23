@@ -158,6 +158,17 @@ STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
                   "ReleaseVideoFramesAfterAudioStarts",
                   false)
 
+// When the AudioTrack playback head is stalled and its start threshold has
+// grown (e.g. after the platform recreated the track for a higher-latency
+// route), flush and re-feed the track or raise a capability changed error to
+// restart playback if the new threshold exceeds the sink buffer.
+// TODO: b/573043984 - Remove this flag (and
+// AudioTrackAudioSinkType::Options::restart_on_audio_threshold_growth) if no
+// regression is reported by 2026-12-31.
+STARBOARD_FEATURE(kRestartPlaybackOnAudioThresholdGrowth,
+                  "RestartPlaybackOnAudioThresholdGrowth",
+                  true)
+
 // By default, stub audio decoder is disabled.
 STARBOARD_FEATURE(kUseStubAudioDecoder, "UseStubAudioDecoder", false)
 
@@ -177,6 +188,13 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   false)
 // keep-sorted end
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+
+#if BUILDFLAG(IS_IOS_TVOS)
+// keep-sorted start newline_separated=yes
+// Enables video support up to 120 FPS (instead of the default 60 FPS cap).
+STARBOARD_FEATURE(kSupport120FpsVideo, "Support120FpsVideo", false)
+// keep-sorted end
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 FEATURE_LIST_END
 
 // To add a parameter to Starboard, use the macro:
