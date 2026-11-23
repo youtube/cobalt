@@ -112,22 +112,33 @@ std::string FormatSizes(const std::vector<gfx::Size>& sizes) {
 }  // namespace
 
 // static
+bool MediaSessionExtensionBridge::IsUsableExtension(
+    const CobaltExtensionMediaSessionApi* extension) {
+  if (!extension) {
+    return false;
+  }
+  if (!extension->name ||
+      strcmp(extension->name, kCobaltExtensionMediaSessionName) != 0 ||
+      extension->version < 1) {
+    LOG(ERROR) << "Ignoring incompatible MediaSession extension.";
+    return false;
+  }
+  if (!extension->OnMediaSessionStateChanged ||
+      !extension->RegisterMediaSessionCallbacks ||
+      !extension->DestroyMediaSessionClientCallback) {
+    LOG(ERROR) << "MediaSession extension is missing required functions.";
+    return false;
+  }
+  return true;
+}
+
+// static
 std::unique_ptr<MediaSessionExtensionBridge>
 MediaSessionExtensionBridge::MaybeCreate(content::WebContents* web_contents) {
   DCHECK(web_contents);
   const auto* extension = static_cast<const CobaltExtensionMediaSessionApi*>(
       SbSystemGetExtension(kCobaltExtensionMediaSessionName));
-  if (!extension) {
-    return nullptr;
-  }
-  if (strcmp(extension->name, kCobaltExtensionMediaSessionName) != 0 ||
-      extension->version < 1) {
-    LOG(WARNING) << "Ignoring incompatible MediaSession extension.";
-    return nullptr;
-  }
-  if (!extension->OnMediaSessionStateChanged ||
-      !extension->RegisterMediaSessionCallbacks) {
-    LOG(WARNING) << "MediaSession extension is missing required functions.";
+  if (!IsUsableExtension(extension)) {
     return nullptr;
   }
 
@@ -199,9 +210,7 @@ void MediaSessionExtensionBridge::UnregisterFromPlatform() {
     registration = Registration();
   }
   weak_factory_.InvalidateWeakPtrs();
-  if (extension_->DestroyMediaSessionClientCallback) {
-    extension_->DestroyMediaSessionClientCallback();
-  }
+  extension_->DestroyMediaSessionClientCallback();
 }
 
 // static
@@ -317,8 +326,6 @@ void MediaSessionExtensionBridge::HandleAction(
 void MediaSessionExtensionBridge::MediaSessionInfoChanged(
     media_session::mojom::MediaSessionInfoPtr info) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  VLOG(1) << "MediaSession info changed: state=" << info->state
-          << " playback_state=" << info->playback_state;
   session_info_ = std::move(info);
   PushStateToPlatform();
 }
@@ -353,8 +360,6 @@ void MediaSessionExtensionBridge::MediaSessionImagesChanged(
 void MediaSessionExtensionBridge::MediaSessionPositionChanged(
     const std::optional<media_session::MediaPosition>& position) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  VLOG(1) << "MediaSession position changed: "
-          << (position ? position->ToString() : "none");
   position_ = position;
   PushStateToPlatform();
 }

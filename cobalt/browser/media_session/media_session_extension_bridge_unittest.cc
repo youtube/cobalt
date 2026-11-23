@@ -183,6 +183,40 @@ class MediaSessionExtensionBridgeTest : public ::testing::Test {
   std::unique_ptr<TestBridge> bridge_;
 };
 
+TEST(MediaSessionExtensionBridgeValidationTest, RejectsUnusableExtensions) {
+  EXPECT_TRUE(MediaSessionExtensionBridge::IsUsableExtension(&kFakeExtension));
+  EXPECT_FALSE(MediaSessionExtensionBridge::IsUsableExtension(nullptr));
+
+  CobaltExtensionMediaSessionApi extension = kFakeExtension;
+  extension.name = nullptr;
+  EXPECT_FALSE(MediaSessionExtensionBridge::IsUsableExtension(&extension));
+
+  extension = kFakeExtension;
+  extension.name = "dev.cobalt.extension.SomethingElse";
+  EXPECT_FALSE(MediaSessionExtensionBridge::IsUsableExtension(&extension));
+
+  extension = kFakeExtension;
+  extension.version = 0;
+  EXPECT_FALSE(MediaSessionExtensionBridge::IsUsableExtension(&extension));
+
+  extension = kFakeExtension;
+  extension.OnMediaSessionStateChanged = nullptr;
+  EXPECT_FALSE(MediaSessionExtensionBridge::IsUsableExtension(&extension));
+
+  extension = kFakeExtension;
+  extension.RegisterMediaSessionCallbacks = nullptr;
+  EXPECT_FALSE(MediaSessionExtensionBridge::IsUsableExtension(&extension));
+
+  extension = kFakeExtension;
+  extension.DestroyMediaSessionClientCallback = nullptr;
+  EXPECT_FALSE(MediaSessionExtensionBridge::IsUsableExtension(&extension));
+
+  // The bridge never calls UpdateActiveSessionPlatformPlaybackState.
+  extension = kFakeExtension;
+  extension.UpdateActiveSessionPlatformPlaybackState = nullptr;
+  EXPECT_TRUE(MediaSessionExtensionBridge::IsUsableExtension(&extension));
+}
+
 TEST_F(MediaSessionExtensionBridgeTest, RegistersAndUnregistersWithPlatform) {
   EXPECT_EQ(platform_.context, bridge_.get());
   EXPECT_NE(platform_.invoke_action, nullptr);

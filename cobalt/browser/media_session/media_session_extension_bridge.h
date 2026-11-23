@@ -73,6 +73,11 @@ class MediaSessionExtensionBridge
 
   // Returns a bridge observing |web_contents| if the platform provides a
   // usable MediaSession extension, or nullptr otherwise.
+  // Returns whether |extension| is a usable MediaSession extension: correct
+  // name and version, and all functions the bridge calls are provided.
+  static bool IsUsableExtension(
+      const CobaltExtensionMediaSessionApi* extension);
+
   static std::unique_ptr<MediaSessionExtensionBridge> MaybeCreate(
       content::WebContents* web_contents);
 
