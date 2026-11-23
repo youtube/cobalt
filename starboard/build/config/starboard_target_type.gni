@@ -39,6 +39,12 @@ template("starboard_platform_target") {
       "//starboard/build/config:starboard",
     ]
 
+    # iOS links the library statically, so it needs no rpath.
+    if (target_os != "ios") {
+      all_dependent_configs +=
+          [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+    }
+
     public_deps = [
       "//starboard/common",
       "//starboard/egl_and_gles",
