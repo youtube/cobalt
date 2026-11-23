@@ -75,9 +75,7 @@ bool LZ4FileImpl::Open(const char* name) {
     return false;
   }
 
-  struct stat file_info;
-
-  if (!FileImpl::Open(name) || fstat(file_, &file_info)) {
+  if (!FileImpl::Open(name)) {
     return false;
   }
 
@@ -113,8 +111,8 @@ bool LZ4FileImpl::Open(const char* name) {
   // uncompressed block size.
   int max_compressed_buffer_size = GetBlockSize(&frame_info);
 
-  bool result = Decompress(file_info.st_size, header_size,
-                           max_compressed_buffer_size, source_bytes_hint);
+  bool result = Decompress(size_, header_size, max_compressed_buffer_size,
+                           source_bytes_hint);
 
   int64_t decompression_end_time_us = CurrentMonotonicTime();
   int64_t decompression_duration_us =

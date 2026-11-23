@@ -73,9 +73,11 @@ Because Evergreen support is required for certification, partners deploy officia
    cp -rf lib/* assets/app/cobalt/lib/
    cp -rf content/* assets/app/cobalt/content/
 
-   # zip -u does not recurse into subdirectories; use a file list so that
-   # content/ssl/certs/* and content/fonts/* are included
-   find assets -type f | zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
+   # Store lib/ uncompressed (-0) so the loader reads the core in place.
+   find assets/app/cobalt/lib -type f | zip -u -0 $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
+
+   # Add the rest. zip -u doesn't recurse, so list every file.
+   find assets -type f -not -path 'assets/app/cobalt/lib/*' | zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
 
    # zip -u invalidates the APK v2 signature; re-align and re-sign with the bundled debug keystore
    cd $OLDPWD

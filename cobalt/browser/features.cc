@@ -271,5 +271,15 @@ BASE_FEATURE_PARAM(bool,
                    "CobaltCodeCacheOptimization_bypass_heat_check",
                    true);
 
+BASE_FEATURE(kCobaltDeferAfterStartupTasks,
+             "CobaltDeferAfterStartupTasks",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltDeferAfterStartupTasksFailsafeDelay,
+                   &kCobaltDeferAfterStartupTasks,
+                   "CobaltDeferAfterStartupTasks_failsafe_delay",
+                   base::Milliseconds(8500));
+
 }  // namespace features
 }  // namespace cobalt

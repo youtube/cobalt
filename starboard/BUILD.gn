@@ -136,6 +136,12 @@ if (is_cobalt_hermetic_build) {
     }
   }
 } else {
+  config("starboard_library_rpath") {
+    sb_out_dir =
+        get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
+    ldflags = [ "-Wl,-rpath=\$ORIGIN/" + rebase_path(sb_out_dir, root_out_dir) ]
+  }
+
   group("starboard_group") {
     public_deps = [ ":starboard_headers_only" ]
     if (is_android || is_ios) {
@@ -143,6 +149,7 @@ if (is_cobalt_hermetic_build) {
       # //cobalt.
       public_deps += [ "//starboard($starboard_toolchain)" ]
     } else {
+      all_dependent_configs = [ ":starboard_library_rpath" ]
       deps = [ "//starboard($starboard_toolchain)" ]
     }
   }
