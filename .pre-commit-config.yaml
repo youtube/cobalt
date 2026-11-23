@@ -138,3 +138,9 @@ repos:
         entry: gn format
         language: system
         files: '.*\.gni?$'
+    -   id: validate-ci-config
+        name: validate-ci-config
+        entry: python3 ./cobalt/tools/validate_ci_config.py
+        language: system
+        files: ^(\.github/config/.*\.json|cobalt/build/testing/targets/.*/test_targets\.json|cobalt/tools/validate_ci_config\.py)$
+        pass_filenames: false
