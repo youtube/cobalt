@@ -105,6 +105,9 @@ class AsyncDomStorageDatabase {
   }
 
   void RewriteDB(StatusCallback callback);
+#if BUILDFLAG(IS_COBALT)
+  void ReopenDB(StatusCallback callback);
+#endif
 
   template <typename ResultType>
   using DatabaseTask =
