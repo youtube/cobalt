@@ -59,6 +59,20 @@ void SetMinLogLevel(SbLogPriority level);
 SbLogPriority GetMinLogLevel();
 SbLogPriority StringToLogLevel(const std::string& log_level);
 SbLogPriority ChromiumIntToStarboardLogLevel(const std::string& log_level);
+
+// Optional process-local log message handler invoked from any logging thread
+// before SbLog(). Returning true suppresses forwarding to SbLog(); fatal
+// messages (kSbLogPriorityFatal) still invoke Break() regardless of the return
+// value. |SetLogMessageHandler| and |GetLogMessageHandler| access the handler
+// atomically.
+using LogMessageHandlerFunction = bool (*)(SbLogPriority priority,
+                                           const char* file,
+                                           int line,
+                                           size_t message_start,
+                                           const std::string& str);
+void SetLogMessageHandler(LogMessageHandlerFunction handler);
+LogMessageHandlerFunction GetLogMessageHandler();
+
 void Break();
 
 // An object which will dumps the stack to the given ostream, without adding any
@@ -100,6 +114,8 @@ class LogMessage {
  private:
   void Init(const char* file, int line);
 
+  const char* file_ = nullptr;
+  int line_ = 0;
   SbLogPriority priority_;
   std::ostringstream stream_;
   size_t message_start_;  // Offset of the start of the message (past prefix

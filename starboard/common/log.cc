@@ -19,6 +19,7 @@
 #include <time.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <iomanip>
 #include <map>
@@ -53,6 +54,8 @@ void Alias(const void* var) {}
 const char* log_priority_names[] = {
     "UNKNOWN", "INFO", "WARNING", "ERROR", "FATAL",
 };
+
+std::atomic<LogMessageHandlerFunction> g_log_message_handler{nullptr};
 }  // namespace
 
 void SetMinLogLevel(SbLogPriority priority) {
@@ -61,6 +64,14 @@ void SetMinLogLevel(SbLogPriority priority) {
 
 SbLogPriority GetMinLogLevel() {
   return g_min_log_level;
+}
+
+void SetLogMessageHandler(LogMessageHandlerFunction handler) {
+  g_log_message_handler.store(handler, std::memory_order_release);
+}
+
+LogMessageHandlerFunction GetLogMessageHandler() {
+  return g_log_message_handler.load(std::memory_order_acquire);
 }
 
 SbLogPriority StringToLogLevel(const std::string& log_level) {
@@ -148,7 +159,7 @@ std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 }
 
 LogMessage::LogMessage(const char* file, int line, SbLogPriority priority)
-    : priority_(priority) {
+    : file_(file), line_(line), priority_(priority) {
   Init(file, line);
 }
 
@@ -160,7 +171,13 @@ LogMessage::~LogMessage() {
   }
   std::string str_newline(stream_.str());
 
-  SbLog(priority_, str_newline.c_str());
+  LogMessageHandlerFunction handler =
+      g_log_message_handler.load(std::memory_order_acquire);
+  bool handled =
+      handler && handler(priority_, file_, line_, message_start_, str_newline);
+  if (!handled) {
+    SbLog(priority_, str_newline.c_str());
+  }
 
   if (priority_ == kSbLogPriorityFatal) {
     // Ensure the first characters of the string are on the stack so they
