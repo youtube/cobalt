@@ -52,7 +52,7 @@ class PLATFORM_EXPORT ParkableImageManager
 
 #if BUILDFLAG(IS_COBALT)
   static constexpr base::TimeDelta kCobaltBackgroundParkingDelay =
-      base::Seconds(10);
+      base::Seconds(3);
   static bool IsUnparkedBudgetEnabled();
   static size_t UnparkedBudgetBytes();
   void SetRendererBackgrounded(bool backgrounded) LOCKS_EXCLUDED(lock_);

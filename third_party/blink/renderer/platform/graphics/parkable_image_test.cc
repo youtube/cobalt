@@ -1227,28 +1227,25 @@ TEST_F(ParkableImageCobaltBudgetTest,
   ASSERT_FALSE(is_on_disk(pi2));
 
   // Immediate onPause/background transition does not trigger a write burst, and
-  // resuming before the 10s delay cancels the background purge.
+  // resuming before the 3s delay cancels the background purge.
   manager.SetRendererBackgrounded(true);
-  WaitForParking();
   WaitForParking();
   RunPostedTasks();
   EXPECT_FALSE(is_on_disk(pi1));
   EXPECT_FALSE(is_on_disk(pi2));
 
   manager.SetRendererBackgrounded(false);
-  for (int i = 0; i < 5; ++i) {
-    WaitForParking();
-  }
+  WaitForParking();
+  WaitForParking();
   RunPostedTasks();
   EXPECT_FALSE(is_on_disk(pi1));
   EXPECT_FALSE(is_on_disk(pi2));
 
-  // Staying in the background past 10s parks all images even on Android where
-  // MemoryPurgeManager::kPurgeEnabled is false.
+  // Staying in the background past 3s (before Android 14+ cgroup freezer) parks
+  // all images even on Android where MemoryPurgeManager::kPurgeEnabled is false.
   manager.SetRendererBackgrounded(true);
-  for (int i = 0; i < 5; ++i) {
-    WaitForParking();
-  }
+  WaitForParking();
+  WaitForParking();
   RunPostedTasks();
   EXPECT_TRUE(is_on_disk(pi1));
   EXPECT_TRUE(is_on_disk(pi2));
