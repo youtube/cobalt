@@ -38,6 +38,7 @@
 #include "starboard/common/media.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/experimental_features.h"
@@ -77,7 +78,14 @@ bool IsFeatureEnabledOrDefaultOnAndroidU(
 #endif
 
 bool ShouldEnableFlushDuringSeek(
-    const ExperimentalFeatures& experimental_features) {
+    const ExperimentalFeatures& experimental_features,
+    SbDrmSystem drm_system) {
+  // A secure codec can keep its surface connected while it releases, so a
+  // codec recreated right away on the same surface fails to configure.
+  if (SbDrmSystemIsValid(drm_system) &&
+      static_cast<DrmSystem*>(drm_system)->require_secured_decoder()) {
+    return true;
+  }
 #if !BUILDFLAG(IS_STARBOARD)
   return IsFeatureEnabledOrDefaultOnAndroidU(
       features::kForceFlushDecoderDuringReset, experimental_features,
@@ -252,7 +260,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const VideoMimeParams video_mime_params = video_mime_params_result.value();
 
     bool enable_flush_during_seek =
-        ShouldEnableFlushDuringSeek(experimental_features) ||
+        ShouldEnableFlushDuringSeek(experimental_features,
+                                    creation_parameters.drm_system()) ||
         video_mime_params.enable_flush_during_seek;
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing audio"
@@ -401,7 +410,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << " audio decoder during Reset().";
 
     bool enable_flush_during_seek =
-        ShouldEnableFlushDuringSeek(experimental_features) ||
+        ShouldEnableFlushDuringSeek(experimental_features,
+                                    creation_parameters.drm_system()) ||
         video_mime_params.enable_flush_during_seek;
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"

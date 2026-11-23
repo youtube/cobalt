@@ -31,6 +31,7 @@
 #include "third_party/starboard/rdk/shared/application_rdk.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/string_util.h"
 #include "starboard/event.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -47,7 +48,6 @@
 #endif
 
 #include <algorithm>
-#include <cctype>
 #include <cstdlib>
 #include <fcntl.h>
 #include <locale.h>
@@ -478,8 +478,12 @@ void ApplicationRdk::InjectAccessibilityCaptionSettingsChanged() {
   // Event deprecated in Starboard 17+
 }
 
-void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged() {
-  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged, NULL, NULL));
+void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged(bool enabled) {
+  // Per starboard/event.h, the event data is a bool indicating whether
+  // text-to-speech is enabled.
+  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+                   new bool(enabled),
+                   &ApplicationRdk::DeleteDestructor<bool>));
 }
 
 const char* ApplicationRdk::GetLocaleId() {
@@ -493,10 +497,8 @@ const char* ApplicationRdk::GetLocaleId() {
   auto normalize_locale = [](std::string& s) {
     // Handle inverted format: "US_en" or "US-en" -> "en_US"
     if (s.length() == 5 && (s[2] == '_' || s[2] == '-') &&
-        std::isupper(static_cast<unsigned char>(s[0])) &&
-        std::isupper(static_cast<unsigned char>(s[1])) &&
-        std::islower(static_cast<unsigned char>(s[3])) &&
-        std::islower(static_cast<unsigned char>(s[4]))) {
+        IsAsciiUpper(s[0]) && IsAsciiUpper(s[1]) &&
+        IsAsciiLower(s[3]) && IsAsciiLower(s[4])) {
       s = s.substr(3, 2) + "_" + s.substr(0, 2);
       return;
     }

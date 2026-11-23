@@ -50,7 +50,7 @@ dictionary LowMemoryKillDetails {
   Exposed=Window,
   SecureContext
 ]
-interface H5vccSystem : EventTarget {
+interface H5vccSystem {
   // Synchronous versions of ad APIs were provided for ease-of-use in the
   // clients during the initial migration from Cobalt 25. Asynchronous APIs are
   // preferred here as they offload work and won't affect performance as much.

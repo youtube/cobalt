@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
+#include <algorithm>
 #include <cstring>
 #include <optional>
 #include <string>
@@ -26,11 +27,13 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -45,12 +48,14 @@
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/platform_service_impl.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/services/storage/public/cpp/constants.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
+#include "content/public/browser/site_instance.h"
 #include "content/test/test_web_contents.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -72,6 +77,8 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/blink/public/mojom/v8_cache_options.mojom.h"
 #include "url/origin.h"
 
 namespace cobalt {
@@ -182,9 +189,318 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
                 kSbMaxSystemPathCacheDirectorySize),
             kSbMaxSystemPathCacheDirectorySize - 13u * 1024 * 1024);
 
-  // 3. Zero / unconfigured budget:
+  // 3. Zero / unconfigured budget remains 0 regardless of feature flags:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
+    EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+  }
+
+  // 4. When kCobaltCodeCacheOptimization raises JS code cache from 5 MiB to
+  // 10 MiB, Starboard's dynamic non-HTTP reserve grows from 13 MiB to 18 MiB
+  // (leaving 6 MiB on a 24 MiB budget so DIR_CACHE never exceeds 24 MiB):
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
+    EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
+                  24 * 1024 * 1024),
+              6u * 1024 * 1024);
+  }
 }
+
+TEST_F(CobaltContentBrowserClientTest, GetGeneratedCodeCacheSettings) {
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // 1. Feature disabled (default): 5242880 bytes (5 MiB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltCodeCacheOptimization);
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_TRUE(settings.enabled());
+    EXPECT_EQ(settings.size_in_bytes(), 5242880u);
+    EXPECT_EQ(settings.path(), cache_dir);
+  }
+
+  // 2. Feature enabled (default parameter): 10485760 bytes (10 MiB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_TRUE(settings.enabled());
+    EXPECT_EQ(settings.size_in_bytes(), 10485760u);
+    EXPECT_EQ(settings.path(), cache_dir);
+  }
+
+  // 3. Custom byte parameter & [1048576, 1073741824] clamping.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCodeCacheOptimization,
+        {{features::kCobaltGeneratedCodeCacheSizeBytes.name, "8388608"}});
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 8388608u);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCodeCacheOptimization,
+        {{features::kCobaltGeneratedCodeCacheSizeBytes.name, "0"}});
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 1048576u);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCodeCacheOptimization,
+        {{features::kCobaltGeneratedCodeCacheSizeBytes.name, "2147483647"}});
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 1073741824u);
+  }
+}
+
+class CobaltWebPrefsTest : public content::ShellTestBase {};
+
+TEST_F(CobaltWebPrefsTest, OverrideWebPreferencesV8CacheOptions) {
+  content::WebContents::CreateParams create_params(browser_context());
+  std::unique_ptr<content::WebContents> web_contents(
+      content::TestWebContents::Create(create_params));
+  ASSERT_NE(web_contents->GetSiteInstance(), nullptr);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // 1. Disabled by default: keeps upstream V8CacheOptions::kDefault.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltCodeCacheOptimization);
+    blink::web_pref::WebPreferences prefs;
+    client.OverrideWebPreferences(web_contents.get(),
+                                  *web_contents->GetSiteInstance(), &prefs);
+    EXPECT_EQ(prefs.v8_cache_options, blink::mojom::V8CacheOptions::kDefault);
+  }
+
+  // 2. Enabled (default bypass_heat_check = true): sets kCodeWithoutHeatCheck.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
+    blink::web_pref::WebPreferences prefs;
+    client.OverrideWebPreferences(web_contents.get(),
+                                  *web_contents->GetSiteInstance(), &prefs);
+    EXPECT_EQ(prefs.v8_cache_options,
+              blink::mojom::V8CacheOptions::kCodeWithoutHeatCheck);
+  }
+
+  // 3. Enabled with CobaltCodeCacheOptimization_bypass_heat_check = false:
+  // keeps kDefault.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCodeCacheOptimization,
+        {{features::kCobaltV8CodeCacheBypassHeatCheck.name, "false"}});
+    blink::web_pref::WebPreferences prefs;
+    client.OverrideWebPreferences(web_contents.get(),
+                                  *web_contents->GetSiteInstance(), &prefs);
+    EXPECT_EQ(prefs.v8_cache_options, blink::mojom::V8CacheOptions::kDefault);
+  }
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest,
+       ConfigureHttpCacheMaxSizeStarboardQuota) {
+  constexpr uint32_t kBudget24MiB = 24u * 1024 * 1024;
+  constexpr int kExpectedDefault11MiB = 11 * 1024 * 1024;  // 11534336
+  constexpr int kExpectedCombined6MiB = 6 * 1024 * 1024;   // 6291456
+
+  // 1. Budgeted Starboard platform (24 MiB -> 11 MiB default):
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefault11MiB);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefault11MiB);
+  }
+  // Combined kCobaltCodeCacheOptimization (10 MiB JS code cache -> 18 MiB
+  // non-HTTP reserve) + kCobaltHttpCacheQuota (12 MiB cap) caps HTTP cache at
+  // min(6 MiB, 12 MiB) = 6 MiB so DIR_CACHE stays within 24 MiB:
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures({features::kCobaltCodeCacheOptimization,
+                                   features::kCobaltHttpCacheQuota},
+                                  {});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, kExpectedCombined6MiB);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "8388608"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 8388608);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "0"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 1048576);
+  }
+
+  // 2. Unbudgeted / auto-sized Starboard platform (budget == 0):
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 0);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 12582912);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "2147483647"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 1073741824);
+  }
+
+  // 3. In-memory profile and explicit --max-http-cache-size CLI override:
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/true, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 0);
+  }
+  {
+    base::test::ScopedCommandLine scoped_command_line;
+    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+        switches::kMaxHttpCacheSize, "16777216");
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 16777216);
+  }
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest, ConfigureHttpCacheMaxSizeAndroidQuota) {
+  // 1. Disabled by default: Android baseline is 26214400 bytes (25 MiB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 26214400);
+  }
+
+  // 2. Enabling kCobaltHttpCacheQuota configures 12582912 bytes (12 MiB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 12582912);
+  }
+
+  // 3. Custom cobalt_http_cache_size_bytes & [1048576, 1073741824] clamping.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "10485760"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 10485760);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "0"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 1048576);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", "2147483647"}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 1073741824);
+  }
+
+  // 4. In-memory profile and explicit --max-http-cache-size CLI override.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/true, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 0);
+  }
+  {
+    base::test::ScopedCommandLine scoped_command_line;
+    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+        switches::kMaxHttpCacheSize, "16777216");
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kSbMaxSystemPathCacheDirectorySize, params.get());
+    EXPECT_EQ(params->http_cache_max_size, 16777216);
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(CobaltContentBrowserClientTest, ShaderDiskCacheDirectoriesUseDirCache) {
@@ -558,18 +874,7 @@ class CobaltContentBrowserClientHeaderTest
 };
 
 TEST_F(CobaltContentBrowserClientHeaderTest,
-       NetworkContextParamsHaveNoHeadersByDefault) {
-  browser::CobaltHeaderValueProvider::GetInstance()->SetHeaderValue(
-      browser::kAndroidOSExperienceHeaderName, "Amati");
-
-  EXPECT_TRUE(
-      ConfigureNetworkContextParams()->cobalt_extra_request_headers.empty());
-}
-
-TEST_F(CobaltContentBrowserClientHeaderTest,
-       NetworkContextParamsHaveHeadersWhenSkippingHeaderClient) {
-  base::test::ScopedFeatureList feature_list(
-      features::kCobaltSkipTrustedHeaderClient);
+       NetworkContextParamsHaveHeadersByDefault) {
   auto* provider = browser::CobaltHeaderValueProvider::GetInstance();
   provider->SetHeaderValue(browser::kAndroidOSExperienceHeaderName, "Amati");
   provider->SetHeaderValue(browser::kBuildFingerprintHeaderName,
@@ -583,7 +888,27 @@ TEST_F(CobaltContentBrowserClientHeaderTest,
                         "test/fingerprint")));
 }
 
-TEST_F(CobaltContentBrowserClientHeaderTest, InstallsHeaderClientByDefault) {
+TEST_F(CobaltContentBrowserClientHeaderTest,
+       NetworkContextParamsHaveNoHeadersWhenNotSkippingHeaderClient) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kCobaltSkipTrustedHeaderClient);
+  browser::CobaltHeaderValueProvider::GetInstance()->SetHeaderValue(
+      browser::kAndroidOSExperienceHeaderName, "Amati");
+
+  EXPECT_TRUE(
+      ConfigureNetworkContextParams()->cobalt_extra_request_headers.empty());
+}
+
+TEST_F(CobaltContentBrowserClientHeaderTest,
+       DoesNotInstallHeaderClientByDefault) {
+  EXPECT_FALSE(GetInstalledHeaderClient().is_valid());
+}
+
+TEST_F(CobaltContentBrowserClientHeaderTest,
+       InstallsHeaderClientWhenNotSkippingHeaderClient) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kCobaltSkipTrustedHeaderClient);
+
   mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
       header_client = GetInstalledHeaderClient();
   EXPECT_TRUE(header_client.is_valid());
@@ -591,14 +916,6 @@ TEST_F(CobaltContentBrowserClientHeaderTest, InstallsHeaderClientByDefault) {
   // Let the self-owned header client see the disconnect and delete itself.
   header_client.reset();
   task_environment_.RunUntilIdle();
-}
-
-TEST_F(CobaltContentBrowserClientHeaderTest,
-       DoesNotInstallHeaderClientWhenSkippingHeaderClient) {
-  base::test::ScopedFeatureList feature_list(
-      features::kCobaltSkipTrustedHeaderClient);
-
-  EXPECT_FALSE(GetInstalledHeaderClient().is_valid());
 }
 
 // A helper observer implementation for PlatformServiceObserver that captures

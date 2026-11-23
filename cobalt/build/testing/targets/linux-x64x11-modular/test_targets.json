@@ -124,6 +124,12 @@
     "test_type": "gtest"
   },
   {
+    "target": "starboard:starboard_unittests_wrapper",
+    "executable": "out/linux-x64x11-modular_devel/starboard/starboard_unittests_wrapper",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
     "target": "starboard/nplb:nplb_loader",
     "executable": "out/linux-x64x11-modular_devel/nplb_loader",
     "runs_on": "host",
@@ -162,6 +168,12 @@
   {
     "target": "third_party/zlib:zlib_unittests_loader",
     "executable": "out/linux-x64x11-modular_devel/zlib_unittests_loader",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
+    "target": "ui/gl:gl_unittests_loader",
+    "executable": "out/linux-x64x11-modular_devel/gl_unittests_loader",
     "runs_on": "host",
     "test_type": "gtest"
   },

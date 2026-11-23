@@ -14,7 +14,6 @@
 
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-#include <cctype>
 #include <cstring>
 #include <numeric>
 #include <sstream>

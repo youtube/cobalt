@@ -33,10 +33,12 @@ runs:
 
         generate_filter_json() {
           local output_file="$1"
-          shift
+          local filter_outcome="$2"
+          shift 2
           local xml_files=("$@")
           local failed_tests_json
           local has_crash="false"
+          local parse_ok="false"
 
           # Check if any XML file has an associated crash marker file.
           for xml_file in "${xml_files[@]}"; do
@@ -48,20 +50,24 @@ runs:
 
           # Extract failing test names from parser output.
           raw_json=$(python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" || true)
+          if [ -n "${raw_json}" ]; then
+            parse_ok="true"
+          fi
           failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests // {} | .[]? | .[]? | .name] | unique' 2>/dev/null || echo "[]")
 
           # Build filter JSON.
           filter_json=$(jq -n \
             --argjson tests "${failed_tests_json:-"[]"}" \
-            --arg outcome "${OUTCOME}" \
-            --arg has_crash "${has_crash}" '
-            # If a crash occurred, do not write a filter so the original filters are re-used.
-            if $has_crash == "true" then
+            --arg outcome "${filter_outcome}" \
+            --arg has_crash "${has_crash}" \
+            --arg parse_ok "${parse_ok}" '
+            # If a crash occurred or XML parsing failed, do not write a filter so the original filters are re-used.
+            if $has_crash == "true" or $parse_ok != "true" then
               empty
             # If there are failing tests, run only those tests.
             elif ($tests | length) > 0 then
               { failing_tests: [], tests_to_run: $tests }
-            # If target passed with no failures, skip all (*).
+            # If target or shard passed with no failures, skip all (*).
             elif $outcome == "success" then
               { failing_tests: ["*"], tests_to_run: [] }
             # If target failed but no failing tests were identified (e.g. runner crash or timeout),
@@ -79,16 +85,22 @@ runs:
         shopt -s globstar nullglob
         xml_files=("${RESULTS_DIR}"/**/"${TEST_TARGET}"*.xml)
         if [ ${#xml_files[@]} -gt 0 ]; then
-          # Generate global filter
-          generate_filter_json "${FILTER_DIR}/${TEST_TARGET}_filter.json" "${xml_files[@]}"
-
-          # Also generate shard-specific filter files if shards exist
+          has_shard_xmls="false"
           for xml_file in "${xml_files[@]}"; do
             if [[ "${xml_file}" =~ /shard_([0-9]+)/ ]]; then
+              has_shard_xmls="true"
               shard_id="${BASH_REMATCH[1]}"
-              generate_filter_json "${FILTER_DIR}/${TEST_TARGET}_${shard_id}_filter.json" "${xml_file}"
+              generate_filter_json "${FILTER_DIR}/${TEST_TARGET}_${shard_id}_filter.json" "success" "${xml_file}"
             fi
           done
+
+          # For sharded targets, only emit the target-level filter when the
+          # whole target succeeded so crashed or missing shards still fall back
+          # to the platform base filter on retry instead of another shard's
+          # tests_to_run list.
+          if [ "${has_shard_xmls}" != "true" ] || [ "${OUTCOME}" = "success" ]; then
+            generate_filter_json "${FILTER_DIR}/${TEST_TARGET}_filter.json" "${OUTCOME}" "${xml_files[@]}"
+          fi
         fi
       shell: bash
     - name: Upload Retry Filter

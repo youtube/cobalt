@@ -344,7 +344,7 @@ void FireboltInterface::FireboltTextToSpeech::set_is_enabled(bool enabled) {
     }
   }
   if (should_notify_app && Application::Get()) {
-    Application::Get()->InjectAccessibilityTextToSpeechSettingsChanged();
+    Application::Get()->InjectAccessibilityTextToSpeechSettingsChanged(enabled);
   }
 }
 

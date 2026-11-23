@@ -74,7 +74,7 @@ class ApplicationRdk : public QueueApplication {
 
   void InjectAccessibilitySettingsChanged();
   void InjectAccessibilityCaptionSettingsChanged();
-  void InjectAccessibilityTextToSpeechSettingsChanged();
+  void InjectAccessibilityTextToSpeechSettingsChanged(bool enabled);
 
   const char* GetLocaleId();
 

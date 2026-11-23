@@ -28,7 +28,6 @@
 #include <optional>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "starboard/configuration.h"
@@ -146,12 +145,6 @@ inline std::vector<std::string> SplitString(const std::string& input,
   }
 
   return output;
-}
-
-// Returns true if `str` ends with `suffix`.
-inline bool EndsWith(std::string_view str, std::string_view suffix) {
-  return str.size() >= suffix.size() &&
-         str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 }  // namespace starboard

@@ -102,14 +102,11 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
     "//starboard/shared/starboard/microphone/microphone_open.cc",
     "//starboard/shared/starboard/microphone/microphone_read.cc",
-    "//starboard/shared/starboard/native_stability.cc",
-    "//starboard/shared/starboard/native_stability.h",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
     "//starboard/shared/starboard/window_set_default_options.cc",
     "//starboard/shared/stub/system_get_total_gpu_memory.cc",
-    "//starboard/shared/stub/system_get_used_gpu_memory.cc",
     "//starboard/shared/stub/system_hide_splash_screen.cc",
     "//starboard/shared/stub/system_request_blur.cc",
     "//starboard/shared/stub/system_request_focus.cc",
@@ -247,6 +244,7 @@ static_library("starboard_platform") {
     "system_get_path.cc",
     "system_get_property.cc",
     "system_get_stack.cc",
+    "system_get_used_gpu_memory.cc",
     "system_has_capability.cc",
     "system_info_api.cc",
     "system_info_api.h",
@@ -342,8 +340,6 @@ static_library("starboard_platform") {
       "crash_handler.h",
     ]
     sources += [
-      "//starboard/shared/starboard/crash_handler.cc",
-      "//starboard/shared/starboard/crash_handler.h",
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
 
@@ -374,7 +370,19 @@ static_library("starboard_platform") {
       "//starboard/loader_app:pending_restart",
     ]
 
-    deps += [ "//starboard/crashpad_wrapper" ]
+    if (use_evergreen) {
+      sources += [
+        "//starboard/shared/starboard/crash_handler.cc",
+        "//starboard/shared/starboard/crash_handler.h",
+      ]
+    }
+  }
+
+  if (use_evergreen || !is_starboard) {
+    sources += [
+      "//starboard/shared/starboard/native_stability.cc",
+      "//starboard/shared/starboard/native_stability.h",
+    ]
   }
 
   if (sb_evergreen_compatible_use_libunwind) {
@@ -434,14 +442,13 @@ static_library("test_support") {
 
   deps = [
     ":starboard_platform",
+    "//starboard/shared/starboard:features_test_util",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/jni_zero:jni_zero",
   ]
 
   sources = [
-    "//starboard/shared/starboard/features_test_util.cc",
-    "//starboard/shared/starboard/features_test_util.h",
     "fake_audio_track.cc",
     "fake_audio_track.h",
     "fake_media_codec.cc",
@@ -482,6 +489,7 @@ test("starboard_platform_tests") {
     ":test_support",
     "//base",
     "//starboard:starboard_group",
+    "//starboard/common:common_test",
     "//starboard/shared/starboard:starboard_test",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/player/filter/testing:test_util",

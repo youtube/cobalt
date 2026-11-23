@@ -21,6 +21,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
+#include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/testing/test_runner.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -217,7 +218,8 @@ SbPlayerTestFixture::SbPlayerTestFixture(
       max_video_capabilities_(config.max_video_capabilities),
       fake_graphics_context_provider_(fake_graphics_context_provider) {
   SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture ||
-            output_mode_ == kSbPlayerOutputModePunchOut);
+            output_mode_ == kSbPlayerOutputModePunchOut ||
+            output_mode_ == kSbPlayerOutputModeInvalid);
 
   const char* audio_dmp_filename = config.audio_filename;
   const char* video_dmp_filename = config.video_filename;
@@ -463,11 +465,11 @@ void SbPlayerTestFixture::Initialize() {
 
   // Initialize drm system.
   if (!key_system_.empty()) {
-    drm_system_ = SbDrmCreateSystem(
-        key_system_.c_str(), NULL /* context */, DummySessionUpdateRequestFunc,
-        DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
-        DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
+    drm_system_ = CreateDummyDrmSystem(key_system_.c_str());
     SB_DCHECK(SbDrmSystemIsValid(drm_system_));
+    if (IsWidevineKeySystem(key_system_)) {
+      GenerateWidevineSessionUpdateRequest(drm_system_);
+    }
   }
 
   // Initialize player.
@@ -483,10 +485,17 @@ void SbPlayerTestFixture::Initialize() {
     video_codec = video_dmp_reader_->video_codec();
   }
 
+  if (output_mode_ == kSbPlayerOutputModeInvalid) {
+    output_mode_ = GetPreferredOutputMode(CreatePlayerCreationParam(
+        audio_codec, video_codec, output_mode_, audio_stream_info, drm_system_,
+        max_video_capabilities_));
+    ASSERT_NE(output_mode_, kSbPlayerOutputModeInvalid);
+  }
+
   // TODO: refine CallSbPlayerCreate() to use real video sample info.
   player_ = CallSbPlayerCreate(
       fake_graphics_context_provider_->window(), video_codec, audio_codec,
-      drm_system_, audio_stream_info, max_video_capabilities_.c_str(),
+      drm_system_, audio_stream_info, max_video_capabilities_,
       DummyDeallocateSampleFunc, DecoderStatusCallback, PlayerStatusCallback,
       ErrorCallback, this, output_mode_,
       fake_graphics_context_provider_->decoder_target_provider());
@@ -515,7 +524,8 @@ void SbPlayerTestFixture::TearDown() {
   while (callback_event_queue_.Size() > 0) {
     WaitAndProcessNextEvent();
   }
-  SB_DCHECK(HasReceivedPlayerState(kSbPlayerStateDestroyed));
+  SB_CHECK(!destroy_player_called_ ||
+           HasReceivedPlayerState(kSbPlayerStateDestroyed));
   SB_DCHECK(!error_occurred_);
 
   player_ = kSbPlayerInvalid;

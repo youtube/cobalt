@@ -50,8 +50,6 @@ constexpr char kAreaBasedVideoBufferBudgetFeature[] =
     "AreaBasedVideoBufferBudget";
 
 // Experiment-controlled defaults, used when the experiment key is absent.
-constexpr char kDefaultInitialOldSpaceSizeMb[] = "64";
-constexpr char kDefaultMaxOldSpaceSizeMb[] = "512";
 #if !defined(ARCH_CPU_ARM64) && !defined(ARCH_CPU_X86_64)
 constexpr char kDefaultForceGpuMemAvailableMb[] = "64";
 #endif
@@ -178,7 +176,12 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
     }
   };
 
-  if (!flag_map.Has(flags::kEnableQuic)) {
+  // An explicit --enable-quic (qa and devel builds pass switches through the
+  // launch intent) wins over the experiment default: the network session
+  // configurator only honours --disable-quic, so appending it here would
+  // silently override the user's switch.
+  if (!flag_map.Has(flags::kEnableQuic) &&
+      !cmd_line->HasSwitch(::switches::kEnableQuic)) {
     AppendSwitchIfAbsent(cmd_line, ::switches::kDisableQuic);
   }
 
@@ -194,19 +197,9 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
         base::StrCat({v8_switches::kBytecodeOldTime, *old_time}));
   }
 
-  js_flags.push_back(
-      base::StrCat({v8_switches::kInitialOldSpaceSize,
-                    flag_map.GetNumeric(flags::kV8InitialOldSpaceSize)
-                        .value_or(kDefaultInitialOldSpaceSizeMb)}));
-
   if (flag_map.Has(flags::kV8DisableSparkplug)) {
     js_flags.push_back(v8_switches::kNoSparkplug);
   }
-
-  js_flags.push_back(
-      base::StrCat({v8_switches::kMaxOldSpaceSize,
-                    flag_map.GetNumeric(flags::kV8MaxOldSpaceSize)
-                        .value_or(kDefaultMaxOldSpaceSizeMb)}));
 
   if (const auto gpu_mem =
           flag_map.GetNumeric(flags::kForceGpuMemAvailableMb)) {

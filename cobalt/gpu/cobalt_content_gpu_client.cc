@@ -18,13 +18,47 @@
 
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/threading/sequence_local_storage_slot.h"
 #include "cobalt/browser/memory_ablation.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
+#include "ui/gl/gl_display.h"
+#include "ui/gl/gl_utils.h"
 
 namespace cobalt {
+namespace {
+
+// Sequence-local RAII guard that terminates the default EGLDisplay when the
+// GPU thread tears down its SequenceLocalStorageMap after
+// InProcessGpuThread::CleanUp() destroys gpu_process_ and before
+// base::Thread::Stop() joins the thread.
+//
+// Lifetime and Ownership:
+// Owned by the GPU thread's SequenceLocalStorageMap via a
+// base::SequenceLocalStorageSlot. Constructed lazily in
+// PostSandboxInitialized() and destroyed automatically when the GPU thread's
+// message loop delegate is torn down.
+//
+// Threading Model:
+// Constructed and destroyed exclusively on the GPU main thread.
+class EglDisplayShutdownGuard {
+ public:
+  EglDisplayShutdownGuard() = default;
+
+  EglDisplayShutdownGuard(const EglDisplayShutdownGuard&) = delete;
+  EglDisplayShutdownGuard& operator=(const EglDisplayShutdownGuard&) = delete;
+
+  ~EglDisplayShutdownGuard() {
+    gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
+    if (display && display->IsInitialized()) {
+      display->Shutdown();
+    }
+  }
+};
+
+}  // namespace
 
 CobaltContentGpuClient::CobaltContentGpuClient()
     : video_geometry_setter_service_(
@@ -38,6 +72,16 @@ CobaltContentGpuClient::~CobaltContentGpuClient() = default;
 void CobaltContentGpuClient::GpuServiceInitialized(
     gpu::GpuChannelManager* channel_manager) {
   MaybeApplyGpuMemoryAblation(channel_manager);
+}
+
+void CobaltContentGpuClient::PostSandboxInitialized() {
+  // Arm a sequence-local guard so the default EGLDisplay is terminated on the
+  // GPU thread during shutdown if it is still initialized (for example when
+  // stopping from preload or after unfreezing without a reveal) so platform
+  // native displays can be disconnected safely after the GPU thread stops.
+  static base::SequenceLocalStorageSlot<EglDisplayShutdownGuard>
+      egl_display_shutdown_guard;
+  egl_display_shutdown_guard.GetOrCreateValue();
 }
 
 void CobaltContentGpuClient::PostCompositorThreadCreated(

@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <vector>
@@ -24,6 +25,7 @@
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/numerics/byte_conversions.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "media/base/audio_decoder_config.h"
@@ -42,9 +44,12 @@ namespace media {
 namespace {
 
 using ::testing::_;
+using ::testing::ContainerEq;
+using ::testing::DoAll;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::SaveArg;
 
 // BlockAddID for HDR10+ (ITU-T T.35) dynamic metadata carried in a WebM
 // BlockAdditional element. SbPlayerBridge treats alpha_data as an opaque blob,
@@ -275,6 +280,92 @@ TEST_F(SbPlayerBridgeSideDataTest, AttributesSideDataToCorrectSampleInBatch) {
   EXPECT_EQ(captured_samples_[2].side_data, expected_third);
 }
 
+// Once Suspend() destroys the underlying SbPlayer, subsequent WriteBuffers(),
+// GetCurrentSbDecodeTarget(), and repeated Suspend() calls must safely no-op
+// without invoking Starboard APIs on an invalidated SbPlayer handle.
+TEST_F(SbPlayerBridgeSideDataTest,
+       WriteBuffersAndGetDecodeTargetNoOpWhenSuspended) {
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(_)).Times(1);
+  bridge_->Suspend();
+
+  constexpr uint8_t kPayload[] = {0x01, 0x02, 0x03, 0x04};
+  EXPECT_CALL(mock_sbplayer_interface_, WriteSamples(_, _, _, _)).Times(0);
+  bridge_->WriteBuffers(DemuxerStream::VIDEO,
+                        {MakeVideoBuffer(kPayload, /*block_additional=*/{})});
+  EXPECT_TRUE(captured_samples_.empty());
+
+  EXPECT_CALL(mock_sbplayer_interface_, GetCurrentFrame(_)).Times(0);
+  EXPECT_EQ(bridge_->GetCurrentSbDecodeTarget(), kSbDecodeTargetInvalid);
+
+  // A second Suspend() call on an already suspended bridge must be a no-op.
+  EXPECT_CALL(mock_sbplayer_interface_, SetPlaybackRate(_, _)).Times(0);
+  EXPECT_CALL(mock_sbplayer_interface_, GetInfo(_, _)).Times(0);
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(_)).Times(0);
+  bridge_->Suspend();
+}
+
+constexpr char kSbPlayerCreateHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreate";
+constexpr char kSbPlayerCreateSubsequentHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreate.Subsequent";
+constexpr char kSbPlayerCreateToInitializedHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
+constexpr char kSbPlayerCreateToInitializedSubsequentHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized.Subsequent";
+constexpr char kSbPlayerDestroyHistogramPrefix[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
+constexpr char kSbPlayerDestroyBeforePrerollingHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.BeforePrerolling";
+constexpr char kSbPlayerDestroyPrerollingHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Prerolling";
+constexpr char kSbPlayerDestroyPresentingHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Presenting";
+constexpr char kSbPlayerDestroyEndOfStreamHistogram[] =
+    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.EndOfStream";
+
+// Returns the number of samples recorded in histogram |name|.
+size_t GetTotalCount(const base::HistogramTester& histogram_tester,
+                     const std::string& name) {
+  size_t count = 0;
+  for (const base::Bucket& bucket : histogram_tester.GetAllSamples(name)) {
+    count += bucket.count;
+  }
+  return count;
+}
+
+// Returns the number of samples recorded in |first_call_histogram| and
+// |subsequent_call_histogram|. Which of the two a sample lands in depends on
+// whether an earlier test in the same process already created an SbPlayer.
+size_t GetTotalCountAcrossOccurrences(
+    const base::HistogramTester& histogram_tester,
+    const std::string& first_call_histogram,
+    const std::string& subsequent_call_histogram) {
+  return GetTotalCount(histogram_tester, first_call_histogram) +
+         GetTotalCount(histogram_tester, subsequent_call_histogram);
+}
+
+std::unique_ptr<SbPlayerBridge> CreateTestBridge(
+    MockSbPlayerInterface* sbplayer_interface,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    SbPlayerBridge::Host* host) {
+  const StarboardRendererConfig::ExperimentalFeatures experimental_features{};
+  return std::make_unique<SbPlayerBridge>(
+      sbplayer_interface, task_runner,
+      base::BindRepeating(
+          []() -> SbDecodeTargetGraphicsContextProvider* { return nullptr; }),
+      AudioDecoderConfig(), TestVideoConfig::Normal(), kSbWindowInvalid,
+      kSbDrmSystemInvalid, host,
+      /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
+      /*max_video_capabilities=*/"",
+      /*max_video_resolution=*/"",
+      /*max_video_input_size=*/0, experimental_features
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      /*surface_view=*/nullptr
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
+}
+
 // Exercises the playback statistics reported by SbPlayerBridge::GetInfo().
 // Instantiated per test by GoogleTest and runs on the main test thread.
 class SbPlayerBridgeStatisticsTest : public testing::Test {
@@ -284,22 +375,9 @@ class SbPlayerBridgeStatisticsTest : public testing::Test {
     // SbPlayerBridge's constructor calls CreatePlayer() synchronously.
     EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
         .WillOnce(Return(player));
-    const StarboardRendererConfig::ExperimentalFeatures experimental_features{};
-    bridge_ = std::make_unique<SbPlayerBridge>(
-        &mock_sbplayer_interface_, task_environment_.GetMainThreadTaskRunner(),
-        base::BindRepeating(
-            []() -> SbDecodeTargetGraphicsContextProvider* { return nullptr; }),
-        AudioDecoderConfig(), TestVideoConfig::Normal(), kSbWindowInvalid,
-        kSbDrmSystemInvalid, &host_,
-        /*allow_resume_after_suspend=*/false, kSbPlayerOutputModePunchOut,
-        /*max_video_capabilities=*/"",
-        /*max_video_resolution=*/"",
-        /*max_video_input_size=*/0, experimental_features
-#if BUILDFLAG(IS_ANDROID)
-        ,
-        /*surface_view=*/nullptr
-#endif  // BUILDFLAG(IS_ANDROID)
-    );
+    bridge_ =
+        CreateTestBridge(&mock_sbplayer_interface_,
+                         task_environment_.GetMainThreadTaskRunner(), &host_);
     EXPECT_TRUE(bridge_->IsValid());
     return player;
   }
@@ -324,19 +402,309 @@ class SbPlayerBridgeStatisticsTest : public testing::Test {
 // counted by the SbPlayer destroyed on Suspend() must be kept, even when the
 // new SbPlayer's first reported value isn't lower than the old one's.
 TEST_F(SbPlayerBridgeStatisticsTest, FrameTotalsContinueAcrossSuspendResume) {
+  constexpr int kFramesDecodedBeforeSuspend = 5;
+  // Higher than kFramesDecodedBeforeSuspend, so the reset of the counters
+  // can't be detected from the reported values alone.
+  constexpr int kFramesDecodedAfterResume = 12;
+  constexpr uint32_t kTotalFramesDecoded =
+      kFramesDecodedBeforeSuspend + kFramesDecodedAfterResume;
+
   SbPlayer first_player = CreateBridge();
-  SetVideoFramesDecoded(first_player, 5);
-  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded, 5u);
+  SetVideoFramesDecoded(first_player, kFramesDecodedBeforeSuspend);
+  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded,
+            static_cast<uint32_t>(kFramesDecodedBeforeSuspend));
 
   bridge_->Suspend();
-  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded, 5u);
+  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded,
+            static_cast<uint32_t>(kFramesDecodedBeforeSuspend));
 
   SbPlayer second_player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
       .WillOnce(Return(second_player));
   bridge_->Resume(kSbWindowInvalid);
-  SetVideoFramesDecoded(second_player, 12);
-  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded, 17u);
+  SetVideoFramesDecoded(second_player, kFramesDecodedAfterResume);
+  EXPECT_EQ(bridge_->GetInfo().statistics.total_video_frames_decoded,
+            kTotalFramesDecoded);
+}
+
+// Repeated kSbPlayerStateInitialized statuses for the same SbPlayer must only
+// record Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized once, in the
+// same variant as the SbPlayerCreate() call that created the player.
+TEST(SbPlayerBridgeLatencyTest, RecordsCreateToInitializedOncePerPlayer) {
+  constexpr int kInitializedStatusCount = 2;
+
+  base::test::TaskEnvironment task_environment;
+  NiceMock<MockSbPlayerInterface> mock_sbplayer_interface;
+  FakeSbPlayerBridgeHost host;
+  base::HistogramTester histogram_tester;
+
+  SbPlayer player = reinterpret_cast<SbPlayer>(new MockSbPlayer());
+  SbPlayerStatusFunc player_status_func = nullptr;
+  void* context = nullptr;
+  EXPECT_CALL(mock_sbplayer_interface, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(DoAll(SaveArg<4>(&player_status_func), SaveArg<6>(&context),
+                      Return(player)));
+  std::unique_ptr<SbPlayerBridge> bridge =
+      CreateTestBridge(&mock_sbplayer_interface,
+                       task_environment.GetMainThreadTaskRunner(), &host);
+  ASSERT_TRUE(bridge->IsValid());
+  ASSERT_TRUE(player_status_func);
+  EXPECT_EQ(
+      GetTotalCountAcrossOccurrences(histogram_tester, kSbPlayerCreateHistogram,
+                                     kSbPlayerCreateSubsequentHistogram),
+      1u);
+
+  for (int i = 0; i < kInitializedStatusCount; ++i) {
+    player_status_func(player, context, kSbPlayerStateInitialized,
+                       SB_PLAYER_INITIAL_TICKET);
+    task_environment.RunUntilIdle();
+  }
+  EXPECT_EQ(GetTotalCountAcrossOccurrences(
+                histogram_tester, kSbPlayerCreateToInitializedHistogram,
+                kSbPlayerCreateToInitializedSubsequentHistogram),
+            1u);
+  // Both metrics for this player are recorded in the same variant.
+  EXPECT_EQ(
+      GetTotalCount(histogram_tester, kSbPlayerCreateHistogram),
+      GetTotalCount(histogram_tester, kSbPlayerCreateToInitializedHistogram));
+}
+
+// Only the first SbPlayer creation in the process is recorded in the base
+// histogram; any later one is recorded in the ".Subsequent" variant.
+TEST(SbPlayerBridgeLatencyTest, RecordsLaterCreationsAsSubsequent) {
+  constexpr size_t kPlayerCount = 2;
+
+  base::test::TaskEnvironment task_environment;
+  NiceMock<MockSbPlayerInterface> mock_sbplayer_interface;
+  FakeSbPlayerBridgeHost host;
+  base::HistogramTester histogram_tester;
+
+  for (size_t i = 0; i < kPlayerCount; ++i) {
+    EXPECT_CALL(mock_sbplayer_interface, Create(_, _, _, _, _, _, _, _))
+        .WillOnce(Return(reinterpret_cast<SbPlayer>(new MockSbPlayer())));
+    std::unique_ptr<SbPlayerBridge> bridge =
+        CreateTestBridge(&mock_sbplayer_interface,
+                         task_environment.GetMainThreadTaskRunner(), &host);
+    ASSERT_TRUE(bridge->IsValid());
+  }
+
+  // At most one creation can be the first in the process, so all the others
+  // are recorded as subsequent.
+  const size_t first_call_count =
+      GetTotalCount(histogram_tester, kSbPlayerCreateHistogram);
+  EXPECT_LE(first_call_count, 1u);
+  EXPECT_EQ(GetTotalCount(histogram_tester, kSbPlayerCreateSubsequentHistogram),
+            kPlayerCount - first_call_count);
+}
+
+// Tests the SbPlayerDestroy latency histograms, split by player state.
+class SbPlayerBridgeDestroyLatencyTest : public testing::Test {
+ protected:
+  SbPlayerBridgeDestroyLatencyTest() {
+    // Suspend() reads SbPlayerInfo, so return an initialized one.
+    ON_CALL(mock_sbplayer_interface_, GetInfo(_, _))
+        .WillByDefault(Invoke([](SbPlayer /*player*/, SbPlayerInfo* info) {
+          *info = SbPlayerInfo{};
+          info->duration = SB_PLAYER_NO_DURATION;
+        }));
+  }
+
+  void CreateBridge(SbPlayer player) {
+    EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+        .WillOnce(DoAll(SaveArg<4>(&player_status_func_), SaveArg<6>(&context_),
+                        Return(player)));
+    bridge_ =
+        CreateTestBridge(&mock_sbplayer_interface_,
+                         task_environment_.GetMainThreadTaskRunner(), &host_);
+    ASSERT_TRUE(bridge_->IsValid());
+  }
+
+  void ReportStates(SbPlayer player,
+                    std::initializer_list<SbPlayerState> states,
+                    int ticket = SB_PLAYER_INITIAL_TICKET) {
+    ASSERT_TRUE(player_status_func_);
+    for (SbPlayerState state : states) {
+      player_status_func_(player, context_, state, ticket);
+    }
+    task_environment_.RunUntilIdle();
+  }
+
+  void SuspendAndResumeWith(SbPlayer player) {
+    bridge_->Suspend();
+    EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
+        .WillOnce(Return(player));
+    bridge_->Resume(kSbWindowInvalid);
+  }
+
+  base::HistogramTester::CountsMap GetDestroyCounts() const {
+    return histogram_tester_.GetTotalCountsForPrefix(
+        kSbPlayerDestroyHistogramPrefix);
+  }
+
+  base::test::TaskEnvironment task_environment_;
+  NiceMock<MockSbPlayerInterface> mock_sbplayer_interface_;
+  FakeSbPlayerBridgeHost host_;
+  base::HistogramTester histogram_tester_;
+  const std::unique_ptr<MockSbPlayer> first_mock_player_ =
+      std::make_unique<MockSbPlayer>();
+  const SbPlayer first_player_ =
+      reinterpret_cast<SbPlayer>(first_mock_player_.get());
+  SbPlayerStatusFunc player_status_func_ = nullptr;
+  void* context_ = nullptr;
+  std::unique_ptr<SbPlayerBridge> bridge_;
+};
+
+TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownBeforeInitialized) {
+  CreateBridge(first_player_);
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyBeforePrerollingHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+// A player that only reported kSbPlayerStateInitialized is also recorded as
+// ".BeforePrerolling".
+TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownWhenInitialized) {
+  CreateBridge(first_player_);
+  ReportStates(first_player_, {kSbPlayerStateInitialized});
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyBeforePrerollingHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownWhenPrerolling) {
+  CreateBridge(first_player_);
+  ReportStates(first_player_,
+               {kSbPlayerStateInitialized, kSbPlayerStatePrerolling});
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyPrerollingHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownWhenPresenting) {
+  CreateBridge(first_player_);
+  ReportStates(first_player_,
+               {kSbPlayerStateInitialized, kSbPlayerStatePrerolling,
+                kSbPlayerStatePresenting});
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyPresentingHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsTeardownAtEndOfStream) {
+  CreateBridge(first_player_);
+  ReportStates(first_player_,
+               {kSbPlayerStateInitialized, kSbPlayerStatePrerolling,
+                kSbPlayerStatePresenting, kSbPlayerStateEndOfStream});
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyEndOfStreamHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+// A player that prerolls again after a seek is recorded as ".Prerolling".
+TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsLastReportedState) {
+  CreateBridge(first_player_);
+  ReportStates(first_player_,
+               {kSbPlayerStateInitialized, kSbPlayerStatePrerolling,
+                kSbPlayerStatePresenting, kSbPlayerStatePrerolling});
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyPrerollingHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+TEST_F(SbPlayerBridgeDestroyLatencyTest, IgnoresStatusWithStaleTicket) {
+  constexpr int kStaleTicket = SB_PLAYER_INITIAL_TICKET + 1000;
+
+  CreateBridge(first_player_);
+  ReportStates(first_player_,
+               {kSbPlayerStateInitialized, kSbPlayerStatePrerolling});
+  ReportStates(first_player_, {kSbPlayerStatePresenting}, kStaleTicket);
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyPrerollingHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+TEST_F(SbPlayerBridgeDestroyLatencyTest, RecordsSuspendOnce) {
+  CreateBridge(first_player_);
+  ReportStates(first_player_,
+               {kSbPlayerStateInitialized, kSbPlayerStatePrerolling,
+                kSbPlayerStatePresenting});
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  bridge_->Suspend();
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyPresentingHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+TEST_F(SbPlayerBridgeDestroyLatencyTest, ResetsStateForPlayerCreatedOnResume) {
+  CreateBridge(first_player_);
+  ReportStates(first_player_,
+               {kSbPlayerStateInitialized, kSbPlayerStatePrerolling,
+                kSbPlayerStatePresenting});
+
+  auto second_mock_player = std::make_unique<MockSbPlayer>();
+  const SbPlayer second_player =
+      reinterpret_cast<SbPlayer>(second_mock_player.get());
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(first_player_)).Times(1);
+  SuspendAndResumeWith(second_player);
+
+  EXPECT_CALL(mock_sbplayer_interface_, Destroy(second_player)).Times(1);
+  bridge_.reset();
+
+  const base::HistogramTester::CountsMap expected_counts = {
+      {kSbPlayerDestroyPresentingHistogram, 1},
+      {kSbPlayerDestroyBeforePrerollingHistogram, 1}};
+  EXPECT_THAT(GetDestroyCounts(), ContainerEq(expected_counts));
+}
+
+TEST(SbPlayerBridgeLatencyTest, DoesNotRecordDestroyForInvalidPlayer) {
+  base::test::TaskEnvironment task_environment;
+  NiceMock<MockSbPlayerInterface> mock_sbplayer_interface;
+  FakeSbPlayerBridgeHost host;
+  base::HistogramTester histogram_tester;
+
+  EXPECT_CALL(mock_sbplayer_interface, Create(_, _, _, _, _, _, _, _))
+      .WillOnce(Return(kSbPlayerInvalid));
+  EXPECT_CALL(mock_sbplayer_interface, Destroy(_)).Times(0);
+  std::unique_ptr<SbPlayerBridge> bridge =
+      CreateTestBridge(&mock_sbplayer_interface,
+                       task_environment.GetMainThreadTaskRunner(), &host);
+  ASSERT_FALSE(bridge->IsValid());
+
+  bridge.reset();
+  EXPECT_THAT(
+      histogram_tester.GetTotalCountsForPrefix(kSbPlayerDestroyHistogramPrefix),
+      testing::IsEmpty());
 }
 
 }  // namespace
