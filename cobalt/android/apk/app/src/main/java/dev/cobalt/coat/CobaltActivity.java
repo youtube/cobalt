@@ -102,7 +102,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
   private Runnable mFreezeRunnable;
-  private boolean mDeferredStopFlushToFreeze;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
 
   // Delay between visibility:hidden and the freeze event on NVIDIA Shield, which always freezes
@@ -674,7 +673,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     AudioOutputManager.removeAudioDeviceListener(this);
     super.onStop();
 
-    boolean deferFlushToFreeze = false;
     if (useStarboardLifeCycle()) {
       // Going to the background is Conceal in the Starboard lifecycle (see
       // cobalt/doc/lifecycle.md). Freeze there is a blocking transition that releases SbPlayer and
@@ -686,15 +684,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       updateShellActivityVisible(false);
       WebContents webContents = getActiveWebContents();
       if (webContents != null && shouldFreezeOnBackground()) {
-        deferFlushToFreeze =
-            isFlushStorageOnFreezeFeatureEnabled()
-                && isOptimizeLifecycleStorageFlushFeatureEnabled();
         long delayMs = getFreezeOnBackgroundDelayMs();
         if (delayMs > 0) {
           scheduleFreeze(delayMs);
-          mDeferredStopFlushToFreeze = deferFlushToFreeze;
-        } else if (deferFlushToFreeze) {
-          freezeActiveWebContents();
         } else {
           // Fire freeze event immediately.
           webContents.onFreeze();
@@ -702,11 +694,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       }
     }
 
-    if (!deferFlushToFreeze) {
-      // Persist pending cookie and DOM storage writes so they are not lost if the
-      // process is killed while the app is in the background.
-      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
-    }
+    // Persist pending cookie and DOM storage writes so they are not lost if the
+    // process is killed while the app is in the background.
+    CobaltContentBrowserClient.flushCookiesAndLocalStorage();
 
     MemoryPressureMonitor.INSTANCE.disablePolling();
   }
@@ -735,11 +725,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (isNvidiaShield()) {
       unregisterDisplayListener();
     }
-    boolean flushCancelledFreeze = mDeferredStopFlushToFreeze;
     cancelPendingFreeze();
-    if (flushCancelledFreeze) {
-      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
-    }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
@@ -948,12 +934,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         && CobaltContentBrowserClient.isFlushStorageOnFreezeEnabled();
   }
 
-  @VisibleForTesting
-  protected boolean isOptimizeLifecycleStorageFlushFeatureEnabled() {
-    return FeatureList.isNativeInitialized()
-        && CobaltContentBrowserClient.isOptimizeLifecycleStorageFlushEnabled();
-  }
-
   /**
    * Returns whether the web app should receive a freeze event when the Activity is stopped. NVIDIA
    * Shield always freezes (see {@link #SHIELD_FREEZE_DELAY_MS}); every other device follows the
@@ -993,7 +973,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   /** Cancels a freeze queued by {@link #scheduleFreeze} that has not fired yet, if any. */
   private void cancelPendingFreeze() {
-    mDeferredStopFlushToFreeze = false;
     if (mFreezeRunnable != null) {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;
@@ -1002,7 +981,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   /** Dispatches the document freeze event to the active WebContents, if there still is one. */
   private void freezeActiveWebContents() {
-    mDeferredStopFlushToFreeze = false;
     WebContents webContents = getActiveWebContents();
     if (isFlushStorageOnFreezeFeatureEnabled()) {
       CobaltContentBrowserClient.freezeAndFlushCookiesAndLocalStorage(webContents);

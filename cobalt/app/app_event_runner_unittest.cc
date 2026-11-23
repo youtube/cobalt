@@ -15,6 +15,7 @@
 #include "cobalt/app/app_event_runner.h"
 
 #include "base/features.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
@@ -22,7 +23,6 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_test_support.h"
 #include "content/public/browser/visibility.h"
-#include "content/public/test/test_storage_partition.h"
 #include "content/test/test_web_contents.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -324,28 +324,11 @@ TEST_F(AppEventRunnerTest, StateGetters) {
 }
 
 TEST_F(AppEventRunnerTest, OnBlurFlushesAfterBlurAckWhenOptimized) {
-  class BlurOrderStoragePartition : public content::TestStoragePartition {
-   public:
-    void Flush() override { ++flush_count; }
-    int flush_count = 0;
-  };
-  class BlurOrderBrowserClient : public CobaltContentBrowserClient {
-   public:
-    explicit BlurOrderBrowserClient(content::StoragePartition* partition)
-        : CobaltContentBrowserClient(/*startup_timestamp=*/std::nullopt,
-                                     /*deep_link=*/""),
-          partition_(partition) {}
-    content::StoragePartition* GetPrimaryStoragePartition() override {
-      return partition_;
-    }
-
-   private:
-    raw_ptr<content::StoragePartition> partition_;
-  };
-
+  static constexpr char kPauseFlushHistogram[] =
+      "Cobalt.Storage.OnPause.FlushDuration";
   CreateTestShell(true /* is_visible */, true /* is_focused */);
-  BlurOrderStoragePartition partition;
-  BlurOrderBrowserClient client(&partition);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/std::nullopt,
+                                    /*deep_link=*/"");
 
   mojo::Remote<cobalt::mojom::CobaltLifecycleObserver> remote;
   CobaltLifecycleManager::GetInstance()->BindReceiver(
@@ -358,6 +341,7 @@ TEST_F(AppEventRunnerTest, OnBlurFlushesAfterBlurAckWhenOptimized) {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndDisableFeature(
         base::features::kCobaltOptimizeLifecycleStorageFlush);
+    base::HistogramTester histograms;
     remote->OnPageFocused();
     base::RunLoop().RunUntilIdle();
 
@@ -367,27 +351,31 @@ TEST_F(AppEventRunnerTest, OnBlurFlushesAfterBlurAckWhenOptimized) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE,
           base::BindOnce(
-              [](BlurOrderStoragePartition* sp, int* observed,
+              [](const base::HistogramTester* ht, int* observed,
                  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver>*
                      observer_remote) {
-                *observed = sp->flush_count;
+                int total = 0;
+                for (const auto& b : ht->GetAllSamples(kPauseFlushHistogram)) {
+                  total += b.count;
+                }
+                *observed = total;
                 (*observer_remote)->OnPageBlurred();
               },
-              &partition, &flushes_before_blur_ack, &remote));
+              &histograms, &flushes_before_blur_ack, &remote));
     });
     runner_->OnBlur();
     EXPECT_EQ(flushes_before_blur_ack, 1);
-    EXPECT_EQ(partition.flush_count, 1);
+    histograms.ExpectTotalCount(kPauseFlushHistogram, 1);
   }
 
   // 2. Enabled: FlushCookiesAndLocalStorageOnPause runs AFTER kBlur ACK.
   {
     base::test::ScopedFeatureList feature_list(
         base::features::kCobaltOptimizeLifecycleStorageFlush);
+    base::HistogramTester histograms;
     runner_->OnFocus();
     remote->OnPageFocused();
     base::RunLoop().RunUntilIdle();
-    partition.flush_count = 0;
 
     int flushes_before_blur_ack = -1;
     EXPECT_CALL(*platform_, OnBlur()).WillOnce([&]() {
@@ -395,17 +383,21 @@ TEST_F(AppEventRunnerTest, OnBlurFlushesAfterBlurAckWhenOptimized) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE,
           base::BindOnce(
-              [](BlurOrderStoragePartition* sp, int* observed,
+              [](const base::HistogramTester* ht, int* observed,
                  mojo::Remote<cobalt::mojom::CobaltLifecycleObserver>*
                      observer_remote) {
-                *observed = sp->flush_count;
+                int total = 0;
+                for (const auto& b : ht->GetAllSamples(kPauseFlushHistogram)) {
+                  total += b.count;
+                }
+                *observed = total;
                 (*observer_remote)->OnPageBlurred();
               },
-              &partition, &flushes_before_blur_ack, &remote));
+              &histograms, &flushes_before_blur_ack, &remote));
     });
     runner_->OnBlur();
     EXPECT_EQ(flushes_before_blur_ack, 0);
-    EXPECT_EQ(partition.flush_count, 1);
+    histograms.ExpectTotalCount(kPauseFlushHistogram, 1);
   }
 
   remote.reset();

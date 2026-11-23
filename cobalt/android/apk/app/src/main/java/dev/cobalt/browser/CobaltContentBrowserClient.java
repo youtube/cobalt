@@ -37,8 +37,6 @@ public class CobaltContentBrowserClient {
 
     boolean isFlushStorageOnFreezeEnabled();
 
-    boolean isOptimizeLifecycleStorageFlushEnabled();
-
     boolean isPlatformServicesOffUiThreadEnabled();
   }
 
@@ -80,10 +78,6 @@ public class CobaltContentBrowserClient {
    */
   public static boolean isFlushStorageOnFreezeEnabled() {
     return CobaltContentBrowserClientJni.get().isFlushStorageOnFreezeEnabled();
-  }
-
-  public static boolean isOptimizeLifecycleStorageFlushEnabled() {
-    return CobaltContentBrowserClientJni.get().isOptimizeLifecycleStorageFlushEnabled();
   }
 
   /**

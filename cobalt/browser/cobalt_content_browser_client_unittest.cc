@@ -56,7 +56,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/site_instance.h"
-#include "content/public/test/test_storage_partition.h"
 #include "content/test/test_web_contents.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
@@ -68,7 +67,6 @@
 #include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/url_loader_factory_builder.h"
-#include "services/network/public/mojom/cookie_manager.mojom-test-utils.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/ssl_config.mojom.h"
 #include "sql/database.h"
@@ -1380,130 +1378,220 @@ TEST_F(CobaltPlatformServiceBinderTest,
   close_loop.Run();
 }
 
-class QueuingCookieManager
-    : public network::mojom::CookieManagerInterceptorForTesting {
- public:
-  network::mojom::CookieManager* GetForwardingInterface() override {
-    NOTREACHED();
-  }
-  void FlushCookieStore(FlushCookieStoreCallback callback) override {
-    pending_callbacks_.push_back(std::move(callback));
-  }
-
-  size_t total_flush_calls() const {
-    return completed_flushes_ + pending_callbacks_.size();
-  }
-  size_t pending_count() const { return pending_callbacks_.size(); }
-
-  void CompleteNextFlush() {
-    ASSERT_FALSE(pending_callbacks_.empty());
-    auto cb = std::move(pending_callbacks_.front());
-    pending_callbacks_.erase(pending_callbacks_.begin());
-    ++completed_flushes_;
-    std::move(cb).Run();
-  }
-
- private:
-  size_t completed_flushes_ = 0;
-  std::vector<FlushCookieStoreCallback> pending_callbacks_;
-};
-
-class CountingStoragePartition : public content::TestStoragePartition {
- public:
-  void Flush() override { ++flush_count_; }
-  size_t flush_count() const { return flush_count_; }
-
- private:
-  size_t flush_count_ = 0;
-};
-
-class StorageFlushTestBrowserClient : public CobaltContentBrowserClient {
- public:
-  explicit StorageFlushTestBrowserClient(content::StoragePartition* partition)
-      : CobaltContentBrowserClient(/*startup_timestamp=*/std::nullopt,
-                                   /*deep_link=*/""),
-        partition_(partition) {}
-
-  content::StoragePartition* GetPrimaryStoragePartition() override {
-    return partition_;
-  }
-
- private:
-  raw_ptr<content::StoragePartition> partition_;
-};
-
-TEST_F(CobaltContentBrowserClientTest,
-       FlushCookiesAndLocalStorageDefaultOffDoesNotCoalesce) {
+TEST(CobaltAfterStartupTaskTest,
+     DefaultDisabledPostsImmediatelyAndReportsStartupComplete) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndDisableFeature(
-      base::features::kCobaltOptimizeLifecycleStorageFlush);
+  feature_list.InitAndDisableFeature(features::kCobaltDeferAfterStartupTasks);
 
-  QueuingCookieManager cookie_manager;
-  CountingStoragePartition partition;
-  partition.set_cookie_manager_for_browser_process(&cookie_manager);
-  StorageFlushTestBrowserClient client(&partition);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
 
-  std::vector<int> completed_order;
-  client.FlushCookiesAndLocalStorage(
-      base::BindLambdaForTesting([&] { completed_order.push_back(1); }));
-  client.FlushCookiesAndLocalStorage(
-      base::BindLambdaForTesting([&] { completed_order.push_back(2); }));
-  base::OnceClosure cb3 =
-      base::BindLambdaForTesting([&] { completed_order.push_back(3); });
-  EXPECT_TRUE(client.FlushCookies(&partition, &cb3));
-
-  EXPECT_EQ(partition.flush_count(), 2u);
-  EXPECT_EQ(cookie_manager.total_flush_calls(), 3u);
-  ASSERT_EQ(cookie_manager.pending_count(), 3u);
-
-  cookie_manager.CompleteNextFlush();
-  cookie_manager.CompleteNextFlush();
-  cookie_manager.CompleteNextFlush();
-  EXPECT_THAT(completed_order, testing::ElementsAre(1, 2, 3));
+  bool ran = false;
+  client.PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([&]() { ran = true; }));
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(ran);
 }
 
-TEST_F(CobaltContentBrowserClientTest,
-       FlushCookiesAndLocalStorageCoalescesConcurrentCallsWhenEnabled) {
-  base::test::ScopedFeatureList feature_list(
-      base::features::kCobaltOptimizeLifecycleStorageFlush);
-  base::HistogramTester histogram_tester;
+TEST(CobaltAfterStartupTaskTest,
+     EnabledQueuesTasksAcrossThreadsUntilOnMainReadyInFifoOrder) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
 
-  QueuingCookieManager cookie_manager;
-  CountingStoragePartition partition;
-  partition.set_cookie_manager_for_browser_process(&cookie_manager);
-  StorageFlushTestBrowserClient client(&partition);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  EXPECT_FALSE(client.IsBrowserStartupComplete());
 
-  std::vector<int> completed_order;
-  base::OnceClosure exit_cb =
-      base::BindLambdaForTesting([&] { completed_order.push_back(1); });
-  EXPECT_TRUE(client.FlushCookies(&partition, &exit_cb));
-  client.FlushCookiesAndLocalStorageOnPause();
-  client.FlushCookiesAndLocalStorage(
-      base::BindLambdaForTesting([&] { completed_order.push_back(2); }));
-  client.FlushCookiesAndLocalStorage(
-      base::BindLambdaForTesting([&] { completed_order.push_back(3); }));
+  std::vector<int> execution_order;
+  auto main_runner = base::SequencedTaskRunner::GetCurrentDefault();
 
-  // LocalStorage flushes still trigger immediately, while overlapping cookie
-  // flushes coalesce behind the single in-flight FlushCookieStore.
-  EXPECT_EQ(partition.flush_count(), 3u);
-  EXPECT_EQ(cookie_manager.total_flush_calls(), 1u);
-  ASSERT_EQ(cookie_manager.pending_count(), 1u);
+  client.PostAfterStartupTask(
+      FROM_HERE, main_runner,
+      base::BindLambdaForTesting([&]() { execution_order.push_back(1); }));
 
-  // Completing wave 1 runs caller 1's callback and schedules a single trailing
-  // FlushCookieStore for all coalesced callers.
-  cookie_manager.CompleteNextFlush();
-  EXPECT_THAT(completed_order, testing::ElementsAre(1));
-  EXPECT_EQ(cookie_manager.total_flush_calls(), 2u);
-  ASSERT_EQ(cookie_manager.pending_count(), 1u);
-  histogram_tester.ExpectTotalCount("Cobalt.Storage.OnPause.FlushDuration", 0);
+  // Post a second after-startup task from a background ThreadPool worker to
+  // verify cross-thread queuing safety.
+  base::WaitableEvent worker_queued;
+  base::ThreadPool::PostTask(FROM_HERE, base::BindLambdaForTesting([&]() {
+                               EXPECT_FALSE(client.IsBrowserStartupComplete());
+                               client.PostAfterStartupTask(
+                                   FROM_HERE, main_runner,
+                                   base::BindLambdaForTesting([&]() {
+                                     execution_order.push_back(2);
+                                   }));
+                               worker_queued.Signal();
+                             }));
+  worker_queued.Wait();
 
-  // Completing the trailing flush notifies all coalesced callers in FIFO order
-  // and leaves no extra flushes pending.
-  cookie_manager.CompleteNextFlush();
-  EXPECT_THAT(completed_order, testing::ElementsAre(1, 2, 3));
-  EXPECT_EQ(cookie_manager.total_flush_calls(), 2u);
-  EXPECT_EQ(cookie_manager.pending_count(), 0u);
-  histogram_tester.ExpectTotalCount("Cobalt.Storage.OnPause.FlushDuration", 1);
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(execution_order.empty());
+  EXPECT_FALSE(client.IsBrowserStartupComplete());
+
+  // Signal WebApp readiness (`h5vcc.system.notifyMainReady()`).
+  client.OnBrowserStartupComplete();
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+  task_environment.RunUntilIdle();
+  EXPECT_EQ(execution_order, (std::vector<int>{1, 2}));
+
+  // Subsequent PostAfterStartupTask calls post immediately without re-queuing.
+  client.PostAfterStartupTask(
+      FROM_HERE, main_runner,
+      base::BindLambdaForTesting([&]() { execution_order.push_back(3); }));
+  task_environment.RunUntilIdle();
+  EXPECT_EQ(execution_order, (std::vector<int>{1, 2, 3}));
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     FailsafeTimerReleasesFenceBeforeTenSecondMetricsAndClampsUpperBound) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  // Configure an oversized 30s parameter to verify clamping to 9500ms (< 10s
+  // CobaltStorageMetricsHelper delay).
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltDeferAfterStartupTasks,
+      {{features::kCobaltDeferAfterStartupTasksFailsafeDelay.name, "30s"}});
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  client.StartAfterStartupTaskFailsafeTimer();
+
+  bool ran = false;
+  client.PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([&]() { ran = true; }));
+
+  task_environment.FastForwardBy(base::Milliseconds(9499));
+  EXPECT_FALSE(client.IsBrowserStartupComplete());
+  EXPECT_FALSE(ran);
+
+  task_environment.FastForwardBy(base::Milliseconds(1));
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+  EXPECT_TRUE(ran);
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     SetBrowserStartupIsCompleteForTestingReleases) {
+  base::test::TaskEnvironment task_environment;
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  bool ran = false;
+  client.PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([&]() { ran = true; }));
+  task_environment.RunUntilIdle();
+  EXPECT_FALSE(ran);
+
+  client.SetBrowserStartupIsCompleteForTesting();
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(ran);
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     CancelDeferredAfterStartupTasksDiscardsWithoutRunning) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  client.StartAfterStartupTaskFailsafeTimer();
+
+  bool main_ran = false;
+  bool worker_ran = false;
+  client.PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindLambdaForTesting([&]() { main_ran = true; }));
+  scoped_refptr<base::SequencedTaskRunner> worker_runner =
+      base::ThreadPool::CreateSequencedTaskRunner({});
+  client.PostAfterStartupTask(
+      FROM_HERE, worker_runner,
+      base::BindLambdaForTesting([&]() { worker_ran = true; }));
+
+  // Simulate early browser shutdown before `notifyMainReady()` or the failsafe
+  // timer fires: queued startup tasks must be discarded without executing.
+  client.CancelDeferredAfterStartupTasks();
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+
+  task_environment.FastForwardBy(base::Seconds(10));
+  EXPECT_FALSE(main_ran);
+  EXPECT_FALSE(worker_ran);
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     HoldThreadPoolBestEffortFenceHaltsWorkerTasksUntilStartupComplete) {
+  base::test::TaskEnvironment task_environment;
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  client.HoldThreadPoolBestEffortFenceIfDeferred();
+
+  std::atomic<bool> best_effort_ran{false};
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT},
+      base::BindLambdaForTesting(
+          [&]() { best_effort_ran.store(true, std::memory_order_release); }));
+
+  // `USER_VISIBLE` worker tasks must continue running unblocked while
+  // `BEST_EFFORT` tasks remain held behind the startup fence.
+  base::WaitableEvent user_visible_ran;
+  base::ThreadPool::PostTask(
+      FROM_HERE, {base::TaskPriority::USER_VISIBLE},
+      base::BindLambdaForTesting([&]() { user_visible_ran.Signal(); }));
+  user_visible_ran.Wait();
+  EXPECT_FALSE(best_effort_ran.load(std::memory_order_acquire));
+
+  client.OnBrowserStartupComplete();
+  task_environment.RunUntilIdle();
+  EXPECT_TRUE(best_effort_ran.load(std::memory_order_acquire));
+}
+
+TEST(CobaltAfterStartupTaskTest,
+     HoldThreadPoolBestEffortFenceReleasesOnFailsafeBeforeTenSecondMetrics) {
+  base::test::TaskEnvironment task_environment{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltDeferAfterStartupTasks);
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+  client.HoldThreadPoolBestEffortFenceIfDeferred();
+  client.StartAfterStartupTaskFailsafeTimer();
+
+  // Models `ScheduleCobaltStorageMetricsRecording()` (+10s `BEST_EFFORT`
+  // `ThreadPool` delayed task) on a page that never calls `notifyMainReady()`.
+  bool ten_second_metrics_ran = false;
+  base::ThreadPool::PostDelayedTask(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT},
+      base::BindLambdaForTesting([&]() { ten_second_metrics_ran = true; }),
+      base::Seconds(10));
+
+  task_environment.FastForwardBy(base::Milliseconds(8500));
+  EXPECT_TRUE(client.IsBrowserStartupComplete());
+  EXPECT_FALSE(ten_second_metrics_ran);
+
+  task_environment.FastForwardBy(base::Milliseconds(1500));
+  EXPECT_TRUE(ten_second_metrics_ran);
 }
 
 }  // namespace

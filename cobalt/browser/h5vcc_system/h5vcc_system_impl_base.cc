@@ -14,8 +14,6 @@
 
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
 
-#include "base/feature_list.h"
-#include "base/features.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
@@ -101,22 +99,14 @@ void H5vccSystemImpl::Exit() {
   storage_partition->Flush();
   UMA_HISTOGRAM_TIMES("Cobalt.Storage.Exit.LocalStorageFlushSchedulingDuration",
                       local_storage_flush_timer.Elapsed());
+  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
+  CHECK(cookie_manager);
   // Sequencing exit strategy after flushing delays performing exit strategy by
   // 20ms when tested on a chromecast.
   auto start_time = std::make_unique<base::ElapsedTimer>();
-  base::OnceClosure callback =
+  cookie_manager->FlushCookieStore(
       base::BindOnce(&H5vccSystemImpl::OnFlushCookiesComplete,
-                     weak_factory_.GetWeakPtr(), std::move(start_time));
-  if (auto* client = content::ShellContentBrowserClient::Get();
-      client &&
-      base::FeatureList::IsEnabled(
-          base::features::kCobaltOptimizeLifecycleStorageFlush) &&
-      client->FlushCookies(storage_partition, &callback)) {
-    return;
-  }
-  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
-  CHECK(cookie_manager);
-  cookie_manager->FlushCookieStore(std::move(callback));
+                     weak_factory_.GetWeakPtr(), std::move(start_time)));
 }
 
 void H5vccSystemImpl::OnFlushCookiesComplete(
@@ -133,10 +123,16 @@ void H5vccSystemImpl::NotifyMainReady() {
   if (!render_frame_host().IsInPrimaryMainFrame()) {
     return;
   }
+  // `Shell::OnMainReady()` records per-window `SplashScreenMetrics`, whereas
+  // `OnBrowserStartupComplete()` releases the process-wide
+  // `ContentBrowserClient::PostAfterStartupTask()` / `BEST_EFFORT` queues.
   content::Shell* shell = content::Shell::FromWebContents(
       content::WebContents::FromRenderFrameHost(&render_frame_host()));
   if (shell) {
     shell->OnMainReady();
+    if (auto* browser_client = content::ShellContentBrowserClient::Get()) {
+      browser_client->OnBrowserStartupComplete();
+    }
   }
 }
 
