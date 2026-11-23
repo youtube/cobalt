@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #endif  // BUILDFLAG(IS_COBALT)
 #include "base/metrics/histogram_functions.h"
 #include "base/synchronization/lock.h"
@@ -343,7 +344,7 @@ void ParkableImageManager::ParkImagesToBudget(
   DCHECK(IsMainThread());
 
   struct Candidate {
-    ParkableImageImpl* image;
+    raw_ptr<ParkableImageImpl> image;
     base::TimeTicks last_used;
   };
   WTF::Vector<Candidate> candidates;
