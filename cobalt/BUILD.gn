@@ -137,6 +137,10 @@ if (is_ios && target_platform == "tvos") {
       "//content/public/app",
       "//starboard:starboard_group",
     ]
+    frameworks = [
+      "AVFoundation.framework",
+      "UIKit.framework",
+    ]
     bundle_deps = [
       ":cobalt_shell_framework_resources",
       "shell/app/ios/resources",
@@ -169,6 +173,10 @@ if (is_ios && target_platform == "tvos") {
       "//components/crash/core/app",
       "//content/public/app",
       "//starboard:starboard_group",
+    ]
+    frameworks = [
+      "AVFoundation.framework",
+      "UIKit.framework",
     ]
   }
 
