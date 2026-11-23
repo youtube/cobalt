@@ -4,8 +4,11 @@
 #   vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py \
 #     --histogram-file cobalt/tools/uma/storage_histograms.txt
 #
-# Note: CDP Browser.getHistograms performs a substring match on each query line.
-# Lines starting with '#' are ignored. Histograms are organized by priority tier:
+# Each line is an exact histogram name, or a name prefix if it ends with '*'.
+# Each histogram is reported once, under the first line that matches it.
+# Lines starting with '#' are ignored. A "Precondition:" comment says when the
+# lines below it (up to the next blank line) are recorded; until then they are
+# missing from the polls. Histograms are organized by priority tier:
 #   - P0: Primary causal mechanism metrics (footprint, quotas, cache hits, commits)
 #   - P1: Subsystem latency, throughput, and commit delay metrics
 #   - P2: Startup, thread congestion, data integrity, and migration guardrails
@@ -16,23 +19,52 @@
 # ==============================================================================
 
 # --- P0.1 Persistent & Cache Disk Footprint + RAM ---
+LocalStorage.MojoSizeInKB
+Cobalt.Stability.Pma.StartupTotalSizeKB
+Cobalt.StabilityMetrics.*
+
+# Precondition: recorded once per launch, 10 s after startup.
 Cobalt.Storage.UserData.StartupTotalSizeKB
 Cobalt.Storage.DirCache.StartupTotalSizeKB
+
+# Precondition: first recorded by the memory metrics timer, 300 s after startup.
 Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
 
 # --- P0.2 Cache Quotas, Init Sizes & Hit Behavior ---
 SimpleCache.Http.CacheSizeOnInit
 SimpleCache.Http.MaxCacheSizeOnInit
+SimpleCache.Http.IndexNumEntriesOnInit
+SimpleCache.Http.IndexInitializeMethod
+SimpleCache.Http.IndexFileStateOnLoad
 SimpleCache.Code.CacheSizeOnInit
 SimpleCache.Code.MaxCacheSizeOnInit
+SimpleCache.Code.IndexNumEntriesOnInit
+SimpleCache.Code.IndexInitializeMethod
+SimpleCache.Code.IndexFileStateOnLoad
 Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB
-Cobalt.Storage.GpuShaderCache.LoadedEntriesCount
-Cobalt.Storage.GpuShaderCache.LoadedBytesKB
+Gpu.GrShaderCacheEnabled
 V8.CompileScript.CacheBehaviour
 WebCore.Scripts.V8CodeCacheMetadata.Get
 WebCore.Scripts.V8CodeCacheMetadata.Set
-HttpCache.Pattern
+SiteIsolatedCodeCache.DataSize
+SiteIsolatedCodeCache.JS.Behaviour
+SiteIsolatedCodeCache.JS.Hit
+HttpCache.Pattern*
+HttpCache.OpenDiskEntry
+HttpCache.CreateDiskEntry
+HttpCache.IsNoStore
+Net.HttpJob.PrefilterBytesRead.Cache
+Net.HttpJob.PrefilterBytesRead.Net
+
+# Precondition: recorded only when the cache evicts entries.
+SimpleCache.Http.Eviction.EntryCount
+SimpleCache.Code.Eviction.EntryCount
+
+# Precondition: needs a GPU shader disk cache, which needs the
+# CobaltGpuShaderDiskCache feature (off by default).
+Cobalt.Storage.GpuShaderCache.LoadedEntriesCount
+Cobalt.Storage.GpuShaderCache.LoadedBytesKB
 
 # --- P0.3 Commit, Sync & Batching Counters ---
 Cobalt.Storage.Cookie.CommitDuration
@@ -41,37 +73,57 @@ Cobalt.Storage.LocalStorage.CommitDuration
 DOMStorage.CommitSizeBytesAggregated
 LevelDBEnv.SyncResult
 SessionStorageContext.CommitResult
+Sql.vfs.SyncTime
+ImportantFile.WriteDuration*
 
 # ==============================================================================
 # P1: Subsystem Latency, Throughput & Delay UMAs
 # ==============================================================================
 
-# --- P1.1 Cookie & LocalStorage Load / Flush / Delay Latency ---
+# --- P1.1 Cookie, LocalStorage & SQLite Load / Flush / Delay Latency ---
 Cobalt.Storage.Cookie.LoadDuration
 Cookie.TimeBlockedOnLoad
+Sql.Database.Success.OpenInternalTime.*
+Sql.Statement.ExecutionTime.*
 Cobalt.Storage.OnPause.FlushDuration
-# HttpServerProperties flush on onPause when
-# CobaltFlushHttpServerPropertiesOnPause is enabled (duration only when an
-# update was actually written; Flushed gives the pending/no-op ratio).
-Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration
-Cobalt.Storage.OnPause.HttpServerPropertiesFlushed
-Cobalt.Storage.Exit.CookieFlushDuration
 DOMStorage.CommitMeasuredDelay
 
-# --- P1.2 Cache & V8 Compile Latency ---
-Cobalt.Storage.GpuShaderCache.LoadDuration
+# Precondition: HttpServerProperties flush on onPause needs the
+# CobaltFlushHttpServerPropertiesOnPause feature (off by default). The duration
+# is recorded only when an update was actually written; Flushed gives the
+# pending/no-op ratio.
+Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration
+Cobalt.Storage.OnPause.HttpServerPropertiesFlushed
+
+# Precondition: recorded only when the page calls h5vcc.system.exit().
+Cobalt.Storage.Exit.CookieFlushDuration
+
+# --- P1.2 Cache, GPU Shader, ParkableImage & V8 Compile Latency ---
+Gpu.GrCompileShaderUs
 HttpCache.AccessToDone2.Used
-HttpCache.BeforeSend
+HttpCache.BeforeSend*
 SimpleCache.Http.DiskOpenLatency
-SimpleCache.Http.DiskWriteLatency
 SimpleCache.Code.DiskOpenLatency
 SimpleCache.Code.DiskWriteLatency
-V8.CompileScriptMicroSeconds
+V8.CompileScriptMicroSeconds*
 V8.ProduceCodeCacheMicroseconds
+V8.CompileSerializeMicroSeconds
+V8.CompileDeserializeMicroSeconds
+Memory.ParkableImage.Write.*
+
+# Precondition: needs the CobaltGpuShaderDiskCache feature (off by default).
+Cobalt.Storage.GpuShaderCache.LoadDuration
+
+# Precondition: recorded only when HTTP response bodies are written to the
+# cache; absent when every miss is doomed before its body is written.
+SimpleCache.Http.DiskWriteLatency
 
 # --- P1.3 Process Block I/O Volume ---
+# Precondition: recorded once per launch, 10 s after startup.
 Cobalt.Storage.ProcessIo.StartupReadKB
 Cobalt.Storage.ProcessIo.StartupWriteKB
+
+# Precondition: first sample 5 min after the startup sample.
 Cobalt.Storage.ProcessIo.WriteRateKBPerMin
 
 # ==============================================================================
@@ -81,15 +133,17 @@ Cobalt.Storage.ProcessIo.WriteRateKBPerMin
 # --- P2.1 Cold-Start Latency & Thread Congestion Guardrails ---
 Cobalt.Startup.Time.NavigationDispatchToCommit
 Cobalt.Startup.MilestoneReached
-Cobalt.Startup.TimeToMilestone.
-Browser.MainThreadsCongestion
+Cobalt.Startup.TimeToMilestone.*
+Browser.MainThreadsCongestion*
 
 # --- P2.2 Data Integrity & Error Guardrails ---
+LocalStorage.DatabaseOpen
+
+# Precondition: recorded only on errors.
 Cobalt.LocalStorage.DatabaseOpenError
 Cobalt.LocalStorage.DatabaseReadError
 Cobalt.LocalStorage.DatabaseCommitError
 Cobalt.LocalStorage.DatabaseVersionMismatch
-LocalStorage.DatabaseOpen
 Cookie.LoadProblem
 Cookie.CommitProblem
 
@@ -97,6 +151,10 @@ Cookie.CommitProblem
 # P2.3 Cobalt 25 -> 27 Storage Migration Guardrails
 # ==============================================================================
 Cobalt.StorageMigration.Outcome
+Cobalt.StorageMigration.FastPathDuration
+
+# Precondition: slow migration path only. The fast path records only Outcome
+# and FastPathDuration.
 Cobalt.StorageMigration.Duration
 Cobalt.StorageMigration.ReadResult
 Cobalt.StorageMigration.CookieInjectionResult

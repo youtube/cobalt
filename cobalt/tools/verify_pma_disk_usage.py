@@ -12,11 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tool to inspect and verify PMA disk usage on Android TV."""
+"""Tool to inspect and verify PMA disk usage on Android TV.
+
+Exit status: 0 within budget, 1 budget exceeded, 2 could not measure.
+"""
 
 import argparse
 import os
 import re
+import shlex
 import subprocess
 import sys
 import time
@@ -26,6 +30,9 @@ MAX_ALLOWED_PMA_DIR_BYTES = 512 * 1024  # 512 KiB
 DEFAULT_PACKAGE = "dev.cobalt.coat"
 DEFAULT_METRICS_DIR_NAME = "BrowserStabilityMetrics"
 DEFAULT_ACTIVITY = "dev.cobalt.app.MainActivity"
+# Other packages are launched with a VIEW intent for this URL.
+DEFAULT_URL = "https://www.youtube.com/tv"
+EXIT_PASS, EXIT_VIOLATION, EXIT_CANNOT_MEASURE = 0, 1, 2
 
 
 def get_adb_command(device_id: Optional[str] = None) -> List[str]:
@@ -39,10 +46,18 @@ def get_adb_command(device_id: Optional[str] = None) -> List[str]:
 def run_adb_shell(cmd_str: str,
                   device_id: Optional[str] = None,
                   package: Optional[str] = None) -> Tuple[int, str]:
-  """Executes a shell command on the device with run-as fallback."""
+  """Executes a shell command on the device.
+
+  With `package`, the command runs as `run-as <package> sh -c '<cmd>'`, so the
+  app's private directory and globs such as *.pma are evaluated with the app's
+  permissions. The plain shell (for example on a rooted device) is used only
+  when run-as reports that the package is not debuggable or unknown.
+  """
   base_cmd = get_adb_command(device_id)
 
-  full_cmd = base_cmd + ["shell", cmd_str]
+  remote_cmd = (f"run-as {package} sh -c {shlex.quote(cmd_str)}"
+                if package else cmd_str)
+  full_cmd = base_cmd + ["shell", remote_cmd]
   try:
     result = subprocess.run(
         full_cmd,
@@ -59,21 +74,9 @@ def run_adb_shell(cmd_str: str,
   if result.returncode == 0:
     return result.returncode, result.stdout
 
-  # Attempt run-as fallback if permission denied
-  if package and ("Permission denied" in result.stderr or
-                  "Permission denied" in result.stdout):
-    run_as_cmd = base_cmd + ["shell", f"run-as {package} {cmd_str}"]
-    try:
-      run_as_result = subprocess.run(
-          run_as_cmd,
-          stdout=subprocess.PIPE,
-          stderr=subprocess.PIPE,
-          text=True,
-          check=False,
-          timeout=30)
-      return run_as_result.returncode, run_as_result.stdout
-    except subprocess.TimeoutExpired:
-      return -1, "Error: ADB run-as command timed out."
+  if package and re.search(r"run-as:.*(not debuggable|unknown)",
+                           result.stdout + result.stderr):
+    return run_adb_shell(cmd_str, device_id)
 
   return result.returncode, result.stdout + result.stderr
 
@@ -115,7 +118,8 @@ def resolve_metrics_dir(
       return target_dir, None
 
   return None, (f"No BrowserStabilityMetrics directory found for package "
-                f"'{package}' among candidate paths: {candidate_dirs}")
+                f"'{package}' among candidate paths: {candidate_dirs}. "
+                "Reading it needs a debuggable app (run-as) or root.")
 
 
 def parse_pma_files_from_stat(output: str) -> Tuple[int, List[Dict[str, Any]]]:
@@ -247,7 +251,7 @@ def verify_disk_budget(total_bytes: int,
 
   dir_info = ""
   if total_dir_kb is not None:
-    dir_info = f" (Total Directory: {total_dir_kb:.1f} KB)"
+    dir_info = f" (allocated on disk: {total_dir_kb:.1f} KB)"
 
   print(f"Directory: {resolved_dir}{dir_info}")
   print(f"PMA Disk Usage: {total_kb:.2f} KB / {max_kb:.2f} KB "
@@ -263,7 +267,7 @@ def verify_disk_budget(total_bytes: int,
     print(f"❌ VIOLATION: PMA exceeds budget! {total_bytes} > {max_bytes}")
     return False
 
-  print("✅ OK: PMA directory usage is strictly within budget (<= 512 KB).")
+  print(f"✅ OK: PMA directory usage is within budget (<= {max_kb:.1f} KB).")
   return True
 
 
@@ -273,12 +277,13 @@ def poll_pma_usage(device_id: Optional[str],
                    duration_sec: float,
                    *,
                    max_bytes: int = MAX_ALLOWED_PMA_DIR_BYTES,
-                   metrics_dir_override: Optional[str] = None) -> bool:
-  """Polls PMA directory usage over a period of time."""
+                   metrics_dir_override: Optional[str] = None) -> int:
+  """Polls PMA directory usage over a period of time. Returns an exit code."""
   start_time = time.time()
   end_time = start_time + duration_sec if duration_sec > 0 else float("inf")
   peak_bytes = 0
   poll_count = 0
+  failed_polls = 0
   violations = 0
 
   print(f"Starting PMA disk usage monitor for package '{package}'...")
@@ -292,6 +297,7 @@ def poll_pma_usage(device_id: Optional[str],
           device_id, package, metrics_dir_override=metrics_dir_override)
 
       if total_bytes is None:
+        failed_polls += 1
         print(f"⚠️ Error polling PMA usage: {resolved_dir}")
         time.sleep(interval_sec)
         continue
@@ -320,17 +326,21 @@ def poll_pma_usage(device_id: Optional[str],
 
   print("=" * 60)
   print("Monitoring Summary:")
-  print(f"  Total Polls: {poll_count}")
+  print(f"  Total Polls: {poll_count} ({failed_polls} failed)")
   print(f"  Peak Usage:  {peak_bytes / 1024.0:.2f} KB "
         f"({peak_bytes} bytes / {max_bytes / 1024.0:.1f} KB)")
   print(f"  Violations:  {violations}")
 
   if violations > 0:
     print("❌ FAILED: PMA directory exceeded quota during monitoring.")
-    return False
+    return EXIT_VIOLATION
+  if failed_polls or not poll_count:
+    print("❌ FAILED: Could not measure the PMA directory in every poll.")
+    return EXIT_CANNOT_MEASURE
 
-  print("✅ PASSED: PMA directory remained under 512 KB throughout run.")
-  return True
+  print(f"✅ PASSED: PMA directory remained under {max_bytes / 1024.0:.1f} KB "
+        "throughout run.")
+  return EXIT_PASS
 
 
 def run_stress_launches(device_id: Optional[str],
@@ -339,52 +349,61 @@ def run_stress_launches(device_id: Optional[str],
                         *,
                         max_bytes: int = MAX_ALLOWED_PMA_DIR_BYTES,
                         metrics_dir_override: Optional[str] = None,
-                        activity: Optional[str] = None) -> bool:
-  """Performs launch-and-kill cycles to test PMA pruning under stress."""
+                        activity: Optional[str] = None,
+                        launch_timeout_s: float = 15.0) -> int:
+  """Kills the app as soon as each launch creates a new PMA file.
+
+  Older PMA files are deleted by a startup task, so they can only accumulate
+  when the app is killed before that task runs. Returns an exit code.
+  """
   print(f"Running {num_launches} rapid launch-and-kill stress cycles...")
-  launch_activity = activity or f"{package}/{DEFAULT_ACTIVITY}"
+  if activity or package == DEFAULT_PACKAGE:
+    start_cmd = f"am start -n {activity or f'{package}/{DEFAULT_ACTIVITY}'}"
+  else:
+    start_cmd = (f"am start -a android.intent.action.VIEW -d {DEFAULT_URL} "
+                 f"-p {shlex.quote(package)}")
+  max_files = max_file_bytes = 0
+  run_adb_shell(f"am force-stop {package}", device_id=device_id)
 
   for i in range(1, num_launches + 1):
     print(f"\n--- Launch Cycle {i}/{num_launches} ---")
+    _, old_files, _ = list_pma_files(device_id, package, metrics_dir_override)
+    old_names = {f["name"] for f in old_files or []}
+    new_file, out = False, ""
+    try:
+      code, out = run_adb_shell(start_cmd, device_id=device_id)
+      deadline = time.monotonic() + launch_timeout_s
+      while (code == 0 and "Error" not in out and not new_file and
+             time.monotonic() < deadline):
+        _, files, _ = list_pma_files(device_id, package, metrics_dir_override)
+        new_file = any(f["name"] not in old_names for f in files or [])
+        if not new_file:
+          time.sleep(0.5)
+    finally:
+      run_adb_shell(f"am force-stop {package}", device_id=device_id)
 
-    # Start app synchronously with -W
-    start_cmd = f"am start -W -n {launch_activity}"
-    code, _ = run_adb_shell(start_cmd, device_id=device_id)
-    if code != 0:
-      run_adb_shell(f"am start -n {launch_activity}", device_id=device_id)
+    total_bytes, files, resolved_dir = list_pma_files(device_id, package,
+                                                      metrics_dir_override)
+    if not new_file or total_bytes is None:
+      print(f"❌ Error: No new PMA file within {launch_timeout_s} s of the "
+            f"launch. {out.strip()} {resolved_dir}")
+      return EXIT_CANNOT_MEASURE
+    max_files = max(max_files, len(files))
+    max_file_bytes = max([max_file_bytes] + [f["size_bytes"] for f in files])
 
-    # Poll up to 3s for PMA file creation
-    pma_ready = False
-    resolved_path = None
-    for _ in range(6):
-      total_bytes, files, resolved_dir = list_pma_files(
-          device_id, package, metrics_dir_override=metrics_dir_override)
-      if total_bytes is not None and files:
-        pma_ready = True
-        resolved_path = resolved_dir
-        break
-      time.sleep(0.5)
-
-    if not pma_ready or total_bytes is None or resolved_path is None:
-      print("❌ Error: PMA file not created after app launch.")
-      return False
-
-    total_dir_kb = get_dir_total_disk_usage_kb(device_id, package,
-                                               resolved_path)
+    total_dir_kb = get_dir_total_disk_usage_kb(device_id, package, resolved_dir)
     if not verify_disk_budget(
         total_bytes,
         files,
-        resolved_path,
+        resolved_dir,
         max_bytes=max_bytes,
         total_dir_kb=total_dir_kb):
-      return False
+      return EXIT_VIOLATION
 
-    # Stop app
-    run_adb_shell(f"am force-stop {package}", device_id=device_id)
-    time.sleep(0.5)
-
-  print(f"\n✅ Stress test passed across {num_launches} launches (<= 512 KB)!")
-  return True
+  print(f"\n✅ Stress test passed across {num_launches} launches "
+        f"(<= {max_bytes / 1024.0:.1f} KB, at most {max_files} files, largest "
+        f"{max_file_bytes / 1024.0:.1f} KB)!")
+  return EXIT_PASS
 
 
 def main():
@@ -400,7 +419,8 @@ def main():
   parser.add_argument(
       "-a",
       "--activity",
-      help=f"Launch activity (default: {DEFAULT_PACKAGE}/{DEFAULT_ACTIVITY})")
+      help=f"Launch activity (default: {DEFAULT_PACKAGE}/{DEFAULT_ACTIVITY}; "
+      "other packages get a VIEW intent)")
   parser.add_argument(
       "-d",
       "--metrics-dir",
@@ -428,29 +448,36 @@ def main():
       "--stress-launches",
       type=int,
       default=0,
-      help="Run N rapid launch-and-kill cycles to test PMA pruning")
+      help="Run N launch-and-kill cycles; each kills the app as soon as a new "
+      "PMA file appears")
+  parser.add_argument(
+      "--launch-timeout-s",
+      type=float,
+      default=15.0,
+      help="Seconds to wait for each stress launch's PMA file (default: 15)")
 
   args = parser.parse_args()
 
   if args.stress_launches > 0:
-    success = run_stress_launches(
+    code = run_stress_launches(
         args.device_id,
         args.package,
         args.stress_launches,
         max_bytes=args.max_bytes,
         metrics_dir_override=args.metrics_dir,
-        activity=args.activity)
-    sys.exit(0 if success else 1)
+        activity=args.activity,
+        launch_timeout_s=args.launch_timeout_s)
+    sys.exit(code)
 
   if args.poll:
-    success = poll_pma_usage(
+    code = poll_pma_usage(
         args.device_id,
         args.package,
         args.interval,
         args.duration,
         max_bytes=args.max_bytes,
         metrics_dir_override=args.metrics_dir)
-    sys.exit(0 if success else 1)
+    sys.exit(code)
 
   total_bytes, files, resolved_dir = list_pma_files(
       args.device_id, args.package, metrics_dir_override=args.metrics_dir)
