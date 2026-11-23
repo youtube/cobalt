@@ -9,6 +9,7 @@
 #include "base/auto_reset.h"
 #include "base/compiler_specific.h"
 #include "base/numerics/safe_conversions.h"
+#include "build/build_config.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_throw_dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/fetch/body.h"
@@ -560,6 +561,14 @@ void BodyStreamBuffer::ProcessData(ExceptionState& exception_state) {
       }
       if (!byob_view) {
         CHECK(!array);
+#if BUILDFLAG(IS_COBALT) && defined(ARCH_CPU_32_BITS)
+        // Hand the body to script in chunks of one fixed size. On 32-bit,
+        // PartitionAlloc keeps the address space of every allocation size
+        // class reserved, so chunks sized by whatever the network delivered
+        // leave a reservation behind for each size.
+        constexpr size_t kMaxChunkSize = 16 * 1024;
+        buffer = buffer.first(std::min(kMaxChunkSize, buffer.size()));
+#endif
         array = DOMUint8Array::CreateOrNull(base::as_bytes(buffer));
       }
       result = consumer_->EndRead(buffer.size());
