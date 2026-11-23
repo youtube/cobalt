@@ -261,6 +261,44 @@ BASE_DECLARE_FEATURE(kCobaltCodeCacheOptimization);
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeBytes);
 BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 
+// Modeled on upstream `ChromeContentBrowserClient::PostAfterStartupTask()`
+// (`chrome/browser/after_startup_task_utils.cc`) and
+// `AwContentBrowserClient::PostAfterStartupTask()`
+// (`android_webview/browser/aw_content_browser_client.cc`). Base
+// `ContentBrowserClient` (inherited by `ShellContentBrowserClient`) posts
+// immediately at t=0ms and returns `IsBrowserStartupComplete() == true`.
+//
+// How this also gates `BEST_EFFORT` background tasks across all platforms:
+// 1. During `BrowserMainLoop::CreateThreads()`
+//    (`content/browser/browser_main_loop.cc`), Chromium posts its
+//    startup-completion callback *through*
+//    `ContentBrowserClient::PostAfterStartupTask()`. Until that callback runs,
+//    `BrowserTaskExecutor::OnStartupComplete()`
+//    (`content/browser/scheduler/browser_task_queues.cc`) has not executed,
+//    keeping `QueueType::kBestEffort` disabled on `BrowserThread::UI` and
+//    `BrowserThread::IO` (which also holds `BrowserThread::PostBestEffortTask`
+//    callers such as `ChromeBlobStorageContext` old-directory cleanup).
+// 2. For `base::ThreadPool` `TaskPriority::BEST_EFFORT` worker tasks (such as
+//    `ClearOtherStabilityMetricsPmaFiles()`,
+//    `BtmStorage::DeleteDatabaseFiles()` when `"DIPS"` is disabled,
+//    `RecordPriorSessionExitReasons()`, and `MigrationManager` legacy file
+//    cleanup): `!BUILDFLAG(IS_ANDROID)` platforms hold
+//    `BrowserMainLoop::scoped_best_effort_execution_fence_`, and on
+//    `BUILDFLAG(IS_ANDROID)` `CobaltBrowserMainParts::PreCreateThreads()` holds
+//    an explicit `ScopedBestEffortExecutionFence` via
+//    `HoldThreadPoolBestEffortFenceIfDeferred()` until `PostAfterStartupTask`
+//    flushes.
+//
+// Queued callbacks and `BEST_EFFORT` gates are released when the primary web
+// app calls `h5vcc.system.notifyMainReady()` or when
+// `CobaltDeferAfterStartupTasks_failsafe_delay` fires (default: 8500ms to cover
+// ~3-7s TV cold-start `notifyMainReady()` with 1.5s headroom; clamped to
+// [0ms, 9500ms] so +10s `BEST_EFFORT` startup storage metrics always run before
+// Android's +15s Initial UMA Log).
+BASE_DECLARE_FEATURE(kCobaltDeferAfterStartupTasks);
+BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
+                           kCobaltDeferAfterStartupTasksFailsafeDelay);
+
 }  // namespace features
 }  // namespace cobalt
 
