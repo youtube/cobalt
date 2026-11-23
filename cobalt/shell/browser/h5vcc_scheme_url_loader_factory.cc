@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/base64.h"
+#include "base/byte_size.h"
 #include "base/containers/map_util.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
@@ -318,8 +319,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
 
     network::URLLoaderCompletionStatus status(net::OK);
-    status.encoded_data_length = content_.size();
-    status.encoded_body_length = content_.size();
+    status.encoded_data_length = base::ByteSize(content_.size());
+    status.encoded_body_length = base::ByteSize(content_.size());
     client_->OnComplete(status);
   }
 
