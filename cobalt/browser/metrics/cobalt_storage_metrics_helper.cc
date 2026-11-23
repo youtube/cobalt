@@ -15,16 +15,20 @@
 #include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 
 #include <algorithm>
+#include <numeric>
 #include <string>
 
 #include "base/base_paths.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/sequence_checker.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -61,6 +65,80 @@ constexpr int kMaxStartupReadKB = 500000;
 constexpr int kMinStorageSizeKB = 1;
 constexpr int kMaxStorageSizeKB = 100000;
 constexpr int kStorageSizeBuckets = 100;
+
+// Directories under the cache directory (base::DIR_CACHE) that make up the
+// CacheDirBucket buckets. These must match where each cache is created:
+// - HTTP cache: kCacheDirname in cobalt_content_browser_client.cc.
+// - Code caches: StoragePartitionImpl ("Code Cache") and
+//   GeneratedCodeCacheContext ("js", "wasm").
+// - CacheStorage: storage::kServiceWorkerDirectory. It is only under the cache
+//   directory where GetCacheStoragePath() says so (Starboard).
+// - GPU shader caches: GetGrShaderDiskCacheDirectory() and, on Android,
+//   GetShaderDiskCacheDirectory() in cobalt_content_browser_client.cc.
+constexpr base::FilePath::StringViewType kHttpCacheDirname =
+    FILE_PATH_LITERAL("Cache");
+constexpr base::FilePath::StringViewType kCodeCacheDirname =
+    FILE_PATH_LITERAL("Code Cache");
+constexpr base::FilePath::StringViewType kJsCodeCacheDirname =
+    FILE_PATH_LITERAL("js");
+constexpr base::FilePath::StringViewType kWasmCodeCacheDirname =
+    FILE_PATH_LITERAL("wasm");
+constexpr base::FilePath::StringViewType kServiceWorkerDirname =
+    FILE_PATH_LITERAL("Service Worker");
+constexpr base::FilePath::StringViewType kGrShaderCacheDirname =
+    FILE_PATH_LITERAL("GrShaderCache");
+constexpr base::FilePath::StringViewType kShaderCacheDirname =
+    FILE_PATH_LITERAL("ShaderCache");
+
+// Removes the leading separators from |*path|.
+void TrimLeadingSeparators(base::FilePath::StringViewType* path) {
+  const size_t start = path->find_first_not_of(base::FilePath::kSeparators);
+  path->remove_prefix(
+      start == base::FilePath::StringViewType::npos ? path->size() : start);
+}
+
+// Removes the leading directory name from the relative path |*path| and
+// returns it. Returns an empty view if |*path| is a bare file name.
+base::FilePath::StringViewType ConsumeLeadingDirectory(
+    base::FilePath::StringViewType* path) {
+  const size_t end = path->find_first_of(base::FilePath::kSeparators);
+  if (end == base::FilePath::StringViewType::npos) {
+    return {};
+  }
+  const base::FilePath::StringViewType directory = path->substr(0, end);
+  path->remove_prefix(end);
+  TrimLeadingSeparators(path);
+  return directory;
+}
+
+// Returns the bucket of a file given its path relative to the cache directory.
+CacheDirBucket GetBucketForCacheDirFile(
+    base::FilePath::StringViewType relative_path) {
+  const base::FilePath::StringViewType top_level_dir =
+      ConsumeLeadingDirectory(&relative_path);
+  if (top_level_dir == kHttpCacheDirname) {
+    return CacheDirBucket::kHttpCache;
+  }
+  if (top_level_dir == kCodeCacheDirname) {
+    const base::FilePath::StringViewType code_cache_dir =
+        ConsumeLeadingDirectory(&relative_path);
+    if (code_cache_dir == kJsCodeCacheDirname) {
+      return CacheDirBucket::kJsCodeCache;
+    }
+    if (code_cache_dir == kWasmCodeCacheDirname) {
+      return CacheDirBucket::kWasmCodeCache;
+    }
+    return CacheDirBucket::kOther;
+  }
+  if (top_level_dir == kServiceWorkerDirname) {
+    return CacheDirBucket::kServiceWorker;
+  }
+  if (top_level_dir == kGrShaderCacheDirname ||
+      top_level_dir == kShaderCacheDirname) {
+    return CacheDirBucket::kGpuShaderCache;
+  }
+  return CacheDirBucket::kOther;
+}
 
 // Tracker class responsible for periodic recording of steady-state storage
 // write rates. It is managed as a process-wide singleton with a lifetime
@@ -217,7 +295,50 @@ bool ReadCurrentProcessIoCounters(ProcessIoCounters* out_counters) {
 #endif
 }
 
-void RecordStartupStorageAndIoMetricsForPaths(
+std::string_view GetCacheDirBucketName(CacheDirBucket bucket) {
+  switch (bucket) {
+    case CacheDirBucket::kHttpCache:
+      return "HttpCache";
+    case CacheDirBucket::kJsCodeCache:
+      return "JsCodeCache";
+    case CacheDirBucket::kWasmCodeCache:
+      return "WasmCodeCache";
+    case CacheDirBucket::kServiceWorker:
+      return "ServiceWorker";
+    case CacheDirBucket::kGpuShaderCache:
+      return "GpuShaderCache";
+    case CacheDirBucket::kOther:
+      return "Other";
+  }
+  NOTREACHED();
+}
+
+int64_t CacheDirBucketSizes::TotalBytes() const {
+  return std::accumulate(bytes.begin(), bytes.end(), int64_t{0});
+}
+
+CacheDirBucketSizes ComputeCacheDirBucketSizes(
+    const base::FilePath& cache_dir) {
+  CacheDirBucketSizes sizes;
+  // This is base::ComputeDirectorySize() with each file's size attributed to
+  // a bucket. FileEnumerator returns paths of the form <root>/<relative path>,
+  // where <root> is the path it was given without trailing separators.
+  const base::FilePath root = cache_dir.StripTrailingSeparators();
+  const size_t root_length = root.value().size();
+  base::FileEnumerator file_iter(root, /*recursive=*/true,
+                                 base::FileEnumerator::FILES);
+  for (base::FilePath path = file_iter.Next(); !path.empty();
+       path = file_iter.Next()) {
+    base::FilePath::StringViewType relative_path(path.value());
+    relative_path.remove_prefix(std::min(root_length, relative_path.size()));
+    TrimLeadingSeparators(&relative_path);
+    sizes[GetBucketForCacheDirFile(relative_path)] +=
+        file_iter.GetInfo().GetSize();
+  }
+  return sizes;
+}
+
+std::optional<CacheDirBucketSizes> RecordStartupStorageAndIoMetricsForPaths(
     const base::FilePath& user_data_dir,
     const base::FilePath& cache_dir,
     const ProcessIoCounters* io_counters) {
@@ -241,13 +362,27 @@ void RecordStartupStorageAndIoMetricsForPaths(
         kMaxStorageSizeKB, kStorageSizeBuckets);
   }
 
-  if (!cache_dir.empty() && base::DirectoryExists(cache_dir)) {
-    const int64_t dir_cache_bytes = base::ComputeDirectorySize(cache_dir);
-    base::UmaHistogramCustomCounts(
-        "Cobalt.Storage.DirCache.StartupTotalSizeKB",
-        base::saturated_cast<int>(dir_cache_bytes / 1024), kMinStorageSizeKB,
-        kMaxStorageSizeKB, kStorageSizeBuckets);
+  if (cache_dir.empty() || !base::DirectoryExists(cache_dir)) {
+    return std::nullopt;
   }
+
+  // A single walk yields both the total and the per-bucket sizes, so the
+  // buckets always add up to the total.
+  const CacheDirBucketSizes cache_dir_sizes =
+      ComputeCacheDirBucketSizes(cache_dir);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Storage.DirCache.StartupTotalSizeKB",
+      base::saturated_cast<int>(cache_dir_sizes.TotalBytes() / 1024),
+      kMinStorageSizeKB, kMaxStorageSizeKB, kStorageSizeBuckets);
+  for (size_t i = 0; i < kCacheDirBucketCount; ++i) {
+    const CacheDirBucket bucket = static_cast<CacheDirBucket>(i);
+    base::UmaHistogramCustomCounts(
+        base::StrCat({"Cobalt.Storage.DirCache.", GetCacheDirBucketName(bucket),
+                      ".StartupSizeKB"}),
+        base::saturated_cast<int>(cache_dir_sizes[bucket] / 1024),
+        kMinStorageSizeKB, kMaxStorageSizeKB, kStorageSizeBuckets);
+  }
+  return cache_dir_sizes;
 }
 
 bool RecordSteadyStateWriteRateForInterval(int64_t baseline_write_bytes,

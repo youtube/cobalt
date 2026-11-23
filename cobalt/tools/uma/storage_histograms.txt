@@ -18,6 +18,13 @@
 # --- P0.1 Persistent & Cache Disk Footprint + RAM ---
 Cobalt.Storage.UserData.StartupTotalSizeKB
 Cobalt.Storage.DirCache.StartupTotalSizeKB
+# Per-bucket breakdown of the DirCache total, from the same directory walk.
+Cobalt.Storage.DirCache.HttpCache.StartupSizeKB
+Cobalt.Storage.DirCache.JsCodeCache.StartupSizeKB
+Cobalt.Storage.DirCache.WasmCodeCache.StartupSizeKB
+Cobalt.Storage.DirCache.ServiceWorker.StartupSizeKB
+Cobalt.Storage.DirCache.GpuShaderCache.StartupSizeKB
+Cobalt.Storage.DirCache.Other.StartupSizeKB
 Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
 
