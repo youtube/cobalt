@@ -11,12 +11,28 @@
 #   - P2: Startup, thread congestion, data integrity, and migration guardrails
 # Superseded or confounded histograms are documented as comments at the bottom.
 
+# Phase-2 Vega/Perfgate core subset (b/586376647), to register first. All are
+# recorded once per launch, before teardown, except as noted:
+#   Cobalt.Storage.UserData.StartupTotalSizeKB
+#   Cobalt.Storage.UserData.StartupTotalSizeKB2
+#   Cobalt.Storage.DirCache.StartupTotalSizeKB
+#   Cobalt.Storage.ProcessIo.StartupReadKB
+#   Cobalt.Storage.ProcessIo.StartupWriteKB
+#   Cobalt.Storage.ProcessIo.StartupMajorPageFaults
+#   Cobalt.Responsiveness.IOJankyIntervalsPerMinute (pulled by the
+#     `Cobalt.Responsiveness.` line): one sample per 1-minute window, not once
+#     per launch, so compare its mean.
+#   Cobalt.Storage.Cookie.LoadDuration
+#   Cobalt.Storage.GpuShaderCache.LoadDuration: recorded only with
+#     --enable-features=CobaltGpuShaderDiskCache (off by default; WS-3B #13559).
+
 # ==============================================================================
 # P0: Primary Causal Mechanism UMAs
 # ==============================================================================
 
 # --- P0.1 Persistent & Cache Disk Footprint + RAM ---
 Cobalt.Storage.UserData.StartupTotalSizeKB
+Cobalt.Storage.UserData.StartupTotalSizeKB2
 Cobalt.Storage.DirCache.StartupTotalSizeKB
 Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
@@ -67,6 +83,7 @@ V8.ProduceCodeCacheMicroseconds
 # --- P1.3 Process Block I/O Volume ---
 Cobalt.Storage.ProcessIo.StartupReadKB
 Cobalt.Storage.ProcessIo.StartupWriteKB
+Cobalt.Storage.ProcessIo.StartupMajorPageFaults
 Cobalt.Storage.ProcessIo.WriteRateKBPerMin
 
 # ==============================================================================
@@ -78,6 +95,9 @@ Cobalt.Startup.Time.NavigationDispatchToCommit
 Cobalt.Startup.MilestoneReached
 Cobalt.Startup.TimeToMilestone.
 Browser.MainThreadsCongestion
+# Blocking calls (mostly disk I/O) of 1 s or longer on non-background threads,
+# reported once per minute (IOJankyIntervalsPerMinute, IOJanksTotalPerMinute).
+Cobalt.Responsiveness.
 
 # --- P2.2 Data Integrity & Error Guardrails ---
 Cobalt.LocalStorage.DatabaseOpenError

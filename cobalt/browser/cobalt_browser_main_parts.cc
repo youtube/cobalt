@@ -628,6 +628,7 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  EnableCobaltIOJankMonitoring();
   if (browser_client_) {
     browser_client_->StartAfterStartupTaskFailsafeTimer();
   }

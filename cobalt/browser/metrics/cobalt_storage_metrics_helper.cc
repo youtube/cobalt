@@ -31,8 +31,14 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
+#include "base/threading/scoped_blocking_call.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "cobalt/shell/common/shell_paths.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include <sys/resource.h>
+#endif
 
 namespace cobalt {
 
@@ -60,7 +66,22 @@ constexpr int kMaxStartupReadKB = 500000;
 // and 4x the 24 MB DIR_CACHE quota; larger values land in the overflow bucket.
 constexpr int kMinStorageSizeKB = 1;
 constexpr int kMaxStorageSizeKB = 100000;
+// Widened 1 KB to 1,000,000 KB (~1 GB) range (~14.8% bucket width) for
+// Cobalt.Storage.UserData.StartupTotalSizeKB2, unclipping the ~40% of upgraded
+// fleet profiles whose legacy 6.x caches exceed 100,000 KB without mutating v1
+// bucket bounds (preserving PMA prior-session merge and launch-count parity).
+constexpr int kMaxUserDataSizeKB2 = 1000000;
 constexpr int kStorageSizeBuckets = 100;
+
+// getrusage() reports block I/O in 512-byte units.
+constexpr int64_t kRusageBlockSizeBytes = 512;
+
+void RecordIOJank(int janky_intervals_per_minute, int total_janks_per_minute) {
+  base::UmaHistogramCounts100("Cobalt.Responsiveness.IOJankyIntervalsPerMinute",
+                              janky_intervals_per_minute);
+  base::UmaHistogramCounts1000("Cobalt.Responsiveness.IOJanksTotalPerMinute",
+                               total_janks_per_minute);
+}
 
 // Tracker class responsible for periodic recording of steady-state storage
 // write rates. It is managed as a process-wide singleton with a lifetime
@@ -135,7 +156,7 @@ void RunPeriodicWriteRateSample() {
 }
 
 void RunPostStartupStorageMetricsTask() {
-  // 1. Sample /proc/self/io FIRST before any directory walk so that
+  // 1. Sample the block I/O counters FIRST, before any directory walk, so that
   // StartupReadKB is never polluted by stat()/readdir() metadata reads.
   ProcessIoCounters io_counters;
   const bool has_io_counters = ReadCurrentProcessIoCounters(&io_counters);
@@ -203,10 +224,34 @@ bool ParseProcIoCounters(std::string_view proc_io_contents,
   return true;
 }
 
+bool ProcessIoCountersFromRusage(int64_t in_blocks,
+                                 int64_t out_blocks,
+                                 int64_t major_page_faults,
+                                 ProcessIoCounters* out_counters) {
+  if (!out_counters || in_blocks < 0 || out_blocks < 0 ||
+      major_page_faults < 0) {
+    return false;
+  }
+  out_counters->read_bytes = in_blocks * kRusageBlockSizeBytes;
+  out_counters->write_bytes = out_blocks * kRusageBlockSizeBytes;
+  out_counters->major_page_faults = major_page_faults;
+  return true;
+}
+
 bool ReadCurrentProcessIoCounters(ProcessIoCounters* out_counters) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
-  // Android builds are not Starboard builds, so both are listed. On Starboard
-  // platforms without procfs the read fails and no sample is recorded.
+#if BUILDFLAG(IS_ANDROID)
+  // /proc/self/io is owned by root and unreadable when the process is not
+  // dumpable, which Android sets for non-debuggable (release) APKs.
+  // getrusage() reads the same kernel task I/O accounting without that check.
+  struct rusage usage = {};
+  if (getrusage(RUSAGE_SELF, &usage) != 0) {
+    return false;
+  }
+  return ProcessIoCountersFromRusage(usage.ru_inblock, usage.ru_oublock,
+                                     usage.ru_majflt, out_counters);
+#elif BUILDFLAG(IS_STARBOARD)
+  // On Starboard platforms without procfs the read fails and no sample is
+  // recorded. getrusage() is not used because Evergreen does not export it.
   std::string contents;
   if (!base::ReadFileToString(base::FilePath("/proc/self/io"), &contents)) {
     return false;
@@ -215,6 +260,17 @@ bool ReadCurrentProcessIoCounters(ProcessIoCounters* out_counters) {
 #else
   return false;
 #endif
+}
+
+void EnableCobaltIOJankMonitoring() {
+  // As in Chrome, monitor only when TimeTicks are consistent across processes
+  // (true on Android and Linux); the algorithm is unsafe otherwise.
+  // Negligible CPU cost: ScopedBlockingCall on foreground threads already
+  // enters ScopedMonitoredCall; enabling sets its callback (one TimeTicks::Now
+  // exit check, lock-free return if < 1s, plus one 60s window rollover task).
+  if (base::TimeTicks::IsConsistentAcrossProcesses()) {
+    base::EnableIOJankMonitoringForProcess(base::BindRepeating(&RecordIOJank));
+  }
 }
 
 void RecordStartupStorageAndIoMetricsForPaths(
@@ -231,14 +287,22 @@ void RecordStartupStorageAndIoMetricsForPaths(
         "Cobalt.Storage.ProcessIo.StartupWriteKB",
         base::saturated_cast<int>(io_counters->write_bytes / 1024),
         kMinStorageSizeKB, kMaxStorageSizeKB, kStorageSizeBuckets);
+    if (io_counters->major_page_faults >= 0) {
+      base::UmaHistogramCounts100000(
+          "Cobalt.Storage.ProcessIo.StartupMajorPageFaults",
+          base::saturated_cast<int>(io_counters->major_page_faults));
+    }
   }
 
   if (!user_data_dir.empty() && base::DirectoryExists(user_data_dir)) {
     const int64_t user_data_bytes = base::ComputeDirectorySize(user_data_dir);
+    const int user_data_kb = base::saturated_cast<int>(user_data_bytes / 1024);
+    base::UmaHistogramCustomCounts("Cobalt.Storage.UserData.StartupTotalSizeKB",
+                                   user_data_kb, kMinStorageSizeKB,
+                                   kMaxStorageSizeKB, kStorageSizeBuckets);
     base::UmaHistogramCustomCounts(
-        "Cobalt.Storage.UserData.StartupTotalSizeKB",
-        base::saturated_cast<int>(user_data_bytes / 1024), kMinStorageSizeKB,
-        kMaxStorageSizeKB, kStorageSizeBuckets);
+        "Cobalt.Storage.UserData.StartupTotalSizeKB2", user_data_kb,
+        kMinStorageSizeKB, kMaxUserDataSizeKB2, kStorageSizeBuckets);
   }
 
   if (!cache_dir.empty() && base::DirectoryExists(cache_dir)) {
