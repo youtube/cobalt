@@ -306,6 +306,7 @@ static_library("starboard_platform") {
   public_deps = [
     ":starboard_base_symbolize",
     "//cobalt/android:app_event_bridge",
+    "//cobalt/android:cobalt_process_state_summary_jni",
     "//cobalt/android:jni_headers",
     "//cobalt/browser:cobalt_crash_annotations",
     "//cobalt/browser/client_hint_headers",
