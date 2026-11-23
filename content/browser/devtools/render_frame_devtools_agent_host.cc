@@ -28,7 +28,9 @@
 #include "content/browser/devtools/protocol/browser_handler.h"
 #include "content/browser/devtools/protocol/device_access_handler.h"
 #include "content/browser/devtools/protocol/device_orientation_handler.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/devtools/protocol/digital_credentials_handler.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/devtools/protocol/dom_handler.h"
 #include "content/browser/devtools/protocol/emulation_handler.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
@@ -442,8 +444,8 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   session->CreateAndAddHandler<protocol::LogHandler>();
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   session->CreateAndAddHandler<protocol::FedCmHandler>();
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   session->CreateAndAddHandler<protocol::DigitalCredentialsHandler>();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #if !BUILDFLAG(IS_ANDROID)
   session->CreateAndAddHandler<protocol::WebAuthnHandler>();
 #endif  // !BUILDFLAG(IS_ANDROID)
