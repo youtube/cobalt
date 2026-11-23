@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include "base/byte_size.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
@@ -112,10 +114,10 @@ void ResourceLoadObserver::CheckResourceLoaded(
       CheckTime(timing.connect_timing.connect_end);
     }
     if (file_size.has_value()) {
-      EXPECT_EQ(file_size.value(),
-                resource_load_info->raw_body_bytes.InBytes());
-      EXPECT_LT(file_size.value(),
-                resource_load_info->total_received_bytes.InBytes());
+      ASSERT_GE(file_size.value(), 0u);
+      const base::ByteSize file_byte_size(base::as_unsigned(file_size.value()));
+      EXPECT_EQ(file_byte_size, resource_load_info->raw_body_bytes);
+      EXPECT_LT(file_byte_size, resource_load_info->total_received_bytes);
     }
   }
   EXPECT_TRUE(resource_load_info_found);
