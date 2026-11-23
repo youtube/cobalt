@@ -44,8 +44,9 @@
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_COBALT)
-#include "base/auto_reset.h"
+#include "base/check.h"
 #include "base/containers/circular_deque.h"
+#include "storage/browser/quota/quota_features.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
 namespace content {
@@ -684,7 +685,10 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
 #if BUILDFLAG(IS_COBALT)
         ,
         storage_key_(storage_key),
-        defer_default_bucket_lookup_(defer_default_bucket_lookup)
+        defer_default_bucket_lookup_(
+            defer_default_bucket_lookup && !bucket.has_value() &&
+            base::FeatureList::IsEnabled(
+                storage::features::kCobaltDeferCacheStorageQuotaBucket))
 #endif  // BUILDFLAG(IS_COBALT)
   {
     // Eagerly initialize the backend when the mojo connection is bound.
@@ -1141,6 +1145,9 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
 
   void EnqueueDeferredBucketOp(bool create_if_empty, base::OnceClosure op) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+    CHECK(base::FeatureList::IsEnabled(
+        storage::features::kCobaltDeferCacheStorageQuotaBucket));
+    DCHECK(defer_default_bucket_lookup_);
     pending_deferred_ops_.push_back({create_if_empty, std::move(op)});
     ProcessDeferredBucketOps();
   }
@@ -1189,8 +1196,11 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
            !pending_deferred_ops_.front().create_if_empty) {
       base::OnceClosure op = std::move(pending_deferred_ops_.front().run);
       pending_deferred_ops_.pop_front();
-      base::AutoReset<bool> empty_fast_path(&fast_path_empty_storage_, true);
+      fast_path_empty_storage_ = true;
       std::move(op).Run();
+      if (self) {
+        fast_path_empty_storage_ = false;
+      }
     }
     if (self) {
       ProcessDeferredBucketOps();
@@ -1286,6 +1296,9 @@ class CacheStorageDispatcherHost::CacheStorageImpl final
   mojo::Remote<network::mojom::DocumentIsolationPolicyReporter> dip_reporter_;
   const storage::mojom::CacheStorageOwner owner_;
 #if BUILDFLAG(IS_COBALT)
+  // Gated on `storage::features::kCobaltDeferCacheStorageQuotaBucket`: when
+  // disabled, `defer_default_bucket_lookup_` and `fast_path_empty_storage_`
+  // remain false for the lifetime of `CacheStorageImpl`.
   const blink::StorageKey storage_key_;
   bool defer_default_bucket_lookup_ = false;
   bool deferred_op_in_progress_ = false;
@@ -1341,10 +1354,16 @@ void CacheStorageDispatcherHost::AddReceiver(
   }
   bool incognito = context_ ? context_->is_incognito() : false;
 #if BUILDFLAG(IS_COBALT)
+  const bool should_defer_default_bucket_lookup =
+      defer_default_bucket_lookup && !bucket.has_value() &&
+      base::FeatureList::IsEnabled(
+          storage::features::kCobaltDeferCacheStorageQuotaBucket);
+  DCHECK(!defer_default_bucket_lookup || should_defer_default_bucket_lookup);
   auto impl = std::make_unique<CacheStorageImpl>(
       this, bucket, incognito, cross_origin_embedder_policy,
       std::move(coep_reporter), document_isolation_policy,
-      std::move(dip_reporter), owner, storage_key, defer_default_bucket_lookup);
+      std::move(dip_reporter), owner, storage_key,
+      should_defer_default_bucket_lookup);
 #else
   auto impl = std::make_unique<CacheStorageImpl>(
       this, bucket, incognito, cross_origin_embedder_policy,
@@ -1392,6 +1411,8 @@ void CacheStorageDispatcherHost::HasPersistedDefaultBucketCacheStorage(
     storage::mojom::CacheStorageOwner owner,
     base::OnceCallback<void(bool)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(base::FeatureList::IsEnabled(
+      storage::features::kCobaltDeferCacheStorageQuotaBucket));
   scoped_refptr<CacheStorageManager> manager =
       context_ ? context_->cache_manager() : nullptr;
   if (!manager || !OriginCanAccessCacheStorage(storage_key.origin())) {

@@ -220,13 +220,65 @@ TEST_F(CacheStorageContextTest, GetDefaultBucketError) {
 
 #if BUILDFLAG(IS_COBALT)
 TEST_F(CacheStorageContextTest,
+       CobaltDisabledFeatureEagerlyCreatesDefaultBucket) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      storage::features::kCobaltDeferCacheStorageQuotaBucket);
+
+  base::ScopedTempDir disk_profile_dir;
+  ASSERT_TRUE(disk_profile_dir.CreateUniqueTempDir());
+  mojo::Remote<storage::mojom::CacheStorageControl> disk_control_remote;
+  mojo::Remote<storage::mojom::QuotaClient> disk_cache_quota_client_remote;
+  mojo::Remote<storage::mojom::QuotaClient> disk_bg_fetch_quota_client_remote;
+  mojo::PendingReceiver<storage::mojom::BlobStorageContext> disk_blob_receiver;
+  auto disk_context =
+      std::make_unique<CacheStorageContextImpl>(quota_manager_proxy());
+  disk_context->Init(
+      disk_control_remote.BindNewPipeAndPassReceiver(),
+      disk_profile_dir.GetPath(),
+      disk_cache_quota_client_remote.BindNewPipeAndPassReceiver(),
+      disk_bg_fetch_quota_client_remote.BindNewPipeAndPassReceiver(),
+      disk_blob_receiver.InitWithNewPipeAndPassRemote());
+
+  const blink::StorageKey storage_key =
+      blink::StorageKey::CreateFromStringForTesting(kExampleStorageKey);
+  mojo::Remote<blink::mojom::CacheStorage> remote;
+  disk_context->AddReceiver(
+      network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
+      network::DocumentIsolationPolicy(), mojo::NullRemote(),
+      storage::BucketLocator::ForDefaultBucket(storage_key),
+      storage::mojom::CacheStorageOwner::kCacheAPI,
+      remote.BindNewPipeAndPassReceiver());
+
+  base::RunLoop loop;
+  remote->Has(
+      u"v1", /*trace_id=*/0,
+      base::BindLambdaForTesting([&](blink::mojom::CacheStorageError error) {
+        EXPECT_EQ(error, blink::mojom::CacheStorageError::kErrorNotFound);
+        loop.Quit();
+      }));
+  loop.Run();
+
+  storage::QuotaManagerProxySync quota_manager_proxy_sync(
+      quota_manager_proxy());
+  ASSERT_OK_AND_ASSIGN(storage::BucketInfo bucket,
+                       quota_manager_proxy_sync.GetBucket(
+                           storage_key, storage::kDefaultBucketName));
+  EXPECT_GT(bucket.id.value(), 0);
+
+  disk_context.reset();
+  task_environment_.RunUntilIdle();
+}
+
+TEST_F(CacheStorageContextTest,
        CobaltDeferredDefaultBucketSkipsQuotaUntilOpen) {
   base::test::ScopedFeatureList feature_list(
       storage::features::kCobaltDeferCacheStorageQuotaBucket);
 
   // Re-initialize with a real disk profile directory (including a pre-existing
   // `WebStorage/QuotaManager` SQLite file as found on upgraded user profiles)
-  // so CacheStorageManager exercises HasAnyPersistedOrOpenCacheStorage().
+  // so CacheStorageDispatcherHost exercises
+  // HasPersistedDefaultBucketCacheStorage().
   base::ScopedTempDir disk_profile_dir;
   ASSERT_TRUE(disk_profile_dir.CreateUniqueTempDir());
   const base::FilePath web_storage_dir =
