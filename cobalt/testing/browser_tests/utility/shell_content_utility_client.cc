@@ -19,6 +19,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/containers/span.h"
 #include "base/files/file.h"
@@ -32,6 +33,7 @@
 #include "base/memory/writable_shared_memory_region.h"
 #include "base/process/process.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/allow_check_is_test_for_testing.h"
 #include "build/build_config.h"
 #include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
 #include "components/services/storage/test_api/test_api.h"
@@ -164,6 +166,11 @@ class TestUtilityServiceImpl : public mojom::TestService {
     std::move(callback).Run();
   }
 
+  void VerifyCheckIsTest(VerifyCheckIsTestCallback callback) override {
+    CHECK_IS_TEST();
+    std::move(callback).Run(true);
+  }
+
   void WriteToPreloadedPipe() override {
 #if BUILDFLAG(IS_POSIX)
     base::MemoryMappedFile::Region region;
@@ -194,6 +201,7 @@ auto RunEchoService(mojo::PendingReceiver<echo::mojom::EchoService> receiver) {
 ShellContentUtilityClient::ShellContentUtilityClient() {
   if (base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType) == switches::kUtilityProcess) {
+    base::test::AllowCheckIsTestForTesting();
     network_service_test_helper_ = NetworkServiceTestHelper::Create();
     audio_service_test_helper_ = std::make_unique<AudioServiceTestHelper>();
     storage::InjectTestApiImplementation();
