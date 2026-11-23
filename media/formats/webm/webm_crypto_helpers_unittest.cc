@@ -375,8 +375,7 @@ struct DecryptConfigResult {
 DecryptConfigResult CreateFromWholeFrame(base::span<const uint8_t> frame) {
   DecryptConfigResult result;
   result.success = WebMCreateDecryptConfig(
-      frame.data(), static_cast<int>(frame.size()), kKeyId.data(),
-      sizeof(kKeyId), &result.decrypt_config, &result.data_offset);
+      frame, base::span(kKeyId), &result.decrypt_config, &result.data_offset);
   return result;
 }
 
