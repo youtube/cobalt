@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -120,6 +122,10 @@ class EGLApiTest : public testing::Test {
         api_->eglQueryStringFn(api_->eglGetCurrentDisplayFn(), EGL_EXTENSIONS));
   }
 
+  void SetSurfacelessContextSupported(bool supported) {
+    display_->egl_surfaceless_context_supported_ = supported;
+  }
+
  protected:
   static const char* fake_extension_string_;
   static const char* fake_client_extension_string_;
@@ -168,5 +174,127 @@ TEST_F(EGLApiTest, DisabledExtensionStringTest) {
   EXPECT_STREQ(kFilteredClientExtensions, GetExtensions().first);
   EXPECT_STREQ(kFilteredExtensions, GetExtensions().second);
 }
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+namespace {
+
+struct FakeChooseConfigState {
+  bool support_pbuffer = false;
+  EGLConfig pbuffer_window_config = reinterpret_cast<EGLConfig>(0x1001);
+  EGLConfig window_only_config = reinterpret_cast<EGLConfig>(0x1002);
+  std::vector<EGLint> requested_surface_types;
+};
+
+FakeChooseConfigState* g_fake_choose_config_state = nullptr;
+
+EGLBoolean GL_BINDING_CALL FakeChooseConfig(EGLDisplay dpy,
+                                            const EGLint* attrib_list,
+                                            EGLConfig* configs,
+                                            EGLint config_size,
+                                            EGLint* num_config) {
+  EGLint surface_type = EGL_NONE;
+  for (const EGLint* attr = attrib_list; attr && *attr != EGL_NONE;
+       UNSAFE_TODO(attr += 2)) {
+    if (attr[0] == EGL_SURFACE_TYPE) {
+      surface_type = UNSAFE_TODO(attr[1]);
+      break;
+    }
+  }
+  if (!configs) {
+    g_fake_choose_config_state->requested_surface_types.push_back(surface_type);
+  }
+
+  EGLConfig matched = nullptr;
+  if (surface_type == (EGL_WINDOW_BIT | EGL_PBUFFER_BIT)) {
+    if (g_fake_choose_config_state->support_pbuffer) {
+      matched = g_fake_choose_config_state->pbuffer_window_config;
+    }
+  } else if (surface_type == EGL_WINDOW_BIT) {
+    matched = g_fake_choose_config_state->window_only_config;
+  }
+
+  if (!matched) {
+    *num_config = 0;
+    return EGL_TRUE;
+  }
+  *num_config = 1;
+  if (configs && config_size >= 1) {
+    configs[0] = matched;
+  }
+  return EGL_TRUE;
+}
+
+class ScopedFakeChooseConfig {
+ public:
+  explicit ScopedFakeChooseConfig(FakeChooseConfigState* state)
+      : prev_fn_(g_driver_egl.fn.eglChooseConfigFn) {
+    g_fake_choose_config_state = state;
+    g_driver_egl.fn.eglChooseConfigFn = &FakeChooseConfig;
+  }
+
+  ~ScopedFakeChooseConfig() {
+    g_driver_egl.fn.eglChooseConfigFn = prev_fn_;
+    g_fake_choose_config_state = nullptr;
+  }
+
+ private:
+  eglChooseConfigProc prev_fn_;
+};
+
+}  // namespace
+
+TEST_F(EGLApiTest,
+       WindowConfigFallsBackWithoutPbufferWhenSurfacelessSupported) {
+  SetFakeExtensionString("", "");
+  InitializeAPI(nullptr);
+  SetSurfacelessContextSupported(true);
+
+  FakeChooseConfigState state;
+  state.support_pbuffer = false;
+  ScopedFakeChooseConfig scoped_choose_config(&state);
+
+  auto surface = base::MakeRefCounted<NativeViewGLSurfaceEGL>(
+      display_, static_cast<EGLNativeWindowType>(0), nullptr);
+  EXPECT_EQ(surface->GetConfig(), state.window_only_config);
+  ASSERT_FALSE(state.requested_surface_types.empty());
+  EXPECT_EQ(state.requested_surface_types.front(),
+            EGL_WINDOW_BIT | EGL_PBUFFER_BIT);
+  EXPECT_EQ(state.requested_surface_types.back(), EGL_WINDOW_BIT);
+}
+
+TEST_F(EGLApiTest, WindowConfigDoesNotFallBackWithoutSurfacelessSupport) {
+  SetFakeExtensionString("", "");
+  InitializeAPI(nullptr);
+  SetSurfacelessContextSupported(false);
+
+  FakeChooseConfigState state;
+  state.support_pbuffer = false;
+  ScopedFakeChooseConfig scoped_choose_config(&state);
+
+  auto surface = base::MakeRefCounted<NativeViewGLSurfaceEGL>(
+      display_, static_cast<EGLNativeWindowType>(0), nullptr);
+  EXPECT_EQ(surface->GetConfig(), nullptr);
+  ASSERT_FALSE(state.requested_surface_types.empty());
+  for (EGLint surface_type : state.requested_surface_types) {
+    EXPECT_EQ(surface_type, EGL_WINDOW_BIT | EGL_PBUFFER_BIT);
+  }
+}
+
+TEST_F(EGLApiTest, WindowConfigPrefersWindowAndPbufferWhenAvailable) {
+  SetFakeExtensionString("", "");
+  InitializeAPI(nullptr);
+  SetSurfacelessContextSupported(true);
+
+  FakeChooseConfigState state;
+  state.support_pbuffer = true;
+  ScopedFakeChooseConfig scoped_choose_config(&state);
+
+  auto surface = base::MakeRefCounted<NativeViewGLSurfaceEGL>(
+      display_, static_cast<EGLNativeWindowType>(0), nullptr);
+  EXPECT_EQ(surface->GetConfig(), state.pbuffer_window_config);
+  ASSERT_EQ(state.requested_surface_types.size(), 1u);
+  EXPECT_EQ(state.requested_surface_types[0], EGL_WINDOW_BIT | EGL_PBUFFER_BIT);
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
 }  // namespace gl

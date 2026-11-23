@@ -131,8 +131,7 @@ bool ValidateEglConfig(EGLDisplay display,
 
 EGLConfig ChooseConfig(EGLDisplay display,
                        GLSurfaceFormat format,
-                       bool surfaceless,
-                       bool offscreen,
+                       EGLint surface_type,
                        EGLint visual_id) {
   // Choose an EGL configuration.
   // On X this is only used for PBuffer surfaces.
@@ -151,11 +150,6 @@ EGLConfig ChooseConfig(EGLDisplay display,
   // sizes.
   GLDisplayEglUtil::GetInstance()->ChoosePlatformCustomAlphaAndBufferSize(
       &alpha_size, &buffer_size);
-
-  EGLint surface_type =
-      (surfaceless
-           ? EGL_DONT_CARE
-           : (offscreen ? EGL_PBUFFER_BIT : EGL_WINDOW_BIT | EGL_PBUFFER_BIT));
 
   for (auto renderable_type : renderable_types) {
     EGLint config_attribs_8888[] = {EGL_BUFFER_SIZE,
@@ -266,7 +260,6 @@ EGLConfig ChooseConfig(EGLDisplay display,
     return config;
   }
 
-  LOG(ERROR) << "No suitable EGL configs found.";
   return nullptr;
 }
 
@@ -286,8 +279,28 @@ GLDisplay* GLSurfaceEGL::GetGLDisplay() {
 
 EGLConfig GLSurfaceEGL::GetConfig() {
   if (!config_) {
-    config_ = ChooseConfig(display_->GetDisplay(), format_, IsSurfaceless(),
-                           IsOffscreen(), GetNativeVisualID());
+    const bool surfaceless = IsSurfaceless();
+    const bool offscreen = IsOffscreen();
+    const EGLint surface_type =
+        (surfaceless ? EGL_DONT_CARE
+                     : (offscreen ? EGL_PBUFFER_BIT
+                                  : EGL_WINDOW_BIT | EGL_PBUFFER_BIT));
+    config_ = ChooseConfig(display_->GetDisplay(), format_, surface_type,
+                           GetNativeVisualID());
+#if BUILDFLAG(IS_COBALT)
+    // Platforms such as Wayland/Mesa (< 25.3) support surfaceless contexts
+    // (EGL_KHR_surfaceless_context + GL_OES_surfaceless_context) without
+    // exposing EGL_PBUFFER_BIT on window configs. Fall back to EGL_WINDOW_BIT
+    // when offscreen surfaces can use surfaceless contexts.
+    if (!config_ && !surfaceless && !offscreen &&
+        display_->IsEGLSurfacelessContextSupported()) {
+      config_ = ChooseConfig(display_->GetDisplay(), format_, EGL_WINDOW_BIT,
+                             GetNativeVisualID());
+    }
+#endif
+    if (!config_) {
+      LOG(ERROR) << "No suitable EGL configs found.";
+    }
   }
   return config_;
 }
