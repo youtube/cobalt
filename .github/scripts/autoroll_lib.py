@@ -265,6 +265,12 @@ def apply_and_commit(action,
         run(['git', 'reset', '--hard', 'HEAD'])
         return CommitStatus.FAILED, unmerged_files
 
+      # In a sparse checkout, conflicted paths outside the sparse cone are not
+      # guaranteed to be materialized in the working tree, which makes
+      # `git add` fail with "pathspec did not match any files". Recreate the
+      # conflicted merge result (with conflict markers) from the unmerged index
+      # entries so the files exist before staging them.
+      run(['git', 'checkout', '-m', '--'] + unmerged_files)
       run(['git', 'add', '--sparse', '--'] + unmerged_files)
       msg = f'CONFLICTED {msg}'
       result = CommitStatus.CONFLICTED
