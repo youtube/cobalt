@@ -1,4 +1,4 @@
-name: android_26.android
+name: android
 
 on:
   pull_request:
