@@ -1,0 +1,20 @@
+name: xb1
+
+on:
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  xb1:
+    uses: ./.github/workflows/main_win.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: xb1
+      nightly: ${{ github.event.inputs.nightly }}

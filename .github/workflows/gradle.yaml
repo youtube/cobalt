@@ -1,4 +1,4 @@
-name: Java Tests 25.lts.1+
+name: Java Tests
 
 on:
   pull_request:

@@ -1,4 +1,4 @@
-name: android_25.lts.1+
+name: android
 
 on:
   release:
