@@ -61,6 +61,14 @@ Because Evergreen support is required for certification, partners deploy officia
    wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
    ```
 
+   To start faster and use less memory, use the `.crx` without `_compressed`
+   in its name, for example `..._sbversion-18_qa.crx`. The loader then maps
+   its `libcobalt.so` straight from the APK instead of decompressing
+   `libcobalt.lz4` into memory, at the cost of a bigger APK.
+
+   With the uncompressed `.crx`, Evergreen also downloads its updates
+   uncompressed, so they take more storage.
+
 4. Unpack and inject the official prebuilt CRX into the compiled APK:
 
    ```bash
@@ -73,13 +81,14 @@ Because Evergreen support is required for certification, partners deploy officia
    cp -rf lib/* assets/app/cobalt/lib/
    cp -rf content/* assets/app/cobalt/content/
 
-   # Store lib/ uncompressed (-0) so the loader reads the core in place.
+   # Store lib/ uncompressed (-0) so the loader reads or maps the core in place.
    find assets/app/cobalt/lib -type f | zip -u -0 $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
 
    # Add the rest. zip -u doesn't recurse, so list every file.
    find assets -type f -not -path 'assets/app/cobalt/lib/*' | zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
 
-   # zip -u invalidates the APK v2 signature; re-align and re-sign with the bundled debug keystore
+   # zip -u invalidates the APK v2 signature; re-align and re-sign with the bundled debug keystore.
+   # zipalign -p page-aligns libcobalt.so, which mapping it needs.
    cd $OLDPWD
    APK="out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk"
    BT=$(ls -d third_party/android_sdk/public/build-tools/* | tail -1)

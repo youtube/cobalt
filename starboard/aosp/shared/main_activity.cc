@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -65,9 +66,29 @@ constexpr const char* kDefaultSwitches[] = {
     network_switches::kDisableQuic,
 };
 
+// Whether the APK ships an uncompressed Cobalt core, which the loader can map
+// straight from the APK instead of reading it into anonymous memory.
+bool HasUncompressedCore() {
+  char content_dir[PATH_MAX];
+  if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_dir,
+                       sizeof(content_dir))) {
+    return false;
+  }
+  const std::string core_path =
+      std::string(content_dir) + "/app/cobalt/lib/libcobalt.so";
+  struct stat info;
+  return stat(core_path.c_str(), &info) == 0;
+}
+
 void AppendDefaultSwitches(std::vector<std::string>* args) {
   for (const char* default_switch : kDefaultSwitches) {
     args->push_back(std::string("--") + default_switch);
+  }
+  // Map an uncompressed core only. The switch also makes Evergreen download
+  // uncompressed updates, which take more storage than compressed ones.
+  if (HasUncompressedCore()) {
+    args->push_back(std::string("--") +
+                    loader_app_switches::kLoaderUseMemoryMappedFile);
   }
 }
 

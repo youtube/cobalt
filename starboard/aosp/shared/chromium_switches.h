@@ -15,8 +15,9 @@
 #ifndef STARBOARD_AOSP_SHARED_CHROMIUM_SWITCHES_H_
 #define STARBOARD_AOSP_SHARED_CHROMIUM_SWITCHES_H_
 
-// Chromium switch names for the AOSP Starboard layer, which can't use
-// Chromium's ::switches constants (it builds against //copied_base/base).
+// Chromium and loader switch names for the AOSP Starboard layer, which can't
+// use Chromium's ::switches constants (it builds against //copied_base/base)
+// or depend on the loader.
 
 namespace starboard {
 
@@ -37,6 +38,13 @@ namespace base_switches {
 inline constexpr char kDisableDevShmUsage[] = "disable-dev-shm-usage";
 
 }  // namespace base_switches
+
+// Copied from starboard/loader_app/loader_app_switches.cc. Keep in sync.
+namespace loader_app_switches {
+
+inline constexpr char kLoaderUseMemoryMappedFile[] = "loader_use_mmap_file";
+
+}  // namespace loader_app_switches
 
 }  // namespace starboard
 
