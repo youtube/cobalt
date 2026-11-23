@@ -10,11 +10,19 @@
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/platform/disk_data_allocator.h"
 #include "third_party/blink/renderer/platform/graphics/parkable_image.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+
+#include "base/memory/memory_pressure_listener.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace blink {
 
@@ -40,6 +48,11 @@ class PLATFORM_EXPORT ParkableImageManager
   static bool IsParkableImagesToDiskEnabled() {
     return base::FeatureList::IsEnabled(features::kParkableImagesToDisk);
   }
+
+#if BUILDFLAG(IS_COBALT)
+  static bool IsUnparkedBudgetEnabled();
+  static size_t UnparkedBudgetBytes();
+#endif  // BUILDFLAG(IS_COBALT)
 
   void MaybeParkImagesForTesting() { MaybeParkImages(); }
 
@@ -74,6 +87,15 @@ class PLATFORM_EXPORT ParkableImageManager
 
   void ScheduleDelayedParkingTaskIfNeeded() EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void MaybeParkImages() LOCKS_EXCLUDED(lock_);
+
+#if BUILDFLAG(IS_COBALT)
+  void ParkImagesToBudget(
+      const WTF::Vector<ParkableImageImpl*>& unparked_images,
+      size_t budget_bytes,
+      bool* should_reschedule) LOCKS_EXCLUDED(lock_);
+  void OnMemoryPressure(base::MemoryPressureListener::MemoryPressureLevel level)
+      LOCKS_EXCLUDED(lock_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   Statistics ComputeStatistics() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
@@ -138,6 +160,9 @@ class PLATFORM_EXPORT ParkableImageManager
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   std::unique_ptr<DiskDataAllocator> allocator_for_testing_;
+#if BUILDFLAG(IS_COBALT)
+  std::optional<base::MemoryPressureListener> memory_pressure_listener_;
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace blink

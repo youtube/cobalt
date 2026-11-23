@@ -458,6 +458,20 @@ BASE_FEATURE(kCobaltBypassHTMLPreloadScanner,
              "CobaltBypassHTMLPreloadScanner",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Keeps up to CobaltParkableMemoryOptimization_max_unparked_kb of encoded
+// ParkableImage data in RAM, parking oldest images above that budget to disk
+// and parking all images on critical memory pressure (including background
+// memory purges).
+BASE_FEATURE(kCobaltParkableMemoryOptimization,
+             "CobaltParkableMemoryOptimization",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltParkableMemoryOptimizationMaxUnparkedKb,
+                   &kCobaltParkableMemoryOptimization,
+                   "CobaltParkableMemoryOptimization_max_unparked_kb",
+                   2048);
+
 // Enables preserving kTrivial3DTransform (e.g. translateZ(0)) on low-end
 // devices so that shelf tracks and carousels are promoted to dedicated
 // hardware-composited cc::PictureLayers rather than triggering CPU repaints.

@@ -1062,4 +1062,136 @@ TEST_F(ParkableImageWithLimitedDiskCapacityTest, ParkWithLimitedDiskCapacity) {
   EXPECT_TRUE(is_on_disk(pi2));
 }
 
+#if BUILDFLAG(IS_COBALT)
+namespace {
+constexpr size_t kCobaltTestImageSize = 14 * 1024;  // 14 KiB.
+constexpr char kCobaltBudgetParam[] =
+    "CobaltParkableMemoryOptimization_max_unparked_kb";
+}  // namespace
+
+class ParkableImageCobaltBudgetTest : public ParkableImageBaseTest {
+ public:
+  ParkableImageCobaltBudgetTest() : data_(MakeData()) {
+    fl_.InitWithFeaturesAndParameters(
+        {{features::kParkableImagesToDisk, {}},
+         {features::kCobaltParkableMemoryOptimization,
+          {{kCobaltBudgetParam, "32"}}}},
+        {kDelayParkingImages});
+  }
+
+ protected:
+  static base::HeapArray<uint8_t> MakeData() {
+    auto data = base::HeapArray<uint8_t>::Uninit(kCobaltTestImageSize);
+    PrepareReferenceData(data);
+    return data;
+  }
+
+  scoped_refptr<ParkableImage> MakeFrozenImage() {
+    auto pi = MakeParkableImageForTesting(data_);
+    pi->Freeze();
+    return pi;
+  }
+
+  base::HeapArray<uint8_t> data_;
+
+ private:
+  base::test::ScopedFeatureList fl_;
+};
+
+TEST_F(ParkableImageTest, CobaltUnparkedBudgetDefaultDisabledAndParam) {
+  EXPECT_FALSE(ParkableImageManager::IsUnparkedBudgetEnabled());
+  EXPECT_EQ(2048u * 1024u, ParkableImageManager::UnparkedBudgetBytes());
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, UnderBudgetKeepsImagesInRam) {
+  ASSERT_TRUE(ParkableImageManager::IsUnparkedBudgetEnabled());
+  auto pi1 = MakeFrozenImage();
+  auto pi2 = MakeFrozenImage();
+
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+  ExpectWriteStatistics(kCobaltTestImageSize / 1024, 0);
+  // Only the 5-minute statistics task remains scheduled while under budget.
+  EXPECT_EQ(1u, GetPendingMainThreadTaskCount());
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, OverBudgetParksOldestDownToBudget) {
+  auto pi1 = MakeFrozenImage();
+  WaitForParking();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  RunPostedTasks();
+  ASSERT_FALSE(is_on_disk(pi1));
+  ASSERT_FALSE(is_on_disk(pi2));
+
+  // Adding a third 14 KiB image (42 KiB > 32 KiB) parks only the oldest (pi1),
+  // bringing unparked bytes back to 28 KiB <= 32 KiB rather than wiping all.
+  auto pi3 = MakeFrozenImage();
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+  ExpectWriteStatistics(kCobaltTestImageSize / 1024, 1);
+  Unpark(pi1);
+  EXPECT_TRUE(IsSameContent(pi1, data_));
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, LockedOverflowImageReschedulesAndParks) {
+  auto pi1 = MakeFrozenImage();
+  WaitForParking();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  auto pi3 = MakeFrozenImage();
+
+  Lock(pi1);
+  Lock(pi2);
+  Lock(pi3);
+  WaitForParking();
+  RunPostedTasks();
+  EXPECT_FALSE(is_on_disk(pi1));
+
+  // Because unparked bytes remained over budget while locked, the manager
+  // rescheduled the parking task and parks pi1 once unlocked.
+  Unlock(pi1);
+  Unlock(pi2);
+  Unlock(pi3);
+  WaitForParking();
+  RunPostedTasks();
+
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+  EXPECT_FALSE(is_on_disk(pi3));
+}
+
+TEST_F(ParkableImageCobaltBudgetTest, CriticalMemoryPressureParksAll) {
+  base::MemoryPressureListener::SetNotificationsSuppressed(false);
+  auto pi1 = MakeFrozenImage();
+  auto pi2 = MakeFrozenImage();
+  WaitForParking();
+  RunPostedTasks();
+  ASSERT_FALSE(is_on_disk(pi1));
+  ASSERT_FALSE(is_on_disk(pi2));
+
+  // Moderate pressure leaves the foreground budget intact.
+  base::MemoryPressureListener::SimulatePressureNotification(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_MODERATE);
+  RunPostedTasks();
+  EXPECT_FALSE(is_on_disk(pi1));
+  EXPECT_FALSE(is_on_disk(pi2));
+
+  // Critical pressure (fired by OS low-memory signals and Blink's background
+  // MemoryPurgeManager) parks all unparked images.
+  base::MemoryPressureListener::SimulatePressureNotification(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+  RunPostedTasks();
+  EXPECT_TRUE(is_on_disk(pi1));
+  EXPECT_TRUE(is_on_disk(pi2));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace blink

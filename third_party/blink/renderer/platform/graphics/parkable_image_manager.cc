@@ -4,6 +4,11 @@
 
 #include "third_party/blink/renderer/platform/graphics/parkable_image_manager.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <algorithm>
+
+#include "base/functional/bind.h"
+#endif  // BUILDFLAG(IS_COBALT)
 #include "base/metrics/histogram_functions.h"
 #include "base/synchronization/lock.h"
 #include "base/task/single_thread_task_runner.h"
@@ -85,6 +90,9 @@ DiskDataAllocator& ParkableImageManager::data_allocator() const {
 }
 
 void ParkableImageManager::ResetForTesting() {
+#if BUILDFLAG(IS_COBALT)
+  memory_pressure_listener_.reset();
+#endif  // BUILDFLAG(IS_COBALT)
   base::AutoLock lock(lock_);
 
   has_pending_parking_task_ = false;
@@ -104,6 +112,14 @@ void ParkableImageManager::Add(ParkableImageImpl* impl) {
     DCHECK(!IsRegistered(impl));
   }
 #endif  // DCHECK_IS_ON()
+
+#if BUILDFLAG(IS_COBALT)
+  if (IsUnparkedBudgetEnabled() && !memory_pressure_listener_) {
+    memory_pressure_listener_.emplace(
+        FROM_HERE, base::BindRepeating(&ParkableImageManager::OnMemoryPressure,
+                                       base::Unretained(this)));
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   base::AutoLock lock(lock_);
 
@@ -250,11 +266,20 @@ void ParkableImageManager::MaybeParkImages() {
   lock_.Release();
 
   bool should_reschedule = false;
-  for (auto* image : unparked_images) {
-    if (image->ShouldReschedule())
-      should_reschedule = true;
-    image->MaybePark(task_runner_);
+#if BUILDFLAG(IS_COBALT)
+  if (IsUnparkedBudgetEnabled()) {
+    ParkImagesToBudget(unparked_images, UnparkedBudgetBytes(),
+                       &should_reschedule);
+  } else {
+#endif  // BUILDFLAG(IS_COBALT)
+    for (auto* image : unparked_images) {
+      if (image->ShouldReschedule())
+        should_reschedule = true;
+      image->MaybePark(task_runner_);
+    }
+#if BUILDFLAG(IS_COBALT)
   }
+#endif  // BUILDFLAG(IS_COBALT)
 
   lock_.Acquire();
 
@@ -263,5 +288,80 @@ void ParkableImageManager::MaybeParkImages() {
   if (should_reschedule)
     ScheduleDelayedParkingTaskIfNeeded();
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+bool ParkableImageManager::IsUnparkedBudgetEnabled() {
+  return IsParkableImagesToDiskEnabled() &&
+         base::FeatureList::IsEnabled(
+             features::kCobaltParkableMemoryOptimization);
+}
+
+// static
+size_t ParkableImageManager::UnparkedBudgetBytes() {
+  const int kb = std::clamp(
+      features::kCobaltParkableMemoryOptimizationMaxUnparkedKb.Get(), 0, 65536);
+  return static_cast<size_t>(kb) * 1024;
+}
+
+void ParkableImageManager::ParkImagesToBudget(
+    const WTF::Vector<ParkableImageImpl*>& unparked_images,
+    size_t budget_bytes,
+    bool* should_reschedule) {
+  DCHECK(IsMainThread());
+
+  WTF::Vector<ParkableImageImpl*> candidates;
+  candidates.reserve(unparked_images.size());
+  size_t unparked_bytes = 0;
+  for (ParkableImageImpl* image : unparked_images) {
+    if (image->ShouldReschedule()) {
+      *should_reschedule = true;
+    }
+    {
+      base::AutoLock image_lock(image->lock_);
+      if (image->background_task_in_progress_) {
+        continue;
+      }
+    }
+    unparked_bytes += image->size();
+    candidates.push_back(image);
+  }
+  if (unparked_bytes <= budget_bytes) {
+    return;
+  }
+
+  std::stable_sort(candidates.begin(), candidates.end(),
+                   [](const ParkableImageImpl* a, const ParkableImageImpl* b) {
+                     return a->frozen_time_ < b->frozen_time_;
+                   });
+  for (ParkableImageImpl* image : candidates) {
+    if (unparked_bytes <= budget_bytes) {
+      break;
+    }
+    if (image->MaybePark(task_runner_)) {
+      unparked_bytes -= image->size();
+    }
+  }
+  if (unparked_bytes > budget_bytes && data_allocator().may_write()) {
+    *should_reschedule = true;
+  }
+}
+
+void ParkableImageManager::OnMemoryPressure(
+    base::MemoryPressureListener::MemoryPressureLevel level) {
+  DCHECK(IsMainThread());
+  if (level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL ||
+      !IsUnparkedBudgetEnabled()) {
+    return;
+  }
+  WTF::Vector<ParkableImageImpl*> unparked_images;
+  {
+    base::AutoLock lock(lock_);
+    unparked_images = WTF::Vector<ParkableImageImpl*>(unparked_images_);
+  }
+  bool should_reschedule = false;
+  ParkImagesToBudget(unparked_images, /*budget_bytes=*/0, &should_reschedule);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace blink
