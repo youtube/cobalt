@@ -53,6 +53,7 @@ class NET_EXPORT Socket {
   struct ReadPacketResult {
     RAW_PTR_EXCLUSION char* buffer;
     int result;
+    uint8_t tos = 0;
   };
   struct ReadPacketResults {
     ReadPacketResults();
