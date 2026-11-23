@@ -91,7 +91,7 @@ UrlPlayerDemuxer::UrlPlayerDemuxer(
 
 UrlPlayerDemuxer::~UrlPlayerDemuxer() = default;
 
-std::vector<DemuxerStream*> UrlPlayerDemuxer::GetAllStreams() {
+std::vector<raw_ptr<DemuxerStream>> UrlPlayerDemuxer::GetAllStreams() {
   return {&audio_stream_, &video_stream_};
 }
 

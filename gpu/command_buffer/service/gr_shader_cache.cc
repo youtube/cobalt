@@ -67,19 +67,13 @@ GrShaderCache::GrShaderCache(size_t max_cache_size_bytes, Client* client)
           "GrShaderCache",
           kGrShaderCacheTraits,
           this,
-<<<<<<< HEAD
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kEnabled) {
-=======
-          base::AsyncMemoryConsumerRegistration::CheckUnregister::kEnabled,
-          base::AsyncMemoryConsumerRegistration::CheckRegistryExists::
-              kDisabled)
+          base::AsyncMemoryConsumerRegistration::CheckUnregister::kEnabled)
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
       ,
       defer_disk_writes_(
           base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache))
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 {
->>>>>>> parent of d4d21cea468 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   if (base::SingleThreadTaskRunner::HasCurrentDefault()) {
     base::trace_event::MemoryDumpManager::GetInstance()->RegisterDumpProvider(
         this, "GrShaderCache",

@@ -1630,7 +1630,7 @@ void StoragePartitionImpl::Initialize(
         std::make_unique<PrivateAggregationManagerImpl>(is_in_memory(), path,
                                                         this);
   }
-<<<<<<< HEAD
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
   if (base::FeatureList::IsEnabled(
           network::features::kDeclarativePerformanceObserver)) {
@@ -1638,9 +1638,6 @@ void StoragePartitionImpl::Initialize(
         std::make_unique<DeclarativePerformanceObserverStore>(is_in_memory(),
                                                               path);
   }
-=======
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
->>>>>>> parent of d4d21cea468 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 void StoragePartitionImpl::ResetSessionStorageConnections() {

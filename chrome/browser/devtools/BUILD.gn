@@ -596,7 +596,7 @@ source_set("unit_tests") {
       "//crypto:test_support",
     ]
 
-    if (enable_service_discovery) {
+    if (enable_devtools_frontend && enable_service_discovery) {
       sources += [ "device/cast_device_provider_unittest.cc" ]
     }
   }

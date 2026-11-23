@@ -7,6 +7,7 @@
     "CancelableEventTest.BothCancelFailureAndSucceedOccurUnderContention",
     "CharacterEncodingTest.GetCanonicalEncodingNameByAliasName",
     "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
+    "DateTimeFormatterTest.JapaneseCalendarTests",
     "FileEnumerator.*",
     "FilePathTest.*",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",

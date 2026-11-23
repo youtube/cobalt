@@ -37,6 +37,7 @@
     "CaseConversionTest.UpperLower",
     "CharacterEncodingTest.GetCanonicalEncodingNameByAliasName",
     "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
+    "DateTimeFormatterTest.JapaneseCalendarTests",
     "DriveInfoTest.GetFileDriveInfo",
     "FilePathTest.FromUTF8Unsafe_And_AsUTF8Unsafe",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",
