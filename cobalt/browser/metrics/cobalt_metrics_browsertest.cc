@@ -855,7 +855,19 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       "Cobalt.StabilityMetrics.PriorPmaFilesMergedCount", 0, 3);
 }
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+class CobaltMetricsDeduplicationDisabledBrowserTest
+    : public CobaltMetricsBrowserTest {
+ public:
+  CobaltMetricsDeduplicationDisabledBrowserTest() {
+    feature_list_.InitAndDisableFeature(
+        features::kCobaltStabilityMetricsDeduplication);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsDeduplicationDisabledBrowserTest,
                        StabilityMetricsPmaDeduplicationDisabledControlCohort) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   ASSERT_FALSE(base::FeatureList::IsEnabled(
