@@ -176,6 +176,7 @@ MemoryRegion FindEnclosingMapping(uintptr_t target_start, size_t size) {
   }
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 bool KernelSupportsRemapDontUnmap() {
   static bool supported = [] {
     struct utsname buffer;
@@ -193,6 +194,7 @@ bool KernelSupportsRemapDontUnmap() {
 
   return supported;
 }
+#endif  // !BUILDFLAG(IS_STARBOARD)
 }  // namespace
 
 // static
@@ -242,6 +244,9 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
 
   int protection = GetProtectionFromMemoryPermission(access);
 
+#if !BUILDFLAG(IS_STARBOARD)
+  // Cobalt: mremap() is not supported on Starboard platforms, so always use
+  // the /proc/self/maps fallback below.
   if (KernelSupportsRemapDontUnmap()) {
     void* result =
         mremap(const_cast<void*>(address), size, size,
@@ -257,6 +262,7 @@ bool OS::RemapPages(const void* address, size_t size, void* new_address,
       return true;
     }
   }
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
   // Fallback to reading /proc/self/maps if mremap approach fails.
   MemoryRegion enclosing_region = FindEnclosingMapping(address_addr, size);
