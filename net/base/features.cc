@@ -748,7 +748,6 @@ BASE_FEATURE(kQuicIgnoreRedundantOnNetworkMadeDefault,
              "QuicIgnoreRedundantOnNetworkMadeDefault",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
 BASE_FEATURE(kQuicLongerIdleConnectionTimeout,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -914,12 +913,11 @@ BASE_FEATURE_PARAM(int,
                    kCacheCertVerificationTtlSecs,
                    &kCacheCertVerification,
                    1800);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 BASE_FEATURE(kCobaltHttpCacheFontAndPassThrough,
              "CobaltHttpCacheFontAndPassThrough",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 3b3b431911b (net: Cache web fonts and pass through non-cached requests in HTTP cache (#13660))
 
 }  // namespace net::features

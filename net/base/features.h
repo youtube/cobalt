@@ -699,7 +699,6 @@ NET_EXPORT extern const base::FeatureParam<std::string>
 // Finch-controlled list of ports that should be blocked on localhost.
 NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 
-<<<<<<< HEAD
 // Enables TLS Trust Anchor IDs
 // (https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html),
 // a TLS extension to help the server serve a certificate that the client will
@@ -940,13 +939,12 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCacheCertVerification);
 // If set to 0, entries will still technically be put into the cache, but will
 // already be expired.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCacheCertVerificationTtlSecs);
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // Enables web font MIME caching and ShouldPassThrough pre-entry filtering in
 // Cobalt's HTTP cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 3b3b431911b (net: Cache web fonts and pass through non-cached requests in HTTP cache (#13660))
 
 }  // namespace net::features
 

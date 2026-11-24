@@ -15085,7 +15085,6 @@ TEST_P(HttpCacheNoVarySearchMockFileOperationsTest,
   EXPECT_EQ(info.headers->response_code(), 200);
 }
 
-<<<<<<< HEAD
 // A mock CacheEncryptionDelegate that allows controlling the init result.
 class MockCacheEncryptionDelegate : public net::CacheEncryptionDelegate {
  public:
@@ -17510,7 +17509,7 @@ TEST_F(HttpCacheTest, SetMaxBytesZeroAfterInit) {
   // means "pick a default".
   EXPECT_EQ(base::ByteSize(1), backend->GetMaxBytesForTesting());
 }
-=======
+
 #if BUILDFLAG(IS_COBALT)
 TEST_F(HttpCacheTest, CobaltFontMimeTypesCachedWhenFeatureEnabled) {
   {
@@ -17581,8 +17580,7 @@ TEST_F(HttpCacheTest, CobaltShouldPassThroughExcludedUrls) {
 
     MockHttpCache cache;
     ScopedMockTransaction transaction(
-        kSimpleGET_Transaction,
-        "http://www.google.com/api/stats/ads?adid=1");
+        kSimpleGET_Transaction, "http://www.google.com/api/stats/ads?adid=1");
     transaction.response_headers =
         "Cache-Control: max-age=10000\n"
         "Content-Type: text/html\n";
@@ -17671,6 +17669,5 @@ TEST_F(HttpCacheTest, CobaltShouldPassThroughSecFetchDestMediaButNotEmpty) {
   }
 }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 3b3b431911b (net: Cache web fonts and pass through non-cached requests in HTTP cache (#13660))
 
 }  // namespace net

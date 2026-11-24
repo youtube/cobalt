@@ -120,7 +120,6 @@ bool MethodUsesNoVarySearch(const std::string& method) {
   return method == "GET" || method == "HEAD";
 }
 
-<<<<<<< HEAD
 const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
     net::RequestPriority priority) {
   if (features::kNetTaskSchedulerHttpCacheTransaction.Get()) {
@@ -128,13 +127,13 @@ const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
   }
   return base::SingleThreadTaskRunner::GetCurrentDefault();
 }
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // Identifies telemetry, ping, and MSE media chunk URLs that are never cached
 // by Cobalt so ShouldPassThrough() and UpdateAndReportCacheability() can
 // exclude them from SimpleCache.
 bool IsCobaltExcludedUrl(const GURL& url) {
-  std::string_view path = url.path_piece();
+  std::string_view path = url.path();
   static constexpr std::string_view kExcludedPaths[] = {
       "/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"};
   for (std::string_view excluded : kExcludedPaths) {
@@ -168,7 +167,6 @@ bool IsCobaltNonCachedFetchDest(const HttpRequestHeaders& extra_headers) {
   return *dest == "image" || *dest == "audio" || *dest == "video";
 }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 3b3b431911b (net: Cache web fonts and pass through non-cached requests in HTTP cache (#13660))
 
 }  // namespace
 
