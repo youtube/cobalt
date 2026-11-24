@@ -17,6 +17,10 @@
 
 namespace starboard {
 
+// Whether the asset at `path` is stored uncompressed and page aligned in the
+// APK, so that MemoryMapFile can map it.
+bool CanMapAsset(const char* path);
+
 // Returns the CobaltExtensionMemoryMappedFileApi. It maps APK assets straight
 // from the APK, so they must be stored uncompressed and page aligned.
 const void* GetMemoryMappedFileApi();

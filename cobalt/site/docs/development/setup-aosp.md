@@ -88,7 +88,7 @@ Because Evergreen support is required for certification, partners deploy officia
    find assets -type f -not -path 'assets/app/cobalt/lib/*' | zip -u $OLDPWD/out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk -@
 
    # zip -u invalidates the APK v2 signature; re-align and re-sign with the bundled debug keystore.
-   # zipalign -p page-aligns libcobalt.so, which mapping it needs.
+   # zipalign -p page-aligns libcobalt.so so that the loader can map it.
    cd $OLDPWD
    APK="out/evergreen-arm-softfp-aosp_qa/apks/cobalt.apk"
    BT=$(ls -d third_party/android_sdk/public/build-tools/* | tail -1)

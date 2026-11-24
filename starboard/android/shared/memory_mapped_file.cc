@@ -43,10 +43,24 @@ int ToMmapProtect(SbMemoryMapFlags flags) {
   return protect;
 }
 
-// Maps |size| bytes at |file_offset| of the asset at |path| from the APK
-// itself. Opening an asset with open() copies it to the cache directory, and
-// apps can't map app data files as executable, so the copy can't hold code.
-// Only assets stored uncompressed at a page aligned offset can be mapped.
+// Opens the APK holding the asset at `path`, and sets `start` and `length` to
+// the asset's range in it. Returns -1 unless the asset is stored uncompressed
+// at a page aligned offset.
+int OpenMappableAsset(const char* path, int64_t* start, int64_t* length) {
+  const int fd = elf_loader::OpenFileInPlace(path, start, length);
+  if (fd < 0) {
+    return -1;
+  }
+  if (*start % getpagesize() != 0) {
+    close(fd);
+    return -1;
+  }
+  return fd;
+}
+
+// Maps `size` bytes at `file_offset` of the asset at `path` from the APK
+// itself. Opening the asset with open() would copy all of it to the cache
+// directory first (see AssetManager::Open).
 void* MapAsset(void* address,
                const char* path,
                SbMemoryMapFlags flags,
@@ -54,23 +68,20 @@ void* MapAsset(void* address,
                int64_t size) {
   int64_t start = 0;
   int64_t length = 0;
-  const int fd = elf_loader::OpenFileInPlace(path, &start, &length);
+  const int fd = OpenMappableAsset(path, &start, &length);
   if (fd < 0) {
-    SB_LOG(ERROR) << "Can't map " << path << ", it must be stored uncompressed";
+    SB_LOG(ERROR) << "Can't map " << path
+                  << ", it must be stored uncompressed and page aligned";
     return nullptr;
   }
 
   void* result = nullptr;
-  const int64_t apk_offset = start + file_offset;
   if (file_offset < 0 || size <= 0 || file_offset > length - size) {
     SB_LOG(ERROR) << "Range is outside " << path;
-  } else if (apk_offset % getpagesize() != 0) {
-    SB_LOG(ERROR) << "Can't map " << path
-                  << ", it isn't page aligned in the APK";
   } else {
     void* mapped =
         mmap(address, size, ToMmapProtect(flags),
-             MAP_PRIVATE | (address ? MAP_FIXED : 0), fd, apk_offset);
+             MAP_PRIVATE | (address ? MAP_FIXED : 0), fd, start + file_offset);
     if (mapped == MAP_FAILED) {
       SB_LOG(ERROR) << "Failed to map " << path << ": " << strerror(errno);
     } else {
@@ -99,6 +110,17 @@ const CobaltExtensionMemoryMappedFileApi kMemoryMappedFileApi = {
 };
 
 }  // namespace
+
+bool CanMapAsset(const char* path) {
+  int64_t start = 0;
+  int64_t length = 0;
+  const int fd = OpenMappableAsset(path, &start, &length);
+  if (fd < 0) {
+    return false;
+  }
+  close(fd);
+  return true;
+}
 
 const void* GetMemoryMappedFileApi() {
   return &kMemoryMappedFileApi;

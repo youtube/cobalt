@@ -23,7 +23,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -31,6 +30,7 @@
 #include <vector>
 
 #include "cobalt/aosp/jni_headers/MainActivity_jni.h"
+#include "starboard/android/shared/memory_mapped_file.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/aosp/shared/application_aosp.h"
 #include "starboard/aosp/shared/chromium_switches.h"
@@ -66,27 +66,31 @@ constexpr const char* kDefaultSwitches[] = {
     network_switches::kDisableQuic,
 };
 
-// Whether the APK ships an uncompressed Cobalt core, which the loader can map
-// straight from the APK instead of reading it into anonymous memory.
-bool HasUncompressedCore() {
+// Copied from starboard/loader_app/loader_app.cc. Keep in sync.
+inline constexpr char kSystemImageLibraryPath[] = "app/cobalt/lib/libcobalt.so";
+
+// Whether the APK ships an uncompressed, page aligned Cobalt core, which the
+// loader can map straight from the APK instead of reading it into anonymous
+// memory.
+bool CanMapCore() {
   char content_dir[PATH_MAX];
   if (!SbSystemGetPath(kSbSystemPathContentDirectory, content_dir,
                        sizeof(content_dir))) {
     return false;
   }
   const std::string core_path =
-      std::string(content_dir) + "/app/cobalt/lib/libcobalt.so";
-  struct stat info;
-  return stat(core_path.c_str(), &info) == 0;
+      std::string(content_dir) + "/" + kSystemImageLibraryPath;
+  return CanMapAsset(core_path.c_str());
 }
 
 void AppendDefaultSwitches(std::vector<std::string>* args) {
   for (const char* default_switch : kDefaultSwitches) {
     args->push_back(std::string("--") + default_switch);
   }
-  // Map an uncompressed core only. The switch also makes Evergreen download
-  // uncompressed updates, which take more storage than compressed ones.
-  if (HasUncompressedCore()) {
+  // Pass the switch only when the core can be mapped, otherwise the loader
+  // reads it. The switch also makes Evergreen download uncompressed updates,
+  // which take more storage than compressed ones.
+  if (CanMapCore()) {
     args->push_back(std::string("--") +
                     loader_app_switches::kLoaderUseMemoryMappedFile);
   }
