@@ -26,6 +26,7 @@
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "base/types/expected.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -181,21 +182,21 @@ class FakeCacheStorage : public blink::mojom::CacheStorage {
     }
     const std::u16string& cache_name = *match_options->cache_name;
     if (auto it = match_errors_.find(cache_name); it != match_errors_.end()) {
-      std::move(callback).Run(blink::mojom::MatchResult::NewStatus(it->second));
+      std::move(callback).Run(base::unexpected(it->second));
       return;
     }
     auto cache = caches_.find(cache_name);
     if (cache == caches_.end()) {
-      std::move(callback).Run(blink::mojom::MatchResult::NewStatus(
-          CacheStorageError::kErrorCacheNameNotFound));
+      std::move(callback).Run(
+          base::unexpected(CacheStorageError::kErrorCacheNameNotFound));
       return;
     }
     if (!cache->second.contains(request->url)) {
-      std::move(callback).Run(blink::mojom::MatchResult::NewStatus(
-          CacheStorageError::kErrorNotFound));
+      std::move(callback).Run(
+          base::unexpected(CacheStorageError::kErrorNotFound));
       return;
     }
-    std::move(callback).Run(blink::mojom::MatchResult::NewResponse(
+    std::move(callback).Run(blink::mojom::MatchResponse::NewResponse(
         blink::mojom::FetchAPIResponse::New()));
   }
   void Open(const std::u16string& cache_name,
@@ -203,14 +204,12 @@ class FakeCacheStorage : public blink::mojom::CacheStorage {
             OpenCallback callback) override {
     ++open_calls_;
     if (open_error_) {
-      std::move(callback).Run(
-          blink::mojom::OpenResult::NewStatus(*open_error_));
+      std::move(callback).Run(base::unexpected(*open_error_));
       return;
     }
     opened_caches_.push_back(std::make_unique<FakeCacheStorageCache>(
         &caches_[cache_name], batch_error_, hang_batch_, &batch_calls_));
-    std::move(callback).Run(
-        blink::mojom::OpenResult::NewCache(opened_caches_.back()->Bind()));
+    std::move(callback).Run(opened_caches_.back()->Bind());
   }
 
  private:
