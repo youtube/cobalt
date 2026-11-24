@@ -151,9 +151,11 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   // Punch-out decoders clean up the global video window on destruction, which
   // requires a provider when the test activity's video surface exists.
   SbDecodeTargetGraphicsContextProvider fake_graphics_context_provider_{
-      .gles_context_runner = [](SbDecodeTargetGraphicsContextProvider*,
-                                SbDecodeTargetGlesContextRunnerTarget,
-                                void*) {}};
+      nullptr, nullptr,
+      [](SbDecodeTargetGraphicsContextProvider*,
+         SbDecodeTargetGlesContextRunnerTarget,
+         void*) {},
+      nullptr};
   const jni_zero::ScopedJavaGlobalRef<jstring> dummy_surface_{
       base::android::ConvertUTF8ToJavaString(AttachCurrentThread(),
                                              "dummy_surface")};

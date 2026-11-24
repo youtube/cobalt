@@ -95,6 +95,10 @@ std::vector<raw_ptr<DemuxerStream>> UrlPlayerDemuxer::GetAllStreams() {
   return {&audio_stream_, &video_stream_};
 }
 
+UrlPlayerMediaResource* UrlPlayerDemuxer::AsUrlPlayerMediaResource() {
+  return this;
+}
+
 GURL UrlPlayerDemuxer::GetMediaUrl() const {
   return url_;
 }
@@ -160,16 +164,14 @@ void UrlPlayerDemuxer::OnTracksChanged(DemuxerStream::Type track_type,
 
 void UrlPlayerDemuxer::SetPlaybackRate(double rate) {}
 
-void UrlPlayerDemuxer::ForwardDurationChangeToDemuxerHost(
-    base::TimeDelta duration) {
+void UrlPlayerDemuxer::OnPlatformDurationChange(base::TimeDelta duration) {
   if (host_) {
     host_->SetDuration(duration);
   }
 }
 
-void UrlPlayerDemuxer::ForwardBufferedTimeRangesToDemuxerHost(
-    base::TimeDelta start,
-    base::TimeDelta length) {
+void UrlPlayerDemuxer::OnPlatformBufferedRangesChange(base::TimeDelta start,
+                                                      base::TimeDelta length) {
   if (host_) {
     Ranges<base::TimeDelta> ranges;
     ranges.Add(start, start + length);
@@ -177,7 +179,7 @@ void UrlPlayerDemuxer::ForwardBufferedTimeRangesToDemuxerHost(
   }
 }
 
-void UrlPlayerDemuxer::ForwardEncryptedMediaInitData(
+void UrlPlayerDemuxer::OnPlatformEncryptedMediaInitData(
     EmeInitDataType init_data_type,
     const std::vector<uint8_t>& init_data) {
   if (encrypted_media_init_data_cb_) {

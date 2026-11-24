@@ -20,8 +20,11 @@
 #include "build/build_config.h"
 
 // Fallback for platforms where the toolchain/sysroot <unistd.h> does not
-// declare gettid() natively (e.g., glibc < 2.30).
-#if !defined(gettid)
+// declare gettid() natively (e.g., glibc < 2.30). Skip on Musl builds
+// (_LIBCPP_HAS_MUSL_LIBC), where <unistd.h> already declares gettid() as a
+// function.
+#if !defined(gettid) && \
+    (!defined(_LIBCPP_HAS_MUSL_LIBC) || !_LIBCPP_HAS_MUSL_LIBC)
 
 // TODO(b/517239886): Apple is not a Starboard platform and the Apple
 // dependencies on this file need to be cleaned up.
@@ -53,6 +56,7 @@ inline pid_t gettid() {
 
 #endif  // !BUILDFLAG(IS_IOS_TVOS)
 
-#endif  // !defined(gettid)
+#endif  // !defined(gettid) && (!defined(_LIBCPP_HAS_MUSL_LIBC) ||
+        // !_LIBCPP_HAS_MUSL_LIBC)
 
 #endif  // STARBOARD_COMMON_GETTID_H_

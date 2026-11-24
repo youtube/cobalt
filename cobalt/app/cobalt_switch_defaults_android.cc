@@ -18,6 +18,7 @@
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#include "base/features.h"
 #include "base/strings/string_util.h"
 #include "build/buildflag.h"
 #include "cc/base/features.h"
@@ -99,6 +100,9 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                features::kReclaimPrepaintTilesWhenIdle.name,
                features::kReclaimOldPrepaintTiles.name,
                features::kWebAudioRemoveAudioDestinationResampler.name,
+               // Map Android TRIM_MEMORY_RUNNING_MODERATE/LOW to MODERATE
+               // memory pressure instead of dropping them.
+               base::features::kCobaltEnableModerateMemoryPressure.name,
            },
            ",")},
       {::switches::kDisableFeatures,
