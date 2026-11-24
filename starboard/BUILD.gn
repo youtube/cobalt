@@ -236,8 +236,14 @@ if (current_toolchain == starboard_toolchain) {
     testonly = true
     defines = [ "STARBOARD_IMPLEMENTATION_TEST" ]
 
-    write_runtime_deps =
-        "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
+    # Only the hermetic executable writes the wrapper's runtime deps. In
+    # non-hermetic builds this is a source_set and the
+    # test("starboard_unittests_wrapper") target below writes the same file,
+    # including the test binary and its bin/run_* script.
+    if (is_cobalt_hermetic_build) {
+      write_runtime_deps =
+          "$root_build_dir/starboard_unittests_wrapper.runtime_deps"
+    }
 
     deps = [
       ":starboard_test_main",

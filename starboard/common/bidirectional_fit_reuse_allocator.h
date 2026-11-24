@@ -55,17 +55,18 @@ class BidirectionalFitReuseAllocator : public UnderlyingReuseAllocator {
                                  /*max_capacity=*/0),
         small_allocation_threshold_(small_allocation_threshold) {}
 
-  BidirectionalFitReuseAllocator(starboard::Allocator* fallback_allocator,
-                                 size_t initial_capacity,
-                                 size_t small_allocation_threshold,
-                                 size_t allocation_increment,
-                                 bool enable_decommit_on_idle,
-                                 size_t retain_blocks,
-                                 size_t conservative_decommit_blocks,
-                                 bool aggressive_decommit_on_suspend,
-                                 bool memset_on_reclaim,
-                                 bool mark_as_cold_on_reclaim,
-                                 bool enable_decommit_only_on_memory_pressure = false)
+  BidirectionalFitReuseAllocator(
+      starboard::Allocator* fallback_allocator,
+      size_t initial_capacity,
+      size_t small_allocation_threshold,
+      size_t allocation_increment,
+      bool enable_decommit_on_idle,
+      size_t retain_blocks,
+      size_t conservative_decommit_blocks,
+      bool aggressive_decommit_on_suspend,
+      bool memset_on_reclaim,
+      bool mark_as_cold_on_reclaim,
+      bool enable_decommit_only_on_memory_pressure = false)
       : UnderlyingReuseAllocator(fallback_allocator,
                                  initial_capacity,
                                  allocation_increment,

@@ -23,6 +23,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
+#include "base/memory/memory_pressure_level.h"
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
@@ -166,8 +167,22 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
   // Handles memory pressure when kCobaltDecoderBufferDecommitOnMemoryPressure
   // is enabled.
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel level);
+  void OnMemoryPressure(base::MemoryPressureLevel level);
+
+  // Forwards memory pressure notifications on the sequence that created it to
+  // DecoderBufferAllocator::OnMemoryPressure().
+  class MemoryPressureObserver : public base::MemoryPressureListener {
+   public:
+    explicit MemoryPressureObserver(DecoderBufferAllocator* allocator);
+    ~MemoryPressureObserver() override;
+
+   private:
+    // base::MemoryPressureListener:
+    void OnMemoryPressure(base::MemoryPressureLevel level) override;
+
+    const raw_ptr<DecoderBufferAllocator> allocator_;
+    base::AsyncMemoryPressureListenerRegistration registration_;
+  };
 
   // Utility functions for h5vcc settings.
   // TODO(b/460292554): To be deprecated with h5vcc settings.
@@ -195,7 +210,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   StrategyCreateCB experimental_strategy_create_cb_ GUARDED_BY(mutex_);
   scoped_refptr<PeriodicDecommitState> periodic_decommit_state_
       GUARDED_BY(mutex_);
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<MemoryPressureObserver> memory_pressure_listener_;
   // Whether |strategy_| was created for
   // kCobaltDecoderBufferDecommitOnMemoryPressure. False when another strategy
   // (e.g. from h5vcc settings) is in use, in which case memory pressure is

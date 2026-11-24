@@ -77,11 +77,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   if (base::FeatureList::IsEnabled(
           media::kCobaltDecoderBufferDecommitOnMemoryPressure)) {
     // The allocator is owned by MediaClient and lives for the lifetime of the
-    // process, and the listener is destroyed first in the destructor, so
-    // base::Unretained() is safe.
-    memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-        FROM_HERE, base::BindRepeating(&DecoderBufferAllocator::OnMemoryPressure,
-                                       base::Unretained(this)));
+    // process, and the observer is destroyed first in the destructor, so its
+    // raw pointer back to this allocator stays valid.
+    memory_pressure_listener_ = std::make_unique<MemoryPressureObserver>(this);
     LOG(INFO) << "DecoderBufferAllocator decommits idle blocks on memory "
                  "pressure.";
   }
@@ -179,15 +177,30 @@ void DecoderBufferAllocator::Free(DemuxerStream::Type type,
   }
 }
 
-void DecoderBufferAllocator::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
-  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+DecoderBufferAllocator::MemoryPressureObserver::MemoryPressureObserver(
+    DecoderBufferAllocator* allocator)
+    : allocator_(allocator),
+      registration_(
+          FROM_HERE,
+          base::MemoryPressureListenerTag::kCobaltDecoderBufferAllocator,
+          this) {}
+
+DecoderBufferAllocator::MemoryPressureObserver::~MemoryPressureObserver() =
+    default;
+
+void DecoderBufferAllocator::MemoryPressureObserver::OnMemoryPressure(
+    base::MemoryPressureLevel level) {
+  allocator_->OnMemoryPressure(level);
+}
+
+void DecoderBufferAllocator::OnMemoryPressure(base::MemoryPressureLevel level) {
+  if (level == base::MEMORY_PRESSURE_LEVEL_NONE) {
     return;
   }
   // MODERATE releases idle blocks beyond the retain window. CRITICAL also
   // releases retained idle blocks. Blocks holding live buffers are untouched.
   const bool include_retained_blocks =
-      level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL &&
+      level == base::MEMORY_PRESSURE_LEVEL_CRITICAL &&
       kCobaltDecoderBufferDecommitReleaseRetainedOnCritical.Get();
   base::AutoLock scoped_lock(mutex_);
   if (!strategy_ || !is_decommit_on_pressure_strategy_) {
@@ -432,15 +445,16 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     strategy_config.allocate_with_page_alignment = true;
     // Idle blocks are released only from OnMemoryPressure().
     strategy_config.enable_decommit_only_on_memory_pressure = true;
-    strategy_ = std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
+    strategy_ =
+        std::make_unique<DefaultReuseAllocatorStrategy>(strategy_config);
     is_decommit_on_pressure_strategy_ = true;
-    LOG(INFO) << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy "
-                 "with decommit on memory pressure. initial_capacity: "
-              << initial_capacity_ << ", allocation_increment: "
-              << allocation_unit_
-              << ", retain_blocks: " << strategy_config.retain_blocks
-              << ", conservative_decommit_blocks: "
-              << strategy_config.conservative_decommit_blocks;
+    LOG(INFO)
+        << "DecoderBufferAllocator is using DefaultReuseAllocatorStrategy "
+           "with decommit on memory pressure. initial_capacity: "
+        << initial_capacity_ << ", allocation_increment: " << allocation_unit_
+        << ", retain_blocks: " << strategy_config.retain_blocks
+        << ", conservative_decommit_blocks: "
+        << strategy_config.conservative_decommit_blocks;
     return;
   }
 

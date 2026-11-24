@@ -4,9 +4,9 @@
 
 #include "cobalt/media/service/video_geometry_setter_service.h"
 
+#include <algorithm>
 #include <utility>
 
-#include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/numerics/checked_math.h"
 #include "base/task/sequenced_task_runner.h"
@@ -111,7 +111,7 @@ void VideoGeometrySetterService::SetVideoGeometries(
   // Forget the holes that are gone and have no client to deliver them to.
   base::EraseIf(latest_geometries_, [this](const auto& entry) {
     return !video_geometry_change_clients_.contains(entry.first) &&
-           !base::Contains(last_front_to_back_, entry.first);
+           !std::ranges::contains(last_front_to_back_, entry.first);
   });
 }
 

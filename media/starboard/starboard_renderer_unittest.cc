@@ -908,7 +908,7 @@ TEST_F(StarboardRendererTest,
   NiceMock<MockMediaResource> secondary_resource;
   auto secondary_video_stream =
       CreateMockDemuxerStream(DemuxerStream::VIDEO, /*encrypted=*/false);
-  std::vector<DemuxerStream*> secondary_streams = {
+  std::vector<raw_ptr<DemuxerStream>> secondary_streams = {
       secondary_video_stream.get()};
   EXPECT_CALL(secondary_resource, GetAllStreams())
       .WillRepeatedly(Return(secondary_streams));
