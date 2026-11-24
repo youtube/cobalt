@@ -21,17 +21,12 @@ namespace elf_loader {
 
 DynamicSection::DynamicSection(Addr base_memory_address,
                                Dyn* dynamic,
-                               size_t dynamic_count,
-                               Word dynamic_flags)
+                               size_t dynamic_count)
     : base_memory_address_(base_memory_address),
-      soname_(NULL),
       dynamic_(dynamic),
       dynamic_count_(dynamic_count),
-      has_DT_SYMBOLIC_(false),
       symbol_table_(NULL),
       string_table_(NULL),
-      preinit_array_(NULL),
-      preinit_array_count_(0),
       init_array_(NULL),
       init_array_count_(0),
       fini_array_(NULL),
@@ -40,8 +35,14 @@ DynamicSection::DynamicSection(Addr base_memory_address,
       fini_func_(NULL) {}
 
 bool DynamicSection::InitDynamicSection() {
+  if (!dynamic_) {
+    return false;
+  }
   SB_DLOG(INFO) << "Dynamic section count=" << dynamic_count_;
-  for (int i = 0; i < dynamic_count_; i++) {
+  for (size_t i = 0; i < dynamic_count_; ++i) {
+    if (dynamic_[i].d_tag == DT_NULL) {
+      break;
+    }
     Addr dyn_value = dynamic_[i].d_un.d_val;
     uintptr_t dyn_addr = base_memory_address_ + dynamic_[i].d_un.d_ptr;
     SB_DLOG(INFO) << "Dynamic tag=" << dynamic_[i].d_tag;
@@ -73,28 +74,7 @@ bool DynamicSection::InitDynamicSection() {
       case DT_FINI_ARRAYSZ:
         fini_array_count_ = dyn_value / sizeof(Addr);
         SB_DLOG(INFO) << "  DT_FINI_ARRAYSZ value=0x" << std::hex << dyn_value
-                      << " count=" << fini_array_count_;
-        break;
-      case DT_PREINIT_ARRAY:
-        SB_DLOG(INFO) << "  DT_PREINIT_ARRAY addr=0x" << std::hex << dyn_addr;
-        preinit_array_ = reinterpret_cast<linker_function_t*>(dyn_addr);
-        break;
-      case DT_PREINIT_ARRAYSZ:
-        preinit_array_count_ = dyn_value / sizeof(Addr);
-        SB_DLOG(INFO) << "  DT_PREINIT_ARRAYSZ addr=" << dyn_addr
-                      << " count=" << preinit_array_count_;
-        break;
-      case DT_SYMBOLIC:
-        SB_DLOG(INFO) << "  DT_SYMBOLIC";
-        has_DT_SYMBOLIC_ = true;
-        break;
-      case DT_FLAGS:
-        if (dyn_value & DF_SYMBOLIC) {
-          has_DT_SYMBOLIC_ = true;
-        }
-        break;
-      case DT_SONAME:
-        soname_ = string_table_ + dyn_value;
+                      << " count=" << std::dec << fini_array_count_;
         break;
       case DT_HASH:
         SB_DLOG(INFO) << "  DT_HASH addr=0x" << std::hex << dyn_addr;
@@ -129,14 +109,18 @@ size_t DynamicSection::GetDynamicTableSize() {
 
 void DynamicSection::CallConstructors() {
   CallFunction(init_func_, "DT_INIT");
-  for (size_t n = 0; n < init_array_count_; ++n) {
-    CallFunction(init_array_[n], "DT_INIT_ARRAY");
+  if (init_array_) {
+    for (size_t n = 0; n < init_array_count_; ++n) {
+      CallFunction(init_array_[n], "DT_INIT_ARRAY");
+    }
   }
 }
 
 void DynamicSection::CallDestructors() {
-  for (size_t n = fini_array_count_; n > 0; --n) {
-    CallFunction(fini_array_[n - 1], "DT_FINI_ARRAY");
+  if (fini_array_) {
+    for (size_t n = fini_array_count_; n > 0; --n) {
+      CallFunction(fini_array_[n - 1], "DT_FINI_ARRAY");
+    }
   }
   CallFunction(fini_func_, "DT_FINI");
 }
@@ -154,29 +138,39 @@ void DynamicSection::CallFunction(linker_function_t func,
 }
 
 const Sym* DynamicSection::LookupById(size_t symbol_id) const {
+  if (!symbol_table_) {
+    return NULL;
+  }
   // TODO: Calculated the symbol_table size and validation check.
   return &symbol_table_[symbol_id];
 }
 
 bool DynamicSection::IsWeakById(size_t symbol_id) const {
+  if (!symbol_table_) {
+    return false;
+  }
   // TODO: Calculated the symbol_table size and validation check.
   return ELF_ST_BIND(symbol_table_[symbol_id].st_info) == STB_WEAK;
 }
 
 const char* DynamicSection::LookupNameById(size_t symbol_id) const {
   const Sym* sym = LookupById(symbol_id);
-  // TODO: Confirm that LookupById actually can return NULL.
-  if (!sym) {
+  if (!sym || !string_table_) {
     return NULL;
   }
   return string_table_ + sym->st_name;
 }
 
 const Sym* DynamicSection::LookupByName(const char* symbol_name) const {
-  const Sym* sym =
-      gnu_hash_.IsValid()
-          ? gnu_hash_.LookupByName(symbol_name, symbol_table_, string_table_)
-          : elf_hash_.LookupByName(symbol_name, symbol_table_, string_table_);
+  if (!symbol_name || !symbol_table_ || !string_table_) {
+    return NULL;
+  }
+  const Sym* sym = NULL;
+  if (gnu_hash_.IsValid()) {
+    sym = gnu_hash_.LookupByName(symbol_name, symbol_table_, string_table_);
+  } else if (elf_hash_.IsValid()) {
+    sym = elf_hash_.LookupByName(symbol_name, symbol_table_, string_table_);
+  }
 
   // Ignore undefined symbols or those that are not global or weak definitions.
   if (!sym || sym->st_shndx == SHN_UNDEF) {

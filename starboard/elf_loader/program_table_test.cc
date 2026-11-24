@@ -94,7 +94,7 @@ TEST_F(ProgramTableTest, LoadSegments) {
   // [200, 300) segment for phdr1
   // [250, 300) dynamic section in segment for phdr1
   // [400, 500) segment for phdr2
-  Ehdr ehdr;
+  Ehdr ehdr = {};
   ehdr.e_phnum = 3;
   ehdr.e_phoff = 0;
   ehdr.e_phentsize = sizeof(Phdr);
@@ -111,14 +111,14 @@ TEST_F(ProgramTableTest, LoadSegments) {
   ent1.p_memsz = 2 * PAGE_SIZE;
   ent1.p_offset = 200;
   ent1.p_filesz = 100;
-  ent1.p_flags = kSbMemoryMapProtectRead;
+  ent1.p_flags = PF_R;
 
   ent2.p_type = PT_LOAD;
   ent2.p_vaddr = 2 * PAGE_SIZE;
   ent2.p_memsz = 3 * PAGE_SIZE;
   ent2.p_offset = 400;
   ent2.p_filesz = 100;
-  ent1.p_flags = kSbMemoryMapProtectRead | kSbMemoryMapProtectExec;
+  ent2.p_flags = PF_R | PF_X;
 
   ent3.p_type = PT_DYNAMIC;
   ent3.p_vaddr = 250;
@@ -132,7 +132,7 @@ TEST_F(ProgramTableTest, LoadSegments) {
   program_table_data[1] = ent2;
   program_table_data[2] = ent3;
 
-  Dyn dynamic_table_data[3];
+  Dyn dynamic_table_data[3] = {};
   dynamic_table_data[0].d_tag = DT_DEBUG;
   dynamic_table_data[1].d_tag = DT_DEBUG;
   dynamic_table_data[2].d_tag = DT_DEBUG;
@@ -141,19 +141,21 @@ TEST_F(ProgramTableTest, LoadSegments) {
   memset(program_table_page, 0, sizeof(program_table_page));
   memcpy(program_table_page, program_table_data, sizeof(program_table_data));
 
-  char segment_file_data1[2 * PAGE_SIZE];
-  char segment_file_data2[3 * PAGE_SIZE];
+  std::vector<char> segment_file_data1(2 * PAGE_SIZE, 0);
+  std::vector<char> segment_file_data2(3 * PAGE_SIZE, 0);
 
-  memcpy(segment_file_data1 + 250, dynamic_table_data,
+  memcpy(segment_file_data1.data() + 250, dynamic_table_data,
          sizeof(dynamic_table_data));
 
   std::vector<DummyFile::FileChunk> file_chunks;
   file_chunks.push_back(
       DummyFile::FileChunk(0, program_table_page, sizeof(program_table_page)));
   file_chunks.push_back(
-      DummyFile::FileChunk(0, segment_file_data1, sizeof(segment_file_data1)));
+      DummyFile::FileChunk(0, segment_file_data1.data(),
+                           static_cast<int>(segment_file_data1.size())));
   file_chunks.push_back(
-      DummyFile::FileChunk(0, segment_file_data2, sizeof(segment_file_data2)));
+      DummyFile::FileChunk(0, segment_file_data2.data(),
+                           static_cast<int>(segment_file_data2.size())));
 
   DummyFile file(file_chunks);
 
@@ -174,7 +176,7 @@ TEST_F(ProgramTableTest, LoadSegments) {
   program_table_->GetDynamicSection(&dynamic, &dynamic_count, &dynamic_flags);
   Dyn* expected_dyn = reinterpret_cast<Dyn*>(
       program_table_->GetBaseMemoryAddress() + ent3.p_vaddr);
-  EXPECT_TRUE(dynamic != NULL);
+  ASSERT_EQ(dynamic, expected_dyn);
   EXPECT_EQ(dynamic[0].d_tag, DT_DEBUG);
   EXPECT_EQ(dynamic[1].d_tag, DT_DEBUG);
   EXPECT_EQ(dynamic[2].d_tag, DT_DEBUG);

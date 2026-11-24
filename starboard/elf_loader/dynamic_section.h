@@ -31,10 +31,7 @@ typedef void (*linker_function_t)();
 
 class DynamicSection {
  public:
-  DynamicSection(Addr base_memory_address,
-                 Dyn* dynamic,
-                 size_t dynamic_count,
-                 Word dynamic_flags);
+  DynamicSection(Addr base_memory_address, Dyn* dynamic, size_t dynamic_count);
 
   // Initialize the dynamic section.
   bool InitDynamicSection();
@@ -68,19 +65,15 @@ class DynamicSection {
   void CallFunction(linker_function_t func, const char* func_type);
 
   Addr base_memory_address_;
-  const char* soname_;
 
   Dyn* dynamic_;
   size_t dynamic_count_;
-  bool has_DT_SYMBOLIC_;
 
   Sym* symbol_table_;
   const char* string_table_;
   ElfHashTable elf_hash_;
   GnuHashTable gnu_hash_;
 
-  linker_function_t* preinit_array_;
-  size_t preinit_array_count_;
   linker_function_t* init_array_;
   size_t init_array_count_;
   linker_function_t* fini_array_;

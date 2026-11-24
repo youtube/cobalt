@@ -39,24 +39,41 @@ ElfHashTable::ElfHashTable()
       hash_chain_(NULL),
       hash_chain_size_(0) {}
 void ElfHashTable::Init(uintptr_t dt_elf_hash) {
+  hash_bucket_ = NULL;
+  hash_bucket_size_ = 0;
+  hash_chain_ = NULL;
+  hash_chain_size_ = 0;
+  if (!dt_elf_hash) {
+    return;
+  }
   const Word* data = reinterpret_cast<const Word*>(dt_elf_hash);
-  hash_bucket_size_ = data[0];
+  const Word bucket_size = data[0];
+  const Word chain_size = data[1];
+  if (bucket_size == 0 || chain_size == 0) {
+    return;
+  }
+  hash_bucket_size_ = bucket_size;
   hash_bucket_ = data + 2;
-  hash_chain_size_ = data[1];
+  hash_chain_size_ = chain_size;
   hash_chain_ = hash_bucket_ + hash_bucket_size_;
 }
 
 bool ElfHashTable::IsValid() const {
-  return hash_bucket_size_ > 0;
+  return hash_bucket_size_ > 0 && hash_chain_size_ > 0;
 }
 
 const Sym* ElfHashTable::LookupByName(const char* symbol_name,
                                       const Sym* symbol_table,
                                       const char* string_table) const {
+  if (!IsValid() || !symbol_name || !symbol_table || !string_table) {
+    return NULL;
+  }
   unsigned hash = ElfHash(symbol_name);
 
-  for (unsigned n = hash_bucket_[hash % hash_bucket_size_]; n != 0;
-       n = hash_chain_[n]) {
+  size_t steps = 0;
+  for (unsigned n = hash_bucket_[hash % hash_bucket_size_];
+       n != 0 && n < hash_chain_size_ && steps < hash_chain_size_;
+       n = hash_chain_[n], ++steps) {
     const Sym* symbol = &symbol_table[n];
     // Check that the symbol has the appropriate name.
     if (!strcmp(string_table + symbol->st_name, symbol_name)) {

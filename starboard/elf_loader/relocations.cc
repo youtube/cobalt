@@ -77,7 +77,13 @@ bool Relocations::InitRelocations() {
   SB_DLOG(INFO) << "InitRelocations: dynamic_count="
                 << dynamic_section_->GetDynamicTableSize();
   const Dyn* dynamic = dynamic_section_->GetDynamicTable();
-  for (int i = 0; i < dynamic_section_->GetDynamicTableSize(); i++) {
+  if (!dynamic) {
+    return false;
+  }
+  for (size_t i = 0; i < dynamic_section_->GetDynamicTableSize(); ++i) {
+    if (dynamic[i].d_tag == DT_NULL) {
+      break;
+    }
     Addr dyn_value = dynamic[i].d_un.d_val;
     uintptr_t dyn_addr = base_memory_address_ + dynamic[i].d_un.d_ptr;
     Addr tag = dynamic[i].d_tag;
@@ -476,6 +482,10 @@ bool Relocations::ResolveSymbol(Word rel_type,
                                 Addr reloc,
                                 Addr* sym_addr) {
   const char* sym_name = dynamic_section_->LookupNameById(rel_symbol);
+  if (!sym_name) {
+    SB_LOG(ERROR) << "Could not find symbol name for id: " << rel_symbol;
+    return false;
+  }
   const bool is_weak = dynamic_section_->IsWeakById(rel_symbol);
   SB_DLOG(INFO) << "Resolve: " << sym_name;
   const void* address = NULL;

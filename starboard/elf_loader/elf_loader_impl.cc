@@ -106,15 +106,13 @@ bool ElfLoaderImpl::Load(const char* name,
 
   Dyn* dynamic = NULL;
   size_t dynamic_count = 0;
-  Word dynamic_flags = 0;
-  program_table_->GetDynamicSection(&dynamic, &dynamic_count, &dynamic_flags);
+  program_table_->GetDynamicSection(&dynamic, &dynamic_count, nullptr);
   if (!dynamic) {
     SB_LOG(ERROR) << "No PT_DYNAMIC section!";
     return false;
   }
-  dynamic_section_.reset(
-      new DynamicSection(program_table_->GetBaseMemoryAddress(), dynamic,
-                         dynamic_count, dynamic_flags));
+  dynamic_section_.reset(new DynamicSection(
+      program_table_->GetBaseMemoryAddress(), dynamic, dynamic_count));
   if (!dynamic_section_->InitDynamicSection()) {
     SB_LOG(ERROR) << "Failed to initialize dynamic section";
     return false;
