@@ -820,11 +820,13 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   // configured via kCobaltCodeCacheOptimization) is validated additively
   // against kSbMaxSystemPathCacheDirectorySize alongside the other DIR_CACHE
   // consumers and resets to 5 MiB if the combined sum exceeds the budget.
-  const CacheQuotas quotas = startup_cache_quotas_.value_or(
-      ResolveCacheQuotas(kSbMaxSystemPathCacheDirectorySize, is_visible_,
-                         *base::CommandLine::ForCurrentProcess(),
-                         /*log_warnings_and_errors=*/false));
-  const size_t size = quotas.js_code_cache_bytes;
+  const size_t size =
+      startup_cache_quotas_.has_value()
+          ? startup_cache_quotas_->js_code_cache_bytes
+          : ResolveCacheQuotas(kSbMaxSystemPathCacheDirectorySize, is_visible_,
+                               *base::CommandLine::ForCurrentProcess(),
+                               /*log_warnings_and_errors=*/false)
+                .js_code_cache_bytes;
 #endif
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
@@ -877,10 +879,12 @@ void CobaltContentBrowserClient::SetStartupCacheQuotas(
 
 CobaltContentBrowserClient::CacheQuotas
 CobaltContentBrowserClient::GetResolvedCacheQuotas() const {
-  return startup_cache_quotas_.value_or(
-      ResolveCacheQuotas(kSbMaxSystemPathCacheDirectorySize, is_visible_,
-                         *base::CommandLine::ForCurrentProcess(),
-                         /*log_warnings_and_errors=*/false));
+  if (startup_cache_quotas_.has_value()) {
+    return *startup_cache_quotas_;
+  }
+  return ResolveCacheQuotas(kSbMaxSystemPathCacheDirectorySize, is_visible_,
+                            *base::CommandLine::ForCurrentProcess(),
+                            /*log_warnings_and_errors=*/false);
 }
 
 // static

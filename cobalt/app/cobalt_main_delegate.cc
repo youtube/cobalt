@@ -127,9 +127,10 @@ void CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
   command_line->RemoveSwitch(switches::kDisableGpuShaderDiskCache);
   // GrShaderCache only.
   command_line->AppendSwitch(switches::kGpuShaderDiskCacheGrOnly);
-  // Validate the preload GPU shader cache size against the total DIR_CACHE
-  // budget and rewrite --gpu-disk-cache-size-kb with the resolved quota (for
-  // example, resetting an over-budget or invalid switch value to 2048 KB so
+  // Chromium's gpu::GetDefaultGpuDiskCacheSize() reads --gpu-disk-cache-size-kb
+  // directly from the process command line rather than querying
+  // ContentBrowserClient. Rewrite the switch with the resolved quota (for
+  // example, resetting an absent, over-budget, or invalid value to 2048 KB so
   // Chromium does not fall back to its 6 MiB default).
   const CobaltContentBrowserClient::CacheQuotas quotas =
       resolved_quotas.has_value()
