@@ -26,6 +26,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/eme_constants.h"
+#include "media/base/media_track.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_demuxer_host.h"
 #include "media/base/pipeline_status.h"
@@ -35,6 +36,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 namespace media {
 
@@ -121,36 +123,41 @@ TEST_F(UrlPlayerDemuxerTest, PlatformEncryptedInitDataRunsCallback) {
 
 class MockDemuxerManagerClient : public DemuxerManager::Client {
  public:
-  MOCK_METHOD2(OnEncryptedMediaInitData,
-               void(EmeInitDataType, const std::vector<uint8_t>&));
-  MOCK_METHOD1(OnChunkDemuxerOpened, void(ChunkDemuxer*));
-  MOCK_METHOD0(OnProgress, void());
-  MOCK_METHOD1(OnError, void(PipelineStatus));
-  MOCK_METHOD0(StopForDemuxerReset, void());
-  MOCK_METHOD0(RestartForHls, void());
-  MOCK_CONST_METHOD0(IsSecurityOriginCryptographic, bool());
-#if BUILDFLAG(ENABLE_FFMPEG) || BUILDFLAG(ENABLE_HLS_DEMUXER)
-  MOCK_METHOD1(AddMediaTrack, void(const MediaTrack&));
-  MOCK_METHOD1(RemoveMediaTrack, void(const MediaTrack&));
-#endif  // BUILDFLAG(ENABLE_FFMPEG) || BUILDFLAG(ENABLE_HLS_DEMUXER)
+  MOCK_METHOD(void, AddTrack, (const MediaTrack&), (override));
+  MOCK_METHOD(void, RemoveTrack, (const MediaTrack&), (override));
+  MOCK_METHOD(void,
+              SetTrackState,
+              (const MediaTrack&, MediaTrack::State),
+              (override));
+  MOCK_METHOD(void,
+              OnEncryptedMediaInitData,
+              (EmeInitDataType, const std::vector<uint8_t>&),
+              (override));
+  MOCK_METHOD(void, OnChunkDemuxerOpened, (ChunkDemuxer*), (override));
+  MOCK_METHOD(void, OnProgress, (), (override));
+  MOCK_METHOD(void, OnError, (PipelineStatus), (override));
+  MOCK_METHOD(void, StopForDemuxerReset, (), (override));
+  MOCK_METHOD(void, RestartForHls, (), (override));
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
-  MOCK_METHOD0(GetHlsDataSourceProvider,
-               base::SequenceBound<HlsDataSourceProvider>());
+  MOCK_METHOD(base::SequenceBound<HlsDataSourceProvider>,
+              GetHlsDataSourceProvider,
+              (),
+              (override));
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
-  MOCK_METHOD0(CouldPlayIfEnoughData, bool());
-  MOCK_METHOD1(MakeDemuxerThreadDumper, void(Demuxer*));
-  MOCK_CONST_METHOD0(CurrentTime, double());
-  MOCK_METHOD1(UpdateLoadedUrl, void(const GURL&));
-  MOCK_METHOD1(DemuxerRequestsSeek, void(base::TimeDelta));
+  MOCK_METHOD(bool, CouldPlayIfEnoughData, (), (override));
+  MOCK_METHOD(void, MakeDemuxerThreadDumper, (Demuxer*), (override));
+  MOCK_METHOD(double, CurrentTime, (), (const, override));
+  MOCK_METHOD(void, UpdateLoadedUrl, (const GURL&), (override));
+  MOCK_METHOD(void, DemuxerRequestsSeek, (base::TimeDelta), (override));
 };
 
 class UrlPlayerDemuxerManagerTest : public ::testing::Test {
  protected:
   UrlPlayerDemuxerManagerTest()
       : demuxer_manager_(&client_,
+                         url::Origin::Create(GURL(kHlsUrl)),
                          task_environment_.GetMainThreadTaskRunner(),
                          &media_log_,
-                         /*enable_instant_source_buffer_gc=*/false,
                          std::make_unique<UrlPlayerDemuxer>(
                              task_environment_.GetMainThreadTaskRunner(),
                              GURL(kHlsUrl))) {}
@@ -166,8 +173,7 @@ class UrlPlayerDemuxerManagerTest : public ::testing::Test {
               *out_demuxer = demuxer;
               return PipelineStatus(PIPELINE_OK);
             },
-            &demuxer_),
-        {});
+            &demuxer_));
     EXPECT_TRUE(status.is_ok());
   }
 

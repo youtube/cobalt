@@ -11,14 +11,6 @@
 #include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
-<<<<<<< HEAD
-#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/time/time.h"
-#include "media/base/eme_constants.h"
-#include "url/gurl.h"
-#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-=======
->>>>>>> f9d1ed6d705 (tvos: Add a typed URL player media resource (#13345))
 
 namespace media {
 

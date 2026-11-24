@@ -64,13 +64,8 @@ class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer,
   ~UrlPlayerDemuxer() override;
 
   // MediaResource implementation.
-<<<<<<< HEAD
   std::vector<raw_ptr<DemuxerStream>> GetAllStreams() override;
-  GURL GetMediaUrl() const override;
-=======
-  std::vector<DemuxerStream*> GetAllStreams() override;
   UrlPlayerMediaResource* AsUrlPlayerMediaResource() override;
->>>>>>> f9d1ed6d705 (tvos: Add a typed URL player media resource (#13345))
 
   // Demuxer implementation.
   std::string GetDisplayName() const override;
