@@ -244,7 +244,7 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
       mojo::PendingReceiver<blink::mojom::CacheStorage> receiver,
       const storage::BucketLocator& bucket_locator);
 
-<<<<<<< ours
+<<<<<<< HEAD
   void BindHidService(const url::Origin& origin,
                       mojo::PendingReceiver<blink::mojom::HidService> receiver);
 =======
@@ -254,7 +254,7 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
                       mojo::PendingReceiver<blink::mojom::HidService> receiver);
 #endif
 #endif  // !BUILDFLAG(IS_ANDROID)
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 #if !BUILDFLAG(IS_COBALT)
   void BindUsbService(

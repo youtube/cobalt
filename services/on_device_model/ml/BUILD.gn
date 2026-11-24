@@ -81,7 +81,7 @@ if (use_blink || (is_ios && build_with_internal_optimization_guide)) {
     if (use_blink) {
       deps += [ "//gpu/config" ]
     }
-<<<<<<< ours
+<<<<<<< HEAD
 =======
     if (!is_fuchsia) {
       public += [ "ts_model.h" ]
@@ -91,7 +91,7 @@ if (use_blink || (is_ios && build_with_internal_optimization_guide)) {
     if (is_cobalt_hermetic_build) {
       deps -= [ "//third_party/dawn/src/dawn/native" ]
     }
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     public_deps = [
       ":api",
       ":ml_holder_no_internal",

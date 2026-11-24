@@ -344,7 +344,7 @@ std::queue<Operation> MakeOperations(
       }
       ops.push(SkipIfCached(
           cache_check,
-<<<<<<< ours
+<<<<<<< HEAD
           base::BindOnce(&DownloadOperation, config, id, is_foreground,
                          operation.urls, operation.size, operation.sha256_out,
                          event_adder, state_tracker,
@@ -355,7 +355,7 @@ std::queue<Operation> MakeOperations(
 #if defined(IN_MEMORY_UPDATES)
                          crx_str,
 #endif
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
                          download_progress_callback)));
     } else if (operation.type == "puff") {
       // expects: `previous` (hash object) and `out` (hash object)
