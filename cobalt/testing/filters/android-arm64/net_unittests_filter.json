@@ -1,6 +1,9 @@
 {
-  "comment": "Failing on missing libgio-2.0.so.0",
-  "failing_tests": [
-    "*"
+  "comment": "b/453909269 - Only run Cobalt-specific tests until upstream net_unittests failures are resolved.",
+  "failing_tests": [],
+  "tests_to_run": [
+    "HttpCacheTest.CobaltFontMimeTypesCachedWhenFeatureEnabled",
+    "HttpCacheTest.CobaltShouldPassThroughExcludedUrls",
+    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty"
   ]
 }

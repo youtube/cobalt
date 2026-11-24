@@ -53,6 +53,7 @@
 #include "url/third_party/mozilla/url_parse.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
 #include "base/metrics/histogram_functions.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -1164,6 +1165,12 @@ void SQLitePersistentCookieStore::Backend::AddCookie(
 
 void SQLitePersistentCookieStore::Backend::UpdateCookieAccessTime(
     const CanonicalCookie& cc) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltSkipCookieUpdateAccess)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   BatchOperation(PendingOperation::OperationType::kUpdateLastAccessTime, cc);
 }
 
@@ -1255,11 +1262,6 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
   }
 
   // Maybe an old timer fired or we are already Close()'ed.
-  // Under Cobalt, record pending operations only when there are actual
-  // mutations to commit. Placing this after the ops.empty() check prevents
-  // empty timer flushes or redundant exit flushes from recording 0-op commits
-  // into Cobalt.Storage.Cookie.PendingOperationsAtCommit and skewing production
-  // batch size percentiles.
   if (!db() || ops.empty()) {
     return;
   }
@@ -1269,7 +1271,7 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     op_count += op.second.size();
   }
   UMA_HISTOGRAM_COUNTS_1000("Cobalt.Storage.Cookie.PendingOperationsAtCommit",
-                            op_count);
+                           op_count);
 #endif  // BUILDFLAG(IS_COBALT)
 
   sql::Statement add_statement(db()->GetCachedStatement(

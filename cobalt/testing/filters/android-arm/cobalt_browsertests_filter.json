@@ -17,6 +17,7 @@
     "CobaltMetricsBrowserTest.PeriodicRecordsMemoryMetrics",
     "CobaltMetricsBrowserTest.RecordsMemoryMetrics",
     "CommitNavigationRaceBrowserTest.*",
+    "CustomMimeTypeBrowserTest.CanPlayType_MapsSupportTypeAndForwardsRawMime",
     "DeferSpeculativeRFHCreationReuseRFHTest.ReuseSameRFHNotDeferred",
     "DeferSpeculativeRFHCreationTest.NavigateWithPendingCommit",
     "DeferSpeculativeRFHCreationTest.NavigationFromCrashedFrameNotDeferred",

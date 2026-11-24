@@ -16,12 +16,18 @@
 #include "media/base/demuxer_memory_limit.h"
 // clang-format on
 
+#include <algorithm>
 #include <atomic>
+#include <optional>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
+#include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
+#include "ui/gfx/geometry/size.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media."
@@ -60,6 +66,43 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
   return bits;
 }
 
+std::optional<base::ByteCount> GetTierBudgetBytes(
+    const base::Feature& feature,
+    const base::FeatureParam<int>& budget_mb) {
+  if (!base::FeatureList::IsEnabled(feature)) {
+    return std::nullopt;
+  }
+
+  const int mb = budget_mb.Get();
+  CHECK_GT(mb, 0);
+  CHECK_LT(mb, 512);
+  return base::MiB(mb);
+}
+
+// Resolution tiers mirror the non-area-based tiers in
+// starboard/android/shared/media_get_video_buffer_budget.cc.
+std::optional<base::ByteCount> GetVideoBufferBudgetOverride(
+    const VideoDecoderConfig* video_config,
+    int bits_per_pixel) {
+  const gfx::Size resolution = video_config
+                                   ? video_config->visible_rect().size()
+                                   : gfx::Size(1920, 1080);
+  if ((resolution.width() <= 1920 && resolution.height() <= 1080) ||
+      resolution.width() == 0 || resolution.height() == 0) {
+    return GetTierBudgetBytes(kCobaltVideoBufferBudget1080p,
+                              kCobaltVideoBufferBudget1080pMB);
+  }
+  if (resolution.width() <= 3840 && resolution.height() <= 2160) {
+    return bits_per_pixel <= 8
+               ? GetTierBudgetBytes(kCobaltVideoBufferBudget4kSdr,
+                                    kCobaltVideoBufferBudget4kSdrMB)
+               : GetTierBudgetBytes(kCobaltVideoBufferBudget4kHdr,
+                                    kCobaltVideoBufferBudget4kHdrMB);
+  }
+  return GetTierBudgetBytes(kCobaltVideoBufferBudgetAbove4k,
+                            kCobaltVideoBufferBudgetAbove4kMB);
+}
+
 }  // namespace
 
 void SetVideoBufferSizeReductionPercent(int reduction_pct) {
@@ -77,13 +120,27 @@ base::ByteCount GetDemuxerStreamVideoMemoryLimit(
     DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
   base::ByteCount limit;
+  int bits_per_pixel = 8;
   if (!video_config) {
     limit = GetVideoDecoderBufferLimitBytes(
-        VideoCodec::kH264, /*resolution=*/{1920, 1080}, /*bits_per_pixel=*/8);
+        VideoCodec::kH264, /*resolution=*/{1920, 1080}, bits_per_pixel);
   } else {
+    bits_per_pixel = GetBitsPerPixel(*video_config);
     limit = GetVideoDecoderBufferLimitBytes(video_config->codec(),
                                             video_config->visible_rect().size(),
-                                            GetBitsPerPixel(*video_config));
+                                            bits_per_pixel);
+  }
+
+  if (const std::optional<base::ByteCount> override_bytes =
+          GetVideoBufferBudgetOverride(video_config, bits_per_pixel)) {
+    const base::ByteCount new_limit = std::min(limit, *override_bytes);
+    LOG(INFO) << "Finch video buffer budget override of "
+              << override_bytes->InBytes() << " bytes is active; budget "
+              << limit.InBytes() << " -> " << new_limit.InBytes() << " bytes"
+              << (g_video_buffer_size_reduction_percent.load().has_value()
+                      ? "; H5vcc reduction percent ignored."
+                      : ".");
+    return new_limit;
   }
 
   std::optional<int> reduction_pct =
