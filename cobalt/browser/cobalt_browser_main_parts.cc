@@ -62,7 +62,6 @@
 #include "net/disk_cache/cache_util.h"
 #include "sql/database.h"
 
-<<<<<<< HEAD
 // TODO: b/570507375 - CobaltSystemMemoryPressureEvaluator and tests need to be
 // adapted to the staging branch.
 // #if BUILDFLAG(IS_STARBOARD)
@@ -75,9 +74,8 @@
 // #include "media/base/media_client.h"
 // #endif
 // #endif  // BUILDFLAG(IS_STARBOARD)
-=======
+
 #if BUILDFLAG(IS_ANDROID)
-#include "cobalt/memory/android_os_signal_evaluator.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_switches.h"
@@ -85,22 +83,11 @@
 #include "net/base/network_anonymization_key.h"
 #include "net/base/schemeful_site.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
+#include "services/network/public/cpp/constants.h"
 #include "services/network/public/mojom/fetch_api.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "url/gurl.h"
-#endif
-
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
-#include "base/memory/memory_pressure_monitor.h"
-#include "cobalt/memory/cobalt_system_memory_pressure_evaluator.h"
-#include "components/memory_pressure/multi_source_memory_pressure_monitor.h"
-#include "media/media_buildflags.h"
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/base/media_client.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
->>>>>>> 8eb79002963 (cobalt/browser: Add finch feature to warm startup origin (#13663))
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
@@ -427,6 +414,7 @@ void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
       /*num_streams=*/1, startup_url, network::mojom::CredentialsMode::kInclude,
       net::NetworkAnonymizationKey::CreateSameSite(
           net::SchemefulSite(startup_url)),
+      /*network_restrictions_id=*/network::GetNoOpNetworkRestrictionsId(),
       net::MutableNetworkTrafficAnnotationTag(kTrafficAnnotation),
       /*keepalive_config=*/std::nullopt,
       /*observer_client=*/mojo::NullRemote());
