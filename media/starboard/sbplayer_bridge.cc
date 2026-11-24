@@ -35,9 +35,9 @@
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/starboard/sbmedia_histograms.h"
 #include "media/base/timestamp_constants.h"
 #include "media/starboard/buildflags.h"
-#include "media/starboard/sb_media_histograms.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/media.h"
 #include "starboard/common/once.h"
@@ -97,19 +97,19 @@ bool IsFirstSbPlayerCreateInProcess() {
 std::string_view GetSbPlayerDestroyHistogram(
     std::optional<SbPlayerState> last_player_state) {
   if (!last_player_state) {
-    return sb_media_histograms::kSbPlayerDestroyBeforePrerollingHistogram;
+    return kSbPlayerDestroyBeforePrerollingHistogram;
   }
   switch (*last_player_state) {
     case kSbPlayerStateInitialized:
       // Grouped with players still initializing, as the pipeline seeks right
       // away.
-      return sb_media_histograms::kSbPlayerDestroyBeforePrerollingHistogram;
+      return kSbPlayerDestroyBeforePrerollingHistogram;
     case kSbPlayerStatePrerolling:
-      return sb_media_histograms::kSbPlayerDestroyPrerollingHistogram;
+      return kSbPlayerDestroyPrerollingHistogram;
     case kSbPlayerStatePresenting:
-      return sb_media_histograms::kSbPlayerDestroyPresentingHistogram;
+      return kSbPlayerDestroyPresentingHistogram;
     case kSbPlayerStateEndOfStream:
-      return sb_media_histograms::kSbPlayerDestroyEndOfStreamHistogram;
+      return kSbPlayerDestroyEndOfStreamHistogram;
     case kSbPlayerStateDestroyed:
       // Never stored by OnPlayerStatus().
       break;
@@ -215,9 +215,8 @@ SbPlayer SbPlayerBridge::CreateWithUmaLatency(CreateFn&& create_fn) {
   const base::ElapsedTimer timer;
   sb_player_create_start_time_ = timer.start_time();
   SbPlayer player = std::forward<CreateFn>(create_fn)();
-  RecordLatency(is_first_sb_player_create_
-                    ? sb_media_histograms::kSbPlayerCreateHistogram
-                    : sb_media_histograms::kSbPlayerCreateSubsequentHistogram,
+  RecordLatency(is_first_sb_player_create_ ? kSbPlayerCreateHistogram
+                                           : kSbPlayerCreateSubsequentHistogram,
                 timer.Elapsed());
   return player;
 }
@@ -1250,12 +1249,10 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
     // Only the first kSbPlayerStateInitialized after the player is created is
     // recorded, as a later one wouldn't reflect the initialization latency.
     if (sb_player_create_start_time_) {
-      RecordLatency(
-          is_first_sb_player_create_
-              ? sb_media_histograms::kSbPlayerCreateToInitializedHistogram
-              : sb_media_histograms::
-                    kSbPlayerCreateToInitializedSubsequentHistogram,
-          base::TimeTicks::Now() - *sb_player_create_start_time_);
+      RecordLatency(is_first_sb_player_create_
+                        ? kSbPlayerCreateToInitializedHistogram
+                        : kSbPlayerCreateToInitializedSubsequentHistogram,
+                    base::TimeTicks::Now() - *sb_player_create_start_time_);
       sb_player_create_start_time_.reset();
     }
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
@@ -1677,23 +1674,15 @@ void SbPlayerBridge::SendColorSpaceHistogram() const {
   const auto& cs_info = video_config_.color_space_info();
 
   if (video_stream_info_.color_metadata.bits_per_channel > 8) {
-    UmaHistogramEnumeration(sb_media_histograms::kHdrPrimariesHistogram,
-                            cs_info.primaries);
-    UmaHistogramEnumeration(sb_media_histograms::kHdrTransferHistogram,
-                            cs_info.transfer);
-    UmaHistogramEnumeration(sb_media_histograms::kHdrMatrixHistogram,
-                            cs_info.matrix);
-    UmaHistogramEnumeration(sb_media_histograms::kHdrRangeHistogram,
-                            cs_info.range);
+    UmaHistogramEnumeration(kHdrPrimariesHistogram, cs_info.primaries);
+    UmaHistogramEnumeration(kHdrTransferHistogram, cs_info.transfer);
+    UmaHistogramEnumeration(kHdrMatrixHistogram, cs_info.matrix);
+    UmaHistogramEnumeration(kHdrRangeHistogram, cs_info.range);
   } else {
-    UmaHistogramEnumeration(sb_media_histograms::kSdrPrimariesHistogram,
-                            cs_info.primaries);
-    UmaHistogramEnumeration(sb_media_histograms::kSdrTransferHistogram,
-                            cs_info.transfer);
-    UmaHistogramEnumeration(sb_media_histograms::kSdrMatrixHistogram,
-                            cs_info.matrix);
-    UmaHistogramEnumeration(sb_media_histograms::kSdrRangeHistogram,
-                            cs_info.range);
+    UmaHistogramEnumeration(kSdrPrimariesHistogram, cs_info.primaries);
+    UmaHistogramEnumeration(kSdrTransferHistogram, cs_info.transfer);
+    UmaHistogramEnumeration(kSdrMatrixHistogram, cs_info.matrix);
+    UmaHistogramEnumeration(kSdrRangeHistogram, cs_info.range);
   }
 }
 

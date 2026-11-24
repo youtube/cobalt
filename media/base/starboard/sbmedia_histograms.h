@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_SB_MEDIA_HISTOGRAMS_H_
-#define MEDIA_STARBOARD_SB_MEDIA_HISTOGRAMS_H_
+#ifndef MEDIA_BASE_STARBOARD_SBMEDIA_HISTOGRAMS_H_
+#define MEDIA_BASE_STARBOARD_SBMEDIA_HISTOGRAMS_H_
 
 // Names of the Cobalt.Media histograms recorded by Cobalt's Starboard media
 // integration (SbPlayer, SbDrm, SbAudioSink, SbMedia, etc.). Must match
 // tools/metrics/histograms/metadata/cobalt/histograms.xml.
-namespace media::sb_media_histograms {
+namespace media {
 
 // keep-sorted start by_regex=k\w+ newline_separated=yes
 // Color space of HDR video (more than 8 bits per channel) played by SbPlayer.
@@ -87,6 +87,6 @@ inline constexpr char kSdrRangeHistogram[] = "Cobalt.Media.SDR.Range";
 inline constexpr char kSdrTransferHistogram[] = "Cobalt.Media.SDR.Transfer";
 // keep-sorted end
 
-}  // namespace media::sb_media_histograms
+}  // namespace media
 
-#endif  // MEDIA_STARBOARD_SB_MEDIA_HISTOGRAMS_H_
+#endif  // MEDIA_BASE_STARBOARD_SBMEDIA_HISTOGRAMS_H_

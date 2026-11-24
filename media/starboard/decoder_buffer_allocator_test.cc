@@ -32,8 +32,8 @@
 #include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_switches.h"
+#include "media/base/starboard/sbmedia_histograms.h"
 #include "media/base/test_data_util.h"
-#include "media/starboard/sb_media_histograms.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO: b/369245553 - Cobalt: As of today the tests here are used to experiment
@@ -270,15 +270,15 @@ TEST(DecoderBufferAllocatorNonParameterizedTest,
   {
     DecoderBufferAllocator allocator(
         /*is_memory_pool_allocated_on_demand=*/true, 0, 0);
-    histogram_tester.ExpectBucketCount(
-        sb_media_histograms::kIsBufferPoolAllocateOnDemandHistogram, true, 1);
+    histogram_tester.ExpectBucketCount(kIsBufferPoolAllocateOnDemandHistogram,
+                                       true, 1);
   }
 
   {
     DecoderBufferAllocator allocator(
         /*is_memory_pool_allocated_on_demand=*/false, 1024, 1024);
-    histogram_tester.ExpectBucketCount(
-        sb_media_histograms::kIsBufferPoolAllocateOnDemandHistogram, false, 1);
+    histogram_tester.ExpectBucketCount(kIsBufferPoolAllocateOnDemandHistogram,
+                                       false, 1);
   }
 }
 

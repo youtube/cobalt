@@ -60,10 +60,7 @@ source_set("starboard") {
       "starboard_utils.h",
     ]
 
-    deps += [
-      ":buildflags",
-      ":sb_media_histograms",
-    ]
+    deps += [ ":buildflags" ]
     if (is_ios && target_platform == "tvos") {
       sources += [
         "url_player_demuxer.cc",
@@ -95,11 +92,6 @@ source_set("starboard") {
     ":disable_unreachable_warnings",
     "//media:subcomponent_config",
   ]
-}
-
-# Header only, so that any code recording these histograms can depend on it.
-source_set("sb_media_histograms") {
-  sources = [ "sb_media_histograms.h" ]
 }
 
 source_set("test_support") {
@@ -141,7 +133,6 @@ source_set("unit_tests") {
   }
   configs += [ "//media:media_config" ]
   deps = [
-    ":sb_media_histograms",
     ":test_support",
     "//base",
     "//base/test:test_support",

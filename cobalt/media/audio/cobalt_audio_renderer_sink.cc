@@ -26,7 +26,7 @@
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/media/audio/audio_helpers.h"
 #include "media/base/audio_glitch_info.h"
-#include "media/starboard/sb_media_histograms.h"
+#include "media/base/starboard/sbmedia_histograms.h"
 
 namespace media {
 
@@ -47,9 +47,8 @@ void RecordSbAudioSinkCreateLatency(base::TimeDelta elapsed) {
 
   const bool is_first_call = first_call_pending.exchange(false);
   base::UmaHistogramCustomMicrosecondsTimes(
-      is_first_call
-          ? sb_media_histograms::kSbAudioSinkCreateHistogram
-          : sb_media_histograms::kSbAudioSinkCreateSubsequentHistogram,
+      is_first_call ? kSbAudioSinkCreateHistogram
+                    : kSbAudioSinkCreateSubsequentHistogram,
       elapsed,
       /*min=*/base::Microseconds(100), /*max=*/base::Seconds(1),
       /*buckets=*/50);
