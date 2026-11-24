@@ -18,6 +18,7 @@
 #include <string_view>
 #include <unordered_set>
 
+#include "base/files/file_path.h"
 #include "base/synchronization/lock.h"
 #include "net/cert/internal/platform_trust_store.h"
 #include "third_party/boringssl/src/pki/trust_store_in_memory.h"
@@ -27,7 +28,10 @@ namespace net {
 // Wrapper around TrustStoreInMemory to eagerly load trusted root certificates.
 class NET_EXPORT TrustStoreInMemoryStarboard : public PlatformTrustStore {
  public:
+  // Loads the root certificates bundled with the application.
   TrustStoreInMemoryStarboard();
+  // Loads the root certificates in |cert_dir_path|. Exposed for tests.
+  explicit TrustStoreInMemoryStarboard(const base::FilePath& cert_dir_path);
   ~TrustStoreInMemoryStarboard() override;
   TrustStoreInMemoryStarboard(const TrustStoreInMemoryStarboard&) = delete;
   TrustStoreInMemoryStarboard& operator=(const TrustStoreInMemoryStarboard&) =
