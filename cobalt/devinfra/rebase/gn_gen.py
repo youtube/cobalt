@@ -214,25 +214,13 @@ class GNGenResolver(BaseResolver):
       if proc.returncode != 0:
         return False, combined_output, ""
       # gn.py rewrites args.gn on every run, so the overrides are appended
-      # each time and the build files are generated again from them. The
-      # header check already ran in gn.py and does not depend on them.
-      out_dir = os.path.join("out", f"{self.platform}_{self.build_type}")
-      args_gn = os.path.join(self.repo_path, out_dir, "args.gn")
+      # each time. autoninja generates the build files again when args.gn
+      # is newer than them, so `gn gen` is not run here.
+      args_gn = os.path.join(self.repo_path, "out",
+                             f"{self.platform}_{self.build_type}", "args.gn")
       with open(args_gn, "a", encoding="utf-8") as f:
         f.write(_ARGS_GN_OVERRIDES)
-      regen_cmd = ["gn", "gen", out_dir]
-      log.info("[gn_gen] Executing: %s in %s", " ".join(regen_cmd),
-               self.repo_path)
-      regen = subprocess.run(
-          regen_cmd,
-          cwd=self.repo_path,
-          capture_output=True,
-          text=True,
-          env=clean_env,
-          check=False,
-      )
-      combined_output += f"\n{regen.stdout}\n{regen.stderr}"
-      return regen.returncode == 0, combined_output, ""
+      return True, combined_output, ""
     except Exception as e:  # pylint: disable=broad-exception-caught
       return False, f"Subprocess execution failed: {e}", ""
 

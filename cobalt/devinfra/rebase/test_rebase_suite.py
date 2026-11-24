@@ -936,62 +936,40 @@ void Foo() {{}}
       self.assertIn("blit.o", sum2)
 
   def test_gn_gen_disables_debug_fission(self):
-    """Tests that args.gn gets use_debug_fission = false and is regenerated."""
+    """Tests that use_debug_fission = false is appended to args.gn."""
     with tempfile.TemporaryDirectory() as tmp_dir:
       out_dir = os.path.join(tmp_dir, "out", "android-arm_devel")
       args_gn = os.path.join(out_dir, "args.gn")
-      calls = []
 
-      def fake_run(cmd, **_kwargs):
-        calls.append(cmd)
-        if cmd[0] != "gn":
-          # cobalt/build/gn.py rewrites args.gn on every run.
-          os.makedirs(out_dir, exist_ok=True)
-          with open(args_gn, "w", encoding="utf-8") as f:
-            f.write("symbol_level = 1 # Set by gn.py\n")
+      def fake_gn_py(cmd, **_kwargs):
+        # cobalt/build/gn.py rewrites args.gn on every run.
+        os.makedirs(out_dir, exist_ok=True)
+        with open(args_gn, "w", encoding="utf-8") as f:
+          f.write("symbol_level = 1 # Set by gn.py\n")
         return subprocess.CompletedProcess(cmd, 0, stdout="Done.", stderr="")
 
       resolver = GNGenResolver(tmp_dir, "android-arm", "devel")
-      with mock.patch("gn_gen.subprocess.run", side_effect=fake_run):
+      with mock.patch("gn_gen.subprocess.run", side_effect=fake_gn_py) as run:
         self.assertTrue(resolver.run_command(1)[0])
         self.assertTrue(resolver.run_command(2)[0])
 
-      self.assertEqual(calls[1], ["gn", "gen", "out/android-arm_devel"])
-      self.assertEqual(len(calls), 4)
+      # Only gn.py runs; autoninja generates the build files again.
+      self.assertEqual(run.call_count, 2)
       with open(args_gn, encoding="utf-8") as f:
-        content = f.read()
-      self.assertTrue(content.startswith("symbol_level = 1"))
-      self.assertEqual(content.count("use_debug_fission = false\n"), 1)
+        self.assertEqual(
+            f.read(), "symbol_level = 1 # Set by gn.py\n"
+            "use_debug_fission = false\n")
 
-  def test_gn_gen_failure_paths_with_debug_fission_override(self):
-    """Tests that gn.py and regeneration failures are both reported."""
-    with tempfile.TemporaryDirectory() as tmp_dir:
-      out_dir = os.path.join(tmp_dir, "out", "android-arm_devel")
-      os.makedirs(out_dir)
-      args_gn = os.path.join(out_dir, "args.gn")
-      resolver = GNGenResolver(tmp_dir, "android-arm", "devel")
-
-      # 1. gn.py fails: args.gn is left alone and gn gen is not run again.
+      # A failed gn.py run leaves args.gn alone.
       with open(args_gn, "w", encoding="utf-8") as f:
         f.write("symbol_level = 1\n")
       failed = subprocess.CompletedProcess([], 1, stdout="", stderr="ERROR a")
-      with mock.patch("gn_gen.subprocess.run", return_value=failed) as run:
-        ok, output, _ = resolver.run_command(1)
+      with mock.patch("gn_gen.subprocess.run", return_value=failed):
+        ok, output, _ = resolver.run_command(3)
       self.assertFalse(ok)
       self.assertIn("ERROR a", output)
-      self.assertEqual(run.call_count, 1)
       with open(args_gn, encoding="utf-8") as f:
         self.assertEqual(f.read(), "symbol_level = 1\n")
-
-      # 2. gn.py passes but the regeneration fails: its output is reported.
-      results = [
-          subprocess.CompletedProcess([], 0, stdout="Done.", stderr=""),
-          subprocess.CompletedProcess([], 1, stdout="", stderr="ERROR b"),
-      ]
-      with mock.patch("gn_gen.subprocess.run", side_effect=results):
-        ok, output, _ = resolver.run_command(1)
-      self.assertFalse(ok)
-      self.assertIn("ERROR b", output)
 
   def test_libcxx_plus_path_and_conflict_newline_and_siso_uuid(self):
     """Tests '+' path parsing/patching, conflict trailing newline, and UUID."""
