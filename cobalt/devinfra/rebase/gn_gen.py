@@ -28,11 +28,8 @@ log = logging.getLogger(__name__)
 # not compile) fails on those outputs because the deps log has no record
 # for them. Split DWARF only changes where debug info is stored, so the
 # same sources are compiled with the same errors without it.
-_ARGS_GN_OVERRIDES = """
-# Set by the Rebase Agent: `siso query inputs --include_deps` fails on the
-# .dwo outputs of split DWARF.
-use_debug_fission = false
-"""
+_ARGS_GN_OVERRIDES = "use_debug_fission = false\n"
+
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
