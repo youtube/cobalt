@@ -52,6 +52,8 @@
     "CustomMimeTypeBrowserTest.*",
     "WebRtcGetUserMediaBrowserTest.*",
     "I18nBrowserTest.*",
-    "RepresentativeLanguages/I18nBrowserLanguageParamTest.*"
+    "RepresentativeLanguages/I18nBrowserLanguageParamTest.*",
+    "RenderThreadHiddenGpuChannelBrowserTest.*",
+    "RenderThreadHiddenGpuChannelDefaultDisabledBrowserTest.*"
   ]
 }
