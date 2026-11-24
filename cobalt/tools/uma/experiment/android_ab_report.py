@@ -43,6 +43,8 @@ Tags, checked in this order:
   * With primary rows (--primary, default: the session's primary_metrics),
     every other significant row also needs a Benjamini-Hochberg q < 0.05
     (sign test, over the phase's diagnostic rows), otherwise it is [FLAG].
+    The ranked summary still lists each P0 row whose uncorrected tag is
+    [REGRESSED].
 
 Pure Python 3 (no third-party packages):
   python3 cobalt/tools/uma/experiment/android_ab_report.py \\
@@ -631,10 +633,22 @@ def is_primary(row: dict, primary: list) -> bool:
       maybe_phase, _, rest = name.partition(':')
       if maybe_phase in PHASE_TITLES:
         phase, name = maybe_phase, rest
+    # ':mean' also matches a one-sample histogram's 'value' row (sum / count).
     if (phase in (None, row_phase) and row['name'] == name and
-        stat in (None, row['stat'])):
+        (stat in (None, row['stat']) or
+         (stat, row['stat']) == ('mean', 'value'))):
       return True
   return False
+
+
+def unmatched_primary(phase_rows: dict, primary: list) -> list:
+  """Returns each primary entry, as '[phase:]Hist[:stat]', matching no row."""
+  all_rows = [r for rows in phase_rows.values() for r in rows]
+  return [
+      name + (f':{stat}' if stat else '')
+      for name, stat in primary
+      if not any(is_primary(r, [(name, stat)]) for r in all_rows)
+  ]
 
 
 def bh_qvalues(p_values: list) -> list:
@@ -655,6 +669,7 @@ def apply_multiplicity(rows: list, primary: list):
   for row in rows:
     row['primary'] = is_primary(row, primary)
     row['q'] = None
+    row['uncorrected_tag'] = row['tag']
   if not primary:
     return
   tested = [
@@ -912,7 +927,7 @@ def render_ranked_summary(phase_rows: dict) -> list:
       ''
   ]
   for tier in ('P0', 'P1', 'P2'):
-    notable = []
+    notable, regressed = [], []
     tier_total = 0
     for phase, rows in phase_rows.items():
       for r in sorted(rows, key=row_verdict_sort_key):
@@ -928,11 +943,16 @@ def render_ranked_summary(phase_rows: dict) -> list:
           rel = f" ({r['rel']:+.1%})" if r.get('rel') is not None else ''
           notable.append(f"{phase}: {star}`{r['name']}` {r['stat']} "
                          f"{fmt_signed(r['median'])}{rel} {r['tag']}")
+          if r.get('uncorrected_tag', r['tag']) == '[REGRESSED]':
+            regressed.append(notable[-1])
     label = TIER_LABELS[tier]
     if notable:
       out.append(f'* **{label}** ({tier_total} rows): ' + '; '.join(notable))
     else:
       out.append(f'* **{label}** ({tier_total} rows): all unchanged/noise.')
+    if tier == 'P0':  # Gate 1 hard blocks, even where BH made them [FLAG].
+      out.append('* **P0 rows tagged [REGRESSED] before BH correction**: ' +
+                 ('; '.join(regressed) or 'none') + '.')
   out.append('')
   return out
 
@@ -1057,6 +1077,12 @@ def render_report(args, data: dict) -> str:
   else:
     method = ('* No pre-registered primary rows: diagnostic tags are not '
               'corrected for multiple comparisons.')
+  unmatched = data.get('unmatched_primary') or []
+  warning = [
+      '* **WARNING:** primary entries that match no row (check the phase, '
+      'name and stat), so they are not ★: ' +
+      ', '.join(f'`{spec}`' for spec in unmatched) + '.'
+  ] if unmatched else []
   code = session.get('code', {})
   if code:
     git = code.get('git', {})
@@ -1069,7 +1095,7 @@ def render_report(args, data: dict) -> str:
                f'APK {apk_text}; APK unchanged during session: '
                f'{apk_unchanged}.')
   out += [
-      '', method, '',
+      '', method, *warning, '',
       'Δ = Treatment − Control per pair. Δ median: the median over pairs, with '
       'the exact 95% CI of the median (binomial order statistics) for n ≥ '
       f'{MIN_PAIRS}. For n ≤ {MIN_PAIRS - 1} no 95% CI exists: the bracket is '
@@ -1116,6 +1142,7 @@ def parse_args(argv=None):
       default=None,
       help='Pre-registered primary rows, comma-separated "Histogram" or '
       '"Histogram:stat" (default: primary_metrics from the session JSON). '
+      '":mean" also matches the "value" row of a one-sample histogram. '
       'With primary rows, uncorrected diagnostic findings become [FLAG].')
   return parser.parse_args(argv)
 
@@ -1154,6 +1181,7 @@ def main(argv=None) -> int:
   primary = parse_primary(primary_spec)
   for rows in phase_rows.values():
     apply_multiplicity(rows, primary)
+  unmatched = unmatched_primary(phase_rows, primary)
   report = render_report(
       args, {
           'runs': runs,
@@ -1163,6 +1191,7 @@ def main(argv=None) -> int:
           'noop_pairs': noop_pairs,
           'phase_rows': phase_rows,
           'primary': primary,
+          'unmatched_primary': unmatched,
       })
   if args.out:
     with open(args.out, 'w', encoding='utf-8') as f:
@@ -1170,6 +1199,9 @@ def main(argv=None) -> int:
     print(f'Wrote {args.out}')
   else:
     print(report)
+  if unmatched:
+    print('WARNING: primary entries that match no row (check the phase, name '
+          'and stat): ' + ', '.join(unmatched))
   if args.json:
     with open(args.json, 'w', encoding='utf-8') as f:
       json.dump(phase_rows, f, indent=1)

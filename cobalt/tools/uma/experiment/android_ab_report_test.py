@@ -15,6 +15,7 @@
 # limitations under the License.
 """Unit tests for android_uma_dump, android_ab_report and android_ab_harness."""
 
+import io
 import json
 import math
 import os
@@ -430,6 +431,25 @@ class ReportLogicTest(unittest.TestCase):
             }, primary))
     self.assertEqual(ab_report.parse_primary(''), [])
 
+  def test_primary_mean_matches_one_sample_value_row(self):
+
+    def row(stat, phase='homefeed'):
+      return {'phase': phase, 'name': 'A.B', 'stat': stat}
+
+    primary = ab_report.parse_primary('homefeed:A.B:mean')
+    self.assertTrue(ab_report.is_primary(row('value'), primary))
+    self.assertTrue(ab_report.is_primary(row('mean'), primary))
+    self.assertFalse(ab_report.is_primary(row('count'), primary))
+    self.assertFalse(ab_report.is_primary(row('value', 'exit_flush'), primary))
+    # One-way alias: ':value' never matches a multi-sample 'mean' row.
+    self.assertFalse(
+        ab_report.is_primary(row('mean'), ab_report.parse_primary('A.B:value')))
+    self.assertEqual(
+        ab_report.unmatched_primary(
+            {'homefeed': [row('value'), row('count')]},
+            ab_report.parse_primary('A.B:mean, A.B:sum, X, exit_flush:A.B')),
+        ['A.B:sum', 'X', 'exit_flush:A.B'])
+
   def test_bh_qvalues(self):
     q = ab_report.bh_qvalues([0.01, 0.04, 0.03, 0.5])
     self.assertAlmostEqual(q[0], 0.04)
@@ -467,11 +487,52 @@ class ReportLogicTest(unittest.TestCase):
     self.assertEqual(rows[2]['tag'], '[NOISE]')
     self.assertIsNone(rows[3]['q'])
 
+  def test_summary_lists_p0_rows_regressed_before_bh(self):
+
+    def row(name, tier, tag, median, sign_p=0.03125):
+      return {
+          'phase': 'homefeed',
+          'name': name,
+          'stat': 'value',
+          'tier': tier,
+          'tag': tag,
+          'tag_reason': '',
+          'sign_p': sign_p,
+          'diffs': [median] * 6,
+          'median': median,
+          'rel': None,
+      }
+
+    rows = [
+        row('Cobalt.Storage.OnPause.FlushDuration', 'P0', '[REGRESSED]', 4),
+        row('Cobalt.Storage.UserData.StartupTotalSizeKB2', 'P0', '[REGRESSED]',
+            7),
+        row('V8.CompileSerializeMicroSeconds', 'P0', '[IMPROVED]', -5),
+        row('LevelDBEnv.SyncResult', 'P1', '[REGRESSED]', 2),
+        row('Noise.A', 'P2', '[NOISE]', 1, sign_p=1.0),
+        row('Noise.B', 'P2', '[NOISE]', 1, sign_p=1.0),
+    ]
+    ab_report.apply_multiplicity(
+        rows, [('Cobalt.Storage.OnPause.FlushDuration', None)])
+    tags = ['[REGRESSED]', '[FLAG]', '[FLAG]', '[FLAG]', '[NOISE]', '[NOISE]']
+    self.assertEqual([r['tag'] for r in rows], tags)
+    summary = '\n'.join(ab_report.render_ranked_summary({'homefeed': rows}))
+    self.assertEqual([r['tag'] for r in rows], tags)
+    self.assertIn(
+        '* **P0 rows tagged [REGRESSED] before BH correction**: homefeed: ★ '
+        '`Cobalt.Storage.OnPause.FlushDuration` value +4 [REGRESSED]; '
+        'homefeed: `Cobalt.Storage.UserData.StartupTotalSizeKB2` value +7 '
+        '[FLAG].\n', summary)
+    summary = '\n'.join(ab_report.render_ranked_summary({'homefeed': rows[2:]}))
+    self.assertIn(
+        '* **P0 rows tagged [REGRESSED] before BH correction**: none.\n',
+        summary)
+
 
 class ReportEndToEndTest(unittest.TestCase):
   """Builds a homefeed + exit-flush report from synthetic S1/S2 snapshots."""
 
-  def _run_report(self, tmp: str, num_pairs: int):
+  def _run_report(self, tmp: str, num_pairs: int, *extra_args):
     """Writes num_pairs ABBA pairs; returns (rows by phase, report text)."""
     manifest = []
     for pair in range(1, num_pairs + 1):
@@ -521,7 +582,7 @@ class ReportEndToEndTest(unittest.TestCase):
     self.assertEqual(
         ab_report.main([
             '--results-dir', tmp, '--experiment', 'hf', '--out', out, '--json',
-            rows_path, '--bootstrap', '500'
+            rows_path, '--bootstrap', '500', *extra_args
         ]), 0)
     with open(rows_path, encoding='utf-8') as f:
       rows = json.load(f)
@@ -563,6 +624,29 @@ class ReportEndToEndTest(unittest.TestCase):
                   report)
     self.assertNotIn('**[IMPROVED]**', report)
     self.assertNotIn('**[REGRESSED]**', report)
+
+  def test_primary_mean_alias_and_unmatched_warnings(self):
+    primary = ('exit_flush:Cobalt.Storage.OnPause.FlushDuration:mean,'
+               'Cobalt.Storage.Cookie.CommitDuration:value,Typo.Hist')
+    with tempfile.TemporaryDirectory() as tmp, mock.patch(
+        'sys.stdout', new_callable=io.StringIO) as stdout:
+      rows, report = self._run_report(tmp, 6, '--primary', primary)
+    pause = next(r for r in rows['exit_flush']
+                 if r['name'] == 'Cobalt.Storage.OnPause.FlushDuration')
+    self.assertEqual((pause['stat'], pause['primary'], pause['tag']),
+                     ('value', True, '[REGRESSED]'))
+    self.assertIn(
+        '* **WARNING:** primary entries that match no row (check the phase, '
+        'name and stat), so they are not ★: '
+        '`Cobalt.Storage.Cookie.CommitDuration:value`, `Typo.Hist`.', report)
+    self.assertIn(
+        'WARNING: primary entries that match no row (check the phase, name '
+        'and stat): Cobalt.Storage.Cookie.CommitDuration:value, Typo.Hist\n',
+        stdout.getvalue())
+    self.assertIn(
+        '* **P0 rows tagged [REGRESSED] before BH correction**: exit_flush: ★ '
+        '`Cobalt.Storage.OnPause.FlushDuration` value +3.50 (+5.0%) '
+        '[REGRESSED].', report)
 
 
 class HarnessLogicTest(unittest.TestCase):
