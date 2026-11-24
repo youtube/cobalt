@@ -30,6 +30,7 @@
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
+#include "starboard/android/shared/video_render_algorithm_android_v2.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -350,6 +351,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
       decoder_improvements_flags_(GetAndroidVideoDecoderImprovementsFlags(
           pipeline_config.experimental_features)),
+      video_render_algorithm_mask_(pipeline_config.experimental_features
+                                       .Get(kMediaVideoRenderAlgorithmMask)
+                                       .value_or(0)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -456,6 +460,11 @@ std::unique_ptr<VideoRenderAlgorithm>
 MediaCodecVideoDecoder::GetRenderAlgorithm() {
   next_tick_wait_duration_us_.store(0, std::memory_order_relaxed);
   if (!tunnel_mode_audio_session_id_) {
+    if (ShouldUseVideoRenderAlgorithmAndroidV2(video_render_algorithm_mask_)) {
+      return std::make_unique<VideoRenderAlgorithmAndroidV2>(
+          this, video_frame_tracker_.get(),
+          static_cast<uint32_t>(video_render_algorithm_mask_));
+    }
     return std::make_unique<VideoRenderAlgorithmAndroid>(
         this, video_frame_tracker_.get());
   }

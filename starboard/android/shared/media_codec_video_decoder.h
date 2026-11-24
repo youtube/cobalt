@@ -261,6 +261,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
   const uint32_t decoder_improvements_flags_;
+  const int video_render_algorithm_mask_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

@@ -264,6 +264,12 @@ inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
 
+// 31-bit bitmask (bits 0..30) selecting VideoRenderAlgorithmAndroidV2 and
+// individual frame-release improvements on Android TV. 0 or negative values
+// keep the legacy VideoRenderAlgorithmAndroid path.
+inline constexpr ExperimentalFeatureKey<int> kMediaVideoRenderAlgorithmMask(
+    "Media.VideoRenderAlgorithmMask");
+
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
 

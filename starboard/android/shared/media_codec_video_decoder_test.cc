@@ -29,12 +29,15 @@
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/video_render_algorithm_android_v2.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -829,6 +832,58 @@ TEST_F(MediaCodecVideoDecoderTest,
   EXPECT_EQ(codec_host->GetNextTickWaitDurationUs(), std::nullopt);
   EXPECT_FALSE(host->AcquireJavaSurface());
   EXPECT_GT(host->GetSurfaceGeneration(), initial_gen);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       GetRenderAlgorithmSelectsLegacyOrV2AndRespectsHoldbackBit30) {
+  class PausedMediaTimeProvider : public MediaTimeProvider {
+   public:
+    void Play() override {}
+    void Pause() override {}
+    void SetPlaybackRate(double) override {}
+    void Seek(int64_t) override {}
+    MediaTimeInfo GetCurrentMediaTime() override {
+      return MediaTimeInfo{/*media_time=*/0, /*is_playing=*/false,
+                           /*is_eos_played=*/false, /*is_underflow=*/false,
+                           /*playback_rate=*/0.0};
+    }
+    int64_t GetAudioWriteHead() override { return 0; }
+    int64_t AdjustTimestampToAudioClock(int64_t ts) override { return ts; }
+  } paused_clock;
+
+  auto renders_paused_first_frame = [&](int64_t mask) {
+    ExperimentalFeatures features(ExperimentalFeatures::Map{
+        {std::string(kMediaVideoRenderAlgorithmMask.key()), mask}});
+    CreateDecoder("", nullptr, std::move(features));
+    decoder_->GetSink()->SetPlaybackRate(0.0);
+    auto alg = decoder_->GetRenderAlgorithm();
+    std::list<scoped_refptr<VideoFrame>> frames{
+        make_scoped_refptr<VideoFrame>(80'000)};
+    int drawn = 0;
+    alg->Render(&paused_clock, &frames,
+                [&](const scoped_refptr<VideoFrame>&, int64_t) {
+                  ++drawn;
+                  return VideoRendererSink::kReleased;
+                });
+    // Match VideoRendererImpl::~VideoRendererImpl() destruction order by
+    // destroying |decoder_| before |alg|.
+    decoder_.reset();
+    return drawn;
+  };
+
+  // Default (0) and negative masks select legacy VideoRenderAlgorithmAndroid,
+  // which holds Frame 0 while paused.
+  EXPECT_EQ(renders_paused_first_frame(0), 0);
+  EXPECT_EQ(renders_paused_first_frame(-1), 0);
+
+  // Positive mask with Bits 0..13 selects VideoRenderAlgorithmAndroidV2, which
+  // immediately draws Frame 0 on paused seek/startup.
+  EXPECT_EQ(renders_paused_first_frame(16383), 1);
+
+  // Bit 30 (kForceLegacyAlgorithm) overrides all other bits back to legacy.
+  const int64_t holdback_mask = static_cast<int64_t>(
+      16383u | video_render_algorithm_v2::kForceLegacyAlgorithm);
+  EXPECT_EQ(renders_paused_first_frame(holdback_mask), 0);
 }
 
 }  // namespace
