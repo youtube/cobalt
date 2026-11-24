@@ -338,7 +338,7 @@ class DependentPhaseError(RuntimeError):
 
 
 def restore_files_outside_build(repo_path: str, base_sha: str, out_dir: str,
-                                target: str) -> List[str]:
+                                target: str) -> Optional[List[str]]:
   """Puts changed files that `target` does not build back to base_sha.
 
   The agent may change files the built target never compiles, such as unit
@@ -348,7 +348,8 @@ def restore_files_outside_build(repo_path: str, base_sha: str, out_dir: str,
   outside that closure is checked out from base_sha. The agent only edits
   existing files, so `git diff` lists every change. GN files are kept (gn
   reads them, but they are not Ninja inputs of `target`), and so is DEPS
-  (gclient sync reads it). Returns the restored paths.
+  (gclient sync reads it). Returns the restored paths, or None when
+  `siso query inputs` failed and nothing could be restored.
 
   base_sha must be the commit the run started from (the autoroll commit).
   If a file is not compiled by the target, it is restored to the autoroll
@@ -367,13 +368,22 @@ def restore_files_outside_build(repo_path: str, base_sha: str, out_dir: str,
   ]
   if not changed:
     return []
-  res = run([
+  cmd = [
       "siso", "query", "inputs", "-C",
       os.path.join("out", out_dir), "--include_deps", target
-  ])
-  if res.returncode != 0:
-    log.warning("[WARNING] siso query inputs failed; keeping all files.")
-    return []
+  ]
+  failure = ""
+  try:
+    res = run(cmd)
+    if res.returncode != 0:
+      output = (res.stderr or res.stdout).strip()[-2000:] or "(no output)"
+      failure = f"exit code {res.returncode}: {output}"
+  except OSError as e:
+    failure = str(e)
+  if failure:
+    log.warning("[WARNING] `%s` failed; keeping all files. %s", " ".join(cmd),
+                failure)
+    return None
   built = {
       line.removeprefix("../../")
       for line in res.stdout.splitlines()
@@ -629,7 +639,12 @@ def run_pipeline(args: argparse.Namespace) -> int:
       return 1
     restored = restore_files_outside_build(args.repo_path, autoroll_sha,
                                            out_dir, effective_target)
-    if restored:
+    if restored is None:
+      log.warning(
+          "[pipeline] Restore step skipped: could not list the files %s "
+          "builds. Changes to files outside the build were kept.",
+          effective_target)
+    elif restored:
       log.info("[pipeline] Restored %d changed file(s) that %s does not build:",
                len(restored), effective_target)
       for rel in restored:

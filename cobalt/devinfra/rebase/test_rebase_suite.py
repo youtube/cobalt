@@ -2950,6 +2950,73 @@ print("gen/foo.mojom-shared.h")
           expected = "old\n" if rel in restored else "new\n"
           self.assertEqual(f.read(), expected, rel)
 
+  def _changed_repo(self, repo):
+    """A git repo with one committed file, a.cc, changed in the work tree."""
+
+    def git(*args):
+      return subprocess.run(["git", *args],
+                            cwd=repo,
+                            check=True,
+                            capture_output=True,
+                            text=True).stdout.strip()
+
+    path = os.path.join(repo, "a.cc")
+    git("init", "-q")
+    with open(path, "w", encoding="utf-8") as f:
+      f.write("old\n")
+    git("add", "-A")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "s")
+    with open(path, "w", encoding="utf-8") as f:
+      f.write("new\n")
+    return git("rev-parse", "HEAD"), path
+
+  def test_failed_query_keeps_files_and_logs_the_reason(self):
+    with tempfile.TemporaryDirectory() as repo, \
+         tempfile.TemporaryDirectory() as bin_dir:
+      siso = os.path.join(bin_dir, "siso")
+      with open(siso, "w", encoding="utf-8") as f:
+        f.write("#!/usr/bin/env python3\nimport sys\n"
+                "sys.stderr.write('load siso config failed: boom\\n')\n"
+                "sys.exit(3)\n")
+      os.chmod(siso, 0o755)
+      start_sha, path = self._changed_repo(repo)
+
+      env_path = bin_dir + os.pathsep + os.environ["PATH"]
+      with mock.patch.dict(os.environ, {"PATH": env_path}), \
+           self.assertLogs("run_rebase_pipeline", "WARNING") as logs:
+        restored = restore_files_outside_build(repo, start_sha,
+                                               "android-arm_devel",
+                                               "cobalt_apk")
+
+      # None, not []: the caller must not report "nothing to restore".
+      self.assertIsNone(restored)
+      output = "\n".join(logs.output)
+      self.assertIn("siso query inputs -C out/android-arm_devel", output)
+      self.assertIn("exit code 3", output)
+      self.assertIn("load siso config failed: boom", output)
+      with open(path, encoding="utf-8") as f:
+        self.assertEqual(f.read(), "new\n")
+
+  def test_missing_siso_keeps_files(self):
+    real_run = subprocess.run
+
+    def run(cmd, **kwargs):
+      if cmd[0] == "siso":
+        raise FileNotFoundError(2, "No such file or directory", "siso")
+      return real_run(cmd, **kwargs)  # pylint: disable=subprocess-run-check
+
+    with tempfile.TemporaryDirectory() as repo:
+      start_sha, path = self._changed_repo(repo)
+      with mock.patch("run_rebase_pipeline.subprocess.run", side_effect=run), \
+           self.assertLogs("run_rebase_pipeline", "WARNING") as logs:
+        restored = restore_files_outside_build(repo, start_sha,
+                                               "android-arm_devel",
+                                               "cobalt_apk")
+      self.assertIsNone(restored)
+      self.assertIn("No such file or directory", "\n".join(logs.output))
+      with open(path, encoding="utf-8") as f:
+        self.assertEqual(f.read(), "new\n")
+
 
 class RepoPathSafetyTest(unittest.TestCase):
   """Paths from AI tool calls / patches must stay inside the repository."""
