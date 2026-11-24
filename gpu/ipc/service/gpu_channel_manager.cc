@@ -836,6 +836,26 @@ void GpuChannelManager::OnBackgroundCleanup() {
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+  // Keep all GL state while a stateful (WebGL/WebGPU) context is alive. The
+  // page owns that GPU state and usually cannot rebuild it, so losing it leaves
+  // the canvas blank after the app is revealed again. The other contexts can't
+  // be torn down on their own either: raster contexts share SharedContextState,
+  // and losing it makes OnContextLost() lose all contexts when the passthrough
+  // decoder (ANGLE) is used. Only purge caches in that case; the full teardown
+  // below runs once no stateful context is left.
+  if (HasActiveStatefulContext()) {
+    if (program_cache_) {
+      program_cache_->Trim(0u);
+    }
+    if (shared_context_state_) {
+      shared_context_state_->PurgeMemory(
+          base::MemoryPressureListener::MemoryPressureLevel::
+              MEMORY_PRESSURE_LEVEL_CRITICAL);
+    }
+    SkGraphics::PurgeAllCaches();
+    return;
+  }
+
   // 1. Mark all GPU channel contexts lost and destroy all GPU channels.
   for (auto& kv : gpu_channels_) {
     kv.second->MarkAllContextsLost();
@@ -863,6 +883,16 @@ void GpuChannelManager::OnBackgroundCleanup() {
 
   // 5. Clear CPU-side font and 2D raster caches.
   SkGraphics::PurgeAllCaches();
+}
+
+bool GpuChannelManager::HasActiveStatefulContext() const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  for (const auto& kv : gpu_channels_) {
+    if (kv.second->HasActiveStatefulContext()) {
+      return true;
+    }
+  }
+  return false;
 }
 #endif
 

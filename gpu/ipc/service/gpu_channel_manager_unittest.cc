@@ -70,7 +70,7 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
                                   GpuPeakMemoryAllocationSource::UNKNOWN);
   }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   void TestApplicationBackgrounded(ContextType type,
                                    bool should_destroy_channel) {
     ASSERT_TRUE(channel_manager());
@@ -114,9 +114,21 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
       EXPECT_TRUE(channel);
     }
 
+#if BUILDFLAG(IS_COBALT)
+    // Cobalt keeps all GL state, including the shared raster state, while a
+    // stateful (WebGL) context is alive, and releases it otherwise.
+    if (should_destroy_channel) {
+      ASSERT_NE(channel_manager()->GetSharedContextState(&result).get(),
+                raster_decoder_state.get());
+    } else {
+      ASSERT_EQ(channel_manager()->GetSharedContextState(&result).get(),
+                raster_decoder_state.get());
+    }
+#else
     // We should always clear the shared raster state on background cleanup.
     ASSERT_NE(channel_manager()->GetSharedContextState(&result).get(),
               raster_decoder_state.get());
+#endif
   }
 #endif
 
@@ -136,7 +148,7 @@ TEST_F(GpuChannelManagerTest, EstablishChannel) {
   EXPECT_EQ(channel_manager()->LookupChannel(kClientId), channel);
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
 TEST_F(GpuChannelManagerTest, OnBackgroundedWithoutWebGL) {
   TestApplicationBackgrounded(CONTEXT_TYPE_OPENGLES2, true);
 }

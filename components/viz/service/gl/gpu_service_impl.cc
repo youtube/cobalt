@@ -1249,7 +1249,13 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
   // and surfaces have been released so the barrier reply guarantees total teardown.
   gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
   if (display && display->IsInitialized()) {
-    display->Shutdown();
+    // Keep the display while a WebGL/WebGPU context is still alive: terminating
+    // it would lose that context, and the page cannot rebuild its GPU state.
+    if (gpu_channel_manager_->HasActiveStatefulContext()) {
+      LOG(INFO) << "GPU: Keeping EGL display for active WebGL/WebGPU context.";
+    } else {
+      display->Shutdown();
+    }
   }
 #endif
 #else
