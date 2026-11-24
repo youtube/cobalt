@@ -6,12 +6,9 @@
 
 #include <utility>
 
-<<<<<<< ours
-#include "base/logging.h"
-=======
 #include "base/containers/contains.h"
+#include "base/logging.h"
 #include "base/numerics/checked_math.h"
->>>>>>> theirs
 #include "base/task/sequenced_task_runner.h"
 
 #define MAKE_SURE_ON_SEQUENCE(callback, ...)                                   \

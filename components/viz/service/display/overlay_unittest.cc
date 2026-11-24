@@ -86,8 +86,6 @@
 #include "components/viz/service/display/overlay_strategy_underlay_cast.h"
 #endif
 
-<<<<<<< ours
-=======
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) && !BUILDFLAG(IS_IOS)
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"  // nogncheck
 #include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
@@ -96,11 +94,6 @@
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA) &&
         // !BUILDFLAG(IS_IOS)
 
-#if BUILDFLAG(IS_APPLE)
-#include "components/viz/service/display/ca_layer_overlay.h"
-#endif
-
->>>>>>> theirs
 using testing::_;
 using testing::Mock;
 
@@ -6342,17 +6335,14 @@ TEST_F(UnderlayStarboardTest, ReportsAllVideoHolesOfAFrameFrontToBack) {
                        kOverlayRect, kPrimaryToken);
 
   OverlayCandidateList candidate_list;
-  OverlayProcessorInterface::FilterOperationsMap render_pass_filters;
-  OverlayProcessorInterface::FilterOperationsMap render_pass_backdrop_filters;
   AggregatedRenderPassList pass_list;
   pass_list.push_back(std::move(pass));
   SurfaceDamageRectList surface_damage_rect_list;
 
   overlay_processor_->ProcessForOverlays(
       resource_provider(), &pass_list, GetIdentityColorMatrix(),
-      render_pass_filters, render_pass_backdrop_filters,
-      std::move(surface_damage_rect_list), nullptr, &candidate_list,
-      &damage_rect_, &content_bounds_);
+      std::move(surface_damage_rect_list), GetDefaultPrimaryPlane(),
+      &candidate_list, &damage_rect_);
   GetVideoGeometrySetter().FlushForTesting();
 
   // Both holes are reported in a single call, front-most first, so that the
