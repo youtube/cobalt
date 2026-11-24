@@ -334,9 +334,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
 
   end_of_stream_written_ = false;
 
-  stop_called_ = false;
-  playback_head_position_when_stopped_ = 0;
-  stopped_at_ = 0;
+  stopped_timestamp_.reset();
   first_audio_timestamp_ = -1;
   if (!seek_to_time_set) {
     seek_to_time_ = seek_to_time;
@@ -370,17 +368,17 @@ MediaTimeInfo AudioRendererPassthrough::GetCurrentMediaTime() {
   }
 
   int64_t playback_time;
-  if (stop_called_) {
+  if (stopped_timestamp_) {
     // When AudioTrack::Stop() is called, the playback will continue until
     // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
     auto now = CurrentMonotonicTime();
-    SB_DCHECK_GE(now, stopped_at_);
-    auto time_elapsed = now - stopped_at_;
+    SB_DCHECK_GE(now, stopped_timestamp_->updated_at_us);
+    auto time_elapsed = now - stopped_timestamp_->updated_at_us;
     int64_t frames_played =
         time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
     int64_t total_frames_played =
-        frames_played + playback_head_position_when_stopped_;
+        frames_played + stopped_timestamp_->frame_position;
     total_frames_played = std::min(total_frames_played, total_frames_written_);
     playback_time =
         audio_start_time + total_frames_played * 1'000'000LL /
@@ -389,8 +387,10 @@ MediaTimeInfo AudioRendererPassthrough::GetCurrentMediaTime() {
     return info;
   }
 
-  int64_t updated_at;
-  auto playback_head_position = audio_track_->GetAudioTimestamp(&updated_at);
+  const AudioTrack::AudioTimestamp audio_timestamp =
+      audio_track_->GetAudioTimestamp();
+  const int64_t playback_head_position = audio_timestamp.frame_position;
+  const int64_t updated_at = audio_timestamp.updated_at_us;
   if (playback_head_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
@@ -549,7 +549,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       audio_track_paused_ = false;
       SB_LOG(INFO) << "Played on AudioTrack thread.";
       std::lock_guard scoped_lock(mutex_);
-      stop_called_ = false;
+      stopped_timestamp_.reset();
     } else {
       audio_track_->Pause();
       audio_track_paused_ = true;
@@ -565,17 +565,13 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         prerolled_cb_();
       }
       std::lock_guard scoped_lock(mutex_);
-      if (current_state.playing() && !stop_called_) {
+      if (current_state.playing() && !stopped_timestamp_) {
         // TODO: Check if we can apply the same stop logic to non-passthrough.
         audio_track_->Stop();
-        stop_called_ = true;
-        playback_head_position_when_stopped_ =
-            audio_track_->GetAudioTimestamp(&stopped_at_);
+        stopped_timestamp_ = audio_track_->GetAudioTimestamp();
         total_frames_written_ = total_frames_written_on_audio_track_thread_;
         decoded_audio_writing_in_progress_ = std::nullopt;
-        SB_LOG(INFO) << "Audio track stopped at " << stopped_at_
-                     << ", playback head: "
-                     << playback_head_position_when_stopped_;
+        SB_LOG(INFO) << "Audio track stopped: " << *stopped_timestamp_;
       }
     } else {
       auto sample_buffer = decoded_audio_writing_in_progress_->data() +
@@ -636,11 +632,12 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
 
   // EOS is handled on this thread instead of in GetCurrentMediaTime(), because
   // GetCurrentMediaTime() is not guaranteed to be called.
-  if (stop_called_ && !end_of_stream_played_.load()) {
-    auto time_elapsed = CurrentMonotonicTime() - stopped_at_;
+  if (stopped_timestamp_ && !end_of_stream_played_.load()) {
+    auto time_elapsed =
+        CurrentMonotonicTime() - stopped_timestamp_->updated_at_us;
     auto frames_played =
         time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
-    if (frames_played + playback_head_position_when_stopped_ >=
+    if (frames_played + stopped_timestamp_->frame_position >=
         total_frames_written_on_audio_track_thread_) {
       end_of_stream_played_.store(true);
       ended_cb_();

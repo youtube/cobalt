@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
@@ -54,6 +55,7 @@ class AndroidOsSignalEvaluator;
 }  // namespace memory
 #endif
 
+class CobaltContentBrowserClient;
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
 class GlobalFeatures;
@@ -77,8 +79,10 @@ void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir);
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  explicit CobaltBrowserMainParts(const std::string& deep_link,
-                                  bool is_visible);
+  explicit CobaltBrowserMainParts(
+      const std::string& deep_link,
+      bool is_visible,
+      CobaltContentBrowserClient* browser_client = nullptr);
 
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
@@ -121,6 +125,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   void InitializeMessageLoopContext() override;
 
  private:
+  const raw_ptr<CobaltContentBrowserClient> browser_client_;
   base::SequenceCheckerImpl sequence_checker_;
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;

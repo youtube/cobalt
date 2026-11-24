@@ -75,14 +75,8 @@ runs:
         fi
         cd "${SRC_DIR}"
 
-        out_dir="${SRC_DIR}/out/${PLATFORM}_${CONFIG}"
-        if [ -n "${LD_LIBRARY_PATH:-}" ]; then
-          export LD_LIBRARY_PATH="${out_dir}/starboard:${out_dir}:${LD_LIBRARY_PATH}"
-        else
-          export LD_LIBRARY_PATH="${out_dir}/starboard:${out_dir}"
-        fi
-
         # Ensure binaries have executable permissions
+        out_dir="${SRC_DIR}/out/${PLATFORM}_${CONFIG}"
         chmod +x "${out_dir}/cobalt_loader" 2>/dev/null || true
         chmod +x "${out_dir}/loader_app" 2>/dev/null || true
         chmod +x "${out_dir}/elf_loader_sandbox" 2>/dev/null || true
