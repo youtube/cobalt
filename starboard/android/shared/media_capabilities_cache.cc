@@ -367,7 +367,7 @@ bool MediaCapabilitiesCache::IsTunneledAudioSupported(int encoding,
   return supported;
 }
 
-bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
+bool MediaCapabilitiesCache::IsAv18kCappedAt30(bool refresh_cache) {
   if (!is_enabled_) {
     // When the cache is not enabled, always checks video fps.
     return true;
@@ -383,7 +383,7 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
     return true;
   }
 
-  if (is_refresh_in_av1_8k_check_enabled_) {
+  if (refresh_cache) {
     std::lock_guard scoped_lock(mutex_);
     UpdateMediaCapabilities_Locked();
     return is_av1_8k_capped_at_30_;

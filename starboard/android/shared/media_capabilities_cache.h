@@ -18,7 +18,6 @@
 #include <jni.h>
 
 #include <atomic>
-#include <cstdint>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -33,17 +32,6 @@
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
-
-namespace android_video_decoder_improvements {
-
-// Bitfield flag for `kMediaAndroidVideoDecoderImprovements`
-// ("Media.AndroidVideoDecoderImprovements"); see
-// `media_codec_video_decoder.h` for other flag bits and helper functions.
-// Locks `mutex_` and refreshes dirty capabilities in
-// `MediaCapabilitiesCache::IsAv18kCappedAt30()`.
-inline constexpr uint32_t kRefreshCacheInAv18kCheck = 1u << 2;
-
-}  // namespace android_video_decoder_improvements
 
 // TODO: encapsulate a common Range class.
 struct Range {
@@ -218,8 +206,10 @@ class MediaCapabilitiesCache {
   // cannot ask it to always use max supported width and height, which would
   // lead 8k60 being used and exceed system resource limit. See b/173575800.
   // When IsAv18kCappedAt30() returns true, the device needs extra check of
-  // video fps to prevent 8k60 is used unexpectedly.
-  bool IsAv18kCappedAt30();
+  // video fps to prevent 8k60 is used unexpectedly. When |refresh_cache| is
+  // true, locks |mutex_| and refreshes dirty capabilities before reading the
+  // cached value.
+  bool IsAv18kCappedAt30(bool refresh_cache);
 
   bool GetAudioConfiguration(int index,
                              SbMediaAudioConfiguration* configuration);
@@ -249,9 +239,6 @@ class MediaCapabilitiesCache {
   bool IsEnabled() const { return is_enabled_; }
   void SetCacheEnabled(bool enabled) { is_enabled_ = enabled; }
   void SetAv1OptEnabled(bool enabled) { is_av1_opt_enabled_ = enabled; }
-  void SetRefreshInAv18kCheckEnabled(bool enabled) {
-    is_refresh_in_av1_8k_check_enabled_ = enabled;
-  }
   void ClearCache() { capabilities_is_dirty_ = true; }
 
  protected:
@@ -301,7 +288,6 @@ class MediaCapabilitiesCache {
 
   std::atomic_bool is_enabled_{true};
   std::atomic_bool is_av1_opt_enabled_{false};
-  std::atomic_bool is_refresh_in_av1_8k_check_enabled_{false};
   std::atomic_bool capabilities_is_dirty_{true};
 };
 

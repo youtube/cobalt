@@ -17,7 +17,6 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
-#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -26,11 +25,9 @@
 #include <utility>
 #include <vector>
 
-#include "starboard/android/shared/media_codec_video_decoder.h"
 #include "starboard/android/shared/mock_media_capabilities_cache.h"
 #include "starboard/common/size.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/experimental_features.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/resolutions.h"
 #include "starboard/testing/scoped_feature_list.h"
@@ -488,36 +485,31 @@ MediaCapabilitiesProvider::VideoCodecCapabilities CreateAv1DecoderCaps(
   return caps;
 }
 
-ExperimentalFeatures MakeVideoDecoderImprovementsFeatures(int64_t flags) {
-  return ExperimentalFeatures(ExperimentalFeatures::Map{
-      {std::string(kMediaAndroidVideoDecoderImprovements.key()), flags}});
-}
-
 }  // namespace
 
 TEST_F(MediaCapabilitiesCacheTest,
-       IsAv18kCappedAt30_ColdAndClearedCacheRefreshesWhenBit2Enabled) {
+       IsAv18kCappedAt30_ColdAndClearedCacheRefreshesWhenRequested) {
   cache_->SetAv1OptEnabled(true);
 
-  // Without bit 2, calling `IsAv18kCappedAt30()` on a cold dirty cache returns
-  // the stale default (`true`) without loading capabilities.
+  // When `refresh_cache` is false, calling `IsAv18kCappedAt30()` on a cold
+  // dirty cache returns the stale default (`true`) without loading
+  // capabilities.
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
       .Times(0);
-  EXPECT_TRUE(cache_->IsAv18kCappedAt30());
+  EXPECT_TRUE(cache_->IsAv18kCappedAt30(/*refresh_cache=*/false));
   testing::Mock::VerifyAndClearExpectations(mock_media_capabilities_provider_);
 
-  // With bit 2 enabled, `IsAv18kCappedAt30()` refreshes the dirty cache and
-  // caches the computed 4K60 (`false`) result.
-  cache_->SetRefreshInAv18kCheckEnabled(true);
+  // When `refresh_cache` is true, `IsAv18kCappedAt30()` refreshes the dirty
+  // cache and caches the computed 4K60 (`false`) result.
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
       .Times(1)
       .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
         video_caps["video/av01"] = CreateAv1DecoderCaps(Resolution::k4k, 60);
       }));
-  EXPECT_FALSE(cache_->IsAv18kCappedAt30());
-  EXPECT_FALSE(cache_->IsAv18kCappedAt30());
+  EXPECT_FALSE(cache_->IsAv18kCappedAt30(/*refresh_cache=*/true));
+  EXPECT_FALSE(cache_->IsAv18kCappedAt30(/*refresh_cache=*/true));
   testing::Mock::VerifyAndClearExpectations(mock_media_capabilities_provider_);
 
   // After `ClearCache()`, an 8K30-capped AV1 decoder refreshes to `true`.
@@ -528,8 +520,8 @@ TEST_F(MediaCapabilitiesCacheTest,
       .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
         video_caps["video/av01"] = CreateAv1DecoderCaps(Resolution::k8k, 30);
       }));
-  EXPECT_TRUE(cache_->IsAv18kCappedAt30());
-  EXPECT_TRUE(cache_->IsAv18kCappedAt30());
+  EXPECT_TRUE(cache_->IsAv18kCappedAt30(/*refresh_cache=*/true));
+  EXPECT_TRUE(cache_->IsAv18kCappedAt30(/*refresh_cache=*/true));
   testing::Mock::VerifyAndClearExpectations(mock_media_capabilities_provider_);
 
   // After `ClearCache()`, an 8K60 AV1 decoder refreshes to `false`.
@@ -540,30 +532,28 @@ TEST_F(MediaCapabilitiesCacheTest,
       .WillOnce(testing::Invoke([](auto&, auto& video_caps) {
         video_caps["video/av01"] = CreateAv1DecoderCaps(Resolution::k8k, 60);
       }));
-  EXPECT_FALSE(cache_->IsAv18kCappedAt30());
+  EXPECT_FALSE(cache_->IsAv18kCappedAt30(/*refresh_cache=*/true));
 }
 
 TEST_F(MediaCapabilitiesCacheTest,
-       IsAv18kCappedAt30_DisabledCacheOrOptSkipsRefreshEvenWhenBit2Enabled) {
-  cache_->SetRefreshInAv18kCheckEnabled(true);
+       IsAv18kCappedAt30_DisabledCacheOrOptSkipsRefresh) {
   EXPECT_CALL(*mock_media_capabilities_provider_,
               GetCodecCapabilities(testing::_, testing::_))
       .Times(0);
 
   // `is_av1_opt_enabled_` is false by default.
-  EXPECT_TRUE(cache_->IsAv18kCappedAt30());
+  EXPECT_TRUE(cache_->IsAv18kCappedAt30(/*refresh_cache=*/true));
 
   // When the cache itself is disabled, `IsAv18kCappedAt30()` always returns
   // `true` without refreshing cached capabilities.
   cache_->SetAv1OptEnabled(true);
   cache_->SetCacheEnabled(false);
-  EXPECT_TRUE(cache_->IsAv18kCappedAt30());
+  EXPECT_TRUE(cache_->IsAv18kCappedAt30(/*refresh_cache=*/true));
 }
 
 TEST_F(MediaCapabilitiesCacheTest,
-       IsAv18kCappedAt30_SerializesConcurrentRefreshUnderMutexWhenBit2Enabled) {
+       IsAv18kCappedAt30_SerializesConcurrentRefreshUnderMutex) {
   cache_->SetAv1OptEnabled(true);
-  cache_->SetRefreshInAv18kCheckEnabled(true);
 
   std::mutex sync_mutex;
   std::condition_variable sync_cv;
@@ -605,7 +595,7 @@ TEST_F(MediaCapabilitiesCacheTest,
   bool observed_after_provider_finished = false;
   std::thread reader_thread([&] {
     reader_started.store(true);
-    capped_result = cache_->IsAv18kCappedAt30();
+    capped_result = cache_->IsAv18kCappedAt30(/*refresh_cache=*/true);
     observed_after_provider_finished = provider_finished.load();
   });
 
@@ -627,38 +617,6 @@ TEST_F(MediaCapabilitiesCacheTest,
 
   EXPECT_TRUE(observed_after_provider_finished);
   EXPECT_TRUE(capped_result);
-}
-
-TEST_F(MediaCapabilitiesCacheTest,
-       RefreshCacheInAv18kCheckImprovementBitfield) {
-  using android_video_decoder_improvements::
-      kGuardSurfaceResetAndCleanupByOwnership;
-  using android_video_decoder_improvements::kRefreshCacheInAv18kCheck;
-
-  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
-      GetAndroidVideoDecoderImprovementsFlags(ExperimentalFeatures()),
-      kRefreshCacheInAv18kCheck));
-  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
-      GetAndroidVideoDecoderImprovementsFlags(
-          MakeVideoDecoderImprovementsFeatures(0)),
-      kRefreshCacheInAv18kCheck));
-  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
-      GetAndroidVideoDecoderImprovementsFlags(
-          MakeVideoDecoderImprovementsFeatures(-1)),
-      kRefreshCacheInAv18kCheck));
-  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
-      GetAndroidVideoDecoderImprovementsFlags(
-          MakeVideoDecoderImprovementsFeatures(
-              kGuardSurfaceResetAndCleanupByOwnership)),
-      kRefreshCacheInAv18kCheck));
-  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
-      GetAndroidVideoDecoderImprovementsFlags(
-          MakeVideoDecoderImprovementsFeatures(kRefreshCacheInAv18kCheck)),
-      kRefreshCacheInAv18kCheck));
-  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
-      GetAndroidVideoDecoderImprovementsFlags(
-          MakeVideoDecoderImprovementsFeatures(0b111)),
-      kRefreshCacheInAv18kCheck));
 }
 
 }  // namespace starboard

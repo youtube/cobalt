@@ -568,15 +568,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
-    const bool refresh_cache_in_av1_8k_check =
-        IsAndroidVideoDecoderImprovementEnabled(
-            GetAndroidVideoDecoderImprovementsFlags(experimental_features),
-            android_video_decoder_improvements::kRefreshCacheInAv18kCheck);
-    MediaCapabilitiesCache::GetInstance()->SetRefreshInAv18kCheckEnabled(
-        refresh_cache_in_av1_8k_check);
-    SB_LOG_IF(INFO, refresh_cache_in_av1_8k_check)
-        << "`refresh_cache_in_av1_8k_check` is set to true.";
-
     bool use_dual_threads = ShouldUseDualThreads(
         creation_parameters.audio_codec(), creation_parameters.drm_system(),
         experimental_features, force_platform_opus_decoder_);
