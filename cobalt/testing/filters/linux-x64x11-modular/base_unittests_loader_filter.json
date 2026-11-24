@@ -44,6 +44,7 @@
     "ReadOnlyFileUtilTest.ContentsEqual",
     "ReadOnlyFileUtilTest.TextContentsEqual",
     "RunUntilTestWithThreadPool.TimesOutWhenMainThreadSleepsForever",
+    "RustCommandLineTest.SpawnsSubprocessWithNewCommandLine",
     "SamplingHeapProfilerTest.HookedAllocatorMuted",
     "SamplingHeapProfilerTest.SampleObserver",
     "ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows",
