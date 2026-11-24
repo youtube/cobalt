@@ -242,22 +242,6 @@ BASE_FEATURE(kCobaltStartupPreconnect,
              "CobaltStartupPreconnect",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-<<<<<<< HEAD
-=======
-BASE_FEATURE(kCobaltFlushHttpServerPropertiesOnPause,
-             "CobaltFlushHttpServerPropertiesOnPause",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCobaltHttpCacheQuota,
-             "CobaltHttpCacheQuota",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE_PARAM(int,
-                   kCobaltMaxHttpCacheSizeBytes,
-                   &kCobaltHttpCacheQuota,
-                   "cobalt_http_cache_size_bytes",
-                   12582912);
-
 BASE_FEATURE(kCobaltCodeCacheOptimization,
              "CobaltCodeCacheOptimization",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -276,6 +260,5 @@ BASE_FEATURE_PARAM(bool,
                    "CobaltCodeCacheOptimization_bypass_heat_check",
                    true);
 
->>>>>>> 7f869762b39 ([Cobalt] Optimize V8 Code Cache quota and first-launch bytecode caching (#13558))
 }  // namespace features
 }  // namespace cobalt

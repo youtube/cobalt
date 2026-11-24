@@ -194,14 +194,14 @@ TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
   }
 
   // 4. When kCobaltCodeCacheOptimization raises JS code cache from 5 MiB to
-  // 10 MiB, Starboard's dynamic non-HTTP reserve grows from 12 MiB to 17 MiB
-  // (leaving 7 MiB on a 24 MiB budget so DIR_CACHE never exceeds 24 MiB):
+  // 10 MiB, Starboard's dynamic non-HTTP reserve grows from 13 MiB to 18 MiB
+  // (leaving 6 MiB on a 24 MiB budget so DIR_CACHE never exceeds 24 MiB):
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
     EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
                   24 * 1024 * 1024),
-              7u * 1024 * 1024);
+              6u * 1024 * 1024);
   }
 }
 
