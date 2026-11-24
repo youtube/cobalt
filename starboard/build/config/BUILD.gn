@@ -58,6 +58,13 @@ config("starboard") {
     defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
   }
 
+  # Starboard code is shared with partner C++17 toolchains per:
+  # https://developers.google.com/youtube/devices/living-room/requirements/2027/software-certification#req-1.1
+  # Reject C++20 extensions (e.g. designated initializers) in C++17 toolchains.
+  if (is_clang && use_cxx17) {
+    cflags_cc = [ "-Wc++20-extensions" ]
+  }
+
   # b/432642933: The rpath option causes lld to fail when targeting tvOS
   # because -rpath=/path/to/something is not a valid linker option (and
   # everything works fine without it anyway).
@@ -74,6 +81,14 @@ config("starboard_implementation") {
   defines = [ "STARBOARD_IMPLEMENTATION" ]
   if (current_cpu == "arm64" || (current_cpu == "arm" && arm_use_neon)) {
     defines += [ "USE_NEON" ]
+  }
+
+  # Starboard code is shared with partner C++17 toolchains per:
+  # https://developers.google.com/youtube/devices/living-room/requirements/2027/software-certification#req-1.1
+  # Reject C++20-only syntax (e.g. designated initializers) when Starboard
+  # targets (such as //starboard/nplb) are built by C++20 toolchains.
+  if (is_clang && !use_cxx17) {
+    cflags_cc = [ "-Wpre-c++20-compat-pedantic" ]
   }
 }
 

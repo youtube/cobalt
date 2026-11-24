@@ -143,16 +143,42 @@ TEST_F(CobaltContentBrowserClientTest, GrShaderDiskCacheDirectory) {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+TEST_F(CobaltContentBrowserClientTest,
+       GrShaderDiskCacheDirectoryIsAlwaysDirCache) {
+  base::ScopedPathOverride user_data_override(content::SHELL_DIR_USER_DATA);
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  const base::FilePath user_data_dir =
+      base::PathService::CheckedGet(content::SHELL_DIR_USER_DATA);
+  const base::FilePath cache_dir =
+      base::PathService::CheckedGet(base::DIR_CACHE);
+  CobaltContentBrowserClient client(/*startup_timestamp=*/absl::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/true);
+
+  // DIR_CACHE regardless of kCobaltStorageCleanup; never under user data.
+  for (const bool storage_cleanup_enabled : {false, true}) {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatureState(base::features::kCobaltStorageCleanup,
+                                      storage_cleanup_enabled);
+    const base::FilePath dir = client.GetGrShaderDiskCacheDirectory();
+    EXPECT_EQ(dir, cache_dir.Append(FILE_PATH_LITERAL("GrShaderCache")))
+        << "kCobaltStorageCleanup=" << storage_cleanup_enabled;
+    EXPECT_FALSE(user_data_dir.IsParent(dir));
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
-  // 1. Nominal Starboard budget (24 MiB -> 12 MiB HTTP cache):
+  // 1. Nominal Starboard budget (24 MiB -> 11 MiB HTTP cache):
   EXPECT_EQ(
       CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(24 * 1024 * 1024),
-      12u * 1024 * 1024);
+      11u * 1024 * 1024);
 
-  // 2. Current platform constant equals budget minus the 12 MiB reserve:
+  // 2. Current platform constant equals budget minus the 13 MiB reserve:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
                 kSbMaxSystemPathCacheDirectorySize),
-            kSbMaxSystemPathCacheDirectorySize - 12u * 1024 * 1024);
+            kSbMaxSystemPathCacheDirectorySize - 13u * 1024 * 1024);
 
   // 3. Zero / unconfigured budget:
   EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
