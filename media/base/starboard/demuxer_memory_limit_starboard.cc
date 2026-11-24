@@ -66,7 +66,7 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
   return bits;
 }
 
-std::optional<size_t> GetTierBudgetBytes(
+std::optional<base::ByteCount> GetTierBudgetBytes(
     const base::Feature& feature,
     const base::FeatureParam<int>& budget_mb) {
   if (!base::FeatureList::IsEnabled(feature)) {
@@ -76,12 +76,12 @@ std::optional<size_t> GetTierBudgetBytes(
   const int mb = budget_mb.Get();
   CHECK_GT(mb, 0);
   CHECK_LT(mb, 512);
-  return static_cast<size_t>(mb) * 1024 * 1024;
+  return base::MiB(mb);
 }
 
 // Resolution tiers mirror the non-area-based tiers in
 // starboard/android/shared/media_get_video_buffer_budget.cc.
-std::optional<size_t> GetVideoBufferBudgetOverride(
+std::optional<base::ByteCount> GetVideoBufferBudgetOverride(
     const VideoDecoderConfig* video_config,
     int bits_per_pixel) {
   const gfx::Size resolution = video_config
@@ -119,12 +119,8 @@ base::ByteCount GetDemuxerStreamAudioMemoryLimit(
 base::ByteCount GetDemuxerStreamVideoMemoryLimit(
     DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
-<<<<<<< HEAD
   base::ByteCount limit;
-=======
-  size_t limit;
   int bits_per_pixel = 8;
->>>>>>> f92e5d8e166 (media: add Base Features for Buffer Budgets (#13182))
   if (!video_config) {
     limit = GetVideoDecoderBufferLimitBytes(
         VideoCodec::kH264, /*resolution=*/{1920, 1080}, bits_per_pixel);
@@ -135,12 +131,12 @@ base::ByteCount GetDemuxerStreamVideoMemoryLimit(
                                             bits_per_pixel);
   }
 
-  if (const std::optional<size_t> override_bytes =
+  if (const std::optional<base::ByteCount> override_bytes =
           GetVideoBufferBudgetOverride(video_config, bits_per_pixel)) {
-    const size_t new_limit = std::min(limit, *override_bytes);
-    LOG(INFO) << "Finch video buffer budget override of " << *override_bytes
-              << " bytes is active; budget " << limit << " -> " << new_limit
-              << " bytes"
+    const base::ByteCount new_limit = std::min(limit, *override_bytes);
+    LOG(INFO) << "Finch video buffer budget override of "
+              << override_bytes->InBytes() << " bytes is active; budget "
+              << limit.InBytes() << " -> " << new_limit.InBytes() << " bytes"
               << (g_video_buffer_size_reduction_percent.load().has_value()
                       ? "; H5vcc reduction percent ignored."
                       : ".");
