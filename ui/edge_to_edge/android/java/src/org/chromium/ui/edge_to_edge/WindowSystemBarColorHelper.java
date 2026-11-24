@@ -5,6 +5,7 @@
 package org.chromium.ui.edge_to_edge;
 
 import android.app.Activity;
+import android.os.Build;
 import android.view.Window;
 
 import org.chromium.build.annotations.NullMarked;
@@ -63,11 +64,19 @@ public class WindowSystemBarColorHelper extends BaseSystemBarColorHelper {
 
     /** Wrapper call to {@link Window#setNavigationBarContrastEnforced(boolean)}. */
     public void setNavigationBarContrastEnforced(boolean enforced) {
-        mWindow.setNavigationBarContrastEnforced(enforced);
+        // Window#setNavigationBarContrastEnforced is API 29+; contrast enforcement
+        // does not exist on Android P (API 28), so it is a no-op there.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mWindow.setNavigationBarContrastEnforced(enforced);
+        }
     }
 
     /** Wrapper call to {@link Window#setStatusBarContrastEnforced(boolean)}. */
     public void setStatusBarContrastEnforced(boolean enforced) {
-        mWindow.setStatusBarContrastEnforced(enforced);
+        // Window#setStatusBarContrastEnforced is API 29+; contrast enforcement
+        // does not exist on Android P (API 28), so it is a no-op there.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mWindow.setStatusBarContrastEnforced(enforced);
+        }
     }
 }

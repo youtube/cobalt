@@ -277,6 +277,14 @@ public class ContentViewRenderView extends FrameLayout {
       if (mSurfaceControl == null) {
         return;
       }
+      // NEW GUARD: SurfaceControl.Transaction and SurfaceControl#release are
+      // API 29. A non-null mSurfaceControl is only ever created on API 34+ (see
+      // ensureSurfaceControl), so this never runs below API 34; the explicit
+      // check makes that invariant visible to lint, which cannot see it across
+      // methods.
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        return;
+      }
 
       try {
         if (detachFromWindow) {

@@ -151,7 +151,10 @@ public class AutocorrectManager {
     private int findLengthOfTextToUnderline(CorrectionInfo correctionInfo) {
         CharSequence text = correctionInfo.getNewText();
         BreakIterator boundary = BreakIterator.getWordInstance();
-        boundary.setText(text);
+        // NEW REWRITE: setText(CharSequence) is API 29; the String overload is
+        // API 24+ and equivalent here, so switching to it keeps min SDK 28
+        // building without a runtime guard.
+        boundary.setText(text.toString());
 
         int last = boundary.last();
         int start = boundary.previous();
