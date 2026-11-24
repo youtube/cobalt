@@ -90,6 +90,21 @@
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+
+#include "base/numerics/safe_conversions.h"
+#include "base/task/delay_policy.h"
+#include "components/viz/common/frame_sinks/begin_frame_args.h"
+#include "content/public/browser/frame_rate_throttling.h"
+#include "starboard/system.h"
+#include "ui/aura/env.h"
+#include "ui/aura/window_tree_host.h"
+#include "ui/compositor/compositor.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
@@ -426,7 +441,140 @@ void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+// The CobaltExtensionGraphicsApi version that added the minimum frame
+// interval.
+constexpr uint32_t kMinimumFrameIntervalVersion = 2;
+
+// The CobaltExtensionGraphicsApi version that added the maximum frame
+// interval.
+constexpr uint32_t kMaximumFrameIntervalVersion = 1;
+
+// How long to wait before reading the platform's maximum frame interval again
+// when there is no frame to present: the platform sets no maximum frame
+// interval for now, or the window is hidden.
+constexpr base::TimeDelta kMaximumFrameIntervalPollInterval = base::Seconds(1);
+
+// Caps the frame rate at the platform's minimum frame interval, as Cobalt 25
+// did.
+void ApplyMinimumFrameInterval() {
+  const auto* graphics_extension =
+      static_cast<const CobaltExtensionGraphicsApi*>(
+          SbSystemGetExtension(kCobaltExtensionGraphicsName));
+  if (!graphics_extension ||
+      strcmp(graphics_extension->name, kCobaltExtensionGraphicsName) != 0) {
+    return;
+  }
+  // TODO(b/584412770): Use the display's actual refresh interval. This assumes
+  // 60 Hz, and viz drops the throttle on a display that reports another rate.
+  const std::optional<base::TimeDelta> throttled_frame_interval =
+      GetThrottledFrameInterval(graphics_extension,
+                                viz::BeginFrameArgs::DefaultInterval());
+  if (throttled_frame_interval) {
+    // Caps the frame rate: Chromium sends BeginFrames no more often than this.
+    content::StartThrottlingAllFrameSinks(*throttled_frame_interval);
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 }  // namespace
+
+#if BUILDFLAG(IS_STARBOARD)
+std::optional<base::TimeDelta> GetThrottledFrameInterval(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval) {
+  if (!graphics_extension ||
+      graphics_extension->version < kMinimumFrameIntervalVersion ||
+      !graphics_extension->GetMinimumFrameIntervalInMilliseconds ||
+      !refresh_interval.is_positive()) {
+    return std::nullopt;
+  }
+  const float minimum_frame_interval_milliseconds =
+      graphics_extension->GetMinimumFrameIntervalInMilliseconds();
+  // A minimum frame interval that is not positive means the platform sets
+  // none.
+  if (!std::isfinite(minimum_frame_interval_milliseconds) ||
+      minimum_frame_interval_milliseconds <= 0.0f) {
+    return std::nullopt;
+  }
+  // Rounds to the nearest refresh rather than up, so that a value just over a
+  // whole number of refreshes, such as 17 ms at 60 Hz, does not halve the
+  // frame rate.
+  const int refreshes_per_frame =
+      base::ClampRound(base::Milliseconds(minimum_frame_interval_milliseconds) /
+                       refresh_interval);
+  // One frame per refresh is what happens without throttling.
+  if (refreshes_per_frame <= 1) {
+    return std::nullopt;
+  }
+  return refresh_interval * refreshes_per_frame;
+}
+
+std::optional<base::TimeDelta> GetMaxTimeBetweenFrames(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval) {
+  if (!graphics_extension ||
+      graphics_extension->version < kMaximumFrameIntervalVersion ||
+      !graphics_extension->GetMaximumFrameIntervalInMilliseconds ||
+      !refresh_interval.is_positive()) {
+    return std::nullopt;
+  }
+  const float maximum_frame_interval_milliseconds =
+      graphics_extension->GetMaximumFrameIntervalInMilliseconds();
+  // A negative maximum frame interval means frames are only presented when
+  // something changes.
+  if (!std::isfinite(maximum_frame_interval_milliseconds) ||
+      maximum_frame_interval_milliseconds < 0.0f) {
+    return std::nullopt;
+  }
+  // The minimum frame interval takes precedence: frames are never presented
+  // more often than the frame rate cap, or the display refresh, allows.
+  const base::TimeDelta shortest_frame_interval =
+      GetThrottledFrameInterval(graphics_extension, refresh_interval)
+          .value_or(refresh_interval);
+  return std::max(base::Milliseconds(maximum_frame_interval_milliseconds),
+                  shortest_frame_interval);
+}
+
+void CobaltBrowserMainParts::PresentFrameAtMaximumFrameInterval() {
+  const auto* graphics_extension =
+      static_cast<const CobaltExtensionGraphicsApi*>(
+          SbSystemGetExtension(kCobaltExtensionGraphicsName));
+  if (!graphics_extension ||
+      strcmp(graphics_extension->name, kCobaltExtensionGraphicsName) != 0) {
+    return;
+  }
+  // The platform may change its maximum frame interval at any time, so it is
+  // read again on every run.
+  const std::optional<base::TimeDelta> max_time_between_frames =
+      GetMaxTimeBetweenFrames(graphics_extension,
+                              viz::BeginFrameArgs::DefaultInterval());
+  bool redraw_scheduled = false;
+  if (max_time_between_frames) {
+    for (aura::WindowTreeHost* host :
+         aura::Env::GetInstance()->window_tree_hosts()) {
+      ui::Compositor* compositor = host->compositor();
+      if (compositor && compositor->IsVisible()) {
+        // Chromium presents no frame while nothing on screen changes.
+        // Redrawing the window makes it present one.
+        compositor->ScheduleFullRedraw();
+        redraw_scheduled = true;
+      }
+    }
+  }
+  // Counts from when this run was due rather than from now, so that a late run
+  // does not make every later frame late too.
+  maximum_frame_interval_deadline_ =
+      std::max(maximum_frame_interval_deadline_ +
+                   (redraw_scheduled ? *max_time_between_frames
+                                     : kMaximumFrameIntervalPollInterval),
+               base::TimeTicks::Now());
+  maximum_frame_interval_timer_.Start(
+      FROM_HERE, maximum_frame_interval_deadline_, this,
+      &CobaltBrowserMainParts::PresentFrameAtMaximumFrameInterval,
+      base::subtle::DelayPolicy::kPrecise);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
                                             const base::FilePath& cache_dir) {
@@ -738,6 +886,11 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  ApplyMinimumFrameInterval();
+  PresentFrameAtMaximumFrameInterval();
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
   // Register Cobalt memory pressure evaluators when enabled via Finch or
   // command line.
@@ -867,6 +1020,9 @@ void CobaltBrowserMainParts::PostMainMessageLoopRun() {
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
   memory_pressure_monitor_.reset();
 #endif
+#if BUILDFLAG(IS_STARBOARD)
+  maximum_frame_interval_timer_.Stop();
+#endif  // BUILDFLAG(IS_STARBOARD)
   ShellBrowserMainParts::PostMainMessageLoopRun();
 }
 

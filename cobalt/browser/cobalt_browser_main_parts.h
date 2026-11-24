@@ -21,11 +21,20 @@
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <optional>
+
+#include "base/time/time.h"
+#include "base/timer/timer.h"
+#include "starboard/extension/graphics.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 class PrefService;
 
@@ -75,6 +84,23 @@ void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
 // zero disk writes.
 void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir);
 
+#if BUILDFLAG(IS_STARBOARD)
+// The platform's minimum frame interval is the shortest time allowed between
+// two frames. Returns the interval to throttle frames to, rounded to a whole
+// number of |refresh_interval|s, or nullopt if no throttling is needed.
+std::optional<base::TimeDelta> GetThrottledFrameInterval(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval);
+
+// The platform's maximum frame interval is the longest time allowed between
+// two frames, even when nothing on screen changes. Returns that time, never
+// shorter than the frame rate cap or one |refresh_interval| allows, or nullopt
+// if frames are only presented when something changes.
+std::optional<base::TimeDelta> GetMaxTimeBetweenFrames(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval);
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
@@ -121,6 +147,13 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   void MaybeClearCachedSplashFiles();
   void PostOrRunIfStorageMigrationFinished(base::OnceClosure task) override;
 
+#if BUILDFLAG(IS_STARBOARD)
+  // Presents a frame, then runs again once the platform's maximum frame
+  // interval has passed, as Cobalt 25 did. Some platforms need a frame
+  // presented every so often even when nothing on screen changes.
+  void PresentFrameAtMaximumFrameInterval();
+#endif  // BUILDFLAG(IS_STARBOARD)
+
  protected:
   void InitializeMessageLoopContext() override;
 
@@ -139,6 +172,11 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   std::unique_ptr<memory::AndroidOsSignalEvaluator>
       android_os_signal_evaluator_;
 #endif
+#if BUILDFLAG(IS_STARBOARD)
+  base::DeadlineTimer maximum_frame_interval_timer_;
+  // When |maximum_frame_interval_timer_| is next due.
+  base::TimeTicks maximum_frame_interval_deadline_;
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   base::WeakPtrFactory<CobaltBrowserMainParts> weak_ptr_factory_{this};
 };
