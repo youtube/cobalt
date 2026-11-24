@@ -18,6 +18,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <ios>
 #include <tuple>
 #include <utility>
 
@@ -76,6 +77,9 @@ class PosixSocketResolveTest
     auto param = GetParam();
     return std::get<1>(param).second;
   }
+
+ protected:
+  void CheckFlags(int flags, const char* host, const char* service);
 };
 
 // A random host name to use to test DNS resolution.
@@ -181,8 +185,71 @@ TEST_P(PosixSocketResolveTest, SunnyDayFiltered) {
   freeaddrinfo(ai);
 }
 
-TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
+// Resolves `host` and `service` with `flags` and the test parameters, and
+// checks the results.
+void PosixSocketResolveTest::CheckFlags(int flags,
+                                        const char* host,
+                                        const char* service) {
+  SCOPED_TRACE(testing::Message() << "flags = 0x" << std::hex << flags);
   struct addrinfo hints = {0};
+  hints.ai_family = GetAddressFamily();
+  hints.ai_socktype = GetSocketType();
+  hints.ai_protocol = GetProtocol();
+  hints.ai_flags = flags;
+  struct addrinfo* ai = nullptr;
+
+  int result = getaddrinfo(host, service, &hints, &ai);
+  // Requests for any address family must succeed. Requests with a specified
+  // address family are allowed to return that there are no matches, unless
+  // it's AF_INET6 with AI_V4MAPPED.
+  const bool must_succeed =
+      GetAddressFamily() == AF_UNSPEC ||
+      (GetAddressFamily() == AF_INET6 && flags == AI_V4MAPPED);
+  if (must_succeed || result == 0) {
+    ASSERT_EQ(result, 0);
+    ASSERT_NE(nullptr, ai);
+  } else {
+#if defined(EAI_ADDRFAMILY)
+    EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                result == EAI_FAMILY || result == EAI_ADDRFAMILY)
+        << " result = " << result;
+#else
+#if defined(WSANO_DATA)
+    EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                result == WSANO_DATA || result == EAI_FAMILY)
+        << " result = " << result;
+#else
+    EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                result == EAI_FAMILY)
+        << " result = " << result;
+#endif
+#endif
+    ASSERT_EQ(nullptr, ai);
+  }
+
+  for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
+    // Not all platforms report these flags with the results.
+    if (flags & ~(AI_PASSIVE | AI_CANONNAME | AI_ADDRCONFIG)) {
+      EXPECT_EQ(flags, i->ai_flags);
+    }
+    if (GetAddressFamily() != AF_UNSPEC) {
+      EXPECT_EQ(i->ai_addr->sa_family, GetAddressFamily());
+    } else {
+      EXPECT_TRUE(i->ai_addr->sa_family == AF_INET ||
+                  i->ai_addr->sa_family == AF_INET6);
+    }
+    if (GetSocketType() != 0) {
+      EXPECT_EQ(i->ai_socktype, GetSocketType());
+    }
+    if (GetProtocol() != 0) {
+      EXPECT_EQ(i->ai_protocol, GetProtocol());
+    }
+  }
+
+  freeaddrinfo(ai);
+}
+
+TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
   int flags_to_test[] = {
   // Non-modular builds use native libc getaddrinfo.
 #if defined(SB_MODULAR_BUILD)
@@ -191,66 +258,9 @@ TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
 #endif
       AI_PASSIVE,  AI_CANONNAME,         AI_ADDRCONFIG,
   };
-  for (auto flag : flags_to_test) {
-    hints.ai_family = GetAddressFamily();
-    hints.ai_socktype = GetSocketType();
-    hints.ai_protocol = GetProtocol();
-    hints.ai_flags = flag;
-    struct addrinfo* ai = nullptr;
-
-    int result =
-        getaddrinfo((flag & AI_PASSIVE) ? nullptr : kTestHostName,
-                    (flag & AI_PASSIVE) ? kTestService : nullptr, &hints, &ai);
-    if (GetAddressFamily() == AF_UNSPEC) {
-      ASSERT_EQ(result, 0);
-      ASSERT_NE(nullptr, ai);
-    } else {
-      // Requests with a specified address family are allowed to return that
-      // there are no matches, unless it's AF_INET6 with AI_V4MAPPED.
-      if (result == 0 ||
-          (GetAddressFamily() == AF_INET6 && flag == AI_V4MAPPED)) {
-        ASSERT_EQ(result, 0);
-        ASSERT_NE(nullptr, ai);
-      } else {
-#if defined(EAI_ADDRFAMILY)
-        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
-                    result == EAI_FAMILY || result == EAI_ADDRFAMILY)
-            << " result = " << result;
-#else
-#if defined(WSANO_DATA)
-        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
-                    result == WSANO_DATA || result == EAI_FAMILY)
-            << " result = " << result;
-#else
-        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
-                    result == EAI_FAMILY)
-            << " result = " << result;
-#endif
-#endif
-        ASSERT_EQ(nullptr, ai);
-      }
-    }
-
-    for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
-      // Not all platforms report these flags with the results.
-      if (hints.ai_flags & ~(AI_PASSIVE | AI_CANONNAME | AI_ADDRCONFIG)) {
-        EXPECT_EQ(hints.ai_flags, i->ai_flags);
-      }
-      if (GetAddressFamily() != AF_UNSPEC) {
-        EXPECT_EQ(i->ai_addr->sa_family, GetAddressFamily());
-      } else {
-        EXPECT_TRUE(i->ai_addr->sa_family == AF_INET ||
-                    i->ai_addr->sa_family == AF_INET6);
-      }
-      if (GetSocketType() != 0) {
-        EXPECT_EQ(i->ai_socktype, GetSocketType());
-      }
-      if (GetProtocol() != 0) {
-        EXPECT_EQ(i->ai_protocol, GetProtocol());
-      }
-    }
-
-    freeaddrinfo(ai);
+  for (int flags : flags_to_test) {
+    CheckFlags(flags, (flags & AI_PASSIVE) ? nullptr : kTestHostName,
+               (flags & AI_PASSIVE) ? kTestService : nullptr);
   }
 }
 
