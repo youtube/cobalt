@@ -53,6 +53,7 @@
 #include "url/third_party/mozilla/url_parse.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
 #include "base/metrics/histogram_functions.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
@@ -1164,6 +1165,12 @@ void SQLitePersistentCookieStore::Backend::AddCookie(
 
 void SQLitePersistentCookieStore::Backend::UpdateCookieAccessTime(
     const CanonicalCookie& cc) {
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltSkipCookieUpdateAccess)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   BatchOperation(PendingOperation::OperationType::kUpdateLastAccessTime, cc);
 }
 
@@ -1254,6 +1261,11 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
     num_pending_ = 0;
   }
 
+  // Maybe an old timer fired or we are already Close()'ed.
+  if (!db() || ops.empty()) {
+    return;
+  }
+
 #if BUILDFLAG(IS_COBALT)
   for (const auto& op : ops) {
     op_count += op.second.size();
@@ -1261,10 +1273,6 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
   UMA_HISTOGRAM_COUNTS_1000("Cobalt.Storage.Cookie.PendingOperationsAtCommit",
                            op_count);
 #endif  // BUILDFLAG(IS_COBALT)
-
-  // Maybe an old timer fired or we are already Close()'ed.
-  if (!db() || ops.empty())
-    return;
 
   sql::Statement add_statement(db()->GetCachedStatement(
       SQL_FROM_HERE,
