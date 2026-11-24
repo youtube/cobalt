@@ -18,12 +18,6 @@ import("//starboard/content/fonts/font_configuration.gni")
 # All build arguments in this file must have documentation.
 # Please follow the formatting in this file when adding new ones.
 
-if (build_with_separate_cobalt_toolchain) {
-  default_target_type = "shared_library"
-} else {
-  default_target_type = "executable"
-}
-
 declare_args() {
   # The Starboard API version of the current build configuration. The default
   # value is meant to be overridden by a Starboard ABI file.
@@ -38,11 +32,6 @@ declare_args() {
 
   # Whether to use the libunwind library on Evergreen compatible platform.
   sb_evergreen_compatible_use_libunwind = false
-
-  # The target type for executable targets. Allows changing the target type
-  # on platforms where the native code may require an additional packaging step
-  # (ex. Android).
-  final_executable_type = default_target_type
 
   starboard_level_gtest_target_type = "executable"
   starboard_level_final_executable_type = "executable"

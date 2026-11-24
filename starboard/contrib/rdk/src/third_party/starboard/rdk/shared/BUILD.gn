@@ -329,12 +329,6 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  if (final_executable_type == "shared_library" && !build_with_separate_cobalt_toolchain) {
-    sources += [
-      "//starboard/shared/starboard/shared_main_adapter.cc"
-    ]
-  }
-
   sources += [ "main_rdk.cc" ]
 
   cflags = []
