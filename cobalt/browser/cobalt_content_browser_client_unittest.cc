@@ -321,6 +321,7 @@ TEST_F(CobaltContentBrowserClientTest,
        ConfigureHttpCacheMaxSizeStarboardQuota) {
   constexpr uint32_t kBudget24MiB = 24u * 1024 * 1024;
   constexpr int kExpectedDefault11MiB = 11 * 1024 * 1024;  // 11534336
+  constexpr int kExpectedCombined6MiB = 6 * 1024 * 1024;   // 6291456
 
   // 1. Budgeted Starboard platform (24 MiB -> 11 MiB default):
   {
@@ -338,6 +339,19 @@ TEST_F(CobaltContentBrowserClientTest,
     CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
         /*in_memory=*/false, kBudget24MiB, params.get());
     EXPECT_EQ(params->http_cache_max_size, kExpectedDefault11MiB);
+  }
+  // Combined kCobaltCodeCacheOptimization (10 MiB JS code cache -> 18 MiB
+  // non-HTTP reserve) + kCobaltHttpCacheQuota (12 MiB cap) caps HTTP cache at
+  // min(6 MiB, 12 MiB) = 6 MiB so DIR_CACHE stays within 24 MiB:
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures({features::kCobaltCodeCacheOptimization,
+                                   features::kCobaltHttpCacheQuota},
+                                  {});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, kExpectedCombined6MiB);
   }
   {
     base::test::ScopedFeatureList feature_list;
