@@ -18,6 +18,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/base/synced_property.h"
 #include "cc/input/event_listener_properties.h"
 #include "cc/input/layer_selection_bound.h"
@@ -500,6 +501,9 @@ class CC_EXPORT LayerTreeImpl {
   // Update picture layers' tiles. Return true if any layer's tile priority
   // is updated.
   bool UpdateTiles();
+#if BUILDFLAG(IS_COBALT)
+  bool has_visible_video_layer() const { return has_visible_video_layer_; }
+#endif  // BUILDFLAG(IS_COBALT)
 
   void set_needs_update_draw_properties() {
     needs_update_draw_properties_ = true;
@@ -937,6 +941,9 @@ class CC_EXPORT LayerTreeImpl {
   bool needs_update_draw_properties_ : 1 = true;
 
   bool needs_update_tiles_ : 1 = false;
+#if BUILDFLAG(IS_COBALT)
+  bool has_visible_video_layer_ : 1 = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // In impl-side painting mode, this is true when the pending tree may contain
   // structural differences relative to the active tree. When using a

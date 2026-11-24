@@ -16,6 +16,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/base/math_util.h"
 #include "cc/layers/picture_layer_impl.h"
@@ -143,6 +144,15 @@ void PictureLayerTiling::TakeTilesAndPropertiesFrom(
   RemoveTilesInRegion(layer_invalidation, false /* recreate tiles */);
 
   resolution_ = pending_twin->resolution_;
+#if BUILDFLAG(IS_COBALT)
+  skewport_lookahead_allowed_ = pending_twin->skewport_lookahead_allowed_;
+  // Preserve `true` if the active tiling already created lookahead tiles before
+  // a lookahead-disallowing commit activates, so `ComputeTilePriorityRects()`
+  // below sees the `true -> false` transition and drops unvisited lookahead
+  // tiles immediately.
+  was_using_skewport_lookahead_ |= pending_twin->was_using_skewport_lookahead_;
+  pending_twin->was_using_skewport_lookahead_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   while (!pending_twin->tiles_.empty()) {
     auto pending_iter = pending_twin->tiles_.begin();
@@ -452,6 +462,10 @@ void PictureLayerTiling::Reset() {
   live_tiles_rect_ = gfx::Rect();
   tiles_.clear();
   all_tiles_done_ = true;
+#if BUILDFLAG(IS_COBALT)
+  skewport_lookahead_allowed_ = false;
+  was_using_skewport_lookahead_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void PictureLayerTiling::ComputeTilePriorityRects(
@@ -475,6 +489,9 @@ void PictureLayerTiling::ComputeTilePriorityRects(
   current_content_to_screen_scale_ =
       ideal_contents_scale / contents_scale_key();
 
+#if BUILDFLAG(IS_COBALT)
+  const gfx::Rect prev_visible_rect = current_visible_rect_;
+#endif  // BUILDFLAG(IS_COBALT)
   SetPriorityRect(visible_rect_in_layer_space, VISIBLE_RECT);
   SetPriorityRect(skewport_rect_in_layer_space, SKEWPORT_RECT);
   SetPriorityRect(soon_border_rect_in_layer_space, SOON_BORDER_RECT);
@@ -493,9 +510,29 @@ void PictureLayerTiling::ComputeTilePriorityRects(
            current_skewport_rect_.bottom() - current_visible_rect_.bottom()});
 
   gfx::Rect live_tiles_rect;
+#if BUILDFLAG(IS_COBALT)
+  // Do not gate on `client_->HasValidTilePriorities()` here: during
+  // `ActivateSyncTree()` -> `TakeTilesAndPropertiesFrom()`, a newly created or
+  // previously undrawn active layer still has `HasValidTilePriorities() ==
+  // false` until `UpdateDrawProperties()` runs, and checking it here would
+  // immediately drop lookahead tiles just transferred from `pending_twin`.
+  const bool using_skewport_lookahead =
+      resolution_ == HIGH_RESOLUTION && skewport_lookahead_allowed_ &&
+      memory_limit_policy == TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM &&
+      has_skewport_rect_tiles_;
+  const bool should_drop_retracted_lookahead = was_using_skewport_lookahead_;
+  was_using_skewport_lookahead_ = using_skewport_lookahead;
+#endif  // BUILDFLAG(IS_COBALT)
   if (features::IsCCSlimmingEnabled()) {
     live_tiles_rect = current_visible_rect_;
     bool draws_tiles = has_visible_rect_tiles_;
+
+#if BUILDFLAG(IS_COBALT)
+    if (using_skewport_lookahead) {
+      draws_tiles = true;
+      live_tiles_rect.Union(current_skewport_rect_);
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     if (memory_limit_policy >= TileMemoryLimitPolicy::ALLOW_PREPAINT_ONLY) {
       draws_tiles |= has_skewport_rect_tiles_;
@@ -522,6 +559,34 @@ void PictureLayerTiling::ComputeTilePriorityRects(
     live_tiles_rect = current_eventually_rect_;
   }
   live_tiles_rect.Intersect(tiling_rect());
+#if BUILDFLAG(IS_COBALT)
+  // Under CCSlimming + ALLOW_ABSOLUTE_MINIMUM, `SetLiveTilesRect()` only
+  // creates newly exposed tiles and does not delete tiles when
+  // `live_tiles_rect` shrinks. Whenever skewport lookahead was active on the
+  // prior update (both during ease-out deceleration and on `true -> false`
+  // exit), immediately drop retracted ahead-of-viewport skewport tiles
+  // (`live_tiles_rect_ \ live_tiles_rect`) so speculative Browse textures do
+  // not linger, while preserving tiles that intersected `prev_visible_rect` or
+  // `pending_visible_rect()` to avoid churn.
+  if (should_drop_retracted_lookahead && features::IsCCSlimmingEnabled() &&
+      memory_limit_policy <= TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM) {
+    const gfx::Rect pending_visible =
+        tree_ == ACTIVE_TREE ? pending_visible_rect() : gfx::Rect();
+    for (TilingData::DifferenceIterator iter(&tiling_data_, live_tiles_rect_,
+                                             live_tiles_rect);
+         iter; ++iter) {
+      const gfx::Rect tile_bounds =
+          tiling_data_.TileBounds(iter.index_x(), iter.index_y());
+      if ((!prev_visible_rect.IsEmpty() &&
+           prev_visible_rect.Intersects(tile_bounds)) ||
+          (!pending_visible.IsEmpty() &&
+           pending_visible.Intersects(tile_bounds))) {
+        continue;
+      }
+      TakeTileAt(iter.index_x(), iter.index_y());
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   SetLiveTilesRect(live_tiles_rect);
 }
 
@@ -739,6 +804,16 @@ PrioritizedTile PictureLayerTiling::MakePrioritizedTile(
       (tile_priority.distance_to_visible > max_preraster_distance_ ||
        tile_priority.distance_to_visible >
            0.5f * max_skewport_extent_in_screen_space_);
+#if BUILDFLAG(IS_COBALT)
+  // Promoted skewport lookahead NOW tiles are already bounded to 40% of screen
+  // height (432 px at 1080p, 864 px at 4K) and capped by `max_lookahead_bytes`;
+  // do not divert them to image-only prepaint beyond `min_preraster_distance_`
+  // (312 px), which would skip rasterization and bypass the lookahead budget.
+  if (priority_rect_type == SKEWPORT_RECT &&
+      tile_priority.priority_bin == TilePriority::NOW) {
+    process_for_images_only = false;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   return PrioritizedTile(tile, this, tile_priority, is_tile_occluded,
                          process_for_images_only,
@@ -765,6 +840,27 @@ PictureLayerTiling::UpdateAndGetAllPrioritizedTilesForTesting() const {
   return result;
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool PictureLayerTiling::UsesSkewportLookahead() const {
+  return resolution_ == HIGH_RESOLUTION && skewport_lookahead_allowed_ &&
+         client_->HasValidTilePriorities() &&
+         client_->global_tile_state().memory_limit_policy ==
+             TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM;
+}
+
+bool PictureLayerTiling::IsSkewportLookaheadTile(const Tile* tile) const {
+  if (!UsesSkewportLookahead() || !has_skewport_rect_tiles_) {
+    return false;
+  }
+  gfx::Rect tile_bounds =
+      tiling_data_.TileBounds(tile->tiling_i_index(), tile->tiling_j_index());
+  return !tile_bounds.Intersects(current_visible_rect_) &&
+         !(tree_ == ACTIVE_TREE &&
+           pending_visible_rect().Intersects(tile_bounds)) &&
+         tile_bounds.Intersects(current_skewport_rect_);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 TilePriority PictureLayerTiling::ComputePriorityForTile(
     const Tile* tile,
     PriorityRectType priority_rect_type,
@@ -787,6 +883,18 @@ TilePriority PictureLayerTiling::ComputePriorityForTile(
     case PENDING_VISIBLE_RECT:
       return TilePriority(resolution_, priority_bin, 0);
     case SKEWPORT_RECT:
+#if BUILDFLAG(IS_COBALT)
+      // Under CUTOFF_ALLOW_REQUIRED_ONLY (ALLOW_ABSOLUTE_MINIMUM), prepaint
+      // soft memory is 0 and SOON tiles violate policy. Promoting unoccluded
+      // skewport tiles during active 2D translation animations to NOW with
+      // distance > 0 schedules them strictly behind visible tiles without
+      // blocking activation/draw or evicting cached tiles.
+      if (UsesSkewportLookahead() && !is_tile_occluded) {
+        priority_bin = TilePriority::NOW;
+        break;
+      }
+      [[fallthrough]];
+#endif  // BUILDFLAG(IS_COBALT)
     case SOON_BORDER_RECT:
       if (priority_bin < TilePriority::SOON)
         priority_bin = TilePriority::SOON;
@@ -802,6 +910,16 @@ TilePriority PictureLayerTiling::ComputePriorityForTile(
   float distance_to_visible =
       current_content_to_screen_scale_ *
       current_visible_rect_.ManhattanInternalDistance(tile_bounds);
+#if BUILDFLAG(IS_COBALT)
+  // Ensure skewport lookahead NOW tiles always carry `distance_to_visible > 0`
+  // (even when 1-px tile borders touch `current_visible_rect_`) so visible NOW
+  // tiles (`distance == 0`) strictly precede them and TileManager identifies
+  // them as lookahead tiles.
+  if (priority_rect_type == SKEWPORT_RECT &&
+      priority_bin == TilePriority::NOW && distance_to_visible <= 0.f) {
+    distance_to_visible = 1.f;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   return TilePriority(resolution_, priority_bin, distance_to_visible);
 }
