@@ -914,4 +914,10 @@ BASE_FEATURE_PARAM(int,
                    &kCacheCertVerification,
                    1800);
 
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltHttpCacheFontAndPassThrough,
+             "CobaltHttpCacheFontAndPassThrough",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace net::features
