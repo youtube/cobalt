@@ -87,11 +87,8 @@
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
-<<<<<<< ours
-#include "services/network/public/cpp/cookie_encryption_provider_impl.h"
-=======
 #include "net/ssl/ssl_cipher_suite_names.h"
->>>>>>> theirs
+#include "services/network/public/cpp/cookie_encryption_provider_impl.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/ssl_config.mojom.h"
