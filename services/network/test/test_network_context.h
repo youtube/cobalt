@@ -404,18 +404,15 @@ class TestNetworkContext : public mojom::NetworkContext {
   void GetDeviceBoundSessionManager(
       mojo::PendingReceiver<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager) override {}
-<<<<<<< HEAD
   void AddQuicHints(
       const std::vector<url::SchemeHostPort>& origins,
       const net::NetworkAnonymizationKey& network_anonymization_key) override {}
   void SetVariationsHeaders(
       variations::mojom::VariationsHeadersPtr variations_headers) override {}
-=======
 #if BUILDFLAG(IS_COBALT)
   void FlushHttpServerProperties(
       FlushHttpServerPropertiesCallback callback) override {}
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> fd8913197cc (cobalt/browser: Add finch feature to Flush HttpServerProperties on Pause (#13696))
 };
 
 }  // namespace network

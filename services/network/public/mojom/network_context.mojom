@@ -1874,7 +1874,6 @@ interface NetworkContext {
   GetDeviceBoundSessionManager(
       pending_receiver<DeviceBoundSessionManager> device_bound_session_manager);
 
-<<<<<<< HEAD
   // Request that the network service prioritizes QUIC connections to the given
   // origins.
   AddQuicHints(array<url.mojom.SchemeHostPort> origins,
@@ -1882,7 +1881,7 @@ interface NetworkContext {
 
   // Updates the variations headers to be used for requests.
   SetVariationsHeaders(variations.mojom.VariationsHeaders? variations_headers);
-=======
+
   // Writes HttpServerProperties to disk now instead of waiting for its
   // write-coalescing timer, so recent server hints survive the process being
   // killed without running the NetworkContext destructor. The reply is sent
@@ -1890,5 +1889,4 @@ interface NetworkContext {
   // pending (that is, it would otherwise have waited for the timer).
   [EnableIf=is_cobalt]
   FlushHttpServerProperties() => (bool flushed);
->>>>>>> fd8913197cc (cobalt/browser: Add finch feature to Flush HttpServerProperties on Pause (#13696))
 };
