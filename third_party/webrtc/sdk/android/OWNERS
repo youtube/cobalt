@@ -1,0 +1,7 @@
+# New owners
+zlep@webrtc.org
+sartorius@webrtc.org
+ssilkin@webrtc.org
+
+# Legacy owners
+per-file ...Audio*.java=henrika@webrtc.org

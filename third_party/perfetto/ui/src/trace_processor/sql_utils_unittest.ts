@@ -1,0 +1,139 @@
+// Copyright (C) 2023 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import {constraintsToQuerySuffix, rowsToSelectStatement} from './sql_utils';
+
+// Clean up repeated whitespaces to allow for easier testing.
+function normalize(s: string): string {
+  return s.replace(/\s+/g, ' ');
+}
+
+test('constraintsToQuerySuffix: where', () => {
+  expect(
+    normalize(
+      constraintsToQuerySuffix({
+        filters: ['ts > 1000', 'dur != 0'],
+      }),
+    ),
+  ).toEqual('WHERE ts > 1000 and dur != 0');
+});
+
+test('constraintsToQuerySuffix: order by', () => {
+  expect(
+    normalize(
+      constraintsToQuerySuffix({
+        orderBy: [
+          {fieldName: 'name'},
+          {fieldName: 'count', direction: 'DESC'},
+          undefined,
+          'value',
+        ],
+      }),
+    ),
+  ).toEqual('ORDER BY name, count DESC, value');
+});
+
+test('constraintsToQuerySuffix: limit', () => {
+  expect(normalize(constraintsToQuerySuffix({limit: 3}))).toEqual('LIMIT 3');
+});
+
+test('constraintsToQuerySuffix: group by', () => {
+  expect(
+    normalize(
+      constraintsToQuerySuffix({
+        groupBy: ['foo', undefined, 'bar'],
+      }),
+    ),
+  ).toEqual('GROUP BY foo, bar');
+});
+
+test('constraintsToQuerySuffix: all', () => {
+  expect(
+    normalize(
+      constraintsToQuerySuffix({
+        filters: ['id != 1'],
+        groupBy: ['track_id'],
+        orderBy: [{fieldName: 'ts'}],
+        limit: 1,
+      }),
+    ),
+  ).toEqual('WHERE id != 1 GROUP BY track_id ORDER BY ts LIMIT 1');
+});
+
+test('constraintsToQuerySuffix: all undefined', () => {
+  expect(
+    normalize(
+      constraintsToQuerySuffix({
+        filters: [undefined],
+        orderBy: [undefined, undefined],
+        groupBy: [undefined, undefined],
+      }),
+    ),
+  ).toEqual('');
+});
+
+describe('createTableQuery', () => {
+  test('single row', () => {
+    const query = rowsToSelectStatement([
+      {foo: 123, bar: 'bar', baz: 123n, qux: null},
+    ]);
+    expect(query).toBe(
+      "SELECT 123 AS foo, 'bar' AS bar, 123 AS baz, NULL AS qux",
+    );
+  });
+
+  test('multiple rows', () => {
+    const query = rowsToSelectStatement([
+      {foo: 123, bar: 'bar', baz: 123n, qux: null},
+      {foo: 456, bar: 'baz', baz: 456n, qux: null},
+    ]);
+    expect(query).toBe(
+      "SELECT 123 AS foo, 'bar' AS bar, 123 AS baz, NULL AS qux " +
+        "UNION ALL SELECT 456 AS foo, 'baz' AS bar, 456 AS baz, NULL AS qux",
+    );
+  });
+
+  test('out of order columns', () => {
+    const query = rowsToSelectStatement([
+      {foo: 123, bar: 'bar', baz: 123n, qux: null},
+      {bar: 'baz', baz: 456n, qux: null, foo: 456},
+    ]);
+    expect(query).toBe(
+      "SELECT 123 AS foo, 'bar' AS bar, 123 AS baz, NULL AS qux " +
+        "UNION ALL SELECT 456 AS foo, 'baz' AS bar, 456 AS baz, NULL AS qux",
+    );
+  });
+
+  test('missing columns treated as nulls', () => {
+    const query = rowsToSelectStatement([
+      {foo: 123, bar: 'bar', baz: 123n, qux: null},
+      {bar: 'baz', baz: 456n},
+    ]);
+    expect(query).toBe(
+      "SELECT 123 AS foo, 'bar' AS bar, 123 AS baz, NULL AS qux " +
+        "UNION ALL SELECT NULL AS foo, 'baz' AS bar, 456 AS baz, NULL AS qux",
+    );
+  });
+
+  test('additional columns after first row ignored', () => {
+    const query = rowsToSelectStatement([
+      {foo: 123, bar: 'bar', baz: 123n, qux: null},
+      {notacol: 123},
+    ]);
+    expect(query).toBe(
+      "SELECT 123 AS foo, 'bar' AS bar, 123 AS baz, NULL AS qux " +
+        'UNION ALL SELECT NULL AS foo, NULL AS bar, NULL AS baz, NULL AS qux',
+    );
+  });
+});

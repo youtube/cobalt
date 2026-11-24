@@ -1,0 +1,444 @@
+// Copyright (C) 2023 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import m from 'mithril';
+import {ensureIsInstance} from './assert';
+
+// Check if a mithril component vnode has children
+export function hasChildren<T>({children}: m.Vnode<T>): boolean {
+  return (
+    Array.isArray(children) &&
+    children.length > 0 &&
+    children.some((value) => value)
+  );
+}
+
+export function childrenValid(children: m.Children): boolean {
+  if (children === null || children === undefined) return false;
+  if (Array.isArray(children)) {
+    return children.length > 0 && children.some(childrenValid);
+  }
+  return true;
+}
+
+// A component which simply passes through it's children.
+// Can be used for having something to attach lifecycle hooks to without having
+// to add an extra HTML element to the DOM.
+export const Passthrough = {
+  view({children}: m.VnodeDOM) {
+    return children;
+  },
+};
+
+export interface GateAttrs {
+  open: boolean;
+}
+
+// The gate component is a wrapper which can either be open or closed.
+// - When open, children are rendered inside a div where display = contents.
+// - When closed, children are rendered inside a div where display = none, and
+//   children's view functions are not called.
+//
+// Use this component when we want to conditionally render certain children, but
+// we want to retain their state, such as page and tab views.
+export class Gate implements m.ClassComponent<GateAttrs> {
+  private previousChildren: m.Children;
+  private wasOpen?: boolean;
+
+  view({attrs, children}: m.Vnode<GateAttrs>) {
+    return m(
+      '',
+      {
+        'data-gate-open': String(attrs.open),
+        'style': {display: attrs.open ? 'contents' : 'none'},
+      },
+      this.renderChildren(attrs.open, children),
+    );
+  }
+
+  private renderChildren(open: boolean, children: m.Children) {
+    // If the gate is open, pass the latest children through, otherwise pass the
+    // cached children through. When Mithril sees the same children as in the
+    // previous render cycle, it doesn't re-render those children. This is a
+    // performance optimization, as children that are not visible typically
+    // don't need to be re-rendered.
+    //
+    // Note: Render the children once more after the gate has been closed, which
+    // allows out-of-tree elements like popups to close properly, as the
+    // display: none doesn't apply to them.
+    if (open || this.wasOpen) {
+      this.previousChildren = children;
+    }
+    this.wasOpen = open;
+    return this.previousChildren;
+  }
+}
+
+export interface GateDetectorAttrs {
+  onVisibilityChanged: (visible: boolean, dom: Element) => void;
+}
+
+// A component that detects visibility changes from an ancestor Gate component.
+// Place this inside a Gate's subtree to receive callbacks when the Gate opens
+// or closes. Uses MutationObserver to watch for changes to the Gate's
+// data-gate-open attribute.
+//
+// Usage:
+//   view() {
+//     return m(GateDetector, {
+//       onVisibilityChanged: (visible, dom) => {
+//         console.log('Gate is now visible:', visible);
+//       }
+//     }, m(...));
+//   }
+export class GateDetector implements m.ClassComponent<GateDetectorAttrs> {
+  private observer?: MutationObserver;
+  private gateElement?: HTMLElement;
+  private dom?: Element;
+  private wasVisible?: boolean;
+  private callback?: (visible: boolean, dom: Element) => void;
+
+  view({children}: m.Vnode<GateDetectorAttrs>): m.Children {
+    return children;
+  }
+
+  oncreate(vnode: m.VnodeDOM<GateDetectorAttrs>) {
+    this.callback = vnode.attrs.onVisibilityChanged;
+    this.dom = vnode.dom;
+
+    // Find closest Gate wrapper using data attribute
+    const gateElem = this.dom.closest('[data-gate-open]') ?? undefined;
+    this.gateElement = gateElem as HTMLElement | undefined;
+    if (!this.gateElement) return;
+
+    this.observer = new MutationObserver(this.checkVisibility.bind(this));
+    this.observer.observe(this.gateElement, {
+      attributes: true,
+      attributeFilter: ['data-gate-open'],
+    });
+
+    // Fire initial state
+    this.checkVisibility();
+  }
+
+  onupdate(vnode: m.VnodeDOM<GateDetectorAttrs>) {
+    this.callback = vnode.attrs.onVisibilityChanged;
+  }
+
+  private checkVisibility() {
+    if (!this.gateElement || !this.dom) return;
+    const visible = this.gateElement.dataset.gateOpen === 'true';
+    if (visible !== this.wasVisible) {
+      this.wasVisible = visible;
+      this.callback?.(visible, this.dom);
+    }
+  }
+
+  onremove() {
+    this.observer?.disconnect();
+  }
+}
+
+export type MithrilEvent<T extends Event = Event> = T & {redraw: boolean};
+
+// Check if a mithril children is empty (falsy or empty array). If
+// it is any of these, mithril will not render anything. Useful for when we want
+// to optionally avoid rendering a wrapper for some children for instance.
+export function isEmptyVnodes(children: m.Children): boolean {
+  if (!Boolean(children)) return true;
+  if (Array.isArray(children)) {
+    return children.length === 0 || children.every(isEmptyVnodes);
+  }
+  return false;
+}
+
+/**
+ * Creates a React-style context for passing data through the component tree
+ * without having to drill props manually through every level.
+ *
+ * Wrap content that needs access to context values in a Consumer vnode. The
+ * Consumer takes a function that receives the current context value and returns
+ * mithril vnodes.
+ *
+ * @template T The type of value stored in the context
+ * @param initialValue Optional default value when no Provider is present
+ * @returns An object with Provider and Consumer components
+ *
+ * @example
+ * // Basic usage - create a context and use it
+ * const ThemeContext = createContext('light');
+ *
+ * // Provider sets the context value for its children
+ * m(ThemeContext.Provider, {value: 'dark'}, [
+ *   m(Header),
+ *   m(Content),
+ * ]);
+ *
+ * // Consumer wraps content that needs the context value.
+ * m(ThemeContext.Consumer, (theme) => {
+ *   return m('.pf-button', {
+ *     class: theme === 'dark' ? 'pf-dark' : 'pf-light',
+ *   }, 'Click me');
+ * });
+ *
+ * @example
+ * // Using Consumer within a component
+ * class Button implements m.ClassComponent {
+ *   view() {
+ *     return m(ThemeContext.Consumer, (theme) => {
+ *       return m('.pf-button', {
+ *         class: theme === 'dark' ? 'pf-dark' : 'pf-light',
+ *       }, 'Click me');
+ *     });
+ *   }
+ * }
+ *
+ * @example
+ * // Using Consumer inline within a vnode tree
+ * m('.page', [
+ *   m('h1', 'My App'),
+ *   m(ThemeContext.Consumer, (theme) =>
+ *     m('.content', {class: theme}, 'Content')
+ *   ),
+ *   m(Footer),
+ * ]);
+ *
+ * @example
+ * // Context without a default value
+ * interface User {
+ *   name: string;
+ *   id: number;
+ * }
+ * const UserContext = createContext<User>();
+ *
+ * // Consumer receives undefined when no Provider is present
+ * m(UserContext.Consumer, (user) => {
+ *   if (!user) return m('.pf-greeting', 'Not logged in');
+ *   return m('.pf-greeting', `Welcome ${user.name}`);
+ * });
+ *
+ * @example
+ * // Nesting Providers creates scoped context values
+ * m(ThemeContext.Provider, {value: 'light'}, [
+ *   m(ThemeContext.Consumer, (theme) => m('div', theme)), // 'light'
+ *   m(ThemeContext.Provider, {value: 'dark'}, [
+ *     m(ThemeContext.Consumer, (theme) => m('div', theme)), // 'dark'
+ *   ]),
+ *   m(ThemeContext.Consumer, (theme) => m('div', theme)), // 'light' again
+ * ]);
+ */
+export function createContext<T>(initialValue: T): {
+  Provider: m.Component<{value: T}>;
+  Consumer: m.Component<(value: T) => m.Children | void>;
+};
+export function createContext<T>(): {
+  Provider: m.Component<{value: T}>;
+  Consumer: m.Component<(value: T | undefined) => m.Children | void>;
+};
+export function createContext<T>(initialValue?: T): {
+  Provider: m.Component<{value: T}>;
+  Consumer: m.Component<(value: T | undefined) => m.Children | void>;
+} {
+  let currentContext: T | undefined = initialValue;
+
+  return {
+    Provider: {
+      view({attrs, children}: m.Vnode<{value: T}>): m.Children {
+        const previousContext = currentContext;
+        currentContext = attrs.value;
+        return [
+          children,
+          m({
+            view() {
+              currentContext = previousContext;
+            },
+          }),
+        ];
+      },
+    },
+    Consumer: {
+      view({children}: m.Vnode<(value: T | undefined) => m.Children | void>) {
+        const viewFn: (context: T | undefined) => m.Children | void =
+          Array.isArray(children) && typeof children[0] === 'function'
+            ? children[0]
+            : () => null;
+        return viewFn(currentContext);
+      },
+    },
+  };
+}
+
+/**
+ * Options for {@link startDragGesture}.
+ */
+export interface DragOptions {
+  // The pointerdown event that initiates the drag. Its `currentTarget` must
+  // be an HTMLElement and is the element that captures the pointer for the
+  // duration of the gesture.
+  readonly e: PointerEvent;
+
+  // The distance in pixels the pointer must move from its initial position
+  // before the drag is considered started. Defaults to 0px (i.e. dragging
+  // starts immediately on pointerdown).
+  readonly deadzonePx?: number;
+
+  // Called once when the pointer first moves beyond `deadzonePx`. May
+  // return per-gesture handlers that take precedence over the top-level
+  // `onDrag`/`onDragEnd` for the rest of this gesture — useful when the
+  // drag needs to capture state at the moment it starts. If you don't need
+  // to initialize anything, omit this and use `onDrag`/`onDragEnd` directly.
+  readonly onDragStart?: (e: PointerEvent) => {
+    readonly onDrag?: (e: PointerEvent) => void;
+    readonly onDragEnd?: (e: PointerEvent) => void;
+  } | void;
+
+  // Called for each pointermove after the deadzone is crossed. Ignored for
+  // a given gesture if `onDragStart` returned its own `onDrag`.
+  readonly onDrag?: (e: PointerEvent) => void;
+
+  // Called when the gesture ends (pointerup/pointercancel) after the
+  // deadzone was crossed. Ignored for a given gesture if `onDragStart`
+  // returned its own `onDragEnd`.
+  readonly onDragEnd?: (e: PointerEvent) => void;
+
+  // Called if the pointer is released before crossing the deadzone — i.e.
+  // the gesture turned out to be a click rather than a drag. `onDragStart`
+  // will not have been invoked when this fires.
+  readonly onDragFailed?: (e: PointerEvent) => void;
+}
+
+/**
+ * Turns a pointerdown event into a deadzone-gated drag gesture.
+ *
+ * Captures the pointer on `e.currentTarget`, then waits for movement to
+ * exceed `deadzonePx` before invoking `onDragStart`. Subsequent pointermove
+ * events are routed to `onDrag`; pointerup/pointercancel ends the
+ * gesture and invokes `onDragEnd`. If the pointer is released before the
+ * deadzone is crossed, `onDragFailed` is invoked instead — useful for
+ * distinguishing clicks from drags on the same element.
+ *
+ * Pointer capture is released and all listeners are removed automatically
+ * when the gesture ends, regardless of how it ends.
+ *
+ * @example
+ * m('.draggable', {
+ *   onpointerdown: (e: PointerEvent) => {
+ *     startDragGesture({
+ *       e,
+ *       deadzonePx: 5,
+ *       onDrag: (ev) => console.log('moved to', ev.clientX, ev.clientY),
+ *       onDragEnd: () => console.log('drag ended'),
+ *       onDragFailed: () => console.log('was a click, not a drag'),
+ *     });
+ *   },
+ * });
+ *
+ * Use `onDragStart` instead when the gesture needs to capture state at the
+ * moment dragging actually begins (e.g. clone a node):
+ *
+ * @example
+ * startDragGesture({
+ *   e,
+ *   deadzonePx: 5,
+ *   onDragStart: (ev) => {
+ *     const cloned = element.cloneNode();
+ *     return {
+ *       onDrag: (e2) => cloned.style.transform = `translate(...)`,
+ *       onDragEnd: () => cloned.remove(),
+ *     };
+ *   },
+ * });
+ */
+export function startDragGesture(options: DragOptions): void {
+  const {
+    e,
+    deadzonePx = 0,
+    onDragStart,
+    onDragFailed,
+    onDrag,
+    onDragEnd,
+  } = options;
+  const el = ensureIsInstance(e.currentTarget, HTMLElement);
+  const startX = e.clientX;
+  const startY = e.clientY;
+  el.setPointerCapture(e.pointerId);
+
+  let started = false;
+  let handlers: {
+    onDrag?: (e: PointerEvent) => void;
+    onDragEnd?: (e: PointerEvent) => void;
+  } = {};
+
+  function teardown() {
+    el.removeEventListener('pointermove', onPointerMove);
+    el.removeEventListener('pointerup', onPointerUp);
+    el.removeEventListener('pointercancel', onPointerUp);
+    el.removeEventListener('contextmenu', onContextMenu);
+    if (el.hasPointerCapture(e.pointerId)) {
+      el.releasePointerCapture(e.pointerId);
+    }
+  }
+
+  // Suppress the context menu for the duration of the gesture. Right-click
+  // drags otherwise pop up the browser menu over the dragged element. We
+  // also can't rely on the menu cleaning up our state for us: Chrome does
+  // not fire `pointercancel` (or `lostpointercapture` until the next pointer
+  // move after the menu closes) when a native context menu opens over a
+  // captured pointer, so a drag started with the right button can be left
+  // stuck if we don't preventDefault here. See w3c/pointerevents#408.
+  function onContextMenu(ev: Event) {
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+
+  function start(ev: PointerEvent) {
+    started = true;
+    const perGesture = onDragStart?.(ev);
+    handlers = {
+      onDrag: perGesture?.onDrag ?? onDrag,
+      onDragEnd: perGesture?.onDragEnd ?? onDragEnd,
+    };
+  }
+
+  function onPointerMove(ev: PointerEvent) {
+    m.redraw();
+    if (!started) {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.hypot(dx, dy) < deadzonePx) return;
+      start(ev);
+    } else {
+      handlers.onDrag?.(ev);
+    }
+  }
+
+  function onPointerUp(ev: PointerEvent) {
+    m.redraw();
+    teardown();
+    if (started) {
+      handlers.onDragEnd?.(ev);
+    } else {
+      onDragFailed?.(ev);
+    }
+  }
+
+  el.addEventListener('pointermove', onPointerMove);
+  el.addEventListener('pointerup', onPointerUp);
+  el.addEventListener('pointercancel', onPointerUp);
+  el.addEventListener('contextmenu', onContextMenu);
+
+  // With a zero deadzone the gesture starts immediately on pointerdown, so
+  // even a click-without-moving counts as a drag (no `onDragFailed` path).
+  if (deadzonePx === 0) start(e);
+}
