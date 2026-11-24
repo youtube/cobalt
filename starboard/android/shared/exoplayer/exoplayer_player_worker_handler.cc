@@ -31,7 +31,7 @@ namespace {
 
 constexpr int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
-constexpr char kNotInitializedError[] = "The ExoPlayer is not initialized.";
+constexpr char kInvalidBridgeError[] = "Invalid ExoPlayer bridge.";
 
 }  // namespace
 
@@ -97,7 +97,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::Seek(int64_t seek_to_time,
                                                 int ticket) {
   SB_CHECK(BelongsToCurrentThread());
   if (!bridge_) {
-    return Failure(kNotInitializedError);
+    return Failure(kInvalidBridgeError);
   }
 
   audio_eos_written_ = false;
@@ -115,7 +115,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteSamples(
   SB_CHECK(!input_buffers.empty());
   SB_CHECK(samples_written);
   if (!bridge_) {
-    return Failure(kNotInitializedError);
+    return Failure(kInvalidBridgeError);
   }
 
   for (const auto& input_buffer : input_buffers) {
@@ -139,7 +139,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteEndOfStream(
     SbMediaType sample_type) {
   SB_CHECK(BelongsToCurrentThread());
   if (!bridge_) {
-    return Failure(kNotInitializedError);
+    return Failure(kInvalidBridgeError);
   }
 
   if (IsEOSWritten(sample_type)) {
@@ -163,7 +163,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::WriteEndOfStream(
 Result<void> ExoPlayerPlayerWorkerHandler::SetPause(bool pause) {
   SB_CHECK(BelongsToCurrentThread());
   if (!bridge_) {
-    return Failure(kNotInitializedError);
+    return Failure(kInvalidBridgeError);
   }
 
   bridge_->SetPause(pause);
@@ -175,7 +175,7 @@ Result<void> ExoPlayerPlayerWorkerHandler::SetPlaybackRate(
     double playback_rate) {
   SB_CHECK(BelongsToCurrentThread());
   if (!bridge_) {
-    return Failure(kNotInitializedError);
+    return Failure(kInvalidBridgeError);
   }
 
   bridge_->SetPlaybackRate(playback_rate);
