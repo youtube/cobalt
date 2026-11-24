@@ -99,18 +99,10 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
                features::kSmallerInterestArea.name,
                features::kReclaimPrepaintTilesWhenIdle.name,
                features::kReclaimOldPrepaintTiles.name,
-<<<<<<< HEAD
                features::kWebAudioRemoveAudioDestinationResampler.name,
-=======
-               blink::features::kWebAudioRemoveAudioDestinationResampler.name,
-               // Commit localStorage/sessionStorage writes at the end of the JS
-               // task that made them so recent writes survive process
-               // termination.
-               storage::kDomStorageSmartFlushing.name,
                // Map Android TRIM_MEMORY_RUNNING_MODERATE/LOW to MODERATE
                // memory pressure instead of dropping them.
                base::features::kCobaltEnableModerateMemoryPressure.name,
->>>>>>> d98c6280ab9 (Android: Enable kCobaltEnableModerateMemoryPressure by default  (#13619))
            },
            ",")},
       {::switches::kDisableFeatures,
