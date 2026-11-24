@@ -89,6 +89,7 @@
     "ReadOnlyFileUtilTest.ContentsEqual",
     "ReadOnlyFileUtilTest.TextContentsEqual",
     "RunUntilTestWithThreadPool.TimesOutWhenMainThreadSleepsForever",
+    "RustCommandLineTest.SpawnsSubprocessWithNewCommandLine",
     "ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows",
     "ScopedFDOwnershipTrackingTest.CrashOnUnownedClose",
     "ScopedThreadPriorityTest.BasicTest",
