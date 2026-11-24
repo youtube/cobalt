@@ -17,6 +17,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "build/build_config.h"
 #include "cc/base/region.h"
 #include "cc/base/tiling_data.h"
 #include "cc/cc_export.h"
@@ -136,6 +137,17 @@ class CC_EXPORT PictureLayerTiling {
   bool can_require_tiles_for_activation() const {
     return can_require_tiles_for_activation_;
   }
+#if BUILDFLAG(IS_COBALT)
+  // [cobalt-exp] skew-lookahead arm, not for submission.
+  void set_skewport_lookahead_allowed(bool allowed) {
+    skewport_lookahead_allowed_ = allowed;
+  }
+  // True while skewport tiles are rasterized as NOW tiles (feature on, no
+  // visible video, CUTOFF_ALLOW_REQUIRED_ONLY).
+  bool UsesSkewportLookahead() const;
+  // A tile in the skewport but outside the visible rect.
+  bool IsSkewportLookaheadTile(const Tile* tile) const;
+#endif  // BUILDFLAG(IS_COBALT)
 
   gfx::Size raster_size() const { return raster_source()->size(); }
   const scoped_refptr<RasterSource>& raster_source() const {
@@ -464,6 +476,9 @@ class CC_EXPORT PictureLayerTiling {
   gfx::Rect live_tiles_rect_;
 
   bool can_require_tiles_for_activation_ = false;
+#if BUILDFLAG(IS_COBALT)
+  bool skewport_lookahead_allowed_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   gfx::Rect tiling_rect_in_layer_space_;
 

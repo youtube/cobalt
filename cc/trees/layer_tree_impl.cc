@@ -1786,6 +1786,18 @@ bool LayerTreeImpl::UpdateTiles() {
   bool tile_priorities_updated = false;
   const bool release_tile_resources_for_hidden_layers =
       settings().release_tile_resources_for_hidden_layers;
+#if BUILDFLAG(IS_COBALT)
+  // [cobalt-exp] skew-lookahead arm, not for submission.
+  has_visible_video_layer_ = false;
+  for (const LayerImpl* layer : *this) {
+    if (layer->may_contain_video() &&
+        layer->contributes_to_drawn_render_surface() &&
+        layer->draws_content() && !layer->visible_layer_rect().IsEmpty()) {
+      has_visible_video_layer_ = true;
+      break;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   for (PictureLayerImpl* layer : picture_layers_) {
     if (!layer->HasValidTilePriorities()) {
       if (release_tile_resources_for_hidden_layers) {

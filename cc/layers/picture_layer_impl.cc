@@ -665,6 +665,12 @@ bool PictureLayerImpl::UpdateTiles() {
 
   // Pass |occlusion_in_content_space| for |occlusion_in_layer_space| since
   // they are the same space in picture layer, as contents scale is always 1.
+#if BUILDFLAG(IS_COBALT)
+  // [cobalt-exp] skew-lookahead arm, not for submission.
+  tilings_->set_skewport_lookahead_allowed(
+      base::FeatureList::IsEnabled(features::kCobaltSkewportLookaheadTiles) &&
+      !layer_tree_impl()->has_visible_video_layer());
+#endif  // BUILDFLAG(IS_COBALT)
   bool updated = tilings_->UpdateTilePriorities(
       viewport_rect_for_tile_priority_in_content_space_,
       ideal_contents_scale_key(), current_frame_time_in_seconds,

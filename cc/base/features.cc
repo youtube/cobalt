@@ -20,6 +20,13 @@ std::atomic<bool> s_is_eligible_for_throttle_main_frame_to_60hz = false;
 BASE_FEATURE(kCobaltMainFrameBeforeActivation,
              "CobaltMainFrameBeforeActivation",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// [cobalt-exp] skew-lookahead arm, not for submission.
+BASE_FEATURE(kCobaltSkewportLookaheadTiles,
+             "CobaltSkewportLookaheadTiles",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+const base::FeatureParam<int> kCobaltSkewportLookaheadTilesMaxMemoryPercentage{
+    &kCobaltSkewportLookaheadTiles, "max_memory_percentage", 15};
 #endif  // BUILDFLAG(IS_COBALT)
 
 // When enabled, this forces composited textures for SurfaceLayerImpls to be

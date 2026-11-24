@@ -20,6 +20,16 @@ namespace features {
 // (equivalent to --enable-main-frame-before-activation), pipelining main-thread
 // frame production with pending tree rasterization and activation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
+
+// [cobalt-exp] skew-lookahead arm, not for submission.
+// When enabled, tiles in the skewport (the visible area stretched in the
+// direction of motion) are rasterized under CUTOFF_ALLOW_REQUIRED_ONLY: they
+// become NOW tiles ordered behind visible tiles, capped at
+// min(max_memory_percentage of the hard limit, 8 MB), never evicting other
+// tiles, and skipped while a video layer is visible.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkewportLookaheadTiles);
+CC_BASE_EXPORT extern const base::FeatureParam<int>
+    kCobaltSkewportLookaheadTilesMaxMemoryPercentage;
 #endif  // BUILDFLAG(IS_COBALT)
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kAlignSurfaceLayerImplToPixelGrid);
