@@ -21,6 +21,18 @@ from diagnostics import Diagnostic, GNDiagnostic
 from repo_guards import get_clean_build_env
 
 log = logging.getLogger(__name__)
+
+# Appended to the args.gn that cobalt/build/gn.py writes. With split DWARF
+# every compile step also outputs a .dwo file, and `siso query inputs
+# --include_deps` (run after the build to find the files the target does
+# not compile) fails on those outputs because the deps log has no record
+# for them. Split DWARF only changes where debug info is stored, so the
+# same sources are compiled with the same errors without it.
+_ARGS_GN_OVERRIDES = """
+# Set by the Rebase Agent: `siso query inputs --include_deps` fails on the
+# .dwo outputs of split DWARF.
+use_debug_fission = false
+"""
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
@@ -202,7 +214,28 @@ class GNGenResolver(BaseResolver):
           check=False,
       )
       combined_output = f"{proc.stdout}\n{proc.stderr}"
-      return proc.returncode == 0, combined_output, ""
+      if proc.returncode != 0:
+        return False, combined_output, ""
+      # gn.py rewrites args.gn on every run, so the overrides are appended
+      # each time and the build files are generated again from them. The
+      # header check already ran in gn.py and does not depend on them.
+      out_dir = os.path.join("out", f"{self.platform}_{self.build_type}")
+      args_gn = os.path.join(self.repo_path, out_dir, "args.gn")
+      with open(args_gn, "a", encoding="utf-8") as f:
+        f.write(_ARGS_GN_OVERRIDES)
+      regen_cmd = ["gn", "gen", out_dir]
+      log.info("[gn_gen] Executing: %s in %s", " ".join(regen_cmd),
+               self.repo_path)
+      regen = subprocess.run(
+          regen_cmd,
+          cwd=self.repo_path,
+          capture_output=True,
+          text=True,
+          env=clean_env,
+          check=False,
+      )
+      combined_output += f"\n{regen.stdout}\n{regen.stderr}"
+      return regen.returncode == 0, combined_output, ""
     except Exception as e:  # pylint: disable=broad-exception-caught
       return False, f"Subprocess execution failed: {e}", ""
 
