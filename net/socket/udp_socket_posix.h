@@ -521,6 +521,9 @@ class NET_EXPORT UDPSocketPosix {
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
   // The buffer used by ReadMultiplePackets() to retry Read requests
   raw_ptr<Socket::ReadPacketResults> results_ = nullptr;
+  // Maximum packets requested per recvmmsg() call; lazily resolved on the first
+  // ReadMultiplePackets() call and reset on Close() (0 = unresolved).
+  int max_packets_per_read_ = 0;
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
   // External callback; called when read is complete.

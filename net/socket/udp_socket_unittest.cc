@@ -36,6 +36,7 @@
 #include "net/log/net_log_source.h"
 #include "net/log/test_net_log.h"
 #include "net/log/test_net_log_util.h"
+#include "net/net_buildflags.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/udp_client_socket.h"
 #include "net/socket/udp_server_socket.h"
@@ -70,6 +71,14 @@
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
 #endif  // BUILDFLAG(IS_MAC)
+
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+#include <limits>
+
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "base/metrics/field_trial.h"
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 using net::test::IsError;
 using net::test::IsOk;
@@ -2208,6 +2217,7 @@ TEST_F(UDPSocketTest, LimitConnectMultithreaded) {
   EXPECT_EQ(0, GetGlobalUDPSocketCountForTesting());
 }
 
+<<<<<<< HEAD
 // Helper to get addresses of a specific family from network interfaces.
 // Returns addresses suitable for use as SSM source addresses.
 // For IPv6, filters out link-local addresses (fe80::) which don't work
@@ -2812,5 +2822,540 @@ TEST_F(UDPSocketTest, ReadMultiple_Async) {
   EXPECT_EQ(base::as_string_view(packet_span), packet);
 }
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+=======
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+// Clears the process-wide recvmmsg scratch buffer pool on construction and
+// destruction so tests never inherit or leak pooled allocations.
+class ScopedClearRecvmmsgBufferPool {
+ public:
+  ScopedClearRecvmmsgBufferPool() {
+    Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  }
+  ~ScopedClearRecvmmsgBufferPool() {
+    Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  }
+};
+
+// Verifies the QUIC burst-receive journey when CobaltQuicReadBatch is enabled
+// (for example during video segment downloads on 32-bit Android TV): a single
+// ReadMultiplePackets call is capped at the default 16-packet batch so its
+// scratch buffer fits in a 24 KiB PartitionAlloc slot span, and follow-up calls
+// reusing the same ReadPacketResults drain remaining queued datagrams intact.
+TEST_F(UDPSocketTest, ReadMultiplePacketsCapsBatchAt16AndDrainsRemaining) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltQuicReadBatch);
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  constexpr int kPacketBufSize = 1473;
+  constexpr int kExpectedMaxBatch = 16;
+  constexpr int kNumPackets = 20;
+
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  auto server =
+      std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+  ASSERT_THAT(server->Listen(server_address), IsOk());
+  ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+
+  auto client = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(client->Connect(server_address), IsOk());
+  ASSERT_THAT(client->SetReceiveBufferSize(64 * 1024), IsOk());
+
+  IPEndPoint client_address;
+  ASSERT_THAT(client->GetLocalAddress(&client_address), IsOk());
+
+  for (int i = 0; i < kNumPackets; ++i) {
+    std::string payload = "pkt-" + base::NumberToString(i);
+    ASSERT_EQ(static_cast<int>(payload.size()),
+              SendToSocket(server.get(), payload, client_address));
+  }
+
+  const size_t expected_total_buffer_size =
+      static_cast<size_t>(kExpectedMaxBatch) *
+      (sizeof(Socket::ReadPacketResult) + kPacketBufSize);
+  std::vector<std::string> received;
+  int read_calls = 0;
+  // Reuse one ReadPacketResults across back-to-back calls to verify in-place
+  // buffer reuse preserves packet pointers and drains all queued datagrams.
+  Socket::ReadPacketResults results;
+  const IOBufferWithSize* first_buffer = nullptr;
+  while (static_cast<int>(received.size()) < kNumPackets) {
+    TestCompletionCallback callback;
+    int rv = client->ReadMultiplePackets(&results, kPacketBufSize,
+                                         callback.callback());
+    rv = callback.GetResult(rv);
+    ASSERT_GT(rv, 0);
+    EXPECT_LE(rv, kExpectedMaxBatch);
+    ASSERT_NE(results.buffer, nullptr);
+    if (!first_buffer) {
+      first_buffer = results.buffer.get();
+    } else {
+      EXPECT_EQ(results.buffer.get(), first_buffer);
+    }
+    EXPECT_EQ(results.buffer->span().size(), expected_total_buffer_size);
+    EXPECT_LE(results.buffer->span().size(), 24u * 1024u);
+    EXPECT_EQ(results.result, rv);
+
+    // SAFETY: |results.packets| points to |kExpectedMaxBatch| entries in
+    // |results.buffer|, and |rv| is verified in (0, kExpectedMaxBatch].
+    auto packets =
+        UNSAFE_BUFFERS(base::span(results.packets, static_cast<size_t>(rv)));
+    for (int i = 0; i < rv; ++i) {
+      ASSERT_GT(packets[i].result, 0);
+      received.emplace_back(packets[i].buffer,
+                            static_cast<size_t>(packets[i].result));
+    }
+    ++read_calls;
+  }
+
+  EXPECT_GE(read_calls, 2);
+  ASSERT_EQ(static_cast<int>(received.size()), kNumPackets);
+  for (int i = 0; i < kNumPackets; ++i) {
+    EXPECT_EQ(received[i], "pkt-" + base::NumberToString(i));
+  }
+}
+
+// Verifies the idle QUIC connection memory-conservation journey (for example
+// when multiple origin sockets sit idle while browsing YouTube TV): waiting
+// for incoming datagrams (ERR_IO_PENDING) releases the scratch buffer back to
+// the shared bounded pool so idle sockets hold zero bytes, and subsequent reads
+// reuse the pooled allocation without getting poisoned by mismatched sizes.
+TEST_F(UDPSocketTest, ReadMultiplePacketsReleasesBufferWhenIdleAndReusesPool) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  constexpr int kPacketBufSize = 1473;
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 0u);
+
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  auto server =
+      std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+  ASSERT_THAT(server->Listen(server_address), IsOk());
+  ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+
+  auto client1 = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  auto client2 = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(client1->Connect(server_address), IsOk());
+  ASSERT_THAT(client2->Connect(server_address), IsOk());
+
+  IPEndPoint client1_address;
+  IPEndPoint client2_address;
+  ASSERT_THAT(client1->GetLocalAddress(&client1_address), IsOk());
+  ASSERT_THAT(client2->GetLocalAddress(&client2_address), IsOk());
+
+  // Both idle sockets return ERR_IO_PENDING with no pinned buffer, sharing the
+  // single pooled buffer across both attempts.
+  Socket::ReadPacketResults results1;
+  TestCompletionCallback cb1;
+  ASSERT_EQ(
+      client1->ReadMultiplePackets(&results1, kPacketBufSize, cb1.callback()),
+      ERR_IO_PENDING);
+  EXPECT_EQ(results1.buffer, nullptr);
+  EXPECT_EQ(results1.packets, nullptr);
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  Socket::ReadPacketResults results2;
+  TestCompletionCallback cb2;
+  ASSERT_EQ(
+      client2->ReadMultiplePackets(&results2, kPacketBufSize, cb2.callback()),
+      ERR_IO_PENDING);
+  EXPECT_EQ(results2.buffer, nullptr);
+  EXPECT_EQ(results2.packets, nullptr);
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  // Receiving on client1 checks out the pooled buffer; releasing it returns
+  // the exact same allocation for client2's subsequent receive.
+  ASSERT_EQ(5, SendToSocket(server.get(), "first", client1_address));
+  ASSERT_EQ(cb1.WaitForResult(), 1);
+  ASSERT_NE(results1.buffer, nullptr);
+  const IOBufferWithSize* first_buffer = results1.buffer.get();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 0u);
+  EXPECT_EQ(
+      std::string(UNSAFE_TODO(results1.packets[0]).buffer,
+                  static_cast<size_t>(UNSAFE_TODO(results1.packets[0]).result)),
+      "first");
+  results1.ReleaseBuffer();
+  EXPECT_EQ(results1.buffer, nullptr);
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  ASSERT_EQ(6, SendToSocket(server.get(), "second", client2_address));
+  ASSERT_EQ(cb2.WaitForResult(), 1);
+  ASSERT_NE(results2.buffer, nullptr);
+  EXPECT_EQ(results2.buffer.get(), first_buffer);
+  EXPECT_EQ(
+      std::string(UNSAFE_TODO(results2.packets[0]).buffer,
+                  static_cast<size_t>(UNSAFE_TODO(results2.packets[0]).result)),
+      "second");
+  results2.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+
+  // Verify the shared pool remains bounded at 2 cached buffers even if 3
+  // concurrent readers acquire and release buffers simultaneously, reuses
+  // entries in LIFO/LRU order with intact pre-initialized packet pointers,
+  // evicts stale layouts when active-size buffers are returned, and never
+  // collides on identical total_size with different (max_packets, buf_size).
+  Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  Socket::ReadPacketResults r1;
+  Socket::ReadPacketResults r2;
+  Socket::ReadPacketResults r3;
+  ASSERT_TRUE(r1.AcquireBuffer(16, kPacketBufSize));
+  ASSERT_TRUE(r2.AcquireBuffer(16, kPacketBufSize));
+  ASSERT_TRUE(r3.AcquireBuffer(16, kPacketBufSize));
+  const IOBufferWithSize* r1_buf = r1.buffer.get();
+  const IOBufferWithSize* r2_buf = r2.buffer.get();
+  const IOBufferWithSize* r3_buf = r3.buffer.get();
+  // Fast-path in-place reuse keeps the exact backing buffer and pointer layout.
+  ASSERT_TRUE(r1.AcquireBuffer(16, kPacketBufSize));
+  EXPECT_EQ(r1.buffer.get(), r1_buf);
+  EXPECT_EQ(UNSAFE_TODO(r1.packets[1].buffer - r1.packets[0].buffer),
+            kPacketBufSize);
+
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 0u);
+  r1.ReleaseBuffer();
+  r2.ReleaseBuffer();
+  // Plain LRU evicts r1 (oldest) so the pool holds [r2, r3].
+  r3.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 2u);
+
+  // LIFO reuse hands back the most recently released (cache-warm) buffer first.
+  Socket::ReadPacketResults lifo1;
+  Socket::ReadPacketResults lifo2;
+  ASSERT_TRUE(lifo1.AcquireBuffer(16, kPacketBufSize));
+  EXPECT_EQ(lifo1.buffer.get(), r3_buf);
+  EXPECT_EQ(UNSAFE_TODO(lifo1.packets[15].buffer - lifo1.packets[0].buffer),
+            15 * kPacketBufSize);
+  ASSERT_TRUE(lifo2.AcquireBuffer(16, kPacketBufSize));
+  EXPECT_EQ(lifo2.buffer.get(), r2_buf);
+  lifo1.ReleaseBuffer();
+  lifo2.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 2u);
+
+  Socket::ReadPacketResults alt_size;
+  ASSERT_TRUE(alt_size.AcquireBuffer(16, kPacketBufSize + 64));
+  const IOBufferWithSize* alt_buf = alt_size.buffer.get();
+  alt_size.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 2u);
+
+  Socket::ReadPacketResults alt_reuse;
+  ASSERT_TRUE(alt_reuse.AcquireBuffer(16, kPacketBufSize + 64));
+  EXPECT_EQ(alt_reuse.buffer.get(), alt_buf);
+  alt_reuse.ReleaseBuffer();
+
+  // Returning two common-size buffers evicts the stale alternate layout rather
+  // than keeping it pinned in the pool.
+  Socket::ReadPacketResults common_a;
+  Socket::ReadPacketResults common_b;
+  ASSERT_TRUE(common_a.AcquireBuffer(16, kPacketBufSize));
+  ASSERT_TRUE(common_b.AcquireBuffer(16, kPacketBufSize));
+  const IOBufferWithSize* common_a_buf = common_a.buffer.get();
+  const IOBufferWithSize* common_b_buf = common_b.buffer.get();
+  common_a.ReleaseBuffer();
+  common_b.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 2u);
+  Socket::ReadPacketResults check_a;
+  Socket::ReadPacketResults check_b;
+  ASSERT_TRUE(check_a.AcquireBuffer(16, kPacketBufSize));
+  ASSERT_TRUE(check_b.AcquireBuffer(16, kPacketBufSize));
+  EXPECT_EQ(check_a.buffer.get(), common_b_buf);
+  EXPECT_EQ(check_b.buffer.get(), common_a_buf);
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 0u);
+
+  // Two distinct layouts producing identical total byte size must not share
+  // pre-initialized packet pointer tables.
+  Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  constexpr int kEntrySize = static_cast<int>(sizeof(Socket::ReadPacketResult));
+  static_assert(kEntrySize % 2 == 0);
+  constexpr int kLayoutABufSize = 2 * kEntrySize + 64;
+  constexpr int kLayoutBBufSize = kEntrySize / 2 + 32;
+  static_assert(2 * (kEntrySize + kLayoutABufSize) ==
+                4 * (kEntrySize + kLayoutBBufSize));
+
+  Socket::ReadPacketResults layout_a;
+  ASSERT_TRUE(layout_a.AcquireBuffer(2, kLayoutABufSize));
+  const IOBufferWithSize* layout_a_buf = layout_a.buffer.get();
+  EXPECT_EQ(
+      UNSAFE_TODO(layout_a.packets[1].buffer - layout_a.packets[0].buffer),
+      kLayoutABufSize);
+  layout_a.ReleaseBuffer();
+
+  Socket::ReadPacketResults layout_b;
+  ASSERT_TRUE(layout_b.AcquireBuffer(4, kLayoutBBufSize));
+  EXPECT_NE(layout_b.buffer.get(), layout_a_buf);
+  EXPECT_EQ(
+      UNSAFE_TODO(layout_b.packets[1].buffer - layout_b.packets[0].buffer),
+      kLayoutBBufSize);
+  EXPECT_EQ(
+      UNSAFE_TODO(layout_b.packets[3].buffer - layout_b.packets[0].buffer),
+      3 * kLayoutBBufSize);
+
+  // In-place re-acquisition with identical total_size but a different
+  // packet_buffer_size must swap buffers rather than reusing stale pointers.
+  ASSERT_TRUE(layout_b.AcquireBuffer(2, kLayoutABufSize));
+  EXPECT_EQ(layout_b.buffer.get(), layout_a_buf);
+  EXPECT_EQ(
+      UNSAFE_TODO(layout_b.packets[1].buffer - layout_b.packets[0].buffer),
+      kLayoutABufSize);
+
+  // Verify the 256 KiB total byte cap: a single oversized buffer (> 256 KiB)
+  // is not cached, and two ~154 KiB buffers cannot coexist in the pool even
+  // though the slot cap is 2.
+  Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  Socket::ReadPacketResults huge;
+  ASSERT_TRUE(huge.AcquireBuffer(64, 5000));
+  huge.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 0u);
+
+  Socket::ReadPacketResults med1;
+  Socket::ReadPacketResults med2;
+  ASSERT_TRUE(med1.AcquireBuffer(16, 9600));
+  ASSERT_TRUE(med2.AcquireBuffer(16, 9600));
+  const IOBufferWithSize* med2_buf = med2.buffer.get();
+  med1.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+  med2.ReleaseBuffer();
+  EXPECT_EQ(Socket::ReadPacketResults::GetBufferPoolSizeForTesting(), 1u);
+  Socket::ReadPacketResults med_check;
+  ASSERT_TRUE(med_check.AcquireBuffer(16, 9600));
+  EXPECT_EQ(med_check.buffer.get(), med2_buf);
+}
+
+// Verifies closing a QUIC UDP socket while waiting on an asynchronous
+// multi-packet read (for example during connection teardown or network switch)
+// clears pending socket state, releases the results pointer so reopening the
+// socket for a single-packet Read() works cleanly, and never fires a stale
+// completion callback.
+TEST_F(UDPSocketTest, ReadMultiplePacketsCloseWhilePendingReleasesState) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  constexpr int kPacketBufSize = 1473;
+
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  auto server =
+      std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+  ASSERT_THAT(server->Listen(server_address), IsOk());
+  ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+
+  UDPSocket client(DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(client.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(client.Connect(server_address), IsOk());
+
+  IPEndPoint client_address;
+  ASSERT_THAT(client.GetLocalAddress(&client_address), IsOk());
+
+  TestCompletionCallback pending_cb;
+  {
+    Socket::ReadPacketResults results;
+    ASSERT_EQ(client.ReadMultiplePackets(&results, kPacketBufSize,
+                                         pending_cb.callback()),
+              ERR_IO_PENDING);
+    EXPECT_EQ(results.buffer, nullptr);
+
+    client.Close();
+    SendToSocket(server.get(), "late-packet", client_address);
+    base::RunLoop().RunUntilIdle();
+
+    EXPECT_FALSE(pending_cb.have_result());
+    EXPECT_EQ(results.buffer, nullptr);
+  }  // Destroys |results| before reopening |client|.
+
+  // Reopen the socket and complete an async single-packet RecvFrom(): if
+  // Close() failed to clear |results_|, ReadWatcher would dispatch
+  // DidCompleteMultiplePacketRead() into the destroyed |results|.
+  ASSERT_THAT(client.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(client.Bind(IPEndPoint(IPAddress::IPv4Localhost(), 0)), IsOk());
+  IPEndPoint reopened_address;
+  ASSERT_THAT(client.GetLocalAddress(&reopened_address), IsOk());
+
+  auto read_buf = base::MakeRefCounted<IOBufferWithSize>(kPacketBufSize);
+  IPEndPoint from_address;
+  TestCompletionCallback read_cb;
+  ASSERT_EQ(client.RecvFrom(read_buf.get(), read_buf->size(), &from_address,
+                            read_cb.callback()),
+            ERR_IO_PENDING);
+  ASSERT_EQ(5, SendToSocket(server.get(), "after", reopened_address));
+  ASSERT_EQ(read_cb.WaitForResult(), 5);
+  EXPECT_EQ(std::string(read_buf->data(), 5), "after");
+}
+
+// Verifies Finch control and defensive bounds for CobaltQuicReadBatch: when
+// disabled, baseline keeps 64-packet batches (still pooled); when enabled,
+// CobaltQuicReadBatch_packets sets the recvmmsg cap clamped to [1, 64]; and
+// invalid or overflowing buffer sizes return ERR_INVALID_ARGUMENT cleanly.
+TEST_F(UDPSocketTest, ReadMultiplePacketsRespectsFinchBatchParamAndClamps) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  constexpr int kPacketBufSize = 1473;
+
+  auto measure_batch_buffer = [&](int expected_max_packets, int send_count) {
+    Socket::ReadPacketResults::ClearBufferPoolForTesting();
+    IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+    auto server =
+        std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+    ASSERT_THAT(server->Listen(server_address), IsOk());
+    ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+
+    auto client = std::make_unique<UDPClientSocket>(
+        DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+    ASSERT_THAT(client->Connect(server_address), IsOk());
+    ASSERT_THAT(client->SetReceiveBufferSize(64 * 1024), IsOk());
+
+    IPEndPoint client_address;
+    ASSERT_THAT(client->GetLocalAddress(&client_address), IsOk());
+
+    for (int i = 0; i < send_count; ++i) {
+      std::string payload = "p" + base::NumberToString(i);
+      ASSERT_EQ(static_cast<int>(payload.size()),
+                SendToSocket(server.get(), payload, client_address));
+    }
+
+    Socket::ReadPacketResults results;
+    TestCompletionCallback cb;
+    int rv =
+        client->ReadMultiplePackets(&results, kPacketBufSize, cb.callback());
+    rv = cb.GetResult(rv);
+    ASSERT_GT(rv, 0);
+    EXPECT_LE(rv, expected_max_packets);
+    ASSERT_NE(results.buffer, nullptr);
+    const size_t expected_bytes =
+        static_cast<size_t>(expected_max_packets) *
+        (sizeof(Socket::ReadPacketResult) + kPacketBufSize);
+    EXPECT_EQ(results.buffer->span().size(), expected_bytes);
+  };
+
+  // Disabled by default: preserves 64-packet baseline batch size.
+  EXPECT_FALSE(base::FeatureList::IsEnabled(features::kCobaltQuicReadBatch));
+  measure_batch_buffer(64, 5);
+  // Enabled with custom batch size 4: caps a 10-packet burst at 4 packets.
+  {
+    base::test::ScopedFeatureList custom;
+    custom.InitAndEnableFeatureWithParameters(
+        features::kCobaltQuicReadBatch, {{"CobaltQuicReadBatch_packets", "4"}});
+    measure_batch_buffer(4, 10);
+  }
+  // Out-of-range low and negative params clamp to 1.
+  {
+    base::test::ScopedFeatureList clamp_low;
+    clamp_low.InitAndEnableFeatureWithParameters(
+        features::kCobaltQuicReadBatch, {{"CobaltQuicReadBatch_packets", "0"}});
+    measure_batch_buffer(1, 3);
+  }
+  {
+    base::test::ScopedFeatureList clamp_negative;
+    clamp_negative.InitAndEnableFeatureWithParameters(
+        features::kCobaltQuicReadBatch,
+        {{"CobaltQuicReadBatch_packets", "-5"}});
+    measure_batch_buffer(1, 3);
+  }
+  // Malformed param falls back to the 16-packet default.
+  {
+    base::test::ScopedFeatureList malformed;
+    malformed.InitAndEnableFeatureWithParameters(
+        features::kCobaltQuicReadBatch,
+        {{"CobaltQuicReadBatch_packets", "not-a-number"}});
+    measure_batch_buffer(16, 3);
+  }
+  // Out-of-range high param clamps to 64.
+  {
+    base::test::ScopedFeatureList clamp_high;
+    clamp_high.InitAndEnableFeatureWithParameters(
+        features::kCobaltQuicReadBatch,
+        {{"CobaltQuicReadBatch_packets", "128"}});
+    measure_batch_buffer(64, 3);
+  }
+
+  // Non-positive or overflowing buffer dimensions fail cleanly without abort.
+  Socket::ReadPacketResults bad_results;
+  EXPECT_FALSE(bad_results.AcquireBuffer(0, kPacketBufSize));
+  EXPECT_FALSE(bad_results.AcquireBuffer(16, 0));
+  EXPECT_FALSE(bad_results.AcquireBuffer(16, std::numeric_limits<int>::max()));
+  EXPECT_EQ(bad_results.buffer, nullptr);
+
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  auto server =
+      std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+  ASSERT_THAT(server->Listen(server_address), IsOk());
+  ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+  auto client = std::make_unique<UDPClientSocket>(
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(client->Connect(server_address), IsOk());
+
+  TestCompletionCallback err_cb;
+  EXPECT_EQ(client->ReadMultiplePackets(&bad_results, 0, err_cb.callback()),
+            ERR_INVALID_ARGUMENT);
+  EXPECT_EQ(
+      client->ReadMultiplePackets(&bad_results, std::numeric_limits<int>::max(),
+                                  err_cb.callback()),
+      ERR_INVALID_ARGUMENT);
+}
+
+// Verifies the non-QUIC UDP socket journey (such as DNS, DIAL, or P2P
+// sockets): creating, connecting, and performing single-packet reads does not
+// query or activate the CobaltQuicReadBatch field trial; only the first
+// ReadMultiplePackets() call resolves and activates it, and Close() resets the
+// cached batch size before a socket is reopened.
+TEST_F(UDPSocketTest, CobaltQuicReadBatchResolvesLazilyAndResetsOnClose) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  constexpr int kPacketBufSize = 1473;
+  constexpr char kTrialName[] = "CobaltQuicReadBatchLazyTestTrial";
+
+  base::test::ScopedFeatureList scoped_features;
+  scoped_features.InitFromCommandLine(
+      "CobaltQuicReadBatch<CobaltQuicReadBatchLazyTestTrial.Enabled:"
+      "CobaltQuicReadBatch_packets/4",
+      "");
+  ASSERT_TRUE(base::FieldTrialList::TrialExists(kTrialName));
+  ASSERT_FALSE(base::FieldTrialList::IsTrialActive(kTrialName));
+
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  auto server =
+      std::make_unique<UDPServerSocket>(NetLog::Get(), NetLogSource());
+  ASSERT_THAT(server->Listen(server_address), IsOk());
+  ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
+
+  UDPSocket client(DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+  ASSERT_THAT(client.Open(ADDRESS_FAMILY_IPV4), IsOk());
+  ASSERT_THAT(client.Connect(server_address), IsOk());
+  EXPECT_FALSE(base::FieldTrialList::IsTrialActive(kTrialName));
+
+  // Single-packet Read() must not activate CobaltQuicReadBatch.
+  IPEndPoint client_address;
+  ASSERT_THAT(client.GetLocalAddress(&client_address), IsOk());
+  ASSERT_EQ(4, SendToSocket(server.get(), "ping", client_address));
+  auto buf = base::MakeRefCounted<IOBufferWithSize>(64);
+  TestCompletionCallback single_cb;
+  int rv = client.Read(buf.get(), buf->size(), single_cb.callback());
+  ASSERT_EQ(single_cb.GetResult(rv), 4);
+  EXPECT_FALSE(base::FieldTrialList::IsTrialActive(kTrialName));
+
+  // First ReadMultiplePackets() activates the trial and uses batch size 4.
+  ASSERT_EQ(5, SendToSocket(server.get(), "multi", client_address));
+  Socket::ReadPacketResults results;
+  TestCompletionCallback multi_cb;
+  rv =
+      client.ReadMultiplePackets(&results, kPacketBufSize, multi_cb.callback());
+  ASSERT_EQ(multi_cb.GetResult(rv), 1);
+  EXPECT_TRUE(base::FieldTrialList::IsTrialActive(kTrialName));
+  EXPECT_EQ(results.buffer->span().size(),
+            4u * (sizeof(Socket::ReadPacketResult) + kPacketBufSize));
+
+  // Close() resets the cached batch size so reopening picks up a new config.
+  results.ReleaseBuffer();
+  client.Close();
+  {
+    base::test::ScopedFeatureList override_8;
+    override_8.InitAndEnableFeatureWithParameters(
+        features::kCobaltQuicReadBatch, {{"CobaltQuicReadBatch_packets", "8"}});
+    ASSERT_THAT(client.Open(ADDRESS_FAMILY_IPV4), IsOk());
+    ASSERT_THAT(client.Bind(IPEndPoint(IPAddress::IPv4Localhost(), 0)), IsOk());
+    IPEndPoint reopened_address;
+    ASSERT_THAT(client.GetLocalAddress(&reopened_address), IsOk());
+    ASSERT_EQ(6, SendToSocket(server.get(), "reopen", reopened_address));
+    TestCompletionCallback reopen_cb;
+    rv = client.ReadMultiplePackets(&results, kPacketBufSize,
+                                    reopen_cb.callback());
+    ASSERT_EQ(reopen_cb.GetResult(rv), 1);
+    EXPECT_EQ(results.buffer->span().size(),
+              8u * (sizeof(Socket::ReadPacketResult) + kPacketBufSize));
+  }
+}
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+>>>>>>> 90f07ca14b9 (cobalt: Pool QUIC receive buffers and gate smaller read batch sizes (#14161))
 
 }  // namespace net
