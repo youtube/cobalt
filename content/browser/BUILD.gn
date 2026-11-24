@@ -3923,8 +3923,10 @@ source_set("browser") {
                          "digital_credentials/*",
                          "webid/*",
                          "in_memory_federated_permission_context.*",
+                         "devtools/protocol/digital_credentials_handler.*",
                          "devtools/protocol/fedcm_handler.*",
                          "devtools/auction_worklet_devtools_agent_host.*",
+                         "$target_gen_dir/devtools/protocol/digital_credentials.*",
                        ])
     sources = []
     sources = _filtered_sources
