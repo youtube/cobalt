@@ -17,22 +17,16 @@
 #include <vector>
 
 #include "base/base_switches.h"
-<<<<<<< HEAD
-#include "build/buildflag.h"
-=======
 #include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
+#include "build/buildflag.h"
 #include "cobalt/app/cobalt_main_delegate.h"
->>>>>>> 0521d9ddb45 (cobalt: Enable GrShaderCache on Starboard for preload launches (#13596))
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
-<<<<<<< HEAD
-=======
 #include "gpu/config/gpu_switches.h"
->>>>>>> 0521d9ddb45 (cobalt: Enable GrShaderCache on Starboard for preload launches (#13596))
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
