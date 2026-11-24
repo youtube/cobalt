@@ -227,27 +227,4 @@ if (is_cobalt) {
 Never replace Cobalt's `$android_toolchain` with upstream's `$default_toolchain` in Android GN deps (for example `third_party/jni_zero/BUILD.gn`), and use `$android_toolchain` for new upstream deps in the same list. `cobalt_apk` compiles either way, but Cobalt modular builds break. The full rule and example are in the merge conflict skill, where the side is chosen.
 
 ### Desktop-Linux Code in Hermetic (Evergreen/RDK) Builds (`is_cobalt_hermetic_build`)
-Evergreen and RDK builds (`evergreen-*` platforms, target `cobalt_loader`) are Linux builds with `is_cobalt_hermetic_build = true`: Cobalt provides fonts, input and graphics through Starboard, so desktop-Linux code (fontconfig font fallback, X11, GTK, D-Bus UI) must not be built. Upstream often adds or reorganizes such code under a plain `is_linux` condition, which pulls it into the hermetic build.
-
-1. **Symptoms**: a compile error inside a desktop-Linux library that `cobalt_loader` should not need (for example `third_party/fontconfig/src/src/fccompat.c: call to undeclared function 'random_r'`), or a duplicate symbol at the `libcobalt.so` link between the desktop implementation and Cobalt's own (`duplicate symbol: gfx::GetFallbackFonts(gfx::Font const&)`).
-2. **Fix the edge, not the library**: find the `BUILD.gn` that adds the desktop sources or deps under `is_linux` (`TOOL_GREP` the source file name, or the dependency, in `BUILD.gn` files) and add `!is_cobalt_hermetic_build` to that condition. Do NOT patch the third-party library or its generated `config.h` to make it compile; once the edge is gated, the library is no longer in `cobalt_loader`'s build.
-3. Check the Cobalt side of the file first: Cobalt often already had the gate before upstream moved the block, so the fix is to carry the existing `!is_cobalt_hermetic_build` into upstream's new structure.
-
-**Real Example (`ui/gfx/BUILD.gn`, M144.7514, matches the human fix)**:
-Upstream https://crrev.com/c/7119882 ("Reorganize //ui/gfx GN build target") moved the Linux font sources. The build then linked both `font_fallback_linux.cc` and Cobalt's font fallback into `libcobalt.so`.
-```gn
-# [BAD] first attempt: rewrite third_party/fontconfig/include/config.h so
-#       fccompat.c compiles. fontconfig should not be in the hermetic build.
-
-# [GOOD] ui/gfx/BUILD.gn: keep the desktop-Linux font code out of hermetic builds.
-if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
-  sources += [
-    "font_fallback_linux.cc",
-    "font_fallback_linux.h",
-    "font_render_params_linux.cc",
-    "font_render_params_linux.h",
-    "linux/fontconfig_util.cc",
-    "linux/fontconfig_util.h",
-  ]
-}
-```
+Evergreen and RDK builds (`is_linux = true`, `is_cobalt_hermetic_build = true`) must not build desktop-Linux subsystems (fontconfig font fallback, X11, GTK, D-Bus UI). When upstream adds or reorganizes `is_linux` sources/deps without `!is_cobalt_hermetic_build`, `gn gen` usually passes and the problem surfaces in Phase 4 (`fccompat.c` compile failure or `libcobalt.so` duplicate symbol); if it surfaces during GN healing, add `!is_cobalt_hermetic_build` to the `is_linux` condition in `BUILD.gn`. Full rule and the `ui/gfx/BUILD.gn` example are in `cobalt_rebase_patterns.md` → "Desktop-Linux Code in Hermetic (Evergreen/RDK) Builds (`is_cobalt_hermetic_build`)".

@@ -90,41 +90,6 @@ When something that used to work has broken after a roll, **run both on the rele
          1. Register the Cobalt supplement in `LocalDOMWindow::Supplements` (or `ExecutionContext::Supplements`) and update the capacity `N` in `Supplementable<Host, N>` across `local_dom_window.h` and any forward declarations (`range.cc`, `local_frame_view.cc`, `highlight_registry.cc`).
          2. Migrate the Cobalt extension class to inherit from `Supplement<LocalDOMWindow>` and use `Supplement<LocalDOMWindow>::From<T>` / `ProvideTo`.
          3. Only if multi-file migration fails may you fall back to keeping legacy fields on the host class, and you MUST annotate them with `// TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED]`.
-         4. Migrate EVERY Cobalt supplement on the host class in the same change, including platform-only ones that the current build does not compile: `DialServerManager` on `ExecutionContext` and `OnScreenKeyboard` on `LocalDOMWindow` are tvOS-only (`BUILDFLAG(IS_IOS_TVOS)`). An Android or RDK build cannot catch a missed one, so do not drop them or leave them behind a TODO. List the Cobalt entries in the `Supplements` enum without platform guards, as the human fix does, so every platform uses the same indices and the same capacity `N` (hard-coded as `Supplementable<LocalDOMWindow, N>` in `range.cc`, `local_frame_view.cc` and `highlight_registry.cc`).
-
-       **Real Example (M145.7577, human fix)**:
-       ```cpp
-       // [BAD] AI (RDK run): migrated H5vcc and CobaltLifecycleController, but
-       //       removed the tvOS-only DialServerManager from ExecutionContext and
-       //       left TODO(cobalt-rebase): [HUMAN_REVIEW_REQUIRED] comments.
-
-       // [GOOD] local_dom_window.h: Cobalt entries after upstream's, unguarded.
-         enum class Supplements {
-           ...
-           kAudioRendererSinkCache = 47,
-
-           kH5vcc = 48,
-           kCobaltLifecycleController = 49,
-           kOnScreenKeyboard = 50
-         };
-
-       // [GOOD] execution_context.h: the tvOS supplement is migrated too.
-       class CORE_EXPORT ExecutionContext
-           : public Supplementable<ExecutionContext, 35>, ... {
-         ...
-         enum class Supplements {
-           ...
-           kCanvasResourceProviderCache = 33,
-
-           kDialServerManager = 34
-         };
-         ...
-       };
-
-       // dial_server_manager.cc
-       const unsigned DialServerManager::kSupplementIndex =
-           static_cast<unsigned>(ExecutionContext::Supplements::kDialServerManager);
-       ```
 
        **Real Example (`cobalt/renderer/h5vcc_runtime/h_5_vcc.{h,cc}`)**:
        ```cpp
@@ -335,7 +300,7 @@ Upstream regularly trims headers (include-what-you-use cleanups), so a type that
 
 1. **Symptoms**: `implicit instantiation of undefined template 'base::OnceCallback<...>'`, `no member named 'DoNothing' in namespace 'base'`, `incomplete type` for a type the file never included directly.
 2. **Fix**: include the header that defines the type (`base/functional/callback.h` for `OnceCallback`/`RepeatingCallback`, `base/functional/callback_helpers.h` for `DoNothing`/`NullCallback`) in the file that uses it. Check what the matching upstream file includes for the same type (for example the stub's real counterpart, `sandbox_linux.cc` for `sandbox_linux_starboard_stub.cc`).
-3. **Placement**: if only Cobalt-guarded code uses the type, put the `#include` inside the same guard, so the upstream part of the file keeps upstream's include list and the next rebase does not conflict on it.
+3. **Placement**: if only Cobalt-guarded code uses the type, put the `#include` inside a matching `#if ... #endif` guard **at file scope right after the top-level `#include` block** (before any `namespace` declarations), so the upstream include list stays untouched without risking namespace hijacking (Principle 7). Never insert an `#include` inside a mid-file `#if` block that sits inside a `namespace` or function body (such as a mid-file `#if defined(IN_MEMORY_UPDATES)` block).
 
 **Real Example (M145.7577, matches the human fix)**:
 ```cpp
@@ -344,11 +309,15 @@ Upstream regularly trims headers (include-what-you-use cleanups), so a type that
 // the complete type. Upstream sandbox_linux.cc includes it for the same reason.
 #include "base/functional/callback.h"
 
-// [BAD] components/update_client/persisted_data.cc: added to the upstream
-//       include list although only the Starboard block uses base::DoNothing.
+// [BAD] components/update_client/persisted_data.cc: added unconditionally to the
+//       upstream include list even though only IS_STARBOARD uses base::DoNothing
+//       (or worse, placed inside a mid-file #if block inside `namespace update_client`).
 #include "base/functional/callback_helpers.h"
 
-// [GOOD] include it inside the Cobalt guard that uses it.
+// [GOOD] components/update_client/persisted_data.cc: guarded at file scope right
+//        after the top-level #include block, before `namespace update_client`.
+#include "components/update_client/update_client_errors.h"
+
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/functional/callback_helpers.h"
 
@@ -360,4 +329,8 @@ void FlushPrefs(PrefService* pref_service) {
 }
 }  // namespace
 #endif
+
+namespace update_client {
+...
+}  // namespace update_client
 ```
