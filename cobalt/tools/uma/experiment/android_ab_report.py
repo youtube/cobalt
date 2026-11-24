@@ -90,9 +90,20 @@ ENUM_HISTOGRAMS = (
     'Cobalt.LocalStorage.RecoveryEvent',
     'WebCore.Scripts.V8CodeCacheMetadata.Get',
     'WebCore.Scripts.V8CodeCacheMetadata.Set',
+    'Gpu.GrShaderCacheEnabled',
     'Gpu.GrShaderCacheLoadHitInCache',
     'GPU.ShaderLoadPrefixOK',
     'ServiceWorker.Database.OpenResult',
+    'SimpleCache.Http.IndexFileStateOnLoad',
+    'SimpleCache.Http.IndexInitializeMethod',
+    'SimpleCache.Code.IndexFileStateOnLoad',
+    'SimpleCache.Code.IndexInitializeMethod',
+    'SiteIsolatedCodeCache.JS.Behaviour',
+    'SiteIsolatedCodeCache.JS.Hit',
+    'SiteIsolatedCodeCache.WASM.',
+    'Cobalt.Stability.Android.SystemExitReason',
+    'Cobalt.StabilityMetrics.IsNearCapacity',
+    'Cobalt.Storage.OnPause.HttpServerPropertiesFlushed',
 )
 # Histograms where each sample is a commit, sync or error: fewer is better.
 LOWER_COUNT_IS_BETTER = (
@@ -116,6 +127,8 @@ LOWER_COUNT_IS_BETTER = (
     'Memory.ParkableString.Decompression.Latency',
     'Memory.ParkableString.Read.Latency',
     'ServiceWorker.Database.OpenResult',
+    'SimpleCache.Http.Eviction.EntryCount',
+    'SimpleCache.Code.Eviction.EntryCount',
     'Sql.Database.Success.OpenInternalTime.',
     'Sql.Statement.ExecutionTime.',
     'Sql.vfs.SyncTime',
@@ -135,9 +148,12 @@ NEUTRAL_VALUE = (
     'Cobalt.Storage.Cookie.PendingOperationsAtCommit',
     'DOMStorage.CommitMeasuredDelay',
     'LevelDBWrapper.CommitDelay',
+    'LocalStorage.MojoSizeInKB',
     'SimpleCache.Http.CacheSizeOnInit',
     'SimpleCache.Http.MaxCacheSizeOnInit',
+    'SimpleCache.Http.IndexNumEntriesOnInit',
     'SimpleCache.Code.MaxCacheSizeOnInit',
+    'SimpleCache.Code.IndexNumEntriesOnInit',
     'Cobalt.Storage.DirCache.StartupTotalSizeKB',
     'Cobalt.Storage.GpuShaderCache.ConfiguredMaxSizeKB',
     'Cobalt.Storage.GpuShaderCache.LoadedEntriesCount',
@@ -156,6 +172,7 @@ NEUTRAL_VALUE = (
 # (not periodic gauges), so match Memory.Experimental. rather than Memory.*
 SAMPLED_PREFIXES = ('Memory.Experimental.', 'Memory.Browser.', 'Memory.Total.',
                     'Browser.MainThreadsCongestion',
+                    'Cobalt.Responsiveness.IOJank',
                     'Cobalt.Storage.ProcessIo.WriteRateKBPerMin')
 # Smallest number of pairs with a 95% CI of the median (see exact_median_ci):
 # [min, max] covers the median with probability 1 - 2 / 2**n, which is 93.75%
@@ -491,21 +508,53 @@ def build_pairs(results_dir: str, runs: dict, pair_records: dict,
   return pairs
 
 
-def histogram_order(histogram_file: str):
-  queries = []
+TIER_ORDER = {'P0': 0, 'P1': 1, 'P2': 2}
+TIER_LABELS = {
+    'P0': 'P0 Core (UX Proxies & Cert Budgets)',
+    'P1': 'P1 Mechanism',
+    'P2': 'P2 Context & Covariates',
+}
+
+
+def parse_histogram_tiers(histogram_file: str) -> list:
+  """Returns [(tier, query), ...] parsed from P0/P1/P2 section headers."""
+  entries, current_tier = [], 'P2'
   if histogram_file and os.path.exists(histogram_file):
     with open(histogram_file, encoding='utf-8') as f:
-      queries = [
-          line.strip()
-          for line in f
-          if line.strip() and not line.startswith('#')
-      ]
+      for raw in f:
+        line = raw.strip()
+        if not line:
+          continue
+        if line.startswith('#'):
+          for tier in ('P0', 'P1', 'P2'):
+            if line.startswith(f'# {tier}:'):
+              current_tier = tier
+              break
+          continue
+        entries.append((current_tier, line.rstrip('*')))
+  return entries
 
-  def key(name):
-    for i, query in enumerate(queries):
-      if query in name:
-        return (i, name)
-    return (len(queries), name)
+
+def histogram_tier_lookup(histogram_file: str):
+  entries = parse_histogram_tiers(histogram_file)
+
+  def tier_of(name: str) -> str:
+    for tier, query in entries:
+      if uma_dump.matches_query(name, query):
+        return tier
+    return 'P2'
+
+  return tier_of
+
+
+def histogram_order(histogram_file: str):
+  entries = parse_histogram_tiers(histogram_file)
+
+  def key(name: str):
+    for i, (tier, query) in enumerate(entries):
+      if uma_dump.matches_query(name, query):
+        return (TIER_ORDER.get(tier, 2), i, name)
+    return (len(TIER_ORDER), len(entries), name)
 
   return key
 
@@ -633,8 +682,14 @@ def _enum_bucket_stats(pairs: list, phase: str, name: str) -> list:
   return [mapping.get(low, f'bucket_{low}') for low in sorted(active_lows)]
 
 
-def build_rows(ab_pairs: list, noop_pairs: list, phase: str, *, boot: Bootstrap,
-               order_key, min_rel_effect: float) -> list:
+def build_rows(ab_pairs: list,
+               noop_pairs: list,
+               phase: str,
+               *,
+               boot: Bootstrap,
+               order_key,
+               tier_of=None,
+               min_rel_effect: float) -> list:
   names = set()
   max_count = {}
   all_pairs = ab_pairs + noop_pairs
@@ -653,6 +708,7 @@ def build_rows(ab_pairs: list, noop_pairs: list, phase: str, *, boot: Bootstrap,
   }
   rows = []
   for name in sorted(names, key=order_key):
+    tier = tier_of(name) if tier_of else None
     if is_enum(name):
       stats = ['count'] + _enum_bucket_stats(all_pairs, phase, name)
     elif max_count.get(name, 0) <= 1:
@@ -673,6 +729,7 @@ def build_rows(ab_pairs: list, noop_pairs: list, phase: str, *, boot: Bootstrap,
           'phase': phase,
           'name': name,
           'stat': stat,
+          'tier': tier,
           'n': len(diffs),
           'a_values': a_values,
           'b_values': b_values,
@@ -784,6 +841,15 @@ def _row_cells(row: dict, has_noop: bool) -> list:
   return cells
 
 
+def row_verdict_sort_key(row: dict) -> tuple:
+  """Orders rows: P0 Core -> ★ P1 -> P1 -> ★ P2 -> P2."""
+  tier = row.get('tier')
+  if tier is None:
+    return (2, 0 if row.get('primary') else 1)
+  tier_idx = TIER_ORDER.get(tier, 2)
+  return (tier_idx, 0 if tier_idx == 0 else (0 if row.get('primary') else 1))
+
+
 def render_phase(rows: list, phase: str, labels: tuple, has_noop: bool) -> list:
   out = [f'### {PHASE_TITLES.get(phase, phase)}', '']
   counts = {}
@@ -805,13 +871,13 @@ def render_phase(rows: list, phase: str, labels: tuple, has_noop: bool) -> list:
   header.append('Tag')
   align.append(':---')
   out += [_table_row(header), _table_row(align)]
-  for r in sorted(rows, key=lambda row: not row.get('primary')):
+  for r in sorted(rows, key=row_verdict_sort_key):
     if r['tag'] not in ('[UNCHANGED]', 'N/A'):
       out.append(_table_row(_row_cells(r, has_noop)))
   unchanged = [r for r in rows if r['tag'] == '[UNCHANGED]']
   if unchanged:
     items = []
-    for r in sorted(unchanged, key=lambda row: not row.get('primary')):
+    for r in sorted(unchanged, key=row_verdict_sort_key):
       name, stat = r['name'], r['stat']
       control = fmt(statistics.median(r['a_values']))
       star = '★ ' if r.get('primary') else ''
@@ -826,6 +892,42 @@ def render_phase(rows: list, phase: str, labels: tuple, has_noop: bool) -> list:
         '', f'No paired data ({len(missing)} rows): ' +
         ', '.join('`' + r['name'] + '` ' + r['stat'] for r in missing)
     ]
+  out.append('')
+  return out
+
+
+def render_ranked_summary(phase_rows: dict) -> list:
+  """Renders a compact tier-ordered verdict summary across phases."""
+  has_tiers = any(
+      r.get('tier') is not None for rows in phase_rows.values() for r in rows)
+  if not has_tiers:
+    return []
+  out = [
+      '### Ranked verdict summary (`P0` Core → `P1` Mechanism → `P2` Context)',
+      ''
+  ]
+  for tier in ('P0', 'P1', 'P2'):
+    notable = []
+    tier_total = 0
+    for phase, rows in phase_rows.items():
+      for r in sorted(rows, key=row_verdict_sort_key):
+        if r.get('tier') != tier:
+          continue
+        tier_total += 1
+        show = (
+            r['tag'] in ('[REGRESSED]', '[IMPROVED]', '[CHANGED]', '[FLAG]') or
+            (tier == 'P0' and r['tag'] not in ('[UNCHANGED]', 'N/A')) or
+            (r.get('primary') and r['tag'] not in ('[UNCHANGED]', 'N/A')))
+        if show:
+          star = '★ ' if r.get('primary') else ''
+          rel = f" ({r['rel']:+.1%})" if r.get('rel') is not None else ''
+          notable.append(f"{phase}: {star}`{r['name']}` {r['stat']} "
+                         f"{fmt_signed(r['median'])}{rel} {r['tag']}")
+    label = TIER_LABELS[tier]
+    if notable:
+      out.append(f'* **{label}** ({tier_total} rows): ' + '; '.join(notable))
+    else:
+      out.append(f'* **{label}** ({tier_total} rows): all unchanged/noise.')
   out.append('')
   return out
 
@@ -972,6 +1074,7 @@ def render_report(args, data: dict) -> str:
       'median(A/B Δ) − median(No-Op Δ) must also exclude 0. Tag rules: see '
       '`android_ab_report.py --help`.', ''
   ]
+  out += render_ranked_summary(data['phase_rows'])
   for phase, rows in data['phase_rows'].items():
     out += render_phase(rows, phase, labels, bool(noop_pairs))
   for phase, rows in data['phase_rows'].items():
@@ -1023,6 +1126,7 @@ def main(argv=None) -> int:
   noop_pairs = build_pairs(args.results_dir, runs, pair_records, 'noop')
   boot = Bootstrap(args.bootstrap, args.seed)
   order_key = histogram_order(args.histogram_file)
+  tier_of = histogram_tier_lookup(args.histogram_file)
   phases = []
   for pair in ab_pairs + noop_pairs:
     for phase in pair['A_phases']:
@@ -1036,6 +1140,7 @@ def main(argv=None) -> int:
               phase,
               boot=boot,
               order_key=order_key,
+              tier_of=tier_of,
               min_rel_effect=args.min_rel_effect) for phase in phases
   }
   primary_spec = args.primary

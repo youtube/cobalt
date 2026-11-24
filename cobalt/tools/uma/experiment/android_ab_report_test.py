@@ -774,6 +774,109 @@ class HarnessLogicTest(unittest.TestCase):
     size = by_name[('Cobalt.Storage.UserData.StartupTotalSizeKB', 'value')]
     self.assertEqual(size['tag'], '[IMPROVED]')
 
+  def test_ranked_tier_ordering_and_verdict_summary(self):
+    tiers = ab_report.parse_histogram_tiers(ab_report.DEFAULT_HISTOGRAM_FILE)
+    p0_names = [q for tier, q in tiers if tier == 'P0']
+    self.assertEqual(p0_names, [
+        'Cobalt.Startup.Time.NavigationDispatchToCommit',
+        'ServiceWorker.Storage.ReadInitialDataFromDB.Time',
+        'SimpleCache.Http.IndexRestoreTime',
+        'V8.CompileSerializeMicroSeconds',
+        'Cookie.TimeBlockedOnLoad',
+        'Cobalt.Storage.OnPause.FlushDuration',
+        'Cobalt.Storage.Exit.CookieFlushDuration',
+        'Cobalt.Responsiveness.IOJankyIntervalsPerMinute',
+        'Cobalt.LocalStorage.DatabaseOpenError',
+        'Cobalt.Storage.UserData.StartupTotalSizeKB2',
+        'Cobalt.Storage.DirCache.StartupTotalSizeKB',
+    ])
+    tier_of = ab_report.histogram_tier_lookup(ab_report.DEFAULT_HISTOGRAM_FILE)
+    self.assertEqual(
+        tier_of('Cobalt.Startup.Time.NavigationDispatchToCommit'), 'P0')
+    self.assertEqual(
+        tier_of('Sql.Database.Success.OpenInternalTime.DIPS'), 'P1')
+    self.assertEqual(
+        tier_of('Cobalt.Storage.ProcessIo.StartupMajorPageFaults'), 'P2')
+    rows = [
+        {
+            'phase': 'homefeed',
+            'name': 'Memory.Total.ResidentSet',
+            'stat': 'mean',
+            'tier': 'P2',
+            'primary': True,
+            'n': 6,
+            'a_values': [380] * 6,
+            'b_values': [380] * 6,
+            'diffs': [-1] * 6,
+            'median': -1,
+            'ci': (-1, -1),
+            'rel': -0.003,
+            'tag': '[NOISE]',
+            'tag_reason': 'effect < 1%',
+        },
+        {
+            'phase': 'homefeed',
+            'name': 'Cobalt.Storage.Cookie.CommitDuration',
+            'stat': 'count',
+            'tier': 'P1',
+            'primary': False,
+            'n': 6,
+            'a_values': [8] * 6,
+            'b_values': [7] * 6,
+            'diffs': [-1, 0, -1, 0, -1, 0],
+            'median': -0.5,
+            'ci': (-1, 0),
+            'rel': -0.0625,
+            'tag': '[NOISE]',
+            'tag_reason': 'CI includes 0',
+        },
+        {
+            'phase': 'homefeed',
+            'name': 'Sql.Database.Success.OpenInternalTime.DIPS',
+            'stat': 'count',
+            'tier': 'P1',
+            'primary': True,
+            'n': 6,
+            'a_values': [1] * 6,
+            'b_values': [0] * 6,
+            'diffs': [-1] * 6,
+            'median': -1,
+            'ci': (-1, -1),
+            'rel': -1.0,
+            'tag': '[IMPROVED]',
+            'tag_reason': '',
+        },
+        {
+            'phase': 'homefeed',
+            'name': 'Cookie.TimeBlockedOnLoad',
+            'stat': 'value',
+            'tier': 'P0',
+            'primary': False,
+            'n': 6,
+            'a_values': [20] * 6,
+            'b_values': [15] * 6,
+            'diffs': [-5] * 6,
+            'median': -5,
+            'ci': (-5, -5),
+            'rel': -0.25,
+            'tag': '[IMPROVED]',
+            'tag_reason': '',
+        },
+    ]
+    phase_lines = ab_report.render_phase(rows, 'homefeed', ('Control', 'Treat'),
+                                         False)
+    table_rows = [l for l in phase_lines if l.startswith('| ') and '`' in l]
+    self.assertEqual([
+        'Cookie.TimeBlockedOnLoad',
+        'Sql.Database.Success.OpenInternalTime.DIPS',
+        'Cobalt.Storage.Cookie.CommitDuration',
+        'Memory.Total.ResidentSet',
+    ], [l.split('`')[1] for l in table_rows])
+    summary = '\n'.join(ab_report.render_ranked_summary({'homefeed': rows}))
+    self.assertIn('### Ranked verdict summary', summary)
+    self.assertIn('`Cookie.TimeBlockedOnLoad`', summary)
+    self.assertIn('★ `Sql.Database.Success.OpenInternalTime.DIPS`', summary)
+
 
 if __name__ == '__main__':
   unittest.main()
