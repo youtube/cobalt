@@ -1026,51 +1026,12 @@ Always run the pretty print utility on this file after editing:
 
 <histogram name="Cobalt.Storage.OnPause.FlushDuration" units="ms"
     expires_after="never">
-<<<<<<< HEAD
   <owner>charleykim@google.com</owner>
   <summary>
     Records the time it takes to flush both cookies and local storage during the
     onPause event on Android. This helps to understand if the operation
     completes within the short window granted by the OS before the app is
     killed.
-=======
-  <owner>haozheng@google.com</owner>
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the time it takes for the cookie store flush to complete when the
-    application pauses/blurs (`DispatchBlur()` on Android and `DoBlur()` on
-    Starboard; `storage_partition-&gt;Flush()` schedules LocalStorage commits
-    asynchronously). Note: during a graceful exit, storage flush is called 3
-    times (`exit()` -&gt; `onPause`/`blur` -&gt; `onStop`/`visibilitychange`)
-    and timed twice (`Cobalt.Storage.Exit.CookieFlushDuration` on `exit()` and
-    this metric on `onPause`/`blur`); the 3rd flush in `onStop()` is untimed
-    here, with its disk writes captured by
-    `Cobalt.Storage.Cookie.CommitDuration` and
-    `Cobalt.Storage.LocalStorage.CommitDuration`.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration"
-    units="ms" expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records the time it takes to write HttpServerProperties to disk when the app
-    pauses and CobaltFlushHttpServerPropertiesOnPause is enabled. Recorded only
-    when an update was pending and therefore actually written; pauses where
-    nothing was pending are counted in
-    Cobalt.Storage.OnPause.HttpServerPropertiesFlushed instead.
-  </summary>
-</histogram>
-
-<histogram name="Cobalt.Storage.OnPause.HttpServerPropertiesFlushed"
-    enum="Boolean" expires_after="never">
-  <owner>charleykim@google.com</owner>
-  <summary>
-    Records, for each app pause with CobaltFlushHttpServerPropertiesOnPause
-    enabled, whether HttpServerProperties had an update pending that was written
-    to disk by the pause flush. The true/false ratio shows how often the 60 s
-    write-coalescing timer would have lost state to a background kill.
->>>>>>> b370ec6e412 (android: Record startup milestones as time since process start (#13731))
   </summary>
 </histogram>
 
