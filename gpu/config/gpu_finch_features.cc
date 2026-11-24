@@ -113,11 +113,13 @@ BASE_FEATURE_PARAM(int,
                    2048);
 
 // Maximum number of cached shader entries to preload from disk during
-// GpuDiskCacheReadHelper::LoadCache(). SimpleCache enumerates SHADER_CACHE
-// entries in Most-Recently-Used order so bounding the preload count caps
-// cold-start eMMC reads and browser-to-GPU Mojo IPCs while fetching active
-// startup shaders first and keeping the full 2 MB in-memory/on-disk cache for
-// the session. Non-positive values preload all entries.
+// GpuDiskCacheReadHelper::LoadCache(). The preload iterates via
+// Backend::CreateMostRecentIterator(), which SimpleCache serves in
+// Most-Recently-Used order without changing CreateIterator() order, so
+// bounding the preload count caps cold-start eMMC reads and browser-to-GPU
+// Mojo IPCs while fetching active startup shaders first and keeping the full
+// 2 MB in-memory/on-disk cache for the session. Non-positive values disable
+// the count cap.
 BASE_FEATURE_PARAM(int,
                    kCobaltGpuShaderDiskCacheMaxPreloadEntries,
                    &kCobaltGpuShaderDiskCache,
