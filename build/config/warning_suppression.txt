@@ -37,7 +37,6 @@
 
 [unnecessary-virtual-specifier]
 # Can be removed when https://github.com/google/nearby/pull/3392 is merged and rolled
-<<<<<<< HEAD
 src:*{/,\\}third_party{/,\\}nearby{/,\\}*
 
 [unique-object-duplication]
@@ -71,8 +70,6 @@ src:*{/,\\}chrome{/,\\}browser{/,\\}platform_experience{/,\\}*
 src:*{/,\\}cobalt{/,\\}*
 src:*{/,\\}starboard{/,\\}*
 src:*{/,\\}ui{/,\\}ozone{/,\\}platform{/,\\}starboard{/,\\}platform_window_starboard.cc
-=======
-src:*/third_party/nearby/*
 
 [c++20-extensions]
 # Cobalt: //starboard/build/config:starboard enables -Wc++20-extensions for the
@@ -81,9 +78,9 @@ src:*/third_party/nearby/*
 # includes, third-party and copied Chromium code that relies on C++20
 # extensions accepted by all supported compilers (e.g. omitting variadic macro
 # arguments). Exempt it; the warning is not enabled for any other code.
-src:*/third_party/*
-src:*/copied_base/*
-src:*gen/jni_headers/*
+src:*{/,\\}third_party{/,\\}*
+src:*{/,\\}copied_base{/,\\}*
+src:*gen{/,\\}jni_headers{/,\\}*
 
 [pre-c++20-compat-pedantic]
 # Cobalt: //starboard/build/config:starboard_implementation enables
@@ -92,10 +89,9 @@ src:*gen/jni_headers/*
 # non-Starboard headers (Chromium //base, third_party, etc.) included by those
 # targets.
 src:*
-src:*/starboard/*=emit
-src:*/third_party/*
-src:*gen/*
+src:*{/,\\}starboard{/,\\}*=emit
+src:*{/,\\}third_party{/,\\}*
+src:*gen{/,\\}*
 # nplb is a Starboard client (like Cobalt) and is always built with the C++20
 # Cobalt toolchain, never with a partner C++17 toolchain.
-src:*/starboard/nplb/*
->>>>>>> 8edf96711fb (starboard: Enforce strict C++17 across Starboard code and tests (#13585))
+src:*{/,\\}starboard{/,\\}nplb{/,\\}*
