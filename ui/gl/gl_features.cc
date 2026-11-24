@@ -223,17 +223,13 @@ bool UsePassthroughCommandDecoder() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(crbug.com/41482978): Fix single process rendering on nvidia Shield.
-<<<<<<< HEAD
-  if (base::MatchPattern(base::android::android_info::manufacturer(),
-                         "NVIDIA") &&
-      base::MatchPattern(base::android::android_info::model(), "SHIELD*")) {
-=======
   // Newer SHIELD firmware (e.g. darcy_nova on Android 16) reports Build.MODEL
   // as "NVIDIA Android TV" instead of "SHIELD Android TV" (b/576224535).
-  if (base::MatchPattern(build_info->manufacturer(), "NVIDIA") &&
-      (base::MatchPattern(build_info->model(), "SHIELD*") ||
-       base::MatchPattern(build_info->model(), "NVIDIA Android TV*"))) {
->>>>>>> 1ad93d0b6c7 (gl: Match "NVIDIA Android TV" in Shield passthrough decoder check (#13739))
+  if (base::MatchPattern(base::android::android_info::manufacturer(),
+                         "NVIDIA") &&
+      (base::MatchPattern(base::android::android_info::model(), "SHIELD*") ||
+       base::MatchPattern(base::android::android_info::model(),
+                          "NVIDIA Android TV*"))) {
     return false;
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
