@@ -86,6 +86,9 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
       NSArray<NSData*>* unpackedData = unpackData(packedData);
       if (unpackedData.count < 3) {
         SB_DLOG(ERROR) << "Invalid initialization data.";
+        [applicationDrmSystem
+            failSessionUpdateRequestWithTicket:ticket
+                                  errorMessage:"Invalid initialization data."];
         return;
       }
       NSData* initData = unpackedData[0];
