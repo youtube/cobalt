@@ -103,8 +103,6 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 // experimentation (--enable-features=CobaltStorageCleanup).
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 
-<<<<<<< HEAD
-=======
 // When enabled, skips queueing read-only cookie access timestamp updates
 // (COOKIE_UPDATEACCESS) to SQLite in
 // SQLitePersistentCookieStore::Backend::UpdateCookieAccessTime() so routine
@@ -122,16 +120,7 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltStorageCleanup);
 // Disabled by default for Finch/Mendel A/B experimentation
 // (--enable-features=CobaltSkipCookieUpdateAccess).
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipCookieUpdateAccess);
-// When enabled, optimizes LocalStorage LevelDB options (enabling reuse_logs
-// so cold-start DB::Open() reuses the existing write-ahead log without
-// synchronously compacting on open) and skips empty 0-mutation commits
-// while preserving Cobalt's 1s commit delay and synchronous writes
-// (sync = true). Disabled by default to allow controlled Finch/Mendel A/B
-// experimentation (--enable-features=CobaltLocalStorageReuseLogsAndSkipEmptyCommits).
-BASE_EXPORT BASE_DECLARE_FEATURE(
-    kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
 
->>>>>>> c4750f7c969 ([Cobalt] Skip Cookie Access-Time SQLite Writes to Reduce Commit Churn (#13538))
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.

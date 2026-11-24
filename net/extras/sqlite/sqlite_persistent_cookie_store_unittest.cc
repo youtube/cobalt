@@ -2522,7 +2522,6 @@ TEST_F(SQLitePersistentCookieStoreTest, EarlyInitDisabled) {
   histogram_tester.ExpectTotalCount("Cookie.CreateDatabaseEarly", 0);
 }
 
-<<<<<<< HEAD
 TEST_F(SQLitePersistentCookieStoreTest, EarlyInitEnabledCheckDiskTrue) {
   const base::FilePath cookie_file =
       temp_dir_.GetPath().Append(kCookieFilename);
@@ -2574,7 +2573,7 @@ TEST_F(SQLitePersistentCookieStoreTest, EarlyInitEnabledCheckDiskFalse) {
   EXPECT_TRUE(store_->IsBackendInitializedForTesting());
   EXPECT_TRUE(base::PathExists(cookie_file));
 }
-=======
+
 #if BUILDFLAG(IS_COBALT)
 TEST_F(SQLitePersistentCookieStoreTest, CobaltSkipCookieUpdateAccess) {
   base::test::ScopedFeatureList feature_list(
@@ -2585,7 +2584,7 @@ TEST_F(SQLitePersistentCookieStoreTest, CobaltSkipCookieUpdateAccess) {
   auto cookie1 = CanonicalCookie::CreateUnsafeCookieForTesting(
       "A", "B", "foo.bar", "/", t, t + base::Days(1), t, t,
       /*secure=*/false, /*httponly=*/false, CookieSameSite::NO_RESTRICTION,
-      COOKIE_PRIORITY_DEFAULT);
+      COOKIE_PRIORITY_DEFAULT, CookieSourceType::kOther);
   store_->AddCookie(*cookie1);
   Flush();
 
@@ -2616,7 +2615,7 @@ TEST_F(SQLitePersistentCookieStoreTest, CobaltSkipCookieUpdateAccess) {
   auto cookie2 = CanonicalCookie::CreateUnsafeCookieForTesting(
       "C", "D", "foo.bar", "/", t, t + base::Days(1), t, t,
       /*secure=*/false, /*httponly=*/false, CookieSameSite::NO_RESTRICTION,
-      COOKIE_PRIORITY_DEFAULT);
+      COOKIE_PRIORITY_DEFAULT, CookieSourceType::kOther);
   store_->AddCookie(*cookie2);
   EXPECT_EQ(2u, store_->GetQueueLengthForTesting());
 
@@ -2630,5 +2629,4 @@ TEST_F(SQLitePersistentCookieStoreTest, CobaltSkipCookieUpdateAccess) {
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> c4750f7c969 ([Cobalt] Skip Cookie Access-Time SQLite Writes to Reduce Commit Churn (#13538))
 }  // namespace net
