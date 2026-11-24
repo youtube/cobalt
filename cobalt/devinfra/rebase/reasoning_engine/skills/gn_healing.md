@@ -26,6 +26,7 @@ When a target definition in `BUILD.gn` fails or is suspected of merge/rebase ano
    - In M140, many source files were reorganized into subdirectories or sub-targets (e.g. `shared_image/*`).
    - Use `TOOL_FIND_FILE` to find the actual location of the missing file, or `TOOL_READ_FILE` on upstream definitions.
    - Update target `sources` list or replace with the appropriate sub-target dependency in `deps`.
+   - **Exception — Cobalt-side narrow Java targets in `cobalt/android/BUILD.gn` (e.g. `cobalt_compositor_view_jni`, `cobalt_compositor_view_java`)**: these targets intentionally list individual upstream `.java` files via explicit `//path/to/File.java` paths in `sources` so `Cobalt.apk` does not pull in bloated upstream `android_library` targets (such as `//components/thin_webview:factory_java` and its 25 MiB `browser_ui` resource tree). If upstream relocates one of those `.java` files, update `sources` to its new path (`TOOL_FIND_FILE`) — **NEVER** replace the narrow target with the upstream `:factory_java` / `:internal_java` dependency.
 2. HEADER VISIBILITY / GN CHECK ERRORS:
    - "Can't include this header from here: <header> ... from target: <target>"
    - **Check if the `#include` is guarded by a `#if BUILDFLAG(...)` macro first!**
