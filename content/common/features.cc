@@ -155,7 +155,6 @@ BASE_FEATURE(kCDPScreenshotNewSurface, base::FEATURE_DISABLED_BY_DEFAULT);
 // renderer main thread waiting for GPU channel establishment during background
 // EGL teardown.
 BASE_FEATURE(kCobaltSkipSyncGpuChannelWhenHidden,
-             "CobaltSkipSyncGpuChannelWhenHidden",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_COBALT)
 
