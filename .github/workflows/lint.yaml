@@ -122,3 +122,32 @@ jobs:
           pattern: '^(Bug|Fix|Fixed|Fixes|Issue): \d+$'
           flags: 'gm'
           error: 'PR title or description should include at least one bug ID.'
+
+  check-test-expectations:
+    name: TestExpectations Justification Check
+    # Autoroll PRs carry upstream changes to TestExpectations and are exempt.
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'autoroll-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 2
+          filter: blob:none
+          sparse-checkout: .github
+      - name: Require justification for TestExpectations changes
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if ! git diff --name-only HEAD~1 HEAD | grep -qx 'third_party/blink/web_tests/TestExpectations'; then
+            echo "TestExpectations is not modified."
+            exit 0
+          fi
+          if printf '%s\n' "${PR_BODY}" | tr -d '\r' | grep -qE '^TestExpectations-Justification: *[^ ]'; then
+            echo "Found TestExpectations-Justification in the PR description."
+            exit 0
+          fi
+          echo "::error file=third_party/blink/web_tests/TestExpectations::Cobalt-specific expectations belong in third_party/blink/web_tests/CobaltTestExpectations. If this change must modify TestExpectations, add 'TestExpectations-Justification: <reason>' to the PR description."
+          exit 1
