@@ -200,11 +200,13 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // before InitializeOnMainThread returns the default value which is false.
   static bool IsEnabled();
 #if BUILDFLAG(IS_COBALT)
-  // suspends hang watching when the application is frozen.
+  // Suspends hang watching when the application is frozen or concealed.
+  // Idempotent.
   static void Suspend();
 
-  // resumes hang watching after the application is unfrozen, ignoring
-  // pre-freeze deadlines.
+  // Resumes hang watching when the application is revealed, ignoring stale
+  // pre-suspend deadlines; watching applies to WatchHangsInScopes entered after
+  // Resume(). Idempotent.
   static void Resume();
 #endif
   static bool IsThreadPoolHangWatchingEnabled();
@@ -417,7 +419,12 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // delegate and Crashpad that a new hang incident has begun.
   // NOTE: RecordHang() is the upstream Chromium method that simply triggers
   // DumpWithoutCrashing(). RecordHangStarted() is Cobalt-specific for NSE.
-  void RecordHangStarted() EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+  void RecordHangStarted(uint64_t suspend_generation)
+      EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  // Clears the active hang state and notifies the delegate that the hang
+  // incident ended (either via thread recovery or Suspend() interruption).
+  void ResetActiveHang() EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
 
   // Communicates the unique hang identifier from RecordHangStarted() to a
   // subsequent execution of CheckHangState().
@@ -435,6 +442,12 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // This is used to prevent multiple long hang actions for the same hang.
   bool long_hang_logged_ GUARDED_BY_CONTEXT(hang_watcher_thread_checker_) =
       false;
+
+  // Suspend generation captured when active_hang_uuid_ was latched; if
+  // Suspend() increments g_suspend_generation, the active hang is reset so
+  // concealed time is never counted toward CheckForLongHangs().
+  uint64_t active_hang_suspend_generation_
+      GUARDED_BY_CONTEXT(hang_watcher_thread_checker_) = 0;
 
   // Iterates through the registered threads to determine if any thread has
   // been hung for a duration exceeding the long hang timeout. Emits a UMA
@@ -665,6 +678,9 @@ class BASE_EXPORT HangWatchDeadline {
   THREAD_CHECKER(thread_checker_);
 
   FRIEND_TEST_ALL_PREFIXES(HangWatchDeadlineTest, BitsPreservedThroughExtract);
+#if BUILDFLAG(IS_COBALT)
+  friend class ::base::HangWatcher;
+#endif
 };
 
 // Contains the information necessary for hang watching a specific

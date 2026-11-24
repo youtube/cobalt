@@ -839,6 +839,107 @@ TEST_F(HangWatcherSnapshotTest, TimeSinceLastSystemPowerResumeCrashKey) {
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+// Verifies that HangWatcher suspends hang capture while concealed, resumes
+// cleanly on reveal without poisoning deadline_ignore_threshold_ with Max(),
+// ignores redundant Resume() calls, and skips stale pre-suspend deadlines.
+TEST_F(HangWatcherSnapshotTest, CobaltConcealSuspendAndResume) {
+  hang_watcher_.SetOnHangClosureForTesting(
+      base::BindLambdaForTesting([this] { ++hang_capture_count_; }));
+  hang_watcher_.SetAfterMonitorClosureForTesting(
+      base::BindLambdaForTesting([this] { monitor_event_.Signal(); }));
+
+  hang_watcher_.Start();
+
+  auto unregister_thread_closure =
+      HangWatcher::RegisterThread(base::HangWatcher::ThreadType::kMainThread);
+
+  // 1. Initial foreground state: a hang is detected.
+  {
+    WatchHangsInScope expires_instantly(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(1, hang_capture_count_);
+  }
+
+  // 2. Suspend (app concealed): an expired scope during suspend MUST NOT be
+  // captured.
+  HangWatcher::Suspend();
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope expires_instantly(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    // Hang count should remain 1 (no hang captured while suspended).
+    EXPECT_EQ(1, hang_capture_count_);
+  }
+
+  // 3. Resume (app revealed): HangWatcher resumes. A subsequent foreground
+  // hang MUST be captured (verifies that Resume() does not set
+  // deadline_ignore_threshold_ to HangWatchDeadline::Max()).
+  HangWatcher::Resume();
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope expires_instantly(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(2, hang_capture_count_);
+  }
+
+  // 4. Redundant Resume() while already enabled MUST NOT advance
+  // deadline_ignore_threshold_ or mask an active foreground hang.
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope expires_instantly(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    HangWatcher::Resume();
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(3, hang_capture_count_);
+  }
+
+  // 5. A scope started BEFORE Suspend() that stays alive across Suspend() ->
+  // Resume() holds a stale finite deadline: Resume() must advance
+  // deadline_ignore_threshold_ past it so reveal does not falsely capture it,
+  // while still capturing the next foreground scope after it exits.
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope pre_suspend_scope(base::Seconds(5));
+    HangWatcher::Suspend();
+    task_environment_.AdvanceClock(base::Seconds(10));
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(3, hang_capture_count_);
+
+    HangWatcher::Resume();
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(3, hang_capture_count_);
+  }
+  task_environment_.AdvanceClock(kSmallCPUQuantum);
+  {
+    WatchHangsInScope fresh_foreground_scope(base::TimeDelta{});
+    task_environment_.AdvanceClock(kSmallCPUQuantum);
+    TriggerMonitorAndWaitForCompletion();
+    EXPECT_EQ(4, hang_capture_count_);
+  }
+}
+
+// When HangWatcher is disabled via feature flag, Resume() must remain a no-op
+// without flipping IsEnabled() to true while no instance exists.
+TEST(HangWatcherDisabledTest, CobaltResumeIsNoOpWithoutInstance) {
+  test::ScopedFeatureList disable_hang_watcher;
+  disable_hang_watcher.InitAndDisableFeature(kEnableHangWatcher);
+  HangWatcher::InitializeOnMainThread(HangWatcher::ProcessType::kBrowserProcess,
+                                      /*emit_crashes=*/false);
+  ASSERT_EQ(nullptr, HangWatcher::GetInstance());
+  ASSERT_FALSE(HangWatcher::IsEnabled());
+
+  HangWatcher::Resume();
+  EXPECT_FALSE(HangWatcher::IsEnabled());
+
+  HangWatcher::UninitializeOnMainThreadForTesting();
+}
+#endif
+
 namespace {
 
 // Determines how long the HangWatcher will wait between calls to
@@ -1010,6 +1111,68 @@ TEST_F(HangWatcherPeriodicMonitoringTest, NoMonitorOnOverSleep) {
   // limitation. It's expected for |TestTimeouts::tiny_timeout()| to be large
   // enough that this happens rarely.
 }
+
+#if BUILDFLAG(IS_COBALT)
+// Fixture for testing Cobalt's Wait() oversleep path with UI-thread dumps
+// enabled and deterministic thread join before teardown.
+class HangWatcherCobaltOverSleepTest : public testing::Test {
+ public:
+  HangWatcherCobaltOverSleepTest() {
+    feature_list_.InitWithFeaturesAndParameters(kFeatureAndParams, {});
+    HangWatcher::InitializeOnMainThread(
+        HangWatcher::ProcessType::kBrowserProcess, /*emit_crashes=*/true);
+    hang_watcher_ = std::make_unique<HangWatcher>();
+    hang_watcher_->SetMonitoringPeriodForTesting(kMonitoringPeriod);
+    hang_watcher_->SetTickClockForTesting(&test_clock_);
+  }
+
+  void TearDown() override {
+    hang_watcher_.reset();
+    HangWatcher::UninitializeOnMainThreadForTesting();
+  }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+  base::SimpleTestTickClock test_clock_;
+  test::SingleThreadTaskEnvironment task_environment_;
+  std::unique_ptr<HangWatcher> hang_watcher_;
+  WaitableEvent hang_event_;
+  WaitableEvent oversleep_processed_;
+  int wait_count_ = 0;
+};
+
+// When the OS suspends the process and HangWatcher::Wait() detects an abnormal
+// oversleep while a registered thread is idle at Max(), subsequent foreground
+// hangs after waking must still be captured rather than permanently masked.
+TEST_F(HangWatcherCobaltOverSleepTest,
+       CobaltOverSleepWithIdleThreadDoesNotMaskFutureHangs) {
+  hang_watcher_->SetOnHangClosureForTesting(base::BindLambdaForTesting([this] {
+    HangWatcher::StopMonitoringForTesting();
+    hang_event_.Signal();
+  }));
+  hang_watcher_->SetAfterWaitCallbackForTesting(
+      base::BindLambdaForTesting([this](base::TimeTicks) {
+        if (wait_count_ == 0) {
+          test_clock_.Advance(base::Minutes(1));  // Triggers !wait_was_normal.
+        } else {
+          if (wait_count_ == 1) {
+            // Previous loop iteration finished updating
+            // deadline_ignore_threshold_.
+            oversleep_processed_.Signal();
+          }
+          test_clock_.Advance(kMonitoringPeriod);
+        }
+        ++wait_count_;
+      }));
+  auto unregister_thread_closure =
+      HangWatcher::RegisterThread(HangWatcher::ThreadType::kMainThread);
+  hang_watcher_->Start();
+  oversleep_processed_.Wait();
+
+  WatchHangsInScope expires_instantly(base::TimeDelta{});
+  hang_event_.Wait();
+}
+#endif
 
 namespace {
 class WatchHangsInScopeBlockingTest : public testing::Test {
@@ -1818,6 +1981,101 @@ TEST_F(HangWatcherLongHangTest, DetectionDisabledLogsNothing) {
   histogram_tester.ExpectTotalCount("HangWatcher.LongHang.Detected", 0);
 
   hang_scope.reset();
+}
+
+// When a foreground hang starts and the app is concealed past the long-hang
+// timeout, Suspend() must reset the active hang incident so concealed duration
+// neither leaves a stale hang_uuid nor triggers a false long-hang kill on
+// reveal, while preserving long-hang detection for new foreground hangs.
+TEST_F(HangWatcherLongHangTest,
+       ConcealSuspendResetsActiveHangAndPreventsLongHang) {
+  base::HistogramTester histogram_tester;
+  testing::StrictMock<MockHangWatcherDelegate> mock_delegate;
+  auto unregister_thread_closure = StartAndRegister(
+      mock_delegate,
+      /*detection_enabled=*/true,
+      /*kill_enabled=*/true,
+      /*long_hang_timeout=*/base::Seconds(10),
+      base::BindRepeating(&base::WaitableEvent::Signal,
+                          base::Unretained(&force_kill_event_)));
+  hang_watcher_->SetOnHangClosureForTesting(base::BindRepeating([] {}));
+
+  // 1. Pre-suspend hang stays unwinding across a 30s conceal -> reveal cycle:
+  // Resume() + Monitor() must clear the interrupted incident without counting
+  // concealed time toward CheckForLongHangs().
+  std::string first_uuid;
+  auto pre_suspend_scope =
+      std::make_unique<WatchHangsInScope>(base::Seconds(1));
+  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
+      .WillOnce(testing::SaveArg<0>(&first_uuid));
+  task_environment_.FastForwardBy(base::Seconds(1));
+  TriggerMonitorAndWait();
+  ASSERT_FALSE(first_uuid.empty());
+
+  HangWatcher::Suspend();
+  task_environment_.FastForwardBy(base::Seconds(30));
+  HangWatcher::Resume();
+
+  EXPECT_CALL(mock_delegate, RecordHangRecovered(first_uuid)).Times(1);
+  TriggerMonitorAndWait();
+  EXPECT_FALSE(force_kill_event_.IsSignaled());
+  histogram_tester.ExpectTotalCount("HangWatcher.LongHang.Detected", 0);
+  pre_suspend_scope.reset();
+
+  // 2. An active hang followed by Suspend() clears active_hang_uuid_ on the
+  // next Monitor() tick while still concealed (without waiting for reveal), and
+  // subsequent ticks while concealed do not double-report recovery.
+  std::string second_uuid;
+  auto second_scope = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
+      .WillOnce(testing::SaveArg<0>(&second_uuid));
+  task_environment_.FastForwardBy(base::Seconds(1));
+  TriggerMonitorAndWait();
+
+  HangWatcher::Suspend();
+  EXPECT_CALL(mock_delegate, RecordHangRecovered(second_uuid)).Times(1);
+  TriggerMonitorAndWait();
+  TriggerMonitorAndWait();
+  second_scope.reset();
+
+  // 3. If Suspend() -> Resume() AND a new post-resume hang all occur between
+  // two Monitor() ticks, Monitor() must reset the stale pre-suspend incident
+  // BEFORE capturing the new hang so the new hang gets a fresh UUID and retains
+  // long-hang kill tracking.
+  HangWatcher::Resume();
+  std::string pre_quick_suspend_uuid;
+  auto quick_scope = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+  EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
+      .WillOnce(testing::SaveArg<0>(&pre_quick_suspend_uuid));
+  task_environment_.FastForwardBy(base::Seconds(1));
+  TriggerMonitorAndWait();
+  quick_scope.reset();
+
+  HangWatcher::Suspend();
+  HangWatcher::Resume();
+
+  std::string third_uuid;
+  auto fg_long_hang = std::make_unique<WatchHangsInScope>(base::Seconds(1));
+  task_environment_.FastForwardBy(base::Seconds(1));
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(mock_delegate, RecordHangRecovered(pre_quick_suspend_uuid))
+        .Times(1);
+    EXPECT_CALL(mock_delegate, RecordHangStarted(testing::_))
+        .WillOnce(testing::SaveArg<0>(&third_uuid));
+  }
+  TriggerMonitorAndWait();
+  ASSERT_FALSE(third_uuid.empty());
+  EXPECT_NE(third_uuid, pre_quick_suspend_uuid);
+
+  task_environment_.FastForwardBy(base::Seconds(11));
+  TriggerMonitorAndWait();
+  EXPECT_TRUE(force_kill_event_.IsSignaled());
+  histogram_tester.ExpectUniqueSample("HangWatcher.LongHang.Detected", true, 1);
+
+  fg_long_hang.reset();
+  EXPECT_CALL(mock_delegate, RecordHangRecovered(third_uuid)).Times(1);
+  TriggerMonitorAndWait();
 }
 
 TEST_F(HangWatcherCobaltTest, AlternatingHangsSingleUuid) {

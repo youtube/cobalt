@@ -77,6 +77,7 @@ std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{
     LoggingLevel::kNone};
 
 static std::atomic<HangWatcher::Delegate*> g_hang_watcher_delegate{nullptr};
+std::atomic<uint64_t> g_suspend_generation{0};
 #endif
 
 // Indicates whether HangWatcher::Run() should return after the next monitoring.
@@ -618,6 +619,7 @@ void HangWatcher::UninitializeOnMainThreadForTesting() {
 
   g_browser_process_renderer_thread_log_level.store(LoggingLevel::kNone,
                                                     std::memory_order_relaxed);
+  g_suspend_generation.store(0, std::memory_order_relaxed);
 #endif
   g_use_hang_watcher.store(false, std::memory_order_relaxed);
   g_threadpool_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
@@ -636,26 +638,39 @@ bool HangWatcher::IsEnabled() {
 #if BUILDFLAG(IS_COBALT)
 // static
 void HangWatcher::Suspend() {
-  // suspends hang watching when the application is frozen.
-  g_use_hang_watcher.store(false, std::memory_order_relaxed);
+  g_use_hang_watcher.store(false, std::memory_order_release);
+  g_suspend_generation.fetch_add(1, std::memory_order_acq_rel);
 }
 
 // static
 void HangWatcher::Resume() {
-  if (g_instance) {
-    // resumes hang watching when the application is unfrozen, explicitly
-    // ignoring pre-freeze deadlines to prevent false hang reports.
-    base::AutoLock auto_lock(g_instance->watch_state_lock_);
-    base::TimeTicks latest_deadline;
-    for (const auto& state : g_instance->watch_states_) {
-      base::TimeTicks deadline = state->GetDeadline();
-      if (deadline > latest_deadline) {
-        latest_deadline = deadline;
-      }
-    }
-    g_instance->deadline_ignore_threshold_ = latest_deadline;
+  if (!g_instance) {
+    return;
   }
-  g_use_hang_watcher.store(true, std::memory_order_relaxed);
+  base::AutoLock auto_lock(g_instance->watch_state_lock_);
+  // Already active; don't advance deadline_ignore_threshold_ on a duplicate
+  // reveal (e.g. Android compositor + Starboard) and mask a live hang.
+  if (g_use_hang_watcher.load(std::memory_order_relaxed)) {
+    return;
+  }
+  // Registered threads stay in watch_states_ across Suspend(): threads between
+  // tasks (or inside a WatchHangsInScope entered while suspended) sit at Max(),
+  // while a thread still inside a pre-Suspend() task holds that stale finite
+  // deadline. Advance the ignore threshold past any such stale deadline without
+  // resetting it to 0 (which could trigger false/duplicate dumps) or setting it
+  // to Max() (which would suppress all future hang reports). Any scope entered
+  // before Resume() is not watched; watching resumes on the next new scope.
+  base::TimeTicks latest_deadline = g_instance->deadline_ignore_threshold_;
+  for (const auto& state : g_instance->watch_states_) {
+    base::TimeTicks deadline = state->GetDeadline();
+    if (deadline != internal::HangWatchDeadline::Max() &&
+        deadline > latest_deadline) {
+      latest_deadline = deadline;
+    }
+  }
+  g_instance->deadline_ignore_threshold_ = latest_deadline;
+  // Flip enabled under watch_state_lock_ after updating the threshold.
+  g_use_hang_watcher.store(true, std::memory_order_release);
 }
 #endif
 
@@ -872,6 +887,18 @@ void HangWatcher::Wait() {
       // means the new WatchHangsInScope was constructed very soon after the
       // abnormal sleep happened and might be affected by the root cause still.
       // Ignoring it is cautious and harmless.
+#if BUILDFLAG(IS_COBALT)
+      // Keep threshold monotonic and skip threads sitting at Max() (see
+      // Resume()).
+      base::TimeTicks latest_deadline = deadline_ignore_threshold_;
+      for (const auto& state : watch_states_) {
+        base::TimeTicks deadline = state->GetDeadline();
+        if (deadline != internal::HangWatchDeadline::Max() &&
+            deadline > latest_deadline) {
+          latest_deadline = deadline;
+        }
+      }
+#else
       base::TimeTicks latest_deadline;
       for (const auto& state : watch_states_) {
         base::TimeTicks deadline = state->GetDeadline();
@@ -879,6 +906,7 @@ void HangWatcher::Wait() {
           latest_deadline = deadline;
         }
       }
+#endif
 
       deadline_ignore_threshold_ = latest_deadline;
     }
@@ -1173,7 +1201,7 @@ HangWatcher::WatchStateSnapShot HangWatcher::GrabWatchStateSnapshotForTesting()
 }
 
 #if BUILDFLAG(IS_COBALT)
-void HangWatcher::RecordHangStarted() {
+void HangWatcher::RecordHangStarted(uint64_t suspend_generation) {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
   if (!g_hang_reporting_enabled.load(std::memory_order_relaxed)) {
     return;
@@ -1184,6 +1212,7 @@ void HangWatcher::RecordHangStarted() {
 
   active_hang_uuid_ = base::Uuid::GenerateRandomV4().AsLowercaseString();
   hang_start_time_ = tick_clock_->NowTicks();
+  active_hang_suspend_generation_ = suspend_generation;
   std::string uuid_to_report = active_hang_uuid_;
 
   {
@@ -1195,10 +1224,42 @@ void HangWatcher::RecordHangStarted() {
   }
 }
 
+void HangWatcher::ResetActiveHang() {
+  DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
+  if (active_hang_uuid_.empty()) {
+    return;
+  }
+
+  std::string uuid_to_report = active_hang_uuid_;
+  active_hang_uuid_.clear();
+  hang_start_time_ = base::TimeTicks();
+  long_hang_logged_ = false;
+  active_hang_suspend_generation_ = 0;
+
+  {
+    // Unlock before calling out to the delegate to prevent deadlocks with
+    // embedder code.
+    base::AutoUnlock auto_unlock(watch_state_lock_);
+
+    auto* delegate = g_hang_watcher_delegate.load(std::memory_order_acquire);
+    if (delegate) {
+      delegate->RecordHangRecovered(uuid_to_report);
+    }
+  }
+}
+
 void HangWatcher::CheckHangState() {
   DCHECK_CALLED_ON_VALID_THREAD(hang_watcher_thread_checker_);
 
   if (active_hang_uuid_.empty()) {
+    return;
+  }
+
+  // If Suspend() ran since this hang incident was latched, reset it so
+  // concealed time is not counted toward CheckForLongHangs().
+  if (active_hang_suspend_generation_ !=
+      g_suspend_generation.load(std::memory_order_acquire)) {
+    ResetActiveHang();
     return;
   }
 
@@ -1229,21 +1290,7 @@ void HangWatcher::CheckHangState() {
 
   // If all hangs cleared, mark last hang as recovered.
   if (!any_thread_hung) {
-    std::string uuid_to_report = active_hang_uuid_;
-    active_hang_uuid_.clear();
-    hang_start_time_ = base::TimeTicks();
-    long_hang_logged_ = false;
-
-    {
-      // Unlock before calling out to the delegate to prevent deadlocks with
-      // embedder code.
-      base::AutoUnlock auto_unlock(watch_state_lock_);
-
-      auto* delegate = g_hang_watcher_delegate.load(std::memory_order_acquire);
-      if (delegate) {
-        delegate->RecordHangRecovered(uuid_to_report);
-      }
-    }
+    ResetActiveHang();
   } else {
     // If still hanging, check if this is a long hang by now.
     CheckForLongHangs(now);
@@ -1305,11 +1352,26 @@ void HangWatcher::Monitor() {
 #if BUILDFLAG(IS_COBALT)
   // suspends monitoring when the application is frozen.
   if (!IsEnabled()) {
+    if (!active_hang_uuid_.empty()) {
+      AutoLock auto_lock(watch_state_lock_);
+      ResetActiveHang();
+    }
     return;
   }
 #endif
 
   AutoLock auto_lock(watch_state_lock_);
+
+#if BUILDFLAG(IS_COBALT)
+  // If Suspend() ran since an active hang was latched (e.g. a fast
+  // Suspend() -> Resume() between Monitor() ticks), reset it before capturing
+  // any new post-resume hang so RecordHangStarted() latches a fresh UUID.
+  if (!active_hang_uuid_.empty() &&
+      active_hang_suspend_generation_ !=
+          g_suspend_generation.load(std::memory_order_acquire)) {
+    ResetActiveHang();
+  }
+#endif
 
   // If all threads unregistered since this function was invoked there's
   // nothing to do anymore.
@@ -1339,11 +1401,22 @@ void HangWatcher::DoDumpWithoutCrashing(
   TRACE_EVENT("latency", "HangWatcher::DoDumpWithoutCrashing");
 
 #if BUILDFLAG(IS_COBALT)
-  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing. Actionable: " << watch_state_snapshot.IsActionable();
+  const uint64_t suspend_generation =
+      g_suspend_generation.load(std::memory_order_acquire);
+  // Re-check enabled state before locking/dumping in case Suspend() ran after
+  // snapshot.
+  if (!g_use_hang_watcher.load(std::memory_order_acquire)) {
+    return;
+  }
 #endif
 
   capture_in_progress_.store(true, std::memory_order_relaxed);
   base::AutoLock scope_lock(capture_lock_);
+
+#if BUILDFLAG(IS_COBALT)
+  LOG(INFO) << "Freeze detection: Triggering DumpWithoutCrashing. Actionable: "
+            << watch_state_snapshot.IsActionable();
+#endif
 
 #if !BUILDFLAG(IS_NACL)
   const std::string list_of_hung_thread_ids =
@@ -1454,7 +1527,7 @@ void HangWatcher::DoDumpWithoutCrashing(
       watch_state_snapshot.GetHighestDeadline();
 
 #if BUILDFLAG(IS_COBALT)
-  RecordHangStarted();
+  RecordHangStarted(suspend_generation);
 #endif
   if (on_hang_closure_for_testing_) {
     on_hang_closure_for_testing_.Run();
@@ -1471,7 +1544,12 @@ void HangWatcher::DoDumpWithoutCrashing(
   }
 
   // Update after running the actual capture.
+#if BUILDFLAG(IS_COBALT)
+  deadline_ignore_threshold_ =
+      std::max(deadline_ignore_threshold_, latest_expired_deadline);
+#else
   deadline_ignore_threshold_ = latest_expired_deadline;
+#endif
 
   capture_in_progress_.store(false, std::memory_order_relaxed);
 }
