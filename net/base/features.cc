@@ -788,6 +788,12 @@ BASE_FEATURE(kRestrictAbusePortsOnLocalhost,
 BASE_FEATURE(kCobaltHttpCacheFontAndPassThrough,
              "CobaltHttpCacheFontAndPassThrough",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltQuicReadBatch,
+             "CobaltQuicReadBatch",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kCobaltQuicReadBatchPackets{
+    &kCobaltQuicReadBatch, "CobaltQuicReadBatch_packets", 16};
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features

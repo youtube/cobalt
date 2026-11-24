@@ -4,6 +4,19 @@
   "tests_to_run": [
     "HttpCacheTest.CobaltFontMimeTypesCachedWhenFeatureEnabled",
     "HttpCacheTest.CobaltShouldPassThroughExcludedUrls",
-    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty"
+    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty",
+    "QuicChromiumPacketReaderCobaltTest.BurstDrainReusesBufferWithoutPoolRoundTrip",
+    "QuicChromiumPacketReaderCobaltTest.CloseSocketCancelsYieldedTaskAndReleasesBuffers",
+    "QuicChromiumPacketReaderCobaltTest.FallbackSinglePacketKeepsBufferAliveDuringOnPacketCloseSocket",
+    "QuicChromiumPacketReaderCobaltTest.FallbackToSinglePacketLazilyAllocatesReadBuffer",
+    "QuicChromiumPacketReaderCobaltTest.LazyReadBufferAndBufferRecycling",
+    "QuicChromiumPacketReaderCobaltTest.MultiPacketOnPacketCloseSocketKeepsPayloadValidAndRecyclesBuffer",
+    "QuicChromiumPacketReaderCobaltTest.NonFallbackErrorDoesNotFallThroughToSinglePacketRead",
+    "QuicChromiumPacketReaderCobaltTest.RealUdpSocketSpyVerifiesConfiguredRecvmmsgBatchSize",
+    "UDPSocketTest.CobaltQuicReadBatchResolvesLazilyAndResetsOnClose",
+    "UDPSocketTest.ReadMultiplePacketsCapsBatchAt16AndDrainsRemaining",
+    "UDPSocketTest.ReadMultiplePacketsCloseWhilePendingReleasesState",
+    "UDPSocketTest.ReadMultiplePacketsReleasesBufferWhenIdleAndReusesPool",
+    "UDPSocketTest.ReadMultiplePacketsRespectsFinchBatchParamAndClamps"
   ]
 }
