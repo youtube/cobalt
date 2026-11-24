@@ -55,15 +55,13 @@ class ServiceWorkerQuotaClient;
 class ServiceWorkerRegistration;
 struct ServiceWorkerContextSynchronousObserverList;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
 class ServiceWorkerHidDelegateObserver;
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
-    !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 class ServiceWorkerUsbDelegateObserver;
-#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
-        // !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 
 // A smart pointer of `ServiceWorkerClient`.
 //
@@ -570,15 +568,14 @@ class CONTENT_EXPORT ServiceWorkerContextCore
     test_version_observers_.RemoveObserver(observer);
   }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
   ServiceWorkerHidDelegateObserver* hid_delegate_observer();
 
   void SetServiceWorkerHidDelegateObserverForTesting(
       std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer);
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
-    !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
   // In the service worker case, WebUSB is only available in extension service
   // workers. Limit ServiceWorkerUsbDelegateObserver to platforms that support
   // extensions.
@@ -586,8 +583,7 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   void SetServiceWorkerUsbDelegateObserverForTesting(
       std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer);
-#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
-        // !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 
  private:
   friend class ServiceWorkerContextCoreTest;
@@ -704,15 +700,13 @@ class CONTENT_EXPORT ServiceWorkerContextCore
 
   bool is_processing_warming_up_ = false;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<ServiceWorkerHidDelegateObserver> hid_delegate_observer_;
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) && \
-    !BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
   std::unique_ptr<ServiceWorkerUsbDelegateObserver> usb_delegate_observer_;
-#endif  // (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)) &&
-        // !BUILDFLAG(IS_COBALT)
+#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
 
   base::ObserverList<TestVersionObserver> test_version_observers_;
 
