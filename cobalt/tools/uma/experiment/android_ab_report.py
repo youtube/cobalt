@@ -180,6 +180,7 @@ SAMPLED_PREFIXES = ('Memory.Experimental.', 'Memory.Browser.', 'Memory.Total.',
 MIN_PAIRS = 6
 
 PHASE_TITLES = {
+    'warmup_1': 'Warmup Launch 1 — Transitional First Launch (W1)',
     'homefeed': 'In-Session Cold Start to Home (S1)',
     'exit_flush': 'Lifecycle Exit Flush (S2 - S1)',
 }
@@ -477,8 +478,12 @@ def run_phases(results_dir: str, record: dict) -> dict:
   """Returns {phase: {histogram name: histogram}} for one run."""
   dump = os.path.join(results_dir, record['dump'])
   root, ext = os.path.splitext(dump)
+  phases = {}
+  w1_path = f'{root}.w1{ext}'
+  if os.path.exists(w1_path):
+    phases['warmup_1'] = uma_dump.parse_dump(w1_path)[0]
   s1 = uma_dump.parse_dump(dump)[0]
-  phases = {'homefeed': s1}
+  phases['homefeed'] = s1
   s1_path = f'{root}.s1{ext}'
   s2_path = f'{root}.s2{ext}'
   if os.path.exists(s2_path):

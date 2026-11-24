@@ -39,9 +39,10 @@ Protocol (CDP).
     `h5vcc.system.exit()`, waits `3s`, and snapshots `S2` so `S2 - S1`
     captures the lifecycle exit flush.
   - When `--warmup-runs 1` is passed (for warm-cache / post-cleanup Launch #2
-    verification), each warmup launch sends `KEYCODE_HOME` + `3s` settle
-    before `stop_package()` so `SimpleCache` writes `the-real-index` and
-    `GrShaderCache` flushes compiled shaders to disk.
+    verification), `android_ab_harness.py` automatically captures Warmup Launch
+    #1 into `<run>.w1.txt` (`warmup_1` phase in `android_ab_report.py`) before
+    sending `KEYCODE_HOME` + `3s` settle + `stop_package()`, so a single ABBA
+    session reports both transitional Launch #1 and steady-state Launch #2.
 
 ## Arm Flags
 

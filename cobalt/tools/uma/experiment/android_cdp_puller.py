@@ -128,15 +128,20 @@ _get_cobalt_resident_memory_metrics = (
     base_cdp._get_cobalt_resident_memory_metrics)  # pylint: disable=protected-access
 
 
+def _adb_cmd(*subargs: str, serial: str = None) -> list:
+  """Builds an adb command list honoring serial or $ANDROID_SERIAL."""
+  dev = serial if serial is not None else os.environ.get('ANDROID_SERIAL', '')
+  return (['adb', '-s', dev] if dev else ['adb']) + list(subargs)
+
+
 def clear_stability_metrics_pma(package_name: str, quiet: bool):
   """Removes stale BrowserStabilityMetrics .pma files before a measured run."""
   _print_q(
       'Clearing stale BrowserStabilityMetrics .pma files for '
       f"'{package_name}'...", quiet)
-  run_adb_command([
-      'adb', 'shell', 'run-as', package_name, 'rm', '-rf',
-      'app_content_shell/BrowserStabilityMetrics'
-  ])
+  run_adb_command(
+      _adb_cmd('shell', 'run-as', package_name, 'rm', '-rf',
+               'app_content_shell/BrowserStabilityMetrics'))
 
 
 def get_websocket_url(platform: str, port: int, quiet: bool):
@@ -145,10 +150,9 @@ def get_websocket_url(platform: str, port: int, quiet: bool):
     return base_cdp.get_websocket_url(platform=platform, port=port, quiet=quiet)
   for i in range(MAX_WEBSOCKET_RETRIES):
     try:
-      run_adb_command([
-          'adb', 'forward', f'tcp:{port}',
-          'localabstract:content_shell_devtools_remote'
-      ])
+      run_adb_command(
+          _adb_cmd('forward', f'tcp:{port}',
+                   'localabstract:content_shell_devtools_remote'))
       response = requests.get(f'http://{CDP_HOST}:{port}/json', timeout=5)
       response.raise_for_status()
       targets = response.json()
@@ -644,13 +648,6 @@ def _run_landing_gate(args, output_file) -> bool:
   return result['ok']
 
 
-def _interact_via_cdp(websocket_url: str, histograms: list, output_file,
-                      url: str, quiet: bool):
-  """Queries Performance.getMetrics and Browser.getHistograms once via CDP."""
-  base_cdp._interact_via_cdp(  # pylint: disable=protected-access
-      websocket_url, histograms, output_file, url, quiet)
-
-
 def _wait_with_android_navigation(duration_s: float,
                                   quiet: bool,
                                   stop_event=None,
@@ -691,7 +688,7 @@ def _wait_with_android_navigation(duration_s: float,
       continue
     _print_q(f'Sending Android navigation key {keycode} at t={event_s:.0f}s',
              quiet)
-    run_adb_command(['adb', 'shell', 'input', 'keyevent', keycode])
+    run_adb_command(_adb_cmd('shell', 'input', 'keyevent', keycode))
   remaining = duration_s - (time.monotonic() - start)
   if remaining > 0:
     time.sleep(remaining)
@@ -783,15 +780,18 @@ def _reconnect_cdp_session(websocket_url: str,
       pass
   platform = getattr(args, 'platform', 'android')
   port = getattr(args, 'port', 9222)
+  serial = getattr(args, 'device_id', None)
   last_err = None
   for attempt in range(5):
     if attempt:
       time.sleep(1)
     if platform == 'android':
-      run_adb_command([
-          'adb', 'forward', f'tcp:{port}',
-          'localabstract:content_shell_devtools_remote'
-      ])
+      run_adb_command(
+          _adb_cmd(
+              'forward',
+              f'tcp:{port}',
+              'localabstract:content_shell_devtools_remote',
+              serial=serial))
     new_url = _find_page_websocket_url(port) or websocket_url
     try:
       return _CdpSession(new_url)
@@ -800,10 +800,38 @@ def _reconnect_cdp_session(websocket_url: str,
   raise last_err
 
 
+def _capture_single_snapshot(websocket_url: str, histograms: list, args,
+                             output_file):
+  """Captures a single cumulative snapshot with wildcard/dot filtering."""
+  holder = [None]
+
+  def reconnect(old_session=None):
+    holder[0] = _reconnect_cdp_session(websocket_url, args, old_session or
+                                       holder[0])
+    return holder[0]
+
+  try:
+    try:
+      holder[0] = _CdpSession(websocket_url)
+    except Exception:  # pylint: disable=broad-exception-caught
+      reconnect()
+    lines, _ = _snapshot_histograms(holder[0], histograms, reconnect=reconnect)
+    if output_file:
+      output_file.writelines(lines)
+      output_file.flush()
+  finally:
+    if holder[0] is not None:
+      try:
+        holder[0].close()
+      except Exception:  # pylint: disable=broad-exception-caught
+        pass
+
+
 def _capture_session_and_exit_flush(websocket_url: str, histograms: list, args,
                                     output_file):
   """Captures in-session snapshot S1, triggers exit, and captures S2."""
   holder = [None]
+  serial = getattr(args, 'device_id', None)
 
   def reconnect(old_session=None):
     holder[0] = _reconnect_cdp_session(websocket_url, args, old_session or
@@ -828,7 +856,8 @@ def _capture_session_and_exit_flush(websocket_url: str, histograms: list, args,
       reconnect()
       exit_method = holder[0].evaluate(exit_js)
     if exit_method != 'h5vcc.system.exit':
-      run_adb_command(['adb', 'shell', 'input', 'keyevent', 'KEYCODE_HOME'])
+      run_adb_command(
+          _adb_cmd('shell', 'input', 'keyevent', 'KEYCODE_HOME', serial=serial))
       exit_method = 'KEYCODE_HOME'
     time.sleep(EXIT_FLUSH_SETTLE_S)
     exit_info = {'method': exit_method, 'ok': True}
@@ -908,8 +937,7 @@ def loop(websocket_url: str, stop_event, histograms: list, args, output_file):
         _capture_session_and_exit_flush(websocket_url, histograms, args,
                                         output_file)
       else:
-        _interact_via_cdp(websocket_url, histograms, output_file, args.url,
-                          args.quiet)
+        _capture_single_snapshot(websocket_url, histograms, args, output_file)
     elif iteration % 5 == 0:
       _print_q(f'{header_prefix} App not running.', args.quiet)
 
@@ -950,12 +978,12 @@ def _run_warmup_cycles(args, histograms: list):
   warmup_runs = getattr(args, 'warmup_runs', 0)
   if not isinstance(warmup_runs, int) or warmup_runs <= 0:
     return
+  serial = getattr(args, 'device_id', None)
+  if serial:
+    os.environ['ANDROID_SERIAL'] = serial
   warmup_duration_s = getattr(args, 'warmup_duration_s',
                               DEFAULT_WARMUP_DURATION_S)
   warmup_output_path = getattr(args, 'warmup_output_file', None)
-  if warmup_output_path:
-    with open(warmup_output_path, 'w', encoding='utf-8'):
-      pass
 
   for run_idx in range(1, warmup_runs + 1):
     _print_q(
@@ -971,16 +999,16 @@ def _run_warmup_cycles(args, histograms: list):
         args.quiet,
         nav_end_s=getattr(args, 'nav_end_s', ANDROID_NAV_END_TIME_S),
         no_dpad_nav=getattr(args, 'no_dpad_nav', False))
-    if warmup_output_path:
+    if warmup_output_path and run_idx == 1:
       ws_url = get_websocket_url(
           platform=args.platform, port=args.port, quiet=args.quiet)
       if ws_url:
-        with open(warmup_output_path, 'a', encoding='utf-8') as warmup_file:
-          _interact_via_cdp(ws_url, histograms, warmup_file, args.url,
-                            args.quiet)
+        with open(warmup_output_path, 'w', encoding='utf-8') as warmup_file:
+          _capture_single_snapshot(ws_url, histograms, args, warmup_file)
     # Background the activity before force-stopping so SimpleCache writes
     # the-real-index (INDEX_WRITE_REASON_ANDROID_STOPPED) and storage flushes.
-    run_adb_command(['adb', 'shell', 'input', 'keyevent', 'KEYCODE_HOME'])
+    run_adb_command(
+        _adb_cmd('shell', 'input', 'keyevent', 'KEYCODE_HOME', serial=serial))
     time.sleep(EXIT_FLUSH_SETTLE_S)
     stop_package(args.package_name, args.quiet)
 
@@ -1058,6 +1086,8 @@ def _run_main_inner(args, output_file, histograms: list) -> int:
 
 def _run_main(args, output_file) -> int:
   """The main logic of the script. Returns the process exit code."""
+  if getattr(args, 'device_id', None):
+    os.environ['ANDROID_SERIAL'] = args.device_id
   _apply_mode_and_network_defaults(args)
   if args.histogram_file:
     histograms = _get_histograms_from_file(args.histogram_file)

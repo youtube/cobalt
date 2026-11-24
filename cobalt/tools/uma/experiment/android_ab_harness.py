@@ -385,7 +385,8 @@ def validate_run(mode: str,
                  *,
                  landing_gate_s: float = 14.0,
                  network: str = 'live',
-                 exit_flush: bool = False) -> dict:
+                 exit_flush: bool = False,
+                 warmup_runs: int = 0) -> dict:
   """Checks one run's output; returns {'valid', 'reason', ...details}."""
   info = {'valid': False, 'reason': '', 'landing': None}
   if not os.path.exists(dump_path):
@@ -425,6 +426,17 @@ def validate_run(mode: str,
   if len(histograms) < MIN_HISTOGRAMS_PER_DUMP:
     info['reason'] = f'only {len(histograms)} histograms in the dump'
     return info
+  if warmup_runs > 0:
+    root, ext = os.path.splitext(dump_path)
+    ext = ext or '.txt'
+    w1_path = f'{root}.w1{ext}'
+    if not os.path.exists(w1_path):
+      info['reason'] = 'warmup_1: missing .w1.txt snapshot'
+      return info
+    w1_hists, _ = uma_dump.parse_dump(w1_path)
+    if len(w1_hists) < MIN_HISTOGRAMS_PER_DUMP:
+      info['reason'] = f'warmup_1: only {len(w1_hists)} histograms in .w1.txt'
+      return info
   if uma_dump.EXIT_FLUSH_KEY in annotations:
     info['exit_flush'] = annotations.get(uma_dump.EXIT_FLUSH_KEY)
   if exit_flush:
@@ -489,9 +501,13 @@ class Harness:
       cmd.append(f'--app-url={a.app_url}')
     if warmup_runs > 0:
       warmup_dur = getattr(a, 'warmup_duration_s', DEFAULT_WARMUP_DURATION_S)
+      root, ext = os.path.splitext(dump_path)
+      ext = ext or '.txt'
+      w1_path = f'{root}.w1{ext}'
       cmd += [
           f'--warmup-runs={warmup_runs}',
           f'--warmup-duration-s={warmup_dur}',
+          f'--warmup-output-file={w1_path}',
       ]
     if mode == 'wpr' or network in ('record', 'replay'):
       http_port = getattr(a, 'wpr_http_port', DEFAULT_WPR_HTTP_PORT)
@@ -615,7 +631,8 @@ class Harness:
           a.url_params,
           landing_gate_s=a.landing_gate_s,
           network=getattr(a, 'network', 'live'),
-          exit_flush=bool(getattr(a, 'exit_flush', False)))
+          exit_flush=bool(getattr(a, 'exit_flush', False)),
+          warmup_runs=warmup_runs)
       record = {
           'type': 'run',
           'experiment': a.experiment,

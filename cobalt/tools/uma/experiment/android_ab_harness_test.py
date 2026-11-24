@@ -102,6 +102,23 @@ class HomeAndWprRecipeTest(unittest.TestCase):
     self.assertIn('--exit-flush', cmd_b)
     self.assertIn('--warmup-runs=1', cmd_b)
     self.assertIn('--warmup-duration-s=25.0', cmd_b)
+    self.assertIn('--warmup-output-file=/tmp/out/b.w1.txt', cmd_b)
+
+  def test_validate_run_requires_w1_dump_when_warmup_enabled(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      dump_path = os.path.join(tmp, 'slot.txt')
+      with open(dump_path, 'w', encoding='utf-8') as f:
+        f.write(_make_dump_lines(25))
+      missing_w1 = ab_harness.validate_run(
+          'wpr', dump_path, 0, '', landing_gate_s=0.0, warmup_runs=1)
+      self.assertFalse(missing_w1['valid'])
+      self.assertIn('missing .w1.txt', missing_w1['reason'])
+
+      with open(os.path.join(tmp, 'slot.w1.txt'), 'w', encoding='utf-8') as f:
+        f.write(_make_dump_lines(25))
+      ok = ab_harness.validate_run(
+          'wpr', dump_path, 0, '', landing_gate_s=0.0, warmup_runs=1)
+      self.assertTrue(ok['valid'])
 
   def test_parse_args_and_pull_command_wpr_mode(self):
     args = ab_harness.parse_args([
@@ -420,6 +437,98 @@ class EnumBucketAndExitFlushTest(unittest.TestCase):
       ef = {(r['name'], r['stat']): r for r in phase_rows['exit_flush']}
       self.assertEqual(ef[('LevelDBEnv.SyncResult', 'count')]['tag'],
                        '[UNCHANGED]')
+
+  def test_warmup_1_phase_reported_before_homefeed(self):
+    with tempfile.TemporaryDirectory() as tmp:
+      manifest = []
+      for pair in range(1, ab_report.MIN_PAIRS + 1):
+        order = 'AB' if pair % 2 else 'BA'
+        for slot, arm in enumerate(order):
+          base = f'cache_ab_p{pair:02d}_{arm}'
+          w1_line = ''.join(
+              uma_dump.histograms_to_lines({
+                  'Cobalt.Storage.ProcessIo.StartupWriteKB': {
+                      'name':
+                          'Cobalt.Storage.ProcessIo.StartupWriteKB',
+                      'count':
+                          1,
+                      'sum':
+                          2000 if arm == 'A' else 7600,
+                      'buckets': [{
+                          'low': 2000 if arm == 'A' else 7600,
+                          'high': 2100 if arm == 'A' else 7700,
+                          'count': 1,
+                      }],
+                  },
+              }))
+          s1_line = ''.join(
+              uma_dump.histograms_to_lines({
+                  'Cobalt.Storage.ProcessIo.StartupWriteKB': {
+                      'name':
+                          'Cobalt.Storage.ProcessIo.StartupWriteKB',
+                      'count':
+                          1,
+                      'sum':
+                          5000 if arm == 'A' else 1600,
+                      'buckets': [{
+                          'low': 5000 if arm == 'A' else 1600,
+                          'high': 5100 if arm == 'A' else 1700,
+                          'count': 1,
+                      }],
+                  },
+              }))
+          for suffix, content in (('.w1.txt', w1_line), ('.txt', s1_line)):
+            with open(
+                os.path.join(tmp, base + suffix), 'w', encoding='utf-8') as f:
+              f.write(content)
+          manifest.append({
+              'type': 'run',
+              'experiment': 'cache',
+              'mode': 'homefeed',
+              'group': 'ab',
+              'pair': pair,
+              'slot': slot,
+              'arm': arm,
+              'label': 'Control' if arm == 'A' else 'Treatment',
+              'flags': '',
+              'warmup_runs': 1,
+              'run_id': base,
+              'attempt': 1,
+              'valid': True,
+              'dump': f'{base}.txt',
+          })
+        manifest.append({
+            'type': 'pair',
+            'experiment': 'cache',
+            'group': 'ab',
+            'pair': pair,
+            'order': order,
+        })
+      with open(
+          os.path.join(tmp, 'manifest.jsonl'), 'w', encoding='utf-8') as f:
+        f.writelines(json.dumps(r) + '\n' for r in manifest)
+      rows_path = os.path.join(tmp, 'rows.json')
+      md_path = os.path.join(tmp, 'report.md')
+      rc = ab_report.main([
+          '--results-dir', tmp, '--experiment', 'cache', '--json', rows_path,
+          '--out', md_path, '--primary',
+          'warmup_1:Cobalt.Storage.ProcessIo.StartupWriteKB:value,'
+          'homefeed:Cobalt.Storage.ProcessIo.StartupWriteKB:value',
+          '--bootstrap', '100'
+      ])
+      self.assertEqual(rc, 0)
+      with open(rows_path, encoding='utf-8') as f:
+        phase_rows = json.load(f)
+      self.assertEqual(list(phase_rows), ['warmup_1', 'homefeed'])
+      self.assertEqual(phase_rows['warmup_1'][0]['tag'], '[REGRESSED]')
+      self.assertTrue(phase_rows['warmup_1'][0]['primary'])
+      self.assertEqual(phase_rows['homefeed'][0]['tag'], '[IMPROVED]')
+      self.assertTrue(phase_rows['homefeed'][0]['primary'])
+      with open(md_path, encoding='utf-8') as f:
+        md = f.read()
+      self.assertLess(
+          md.index('### Warmup Launch 1'),
+          md.index('### In-Session Cold Start'))
 
 
 if __name__ == '__main__':

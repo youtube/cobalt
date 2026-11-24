@@ -216,6 +216,114 @@ class CdpPullerTest(unittest.TestCase):
     self.assertEqual(sorted(merged), ['LocalStorage.DatabaseOpen'])
     self.assertEqual(len(lines), 1)
 
+  def test_capture_single_snapshot_strips_wildcard_and_reconnects(self):
+    broken = mock.MagicMock()
+    broken.call.side_effect = RuntimeError('socket closed')
+    recovered = mock.MagicMock()
+    recovered.call.return_value = {
+        'id': 1,
+        'result': {
+            'histograms': [{
+                'name': 'Sql.Database.Success.OpenInternalTime.DIPS',
+                'count': 1,
+                'sum': 12,
+                'buckets': [{
+                    'low': 10,
+                    'high': 15,
+                    'count': 1
+                }],
+            }]
+        },
+    }
+    buf = io.StringIO()
+    args = mock.MagicMock(
+        device_id='tv-serial-1', platform='android', port=9222)
+    with mock.patch.object(
+        cdp_puller, '_CdpSession', return_value=broken), mock.patch.object(
+            cdp_puller, '_reconnect_cdp_session',
+            return_value=recovered) as reconnect:
+      cdp_puller._capture_single_snapshot(
+          'ws://127.0.0.1:9222/devtools/page/1',
+          ['Sql.Database.Success.OpenInternalTime.*'], args, buf)
+    reconnect.assert_called_once()
+    recovered.call.assert_called_once_with(
+        'Browser.getHistograms',
+        {'query': 'Sql.Database.Success.OpenInternalTime.'})
+    parsed, _ = cdp_puller.uma_dump.parse_dump_lines(
+        buf.getvalue().splitlines())
+    self.assertIn('Sql.Database.Success.OpenInternalTime.DIPS', parsed)
+
+  def test_run_warmup_cycles_captures_launch_1_and_passes_device_serial(self):
+    fake_session = mock.MagicMock()
+    fake_session.call.return_value = {
+        'id': 1,
+        'result': {
+            'histograms': [{
+                'name': 'Cobalt.Storage.ProcessIo.StartupWriteKB',
+                'count': 1,
+                'sum': 5600,
+                'buckets': [{
+                    'low': 5000,
+                    'high': 6000,
+                    'count': 1
+                }],
+            }]
+        },
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+      w1_path = os.path.join(tmp, 'slot.w1.txt')
+      args = mock.MagicMock(
+          warmup_runs=2,
+          warmup_duration_s=1.0,
+          warmup_output_file=w1_path,
+          device_id='sabrina:5555',
+          package_name='com.google.android.youtube.tv',
+          platform='android',
+          port=9222,
+          no_dpad_nav=True,
+          nav_end_s=0.0,
+          quiet=True,
+      )
+      with mock.patch.dict(
+          os.environ, {}, clear=False), mock.patch.object(
+              cdp_puller, 'is_package_running_android',
+              return_value=False), mock.patch.object(
+                  cdp_puller,
+                  '_start_and_wait_for_cobalt_android',
+                  return_value=True), mock.patch.object(
+                      cdp_puller,
+                      '_wait_with_android_navigation'), mock.patch.object(
+                          cdp_puller, 'stop_package'), mock.patch.object(
+                              cdp_puller.time, 'sleep'), mock.patch.object(
+                                  cdp_puller,
+                                  'get_websocket_url',
+                                  return_value='ws://127.0.0.1:9222/page'
+                              ), mock.patch.object(
+                                  cdp_puller,
+                                  '_CdpSession',
+                                  return_value=fake_session), mock.patch.object(
+                                      cdp_puller,
+                                      'run_adb_command',
+                                      return_value=('', None)) as run_adb:
+        os.environ.pop('ANDROID_SERIAL', None)
+        cdp_puller._run_warmup_cycles(
+            args, ['Cobalt.Storage.ProcessIo.StartupWriteKB'])
+        self.assertEqual(os.environ.get('ANDROID_SERIAL'), 'sabrina:5555')
+      home_calls = [
+          c.args[0]
+          for c in run_adb.call_args_list
+          if 'KEYCODE_HOME' in c.args[0]
+      ]
+      self.assertEqual(home_calls, [[
+          'adb', '-s', 'sabrina:5555', 'shell', 'input', 'keyevent',
+          'KEYCODE_HOME'
+      ]] * 2)
+      # Only Warmup Run 1 (transitional first launch) is written to .w1.txt.
+      self.assertEqual(fake_session.call.call_count, 1)
+      parsed, _ = cdp_puller.uma_dump.parse_dump(w1_path)
+      self.assertEqual(parsed['Cobalt.Storage.ProcessIo.StartupWriteKB']['sum'],
+                       5600)
+
 
 if __name__ == '__main__':
   unittest.main()
