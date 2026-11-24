@@ -40,11 +40,6 @@ sk_sp<SkTypeface> SkTypeface_Cobalt::onMakeClone(
   return sk_ref_sp(this);
 }
 
-<<<<<<< HEAD
-void SkTypeface_Cobalt::onCharsToGlyphs(SkSpan<const SkUnichar> uni,
-                                        SkSpan<SkGlyphID> glyphs) const {
-  for (size_t i = 0; i < uni.size(); ++i) {
-=======
 void SkTypeface_Cobalt::onFilterRec(SkScalerContextRec* rec) const {
   if (!synthesizes_bold_) {
     rec->fFlags &= ~SkScalerContext::kEmbolden_Flag;
@@ -52,11 +47,9 @@ void SkTypeface_Cobalt::onFilterRec(SkScalerContextRec* rec) const {
   INHERITED::onFilterRec(rec);
 }
 
-void SkTypeface_Cobalt::onCharsToGlyphs(const SkUnichar uni[],
-                                        int count,
-                                        SkGlyphID glyphs[]) const {
-  for (int i = 0; i < count; ++i) {
->>>>>>> 2ddebfedfe7 (cobalt: Restore Cobalt 25 synthetic bold for fallback fonts (#13714))
+void SkTypeface_Cobalt::onCharsToGlyphs(SkSpan<const SkUnichar> uni,
+                                        SkSpan<SkGlyphID> glyphs) const {
+  for (size_t i = 0; i < uni.size(); ++i) {
     glyphs[i] = characterMapGetGlyphIdForCharacter(uni[i]);
   }
 }

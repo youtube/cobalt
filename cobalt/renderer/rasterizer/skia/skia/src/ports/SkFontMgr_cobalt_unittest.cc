@@ -310,9 +310,7 @@ SkRect GetGlyphBounds(const sk_sp<SkTypeface>& typeface, bool embolden) {
   font.setEmbolden(embolden);
   SkGlyphID glyph = font.unicharToGlyph('A');
   EXPECT_GT(glyph, 0u);
-  SkRect bounds;
-  font.getBounds(&glyph, 1, &bounds, nullptr);
-  return bounds;
+  return font.getBounds(glyph, nullptr);
 }
 
 TEST_F(SkFontMgrCobaltTest, SyntheticBoldAppliesToRegularTypeface) {
