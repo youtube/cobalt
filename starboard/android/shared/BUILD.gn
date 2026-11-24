@@ -264,6 +264,7 @@ static_library("starboard_platform") {
     "video_max_video_resolution.h",
     "video_render_algorithm_android.cc",
     "video_render_algorithm_android.h",
+    "video_render_algorithm_host.h",
     "video_surface_texture_bridge.cc",
     "video_surface_texture_bridge.h",
     "video_surface_view.cc",
@@ -445,7 +446,7 @@ static_library("test_support") {
     "//starboard/shared/starboard:features_test_util",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/jni_zero:jni_zero",
+    "//third_party/jni_zero",
   ]
 
   sources = [
