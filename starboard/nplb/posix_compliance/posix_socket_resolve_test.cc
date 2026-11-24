@@ -18,6 +18,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <initializer_list>
 #include <ios>
 #include <tuple>
 #include <utility>
@@ -85,6 +86,9 @@ class PosixSocketResolveTest
 // A random host name to use to test DNS resolution.
 const char kTestHostName[] = "dns.google";
 const char kTestService[] = "443";
+// Numeric addresses of `kTestHostName`.
+const char kTestHostIpv4Address[] = "8.8.8.8";
+const char kTestHostIpv6Address[] = "2001:4860:4860::8888";
 const char kLocalhost[] = "localhost";
 
 TEST_P(PosixSocketResolveTest, SunnyDayHints) {
@@ -201,10 +205,11 @@ void PosixSocketResolveTest::CheckFlags(int flags,
   int result = getaddrinfo(host, service, &hints, &ai);
   // Requests for any address family must succeed. Requests with a specified
   // address family are allowed to return that there are no matches, unless
-  // it's AF_INET6 with AI_V4MAPPED.
+  // AI_V4MAPPED asks for IPv4 addresses to be returned as IPv4-mapped IPv6
+  // addresses.
   const bool must_succeed =
       GetAddressFamily() == AF_UNSPEC ||
-      (GetAddressFamily() == AF_INET6 && flags == AI_V4MAPPED);
+      (GetAddressFamily() == AF_INET6 && (flags & AI_V4MAPPED));
   if (must_succeed || result == 0) {
     ASSERT_EQ(result, 0);
     ASSERT_NE(nullptr, ai);
@@ -250,17 +255,31 @@ void PosixSocketResolveTest::CheckFlags(int flags,
 }
 
 TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
-  int flags_to_test[] = {
-  // Non-modular builds use native libc getaddrinfo.
-#if defined(SB_MODULAR_BUILD)
-      // And bionic does not support these flags.
-      AI_V4MAPPED, AI_V4MAPPED | AI_ALL, AI_NUMERICHOST, AI_NUMERICSERV,
-#endif
-      AI_PASSIVE,  AI_CANONNAME,         AI_ADDRCONFIG,
+  // AI_NUMERICHOST requires a numeric address.
+  const char* numeric_host = GetAddressFamily() == AF_INET6
+                                 ? kTestHostIpv6Address
+                                 : kTestHostIpv4Address;
+  const struct {
+    int flags;
+    const char* host;
+    const char* service;
+  } kCases[] = {
+      {AI_PASSIVE, nullptr, kTestService},
+      {AI_CANONNAME, kTestHostName, nullptr},
+      {AI_NUMERICHOST, numeric_host, nullptr},
+      {AI_NUMERICSERV, kTestHostName, kTestService},
+      {AI_ADDRCONFIG, kTestHostName, nullptr},
   };
-  for (int flags : flags_to_test) {
-    CheckFlags(flags, (flags & AI_PASSIVE) ? nullptr : kTestHostName,
-               (flags & AI_PASSIVE) ? kTestService : nullptr);
+  for (const auto& c : kCases) {
+    CheckFlags(c.flags, c.host, c.service);
+  }
+}
+
+// Bionic's getaddrinfo() rejects AI_V4MAPPED and AI_ALL with EAI_BADFLAGS, so
+// platforms that resolve with it filter this test out.
+TEST_P(PosixSocketResolveTest, SunnyDayFlagsV4Mapped) {
+  for (int flags : {AI_V4MAPPED, AI_V4MAPPED | AI_ALL}) {
+    CheckFlags(flags, kTestHostName, nullptr);
   }
 }
 

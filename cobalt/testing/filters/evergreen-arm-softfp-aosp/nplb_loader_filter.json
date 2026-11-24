@@ -4,6 +4,10 @@
     "*SbPlayerWriteSampleTest.SecondaryPlayerTest/*_dmp_output_*widevine*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*_137_avc_*",
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*",
-    "MultiplePlayerTest.SunnyDay"
-  ]
+    "MultiplePlayerTest.SunnyDay",
+    "PosixSocketHints/PosixSocketResolveTest.SunnyDayFlagsV4Mapped/*"
+  ],
+  "_reasons": {
+    "PosixSocketHints/PosixSocketResolveTest.SunnyDayFlagsV4Mapped/*": "Bionic's getaddrinfo() rejects AI_V4MAPPED and AI_ALL."
+  }
 }
