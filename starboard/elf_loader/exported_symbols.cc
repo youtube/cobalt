@@ -434,27 +434,18 @@ const void* ExportedSymbols::Lookup(const char* name, bool is_weak) const {
 
   // Not an error, as it could be a weak symbol.
   SB_DLOG(WARNING) << "Failed to retrieve the address of '" << name << "'.";
-<<<<<<< HEAD
-#if !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  address = dlsym(RTLD_DEFAULT, name);
-  if (address == nullptr) {
-    SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
-  }
-#endif  // !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-=======
   if (is_weak) {
     return nullptr;
   }
-#if !defined(OFFICIAL_BUILD)
+#if !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const void* address = dlsym(RTLD_DEFAULT, name);
   if (address == nullptr) {
     SB_LOG(ERROR) << "Fallback dlsym failed for '" << name << "'.";
   }
->>>>>>> 1c08e4151c9 (starboard/elf_loader: Skip non-official dlsym fallback only for weak symbols (#13921))
   return address;
 #else
   return nullptr;
-#endif  // !defined(OFFICIAL_BUILD)
+#endif  // !defined(OFFICIAL_BUILD) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }
 
 }  // namespace elf_loader
