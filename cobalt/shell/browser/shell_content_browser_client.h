@@ -22,7 +22,6 @@
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 #include "cobalt/shell/browser/shell_speech_recognition_manager_delegate.h"
 #include "content/public/browser/content_browser_client.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
@@ -306,7 +305,6 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       create_throttles_for_navigation_callback_;
   base::RepeatingCallback<void(blink::web_pref::WebPreferences*)>
       override_web_preferences_callback_;
-  std::unique_ptr<H5vccSchemeURLLoaderFactory> h5vcc_scheme_url_loader_factory_;
 
   std::string deep_link_;
   bool is_visible_;

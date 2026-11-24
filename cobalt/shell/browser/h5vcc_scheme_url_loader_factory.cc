@@ -32,9 +32,7 @@
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
-#include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "net/base/url_util.h"
 #include "net/http/http_response_headers.h"
@@ -79,7 +77,6 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       uint64_t splash_content_size_limit)
       : client_(std::move(client)),
         url_(request.url),
-        browser_context_(browser_context),
         splash_domain_(splash_domain),
         splash_content_size_limit_(splash_content_size_limit),
         mime_type_(kMimeTypeApplicationOctetStream) {
@@ -130,8 +127,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LOG(WARNING) << "Resource not found: " << resource_key;
     }
 
-    if (supports_splash_caching && browser_context_) {
-      ReadSplashCache(key);
+    if (supports_splash_caching && browser_context) {
+      ReadSplashCache(browser_context, key);
       return;
     }
 
@@ -162,8 +159,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void SetPriority(net::RequestPriority priority,
                    int32_t intra_priority_value) override {}
 
-  void ReadSplashCache(const std::string& path) {
-    BindSplashCacheStorage(browser_context_, splash_domain_,
+  void ReadSplashCache(BrowserContext* browser_context,
+                       const std::string& path) {
+    BindSplashCacheStorage(browser_context, splash_domain_,
                            cache_storage_remote_.BindNewPipeAndPassReceiver());
 
     std::u16string cache_name = base::ASCIIToUTF16(kDefaultSplashCacheName);
@@ -326,14 +324,13 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   }
 
   void OnClientDisconnected() {
-    // The client is gone, so the loader is about to be destroyed. Reset the
-    // remote to cancel any pending cache operations.
+    // The client is gone, so cancel any pending cache or blob operations.
     cache_storage_remote_.reset();
+    blob_reader_.reset();
   }
 
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
-  BrowserContext* browser_context_;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
   std::string mime_type_;
@@ -354,15 +351,8 @@ const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
-    : splash_domain_(GetSplashDomain()),
-      splash_content_size_limit_(
-          global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
-      browser_context_(browser_context) {
-  if (resource_map_test_) {
-    resource_map_ = *resource_map_test_;
-  } else {
-    LoaderEmbeddedResources::GenerateMap(resource_map_);
-  }
+    : browser_context_(browser_context) {
+  LoaderEmbeddedResources::GenerateMap(resource_map_);
 }
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
@@ -374,18 +364,19 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     const network::ResourceRequest& url_request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<H5vccSchemeURLLoader>(
-          url_request, std::move(client), browser_context_, resource_map_,
-          splash_domain_, splash_content_size_limit_),
-      std::move(receiver));
+  const GeneratedResourceMap& resource_map =
+      resource_map_test_ ? *resource_map_test_ : resource_map_;
+  const uint64_t splash_content_size_limit =
+      global_splash_content_size_test_.value_or(kMaxSplashContentSize);
+  loaders_.Add(std::make_unique<H5vccSchemeURLLoader>(
+                   url_request, std::move(client), browser_context_,
+                   resource_map, GetSplashDomain(), splash_content_size_limit),
+               std::move(receiver));
 }
 
 void H5vccSchemeURLLoaderFactory::Clone(
     mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver) {
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<H5vccSchemeURLLoaderFactory>(browser_context_),
-      std::move(receiver));
+  receivers_.Add(this, std::move(receiver));
 }
 
 // static
