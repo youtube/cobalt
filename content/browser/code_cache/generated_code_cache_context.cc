@@ -29,10 +29,7 @@
 #include "base/task/single_thread_task_runner_thread_mode.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
-<<<<<<< HEAD
 #include "base/types/expected_macros.h"
-=======
->>>>>>> 03b767d2cea (cobalt: Cap Wasm compiled code cache at 1 MiB (#13670))
 #include "build/build_config.h"
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/public/browser/browser_task_traits.h"
@@ -185,7 +182,12 @@ void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
         GeneratedCodeCache::CodeCacheType::kJavaScript);
 
     generated_wasm_code_cache_ = std::make_unique<GeneratedCodeCache>(
-        generated_wasm_code_cache_path, max_bytes,
+        generated_wasm_code_cache_path,
+#if BUILDFLAG(IS_COBALT)
+        kGeneratedWasmCodeCacheBytes,
+#else
+        max_bytes,
+#endif
         GeneratedCodeCache::CodeCacheType::kWebAssembly);
 
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -207,7 +209,6 @@ void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
     persistent_cache_collection_ = MakePersistentCacheCollection(
         max_bytes, path, persistent_cache_collection_path);
 
-<<<<<<< HEAD
     // Delete the GeneratedCodeCache files that won't be used to avoid
     // wasting space.
     base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})
@@ -226,18 +227,6 @@ void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
     NOTREACHED();
 #endif  // !BUILDFLAG(IS_FUCHSIA)
   }
-=======
-  generated_wasm_code_cache_ = {
-      new GeneratedCodeCache(
-          path.AppendASCII("wasm"),
-#if BUILDFLAG(IS_COBALT)
-          kGeneratedWasmCodeCacheBytes,
-#else
-          max_bytes,
-#endif
-          GeneratedCodeCache::CodeCacheType::kWebAssembly),
-      base::OnTaskRunnerDeleter(task_runner_)};
->>>>>>> 03b767d2cea (cobalt: Cap Wasm compiled code cache at 1 MiB (#13670))
 }
 
 void GeneratedCodeCacheContext::Shutdown() {

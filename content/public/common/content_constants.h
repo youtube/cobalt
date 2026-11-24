@@ -76,18 +76,16 @@ CONTENT_EXPORT extern const int kPluginOomScore;
 CONTENT_EXPORT extern const int kAndroidMinimumTabletWidthDp;
 #endif
 
-<<<<<<< HEAD
 // The name of the well-known file in the user data directory that contains the
 // port number of the remote debugging server for automation tools
 // such as ChromeDriver or Telemetry to read.
 CONTENT_EXPORT extern const base::FilePath::CharType
     kDevToolsActivePortFileName[];
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // Maximum size of the WebAssembly compiled code cache (Code Cache/wasm/).
 inline constexpr int kGeneratedWasmCodeCacheBytes = 1 * 1024 * 1024;
 #endif
->>>>>>> 03b767d2cea (cobalt: Cap Wasm compiled code cache at 1 MiB (#13670))
 
 }  // namespace content
 
