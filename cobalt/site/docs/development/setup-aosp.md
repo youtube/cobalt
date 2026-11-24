@@ -274,7 +274,7 @@ tests through the APK's instrumentation with `adb`:
      cobalt/testing/filters/evergreen-arm-softfp-aosp/nplb_loader_filter.json)"
    adb shell rm -f /sdcard/nplb.txt
    adb shell am instrument -w \
-     -e org.chromium.native_test.NativeTest.GtestFilter "$FILTER" \
+     -e org.chromium.native_test.NativeTest.GtestFilter "'$FILTER'" \
      -e org.chromium.native_test.NativeTest.CommandLineFlags \
        "--gtest_output=xml:/sdcard/nplb_testResult.xml" \
      -e org.chromium.native_test.NativeTestInstrumentationTestRunner.StdoutFile /sdcard/nplb.txt \
@@ -285,14 +285,12 @@ tests through the APK's instrumentation with `adb`:
 
    All exclusion patterns must sit behind the single leading `-`, joined by
    `:`: googletest splits the filter at the first `-` only, so prefixing
-   every pattern (`-*A*:-*B*`) silently applies only the first one. Do not
-   drop the exclusions either: the player tests reference testdata that is
-   not shipped in `nplb_loader_deps.tar.gz`, and running them aborts the
-   whole run before any summary is printed. gtest writes the XML file only
-   when the run ends normally; after a crash or a shard timeout it is
-   missing or stale, and the stdout summary plus logcat are the source of
-   truth. The XML `tests=` count includes `DISABLED_` tests, so it can be
-   slightly higher than the number of tests that ran.
+   every pattern (`-*A*:-*B*`) silently applies only the first one. gtest
+   writes the XML file only when the run ends normally; after a crash or
+   a shard timeout it is missing or stale, and the stdout summary plus
+   logcat are the source of truth. The XML `tests=` count includes
+   `DISABLED_` tests, so it can be slightly higher than the number of
+   tests that ran.
 
 4. Read the results:
 
