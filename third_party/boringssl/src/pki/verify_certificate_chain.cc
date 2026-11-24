@@ -21,7 +21,6 @@
 #include <inttypes.h>
 
 #include <openssl/base.h>
-<<<<<<< HEAD
 #include <openssl/bytestring.h>
 #include <openssl/digest.h>
 #include <openssl/mem.h>
@@ -29,9 +28,6 @@
 #include <openssl/sha2.h>
 #include <openssl/span.h>
 
-=======
-#include <openssl/sha.h>
->>>>>>> 40ab490b350 (Block a handful of intermediate certificates (#13760))
 #include "cert_error_params.h"
 #include "cert_errors.h"
 #include "common_cert_errors.h"

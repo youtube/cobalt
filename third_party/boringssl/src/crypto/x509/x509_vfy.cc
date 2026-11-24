@@ -22,11 +22,7 @@
 #include <openssl/evp.h>
 #include <openssl/mem.h>
 #include <openssl/obj.h>
-<<<<<<< HEAD
-=======
-#include <openssl/thread.h>
-#include <openssl/sha.h>
->>>>>>> 40ab490b350 (Block a handful of intermediate certificates (#13760))
+#include <openssl/sha2.h>
 #include <openssl/x509.h>
 
 #include "../internal.h"
@@ -394,8 +390,8 @@ int X509_verify_cert(X509_STORE_CTX *ctx) {
         !check_id(ctx) ||
         // We check revocation status after copying parameters because they may
         // be needed for CRL signature verification.
-        !check_revocation(ctx) ||
-        !check_blocklist(ctx) ||  //
+        !check_revocation(ctx) ||  //
+        !check_blocklist(ctx) ||   //
         !internal_verify(ctx) ||   //
         !check_name_constraints(ctx) ||
         // TODO(davidben): Does `check_policy` still need to be conditioned on
@@ -783,7 +779,6 @@ static int check_blocklist(X509_STORE_CTX *ctx) {
 }
 
 static int check_revocation(X509_STORE_CTX *ctx) {
-
   if (!(ctx->param->flags & X509_V_FLAG_CRL_CHECK)) {
     return 1;
   }
