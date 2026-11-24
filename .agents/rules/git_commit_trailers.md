@@ -1,6 +1,6 @@
 ---
 trigger: always_on
-description: "Guidelines for formatting Git commit trailers (RFC 2822 / git interpret-trailers)."
+description: "Guidelines for formatting Git commit trailers (RFC 2822 / git interpret-trailers). Apply when composing commit messages and when creating or editing PR descriptions."
 ---
 
 # Git Commit Trailers
