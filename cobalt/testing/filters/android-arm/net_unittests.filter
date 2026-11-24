@@ -1,0 +1,4 @@
+# b/453909269 - Only run Cobalt-specific tests until upstream net_unittests failures are resolved.
+HttpCacheTest.CobaltFontMimeTypesCachedWhenFeatureEnabled
+HttpCacheTest.CobaltShouldPassThroughExcludedUrls
+HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty

@@ -21,7 +21,7 @@ import shutil
 import sys
 import tempfile
 import types
-from typing import Any, Mapping
+from typing import Any
 import unittest
 from unittest import mock
 
@@ -62,10 +62,10 @@ class ProcessTestRequestsTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.filter_dir)
 
-  def _write_filter(self, filename: str, data: Mapping[str, Any]) -> None:
+  def _write_filter(self, filename: str, content: str) -> None:
     filepath = os.path.join(self.filter_dir, filename)
     with open(filepath, 'w', encoding='utf-8', newline='') as f:
-      json.dump(data, f)
+      f.write(content)
 
   def _make_args(self, targets: Any, **overrides: Any) -> argparse.Namespace:
     defaults = {
@@ -160,8 +160,8 @@ class ProcessTestRequestsTest(unittest.TestCase):
 
   def test_sharded_cobalt_browsertests_initial_run(self):
     self._write_filter(
-        'cobalt_browsertests_filter.json',
-        {'failing_tests': ['DisabledSuite.TestA', 'DisabledSuite.TestB']},
+        'cobalt_browsertests.filter',
+        '-DisabledSuite.TestA\n-DisabledSuite.TestB\n',
     )
     args = self._make_args([{
         'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
@@ -204,8 +204,7 @@ class ProcessTestRequestsTest(unittest.TestCase):
       self.assertNotIn('--gtest_shard_index', cmd_line)
 
   def test_sharded_target_skipped_when_global_filter_skips_all(self):
-    self._write_filter('cobalt_browsertests_filter.json',
-                       {'failing_tests': ['*']})
+    self._write_filter('cobalt_browsertests.filter', '-*\n')
     args = self._make_args([{
         'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
         'shards': 4,
@@ -218,24 +217,14 @@ class ProcessTestRequestsTest(unittest.TestCase):
   def test_sharded_browsertests_retry_skips_passed_and_disables_resharding(
       self):
     # Base platform filter disables KnownBad.Test.
-    self._write_filter('cobalt_browsertests_filter.json',
-                       {'failing_tests': ['KnownBad.Test']})
+    self._write_filter('cobalt_browsertests.filter', '-KnownBad.Test\n')
     # Shards 0 and 1 passed on attempt 1.
-    self._write_filter('cobalt_browsertests_0_filter.json', {
-        'failing_tests': ['*'],
-        'tests_to_run': []
-    })
-    self._write_filter('cobalt_browsertests_1_filter.json', {
-        'failing_tests': ['*'],
-        'tests_to_run': []
-    })
+    self._write_filter('cobalt_browsertests_0.filter', '-*\n')
+    self._write_filter('cobalt_browsertests_1.filter', '-*\n')
     # Shard 2 failed two specific tests on attempt 1.
     self._write_filter(
-        'cobalt_browsertests_2_filter.json',
-        {
-            'failing_tests': [],
-            'tests_to_run': ['Suite.FlakyOne', 'Suite.FlakyTwo'],
-        },
+        'cobalt_browsertests_2.filter',
+        'Suite.FlakyOne\nSuite.FlakyTwo\n',
     )
     # Shard 3 crashed on attempt 1 (no shard_3 filter written).
 
@@ -437,8 +426,7 @@ class ProcessTestRequestsTest(unittest.TestCase):
         req['params'])
 
   def test_internal_test_skips_when_filtered_out_and_passes_attempts(self):
-    self._write_filter('infra_smoke_test_custom_coat_sabrina_filter.json',
-                       {'failing_tests': ['*']})
+    self._write_filter('infra_smoke_test_custom_coat_sabrina.filter', '-*\n')
     args = self._make_args(
         targets=[
             {

@@ -45,5 +45,5 @@
 *.idl   @youtube/cobalt-web-api
 *.mojom @youtube/cobalt-web-api
 
-*.nplb_filter.json @youtube/nplb-filters
+*nplb*.filter @youtube/nplb-filters
 /starboard/contrib/rdk @youtube/starboard-rdk-owners
