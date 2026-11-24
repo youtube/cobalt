@@ -10,6 +10,7 @@
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_crypto_client_config.h"
@@ -132,6 +133,14 @@ struct NET_EXPORT QuicParams {
   quic::QuicTagVector client_connection_options;
   // Enables experimental optimization for receiving data in UDPSocket.
   bool enable_socket_recv_optimization = false;
+#if BUILDFLAG(IS_COBALT)
+  // Flow-control receive windows the client advertises, in bytes. They cap how
+  // much the server may send beyond what the client has read, which QUIC
+  // buffers on the heap. 0 keeps the defaults (15 MB per session, 6 MB per
+  // stream). Clients don't auto-tune these windows.
+  uint32_t session_receive_window = 0;
+  uint32_t stream_receive_window = 0;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Active QUIC experiments
 

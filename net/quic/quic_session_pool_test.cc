@@ -14931,4 +14931,111 @@ TEST_P(QuicSessionPoolTest, SendPingOnExistingSession) {
   socket_data.ExpectAllWriteDataConsumed();
 }
 
+#if BUILDFLAG(IS_COBALT)
+// QuicParams' Cobalt receive windows reach the session's connection-level flow
+// controller and the windows it advertises for streams.
+TEST_P(QuicSessionPoolTest, CobaltReceiveWindowsFromParams) {
+  quic_params_->stream_receive_window = 2 * 1024 * 1024;
+  quic_params_->session_receive_window = 4 * 1024 * 1024;
+  Initialize();
+
+  MockQuicData socket_data(version_);
+  socket_data.AddReadPauseForever();
+  socket_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket());
+  socket_data.AddSocketDataToFactory(socket_factory_.get());
+
+  RequestBuilder builder(this);
+  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
+  EXPECT_THAT(callback_.WaitForResult(), IsOk());
+
+  QuicChromiumClientSession* session = GetActiveSession(kDefaultDestination);
+  ASSERT_TRUE(session);
+  EXPECT_EQ(4u * 1024 * 1024,
+            session->flow_controller()->receive_window_size());
+  EXPECT_EQ(2u * 1024 * 1024,
+            session->config()->GetInitialStreamFlowControlWindowToSend());
+  EXPECT_EQ(4u * 1024 * 1024,
+            session->config()->GetInitialSessionFlowControlWindowToSend());
+  socket_data.ExpectAllWriteDataConsumed();
+}
+
+TEST_P(QuicSessionPoolTest, CobaltReceiveWindowsDefault) {
+  Initialize();
+
+  MockQuicData socket_data(version_);
+  socket_data.AddReadPauseForever();
+  socket_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket());
+  socket_data.AddSocketDataToFactory(socket_factory_.get());
+
+  RequestBuilder builder(this);
+  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
+  EXPECT_THAT(callback_.WaitForResult(), IsOk());
+
+  QuicChromiumClientSession* session = GetActiveSession(kDefaultDestination);
+  ASSERT_TRUE(session);
+  EXPECT_EQ(15u * 1024 * 1024,
+            session->flow_controller()->receive_window_size());
+  EXPECT_EQ(6u * 1024 * 1024,
+            session->config()->GetInitialStreamFlowControlWindowToSend());
+  socket_data.ExpectAllWriteDataConsumed();
+}
+
+// InitializeQuicConfig() clamps out-of-range receive windows to QUICHE's
+// bounds and ensures the session window is at least the stream window.
+TEST_P(QuicSessionPoolTest, CobaltInitializeQuicConfigClampsReceiveWindows) {
+  {
+    QuicParams params;
+    quic::QuicConfig config = InitializeQuicConfig(params);
+    EXPECT_EQ(6u * 1024 * 1024,
+              config.GetInitialStreamFlowControlWindowToSend());
+    EXPECT_EQ(15u * 1024 * 1024,
+              config.GetInitialSessionFlowControlWindowToSend());
+  }
+  {
+    // Below QUICHE's minimum (16 KB) clamps up to kMinimumFlowControlSendWindow.
+    QuicParams params;
+    params.stream_receive_window = 1;
+    params.session_receive_window = 1;
+    quic::QuicConfig config = InitializeQuicConfig(params);
+    EXPECT_EQ(quic::kMinimumFlowControlSendWindow,
+              config.GetInitialStreamFlowControlWindowToSend());
+    EXPECT_EQ(quic::kMinimumFlowControlSendWindow,
+              config.GetInitialSessionFlowControlWindowToSend());
+  }
+  {
+    // Above QUICHE's limits clamps down to 16 MB stream / 24 MB session.
+    QuicParams params;
+    params.stream_receive_window = 100u * 1024 * 1024;
+    params.session_receive_window = 100u * 1024 * 1024;
+    quic::QuicConfig config = InitializeQuicConfig(params);
+    EXPECT_EQ(quic::kStreamReceiveWindowLimit,
+              config.GetInitialStreamFlowControlWindowToSend());
+    EXPECT_EQ(quic::kSessionReceiveWindowLimit,
+              config.GetInitialSessionFlowControlWindowToSend());
+  }
+  {
+    // Session smaller than stream raises session to match stream.
+    QuicParams params;
+    params.stream_receive_window = 10u * 1024 * 1024;
+    params.session_receive_window = 2u * 1024 * 1024;
+    quic::QuicConfig config = InitializeQuicConfig(params);
+    EXPECT_EQ(10u * 1024 * 1024,
+              config.GetInitialStreamFlowControlWindowToSend());
+    EXPECT_EQ(10u * 1024 * 1024,
+              config.GetInitialSessionFlowControlWindowToSend());
+  }
+  {
+    // Stream (16 MB) exceeding the default session window (15 MB) with session
+    // unset (0) raises the session window to 16 MB.
+    QuicParams params;
+    params.stream_receive_window = 16u * 1024 * 1024;
+    params.session_receive_window = 0;
+    quic::QuicConfig config = InitializeQuicConfig(params);
+    EXPECT_EQ(16u * 1024 * 1024,
+              config.GetInitialStreamFlowControlWindowToSend());
+    EXPECT_EQ(16u * 1024 * 1024,
+              config.GetInitialSessionFlowControlWindowToSend());
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 }  // namespace net::test

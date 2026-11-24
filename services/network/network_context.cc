@@ -2957,7 +2957,24 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
 
 #if BUILDFLAG(IS_COBALT)
   session_params.use_quic_for_unknown_origins = true;
-#endif
+  if (session_params.enable_quic &&
+      base::FeatureList::IsEnabled(net::features::kCobaltQuicReceiveWindows)) {
+    constexpr int kMinWindowKb = 64;
+    constexpr int kMaxStreamWindowKb = 16 * 1024;   // kStreamReceiveWindowLimit
+    constexpr int kMaxSessionWindowKb = 24 * 1024;  // kSessionReceiveWindowLimit
+    const int stream_kb =
+        std::clamp(net::features::kCobaltQuicReceiveWindowsStreamKb.Get(),
+                   kMinWindowKb, kMaxStreamWindowKb);
+    const int session_kb = std::clamp(
+        std::max(net::features::kCobaltQuicReceiveWindowsSessionKb.Get(),
+                 stream_kb),
+        kMinWindowKb, kMaxSessionWindowKb);
+    quic_context->params()->stream_receive_window =
+        static_cast<uint32_t>(stream_kb) * 1024;
+    quic_context->params()->session_receive_window =
+        static_cast<uint32_t>(session_kb) * 1024;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   session_params.disable_idle_sockets_close_on_memory_pressure =
       params_->disable_idle_sockets_close_on_memory_pressure;

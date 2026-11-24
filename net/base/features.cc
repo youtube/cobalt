@@ -788,6 +788,20 @@ BASE_FEATURE(kRestrictAbusePortsOnLocalhost,
 BASE_FEATURE(kCobaltHttpCacheFontAndPassThrough,
              "CobaltHttpCacheFontAndPassThrough",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCobaltQuicReceiveWindows,
+             "CobaltQuicReceiveWindows",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kCobaltQuicReceiveWindowsStreamKb,
+                   &kCobaltQuicReceiveWindows,
+                   "CobaltQuicReceiveWindows_stream_kb",
+                   2048);
+BASE_FEATURE_PARAM(int,
+                   kCobaltQuicReceiveWindowsSessionKb,
+                   &kCobaltQuicReceiveWindows,
+                   "CobaltQuicReceiveWindows_session_kb",
+                   6144);
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features

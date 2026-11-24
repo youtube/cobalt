@@ -4,6 +4,8 @@
 
 #include "net/quic/quic_context.h"
 
+#include <algorithm>
+
 #include "base/containers/contains.h"
 #include "net/quic/platform/impl/quic_chromium_clock.h"
 #include "net/quic/quic_chromium_connection_helper.h"
@@ -78,9 +80,26 @@ quic::QuicConfig InitializeQuicConfig(const QuicParams& params) {
   config.SetConnectionOptionsToSend(params.connection_options);
   config.SetClientConnectionOptions(params.client_connection_options);
   config.set_max_undecryptable_packets(kMaxUndecryptablePackets);
+#if BUILDFLAG(IS_COBALT)
+  // Keep within QUICHE's limits (its flow controllers DCHECK them) and the
+  // session window at least the stream window.
+  const uint64_t stream_window = std::clamp<uint64_t>(
+      params.stream_receive_window > 0 ? params.stream_receive_window
+                                       : kQuicStreamMaxRecvWindowSize,
+      quic::kMinimumFlowControlSendWindow, quic::kStreamReceiveWindowLimit);
+  const uint64_t session_window = std::clamp<uint64_t>(
+      std::max<uint64_t>(params.session_receive_window > 0
+                             ? params.session_receive_window
+                             : kQuicSessionMaxRecvWindowSize,
+                         stream_window),
+      quic::kMinimumFlowControlSendWindow, quic::kSessionReceiveWindowLimit);
+  config.SetInitialSessionFlowControlWindowToSend(session_window);
+  config.SetInitialStreamFlowControlWindowToSend(stream_window);
+#else
   config.SetInitialSessionFlowControlWindowToSend(
       kQuicSessionMaxRecvWindowSize);
   config.SetInitialStreamFlowControlWindowToSend(kQuicStreamMaxRecvWindowSize);
+#endif  // BUILDFLAG(IS_COBALT)
   config.SetBytesForConnectionIdToSend(0);
   return config;
 }
