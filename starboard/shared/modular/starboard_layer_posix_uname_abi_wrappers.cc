@@ -33,7 +33,7 @@ void CopyUtsField(const char* src, size_t src_sz, char* dest, size_t dest_sz) {
   }
 }
 
-SB_EXPORT int __abi_wrap_uname(struct musl_utsname* musl_uts) {
+int __abi_wrap_uname(struct musl_utsname* musl_uts) {
   // Set EFAULT if |musl_uts| is invalid.
   if (musl_uts == NULL) {
     errno = EFAULT;

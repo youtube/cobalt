@@ -27,4 +27,4 @@ int RunMainWithoutLoaderArgs(int argc, char** argv) {
 
 }  // namespace
 
-SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(RunMainWithoutLoaderArgs)
+STARBOARD_WRAP_SIMPLE_MAIN(RunMainWithoutLoaderArgs)

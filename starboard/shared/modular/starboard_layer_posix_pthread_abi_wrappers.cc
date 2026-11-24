@@ -775,7 +775,7 @@ int __abi_wrap_pthread_mutexattr_settype(musl_pthread_mutexattr_t* attr,
   return errno_to_musl_errno(ret);
 }
 
-SB_EXPORT int __abi_wrap_pthread_mutexattr_getpshared(
+int __abi_wrap_pthread_mutexattr_getpshared(
     const musl_pthread_mutexattr_t* __restrict attr,
     int* __restrict pshared) {
   int native_pshared;

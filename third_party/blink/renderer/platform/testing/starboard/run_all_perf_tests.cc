@@ -23,7 +23,7 @@ static int InitAndRunAllTests(int argc, char** argv) {
   return blink::BlinkPerfTestSuite(argc, argv).Run();
 }
 
-SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
+STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
 
 #if !SB_IS(EVERGREEN)
 int main(int argc, char** argv) {

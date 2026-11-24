@@ -17,9 +17,9 @@
 #include <errno.h>
 #include <poll.h>
 
-SB_EXPORT int __abi_wrap_poll(struct musl_pollfd* poll_fd,
-                              musl_nfds_t nfds,
-                              int32_t timeout) {
+int __abi_wrap_poll(struct musl_pollfd* poll_fd,
+                    musl_nfds_t nfds,
+                    int32_t timeout) {
   if (!poll_fd) {
     return poll(nullptr, static_cast<nfds_t>(nfds), timeout);
   }

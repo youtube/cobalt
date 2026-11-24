@@ -76,7 +76,7 @@ class CobaltBrowserTestLauncherDelegate : public content::TestLauncherDelegate {
 // the global namespace to have the correct linkage for
 // SbRunStarboardMain.
 
-SB_EXPORT void SbEventHandle(const SbEvent* event) {
+void SbEventHandle(const SbEvent* event) {
   static int s_test_result_code = 0;
   static CobaltBrowserTestLauncherDelegate* s_delegate = nullptr;
 

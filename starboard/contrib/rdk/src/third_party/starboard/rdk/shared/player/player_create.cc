@@ -34,16 +34,14 @@
 #include "third_party/starboard/rdk/shared/media/gst_media_utils.h"
 #include "third_party/starboard/rdk/shared/log_override.h"
 
-SB_EXPORT SbPlayer
-SbPlayerCreate(SbWindow window,
-               const SbPlayerCreationParam* creation_param,
-               SbPlayerDeallocateSampleFunc sample_deallocate_func,
-               SbPlayerDecoderStatusFunc decoder_status_func,
-               SbPlayerStatusFunc player_status_func,
-               SbPlayerErrorFunc player_error_func,
-               void* context,
-               SbDecodeTargetGraphicsContextProvider* provider)
-{
+SbPlayer SbPlayerCreate(SbWindow window,
+                        const SbPlayerCreationParam* creation_param,
+                        SbPlayerDeallocateSampleFunc sample_deallocate_func,
+                        SbPlayerDecoderStatusFunc decoder_status_func,
+                        SbPlayerStatusFunc player_status_func,
+                        SbPlayerErrorFunc player_error_func,
+                        void* context,
+                        SbDecodeTargetGraphicsContextProvider* provider) {
   if (!sample_deallocate_func || !decoder_status_func || !player_status_func || !player_error_func) {
     return kSbPlayerInvalid;
   }

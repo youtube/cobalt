@@ -17,7 +17,6 @@
 #include <stdlib.h>
 
 #include "starboard/configuration.h"
-#include "starboard/export.h"
 
 namespace {
 int musl_status_to_platform_status(int status) {
@@ -36,6 +35,6 @@ int musl_status_to_platform_status(int status) {
 }
 }  // namespace
 
-SB_EXPORT SB_NORETURN void __abi_wrap__Exit(int status) {
+SB_NORETURN void __abi_wrap__Exit(int status) {
   _Exit(musl_status_to_platform_status(status));
 }

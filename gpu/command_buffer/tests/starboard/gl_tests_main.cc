@@ -63,7 +63,7 @@ static int InitAndRunAllTests(int argc, char** argv) {
       base::BindOnce(&GlTestsSuite::Run, base::Unretained(&gl_tests_suite)));
 }
 
-SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
+STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests)
 
 #if !SB_IS(EVERGREEN)
 int main(int argc, char** argv) {

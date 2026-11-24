@@ -27,9 +27,9 @@ extern "C" SbEventId SbEventSchedule(SbEventCallback callback,
   return starboard::Application::Get()->Schedule(callback, context, delay_usec);
 }
 
-extern "C" SB_EXPORT int SbRunStarboardMain(int argc,
-                                            char** argv,
-                                            SbEventHandleCallback callback) {
+extern "C" int SbRunStarboardMain(int argc,
+                                  char** argv,
+                                  SbEventHandleCallback callback) {
   starboard::ApplicationAOSP application(callback);
   return application.Run(argc, argv);
 }

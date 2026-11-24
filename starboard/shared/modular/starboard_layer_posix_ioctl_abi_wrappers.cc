@@ -16,6 +16,6 @@
 
 #include <sys/ioctl.h>
 
-SB_EXPORT int __abi_wrap_ioctl_FIONREAD(int fd, int* arg) {
+int __abi_wrap_ioctl_FIONREAD(int fd, int* arg) {
   return ioctl(fd, FIONREAD, arg);
 }

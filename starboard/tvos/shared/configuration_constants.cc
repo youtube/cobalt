@@ -58,4 +58,4 @@ const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 
 // Whether this platform can map executable memory. This is required for
 // platforms that want to JIT.
-SB_EXPORT extern const bool kSbCanMapExecutableMemory = false;
+extern const bool kSbCanMapExecutableMemory = false;
