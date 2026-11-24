@@ -260,5 +260,15 @@ BASE_FEATURE_PARAM(bool,
                    "CobaltCodeCacheOptimization_bypass_heat_check",
                    true);
 
+BASE_FEATURE(kCobaltHttpCacheQuota,
+             "CobaltHttpCacheQuota",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kCobaltMaxHttpCacheSizeBytes,
+                   &kCobaltHttpCacheQuota,
+                   "cobalt_http_cache_size_bytes",
+                   12582912);
+
 }  // namespace features
 }  // namespace cobalt
