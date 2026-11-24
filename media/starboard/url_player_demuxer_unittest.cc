@@ -180,12 +180,7 @@ class UrlPlayerDemuxerManagerTest : public ::testing::Test {
               *out_start_type = type;
               return PipelineStatus(PIPELINE_OK);
             },
-<<<<<<< HEAD
-            &demuxer_));
-=======
-            &demuxer_, &start_type_),
-        {});
->>>>>>> a0484146ac4 (tvos: Report the URL player duration before metadata (#13753))
+            &demuxer_, &start_type_));
     EXPECT_TRUE(status.is_ok());
   }
 
