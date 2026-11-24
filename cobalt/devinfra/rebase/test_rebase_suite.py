@@ -935,6 +935,42 @@ void Foo() {{}}
       self.assertIn("achoreographer_compat.o", sum1)
       self.assertIn("blit.o", sum2)
 
+  def test_gn_gen_disables_debug_fission(self):
+    """Tests that use_debug_fission = false is appended to args.gn."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      out_dir = os.path.join(tmp_dir, "out", "android-arm_devel")
+      args_gn = os.path.join(out_dir, "args.gn")
+
+      def fake_gn_py(cmd, **_kwargs):
+        # cobalt/build/gn.py rewrites args.gn on every run.
+        os.makedirs(out_dir, exist_ok=True)
+        with open(args_gn, "w", encoding="utf-8") as f:
+          f.write("symbol_level = 1 # Set by gn.py\n")
+        return subprocess.CompletedProcess(cmd, 0, stdout="Done.", stderr="")
+
+      resolver = GNGenResolver(tmp_dir, "android-arm", "devel")
+      with mock.patch("gn_gen.subprocess.run", side_effect=fake_gn_py) as run:
+        self.assertTrue(resolver.run_command(1)[0])
+        self.assertTrue(resolver.run_command(2)[0])
+
+      # Only gn.py runs; autoninja generates the build files again.
+      self.assertEqual(run.call_count, 2)
+      with open(args_gn, encoding="utf-8") as f:
+        self.assertEqual(
+            f.read(), "symbol_level = 1 # Set by gn.py\n"
+            "use_debug_fission = false\n")
+
+      # A failed gn.py run leaves args.gn alone.
+      with open(args_gn, "w", encoding="utf-8") as f:
+        f.write("symbol_level = 1\n")
+      failed = subprocess.CompletedProcess([], 1, stdout="", stderr="ERROR a")
+      with mock.patch("gn_gen.subprocess.run", return_value=failed):
+        ok, output, _ = resolver.run_command(3)
+      self.assertFalse(ok)
+      self.assertIn("ERROR a", output)
+      with open(args_gn, encoding="utf-8") as f:
+        self.assertEqual(f.read(), "symbol_level = 1\n")
+
   def test_libcxx_plus_path_and_conflict_newline_and_siso_uuid(self):
     """Tests '+' path parsing/patching, conflict trailing newline, and UUID."""
     with tempfile.TemporaryDirectory() as tmp_dir:

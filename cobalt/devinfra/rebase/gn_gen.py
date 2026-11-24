@@ -21,6 +21,15 @@ from diagnostics import Diagnostic, GNDiagnostic
 from repo_guards import get_clean_build_env
 
 log = logging.getLogger(__name__)
+
+# Appended to the args.gn that cobalt/build/gn.py writes. With split DWARF
+# every compile step also outputs a .dwo file, and `siso query inputs
+# --include_deps` (run after the build to find the files the target does
+# not compile) fails on those outputs because the deps log has no record
+# for them. Split DWARF only changes where debug info is stored, so the
+# same sources are compiled with the same errors without it.
+_ARGS_GN_OVERRIDES = "use_debug_fission = false\n"
+
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
 
@@ -202,7 +211,16 @@ class GNGenResolver(BaseResolver):
           check=False,
       )
       combined_output = f"{proc.stdout}\n{proc.stderr}"
-      return proc.returncode == 0, combined_output, ""
+      if proc.returncode != 0:
+        return False, combined_output, ""
+      # gn.py rewrites args.gn on every run, so the overrides are appended
+      # each time. autoninja generates the build files again when args.gn
+      # is newer than them, so `gn gen` is not run here.
+      args_gn = os.path.join(self.repo_path, "out",
+                             f"{self.platform}_{self.build_type}", "args.gn")
+      with open(args_gn, "a", encoding="utf-8") as f:
+        f.write(_ARGS_GN_OVERRIDES)
+      return True, combined_output, ""
     except Exception as e:  # pylint: disable=broad-exception-caught
       return False, f"Subprocess execution failed: {e}", ""
 
