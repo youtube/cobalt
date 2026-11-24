@@ -112,6 +112,28 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
   return reinterpret_cast<jlong>(g_native_app_instance);
 }
 
+// Test-only startup path for unit test APKs that do not launch a full
+// ApplicationAndroid instance. Must not be called before
+// JNI_BaseStarboardBridge_StartNativeStarboard in the same process, as
+// StartNativeStarboard assumes SbFileAndroidInitialize has not yet run when
+// g_native_app_instance is null.
+void JNI_BaseStarboardBridge_InitializeFilesForTesting(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_asset_manager,
+    const JavaParamRef<jstring>& j_files_dir,
+    const JavaParamRef<jstring>& j_cache_dir,
+    const JavaParamRef<jstring>& j_native_library_dir) {
+  pthread_mutex_lock(&g_native_app_init_mutex);
+  if (g_app_cache_dir == nullptr) {
+    ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+    SbFileAndroidInitialize(std::move(asset_manager),
+                            ConvertJavaStringToUTF8(env, j_files_dir),
+                            ConvertJavaStringToUTF8(env, j_cache_dir),
+                            ConvertJavaStringToUTF8(env, j_native_library_dir));
+  }
+  pthread_mutex_unlock(&g_native_app_init_mutex);
+}
+
 void JNI_BaseStarboardBridge_CloseNativeStarboard(JNIEnv* env,
                                                   jlong nativeApp) {
   auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
@@ -252,12 +274,11 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
                                          jlong data,
-                                         const std::string& url,
-                                         bool disable_dismiss_button) {
+                                         const std::string& url) {
   SB_CHECK(env);
   Java_BaseStarboardBridge_raisePlatformError(
       env, j_starboard_bridge_, errorType, data,
-      ConvertUTF8ToJavaString(env, url), disable_dismiss_button);
+      ConvertUTF8ToJavaString(env, url));
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {
@@ -326,6 +347,19 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetWasLowMemoryKilled(JNIEnv* env) {
   }
   return Java_BaseStarboardBridge_getWasLowMemoryKilled(
              env, j_starboard_bridge_) == JNI_TRUE;
+}
+
+std::optional<int> StarboardBridge::GetUsedGraphicsMemoryKb(JNIEnv* env) {
+  SB_CHECK(env);
+  if (!j_starboard_bridge_) {
+    return std::nullopt;
+  }
+  int graphics_kb = Java_BaseStarboardBridge_getUsedGraphicsMemoryKb(
+      env, j_starboard_bridge_);
+  if (graphics_kb < 0) {
+    return std::nullopt;
+  }
+  return graphics_kb;
 }
 
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {

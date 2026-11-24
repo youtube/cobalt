@@ -33,6 +33,9 @@ class FileImpl : public File {
 
  protected:
   int file_;
+  // The file's contents are the |size_| bytes at |offset_| in |file_|.
+  int64_t offset_ = 0;
+  int64_t size_ = 0;
   std::string name_;
 
   FileImpl(const FileImpl&) = delete;

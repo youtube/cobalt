@@ -14,6 +14,7 @@
 
 package dev.cobalt.features;
 
+import androidx.annotation.VisibleForTesting;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -47,17 +48,32 @@ import org.chromium.components.cached_flags.IntCachedFeatureParam;
 @NullMarked
 public final class CobaltFeatureList {
   /**
+   * Value of {@link #sLowMemoryDeviceThresholdMb} when LowEndMemoryExperiment doesn't set it. It is
+   * not a valid threshold, so it means that the param is not set.
+   */
+  @VisibleForTesting static final int DEFAULT_LOW_MEMORY_DEVICE_THRESHOLD_MB = Integer.MAX_VALUE;
+
+  /**
    * RAM threshold in MB at or below which the device is considered low-end. Mirrors
    * base::features::kLowMemoryDeviceThresholdMB, which cannot be read from Finch yet when
-   * base::SysInfo::IsLowEndDevice() is first called during startup. The default matches
-   * LOW_MEMORY_DEVICE_THRESHOLD_MB for Android in //base/features.cc.
+   * base::SysInfo::IsLowEndDevice() is first called during startup.
+   *
+   * <p>Cobalt adds --enable-low-end-device-mode by default, which also makes base::SysInfo report
+   * at most 512 MB of RAM. When LowEndMemoryExperiment sets this param, Cobalt doesn't add the
+   * switch, and base compares the device's RAM against this threshold instead, as in Chromium. See
+   * {@link #isLowMemoryDeviceThresholdSet()}.
+   *
+   * <p>Finch values must be in [1, 4095]. base::FeatureParam<size_t> CHECK-fails on negative
+   * values. On the first launch with the param, before it is cached, the switch is still on, so
+   * base uses the param as the fake memory limit in SysInfo::AmountOfAvailablePhysicalMemory(),
+   * which overflows 32-bit size_t at 4096 or more.
    */
   public static final IntCachedFeatureParam sLowMemoryDeviceThresholdMb =
       new IntCachedFeatureParam(
           CobaltFeatureMap.getInstance(),
           BaseFeatures.LOW_END_MEMORY_EXPERIMENT,
           "LowMemoryDeviceThresholdMB",
-          SysUtils.LOW_MEMORY_DEVICE_THRESHOLD_MB);
+          DEFAULT_LOW_MEMORY_DEVICE_THRESHOLD_MB);
 
   /** All CachedFeatureParams that are persisted for the next launch. */
   private static final List<CachedFeatureParam<?>> sParamsCached =
@@ -70,7 +86,21 @@ public final class CobaltFeatureList {
    * browser process before the native library is loaded.
    */
   public static void applyCachedValuesBeforeNative() {
-    SysUtils.setLowMemoryDeviceThresholdMb(sLowMemoryDeviceThresholdMb.getValue());
+    // Otherwise, --enable-low-end-device-mode is on, and SysUtils keeps base's default threshold.
+    if (isLowMemoryDeviceThresholdSet()) {
+      SysUtils.setLowMemoryDeviceThresholdMb(sLowMemoryDeviceThresholdMb.getValue());
+    }
+  }
+
+  /**
+   * Returns whether LowEndMemoryExperiment sets {@link #sLowMemoryDeviceThresholdMb} to a positive
+   * value, as cached by the previous launch. If so, --enable-low-end-device-mode is not added, and
+   * base decides whether the device is low-end by comparing its RAM against the threshold. Can be
+   * called before the native library is loaded.
+   */
+  public static boolean isLowMemoryDeviceThresholdSet() {
+    int thresholdMb = sLowMemoryDeviceThresholdMb.getValue();
+    return thresholdMb > 0 && thresholdMb != DEFAULT_LOW_MEMORY_DEVICE_THRESHOLD_MB;
   }
 
   /**

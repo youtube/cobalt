@@ -137,6 +137,10 @@ if (is_ios && target_platform == "tvos") {
       "//content/public/app",
       "//starboard:starboard_group",
     ]
+    frameworks = [
+      "AVFoundation.framework",
+      "UIKit.framework",
+    ]
     bundle_deps = [
       ":cobalt_shell_framework_resources",
       "shell/app/ios/resources",
@@ -169,6 +173,10 @@ if (is_ios && target_platform == "tvos") {
       "//components/crash/core/app",
       "//content/public/app",
       "//starboard:starboard_group",
+    ]
+    frameworks = [
+      "AVFoundation.framework",
+      "UIKit.framework",
     ]
   }
 
@@ -386,6 +394,7 @@ test("cobalt_unittests") {
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
     "//cobalt/shell/browser/splash_cache_unittest.cc",
     "//components/services/storage/dom_storage/dom_storage_database_unittest.cc",
+    "//components/services/storage/service_worker/service_worker_storage_unittest.cc",
   ]
 
   # On tvOS (is_ios), MessagePumpType::DEFAULT uses MessagePumpCFRunLoop.
@@ -422,6 +431,7 @@ test("cobalt_unittests") {
       "//cobalt/app/app_event_runner_unittest.cc",
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/browser/lifecycle/cobalt_lifecycle_manager_unittest.cc",
+      "//cobalt/renderer/renderer_thread_parker_unittest.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
   }
@@ -479,6 +489,7 @@ test("cobalt_unittests") {
     "//cobalt/common/libc:libc_test",
     "//cobalt/gpu:unit_tests",
     "//cobalt/memory:unit_tests",
+    "//cobalt/renderer",
     "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
     "//components/metrics:test_support",

@@ -14,14 +14,15 @@
 
 #include "starboard/linux/shared/low_memory_kill.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <charconv>
-#include <fstream>
-#include <iterator>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -209,14 +210,34 @@ bool ParseMarkerLine(std::string_view line, SbLowMemoryKillDetails* details) {
 // supply |out_details|.
 bool CheckAndConsumeMarker(const char* path,
                            SbLowMemoryKillDetails* out_details) {
-  std::ifstream file(path, std::ios::in | std::ios::binary);
-  std::string contents;
-  if (file) {
-    contents.assign(std::istreambuf_iterator<char>(file),
-                    std::istreambuf_iterator<char>());
-  }
+  int fd = open(path, O_RDONLY | O_CLOEXEC | O_NONBLOCK);
   if (unlink(path) != 0) {
+    if (fd >= 0) {
+      close(fd);
+    }
     return false;
+  }
+  std::string contents;
+  if (fd >= 0) {
+    struct stat st;
+    if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode)) {
+      constexpr size_t kMaxMarkerBytes = 4 * 1024 * 1024;
+      char buf[1024];
+      while (contents.size() < kMaxMarkerBytes) {
+        const size_t remaining = kMaxMarkerBytes - contents.size();
+        const ssize_t bytes_read =
+            read(fd, buf, std::min(sizeof(buf), remaining));
+        if (bytes_read > 0) {
+          contents.append(buf, static_cast<size_t>(bytes_read));
+          continue;
+        }
+        if (bytes_read < 0 && errno == EINTR) {
+          continue;
+        }
+        break;
+      }
+    }
+    close(fd);
   }
   *out_details = testing::ParseLowMemoryKillMarker(contents);
   return true;

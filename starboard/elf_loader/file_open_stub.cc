@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/event.h"
+#include "starboard/elf_loader/file_open.h"
 
-int main(int argc, char** argv) {
-  return SbRunStarboardMain(argc, argv, SbEventHandle);
+namespace elf_loader {
+
+int OpenFileInPlace(const char* name, int64_t* offset, int64_t* size) {
+  return -1;
 }
+
+}  // namespace elf_loader

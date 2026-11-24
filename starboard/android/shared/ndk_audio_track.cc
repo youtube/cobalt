@@ -239,29 +239,28 @@ void NdkAudioTrack::SetVolume(double volume) {
   volume_.store(static_cast<float>(volume), std::memory_order_relaxed);
 }
 
-int64_t NdkAudioTrack::GetAudioTimestamp(int64_t* updated_at) {
-  int64_t frame_position = 0;
+AudioTrack::AudioTimestamp NdkAudioTrack::GetAudioTimestamp() {
+  AudioTimestamp timestamp;
   int64_t time_nanoseconds = 0;
-  aaudio_result_t result = AAudio::Stream_GetTimestamp(
-      stream_.get(), CLOCK_MONOTONIC, &frame_position, &time_nanoseconds);
+  aaudio_result_t result =
+      AAudio::Stream_GetTimestamp(stream_.get(), CLOCK_MONOTONIC,
+                                  &timestamp.frame_position, &time_nanoseconds);
   if (result == AAUDIO_OK) {
-    if (updated_at) {
-      *updated_at = time_nanoseconds / 1000;
-    }
-    return frame_position;
+    timestamp.updated_at_us = time_nanoseconds / 1000;
+    return timestamp;
   }
 
-  if (updated_at) {
-    *updated_at = CurrentMonotonicTime();
-  }
+  timestamp.updated_at_us = CurrentMonotonicTime();
   int64_t frames_read = AAudio::Stream_GetFramesRead(stream_.get());
   if (frames_read < 0) {
     SB_LOG(WARNING) << "stream_getFramesRead failed: "
                     << AAudio::ConvertResultToText(
                            static_cast<aaudio_result_t>(frames_read));
-    return 0;
+    timestamp.frame_position = 0;
+    return timestamp;
   }
-  return frames_read;
+  timestamp.frame_position = frames_read;
+  return timestamp;
 }
 
 // TODO: b/523148108 - Implement seamless switch for NDK.
