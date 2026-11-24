@@ -794,6 +794,22 @@ BASE_FEATURE(kCobaltQuicReadBatch,
              base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<int> kCobaltQuicReadBatchPackets{
     &kCobaltQuicReadBatch, "CobaltQuicReadBatch_packets", 16};
+
+BASE_FEATURE(kCobaltEnableQuic,
+             "CobaltEnableQuic",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Cobalt's Finch flattens params across features into one namespace, so
+// the param names are prefixed with the feature name.
+const base::FeatureParam<std::string> kCobaltQuicConnectionOptions{
+    &kCobaltEnableQuic, "CobaltEnableQuic_connection_options",
+    "BWS2,BWRS"};
+const base::FeatureParam<int> kCobaltQuicBrokenInitialDelaySeconds{
+    &kCobaltEnableQuic, "CobaltEnableQuic_broken_initial_delay_s", 10};
+const base::FeatureParam<int> kCobaltQuicBrokenMaxDelaySeconds{
+    &kCobaltEnableQuic, "CobaltEnableQuic_broken_max_delay_s", 1800};
+const base::FeatureParam<bool> kCobaltQuicMarkBrokenOnBlackhole{
+    &kCobaltEnableQuic, "CobaltEnableQuic_mark_broken_on_blackhole", true};
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features
