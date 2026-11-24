@@ -4542,7 +4542,12 @@ bool LayerTreeHostImpl::InitializeFrameSink(
   if (!settings_.trees_in_viz_in_viz_process) {
     resource_pool_ = std::make_unique<ResourcePool>(
         resource_provider_.get(), layer_tree_frame_sink_->context_provider(),
-        GetTaskRunner(), ResourcePool::kDefaultExpirationDelay,
+        GetTaskRunner(),
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+        base::Seconds(1),
+#else
+        ResourcePool::kDefaultExpirationDelay,
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
         settings_.disallow_non_exact_resource_reuse);
 
     CreateTileManagerResources();

@@ -21,6 +21,7 @@
 #include "base/test/test_simple_task_runner.h"
 #include "base/time/time_override.h"
 #include "base/trace_event/process_memory_dump.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/layers/recording_source.h"
 #include "cc/raster/raster_buffer.h"
@@ -4325,6 +4326,54 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesOldYoungTiles) {
   // No progress can be made, do not repost a task.
   EXPECT_FALSE(task_runner()->HasPendingTask());
 }
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+TEST_F(TileManagerTileReclaimTest,
+       CobaltConfiguresPoolExpirationAndTrimsSoonTilesUnderMinimumPolicy) {
+  base::test::ScopedFeatureList scoped_feature_list{
+      features::kReclaimOldPrepaintTiles};
+  ASSERT_TRUE(host_impl()->resource_pool());
+  EXPECT_EQ(
+      base::Seconds(1),
+      host_impl()->resource_pool()->resource_expiration_delay_for_testing());
+  EXPECT_EQ(base::Seconds(3), TileManager::kDelayBeforeTimeReclaim);
+  EXPECT_EQ(base::Seconds(2), TileManager::GetTrimPrepaintTilesDelay());
+
+  gfx::Rect viewport{100, 100, 100, 100};
+  GlobalStateThatImpactsTilePriority global_tile_state =
+      host_impl()->global_tile_state();
+  host_impl()->active_tree()->SetDeviceViewportRect(viewport);
+  MakeFrame(global_tile_state);
+
+  bool had_soon_tiles = false;
+  for (auto eviction_queue = host_impl()->BuildEvictionQueue(
+           host_impl()->global_tile_state().tree_priority);
+       !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
+    const auto& tile = eviction_queue->Top();
+    had_soon_tiles |= tile.priority().priority_bin == TilePriority::SOON &&
+                      tile.tile()->draw_info().IsReadyToDraw();
+  }
+  ASSERT_TRUE(had_soon_tiles);
+
+  // Switch to Cobalt's ALLOW_ABSOLUTE_MINIMUM policy and advance two trim
+  // cycles: both SOON and EVENTUALLY tiles must be reclaimed, leaving only NOW.
+  global_tile_state.memory_limit_policy =
+      TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM;
+  MakeFrame(global_tile_state);
+  task_runner()->FastForwardBy(TileManager::GetTrimPrepaintTilesDelay());
+  task_runner()->FastForwardBy(TileManager::GetTrimPrepaintTilesDelay());
+
+  bool checked_any_tiles = false;
+  for (auto eviction_queue = host_impl()->BuildEvictionQueue(
+           host_impl()->global_tile_state().tree_priority);
+       !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
+    const auto& tile = eviction_queue->Top();
+    EXPECT_EQ(TilePriority::NOW, tile.priority().priority_bin);
+    checked_any_tiles = true;
+  }
+  EXPECT_TRUE(checked_any_tiles);
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 }  // namespace cc
