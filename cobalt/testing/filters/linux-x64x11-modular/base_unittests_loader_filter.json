@@ -32,7 +32,7 @@
     "OutOfMemoryDeathTest.Malloc",
     "PathServiceTest.Get",
     "PlatformThreadTest.CanChangeThreadType",
-    "PlatformThreadTest.SetCurrentThreadTypeTest",
+    "PlatformThreadTest.SetDefaultThreadTypeTest",
     "PostTaskAndReplyImplTest.PostTaskToStoppedTaskRunnerWithoutSequencedContext",
     "PreFreezeSelfCompactionTest.NotCanceled",
     "ProcessTest.SetProcessBackgrounded",
