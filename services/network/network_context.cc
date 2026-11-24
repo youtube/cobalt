@@ -3816,6 +3816,19 @@ void NetworkContext::GetDeviceBoundSessionManager(
   }
 }
 
+#if BUILDFLAG(IS_COBALT)
+void NetworkContext::FlushHttpServerProperties(
+    FlushHttpServerPropertiesCallback callback) {
+  net::HttpServerProperties* http_server_properties =
+      url_request_context_->http_server_properties();
+  if (!http_server_properties) {
+    std::move(callback).Run(/*flushed=*/false);
+    return;
+  }
+  http_server_properties->FlushWriteProperties(std::move(callback));
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void NetworkContext::AddQuicHints(
     const std::vector<url::SchemeHostPort>& origins,
     const net::NetworkAnonymizationKey& network_anonymization_key) {

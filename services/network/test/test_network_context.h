@@ -15,6 +15,7 @@
 #include "base/component_export.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
+#include "build/build_config.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/address_list.h"
@@ -408,6 +409,10 @@ class TestNetworkContext : public mojom::NetworkContext {
       const net::NetworkAnonymizationKey& network_anonymization_key) override {}
   void SetVariationsHeaders(
       variations::mojom::VariationsHeadersPtr variations_headers) override {}
+#if BUILDFLAG(IS_COBALT)
+  void FlushHttpServerProperties(
+      FlushHttpServerPropertiesCallback callback) override {}
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace network
