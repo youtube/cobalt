@@ -557,6 +557,16 @@ namespace internal {
 
 bool GetHandlerTrampoline(std::string* handler_trampoline,
                           std::string* handler_library) {
+#if BUILDFLAG(IS_COBALT)
+  // The Android linker cannot load an executable passed on its command line
+  // until Q (API 29). Below Q, leave the out-params empty so the caller starts
+  // no linker-based handler. (Cobalt ATV does not support crash reporting below
+  // Q by design.)
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_Q) {
+    return false;
+  }
+#endif
   Dl_info info;
   CHECK(dladdr(reinterpret_cast<void*>(&GetHandlerTrampoline), &info));
   std::string local_handler_library(info.dli_fname);
@@ -574,11 +584,19 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
 
   base::FilePath handler_library_path(info.dli_fname);
   base::FilePath libdir = handler_library_path.DirName();
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROIDTV)
+  // Cobalt ATV ships a standalone ELF (libchrome_crashpad_handler.so), not the
+  // library-based trampoline; there is no separate handler library.
+  *handler_trampoline =
+      libdir.AppendASCII("libchrome_crashpad_handler.so").value();
+  *handler_library = "";
+#else
   base::FilePath handler_trampoline_path =
       libdir.AppendASCII("libcrashpad_handler_trampoline.so");
 
   *handler_trampoline = handler_trampoline_path.value();
   *handler_library = handler_library_path.value();
+#endif
   return true;
 }
 
