@@ -17,11 +17,8 @@
 #include <atomic>
 #include <utility>
 
-<<<<<<< HEAD
 #include "base/containers/span.h"
-=======
 #include "base/functional/bind.h"
->>>>>>> fd171f701e9 (media: Move WebAudio audio sink creation off the main thread behind a flag (#13702))
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"

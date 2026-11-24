@@ -18,16 +18,13 @@
 #include <atomic>
 #include <memory>
 
-<<<<<<< HEAD
-#include "media/base/audio_bus.h"
-=======
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/thread_annotations.h"
 #include "base/threading/thread_checker.h"
->>>>>>> fd171f701e9 (media: Move WebAudio audio sink creation off the main thread behind a flag (#13702))
+#include "media/base/audio_bus.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/media_export.h"
 #include "media/base/multi_channel_resampler.h"
