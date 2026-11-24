@@ -11,11 +11,8 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-<<<<<<< ours
 #include "base/memory/ref_counted.h"
-=======
 #include "build/build_config.h"
->>>>>>> theirs
 #include "ui/gl/gl_export.h"
 
 // The gpu_timing classes handles the abstraction of GL GPU Timing extensions

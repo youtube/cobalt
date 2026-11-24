@@ -222,12 +222,11 @@ TEST_F(GPUTimingTest, AreTimestampQueriesPreciseHighUptimeFull64Bit) {
   EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
       .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
   EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
-      .WillRepeatedly(
-          Invoke([&](GLenum, GLint64* data) { *data = current_ns; }));
+      .WillRepeatedly([&](GLenum, GLint64* data) { *data = current_ns; });
   EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
-      .WillRepeatedly(Invoke([&](GLuint, GLenum, GLuint64* params) {
+      .WillRepeatedly([&](GLuint, GLenum, GLuint64* params) {
         *params = static_cast<GLuint64>(current_ns);
-      }));
+      });
 
   EXPECT_TRUE(client->AreTimestampQueriesPrecise());
   for (int i = 0; i < 8; ++i) {
@@ -269,17 +268,16 @@ TEST_F(GPUTimingTest, AreTimestampQueriesPreciseDetectsFloat32Truncation) {
   uint64_t query_ns = 0;
   EXPECT_CALL(*gl_, QueryCounter(_, GL_TIMESTAMP_EXT))
       .Times(AtLeast(6))
-      .WillRepeatedly(Invoke([&](GLuint, GLenum) {
+      .WillRepeatedly([&](GLuint, GLenum) {
         query_ns = static_cast<uint64_t>(static_cast<float>(current_ns));
-      }));
+      });
   EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
       .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
   EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
-      .WillRepeatedly(
-          Invoke([&](GLenum, GLint64* data) { *data = current_ns; }));
+      .WillRepeatedly([&](GLenum, GLint64* data) { *data = current_ns; });
   EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
-      .WillRepeatedly(Invoke(
-          [&](GLuint, GLenum, GLuint64* params) { *params = query_ns; }));
+      .WillRepeatedly(
+          [&](GLuint, GLenum, GLuint64* params) { *params = query_ns; });
 
   EXPECT_TRUE(client->AreTimestampQueriesPrecise());
   for (int i = 0; i < 6; ++i) {
@@ -329,12 +327,12 @@ TEST_F(GPUTimingTest, AreTimestampQueriesPreciseDetectsCalibrationMismatch) {
   EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
       .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
   EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
-      .WillRepeatedly(Invoke(
-          [&](GLenum, GLint64* data) { *data = (current_ns * 24) / 1000; }));
+      .WillRepeatedly(
+          [&](GLenum, GLint64* data) { *data = (current_ns * 24) / 1000; });
   EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
-      .WillRepeatedly(Invoke([&](GLuint, GLenum, GLuint64* params) {
+      .WillRepeatedly([&](GLuint, GLenum, GLuint64* params) {
         *params = static_cast<GLuint64>(current_ns);
-      }));
+      });
 
   EXPECT_TRUE(client->AreTimestampQueriesPrecise());
   for (int i = 0; i < 2; ++i) {
@@ -377,17 +375,16 @@ TEST_F(GPUTimingTest, AreTimestampQueriesPreciseStepThresholdBoundary) {
   uint64_t query_ns = 0;
   EXPECT_CALL(*gl_, QueryCounter(_, GL_TIMESTAMP_EXT))
       .Times(AtLeast(12))
-      .WillRepeatedly(Invoke([&](GLuint, GLenum) {
+      .WillRepeatedly([&](GLuint, GLenum) {
         query_ns = static_cast<uint64_t>(static_cast<float>(current_ns));
-      }));
+      });
   EXPECT_CALL(*gl_, GetQueryObjectuiv(_, GL_QUERY_RESULT_AVAILABLE, NotNull()))
       .WillRepeatedly(DoAll(SetArgPointee<2>(1), Return()));
   EXPECT_CALL(*gl_, GetInteger64v(GL_TIMESTAMP_EXT, NotNull()))
-      .WillRepeatedly(
-          Invoke([&](GLenum, GLint64* data) { *data = current_ns; }));
+      .WillRepeatedly([&](GLenum, GLint64* data) { *data = current_ns; });
   EXPECT_CALL(*gl_, GetQueryObjectui64v(_, GL_QUERY_RESULT, NotNull()))
-      .WillRepeatedly(Invoke(
-          [&](GLuint, GLenum, GLuint64* params) { *params = query_ns; }));
+      .WillRepeatedly(
+          [&](GLuint, GLenum, GLuint64* params) { *params = query_ns; });
 
   // Below 2^36 ns (~68.7 s), binary32 ULP is 2^12 ns = 4.096 us (< 8 us).
   current_ns = (int64_t{1} << 35) + (int64_t{3} << 12);
