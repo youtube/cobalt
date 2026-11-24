@@ -92,6 +92,16 @@
 #include "url/gurl.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <cmath>
+#include <cstring>
+
+#include "base/numerics/safe_conversions.h"
+#include "components/viz/common/frame_sinks/begin_frame_args.h"
+#include "content/public/browser/frame_rate_throttling.h"
+#include "starboard/system.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
@@ -424,7 +434,66 @@ void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+// The CobaltExtensionGraphicsApi version that added the minimum frame
+// interval.
+constexpr uint32_t kMinimumFrameIntervalVersion = 2;
+
+// Caps the frame rate at the platform's minimum frame interval, as Cobalt 25
+// did.
+void ApplyMinimumFrameInterval() {
+  const auto* graphics_extension =
+      static_cast<const CobaltExtensionGraphicsApi*>(
+          SbSystemGetExtension(kCobaltExtensionGraphicsName));
+  if (!graphics_extension ||
+      strcmp(graphics_extension->name, kCobaltExtensionGraphicsName) != 0) {
+    return;
+  }
+  // TODO(b/584412770): Use the display's actual refresh interval. This assumes
+  // 60 Hz, and viz drops the throttle on a display that reports another rate.
+  const std::optional<base::TimeDelta> throttled_frame_interval =
+      GetThrottledFrameInterval(graphics_extension,
+                                viz::BeginFrameArgs::DefaultInterval());
+  if (throttled_frame_interval) {
+    // Caps the frame rate: Chromium sends BeginFrames no more often than this.
+    content::StartThrottlingAllFrameSinks(*throttled_frame_interval);
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 }  // namespace
+
+#if BUILDFLAG(IS_STARBOARD)
+std::optional<base::TimeDelta> GetThrottledFrameInterval(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval) {
+  if (!graphics_extension ||
+      graphics_extension->version < kMinimumFrameIntervalVersion ||
+      !graphics_extension->GetMinimumFrameIntervalInMilliseconds ||
+      !refresh_interval.is_positive()) {
+    return std::nullopt;
+  }
+  const float minimum_frame_interval_milliseconds =
+      graphics_extension->GetMinimumFrameIntervalInMilliseconds();
+  // A minimum frame interval that is not positive means the platform sets
+  // none.
+  if (!std::isfinite(minimum_frame_interval_milliseconds) ||
+      minimum_frame_interval_milliseconds <= 0.0f) {
+    return std::nullopt;
+  }
+  // Rounds to the nearest refresh rather than up, so that a value just over a
+  // whole number of refreshes, such as 17 ms at 60 Hz, does not halve the
+  // frame rate.
+  const int refreshes_per_frame =
+      base::ClampRound(base::Milliseconds(minimum_frame_interval_milliseconds) /
+                       refresh_interval);
+  // One frame per refresh is what happens without throttling.
+  if (refreshes_per_frame <= 1) {
+    return std::nullopt;
+  }
+  return refresh_interval * refreshes_per_frame;
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
                                             const base::FilePath& cache_dir) {
@@ -728,6 +797,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
     return result;
   }
 
+<<<<<<< HEAD
   // TODO: b/570507375 - CobaltSystemMemoryPressureEvaluator and tests need to
   // be adapted to the staging branch. #if BUILDFLAG(IS_STARBOARD)
   //   // Register the Cobalt system memory pressure evaluator on Starboard
@@ -766,6 +836,55 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   //     Finch.";
   //   }
   // #endif  // BUILDFLAG(IS_STARBOARD)
+=======
+#if BUILDFLAG(IS_STARBOARD)
+  ApplyMinimumFrameInterval();
+#endif  // BUILDFLAG(IS_STARBOARD)
+
+#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+  // Register Cobalt memory pressure evaluators when enabled via Finch or
+  // command line.
+  if (base::FeatureList::IsEnabled(
+          features::kEnableCobaltMemoryPressureEvaluator)) {
+    // static_cast is safe because MultiSourceMemoryPressureMonitor is the only
+    // implementation of MemoryPressureMonitor.
+    auto* monitor =
+        static_cast<memory_pressure::MultiSourceMemoryPressureMonitor*>(
+            base::MemoryPressureMonitor::Get());
+    if (!monitor) {
+      memory_pressure_monitor_ =
+          std::make_unique<memory_pressure::MultiSourceMemoryPressureMonitor>();
+      monitor = memory_pressure_monitor_.get();
+    }
+    if (monitor) {
+      cobalt::memory::CobaltSystemMemoryPressureEvaluator::MediaAllowanceGetter
+          media_allowance_getter;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      media_allowance_getter = base::BindRepeating(
+          &::media::MediaClient::GetMediaSourceCurrentMemoryCapacity);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      monitor->SetSystemEvaluator(
+          std::make_unique<cobalt::memory::CobaltSystemMemoryPressureEvaluator>(
+              monitor->CreateVoter(), std::move(media_allowance_getter)));
+      LOG(INFO)
+          << "CobaltSystemMemoryPressureEvaluator registered successfully.";
+
+#if BUILDFLAG(IS_ANDROID)
+      // Register evaluator for Android OS memory pressure signals.
+      android_os_signal_evaluator_ =
+          std::make_unique<cobalt::memory::AndroidOsSignalEvaluator>(
+              monitor->CreateVoter());
+      LOG(INFO) << "AndroidOsSignalEvaluator registered successfully.";
+#endif  // BUILDFLAG(IS_ANDROID)
+    } else {
+      LOG(WARNING)
+          << "No MemoryPressureMonitor available; cannot register evaluators.";
+    }
+  } else {
+    LOG(INFO) << "Cobalt memory pressure evaluators are disabled by Finch.";
+  }
+#endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
+>>>>>>> 6535d98da3c (cobalt: Apply Starboard frame rate cap and EGL swap interval (#14027))
 
   StartStorageMigration();
   ScheduleCobaltStorageMetricsRecording();

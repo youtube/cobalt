@@ -14,13 +14,16 @@
 
 #include "ui/ozone/platform/starboard/gl_ozone_egl_starboard.h"
 
+#include <cstring>
 #include <memory>
 #include <string_view>
 
 #include "base/logging.h"
 #include "base/strings/string_split.h"
 #include "starboard/egl.h"
+#include "starboard/extension/configuration.h"
 #include "starboard/gles.h"
+#include "starboard/system.h"
 #include "ui/ozone/common/egl_util.h"
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
@@ -30,6 +33,43 @@ extern "C" void ANGLESetNativeEGLGetProcAddress(
 #endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 namespace ui {
+
+namespace {
+
+// The EGL swap interval of a platform that does not configure one: one frame
+// per display refresh.
+constexpr int kDefaultEglSwapInterval = 1;
+
+// The window surface on Starboard platforms. It exists to swap at the
+// platform's CobaltEglSwapInterval() while vsync is enabled, as Cobalt 25 did.
+// It is ref-counted and created by GLOzoneEGLStarboard::CreateViewGLSurface(),
+// whose caller owns it. Like its base class, it is used only on the thread
+// where its GL context is current.
+class GLSurfaceEGLStarboard : public gl::NativeViewGLSurfaceEGL {
+ public:
+  using gl::NativeViewGLSurfaceEGL::NativeViewGLSurfaceEGL;
+
+ protected:
+  int GetVSyncEnabledSwapInterval() const override {
+    static const int swap_interval = [] {
+      const auto* configuration =
+          static_cast<const CobaltExtensionConfigurationApi*>(
+              SbSystemGetExtension(kCobaltExtensionConfigurationName));
+      if (configuration &&
+          strcmp(configuration->name, kCobaltExtensionConfigurationName) == 0 &&
+          configuration->version >= 1 && configuration->CobaltEglSwapInterval) {
+        return configuration->CobaltEglSwapInterval();
+      }
+      return kDefaultEglSwapInterval;
+    }();
+    return swap_interval;
+  }
+
+ private:
+  ~GLSurfaceEGLStarboard() override = default;
+};
+
+}  // namespace
 
 // Macro to simplify the lookup of function pointers from a given interface.
 // It checks if 'name' matches '#func_name' and returns the corresponding
@@ -307,7 +347,7 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
   CHECK(window != gfx::kNullAcceleratedWidget);
   // TODO(b/371272304): Verify widget dimensions match our expected display size
   // (likely full screen for Cobalt).
-  return gl::InitializeGLSurface(new gl::NativeViewGLSurfaceEGL(
+  return gl::InitializeGLSurface(new GLSurfaceEGLStarboard(
       display->GetAs<gl::GLDisplayEGL>(), window, nullptr));
 }
 
