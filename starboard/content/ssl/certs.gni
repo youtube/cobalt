@@ -46,7 +46,6 @@ network_certs = [
   "//starboard/content/ssl/certs/607986c7.0",
   "//starboard/content/ssl/certs/626dceaf.0",
   "//starboard/content/ssl/certs/68dd7389.0",
-  "//starboard/content/ssl/certs/6b99d060.0",
   "//starboard/content/ssl/certs/6d41d539.0",
   "//starboard/content/ssl/certs/6fa5da56.0",
   "//starboard/content/ssl/certs/706f604c.0",
