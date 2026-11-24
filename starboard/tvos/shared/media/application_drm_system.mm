@@ -194,6 +194,21 @@
                     ticket:ticket];
 }
 
+- (void)failSessionUpdateRequestWithTicket:(NSInteger)ticket
+                              errorMessage:(const char*)errorMessage {
+  SBDDrmManager* drmManager = SBDGetApplication().drmManager;
+  SbDrmSystem starboardDrmSystem =
+      [drmManager starboardDrmSystemForApplicationDrmSystem:self];
+  // A null session id signals the failure, so Cobalt rejects the promise
+  // waiting on this ticket instead of leaving it pending.
+  _sessionUpdateRequestFunc(starboardDrmSystem, _sessionContext, ticket,
+                            kSbDrmStatusTypeError,
+                            kSbDrmSessionRequestTypeLicenseRequest,
+                            errorMessage, /*session_id=*/nullptr,
+                            /*session_id_size=*/0, /*content=*/nullptr,
+                            /*content_size=*/0, /*url=*/nullptr);
+}
+
 - (void)streamingContentKeyRequest:(AVContentKeyRequest*)keyRequest
                  completedWithData:(NSData*)contentKeyRequestData
                           initData:(NSData*)initData
