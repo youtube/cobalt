@@ -24,7 +24,6 @@
 #include "base/time/time.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/types/pass_key.h"
-<<<<<<< HEAD
 #include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
 #include "components/services/storage/dom_storage/dom_storage_rollout.h"
@@ -40,13 +39,6 @@ class ProcessMemoryDump;
 namespace sql {
 class Database;
 }  // namespace sql
-=======
-#include "build/build_config.h"
-#include "third_party/leveldatabase/env_chromium.h"
-#include "third_party/leveldatabase/src/include/leveldb/db.h"
-#include "third_party/leveldatabase/src/include/leveldb/env.h"
-#include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
->>>>>>> a24f35e6833 ([Cobalt] Add Essential Storage UMA Histograms and Filter Manifest (#13620))
 
 namespace storage {
 enum class StorageType;
@@ -470,7 +462,6 @@ class DomStorageDatabaseFactory {
   // runs `callback` (already bound to the caller's sequence) with the
   // assembled `OpenResult`.
   //
-<<<<<<< HEAD
   // For on-disk databases this may be called from any sequence: the work runs
   // on the backend's blocking sequence (selected via `GetTaskRunnerForDb()`),
   // re-posting to it if needed. For in-memory databases the caller must invoke
@@ -505,43 +496,6 @@ class DomStorageDatabaseFactory {
 
   // Allow unit tests to create a database instance without `SequenceBound`.
   static PassKey CreatePassKeyForTesting();
-=======
-  // This must be called on a sequence that allows blocking operations.
-  void Init(scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-            StatusCallback callback);
-
-  template <typename... Args>
-  static void CreateSequenceBoundDomStorageDatabase(
-      scoped_refptr<base::SequencedTaskRunner> blocking_task_runner,
-      DomStorageDatabase::OpenCallback callback,
-      Args&&... args);
-
-  // base::trace_event::MemoryDumpProvider implementation:
-  bool OnMemoryDump(const base::trace_event::MemoryDumpArgs& args,
-                    base::trace_event::ProcessMemoryDump* pmd) override;
-
-  const std::string name_;
-  const std::unique_ptr<leveldb::Env> env_;
-  leveldb_env::Options options_;
-  const std::optional<base::trace_event::MemoryAllocatorDumpGuid>
-      memory_dump_id_;
-  std::unique_ptr<leveldb::DB> db_;
-
-#if BUILDFLAG(IS_COBALT)
-  // True for persistent LocalStorage databases ("leveldb") and false for
-  // persistent SessionStorage databases ("Session Storage") or in-memory DBs.
-  const bool is_local_storage_ = false;
-#endif  // BUILDFLAG(IS_COBALT)
-
-  // Causes all calls to |Commit()| to fail with an IOError for simulated
-  // disk failures in testing.
-  bool fail_commits_for_testing_ = false;
-
-  // Callback to run on destruction in tests.
-  base::OnceClosure destruction_callback_;
-
-  SEQUENCE_CHECKER(sequence_checker_);
->>>>>>> a24f35e6833 ([Cobalt] Add Essential Storage UMA Histograms and Filter Manifest (#13620))
 };
 
 // Creates a blocking task runner to use for `database_path`.  `database_path`

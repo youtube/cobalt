@@ -1260,8 +1260,9 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
   // empty timer flushes or redundant exit flushes from recording 0-op commits
   // into Cobalt.Storage.Cookie.PendingOperationsAtCommit and skewing production
   // batch size percentiles.
-  if (!db() || ops.empty())
+  if (!db() || ops.empty()) {
     return;
+  }
 
 #if BUILDFLAG(IS_COBALT)
   for (const auto& op : ops) {

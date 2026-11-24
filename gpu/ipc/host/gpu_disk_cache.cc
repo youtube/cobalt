@@ -726,15 +726,8 @@ void GpuDiskCache::Init(disk_cache::ResetHandling reset_handling) {
 #endif  // BUILDFLAG(IS_COBALT)
   disk_cache::BackendResult rv = disk_cache::CreateCacheBackend(
       net::SHADER_CACHE, net::CACHE_BACKEND_DEFAULT,
-<<<<<<< HEAD
-      /*file_operations=*/nullptr, cache_path_, GetDefaultGpuDiskCacheSize(),
-      reset_handling,
+      /*file_operations=*/nullptr, cache_path_, cache_size, reset_handling,
       /*net_log=*/nullptr, /*cache_encryption_delegate=*/nullptr,
-=======
-      /*file_operations=*/nullptr, cache_path_, cache_size,
-      disk_cache::ResetHandling::kResetOnError,
-      /*net_log=*/nullptr,
->>>>>>> a24f35e6833 ([Cobalt] Add Essential Storage UMA Histograms and Filter Manifest (#13620))
       base::BindOnce(&GpuDiskCache::CacheCreatedCallback, this));
 
   if (rv.net_error == net::OK) {

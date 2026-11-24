@@ -122,7 +122,6 @@ bool DomStorageDatabase::KeyValuePair::operator==(
   return std::tie(key, value) == std::tie(rhs.key, rhs.value);
 }
 
-<<<<<<< HEAD
 DomStorageDatabase::MapLocator::MapLocator(blink::StorageKey storage_key)
     : storage_key_(storage_key) {}
 
@@ -134,25 +133,6 @@ DomStorageDatabase::MapLocator::MapLocator(std::string session_id,
                                            blink::StorageKey storage_key)
     : storage_key_(storage_key) {
   session_ids_.push_back(std::move(session_id));
-=======
-DomStorageDatabase::DomStorageDatabase(
-    PassKey,
-    const base::FilePath& directory,
-    const std::string& name,
-    const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
-        memory_dump_id,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-    StatusCallback callback)
-    : name_(MakeFullPersistentDBName(directory, name)),
-      options_(MakeOptions()),
-      memory_dump_id_(memory_dump_id)
-#if BUILDFLAG(IS_COBALT)
-      ,
-      is_local_storage_(name == "leveldb")
-#endif  // BUILDFLAG(IS_COBALT)
-{
-  Init(std::move(callback_task_runner), std::move(callback));
->>>>>>> a24f35e6833 ([Cobalt] Add Essential Storage UMA Histograms and Filter Manifest (#13620))
 }
 
 DomStorageDatabase::MapLocator::MapLocator(std::string session_id,
@@ -541,7 +521,6 @@ DomStorageDatabaseFactory::CreatePassKeyForTesting() {
   return base::PassKey<DomStorageDatabaseFactory>();
 }
 
-<<<<<<< HEAD
 scoped_refptr<base::SequencedTaskRunner> GetTaskRunnerForDb(
     const base::FilePath& database_path) {
   if (database_path.empty()) {
@@ -551,28 +530,6 @@ scoped_refptr<base::SequencedTaskRunner> GetTaskRunnerForDb(
         {base::WithBaseSyncPrimitives(),
          base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
   }
-=======
-DomStorageDatabase::Status DomStorageDatabase::Commit(
-    leveldb::WriteBatch* batch) const {
-  if (!db_)
-    return Status::IOError(kInvalidDatabaseMessage);
-  if (fail_commits_for_testing_)
-    return Status::IOError("Simulated I/O Error");
-#if BUILDFLAG(IS_COBALT)
-  base::ElapsedTimer commit_timer;
-  Status status = db_->Write(CreateSyncWriteOptions(), batch);
-  // Only record commit latency for persistent on-disk LocalStorage LevelDB
-  // databases (excluding both in-memory DBs and on-disk SessionStorage DBs).
-  if (!env_ && is_local_storage_) {
-    base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
-                            commit_timer.Elapsed());
-  }
-  return status;
-#else
-  return db_->Write(leveldb::WriteOptions(), batch);
-#endif
-}
->>>>>>> a24f35e6833 ([Cobalt] Add Essential Storage UMA Histograms and Filter Manifest (#13620))
 
   //  This will always return the same task runner for a given `database_path`.
   return base::ThreadPool::CreateSequencedTaskRunnerForResource(

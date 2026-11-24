@@ -350,7 +350,6 @@ TEST_F(GpuDiskCacheTest, DestroyedCallbackCalledMultipleInstance) {
   EXPECT_TRUE(destroyed);
 }
 
-<<<<<<< HEAD
 // Verifies that ClearByCache completes even when the disk cache backend fails
 // to initialize.
 TEST_F(GpuDiskCacheTest, ClearByCacheCompletesWhenCacheCreationFails) {
@@ -388,7 +387,7 @@ TEST_F(GpuDiskCacheTest, SetAvailableCallbackReturnsErrorAfterCreationFailure) {
 
   EXPECT_TRUE(clear_completed);
 }
-=======
+
 #if BUILDFLAG(IS_COBALT)
 TEST_F(GpuDiskCacheTest, CobaltHistograms) {
   InitCache();
@@ -405,9 +404,10 @@ TEST_F(GpuDiskCacheTest, CobaltHistograms) {
   net::TestCompletionCallback complete_cb;
   rv = cache->SetCacheCompleteCallback(complete_cb.callback());
   ASSERT_EQ(net::OK, complete_cb.GetResult(rv));
-  EXPECT_EQ(2, cache->Size());
+  EXPECT_EQ(2, GetCacheSize(cache.get()));
 
-  // Re-open cache and verify LoadCache loads both entries and records histograms.
+  // Re-open cache and verify LoadCache loads both entries and records
+  // histograms.
   cache = nullptr;
   base::HistogramTester histogram_tester;
   int loaded_calls = 0;
@@ -433,6 +433,5 @@ TEST_F(GpuDiskCacheTest, CobaltHistograms) {
       "Cobalt.Storage.GpuShaderCache.LoadedBytesKB", 2, 1);
 }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> a24f35e6833 ([Cobalt] Add Essential Storage UMA Histograms and Filter Manifest (#13620))
 
 }  // namespace gpu
