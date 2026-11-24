@@ -145,9 +145,11 @@ runs:
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> "${GITHUB_ENV}"
 
-        # Test results (xml and logs) must be in a subfolder in results_dir.
-        # to be picked up by the test result processor.
-        mkdir -p "${test_output}/${PLATFORM}/1"
+        # Test results (xml and logs) must be in a subfolder in results_dir
+        # to be picked up by the test result processor. Synthesized XMLs
+        # (crash reports and JSON conversions) must use the same relative path
+        # as GCS-delivered XMLs so download_test_results supersedes them on retries.
+        mkdir -p "${test_output}/${PLATFORM}"
         gsutil -m cp -r "${GCS_RESULTS_PATH%/}/*" "${test_output}/${PLATFORM}/" || true
 
         generate_crash_xml() {
@@ -161,7 +163,7 @@ runs:
           )
           if [[ "${#log_files[@]}" -gt 0 ]]; then
             python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
-              "${log_files[0]}" "${test_output}/${PLATFORM}/1/${target}_testoutput.xml"
+              "${log_files[0]}" "${test_output}/${PLATFORM}/${target}_testoutput.xml"
           fi
         }
 
@@ -182,6 +184,7 @@ runs:
 
           xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
 
+<<<<<<< HEAD
           # Convert per-target JSON report(s) to JUnit XML for e2e/yts runs when XML is absent.
           if [[ "${#xml_files[@]}" -eq 0 ]] && [[ "${TEST_TYPE}" == "e2e_test" || "${TEST_TYPE}" == "yts_test" ]]; then
             json_reports=("${test_output}/${PLATFORM}"/**/"${test_target}"*_report.json)
@@ -189,6 +192,17 @@ runs:
               if ! python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
                 "${json_reports[@]}" "${test_output}/${PLATFORM}/1/${test_target}_testoutput.xml"; then
                 echo "::error::Failed to convert JSON reports for ${test_target}."
+=======
+            # Convert per-target JSON report(s) to JUnit XML for e2e/yts runs when XML is absent.
+            if [[ "${#xml_files[@]}" -eq 0 ]] && [[ "${TEST_TYPE}" == "e2e_test" || "${TEST_TYPE}" == "yts_test" ]]; then
+              json_reports=("${test_output}/${PLATFORM}"/**/"${test_target}"*_report.json)
+              if [[ "${#json_reports[@]}" -gt 0 ]]; then
+                if ! python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
+                  "${json_reports[@]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"; then
+                  echo "::error::Failed to convert JSON reports for ${test_target}."
+                fi
+                xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+>>>>>>> dbb82d9cc45 (ci: Write synthesized ODT result XMLs at the canonical result path (#14220))
               fi
               xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
             fi
