@@ -13,11 +13,8 @@
 #include <utility>
 #include <vector>
 
-<<<<<<< ours
 #include "base/containers/span.h"
-=======
 #include "base/feature_list.h"
->>>>>>> theirs
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
