@@ -353,6 +353,8 @@ static_library("starboard_platform") {
       "asset_manager.cc",
       "asset_manager.h",
       "elf_loader_file_open.cc",
+      "memory_mapped_file.cc",
+      "memory_mapped_file.h",
       "posix_emu/access.cc",
       "posix_emu/alarm.cc",
       "posix_emu/dirent.cc",

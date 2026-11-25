@@ -21,6 +21,7 @@
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
 #include "starboard/android/shared/graphics.h"
+#include "starboard/android/shared/memory_mapped_file.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_settings.h"
@@ -31,6 +32,7 @@
 #include "starboard/extension/features.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
+#include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_settings.h"
@@ -114,6 +116,9 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::GetSystemInfoApi();
   }
 #if BUILDFLAG(IS_STARBOARD)
+  if (strcmp(name, kCobaltExtensionMemoryMappedFileName) == 0) {
+    return starboard::GetMemoryMappedFileApi();
+  }
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
     return starboard::GetLoaderAppMetricsApi();
   }
