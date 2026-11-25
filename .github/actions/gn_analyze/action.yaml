@@ -1,0 +1,63 @@
+name: GN Analyze
+description: Evaluates target dependency impact using native gn analyze
+inputs:
+  working_directory:
+    description: Working directory for git and GN operations
+    default: '.'
+  out_dir:
+    description: GN output directory containing build configuration
+    required: true
+  targets:
+    description: JSON array of GN targets to analyze
+    required: true
+  changed_files:
+    description: Path to file containing list of modified repository files
+    required: true
+  always_run:
+    description: Additional regex pattern of files that always trigger a build
+    required: false
+    default: ''
+outputs:
+  affected:
+    description: True if changed files affect any specified targets
+    value: ${{ steps.analyze.outputs.affected }}
+runs:
+  using: composite
+  steps:
+    - name: Run GN Analyze
+      id: analyze
+      working-directory: ${{ inputs.working_directory }}
+      env:
+        OUT_DIR: ${{ inputs.out_dir }}
+        TARGETS: ${{ inputs.targets }}
+        CHANGED_FILES: ${{ inputs.changed_files }}
+        ALWAYS_RUN: ${{ inputs.always_run }}
+        DEFAULT_ALWAYS_RUN: >-
+          ^(DEPS$|\.gn$|\.github/|build/|build_overrides/|cobalt/build/|
+          cobalt/devinfra/|cobalt/docker/|cobalt/testing/filters/|
+          cobalt/tools/|docker-compose\.yaml$|starboard/build/|
+          starboard/tools/|testing/|tools/)
+        HEADERS: \.(h|hh|hpp|inc|inl|def)$
+        SOURCES: >-
+          *.c *.cc *.cpp *.cxx *.m *.mm *.h *.hh *.hpp *.inc *.inl *.def
+      shell: bash
+      run: |
+        set -euo pipefail
+        set -f
+        for h in $(grep -E "${HEADERS}" "${CHANGED_FILES}" || test $? -eq 1); do
+          git grep -lF "\"${h}\"" -- ${SOURCES} >> "${CHANGED_FILES}" || test $? -eq 1
+        done
+        pattern="${DEFAULT_ALWAYS_RUN}${ALWAYS_RUN:+|${ALWAYS_RUN}}"
+        res=$(python3 cobalt/devinfra/github/gn/gn_analyze.py \
+          --out-dir "${OUT_DIR}" --changed-files "${CHANGED_FILES}" \
+          --targets "${TARGETS}" --always-run "${pattern}")
+        if [[ "${res}" == "true" ]]; then
+          echo "affected=true" >> "${GITHUB_OUTPUT}"
+        elif ! gn analyze "${OUT_DIR}" \
+            "${OUT_DIR}/analyze_in.json" "${OUT_DIR}/analyze_out.json"; then
+          echo "affected=true" >> "${GITHUB_OUTPUT}"
+        else
+          s=$(jq -r .status "${OUT_DIR}/analyze_out.json")
+          aff=$([[ "${s}" == "No dependency" ]] && echo false || echo true)
+          echo "affected=${aff}" >> "${GITHUB_OUTPUT}"
+        fi
