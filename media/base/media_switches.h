@@ -239,6 +239,9 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
 MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kCobaltDecoderBufferDecommitReleaseRetainedOnCritical);
+MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    bool,
+    kCobaltDecoderBufferDecommitWhenEmpty);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltInPlaceMediaSourceParser);
 MEDIA_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
