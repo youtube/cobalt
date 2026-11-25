@@ -3359,6 +3359,168 @@ TEST_F(UDPSocketTest, CobaltQuicReadBatchResolvesLazilyAndResetsOnClose) {
               8u * (sizeof(Socket::ReadPacketResult) + kPacketBufSize));
   }
 }
+
+namespace {
+
+struct ExpectedBatchPacket {
+  std::string payload;
+  DiffServCodePoint dscp;
+  EcnCodePoint ecn;
+};
+
+void VerifyBatchDscpAndEcn(UDPServerSocket* server,
+                           UDPClientSocket* client,
+                           const IPEndPoint& client_address,
+                           int max_read,
+                           const std::vector<ExpectedBatchPacket>& batch,
+                           Socket::ReadPacketResults* results) {
+  for (const auto& expected : batch) {
+    ASSERT_EQ(server->SetTos(expected.dscp, expected.ecn), OK);
+    auto io_buffer = base::MakeRefCounted<StringIOBuffer>(expected.payload);
+    TestCompletionCallback send_callback;
+    int send_rv = server->SendTo(io_buffer.get(), io_buffer->size(),
+                                 client_address, send_callback.callback());
+    ASSERT_EQ(send_callback.GetResult(send_rv),
+              static_cast<int>(expected.payload.size()));
+  }
+
+  size_t received = 0;
+  while (received < batch.size()) {
+    TestCompletionCallback read_callback;
+    int rv = client->ReadMultiplePackets(results, max_read,
+                                         read_callback.callback());
+    rv = read_callback.GetResult(rv);
+    ASSERT_GT(rv, 0);
+    auto packet_span =
+        UNSAFE_BUFFERS(base::span(results->packets, static_cast<size_t>(rv)));
+    for (const auto& packet : packet_span) {
+      ASSERT_LT(received, batch.size());
+      ASSERT_GT(packet.result, 0);
+      std::string payload(packet.buffer, static_cast<size_t>(packet.result));
+      EXPECT_EQ(payload, batch[received].payload);
+      DscpAndEcn actual_tos = TosToDscpAndEcn(packet.tos);
+      EXPECT_EQ(actual_tos.dscp, batch[received].dscp);
+      EXPECT_EQ(actual_tos.ecn, batch[received].ecn);
+      ++received;
+    }
+  }
+
+  EXPECT_EQ(client->GetLastTos().dscp, batch.back().dscp);
+  EXPECT_EQ(client->GetLastTos().ecn, batch.back().ecn);
+}
+
+void RunReadMultiplePacketsDscpAndEcnTest(const IPAddress& localhost,
+                                          int max_read) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  IPEndPoint server_address(localhost, 0);
+  UDPServerSocket server(nullptr, NetLogSource());
+  server.AllowAddressReuse();
+  int listen_rv = server.Listen(server_address);
+  if (localhost.IsIPv6() && (listen_rv == ERR_ADDRESS_INVALID ||
+                             listen_rv == ERR_ADDRESS_UNREACHABLE)) {
+    GTEST_SKIP() << "IPv6 loopback is not available.";
+  }
+  ASSERT_THAT(listen_rv, IsOk());
+  ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
+
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  ASSERT_THAT(client.Connect(server_address), IsOk());
+  ASSERT_EQ(client.SetRecvTos(), OK);
+  IPEndPoint client_address;
+  ASSERT_THAT(client.GetLocalAddress(&client_address), IsOk());
+
+  Socket::ReadPacketResults results;
+  // Send a mixed-ECN burst so recvmmsg returns packets carrying distinct
+  // IP_TOS / IPV6_TCLASS control messages in a single ReadPacketResults buffer.
+  const std::vector<ExpectedBatchPacket> mixed_batch = {
+      {"pkt-not-ect", DSCP_DEFAULT, ECN_NOT_ECT},
+      {"pkt-ect1", DSCP_AF41, ECN_ECT1},
+      {"pkt-ect0", DSCP_CS2, ECN_ECT0},
+      {"pkt-ce", DSCP_CS2, ECN_CE},
+  };
+  VerifyBatchDscpAndEcn(&server, &client, client_address, max_read, mixed_batch,
+                        &results);
+
+  // Reuse the same ReadPacketResults slots with unmarked packets to confirm
+  // stale TOS values from the prior batch are cleared per packet.
+  const std::vector<ExpectedBatchPacket> unmarked_batch = {
+      {"pkt-reset-0", DSCP_DEFAULT, ECN_NOT_ECT},
+      {"pkt-reset-1", DSCP_DEFAULT, ECN_NOT_ECT},
+  };
+  VerifyBatchDscpAndEcn(&server, &client, client_address, max_read,
+                        unmarked_batch, &results);
+
+  server.Close();
+  client.Close();
+}
+
+}  // namespace
+
+// User journey: A Cobalt client receiving IPv4 QUIC packets in recvmmsg batches
+// must observe each packet's router-stamped DSCP/ECN bits accurately and clear
+// stale TOS state when receive slots are reused across bursts.
+TEST_F(UDPSocketTest, ReadMultiplePacketsVerifyDscpAndEcnV4) {
+  RunReadMultiplePacketsDscpAndEcnTest(IPAddress::IPv4Localhost(), kMaxRead);
+}
+
+// User journey: A Cobalt client receiving IPv6 QUIC packets in recvmmsg batches
+// must observe each packet's IPv6 Traffic Class DSCP/ECN bits accurately and
+// clear stale TOS state when receive slots are reused across bursts.
+TEST_F(UDPSocketTest, ReadMultiplePacketsVerifyDscpAndEcnV6) {
+  RunReadMultiplePacketsDscpAndEcnTest(IPAddress::IPv6Localhost(), kMaxRead);
+}
+
+// User journey: A Cobalt client reading batched UDP packets without enabling
+// SetRecvTos() must still deliver payloads cleanly with default DSCP/Not-ECT
+// metadata rather than uninitialized control-buffer bytes.
+TEST_F(UDPSocketTest, ReadMultiplePacketsDefaultsTosWithoutSetRecvTos) {
+  ScopedClearRecvmmsgBufferPool clear_pool;
+  IPEndPoint server_address(IPAddress::IPv4Localhost(), 0);
+  UDPServerSocket server(nullptr, NetLogSource());
+  server.AllowAddressReuse();
+  ASSERT_THAT(server.Listen(server_address), IsOk());
+  ASSERT_THAT(server.GetLocalAddress(&server_address), IsOk());
+
+  UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr, NetLogSource());
+  ASSERT_THAT(client.Connect(server_address), IsOk());
+  IPEndPoint client_address;
+  ASSERT_THAT(client.GetLocalAddress(&client_address), IsOk());
+
+  ASSERT_EQ(server.SetTos(DSCP_AF41, ECN_CE), OK);
+  const std::vector<std::string> payloads = {"untracked-0", "untracked-1"};
+  for (const auto& payload : payloads) {
+    ASSERT_EQ(SendToSocket(&server, payload, client_address),
+              static_cast<int>(payload.size()));
+  }
+
+  Socket::ReadPacketResults results;
+  size_t received = 0;
+  while (received < payloads.size()) {
+    TestCompletionCallback read_callback;
+    int rv = client.ReadMultiplePackets(&results, kMaxRead,
+                                        read_callback.callback());
+    rv = read_callback.GetResult(rv);
+    ASSERT_GT(rv, 0);
+    auto packet_span =
+        UNSAFE_BUFFERS(base::span(results.packets, static_cast<size_t>(rv)));
+    for (const auto& packet : packet_span) {
+      ASSERT_LT(received, payloads.size());
+      ASSERT_GT(packet.result, 0);
+      EXPECT_EQ(std::string(packet.buffer, static_cast<size_t>(packet.result)),
+                payloads[received]);
+      DscpAndEcn actual_tos = TosToDscpAndEcn(packet.tos);
+      EXPECT_EQ(actual_tos.dscp, DSCP_DEFAULT);
+      EXPECT_EQ(actual_tos.ecn, ECN_NOT_ECT);
+      ++received;
+    }
+  }
+
+  EXPECT_EQ(client.GetLastTos().dscp, DSCP_DEFAULT);
+  EXPECT_EQ(client.GetLastTos().ecn, ECN_NOT_ECT);
+
+  server.Close();
+  client.Close();
+}
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 }  // namespace net

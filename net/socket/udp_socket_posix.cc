@@ -1322,8 +1322,18 @@ int UDPSocketPosix::InternalReadMultiplePackets(
     return 0;
   }
   DCHECK_LE(num_packets, kMaxPacketsPerReadMmsgCall);
+  // Size each control buffer to hold IP_TOS / IPV6_TCLASS ancillary data
+  // without relying on CMSG_SPACE() being a constant expression across libcs.
+  constexpr size_t kReadMmsgControlBufferSize = 64;
+  static_assert(kReadMmsgControlBufferSize % alignof(struct cmsghdr) == 0,
+                "Control buffer size must preserve cmsghdr alignment");
+  DCHECK_GE(kReadMmsgControlBufferSize,
+            static_cast<size_t>(CMSG_SPACE(sizeof(int))));
+
   struct mmsghdr msgs[kMaxPacketsPerReadMmsgCall];
   struct iovec iovs[kMaxPacketsPerReadMmsgCall];
+  alignas(struct cmsghdr) char control_buffers[kMaxPacketsPerReadMmsgCall]
+                                              [kReadMmsgControlBufferSize];
 
   // Initialize the message headers and I/O vectors.
   for (int i = 0; i < num_packets; ++i) {
@@ -1334,8 +1344,8 @@ int UDPSocketPosix::InternalReadMultiplePackets(
     msgs[i].msg_hdr.msg_iovlen = 1;
     msgs[i].msg_hdr.msg_name = nullptr;
     msgs[i].msg_hdr.msg_namelen = 0;
-    msgs[i].msg_hdr.msg_control = nullptr;
-    msgs[i].msg_hdr.msg_controllen = 0;
+    msgs[i].msg_hdr.msg_control = control_buffers[i];
+    msgs[i].msg_hdr.msg_controllen = sizeof(control_buffers[i]);
     msgs[i].msg_hdr.msg_flags = 0;
     msgs[i].msg_len = 0;
   }
@@ -1345,12 +1355,14 @@ int UDPSocketPosix::InternalReadMultiplePackets(
 
   if (rv > 0) {
     results->result = rv;
+    last_tos_ = 0;
     for (int i = 0; i < rv; ++i) {
       auto& out_packet = results->packets[i];
       struct mmsghdr* mmsg = &msgs[i];
       struct msghdr* msg_hdr = &mmsg->msg_hdr;
 
       out_packet.result = 0;
+      out_packet.tos = 0;
       if (mmsg->msg_len == 0) {
         continue;
       }
@@ -1359,6 +1371,26 @@ int UDPSocketPosix::InternalReadMultiplePackets(
         continue;
       }
       out_packet.result = mmsg->msg_len;
+      if (msg_hdr->msg_controllen > 0) {
+        for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(msg_hdr); cmsg != nullptr;
+             // SAFETY: Size and null pointer checks are done in system header
+             // files.
+             cmsg = UNSAFE_BUFFERS(CMSG_NXTHDR(msg_hdr, cmsg))) {
+          if (((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS) ||
+               (cmsg->cmsg_level == IPPROTO_IPV6 &&
+                cmsg->cmsg_type == IPV6_TCLASS)) &&
+              static_cast<size_t>(cmsg->cmsg_len) >=
+                  static_cast<size_t>(CMSG_LEN(sizeof(uint8_t)))) {
+            auto cmsg_data_as_span =
+                // SAFETY: `CMSG_DATA` points to `control_buffers[i]` and
+                // `cmsg_len` is verified to include at least one byte.
+                UNSAFE_BUFFERS(base::span(CMSG_DATA(cmsg), sizeof(uint8_t)));
+            base::byte_span_from_ref(out_packet.tos)
+                .copy_from(cmsg_data_as_span);
+          }
+        }
+      }
+      last_tos_ = out_packet.tos;
     }
     return results->result;
   }
