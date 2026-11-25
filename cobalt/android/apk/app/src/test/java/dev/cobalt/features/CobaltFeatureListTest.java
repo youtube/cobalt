@@ -16,6 +16,7 @@ package dev.cobalt.features;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.FeatureList;
 import org.chromium.base.FeatureOverrides;
@@ -40,14 +41,9 @@ import org.robolectric.util.ReflectionHelpers;
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class CobaltFeatureListTest {
-<<<<<<< HEAD
-  // Default of LowMemoryDeviceThresholdMB on Android.
-  private static final int DEFAULT_THRESHOLD_MB = 1024;
-=======
   // Value of LowMemoryDeviceThresholdMB when LowEndMemoryExperiment doesn't set it.
   private static final int DEFAULT_THRESHOLD_MB =
       CobaltFeatureList.DEFAULT_LOW_MEMORY_DEVICE_THRESHOLD_MB;
->>>>>>> 4da7f7d3697 (android: Control low-end device mode with Finch (#14103))
   // Value of LowMemoryDeviceThresholdMB set by Finch or --enable-features.
   private static final int EXPERIMENT_THRESHOLD_MB = 2048;
   // Never set by CobaltFeatureList, so tests can tell whether SysUtils was updated.
@@ -78,8 +74,6 @@ public class CobaltFeatureListTest {
     ValuesReturned.clearForTesting();
     FeatureList.setDisableNativeForTesting(mOriginalDisableNativeForTesting);
     SysUtils.setLowMemoryDeviceThresholdMb(mOriginalSysUtilsThresholdMb);
-<<<<<<< HEAD
-=======
     ReflectionHelpers.setStaticField(SysUtils.class, "sAmountOfPhysicalMemoryKB", null);
     ReflectionHelpers.setStaticField(SysUtils.class, "sLowEndDevice", null);
   }
@@ -133,7 +127,6 @@ public class CobaltFeatureListTest {
     } finally {
       CommandLine.resetForTesting(false);
     }
->>>>>>> 4da7f7d3697 (android: Control low-end device mode with Finch (#14103))
   }
 
   @Test

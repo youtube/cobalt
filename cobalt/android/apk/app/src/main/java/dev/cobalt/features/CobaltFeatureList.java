@@ -73,11 +73,7 @@ public final class CobaltFeatureList {
           CobaltFeatureMap.getInstance(),
           BaseFeatures.LOW_END_MEMORY_EXPERIMENT,
           "LowMemoryDeviceThresholdMB",
-<<<<<<< HEAD
-          1024);
-=======
           DEFAULT_LOW_MEMORY_DEVICE_THRESHOLD_MB);
->>>>>>> 4da7f7d3697 (android: Control low-end device mode with Finch (#14103))
 
   /** All CachedFeatureParams that are persisted for the next launch. */
   private static final List<CachedFeatureParam<?>> sParamsCached =

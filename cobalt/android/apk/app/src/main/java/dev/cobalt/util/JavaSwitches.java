@@ -215,12 +215,7 @@ public class JavaSwitches {
     if (!shouldApplyExperimentConfigs || javaSwitches == null) {
       javaSwitches = Collections.emptyMap();
     }
-<<<<<<< HEAD
-
-    addSwitchesReadBeforeNativeInit(args, javaSwitches);
-=======
     addSwitchesReadBeforeNativeInit(args, javaSwitches, shouldApplyExperimentConfigs);
->>>>>>> 4da7f7d3697 (android: Control low-end device mode with Finch (#14103))
     sNativeKeyValues = toNativeKeyValues(javaSwitches);
   }
 
