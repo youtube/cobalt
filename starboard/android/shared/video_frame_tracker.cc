@@ -116,6 +116,13 @@ void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
   rendered_frames_on_decoder_thread_.push_back(frame_timestamp);
 }
 
+void VideoFrameTracker::OnFrameSkipped(int64_t frame_timestamp) {
+  // Render() runs on the decoder output thread while tracking runs on
+  // player_worker, so buffer skipped timestamps under rendered_frames_mutex_.
+  std::lock_guard lock(rendered_frames_mutex_);
+  skipped_frames_on_decoder_thread_.push_back(frame_timestamp);
+}
+
 void VideoFrameTracker::Seek(int64_t seek_to_time) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
@@ -141,6 +148,7 @@ void VideoFrameTracker::UpdateDroppedFrames() {
   {
     std::lock_guard lock(rendered_frames_mutex_);
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
+    skipped_frames_on_tracker_thread_.swap(skipped_frames_on_decoder_thread_);
   }
 
   while (!frames_to_be_rendered_.empty() &&
@@ -151,6 +159,21 @@ void VideoFrameTracker::UpdateDroppedFrames() {
     // after we align seek time to the next video key frame.
     frames_to_be_rendered_.pop_front();
   }
+
+  for (int64_t skipped_timestamp : skipped_frames_on_tracker_thread_) {
+    // Intentionally skipped buffers (e.g. duplicate VSYNC slots at >1x speed)
+    // are not dropped frames; match within kMaxAllowedSkew to handle minor
+    // codec output PTS rounding before drop accounting.
+    auto it = std::find_if(
+        frames_to_be_rendered_.begin(), frames_to_be_rendered_.end(),
+        [skipped_timestamp](int64_t candidate) {
+          return std::abs(candidate - skipped_timestamp) <= kMaxAllowedSkew;
+        });
+    if (it != frames_to_be_rendered_.end()) {
+      frames_to_be_rendered_.erase(it);
+    }
+  }
+  skipped_frames_on_tracker_thread_.clear();
 
   RemoveUnexpectedRenderedFrames(frames_to_be_rendered_,
                                  &rendered_frames_on_tracker_thread_);

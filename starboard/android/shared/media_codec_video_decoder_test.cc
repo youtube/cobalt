@@ -788,5 +788,48 @@ TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
       kGuardSurfaceResetAndCleanupByOwnership));
 }
 
+TEST_F(MediaCodecVideoDecoderTest,
+       VideoRenderAlgorithmHostSeamTracksPauseSurfaceAndTickWait) {
+  CreateDecoder();
+  ASSERT_NE(decoder_, nullptr);
+  VideoRenderAlgorithmHost* host = decoder_.get();
+
+  EXPECT_EQ(host->GetOutputMode(), kSbPlayerOutputModePunchOut);
+  EXPECT_FALSE(host->is_playback_paused());
+  EXPECT_TRUE(host->AcquireJavaSurface());
+  const uint64_t initial_gen = host->GetSurfaceGeneration();
+  EXPECT_GT(initial_gen, 0U);
+
+  auto sink = decoder_->GetSink();
+  sink->SetPlaybackRate(0.0);
+  EXPECT_TRUE(host->is_playback_paused());
+
+  // Codec operating rate updates through VideoRenderAlgorithmHost must not
+  // overwrite the sink pause state.
+  host->SetPlaybackRate(1.5);
+  EXPECT_TRUE(host->is_playback_paused());
+
+  sink->SetPlaybackRate(1.25);
+  EXPECT_FALSE(host->is_playback_paused());
+
+  MediaCodecDecoder::Host* codec_host = decoder_.get();
+  EXPECT_EQ(codec_host->GetNextTickWaitDurationUs(), std::nullopt);
+  host->SetNextTickWaitDurationUs(35'000);
+  EXPECT_EQ(codec_host->GetNextTickWaitDurationUs(), 35'000);
+  EXPECT_NE(decoder_->GetRenderAlgorithm(), nullptr);
+  EXPECT_EQ(codec_host->GetNextTickWaitDurationUs(), std::nullopt);
+
+  host->SetNextTickWaitDurationUs(25'000);
+  EXPECT_EQ(codec_host->GetNextTickWaitDurationUs(), 25'000);
+  InitializeDecoder();
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+  decoder_->Reset();
+  // Reset() clears the custom tick wait and tears down the codec (when flush
+  // during seek is false), clearing the active surface and bumping generation.
+  EXPECT_EQ(codec_host->GetNextTickWaitDurationUs(), std::nullopt);
+  EXPECT_FALSE(host->AcquireJavaSurface());
+  EXPECT_GT(host->GetSurfaceGeneration(), initial_gen);
+}
+
 }  // namespace
 }  // namespace starboard

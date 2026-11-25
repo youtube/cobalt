@@ -64,6 +64,10 @@ class MockHost : public MediaCodecDecoder::Host {
               IsBufferDecodeOnly,
               (const scoped_refptr<InputBuffer>& input_buffer),
               (override));
+  MOCK_METHOD(std::optional<int64_t>,
+              GetNextTickWaitDurationUs,
+              (),
+              (override));
 };
 
 const AudioStreamInfo kDefaultAudioStreamInfo = [] {
@@ -572,6 +576,116 @@ INSTANTIATE_TEST_SUITE_P(,
                            return info.param ? "CodecThreadImprovements"
                                              : "Legacy";
                          });
+
+TEST_P(MediaCodecDecoderVideoDualThreadsTest,
+       HonorsCustomTickWaitDurationAndWakesImmediatelyOnSetPlaybackRate) {
+  std::atomic<int64_t> configured_wait_us{50'000};
+  ON_CALL(host_, GetNextTickWaitDurationUs()).WillByDefault(Invoke([&] {
+    const int64_t val = configured_wait_us.load();
+    return val > 0 ? std::make_optional(val) : std::nullopt;
+  }));
+
+  codec_->SimulateInputBufferAvailable(0);
+  ASSERT_EQ(WriteAndWaitForQueuedInput(/*timestamp=*/0).size(), 1U);
+  ASSERT_TRUE(WaitForNextTick(0, kMaxQueueLatencyMs));
+
+  // Over ~160ms with a 50ms wait, the output thread should tick ~2-5 times
+  // rather than ~20 times at the 8ms default interval.
+  const int ticks_before_sleep = tick_count();
+  std::this_thread::sleep_for(std::chrono::milliseconds(160));
+  const int ticks_during_50ms_wait = tick_count() - ticks_before_sleep;
+  EXPECT_GE(ticks_during_50ms_wait, 2);
+  EXPECT_LE(ticks_during_50ms_wait, 6);
+
+  // Set a long 500ms wait, let the output thread enter wait_for, then verify
+  // SetPlaybackRate() wakes it up promptly without waiting 500ms.
+  configured_wait_us.store(500'000);
+  ASSERT_TRUE(WaitForNextTick(tick_count(), 150));
+  std::this_thread::sleep_for(std::chrono::milliseconds(25));
+  const int ticks_before_wakeup = tick_count();
+  const auto wake_start = std::chrono::steady_clock::now();
+  decoder_->SetPlaybackRate(1.25);
+  ASSERT_TRUE(WaitForNextTick(ticks_before_wakeup, 100));
+  const auto wake_latency_ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::steady_clock::now() - wake_start)
+          .count();
+  EXPECT_LT(wake_latency_ms, 100);
+
+  // Sub-millisecond custom waits are clamped to >= 1ms rather than
+  // busy-spinning. Wake out of the prior 500ms sleep first, then verify a
+  // follow-up tick arrives under the clamped 1ms interval.
+  configured_wait_us.store(100);
+  decoder_->SetPlaybackRate(1.5);
+  ASSERT_TRUE(WaitForNextTick(tick_count(), 100));
+  ASSERT_TRUE(WaitForNextTick(tick_count(), 100));
+}
+
+TEST_F(MediaCodecDecoderTest,
+       SingleThreadVideoDecoderHonorsTickWaitAndSetPlaybackRateWakeup) {
+  std::atomic<int> ticks{0};
+  std::mutex tick_mutex;
+  std::condition_variable tick_cv;
+  ON_CALL(host_, Tick(_)).WillByDefault(Invoke([&](MediaCodec*) {
+    {
+      std::lock_guard lock(tick_mutex);
+      ++ticks;
+    }
+    tick_cv.notify_all();
+    return false;
+  }));
+  ON_CALL(host_, GetNextTickWaitDurationUs()).WillByDefault(Return(400'000));
+
+  auto result = MediaCodecDecoder::CreateForVideo(
+      factory_, &job_queue_, &host_, kSbMediaVideoCodecH264, Size(1920, 1080),
+      /*max_frame_size=*/std::nullopt, /*fps=*/0, jni_zero::JavaRef<jobject>(),
+      kSbDrmSystemInvalid, /*color_metadata=*/nullptr,
+      /*require_software_codec=*/false, /*is_high_bit_depth=*/false,
+      /*frame_rendered_cb=*/[](int64_t) {},
+      /*first_tunnel_frame_ready_cb=*/[]() {},
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      /*enable_frame_renderer_listener=*/false, /*max_video_input_size=*/0,
+      /*flush_delay_usec=*/0, /*use_dual_threads=*/false,
+      MediaCodecDecoder::VideoExperimentalOptions{});
+  ASSERT_TRUE(result);
+  decoder_ = std::move(result.value());
+  FakeMediaCodec* video_codec = factory_.last_created_video_codec();
+  ASSERT_NE(video_codec, nullptr);
+  decoder_->Initialize([](SbPlayerError, const std::string&) {});
+
+  video_codec->SimulateInputBufferAvailable(0);
+  SbPlayerSampleInfo sample_info = {};
+  sample_info.type = kSbMediaTypeVideo;
+  uint8_t dummy[16] = {};
+  sample_info.buffer = dummy;
+  sample_info.buffer_size = sizeof(dummy);
+  sample_info.timestamp = 0;
+  sample_info.video_sample_info.stream_info.codec = kSbMediaVideoCodecH264;
+  sample_info.video_sample_info.stream_info.mime = "";
+  sample_info.video_sample_info.stream_info.max_video_capabilities = "";
+  sample_info.video_sample_info.stream_info.frame_width = 1920;
+  sample_info.video_sample_info.stream_info.frame_height = 1080;
+  auto input = make_scoped_refptr<InputBuffer>(
+      [](SbPlayer, void*, const void*) {}, nullptr, nullptr, sample_info);
+  decoder_->WriteInputBuffers({input});
+  ASSERT_TRUE(video_codec->WaitForInputQueue(1, 500));
+
+  {
+    std::unique_lock lock(tick_mutex);
+    ASSERT_TRUE(tick_cv.wait_for(lock, std::chrono::milliseconds(200),
+                                 [&] { return ticks.load() >= 2; }));
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(25));
+  const int before = ticks.load();
+  decoder_->SetPlaybackRate(1.5);
+  {
+    std::unique_lock lock(tick_mutex);
+    EXPECT_TRUE(tick_cv.wait_for(lock, std::chrono::milliseconds(100),
+                                 [&] { return ticks.load() > before; }));
+  }
+  job_queue_.RunUntilIdle();
+  decoder_.reset();
+}
 
 }  // namespace
 }  // namespace starboard

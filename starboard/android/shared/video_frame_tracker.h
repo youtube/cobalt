@@ -38,6 +38,8 @@ class VideoFrameTracker {
 
   void OnFrameRendered(int64_t frame_timestamp);
 
+  void OnFrameSkipped(int64_t frame_timestamp);
+
   void Seek(int64_t seek_to_time);
 
   int UpdateAndGetDroppedFrames();
@@ -58,6 +60,8 @@ class VideoFrameTracker {
   std::mutex rendered_frames_mutex_;
   std::vector<int64_t> rendered_frames_on_tracker_thread_;  // microseconds
   std::vector<int64_t> rendered_frames_on_decoder_thread_;  // microseconds
+  std::vector<int64_t> skipped_frames_on_tracker_thread_;   // microseconds
+  std::vector<int64_t> skipped_frames_on_decoder_thread_;   // microseconds
 };
 
 }  // namespace starboard

@@ -47,6 +47,7 @@ constexpr int64_t kDefaultVideoDecoderTunnelPollIntervalUs = 10'000;  // 10 msec
 // at least twice per vsync interval).
 constexpr auto kDefaultWaitForNextFrameInterval =
     std::chrono::microseconds(8'000);
+constexpr int64_t kMinCustomTickWaitIntervalUs = 1'000;  // 1 msec
 
 // Fallback timeout while waiting for a DRM key (MEDIA_CODEC_NO_KEY) in
 // InputThreadFuncV2().
@@ -439,7 +440,16 @@ void MediaCodecDecoder::WriteEndOfStream() {
 
 void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
+  // Hold |mutex_| across SetPlaybackRate and the wakeup signal so concurrent
+  // player_worker and VidDecOut callers serialize cleanly.
+  std::lock_guard lock(mutex_);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
+  output_wakeup_requested_ = true;
+  if (use_dual_threads_) {
+    video_output_condition_variable_.notify_one();
+  } else {
+    condition_variable_.notify_one();
+  }
 }
 
 bool MediaCodecDecoder::Flush() {
@@ -479,6 +489,7 @@ bool MediaCodecDecoder::Flush() {
     pending_input_to_retry_ = std::nullopt;
     unmatched_input_thread_inputs_ = 0;
     unmatched_input_thread_indices_ = 0;
+    output_wakeup_requested_ = false;
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};
@@ -642,15 +653,23 @@ void MediaCodecDecoder::VideoDecoderThreadFunc() {
         pending_input_to_retry_ ||
         (!pending_inputs.empty() && !input_buffer_indices.empty());
     if (!ticked && !can_process_input && dequeue_output_results.empty()) {
+      const std::optional<int64_t> custom_wait_us =
+          tunnel_mode_enabled_ ? std::nullopt
+                               : host_->GetNextTickWaitDurationUs();
+      const int64_t wait_us =
+          custom_wait_us.has_value()
+              ? std::max<int64_t>(kMinCustomTickWaitIntervalUs, *custom_wait_us)
+              : video_decoder_poll_interval_us_;
       std::unique_lock lock(mutex_);
       CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                 &dequeue_output_results);
       can_process_input =
           !pending_inputs.empty() && !input_buffer_indices.empty();
-      if (!can_process_input && dequeue_output_results.empty()) {
-        condition_variable_.wait_for(
-            lock, std::chrono::microseconds(video_decoder_poll_interval_us_));
+      if (!can_process_input && dequeue_output_results.empty() &&
+          !output_wakeup_requested_) {
+        condition_variable_.wait_for(lock, std::chrono::microseconds(wait_us));
       }
+      output_wakeup_requested_ = false;
     }
   }
 
@@ -807,6 +826,14 @@ void MediaCodecDecoder::OutputThreadFunc() {
     }
 
     if (!ticked && dequeue_output_results.empty()) {
+      const std::optional<int64_t> custom_wait_us =
+          tunnel_mode_enabled_ ? std::nullopt
+                               : host_->GetNextTickWaitDurationUs();
+      const auto wait_interval =
+          custom_wait_us.has_value()
+              ? std::chrono::microseconds(std::max<int64_t>(
+                    kMinCustomTickWaitIntervalUs, *custom_wait_us))
+              : kDefaultWaitForNextFrameInterval;
       std::unique_lock lock(mutex_);
       CollectPendingOutputData_Locked(&dequeue_output_results);
       if (dequeue_output_results.empty()) {
@@ -815,13 +842,11 @@ void MediaCodecDecoder::OutputThreadFunc() {
             return destroying_.load() || !dequeue_output_results_.empty();
           });
           CollectPendingOutputData_Locked(&dequeue_output_results);
-        } else {
-          // TODO(b/329686979): Allow Tick() to return the time to next frame
-          // release to dynamically adjust the wait duration.
-          video_output_condition_variable_.wait_for(
-              lock, kDefaultWaitForNextFrameInterval);
+        } else if (!output_wakeup_requested_) {
+          video_output_condition_variable_.wait_for(lock, wait_interval);
         }
       }
+      output_wakeup_requested_ = false;
     }
   }
 }
@@ -838,9 +863,18 @@ void MediaCodecDecoder::OutputThreadFuncV2() {
 
   while (!destroying_.load()) {
     dequeue_output_results.clear();
+    const std::optional<int64_t> custom_wait_us =
+        tunnel_mode_enabled_ ? std::nullopt
+                             : host_->GetNextTickWaitDurationUs();
+    const auto wait_interval =
+        custom_wait_us.has_value()
+            ? std::chrono::microseconds(std::max<int64_t>(
+                  kMinCustomTickWaitIntervalUs, *custom_wait_us))
+            : kDefaultWaitForNextFrameInterval;
     {
       std::unique_lock lock(mutex_);
-      if (dequeue_output_results_.empty()) {
+      if (dequeue_output_results_.empty() &&
+          (tunnel_mode_enabled_ || !output_wakeup_requested_)) {
         if (tunnel_mode_enabled_) {
           // In tunnel mode the codec renders frames itself; sleep until an
           // output format change arrives or the thread is terminated.
@@ -848,14 +882,14 @@ void MediaCodecDecoder::OutputThreadFuncV2() {
             return destroying_.load() || !dequeue_output_results_.empty();
           });
         } else {
-          // TODO(b/329686979): Allow Tick() to return the time to next frame
-          // release to dynamically adjust the wait duration.
           video_output_condition_variable_.wait_for(
-              lock, kDefaultWaitForNextFrameInterval, [this] {
-                return destroying_.load() || !dequeue_output_results_.empty();
+              lock, wait_interval, [this] {
+                return destroying_.load() || !dequeue_output_results_.empty() ||
+                       output_wakeup_requested_;
               });
         }
       }
+      output_wakeup_requested_ = false;
       if (destroying_.load()) {
         break;
       }
