@@ -949,6 +949,42 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
 // each pooled scratch buffer fits in a smaller PartitionAlloc slot span.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltQuicReadBatch);
 NET_EXPORT extern const base::FeatureParam<int> kCobaltQuicReadBatchPackets;
+
+// Enables QUIC with Cobalt's launch-candidate settings. On Android this
+// feature is the only way to turn QUIC on (--enable-quic and the EnableQUIC
+// startup key are deprecated and ignored); --disable-quic always wins. Each
+// tuning piece is parameterized below so a single study can ablate them
+// independently:
+//  - connection options (default BWS2,BWRS; b/586649769);
+//  - short initial broken-alt-svc delay with capped exponential backoff
+//    (default 10 s initial, 1800 s max; b/586557818);
+//  - immediate broken mark on post-handshake black hole (including
+//    IP-pooled aliases) plus broken-mark enforcement for Cobalt's
+//    synthetic unknown-origin QUIC alternative (b/505079764#comment34).
+NET_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableQuic);
+
+// Comma-separated QUIC connection option tags sent to the server; "none"
+// sends no options (an empty string falls back to the default). An
+// explicit --quic-connection-options switch is kept either way.
+NET_EXPORT extern const base::FeatureParam<std::string>
+    kCobaltQuicConnectionOptions;
+
+// Initial delay in seconds for broken QUIC alternative services (with
+// exponential backoff on the initial delay). Values <= 0 keep Chromium's
+// 300 s default.
+NET_EXPORT extern const base::FeatureParam<int>
+    kCobaltQuicBrokenInitialDelaySeconds;
+
+// Maximum exponential-backoff delay in seconds for broken alternative
+// services. Values <= 0 keep Chromium's 2-day cap.
+NET_EXPORT extern const base::FeatureParam<int>
+    kCobaltQuicBrokenMaxDelaySeconds;
+
+// When true, mark a black-holed session (and its IP-pooled aliases) broken
+// immediately in QuicSessionPool and honour broken marks in Cobalt's
+// unknown-origin synthetic QUIC lookup.
+NET_EXPORT extern const base::FeatureParam<bool>
+    kCobaltQuicMarkBrokenOnBlackhole;
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features
