@@ -24,6 +24,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/video_window.h"
+#include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/common.h"
@@ -85,11 +86,14 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   };
 
   ExoPlayerBridge(const SbMediaAudioStreamInfo& audio_stream_info,
-                  const SbMediaVideoStreamInfo& video_stream_info);
+                  const SbMediaVideoStreamInfo& video_stream_info,
+                  SbDecodeTargetGraphicsContextProvider*
+                      decode_target_graphics_context_provider,
+                  ErrorCB error_cb,
+                  PrerolledCB prerolled_cb,
+                  EndedCB ended_cb);
 
   ~ExoPlayerBridge();
-
-  bool Init(ErrorCB error_cb, PrerolledCB prerolled_cb, EndedCB ended_cb);
 
   void Seek(int64_t timestamp);
   void SetPause(bool pause) const;
@@ -154,11 +158,15 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::atomic_bool is_playing_ = false;
   std::atomic_int32_t dropped_frames_ = 0;
 
-  ErrorCB error_cb_;
-  PrerolledCB prerolled_cb_;
-  EndedCB ended_cb_;
+  const ErrorCB error_cb_;
+  const PrerolledCB prerolled_cb_;
+  const EndedCB ended_cb_;
+
+  SbDecodeTargetGraphicsContextProvider* const
+      decode_target_graphics_context_provider_;
 
   bool owns_surface_ = false;
+  bool tunneled_playback_enabled_ = false;
   std::string init_error_msg_;
 
   ThreadChecker thread_checker_;
