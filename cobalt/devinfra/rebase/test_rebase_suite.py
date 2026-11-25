@@ -1974,13 +1974,13 @@ target("foo") {{}}
                   prompt_text)
     self.assertIn("--- Prior Iteration Attempt Trajectory ---", prompt_text)
 
-  def test_gemini_4_argon_uses_global_endpoint_and_thinking_level(self):
-    """Gemini 4 Argon uses global endpoint and thinking_level, not budget."""
+  def test_gemini_4_models_use_global_endpoint_and_thinking_level(self):
+    """Gemini 4 Neon/Carbon use global endpoint and thinking_level=MEDIUM."""
     engine = CobaltReasoningEngine(
         project_id="test-proj",
         location="us-central1",
-        flash_model="gemini-3.8-flash",
-        expert_model="gemini-4-argon",
+        flash_model="gemini-4-neon",
+        expert_model="gemini-4-carbon",
     )
     with mock.patch("reasoning_engine.engine.genai.Client") as mock_client:
       engine.set_up()
@@ -1991,7 +1991,7 @@ target("foo") {{}}
       )
 
     # pylint: disable=protected-access
-    work_cfg = engine._create_generation_config("gemini-4-argon", "sys")
+    work_cfg = engine._create_generation_config("gemini-4-neon", "sys")
     self.assertIsNone(work_cfg.thinking_config.thinking_budget)
     self.assertEqual(
         str(work_cfg.thinking_config.thinking_level.value), "MEDIUM")
@@ -2010,12 +2010,12 @@ target("foo") {{}}
 
     engine._generate_content_with_retry = fake_retry
     out = engine._generate_expert_content(
-        "diag", "sys", expert_model="gemini-4-argon")
+        "diag", "sys", expert_model="gemini-4-carbon")
     self.assertEqual(out, "Plan")
-    self.assertEqual(captured_cfg[0][0], "gemini-4-argon")
+    self.assertEqual(captured_cfg[0][0], "gemini-4-carbon")
     self.assertIsNone(captured_cfg[0][1].thinking_config.thinking_budget)
     self.assertEqual(
-        str(captured_cfg[0][1].thinking_config.thinking_level.value), "HIGH")
+        str(captured_cfg[0][1].thinking_config.thinking_level.value), "MEDIUM")
 
   def test_base_resolver_session_changes_tracking(self):
     """Verifies BaseResolver records AgentChangeRecord into session_changes."""

@@ -143,11 +143,14 @@ def load_skill(skill_name: str, skills_dir: Optional[str] = None) -> str:
     return content
 
 
+_GEMINI_4_TAGS = ("gemini-4", "argon", "neon", "carbon", "hydrogen")
+
+
 # pylint: disable=unused-argument
 def _is_gemini_4(model_name: str) -> bool:
-  """Returns True for Gemini 4 models (e.g. `gemini-4-argon`)."""
+  """Returns True for Gemini 4 models (e.g. gemini-4-neon, gemini-4-carbon)."""
   m = (model_name or "").strip().lower()
-  return "gemini-4" in m or "argon" in m
+  return any(tag in m for tag in _GEMINI_4_TAGS)
 
 
 class CobaltReasoningEngine:
@@ -192,7 +195,7 @@ class CobaltReasoningEngine:
 
   def set_up(self):
     """Initializes Google GenAI client in remote Vertex AI container."""
-    global_tags = ("gemini-3", "gemini-4", "argon")
+    global_tags = ("gemini-3",) + _GEMINI_4_TAGS
     uses_global_model = False
     for model in (self.flash_model, self.expert_model):
       if model and any(tag in model.lower() for tag in global_tags):
@@ -304,14 +307,14 @@ class CobaltReasoningEngine:
     # (Gemini) workhorse model.
     target_gemini_model = (
         expert_name if ("gemini" in expert_name_lower or
-                        "argon" in expert_name_lower) else self.flash_model)
+                        _is_gemini_4(expert_name_lower)) else self.flash_model)
     print(
         f"  [REASONING_ENGINE] [EXPERT_TIER] Dispatching to "
         f"{target_gemini_model} with thinking...",
         file=sys.stderr,
     )
     if _is_gemini_4(target_gemini_model):
-      thinking_cfg = types.ThinkingConfig(thinking_level="HIGH")
+      thinking_cfg = types.ThinkingConfig(thinking_level="MEDIUM")
     else:
       thinking_cfg = types.ThinkingConfig(thinking_budget=2048)
     cfg = types.GenerateContentConfig(
@@ -544,7 +547,7 @@ class CobaltReasoningEngine:
       expert_model: Optional[str] = None,
       **kwargs,
   ) -> Dict[str, Any]:
-    """Tier-2 Senior Architect (Gemini 3.8 Flash / Claude).
+    """Tier-2 Senior Architect (Gemini 4 Carbon / Claude).
 
     Analyzes full failure trajectory, session git diffs, raw logs, and
     diagnostics to produce strategic root-cause guidance and actionable
