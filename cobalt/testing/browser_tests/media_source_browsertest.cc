@@ -30,19 +30,26 @@
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
+#include <algorithm>
+#include <atomic>
+#include <optional>
+
+#include "base/run_loop.h"
 #include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/common/features/starboard_features_initialization.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
-#include "cobalt/testing/browser_tests/gpu/shell_content_gpu_test_client.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test_utils.h"
 #include "media/starboard/sbplayer_interface.h"
+#include "media/starboard/starboard_renderer.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #endif  // BUILDFLAG(IS_STARBOARD)
@@ -221,6 +228,10 @@ class OrderTrackingSbPlayerInterface : public media::SbPlayerInterface {
       : record_event_cb_(std::move(record_event_cb)),
         destroy_delay_(destroy_delay) {}
 
+  ~OrderTrackingSbPlayerInterface() override {
+    EXPECT_EQ(active_players_.load(std::memory_order_acquire), 0);
+  }
+
   SbPlayer Create(
       SbWindow window,
       const SbPlayerCreationParam* creation_param,
@@ -234,6 +245,7 @@ class OrderTrackingSbPlayerInterface : public media::SbPlayerInterface {
         window, creation_param, sample_deallocate_func, decoder_status_func,
         player_status_func, player_error_func, context, context_provider);
     if (SbPlayerIsValid(player)) {
+      active_players_.fetch_add(1, std::memory_order_relaxed);
       record_event_cb_.Run("SbPlayerCreate");
     }
     return player;
@@ -250,6 +262,7 @@ class OrderTrackingSbPlayerInterface : public media::SbPlayerInterface {
       base::PlatformThread::Sleep(destroy_delay_);
     }
     default_interface_.Destroy(player);
+    active_players_.fetch_sub(1, std::memory_order_release);
     record_event_cb_.Run("SbPlayerDestroy");
   }
 
@@ -305,6 +318,41 @@ class OrderTrackingSbPlayerInterface : public media::SbPlayerInterface {
   media::DefaultSbPlayerInterface default_interface_;
   base::RepeatingCallback<void(const std::string&)> record_event_cb_;
   base::TimeDelta destroy_delay_;
+  std::atomic<int> active_players_{0};
+};
+
+// Owns an OrderTrackingSbPlayerInterface and registers it for the scope of a
+// browser test. Must be constructed and destroyed on the browser UI thread. On
+// destruction, clears the global testing override and drains any active
+// StarboardRenderer instances so no background media thread retains a dangling
+// pointer to tracking_interface_.
+class ScopedOrderTrackingSbPlayerInterface {
+ public:
+  explicit ScopedOrderTrackingSbPlayerInterface(
+      base::RepeatingCallback<void(const std::string&)> record_event_cb,
+      base::TimeDelta destroy_delay = base::TimeDelta())
+      : tracking_interface_(std::move(record_event_cb), destroy_delay),
+        scoped_interface_(std::in_place, &tracking_interface_) {}
+
+  ScopedOrderTrackingSbPlayerInterface(
+      const ScopedOrderTrackingSbPlayerInterface&) = delete;
+  ScopedOrderTrackingSbPlayerInterface& operator=(
+      const ScopedOrderTrackingSbPlayerInterface&) = delete;
+
+  ~ScopedOrderTrackingSbPlayerInterface() {
+    scoped_interface_.reset();
+    base::RunLoop drain_loop(base::RunLoop::Type::kNestableTasksAllowed);
+    media::StarboardRenderer::FlushAndSuspendActiveRenderers(
+        drain_loop.QuitClosure());
+    drain_loop.Run();
+    if (!Shell::GetPlatform() || Shell::GetPlatform()->IsVisible()) {
+      media::StarboardRenderer::ResumeActiveRenderers();
+    }
+  }
+
+ private:
+  OrderTrackingSbPlayerInterface tracking_interface_;
+  std::optional<media::ScopedSbPlayerInterfaceForTesting> scoped_interface_;
 };
 
 // Scoped CobaltLifecycleManagerObserver that records and waits for
@@ -367,10 +415,6 @@ constexpr char kStartMseVideoScript[] = R"(
 
 class MediaConcealLifecycleBrowserTest : public ContentBrowserTest {
  public:
-  MediaConcealLifecycleBrowserTest() {
-    gpu_client_ = std::make_unique<ShellContentGpuTestClient>();
-  }
-
   void SetUpCommandLine(base::CommandLine* command_line) override {
     ContentBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitchASCII(
@@ -378,10 +422,6 @@ class MediaConcealLifecycleBrowserTest : public ContentBrowserTest {
         switches::autoplay::kNoUserGestureRequiredPolicy);
     command_line->AppendSwitch(switches::kSingleProcess);
     cobalt::features::InitializeStarboardFeatures();
-
-    auto* helper = reinterpret_cast<ContentClientLayoutHelper*>(
-        content::GetContentClientForTesting());
-    helper->gpu_ = gpu_client_.get();
   }
 
   void SetUpOnMainThread() override {
@@ -395,19 +435,55 @@ class MediaConcealLifecycleBrowserTest : public ContentBrowserTest {
     ui::PlatformWindowStarboard::ClearWindowDestroyedCallback();
     cobalt::CobaltLifecycleManager::GetInstance()->ResetForTesting();
     ContentBrowserTest::TearDownOnMainThread();
-    auto* helper = reinterpret_cast<ContentClientLayoutHelper*>(
-        content::GetContentClientForTesting());
-    helper->gpu_ = nullptr;
+  }
+
+  void PostRunTestOnMainThread() override {
+    ContentBrowserTest::PostRunTestOnMainThread();
+    if (auto* client = content::GetContentClientForTesting()) {
+      EXPECT_NE(client->gpu(), nullptr);
+    } else {
+      ADD_FAILURE() << "ContentClient should remain set through teardown.";
+    }
   }
 
   void RecordEvent(const std::string& event) {
-    base::AutoLock lock(events_lock_);
-    events_.push_back(event);
+    base::OnceClosure quit_closure;
+    {
+      base::AutoLock lock(events_lock_);
+      events_.push_back(event);
+      if (event_waiter_ && event == event_waiter_->event) {
+        size_t count = std::count(events_.begin(), events_.end(), event);
+        if (count >= event_waiter_->expected_count) {
+          quit_closure = std::move(event_waiter_->quit_closure);
+          event_waiter_.reset();
+        }
+      }
+    }
+    if (quit_closure) {
+      std::move(quit_closure).Run();
+    }
   }
 
   std::vector<std::string> GetEvents() {
     base::AutoLock lock(events_lock_);
     return events_;
+  }
+
+  void WaitForEventCount(const std::string& event, size_t expected_count) {
+    base::RunLoop run_loop(base::RunLoop::Type::kNestableTasksAllowed);
+    {
+      base::AutoLock lock(events_lock_);
+      size_t count = std::count(events_.begin(), events_.end(), event);
+      if (count >= expected_count) {
+        return;
+      }
+      DCHECK(!event_waiter_);
+      event_waiter_.emplace(
+          EventWaiter{event, expected_count, run_loop.QuitClosure()});
+    }
+    run_loop.Run();
+    base::AutoLock lock(events_lock_);
+    event_waiter_.reset();
   }
 
   void TriggerConcealAndWait() {
@@ -429,21 +505,20 @@ class MediaConcealLifecycleBrowserTest : public ContentBrowserTest {
   }
 
  private:
-  struct ContentClientLayoutHelper {
-    virtual ~ContentClientLayoutHelper() = default;
-    raw_ptr<ContentBrowserClient, DanglingUntriaged> browser_;
-    raw_ptr<ContentGpuClient> gpu_;
-    raw_ptr<ContentRendererClient> renderer_;
-    raw_ptr<ContentUtilityClient> utility_;
-  };
-
   void OnWindowDestroyed(SbWindow /*window*/) {
     RecordEvent("SbWindowDestroy");
   }
 
+  // Pending WaitForEventCount() registration protected by events_lock_.
+  struct EventWaiter {
+    std::string event;
+    size_t expected_count = 0;
+    base::OnceClosure quit_closure;
+  };
+
   base::Lock events_lock_;
-  std::vector<std::string> events_;
-  std::unique_ptr<ShellContentGpuTestClient> gpu_client_;
+  std::vector<std::string> events_ GUARDED_BY(events_lock_);
+  std::optional<EventWaiter> event_waiter_ GUARDED_BY(events_lock_);
 };
 
 // When the user backgrounds the app during active video playback without the
@@ -453,10 +528,8 @@ class MediaConcealLifecycleBrowserTest : public ContentBrowserTest {
 IN_PROC_BROWSER_TEST_F(
     MediaConcealLifecycleBrowserTest,
     ConcealDuringActivePlaybackDestroysSbPlayerBeforeWindowAndAutoResumes) {
-  OrderTrackingSbPlayerInterface tracking_interface(base::BindRepeating(
+  ScopedOrderTrackingSbPlayerInterface scoped_interface(base::BindRepeating(
       &MediaConcealLifecycleBrowserTest::RecordEvent, base::Unretained(this)));
-  media::ScopedSbPlayerInterfaceForTesting scoped_interface(
-      &tracking_interface);
 
   embedded_test_server()->ServeFilesFromSourceDirectory(
       media::GetTestDataPath());
@@ -475,16 +548,34 @@ IN_PROC_BROWSER_TEST_F(
       "OnConcealCompleted"};
   EXPECT_EQ(GetEvents(), expected);
 
-  // Reveal and verify auto-resume.
+  // Reveal and verify auto-resume recreates the SbPlayer without errors.
   TriggerReveal();
-  EXPECT_EQ(false,
-            EvalJs(shell(),
-                   "new Promise(r => {"
-                   "  const v = document.getElementById('test_video');"
-                   "  if (!v.paused) r(false);"
-                   "  else v.addEventListener('play', () => r(v.paused), "
-                   "{once: true});"
-                   "})"));
+  WaitForEventCount("SbPlayerCreate", 2);
+  EXPECT_EQ(true, EvalJs(shell(),
+                         "new Promise(r => {"
+                         "  const v = document.getElementById('test_video');"
+                         "  if (v.error !== null) { r(false); return; }"
+                         "  if (!v.paused) { r(true); return; }"
+                         "  v.addEventListener('play', "
+                         "      () => r(!v.paused && v.error === null), "
+                         "      {once: true});"
+                         "  v.addEventListener('error', () => r(false), "
+                         "      {once: true});"
+                         "})"));
+
+  ASSERT_TRUE(ExecJs(shell(),
+                     "const v = document.getElementById('test_video');"
+                     "if (v) {"
+                     "  v.removeAttribute('src');"
+                     "  v.load();"
+                     "  v.remove();"
+                     "}"));
+  WaitForEventCount("SbPlayerDestroy", 2);
+
+  const std::vector<std::string> expected_after_reveal = {
+      "SbPlayerCreate",     "SbPlayerDestroy", "SbWindowDestroy",
+      "OnConcealCompleted", "SbPlayerCreate",  "SbPlayerDestroy"};
+  EXPECT_EQ(GetEvents(), expected_after_reveal);
 }
 
 // When the user backgrounds the app and the web app tears down and removes the
@@ -494,12 +585,10 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     MediaConcealLifecycleBrowserTest,
     ConcealWhenAppRemovesVideoWaitsForAsyncSbPlayerDestroyBeforeWindowDestroy) {
-  OrderTrackingSbPlayerInterface tracking_interface(
+  ScopedOrderTrackingSbPlayerInterface scoped_interface(
       base::BindRepeating(&MediaConcealLifecycleBrowserTest::RecordEvent,
                           base::Unretained(this)),
       /*destroy_delay=*/base::Milliseconds(50));
-  media::ScopedSbPlayerInterfaceForTesting scoped_interface(
-      &tracking_interface);
 
   embedded_test_server()->ServeFilesFromSourceDirectory(
       media::GetTestDataPath());
@@ -527,6 +616,36 @@ IN_PROC_BROWSER_TEST_F(
   const std::vector<std::string> expected = {
       "SbPlayerCreate", "SbPlayerDestroy", "SbWindowDestroy",
       "OnConcealCompleted"};
+  EXPECT_EQ(GetEvents(), expected);
+}
+
+// When active video playback is still running as the test exits its scoped
+// SbPlayerInterface override (for example after an early ASSERT failure or
+// without explicit <video> element teardown), destroying the scope must drain
+// and destroy the active SbPlayer before freeing the testing interface.
+IN_PROC_BROWSER_TEST_F(
+    MediaConcealLifecycleBrowserTest,
+    EarlyScopeExitDrainsActiveSbPlayerBeforeDestroyingTestingInterface) {
+  embedded_test_server()->ServeFilesFromSourceDirectory(
+      media::GetTestDataPath());
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  GURL url = embedded_test_server()->GetURL("/cleaner.html");
+  ASSERT_TRUE(NavigateToURL(shell(), url));
+  cobalt::CobaltLifecycleManager::GetInstance()->InitializeTracker(
+      shell()->web_contents());
+
+  {
+    ScopedOrderTrackingSbPlayerInterface scoped_interface(
+        base::BindRepeating(&MediaConcealLifecycleBrowserTest::RecordEvent,
+                            base::Unretained(this)),
+        /*destroy_delay=*/base::Milliseconds(50));
+    ASSERT_EQ(true, EvalJs(shell(), kStartMseVideoScript));
+    WaitForEventCount("SbPlayerCreate", 1);
+  }
+
+  const std::vector<std::string> expected = {"SbPlayerCreate",
+                                             "SbPlayerDestroy"};
   EXPECT_EQ(GetEvents(), expected);
 }
 

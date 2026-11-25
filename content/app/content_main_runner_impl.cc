@@ -207,6 +207,10 @@
 #include "base/debug/asan_service.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+#include "content/public/browser/browser_main_runner.h"
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+
 namespace content {
 extern int GpuMain(MainFunctionParams);
 #if BUILDFLAG(ENABLE_PPAPI)
@@ -1342,6 +1346,37 @@ void ContentMainRunnerImpl::Shutdown() {
   base::PermanentThreadAllowance::AllowBaseSyncPrimitives();
   base::PermanentThreadAllowance::AllowBlocking();
 #endif
+
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
+  // When BrowserMainRunner was leaked (for example in
+  // ShellMainDelegate::RunProcess() during browser tests),
+  // BrowserMainLoop::ShutdownThreadsAndCleanUp() never ran and background
+  // threads (Chrome_IOThread, Chrome_InProcGpuThread,
+  // Chrome_InProcRendererThread) remain active until process exit. Keep
+  // BrowserTaskExecutor (which owns CrBrowserMain's SequenceLocalStorageMap
+  // and Mojo SequenceLocalSyncEventWatcher state), MojoIpcSupport, and
+  // DiscardableSharedMemoryManager alive so background threads do not hit
+  // use-after-free during teardown.
+  if (is_browser_main_loop_started_ &&
+      !BrowserMainRunner::ExitedMainMessageLoop()) {
+    if (mojo_ipc_support_) {
+      ANNOTATE_LEAKING_OBJECT_PTR(mojo_ipc_support_.get());
+      std::ignore = mojo_ipc_support_.release();
+    }
+    const base::CommandLine& command_line =
+        *base::CommandLine::ForCurrentProcess();
+    delegate_->ProcessExiting(
+        command_line.GetSwitchValueASCII(switches::kProcessType));
+    if (discardable_shared_memory_manager_) {
+      ANNOTATE_LEAKING_OBJECT_PTR(discardable_shared_memory_manager_.get());
+      std::ignore = discardable_shared_memory_manager_.release();
+    }
+    exit_manager_.reset(nullptr);
+    delegate_ = nullptr;
+    is_shutdown_ = true;
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD)
 
   mojo_ipc_support_.reset();
 
