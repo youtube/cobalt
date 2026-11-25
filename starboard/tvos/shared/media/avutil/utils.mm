@@ -14,7 +14,10 @@
 
 #include "starboard/tvos/shared/media/avutil/utils.h"
 
+#include <sstream>
 #include <string>
+
+#include "starboard/common/string.h"
 
 @interface KVOProxyObserver : NSObject {
   starboard::avutil::KVOProxyObserverCallback callback_;
@@ -87,6 +90,51 @@ void AppendAVErrorDetails(NSError* error, std::stringstream* ss) {
     NSValue* pts = error.userInfo[AVErrorPresentationTimeStampKey];
     *ss << ", pts: " << pts.description.UTF8String;
   }
+}
+
+std::string DescribeError(NSError* error) {
+  if (!error) {
+    return "none";
+  }
+  std::stringstream ss;
+  ss << "code=" << error.code << " domain=" << error.domain.UTF8String << " \""
+     << error.localizedDescription.UTF8String << "\"";
+  NSError* underlying = error.userInfo[NSUnderlyingErrorKey];
+  if ([underlying isKindOfClass:[NSError class]]) {
+    ss << " underlying=(code=" << underlying.code
+       << " domain=" << underlying.domain.UTF8String << ")";
+  }
+  return ss.str();
+}
+
+std::string DescribeDrmSampleInfo(const SbDrmSampleInfo* drm_info,
+                                  size_t sample_size) {
+  if (!drm_info) {
+    return "clear";
+  }
+  int64_t clear_bytes = 0;
+  int64_t encrypted_bytes = 0;
+  for (int32_t i = 0; i < drm_info->subsample_count; ++i) {
+    clear_bytes += drm_info->subsample_mapping[i].clear_byte_count;
+    encrypted_bytes += drm_info->subsample_mapping[i].encrypted_byte_count;
+  }
+
+  std::stringstream ss;
+  ss << "scheme="
+     << (drm_info->encryption_scheme == kSbDrmEncryptionSchemeAesCtr ? "cenc"
+                                                                     : "cbcs")
+     << " pattern=" << drm_info->encryption_pattern.crypt_byte_block << ":"
+     << drm_info->encryption_pattern.skip_byte_block
+     << " key_id=" << HexEncode(drm_info->identifier, drm_info->identifier_size)
+     << " iv=["
+     << HexEncode(drm_info->initialization_vector,
+                  drm_info->initialization_vector_size)
+     << "] subsamples=" << drm_info->subsample_count << " clear=" << clear_bytes
+     << " encrypted=" << encrypted_bytes << " sample_size=" << sample_size;
+  if (static_cast<size_t>(clear_bytes + encrypted_bytes) != sample_size) {
+    ss << " SUBSAMPLE MAPPING DOES NOT ADD UP";
+  }
+  return ss.str();
 }
 
 }  // namespace avutil
