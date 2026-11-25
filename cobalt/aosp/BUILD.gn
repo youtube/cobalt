@@ -37,6 +37,7 @@ android_library("cobalt_apk_java") {
   deps = [
     "//base:base_java",
     "//cobalt/android:cobalt_main_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/jni_zero:jni_zero_java",
   ]
   srcjar_deps = [ ":jni_headers" ]
