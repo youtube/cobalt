@@ -105,6 +105,7 @@ class CobaltContentGpuClientTest : public testing::Test {
     saved_egl_context_ = gl::g_current_egl_context;
     saved_make_current_fn_ = gl::g_driver_egl.fn.eglMakeCurrentFn;
     saved_terminate_fn_ = gl::g_driver_egl.fn.eglTerminateFn;
+    saved_get_proc_address_fn_ = gl::g_driver_egl.fn.eglGetProcAddressFn;
 
     display_ = gl::GetDefaultDisplayEGL();
     ASSERT_NE(display_, nullptr);
@@ -112,6 +113,9 @@ class CobaltContentGpuClientTest : public testing::Test {
 
     gl::g_driver_egl.fn.eglMakeCurrentFn = &FakeMakeCurrent;
     gl::g_driver_egl.fn.eglTerminateFn = &FakeTerminate;
+    // Staging's GLDisplayEGL::Shutdown() resets the ANGLE platform through
+    // eglGetProcAddress, which isn't bound in unit tests.
+    gl::g_driver_egl.fn.eglGetProcAddressFn = &FakeGetProcAddress;
 
     egl_api_ = std::make_unique<gl::RealEGLApi>();
     egl_api_->Initialize(&gl::g_driver_egl);
@@ -125,6 +129,7 @@ class CobaltContentGpuClientTest : public testing::Test {
     gl::g_current_egl_context = saved_egl_context_;
     gl::g_driver_egl.fn.eglMakeCurrentFn = saved_make_current_fn_;
     gl::g_driver_egl.fn.eglTerminateFn = saved_terminate_fn_;
+    gl::g_driver_egl.fn.eglGetProcAddressFn = saved_get_proc_address_fn_;
     egl_api_.reset();
     recorded_calls_.clear();
     active_test_ = nullptr;
@@ -151,6 +156,11 @@ class CobaltContentGpuClientTest : public testing::Test {
     return EGL_TRUE;
   }
 
+  static __eglMustCastToProperFunctionPointerType GL_BINDING_CALL
+  FakeGetProcAddress(const char* procname) {
+    return nullptr;
+  }
+
   static CobaltContentGpuClientTest* active_test_;
 
   raw_ptr<gl::GLDisplayEGL> display_ = nullptr;
@@ -158,6 +168,7 @@ class CobaltContentGpuClientTest : public testing::Test {
   raw_ptr<gl::EGLApi> saved_egl_context_ = nullptr;
   gl::eglMakeCurrentProc saved_make_current_fn_ = nullptr;
   gl::eglTerminateProc saved_terminate_fn_ = nullptr;
+  gl::eglGetProcAddressProc saved_get_proc_address_fn_ = nullptr;
   std::unique_ptr<gl::RealEGLApi> egl_api_;
   std::vector<RecordedEglCall> recorded_calls_;
 };

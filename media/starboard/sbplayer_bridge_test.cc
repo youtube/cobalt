@@ -46,7 +46,6 @@ namespace {
 using ::testing::_;
 using ::testing::ContainerEq;
 using ::testing::DoAll;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SaveArg;
@@ -501,10 +500,10 @@ class SbPlayerBridgeDestroyLatencyTest : public testing::Test {
   SbPlayerBridgeDestroyLatencyTest() {
     // Suspend() reads SbPlayerInfo, so return an initialized one.
     ON_CALL(mock_sbplayer_interface_, GetInfo(_, _))
-        .WillByDefault(Invoke([](SbPlayer /*player*/, SbPlayerInfo* info) {
+        .WillByDefault([](SbPlayer /*player*/, SbPlayerInfo* info) {
           *info = SbPlayerInfo{};
           info->duration = SB_PLAYER_NO_DURATION;
-        }));
+        });
   }
 
   void CreateBridge(SbPlayer player) {

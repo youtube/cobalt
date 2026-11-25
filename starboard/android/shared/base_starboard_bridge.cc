@@ -125,7 +125,7 @@ void JNI_BaseStarboardBridge_InitializeFilesForTesting(
     const JavaParamRef<jstring>& j_native_library_dir) {
   pthread_mutex_lock(&g_native_app_init_mutex);
   if (g_app_cache_dir == nullptr) {
-    ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+    ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager);
     SbFileAndroidInitialize(std::move(asset_manager),
                             ConvertJavaStringToUTF8(env, j_files_dir),
                             ConvertJavaStringToUTF8(env, j_cache_dir),
