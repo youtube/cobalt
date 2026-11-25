@@ -108,22 +108,16 @@ jobs:
           platform: linux-x64x11
           use_gcloud: true
 
-      # github.sha is the PR merge commit. Set Up Depot Tools syncs src to it
-      # if DEPS changed, so check it out instead of squash merging.
       - name: Check Out PR Merge Commit
-        env:
-          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: |
-          mkdir -p cobalt/src
-          cd cobalt/src
-          git config --global --add safe.directory "${PWD}"
-          if [[ ! -d .git ]]; then
-            git init -q
-            git remote add origin "${REPO_URL}"
-          fi
-          git fetch --no-tags --depth=2 --filter=blob:none origin "${GITHUB_SHA}"
-          git checkout --detach "${GITHUB_SHA}"
-          git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
+        uses: ./.github/actions/checkout
+        with:
+          path: cobalt/src
+          ref: ${{ github.sha }}
+          fetch_depth: 2
+
+      - name: List Changed Files
+        working-directory: cobalt/src
+        run: git diff --name-only --no-renames HEAD^1 HEAD | tee "${RUNNER_TEMP}/changed_files.txt"
 
       - name: Set Up Depot Tools
         uses: ./.github/actions/depot_tools
