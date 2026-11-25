@@ -12,27 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-config("sabi_flags") {
-  cflags = [
-    # We rely on the target triple to establish the baseline arm64v8a ABI.
-    # Explicitly specifying "-march=arm64v8a" here would cause GN to place it
-    # after target-specific cflags on the compiler command line, overriding
-    # advanced micro-architecture flags (e.g. dotprod, sve) in third_party
-    # dependencies like libvpx and libyuv.
-    "-target",
-    "arm64v8a-unknown-linux-elf",
-
-    # char is unsigned by default for arm64.
-    "-fsigned-char",
-  ]
-  asmflags = cflags
-}
-
 config("platform_configuration") {
   configs = [
-    "//starboard/build/config/sabi",
-    ":sabi_flags",
     "//starboard/evergreen/shared/platform_configuration",
+    "//starboard/build/config/modular/arm64",
   ]
 
   # Enforce 64-bit ARM ELF emulation mode for the linker.
