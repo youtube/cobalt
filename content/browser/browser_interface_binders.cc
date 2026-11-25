@@ -1271,29 +1271,18 @@ void PopulateBinderMapWithContext(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindNFCReceiver>);
 #endif  // !BUILDFLAG(IS_COBALT)
 #else
-<<<<<<< ours
-=======
-#if !BUILDFLAG(IS_COBALT)
-  map->Add<blink::mojom::HidService>(
-      &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetHidService>);
-#endif  // !BUILDFLAG(IS_COBALT)
-
->>>>>>> theirs
+An empty resolution is required here because upstream relocated `blink::mojom::HidService` out of this `#else` block and placed it below the `#endif` under `#if !BUILDFLAG(IS_IOS)`.
   map->Add<blink::mojom::InstalledAppProvider>(
       &BindRenderFrameHostImpl<
           &RenderFrameHostImpl::CreateInstalledAppProvider>);
 #endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
         // !BUILDFLAG(IS_IOS_TVOS))
 
-<<<<<<< ours
+#if !BUILDFLAG(IS_COBALT)
 #if !BUILDFLAG(IS_IOS)
   map->Add<blink::mojom::HidService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetHidService>);
 #endif  // !BUILDFLAG(IS_IOS)
-
-=======
-#if !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
   map->Add<blink::mojom::SerialService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindSerialService>);
 #endif

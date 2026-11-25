@@ -112,7 +112,9 @@
 #include "content/browser/generic_sensor/frame_sensor_provider_proxy.h"
 #include "content/browser/geolocation/geolocation_service_impl.h"
 #include "content/browser/guest_page_holder_impl.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/hid/hid_service.h"
+#endif
 #include "content/browser/idle/idle_manager_impl.h"
 #include "content/browser/installedapp/installed_app_provider_impl.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
@@ -367,12 +369,6 @@
 #include "content/public/browser/android/java_interfaces.h"
 #include "content/public/browser/authenticator_request_client_delegate.h"
 #else
-<<<<<<< ours
-=======
-#if !BUILDFLAG(IS_COBALT)
-#include "content/browser/hid/hid_service.h"
-#endif
->>>>>>> theirs
 #include "content/browser/host_zoom_map_impl.h"
 #endif
 
@@ -15001,13 +14997,11 @@ void RenderFrameHostImpl::BindModelContextHost(
   ModelContextUserData::Bind(this, std::move(receiver));
 }
 
-<<<<<<< ours
-=======
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
+#if !BUILDFLAG(IS_COBALT)
   HidService::Create(this, std::move(receiver));
+#endif
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -15112,18 +15106,6 @@ void RenderFrameHostImpl::BindDigitalIdentityRequestReceiver(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
-<<<<<<< ours
-=======
-void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
-    mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  webid::RequestService* service =
-      webid::RequestService::GetOrCreateForCurrentDocument(this);
-  service->BindFederatedAuthRequest(std::move(receiver));
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-}
-
->>>>>>> theirs
 void RenderFrameHostImpl::BindFederatedRequestServiceReceiver(
     mojo::PendingReceiver<blink::mojom::FederatedRequestService> receiver) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)

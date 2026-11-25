@@ -97,7 +97,7 @@ void InProcessRendererThread::ThreadDelegate::BindToCurrentThread() {
   // kDisplayCritical is nice -8, shared across 13 threads on 4 cores.
   if (base::FeatureList::IsEnabled(
           base::features::kCobaltAndroidDisplayCriticalInProcessRenderer)) {
-    base::PlatformThread::SetCurrentThreadType(
+    base::PlatformThread::SetDefaultThreadType(
         base::ThreadType::kPresentation);
   }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)

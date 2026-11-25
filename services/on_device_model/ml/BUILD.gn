@@ -81,17 +81,9 @@ if (use_blink || (is_ios && build_with_internal_optimization_guide)) {
     if (use_blink) {
       deps += [ "//gpu/config" ]
     }
-<<<<<<< ours
-=======
-    if (!is_fuchsia) {
-      public += [ "ts_model.h" ]
-      sources += [ "ts_model.cc" ]
-      deps += [ "//services/on_device_model/safety:bert_safety_model" ]
-    }
     if (is_cobalt_hermetic_build) {
       deps -= [ "//third_party/dawn/src/dawn/native" ]
     }
->>>>>>> theirs
     public_deps = [
       ":api",
       ":ml_holder_no_internal",

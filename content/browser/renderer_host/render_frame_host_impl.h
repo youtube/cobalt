@@ -2115,10 +2115,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void GetFileSystemAccessManager(
       mojo::PendingReceiver<blink::mojom::FileSystemAccessManager> receiver);
 
-<<<<<<< ours
-=======
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
   void GetHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
 
 #if !BUILDFLAG(IS_COBALT)
