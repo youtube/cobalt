@@ -389,6 +389,7 @@ test("nplb") {
   data_deps = [ "//starboard/nplb/testdata/file_tests:nplb_file_tests_data" ]
 
   if (is_cobalt_hermetic_build) {
+    sources += [ "symbol_binding_test.cc" ]
     deps += [ "//cobalt/common/icu_init" ]
     data_deps += [ "//third_party/icu:icudata" ]
   }

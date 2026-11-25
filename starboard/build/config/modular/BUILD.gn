@@ -16,6 +16,13 @@ import("//starboard/build/config/sanitizers.gni")
 
 config("modular") {
   ldflags = [ "-nostdlib" ]
+
+  # The sanitizers intercept some functions that the hermetic libraries
+  # define themselves.
+  if (!use_asan && !use_tsan) {
+    ldflags += [ "-Wl,-Bsymbolic" ]
+  }
+
   cflags = [
     "-ffunction-sections",
     "-fdata-sections",
