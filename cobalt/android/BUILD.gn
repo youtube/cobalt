@@ -151,14 +151,6 @@ source_set("androidtv_flags") {
   ]
 }
 
-source_set("chrome_flags_jni_stubs") {
-  sources = [ "chrome_flags_jni_stubs.cc" ]
-  deps = [
-    "//base",
-    "//chrome/browser/flags:jni_headers",
-  ]
-}
-
 source_set("cobalt_process_state_summary_jni") {
   sources = [
     "cobalt_process_state_summary_jni.cc",
@@ -325,6 +317,26 @@ android_library("cobalt_main_java") {
   }
 }
 
+# CompositorView only, without ThinWebViewImpl and its //components/browser_ui
+# dependency tree. See b/555766579.
+generate_jni("cobalt_compositor_view_jni") {
+  sources = [ "//components/thin_webview/internal/java/src/org/chromium/components/thinwebview/internal/CompositorViewImpl.java" ]
+}
+
+android_library("cobalt_compositor_view_java") {
+  srcjar_deps = [ ":cobalt_compositor_view_jni" ]
+  sources = [
+    "//components/thin_webview/internal/java/src/org/chromium/components/thinwebview/internal/CompositorViewImpl.java",
+    "//components/thin_webview/java/src/org/chromium/components/thinwebview/CompositorViewFactory.java",
+  ]
+  deps = [
+    "//build/android:build_java",
+    "//components/thin_webview:java",
+    "//third_party/jni_zero:jni_zero_java",
+    "//ui/android:ui_java",
+  ]
+}
+
 generate_jni("pip_jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/CobaltPictureInPictureActivity.java",
@@ -337,9 +349,9 @@ android_library("cobalt_pip_java") {
   ]
   srcjar_deps = [ ":pip_jni_headers" ]
   deps = [
+    ":cobalt_compositor_view_java",
     ":cobalt_main_java",
     "//base:base_java",
-    "//components/thin_webview:factory_java",
     "//components/thin_webview:java",
     "//content/public/android:content_java",
     "//third_party/jni_zero:jni_zero_java",
@@ -427,22 +439,6 @@ shared_library_with_jni("libchrobalt") {
     "//components/permissions/android:core",
     "//components/webxr/android:features",
     "//media/capture/video/android",
-
-    # Added in 149.7790: https://crrev.com/c/7749364 made
-    # //components/thin_webview/internal:internal_java depend on
-    # //components/embedder_support/android:util_java, whose JNI natives are
-    # in //components/embedder_support/android:util.
-    "//components/embedder_support/android:util",
-
-    # Added in 149.7802: https://crrev.com/c/7763465 made
-    # //components/thin_webview/internal:internal_java depend on
-    # //components/browser_ui/modaldialog/android:java, which brings in the
-    # Java below. The real natives for //chrome/browser/flags would pull in
-    # //chrome/browser, so :chrome_flags_jni_stubs provides them instead.
-    ":chrome_flags_jni_stubs",
-    "//components/browser_ui/modaldialog/android",
-    "//components/browser_ui/notifications/android",
-    "//components/offline_items_collection/core",
   ]
 
   # Explicit dependency required for JNI registration to be able to
@@ -483,7 +479,8 @@ android_apk("cobalt_apk") {
   srcjar_deps = [ ":libchrobalt__jni_registration" ]
   include_size_info = is_official_build
 
-  # Keep dex compressed; min SDK >= 28 would store it uncompressed and grow the APK.
+  # Keep dex compressed; min SDK >= 28 would store it uncompressed and grow the
+  # APK.
   uncompress_dex = false
 }
 
