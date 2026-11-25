@@ -2630,8 +2630,18 @@ void MainThreadSchedulerImpl::UpdateRenderingPrioritizationStateOnTaskCompleted(
       main_thread_only().main_frame_prioritization_state =
           RenderingPrioritizationState::kRenderingStarvedByRenderBlocking;
     } else {
+#if BUILDFLAG(IS_COBALT)
+      // [PoC][C10] Lower rendering starvation threshold from 100 ms to 16 ms
+      // (1 VSync at 60 Hz) so BeginMainFrame (including transitionend) is
+      // elevated to kVeryHighPriority as soon as the next frame is due.
+      constexpr base::TimeDelta kCobaltRenderingStarvationThreshold =
+          base::Milliseconds(16);
+      if (task_timing.end_time() - main_thread_only().last_frame_time >=
+          kCobaltRenderingStarvationThreshold) {
+#else
       if (task_timing.end_time() - main_thread_only().last_frame_time >=
           kDefaultRenderingStarvationThreshold) {
+#endif
         main_thread_only().main_frame_prioritization_state =
             RenderingPrioritizationState::kRenderingStarved;
       }
