@@ -27,17 +27,12 @@
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-<<<<<<< HEAD
-namespace storage::service_worker_storage_unittest {
-=======
 #if BUILDFLAG(IS_COBALT)
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
-namespace storage {
-namespace service_worker_storage_unittest {
->>>>>>> a16241947f0 (cobalt: Reclaim empty ServiceWorker LevelDB directories on initialization (#14155))
+namespace storage::service_worker_storage_unittest {
 
 struct ReadResponseHeadResult {
   int result;
@@ -1056,9 +1051,6 @@ TEST_F(ServiceWorkerStorageTest, GetStorageUsageForOrigin) {
   EXPECT_TRUE(usage.is_zero());
 }
 
-<<<<<<< HEAD
-}  // namespace storage::service_worker_storage_unittest
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST_F(ServiceWorkerStorageTest,
        CobaltLazyInitSkipsEmptyDiskOpenAndAllowsRegistration) {
@@ -1279,6 +1271,4 @@ TEST_F(ServiceWorkerStorageTest,
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
-}  // namespace service_worker_storage_unittest
-}  // namespace storage
->>>>>>> a16241947f0 (cobalt: Reclaim empty ServiceWorker LevelDB directories on initialization (#14155))
+}  // namespace storage::service_worker_storage_unittest

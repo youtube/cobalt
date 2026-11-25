@@ -33,12 +33,6 @@
 
 namespace storage {
 
-<<<<<<< HEAD
-class ServiceWorkerDiskCache;
-class ServiceWorkerResourceMetadataWriterImpl;
-class ServiceWorkerResourceReaderImpl;
-class ServiceWorkerResourceWriterImpl;
-=======
 #if BUILDFLAG(IS_COBALT)
 // Reclaims leftover 0-registration ServiceWorker LevelDB directories once on
 // initialization so subsequent launches take upstream LazyOpen(false)'s fast
@@ -46,7 +40,10 @@ class ServiceWorkerResourceWriterImpl;
 BASE_DECLARE_FEATURE(kCobaltReclaimEmptyServiceWorkerDatabase);
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> a16241947f0 (cobalt: Reclaim empty ServiceWorker LevelDB directories on initialization (#14155))
+class ServiceWorkerDiskCache;
+class ServiceWorkerResourceMetadataWriterImpl;
+class ServiceWorkerResourceReaderImpl;
+class ServiceWorkerResourceWriterImpl;
 class ServiceWorkerStorageControlImplTest;
 
 namespace service_worker_storage_unittest {

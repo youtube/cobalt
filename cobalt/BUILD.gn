@@ -394,11 +394,7 @@ test("cobalt_unittests") {
     "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
     "//cobalt/shell/browser/picture_in_picture/picture_in_picture_window_manager_unittest.cc",
     "//cobalt/shell/browser/splash_cache_unittest.cc",
-<<<<<<< HEAD
-=======
-    "//components/services/storage/dom_storage/dom_storage_database_unittest.cc",
     "//components/services/storage/service_worker/service_worker_storage_unittest.cc",
->>>>>>> a16241947f0 (cobalt: Reclaim empty ServiceWorker LevelDB directories on initialization (#14155))
   ]
 
   # Memory instrumentation host-side tool tests require launching external
