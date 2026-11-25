@@ -48,6 +48,7 @@ runs:
           fi
 
           retry git clone \
+            --no-tags \
             --filter=blob:none \
             "${depth_arg[@]}" \
             "${REPO_URL}" \
@@ -62,39 +63,53 @@ runs:
       env:
         REF: ${{ inputs.ref }}
         DEST_PATH: ${{ inputs.path }}
+        FETCH_DEPTH: ${{ inputs.fetch_depth }}
         GITHUB_BASE_REF: ${{ github.base_ref }}
         SQUASH_MERGE: ${{ inputs.squash_merge }}
       shell: bash
       run: |
         set -ex
+        cd "${DEST_PATH}"
+        retry() {
+          for delay in 0 5 15 30; do
+            sleep "${delay}"
+            "$@" && return
+          done
+          return 1
+        }
+        shallow=$(git rev-parse --is-shallow-repository)
 
         if [ "${SQUASH_MERGE}" = "true" ] && [ -n "${GITHUB_BASE_REF}" ]; then
-          retry() {
-            for delay in 0 5 15 30; do
-              sleep "${delay}"
-              "$@" && return
-            done
-            return 1
-          }
-
-          retry git -C "${DEST_PATH}" fetch --depth=500 origin "${GITHUB_BASE_REF}" "${REF}"
-          commit_date=$(git -C "${DEST_PATH}" log -1 --format="%cI" "${REF}")
-          author_name=$(git -C "${DEST_PATH}" log -1 --format="%an" "${REF}")
-          author_email=$(git -C "${DEST_PATH}" log -1 --format="%ae" "${REF}")
+          base_ref="origin/${GITHUB_BASE_REF}"
+          base_spec="+refs/heads/${GITHUB_BASE_REF}:refs/remotes/${base_ref}"
+          depth_arg=()
+          [ "${shallow}" = "true" ] && depth_arg=(--depth=500)
+          retry git fetch --no-tags "${depth_arg[@]}" origin "${base_spec}"
+          retry git fetch --no-tags "${depth_arg[@]}" origin "${REF}"
+          head_sha=$(git rev-parse FETCH_HEAD)
+          git merge-base "${base_ref}" "${head_sha}" >/dev/null || \
+            [ "${shallow}" != "true" ] || \
+            retry git fetch --no-tags --unshallow origin "${base_spec}" "${REF}"
+          commit_date=$(git log -1 --format="%cI" "${head_sha}")
+          author_name=$(git log -1 --format="%an" "${head_sha}")
+          author_email=$(git log -1 --format="%ae" "${head_sha}")
           author_name="${author_name:-${COMMIT_AUTHOR_NAME:-github-actions[bot]}}"
           author_email="${author_email:-${COMMIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}}"
 
-          git -C "${DEST_PATH}" checkout "origin/${GITHUB_BASE_REF}"
-          git -C "${DEST_PATH}" \
-            -c "user.name=${author_name}" \
-            -c "user.email=${author_email}" \
-            merge --squash "${REF}"
-          git -C "${DEST_PATH}" \
+          git checkout "${base_ref}"
+          git -c "user.name=${author_name}" -c "user.email=${author_email}" \
+            merge --squash "${head_sha}"
+          git \
             -c "user.name=${author_name}" \
             -c "user.email=${author_email}" \
             commit --quiet --allow-empty \
             --date="${commit_date}" \
             --message "Squash merge ${REF} onto ${GITHUB_BASE_REF}"
         else
-          git -C "${DEST_PATH}" checkout "${REF}"
+          depth_arg=()
+          [ "${FETCH_DEPTH}" -eq 0 ] || depth_arg=(--depth "${FETCH_DEPTH}")
+          [ "${FETCH_DEPTH}" -eq 0 ] && [ "${shallow}" = "true" ] && \
+            depth_arg=(--unshallow)
+          retry git fetch --no-tags "${depth_arg[@]}" origin "${REF}"
+          git checkout FETCH_HEAD
         fi
