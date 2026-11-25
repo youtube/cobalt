@@ -145,7 +145,7 @@ TEST_F(UrlPlayerMetadataFlowTest, DemuxerHasDurationWhenInitCbRuns) {
   SbPlayerInfo info = {};
   info.duration = 0;
   EXPECT_CALL(sbplayer_interface_, GetInfo(player, _))
-      .WillOnce(SetArgPointee<1>(info));
+      .WillRepeatedly(SetArgPointee<1>(info));
   {
     InSequence sequence;
     EXPECT_CALL(demuxer_host_, SetDuration(kInfiniteDuration));

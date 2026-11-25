@@ -13,6 +13,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "build/build_config.h"
 #include "cc/base/region.h"
 #include "cc/tiles/picture_layer_tiling.h"
 #include "cc/tiles/tiling_set_coverage_iterator.h"
@@ -93,6 +94,9 @@ class CC_EXPORT PictureLayerTilingSet {
   //      the set.
   bool all_tiles_done() const { return all_tiles_done_; }
   void set_all_tiles_done(bool done) { all_tiles_done_ = done; }
+#if BUILDFLAG(IS_COBALT)
+  void set_skewport_lookahead_allowed(bool allowed);
+#endif  // BUILDFLAG(IS_COBALT)
   int NumHighResTilings() const;
   PictureLayerTiling* tiling_at(size_t idx) { return tilings_[idx].get(); }
   const PictureLayerTiling* tiling_at(size_t idx) const {
@@ -218,6 +222,9 @@ class CC_EXPORT PictureLayerTilingSet {
   std::vector<std::unique_ptr<PictureLayerTiling>> tilings_;
 
   bool all_tiles_done_ : 1 = true;
+#if BUILDFLAG(IS_COBALT)
+  bool skewport_lookahead_allowed_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   const int tiling_interest_area_padding_;
   const float skewport_target_time_in_seconds_;

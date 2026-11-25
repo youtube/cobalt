@@ -156,10 +156,6 @@ BASE_FEATURE(kEnablePictureInPicture,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-BASE_FEATURE(kDisableNetworkDialogDismissButton,
-             "DisableNetworkDialogDismissButton",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCobaltNativeMemoryAblation,
              "CobaltNativeMemoryAblation",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -274,6 +270,16 @@ BASE_FEATURE_PARAM(bool,
                    &kCobaltCodeCacheOptimization,
                    "CobaltCodeCacheOptimization_bypass_heat_check",
                    true);
+
+BASE_FEATURE(kCobaltDeferAfterStartupTasks,
+             "CobaltDeferAfterStartupTasks",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltDeferAfterStartupTasksFailsafeDelay,
+                   &kCobaltDeferAfterStartupTasks,
+                   "CobaltDeferAfterStartupTasks_failsafe_delay",
+                   base::Milliseconds(8500));
 
 }  // namespace features
 }  // namespace cobalt

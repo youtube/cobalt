@@ -50,7 +50,7 @@ class FakeAudioTrack : public AudioTrack {
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
 
-  int64_t GetAudioTimestamp(int64_t* updated_at) override;
+  AudioTimestamp GetAudioTimestamp() override;
   AudioDeviceChange GetAndResetAudioDeviceChange() override;
   int GetUnderrunCount() override;
   int GetStartThresholdInFrames() override;

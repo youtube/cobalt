@@ -8,9 +8,12 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#include "net/base/features.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/schemeful_site.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -1172,6 +1175,28 @@ TEST_F(BrokenAlternativeServicesTest, Clear) {
   EXPECT_FALSE(broken_services_.WasRecentlyBroken(alternative_service1));
   EXPECT_FALSE(broken_services_.WasRecentlyBroken(alternative_service2));
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(BrokenAlternativeServicesTest, CobaltBrokenMaxDelayCap) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeatureWithParameters(
+      features::kCobaltEnableQuic,
+      {{"CobaltEnableQuic_broken_max_delay_s", "60"}});
+  broken_services_.SetDelayParams(base::Seconds(10), true);
+  BrokenAlternativeService alt_svc(
+      AlternativeService(NextProto::kProtoQUIC, "foo", 443),
+      NetworkAnonymizationKey(), true);
+
+  // Expect 10 s, 20 s, 40 s, then capped at 60 s.
+  for (int expected_s : {10, 20, 40, 60, 60}) {
+    broken_services_.MarkBroken(alt_svc);
+    test_task_runner_->FastForwardBy(base::Seconds(expected_s - 1));
+    EXPECT_TRUE(broken_services_.IsBroken(alt_svc));
+    test_task_runner_->FastForwardBy(base::Seconds(1));
+    EXPECT_FALSE(broken_services_.IsBroken(alt_svc));
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
 

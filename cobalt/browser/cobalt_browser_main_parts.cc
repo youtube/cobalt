@@ -90,6 +90,16 @@
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <cmath>
+#include <cstring>
+
+#include "base/numerics/safe_conversions.h"
+#include "components/viz/common/frame_sinks/begin_frame_args.h"
+#include "content/public/browser/frame_rate_throttling.h"
+#include "starboard/system.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 #if BUILDFLAG(USE_EVERGREEN)
 #include "starboard/extension/native_stability.h"
 #include "starboard/system.h"
@@ -426,7 +436,66 @@ void PreconnectToStartupOrigin(content::BrowserContext* browser_context) {
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_STARBOARD)
+// The CobaltExtensionGraphicsApi version that added the minimum frame
+// interval.
+constexpr uint32_t kMinimumFrameIntervalVersion = 2;
+
+// Caps the frame rate at the platform's minimum frame interval, as Cobalt 25
+// did.
+void ApplyMinimumFrameInterval() {
+  const auto* graphics_extension =
+      static_cast<const CobaltExtensionGraphicsApi*>(
+          SbSystemGetExtension(kCobaltExtensionGraphicsName));
+  if (!graphics_extension ||
+      strcmp(graphics_extension->name, kCobaltExtensionGraphicsName) != 0) {
+    return;
+  }
+  // TODO(b/584412770): Use the display's actual refresh interval. This assumes
+  // 60 Hz, and viz drops the throttle on a display that reports another rate.
+  const std::optional<base::TimeDelta> throttled_frame_interval =
+      GetThrottledFrameInterval(graphics_extension,
+                                viz::BeginFrameArgs::DefaultInterval());
+  if (throttled_frame_interval) {
+    // Caps the frame rate: Chromium sends BeginFrames no more often than this.
+    content::StartThrottlingAllFrameSinks(*throttled_frame_interval);
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 }  // namespace
+
+#if BUILDFLAG(IS_STARBOARD)
+std::optional<base::TimeDelta> GetThrottledFrameInterval(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval) {
+  if (!graphics_extension ||
+      graphics_extension->version < kMinimumFrameIntervalVersion ||
+      !graphics_extension->GetMinimumFrameIntervalInMilliseconds ||
+      !refresh_interval.is_positive()) {
+    return std::nullopt;
+  }
+  const float minimum_frame_interval_milliseconds =
+      graphics_extension->GetMinimumFrameIntervalInMilliseconds();
+  // A minimum frame interval that is not positive means the platform sets
+  // none.
+  if (!std::isfinite(minimum_frame_interval_milliseconds) ||
+      minimum_frame_interval_milliseconds <= 0.0f) {
+    return std::nullopt;
+  }
+  // Rounds to the nearest refresh rather than up, so that a value just over a
+  // whole number of refreshes, such as 17 ms at 60 Hz, does not halve the
+  // frame rate.
+  const int refreshes_per_frame =
+      base::ClampRound(base::Milliseconds(minimum_frame_interval_milliseconds) /
+                       refresh_interval);
+  // One frame per refresh is what happens without throttling.
+  if (refreshes_per_frame <= 1) {
+    return std::nullopt;
+  }
+  return refresh_interval * refreshes_per_frame;
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
                                             const base::FilePath& cache_dir) {
@@ -580,9 +649,12 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
 #endif
 }
 
-CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
-                                               bool is_visible)
-    : ShellBrowserMainParts(deep_link, is_visible) {}
+CobaltBrowserMainParts::CobaltBrowserMainParts(
+    const std::string& deep_link,
+    bool is_visible,
+    CobaltContentBrowserClient* browser_client)
+    : ShellBrowserMainParts(deep_link, is_visible),
+      browser_client_(browser_client) {}
 
 CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
 
@@ -613,11 +685,31 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   base::android::MemoryPressureListenerAndroid::Initialize(
       base::android::AttachCurrentThread());
 #endif
+#if BUILDFLAG(IS_ANDROID)
+  // All Cobalt platforms previously ran `PostAfterStartupTask()` and
+  // `BEST_EFFORT` tasks at t=0ms because base `ContentBrowserClient` did not
+  // defer `BrowserMainLoop::CreateThreads()`'s startup-complete callback
+  // (`content/browser/browser_main_loop.cc:969`). With
+  // `CobaltContentBrowserClient::PostAfterStartupTask()` deferred,
+  // `!BUILDFLAG(IS_ANDROID)` platforms automatically hold `ThreadPool`
+  // `BEST_EFFORT` tasks via `BrowserMainLoop`'s
+  // `scoped_best_effort_execution_fence_` (`browser_main_loop.cc:492,975`),
+  // whereas upstream omits that fence on `BUILDFLAG(IS_ANDROID)`
+  // (`crbug.com/887407`). Hold an explicit `ScopedBestEffortExecutionFence`
+  // here so Android TV achieves the same `ThreadPool` `BEST_EFFORT` deferral.
+  if (browser_client_) {
+    browser_client_->HoldThreadPoolBestEffortFenceIfDeferred();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   return ShellBrowserMainParts::PreCreateThreads();
 }
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  EnableCobaltIOJankMonitoring();
+  if (browser_client_) {
+    browser_client_->StartAfterStartupTaskFailsafeTimer();
+  }
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
   base::FilePath base_dir;
@@ -714,6 +806,10 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
                << ". Aborting storage migration.";
     return result;
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  ApplyMinimumFrameInterval();
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
   // Register Cobalt memory pressure evaluators when enabled via Finch or
@@ -835,6 +931,9 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
 }
 
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+  if (browser_client_) {
+    browser_client_->CancelDeferredAfterStartupTasks();
+  }
 #if BUILDFLAG(IS_ANDROID)
   android_os_signal_evaluator_.reset();
 #endif
@@ -845,6 +944,11 @@ void CobaltBrowserMainParts::PostMainMessageLoopRun() {
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
+#if BUILDFLAG(IS_ANDROID)
+  if (browser_client_) {
+    browser_client_->ReleaseThreadPoolBestEffortFence();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   GlobalFeatures::GetInstance()->Shutdown();
   ShellBrowserMainParts::PostDestroyThreads();
 }

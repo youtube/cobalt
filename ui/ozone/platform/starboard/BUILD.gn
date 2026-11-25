@@ -62,6 +62,7 @@ source_set("starboard_unittests") {
   testonly = true
 
   sources = [
+    "test/gl_ozone_egl_starboard_unittest.cc",
     "test/platform_event_source_starboard_unittest.cc",
     "test/platform_window_starboard_unittest.cc",
     "test/starboard_test_helper.h",
