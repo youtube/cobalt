@@ -1966,9 +1966,6 @@ bool LayerTreeImpl::UpdateTiles() {
   bool tile_priorities_updated = false;
   const bool release_tile_resources_for_hidden_layers =
       settings().release_tile_resources_for_hidden_layers;
-<<<<<<< HEAD
-  for (PictureLayerImpl* layer : picture_layers()) {
-=======
 #if BUILDFLAG(IS_COBALT)
   // Scan the tree once per UpdateTiles() (O(L) rather than per-PictureLayerImpl
   // O(P * L)) to detect any drawn video layer so speculative skewport tile
@@ -1978,7 +1975,15 @@ bool LayerTreeImpl::UpdateTiles() {
   if (base::FeatureList::IsEnabled(
           base::features::kCobaltAnimationTileLookahead)) {
     for (const LayerImpl* layer : *this) {
-      if (layer->may_contain_video() &&
+      // Staging has no LayerImpl::may_contain_video(); approximate it with the
+      // layer types that carry video (VideoLayerImpl, or SurfaceLayerImpl when
+      // UseSurfaceLayerForVideo() is enabled).
+      // TODO(b/590577104): This also counts non-video surface layers (e.g. an
+      // OffscreenCanvas placeholder) as video. Use a may_contain_video()
+      // equivalent once one is available on staging.
+      const mojom::LayerType layer_type = layer->GetLayerType();
+      if ((layer_type == mojom::LayerType::kVideo ||
+           layer_type == mojom::LayerType::kSurface) &&
           layer->contributes_to_drawn_render_surface() &&
           layer->draws_content() && !layer->visible_layer_rect().IsEmpty()) {
         has_visible_video_layer_ = true;
@@ -1987,8 +1992,7 @@ bool LayerTreeImpl::UpdateTiles() {
     }
   }
 #endif  // BUILDFLAG(IS_COBALT)
-  for (PictureLayerImpl* layer : picture_layers_) {
->>>>>>> 804b38d4198 (cc: Extend tile lookahead in motion direction under CUTOFF_ALLOW_REQUIRED_ONLY (#13951))
+  for (PictureLayerImpl* layer : picture_layers()) {
     if (!layer->HasValidTilePriorities()) {
       if (release_tile_resources_for_hidden_layers) {
         layer->ReleaseResources();

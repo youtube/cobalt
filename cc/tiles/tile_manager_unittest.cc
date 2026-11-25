@@ -4257,7 +4257,7 @@ class CobaltTileManagerLookaheadTest : public TileManagerTest {
       const GlobalStateThatImpactsTilePriority& state) {
     base::RunLoop run_loop;
     EXPECT_CALL(MockHostImpl(), NotifyAllTileTasksCompleted())
-        .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+        .WillOnce([&run_loop]() { run_loop.Quit(); });
     tile_manager()->PrepareTiles(state);
     run_loop.Run();
     tile_manager()->PrepareToDraw();
