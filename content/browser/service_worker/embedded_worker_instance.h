@@ -244,17 +244,10 @@ class CONTENT_EXPORT EmbeddedWorkerInstance
       mojo::PendingReceiver<blink::mojom::CacheStorage> receiver,
       const storage::BucketLocator& bucket_locator);
 
-<<<<<<< ours
-  void BindHidService(const url::Origin& origin,
-                      mojo::PendingReceiver<blink::mojom::HidService> receiver);
-=======
-#if !BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_COBALT)
   void BindHidService(const url::Origin& origin,
                       mojo::PendingReceiver<blink::mojom::HidService> receiver);
 #endif
-#endif  // !BUILDFLAG(IS_ANDROID)
->>>>>>> theirs
 
 #if !BUILDFLAG(IS_COBALT)
   void BindUsbService(
