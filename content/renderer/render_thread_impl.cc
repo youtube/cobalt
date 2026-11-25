@@ -300,7 +300,6 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
   }
 }
 
-<<<<<<< HEAD
 // Helper function to update the content and media clients when the
 // GpuChannelHost may have been updated.
 void OnPotentialNewGpuChannelHost(gpu::GpuChannelHost* host) {
@@ -309,45 +308,6 @@ void OnPotentialNewGpuChannelHost(gpu::GpuChannelHost* host) {
     GetContentClient()->SetGpuInfo(host->gpu_info());
   } else {
     RenderMediaClient::SetGpuFeatureInfo(gpu::GpuFeatureInfo());
-=======
-#if BUILDFLAG(IS_COBALT)
-bool IsCriticalAllowedInForeground() {
-  static const bool kAllowCriticalInForeground =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "allow-critical-memory-pressure-handling-in-foreground") ||
-      base::FeatureList::IsEnabled(
-          base::features::kCobaltV8FlushCodeOnCriticalMemoryPressure);
-  return kAllowCriticalInForeground;
-}
-#endif  // BUILDFLAG(IS_COBALT)
-
-perfetto::StaticString ProcessPriorityToString(
-    std::optional<base::Process::Priority> priority) {
-  if (!priority) {
-    return "Unknown";
-  }
-  switch (*priority) {
-    case base::Process::Priority::kBestEffort:
-      return "Best effort";
-    case base::Process::Priority::kUserVisible:
-      return "User visible";
-    case base::Process::Priority::kUserBlocking:
-      return "User blocking";
-  }
-  NOTREACHED();
-}
-
-perfetto::StaticString ProcessVisibilityToString(
-    std::optional<mojom::RenderProcessVisibleState> visible_state) {
-  if (!visible_state) {
-    return "Unknown";
-  }
-  switch (*visible_state) {
-    case mojom::RenderProcessVisibleState::kVisible:
-      return "Visible";
-    case mojom::RenderProcessVisibleState::kHidden:
-      return "Hidden";
->>>>>>> ea963fafed1 (cobalt: Force flush V8 code on critical memory pressure (#13589))
   }
 }
 

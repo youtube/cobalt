@@ -3956,44 +3956,6 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
   }
 }
 
-<<<<<<< HEAD
-=======
-#ifndef V8_ENABLE_LEAPTIERING
-
-void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
-#if BUILDFLAG(IS_COBALT)
-  DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_) ||
-         weak_objects_.baseline_flushing_candidates.IsEmpty());
-#else
-  DCHECK(v8_flags.flush_baseline_code ||
-         weak_objects_.baseline_flushing_candidates.IsEmpty());
-#endif
-  Tagged<JSFunction> flushed_js_function;
-  while (local_weak_objects()->baseline_flushing_candidates_local.Pop(
-      &flushed_js_function)) {
-    auto gc_notify_updated_slot = [](Tagged<HeapObject> object, ObjectSlot slot,
-                                     Tagged<Object> target) {
-      RecordSlot(object, slot, Cast<HeapObject>(target));
-    };
-    flushed_js_function->ResetIfCodeFlushed(heap_->isolate(),
-                                            gc_notify_updated_slot);
-
-#ifndef V8_ENABLE_SANDBOX
-    // Record the code slot that has been updated either to CompileLazy,
-    // InterpreterEntryTrampoline or baseline code.
-    // This is only necessary when the sandbox is not enabled. If it is, the
-    // Code objects are referenced through a pointer table indirection and so
-    // remembered slots are not necessary as the Code object will update its
-    // entry in the pointer table when it is relocated.
-    ObjectSlot slot = flushed_js_function->RawField(JSFunction::kCodeOffset);
-    RecordSlot(flushed_js_function, slot, Cast<HeapObject>(*slot));
-#endif
-  }
-}
-
-#endif  // !V8_ENABLE_LEAPTIERING
-
->>>>>>> ea963fafed1 (cobalt: Force flush V8 code on critical memory pressure (#13589))
 void MarkCompactCollector::ClearFullMapTransitions() {
   Tagged<TransitionArray> array;
   Isolate* const isolate = heap_->isolate();

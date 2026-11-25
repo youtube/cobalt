@@ -4037,18 +4037,13 @@ void Heap::CollectGarbageOnMemoryPressure() {
       GarbageCollectionReason::kMemoryPressure;
 
   double start = MonotonicallyIncreasingTimeInMs();
-<<<<<<< HEAD
-  CollectAllGarbage(GCFlag::kReduceMemoryFootprint, gc_reason,
-=======
   GCFlags gc_flags = GCFlag::kReduceMemoryFootprint;
 #if BUILDFLAG(IS_COBALT)
   if (v8_flags.flush_code_on_critical_memory_pressure) {
     gc_flags |= GCFlag::kLastResort;
   }
 #endif
-  CollectAllGarbage(gc_flags,
-                    GarbageCollectionReason::kMemoryPressure,
->>>>>>> ea963fafed1 (cobalt: Force flush V8 code on critical memory pressure (#13589))
+  CollectAllGarbage(gc_flags, gc_reason,
                     kGCCallbackFlagCollectAllAvailableGarbage);
   CompleteArrayBufferSweeping();
   double end = MonotonicallyIncreasingTimeInMs();
@@ -4064,12 +4059,7 @@ void Heap::CollectGarbageOnMemoryPressure() {
     // If we spent less than half of the time budget, then perform full GC
     // Otherwise, start incremental marking.
     if (end - start < kMaxMemoryPressurePauseMs / 2) {
-<<<<<<< HEAD
-      CollectAllGarbage(GCFlag::kReduceMemoryFootprint, gc_reason,
-=======
-      CollectAllGarbage(gc_flags,
-                        GarbageCollectionReason::kMemoryPressure,
->>>>>>> ea963fafed1 (cobalt: Force flush V8 code on critical memory pressure (#13589))
+      CollectAllGarbage(gc_flags, gc_reason,
                         kGCCallbackFlagCollectAllAvailableGarbage);
     } else {
       if (v8_flags.incremental_marking && incremental_marking()->IsStopped()) {

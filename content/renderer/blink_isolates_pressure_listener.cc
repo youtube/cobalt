@@ -13,6 +13,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/command_line.h"
+#include "base/features.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
 namespace content {
@@ -23,7 +24,9 @@ namespace {
 bool IsCriticalAllowedInForeground() {
   static const bool kAllowCriticalInForeground =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "allow-critical-memory-pressure-handling-in-foreground");
+          "allow-critical-memory-pressure-handling-in-foreground") ||
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltV8FlushCodeOnCriticalMemoryPressure);
   return kAllowCriticalInForeground;
 }
 

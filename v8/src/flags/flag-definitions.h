@@ -2825,15 +2825,11 @@ DEFINE_IMPLICATION(flush_code_based_on_tab_visibility, late_heap_limit_check)
 DEFINE_INT(bytecode_old_time, 180, "number of seconds before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_WEAK_IMPLICATION(stress_flush_code, flush_baseline_code)
-<<<<<<< HEAD
 DEFINE_DEVELOPER_FLAG(trace_flush_code, "trace bytecode flushing")
-=======
-DEFINE_BOOL(trace_flush_code, false, "trace bytecode flushing")
 #if BUILDFLAG(IS_COBALT)
 DEFINE_BOOL(flush_code_on_critical_memory_pressure, false,
             "force flush code during critical memory pressure GC")
 #endif
->>>>>>> ea963fafed1 (cobalt: Force flush V8 code on critical memory pressure (#13589))
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")
