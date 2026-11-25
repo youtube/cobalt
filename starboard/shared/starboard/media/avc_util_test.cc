@@ -73,8 +73,7 @@ std::vector<uint8_t> Mutate(const std::vector<uint8_t>& nalu_in_annex_b) {
 std::vector<uint8_t> ConvertAnnexBToAvccFromVector(
     const std::vector<uint8_t>& nalus_in_annex_b) {
   std::vector<uint8_t> nalus_in_avcc(nalus_in_annex_b.size());
-  SB_CHECK(ConvertAnnexBToAvcc(nalus_in_annex_b.data(), nalus_in_annex_b.size(),
-                               nalus_in_avcc.data()));
+  SB_CHECK(ConvertAnnexBToAvcc(nalus_in_annex_b, nalus_in_avcc));
   return nalus_in_avcc;
 }
 
@@ -115,8 +114,7 @@ void VerifyAnnexB(const std::vector<uint8_t>& nalus_in_annex_b,
                   const std::vector<uint8_t>& first_sps_in_annex_b,
                   const std::vector<uint8_t>& first_pps_in_annex_b,
                   const std::vector<uint8_t>& parameter_sets_in_annex_b) {
-  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(
-      nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b);
 
   ASSERT_TRUE(parameter_sets.has_value());
   ASSERT_EQ(parameter_sets->format(), kAnnexB);
@@ -145,8 +143,8 @@ void VerifyAnnexB(const std::vector<uint8_t>& nalus_in_annex_b,
 }
 
 void VerifyAllEmpty(const std::vector<uint8_t>& nalus_in_annex_b) {
-  auto parameter_sets_opt = AvcParameterSets::CreateFromAnnexB(
-      nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto parameter_sets_opt =
+      AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b);
   ASSERT_TRUE(parameter_sets_opt.has_value());
   const AvcParameterSets& parameter_sets_annex_b = *parameter_sets_opt;
 
@@ -168,10 +166,10 @@ void VerifyAllEmpty(const std::vector<uint8_t>& nalus_in_annex_b) {
 
 bool HasEqualParameterSets(const std::vector<uint8_t>& nalus_in_annex_b_1,
                            const std::vector<uint8_t>& nalus_in_annex_b_2) {
-  auto parameter_sets_1 = AvcParameterSets::CreateFromAnnexB(
-      nalus_in_annex_b_1.data(), nalus_in_annex_b_1.size());
-  auto parameter_sets_2 = AvcParameterSets::CreateFromAnnexB(
-      nalus_in_annex_b_2.data(), nalus_in_annex_b_2.size());
+  auto parameter_sets_1 =
+      AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b_1);
+  auto parameter_sets_2 =
+      AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b_2);
   if (!parameter_sets_1 || !parameter_sets_2) {
     return false;
   }
@@ -183,32 +181,25 @@ bool HasEqualParameterSets(const std::vector<uint8_t>& nalus_in_annex_b_1,
 }
 
 TEST(AvcParameterSetsTest, CreateFromAnnexB) {
-  auto parameter_sets_1 =
-      AvcParameterSets::CreateFromAnnexB(/*data=*/nullptr, /*size=*/0);
+  auto parameter_sets_1 = AvcParameterSets::CreateFromAnnexB({});
   ASSERT_TRUE(parameter_sets_1.has_value());
-  auto parameter_sets_2 = AvcParameterSets::CreateFromAnnexB(
-      kSpsInAnnexB.data(), kSpsInAnnexB.size());
+  auto parameter_sets_2 = AvcParameterSets::CreateFromAnnexB(kSpsInAnnexB);
   ASSERT_TRUE(parameter_sets_2.has_value());
-  auto parameter_sets_3 = AvcParameterSets::CreateFromAnnexB(
-      kPpsInAnnexB.data(), kPpsInAnnexB.size());
+  auto parameter_sets_3 = AvcParameterSets::CreateFromAnnexB(kPpsInAnnexB);
   ASSERT_TRUE(parameter_sets_3.has_value());
-  auto parameter_sets_4 = AvcParameterSets::CreateFromAnnexB(
-      kIdrInAnnexB.data(), kIdrInAnnexB.size());
+  auto parameter_sets_4 = AvcParameterSets::CreateFromAnnexB(kIdrInAnnexB);
   ASSERT_TRUE(parameter_sets_4.has_value());
 
   auto nalus_in_annex_b = kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
-  auto parameter_sets_5 = AvcParameterSets::CreateFromAnnexB(
-      nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto parameter_sets_5 = AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b);
   ASSERT_TRUE(parameter_sets_5.has_value());
 
-  auto parameter_sets_6 = AvcParameterSets::CreateFromAnnexB(
-      kAudInAnnexB.data(), kAudInAnnexB.size());
+  auto parameter_sets_6 = AvcParameterSets::CreateFromAnnexB(kAudInAnnexB);
   ASSERT_TRUE(parameter_sets_6.has_value());
   auto nalus_in_annex_b_with_optional =
       kAudInAnnexB + kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
   auto parameter_sets_7 =
-      AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b_with_optional.data(),
-                                         nalus_in_annex_b_with_optional.size());
+      AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b_with_optional);
   ASSERT_TRUE(parameter_sets_7.has_value());
 }
 
@@ -262,8 +253,7 @@ TEST(AvcParameterSetsTest, SpsWithoutPps) {
   for (size_t i = 0; i < 5; ++i) {
     auto nalus_in_annex_b = leading_sps_nalus + kIdrInAnnexB;
 
-    auto parameter_sets = AvcParameterSets::CreateFromAnnexB(
-        nalus_in_annex_b.data(), nalus_in_annex_b.size());
+    auto parameter_sets = AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b);
 
     ASSERT_TRUE(parameter_sets.has_value());
     ASSERT_FALSE(parameter_sets->has_sps_and_pps());
@@ -287,8 +277,7 @@ TEST(AvcParameterSetsTest, PpsWithoutSps) {
   for (size_t i = 0; i < 5; ++i) {
     auto nalus_in_annex_b = leading_pps_nalus + kIdrInAnnexB;
 
-    auto parameter_sets = AvcParameterSets::CreateFromAnnexB(
-        nalus_in_annex_b.data(), nalus_in_annex_b.size());
+    auto parameter_sets = AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b);
 
     ASSERT_TRUE(parameter_sets.has_value());
     ASSERT_FALSE(parameter_sets->has_sps_and_pps());
@@ -329,8 +318,8 @@ TEST(AvcParameterSetsTest, MultipleSpsAndPpsWithoutPayload) {
         break;
     }
 
-    auto parameter_sets = AvcParameterSets::CreateFromAnnexB(
-        parameter_sets_in_annex_b.data(), parameter_sets_in_annex_b.size());
+    auto parameter_sets =
+        AvcParameterSets::CreateFromAnnexB(parameter_sets_in_annex_b);
     ASSERT_TRUE(parameter_sets.has_value());
 
     VerifyAnnexB(parameter_sets_in_annex_b, kSpsInAnnexB, kPpsInAnnexB,
@@ -369,8 +358,7 @@ TEST(AvcParameterSetsTest, SpsAndPpsAfterIdrWithoutSpsAndPps) {
 }
 
 TEST(AvcParameterSetsTest, Nullptr) {
-  auto parameter_sets =
-      AvcParameterSets::CreateFromAnnexB(/*data=*/nullptr, /*size=*/0);
+  auto parameter_sets = AvcParameterSets::CreateFromAnnexB({});
 
   ASSERT_TRUE(parameter_sets.has_value());
   ASSERT_EQ(parameter_sets->format(), kAnnexB);
@@ -382,6 +370,15 @@ TEST(AvcParameterSetsTest, Nullptr) {
 
 TEST(AvcParameterSetsTest, NaluHeaderOnlyIsEmpty) {
   VerifyAllEmpty(kNaluHeaderOnlyInAnnexB);
+}
+
+TEST(AvcParameterSetsTest, ConsecutiveEmptyNaluHeaders) {
+  auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
+  auto nalus_in_annex_b = kNaluHeaderOnlyInAnnexB + kNaluHeaderOnlyInAnnexB +
+                          parameter_sets_in_annex_b + kIdrInAnnexB;
+
+  VerifyAnnexB(nalus_in_annex_b, kSpsInAnnexB, kPpsInAnnexB,
+               parameter_sets_in_annex_b);
 }
 
 TEST(AvcParameterSetsTest, TrailingNaluHeaderWithoutTypeIsIgnored) {
@@ -407,8 +404,7 @@ TEST(AvcParameterSetsTest, InvalidNaluHeaderOneLessZero) {
       parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
   nalus_in_annex_b.erase(nalus_in_annex_b.begin());  // One less 0
 
-  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(
-      nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b);
   ASSERT_FALSE(parameter_sets.has_value());
 }
 
@@ -418,8 +414,7 @@ TEST(AvcParameterSetsTest, InvalidNaluHeaderOneExtraZero) {
       parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
   nalus_in_annex_b.insert(nalus_in_annex_b.begin(), 0);  // One extra 0
 
-  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(
-      nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b);
   ASSERT_FALSE(parameter_sets.has_value());
 }
 
@@ -438,8 +433,7 @@ TEST(AvcParameterSetsTest, MultiNalusWithoutSpsPps) {
 
 TEST(AvcParameterSetsTest, CombinedSize) {
   auto nalus_in_annex_b = kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
-  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(
-      nalus_in_annex_b.data(), nalus_in_annex_b.size());
+  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(nalus_in_annex_b);
   ASSERT_TRUE(parameter_sets.has_value());
   ASSERT_TRUE(parameter_sets->combined_size_in_bytes() ==
               (kSpsInAnnexB.size() + kPpsInAnnexB.size()));
@@ -447,8 +441,7 @@ TEST(AvcParameterSetsTest, CombinedSize) {
 
 TEST(AvcParameterSetsTest, CombinedSizeWithOptionalParameter) {
   auto aud_first = kAudInAnnexB + kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
-  auto parameter_sets_aud_first =
-      AvcParameterSets::CreateFromAnnexB(aud_first.data(), aud_first.size());
+  auto parameter_sets_aud_first = AvcParameterSets::CreateFromAnnexB(aud_first);
   ASSERT_TRUE(parameter_sets_aud_first.has_value());
   ASSERT_TRUE(parameter_sets_aud_first->combined_size_in_bytes() ==
               (kSpsInAnnexB.size() + kPpsInAnnexB.size()));
@@ -457,8 +450,7 @@ TEST(AvcParameterSetsTest, CombinedSizeWithOptionalParameter) {
       (kAudInAnnexB.size() + kSpsInAnnexB.size() + kPpsInAnnexB.size()));
 
   auto aud_last = kPpsInAnnexB + kSpsInAnnexB + kAudInAnnexB + kIdrInAnnexB;
-  auto parameter_sets =
-      AvcParameterSets::CreateFromAnnexB(aud_last.data(), aud_last.size());
+  auto parameter_sets = AvcParameterSets::CreateFromAnnexB(aud_last);
   ASSERT_TRUE(parameter_sets.has_value());
   ASSERT_TRUE(parameter_sets->combined_size_in_bytes() ==
               (kPpsInAnnexB.size() + kSpsInAnnexB.size()));
@@ -519,14 +511,18 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccEmptyNalus) {
       ToAvcc(kRawNalu) + ToAvcc(kEmpty));
 }
 
+TEST(AvcParameterSetsTest, ConvertAnnexBToAvccFailDestinationTooSmall) {
+  std::vector<uint8_t> small_destination(kSpsInAnnexB.size() - 1);
+  ASSERT_FALSE(ConvertAnnexBToAvcc(kSpsInAnnexB, small_destination));
+}
+
 TEST(AvcParameterSetsTest, ConvertAnnexBToAvccFailOneLessZero) {
   auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
   auto nalus_in_annex_b =
       parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
   nalus_in_annex_b.erase(nalus_in_annex_b.begin());  // One less 0
   auto nalus_in_avcc = nalus_in_annex_b;
-  ASSERT_FALSE(ConvertAnnexBToAvcc(
-      nalus_in_annex_b.data(), nalus_in_annex_b.size(), nalus_in_avcc.data()));
+  ASSERT_FALSE(ConvertAnnexBToAvcc(nalus_in_annex_b, nalus_in_avcc));
 }
 
 TEST(AvcParameterSetsTest, ConvertAnnexBToAvccFailOneExtraZero) {
@@ -535,8 +531,7 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccFailOneExtraZero) {
       parameter_sets_in_annex_b + kIdrInAnnexB + kNaluHeaderOnlyInAnnexB;
   nalus_in_annex_b.insert(nalus_in_annex_b.begin(), 0);  // One extra 0
   auto nalus_in_avcc = nalus_in_annex_b;
-  ASSERT_FALSE(ConvertAnnexBToAvcc(
-      nalus_in_annex_b.data(), nalus_in_annex_b.size(), nalus_in_avcc.data()));
+  ASSERT_FALSE(ConvertAnnexBToAvcc(nalus_in_annex_b, nalus_in_avcc));
 }
 
 }  // namespace

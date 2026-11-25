@@ -14,6 +14,7 @@
 
 #import "starboard/tvos/shared/media/avc_av_video_sample_buffer_builder.h"
 
+#include "starboard/common/span.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
 namespace starboard {
@@ -55,12 +56,10 @@ void AvcAVVideoSampleBufferBuilder::WriteInputBuffer(
     return;
   }
 
-  const uint8_t* source_data = input_buffer->data();
-  size_t data_size = input_buffer->size();
+  span<const uint8_t> source_data(*input_buffer);
   if (sample_info.is_key_frame) {
     auto new_config =
-        VideoConfig::Create(input_buffer->video_stream_info(),
-                            input_buffer->data(), input_buffer->size());
+        VideoConfig::Create(input_buffer->video_stream_info(), source_data);
     if (!new_config) {
       ReportError("Failed to parse video config.");
       return;
@@ -75,14 +74,14 @@ void AvcAVVideoSampleBufferBuilder::WriteInputBuffer(
     SB_DCHECK(parameter_sets.format() == AvcParameterSets::kAnnexB);
     size_t bytes_to_skip =
         parameter_sets.combined_size_in_bytes_with_optionals();
-    if (bytes_to_skip > data_size) {
+    if (bytes_to_skip > source_data.size()) {
       ReportError("Invalid parameter set size exceeds buffer size.");
       return;
     }
-    source_data += bytes_to_skip;
-    data_size -= bytes_to_skip;
+    source_data = source_data.subspan(bytes_to_skip);
   }
 
+  size_t data_size = source_data.size();
   CMBlockBufferRef block;
   OSStatus status = CMBlockBufferCreateWithMemoryBlock(
       NULL, NULL, data_size, NULL, NULL, 0, data_size,
@@ -101,8 +100,9 @@ void AvcAVVideoSampleBufferBuilder::WriteInputBuffer(
     return;
   }
 
-  if (!ConvertAnnexBToAvcc(source_data, data_size,
-                           reinterpret_cast<uint8_t*>(block_data))) {
+  if (!ConvertAnnexBToAvcc(
+          source_data,
+          make_span(reinterpret_cast<uint8_t*>(block_data), data_size))) {
     ReportError("Failed to convert input data into avcc format");
     CFRelease(block);
     return;
