@@ -16,7 +16,14 @@
     "UDPSocketTest.CobaltQuicReadBatchResolvesLazilyAndResetsOnClose",
     "UDPSocketTest.ReadMultiplePacketsCapsBatchAt16AndDrainsRemaining",
     "UDPSocketTest.ReadMultiplePacketsCloseWhilePendingReleasesState",
+    "UDPSocketTest.ReadMultiplePacketsDefaultsTosWithoutSetRecvTos",
     "UDPSocketTest.ReadMultiplePacketsReleasesBufferWhenIdleAndReusesPool",
-    "UDPSocketTest.ReadMultiplePacketsRespectsFinchBatchParamAndClamps"
+    "UDPSocketTest.ReadMultiplePacketsRespectsFinchBatchParamAndClamps",
+    "UDPSocketTest.ReadMultiplePacketsVerifyDscpAndEcnV4",
+    "UDPSocketTest.ReadMultiplePacketsVerifyDscpAndEcnV6",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv1",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv2"
   ]
 }

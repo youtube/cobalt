@@ -54,6 +54,10 @@
 #include "ui/gfx/geometry/axis_transform2d.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace cc {
 namespace {
 
@@ -907,6 +911,37 @@ TileManager::PrioritizedWorkToSchedule TileManager::AssignGpuMemoryToTiles() {
   std::unique_ptr<EvictionTilePriorityQueue> eviction_priority_queue;
   PrioritizedWorkToSchedule work_to_schedule;
   const bool raster_occluded_tiles = ShouldRasterOccludedTiles();
+#if BUILDFLAG(IS_COBALT)
+  const bool skewport_lookahead =
+      global_state_.memory_limit_policy ==
+          TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltAnimationTileLookahead);
+  constexpr int kMaxLookaheadMemoryPercentage = 15;
+  constexpr int64_t kMaxLookaheadBytesCap = 8LL * 1024 * 1024;
+  const int64_t max_lookahead_bytes = std::min<int64_t>(
+      (base::saturated_cast<int64_t>(global_state_.hard_memory_limit_in_bytes) /
+       100) *
+          kMaxLookaheadMemoryPercentage,
+      kMaxLookaheadBytesCap);
+  int64_t lookahead_bytes_used = 0;
+  if (skewport_lookahead) {
+    for (const auto& [tile_id, existing_tile] : tiles_) {
+      if (existing_tile->tiling() &&
+          existing_tile->tiling()->IsSkewportLookaheadTile(existing_tile) &&
+          (existing_tile->draw_info().has_resource() ||
+           existing_tile->HasRasterTask())) {
+        size_t gpu_bytes = existing_tile->GPUMemoryUsageInBytes();
+        lookahead_bytes_used +=
+            gpu_bytes > 0
+                ? static_cast<int64_t>(gpu_bytes)
+                : MemoryUsage::FromConfig(existing_tile->desired_texture_size(),
+                                          client_->GetTileFormat())
+                      .memory_bytes();
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   for (; !raster_priority_queue->IsEmpty(); raster_priority_queue->Pop()) {
     const PrioritizedTile& prioritized_tile = raster_priority_queue->Top();
     Tile* tile = prioritized_tile.tile();
@@ -994,6 +1029,27 @@ TileManager::PrioritizedWorkToSchedule TileManager::AssignGpuMemoryToTiles() {
     }
 
     bool tile_is_needed_now = priority.priority_bin == TilePriority::NOW;
+#if BUILDFLAG(IS_COBALT)
+    // Skewport lookahead tiles are NOW tiles with distance > 0. Under Cobalt's
+    // CUTOFF_ALLOW_REQUIRED_ONLY (ALLOW_ABSOLUTE_MINIMUM) policy, prepaint soft
+    // memory is 0 and non-NOW tiles violate policy. Assigning lookahead tiles
+    // to NOW with distance > 0 lets them use spare hard-limit memory while
+    // never evicting cached tiles and staying within min(15% hard limit, 8 MB).
+    const bool is_lookahead_tile = skewport_lookahead && tile_is_needed_now &&
+                                   priority.distance_to_visible > 0.f;
+    if (is_lookahead_tile) {
+      int64_t new_bytes =
+          memory_required_by_tile_to_be_scheduled.memory_bytes();
+      if (new_bytes > 0 &&
+          lookahead_bytes_used + new_bytes > max_lookahead_bytes) {
+        // Best-effort lookahead tiles are not required for activation or draw;
+        // leave `all_tiles_that_need_to_be_rasterized_are_scheduled_` unchanged
+        // so `DidFinishRunningAllTileTasks()` does not schedule a redundant
+        // `CheckIfMoreTilesNeedToBePrepared()` pass at the cap.
+        continue;
+      }
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     // This is the memory limit that will be used by this tile. Depending on
     // the tile priority, it will be one of hard_memory_limit or
     // soft_memory_limit.
@@ -1002,16 +1058,30 @@ TileManager::PrioritizedWorkToSchedule TileManager::AssignGpuMemoryToTiles() {
 
     const MemoryUsage& scheduled_tile_memory_limit =
         tile_memory_limit - memory_required_by_tile_to_be_scheduled;
+#if BUILDFLAG(IS_COBALT)
+    if (!is_lookahead_tile) {
+      eviction_priority_queue =
+          FreeTileResourcesWithLowerPriorityUntilUsageIsWithinLimit(
+              std::move(eviction_priority_queue), scheduled_tile_memory_limit,
+              priority, &memory_usage);
+    }
+#else
     eviction_priority_queue =
         FreeTileResourcesWithLowerPriorityUntilUsageIsWithinLimit(
             std::move(eviction_priority_queue), scheduled_tile_memory_limit,
             priority, &memory_usage);
+#endif  // BUILDFLAG(IS_COBALT)
     bool memory_usage_is_within_limit =
         !memory_usage.Exceeds(scheduled_tile_memory_limit);
 
     // If we couldn't fit the tile into our current memory limit, then we're
     // done.
     if (!memory_usage_is_within_limit) {
+#if BUILDFLAG(IS_COBALT)
+      if (is_lookahead_tile) {
+        continue;
+      }
+#endif  // BUILDFLAG(IS_COBALT)
       if (tile_is_needed_now) {
         LOG(ERROR) << "WARNING: tile memory limits exceeded, some content may "
                       "not draw";
@@ -1051,6 +1121,12 @@ TileManager::PrioritizedWorkToSchedule TileManager::AssignGpuMemoryToTiles() {
 
     tile->scheduled_priority_ = schedule_priority++;
     memory_usage += memory_required_by_tile_to_be_scheduled;
+#if BUILDFLAG(IS_COBALT)
+    if (is_lookahead_tile) {
+      lookahead_bytes_used +=
+          memory_required_by_tile_to_be_scheduled.memory_bytes();
+    }
+#endif  // BUILDFLAG(IS_COBALT)
     work_to_schedule.tiles_to_raster.push_back(prioritized_tile);
   }
 

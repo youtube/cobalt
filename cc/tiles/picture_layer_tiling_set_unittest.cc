@@ -1207,5 +1207,160 @@ TEST(PictureLayerTilingSetTest, LcdChanges) {
   EXPECT_EQ(4u, pending_set->tiling_at(0)->AllTilesForTesting().size());
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST(PictureLayerTilingSetTest, CobaltSkewportLookaheadStateAndVideoEviction) {
+  FakePictureLayerTilingClient client;
+  client.SetTileSize(gfx::Size(100, 100));
+  client.set_memory_limit_policy(TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM);
+
+  LayerTreeSettings settings;
+  settings.tiling_interest_area_padding = 500;
+  settings.skewport_target_time_in_seconds = 0.3f;
+  settings.skewport_extrapolation_limit_in_screen_pixels = 432;
+
+  gfx::Size layer_bounds(100, 700);
+  scoped_refptr<FakeRasterSource> raster_source =
+      FakeRasterSource::CreateFilled(layer_bounds);
+  std::unique_ptr<TestablePictureLayerTilingSet> tiling_set =
+      CreateTilingSetWithSettings(&client, settings);
+  PictureLayerTiling* tiling =
+      tiling_set->AddTiling(gfx::AxisTransform2d(), raster_source);
+  tiling->set_resolution(HIGH_RESOLUTION);
+
+  // Rest at y=0 for two idle frames separated by a 2-second pause.
+  tiling_set->set_skewport_lookahead_allowed(false);
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 0, 100, 100), 1.f,
+                                               1.0, Occlusion(), true));
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 0, 100, 100), 1.f,
+                                               1.016, Occlusion(), true));
+  // With 1-px tile borders, a 100x100 viewport spans 2 vertical tiles.
+  const size_t visible_tile_count = tiling->AllTilesForTesting().size();
+  EXPECT_EQ(2u, visible_tile_count);
+
+  // Start a 2D translation animation at t=3.0s; transitioning allowed
+  // false->true flushes the stale idle timestamps so VSync 2 (t=3.016s) gets
+  // full 0.3s skewport lookahead without a 2-VSync delay.
+  tiling_set->set_skewport_lookahead_allowed(true);
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 50, 100, 100), 1.f,
+                                               3.0, Occlusion(), true));
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 100, 100, 100), 1.f,
+                                               3.016, Occlusion(), true));
+
+  auto prioritized = tiling->UpdateAndGetAllPrioritizedTilesForTesting();
+  bool found_lookahead_now_tile = false;
+  bool found_far_lookahead_tile = false;
+  for (const auto& [tile, prio_tile] : prioritized) {
+    if (tiling->IsSkewportLookaheadTile(tile)) {
+      EXPECT_EQ(TilePriority::NOW, prio_tile.priority().priority_bin);
+      EXPECT_GT(prio_tile.priority().distance_to_visible, 0.f);
+      EXPECT_FALSE(prio_tile.is_process_for_images_only());
+      EXPECT_FALSE(tile->required_for_activation());
+      EXPECT_FALSE(tile->required_for_draw());
+      if (prio_tile.priority().distance_to_visible > 312.f) {
+        found_far_lookahead_tile = true;
+      }
+      found_lookahead_now_tile = true;
+    }
+  }
+  EXPECT_TRUE(found_lookahead_now_tile);
+  EXPECT_TRUE(found_far_lookahead_tile);
+  const size_t tiles_with_lookahead = tiling->AllTilesForTesting().size();
+  EXPECT_GT(tiles_with_lookahead, visible_tile_count + 1);
+
+  // Simulate ease-out deceleration across two frames while still animating
+  // (the first frame ages out `(y=50, t=3.0)` from the 2-entry
+  // `visible_rect_history_`; the second retracts the skewport from 432 px down
+  // to ~37 px while lookahead is still active), then exit lookahead on a
+  // stationary frame. Peak-velocity lookahead tiles must drop during
+  // deceleration and must not linger after exit, while already-visited tiles
+  // remain preserved to avoid churn.
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 102, 100, 100), 1.f,
+                                               3.032, Occlusion(), true));
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 104, 100, 100), 1.f,
+                                               3.048, Occlusion(), true));
+  EXPECT_LT(tiling->AllTilesForTesting().size(), tiles_with_lookahead);
+  tiling_set->set_skewport_lookahead_allowed(false);
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 104, 100, 100), 1.f,
+                                               3.048, Occlusion(), true));
+  std::vector<Tile*> remaining_tiles = tiling->AllTilesForTesting();
+  EXPECT_LT(remaining_tiles.size(), tiles_with_lookahead);
+  EXPECT_NE(nullptr, tiling->TileAt(0, 0));
+  for (const Tile* tile : remaining_tiles) {
+    EXPECT_FALSE(tiling->IsSkewportLookaheadTile(tile));
+    gfx::Rect bounds = tiling->TilingDataForTesting().TileBounds(
+        tile->tiling_i_index(), tile->tiling_j_index());
+    EXPECT_TRUE(bounds.y() < 104 ||
+                bounds.Intersects(gfx::Rect(0, 104, 100, 100)));
+  }
+
+  // Re-enable lookahead on active, then activate a pending twin that disallows
+  // lookahead (e.g. a Browse -> Watch commit); active's unvisited lookahead
+  // tiles must still be dropped during activation.
+  tiling_set->set_skewport_lookahead_allowed(true);
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 150, 100, 100), 1.f,
+                                               4.0, Occlusion(), true));
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 200, 100, 100), 1.f,
+                                               4.016, Occlusion(), true));
+  EXPECT_GT(tiling->AllTilesForTesting().size(), 4u);
+
+  // Share `&client` (and its TileManager) between PENDING_TREE and ACTIVE_TREE,
+  // matching real LayerTreeHostImpl lifetime semantics.
+  std::unique_ptr<TestablePictureLayerTilingSet> pending_set =
+      std::make_unique<TestablePictureLayerTilingSet>(
+          PENDING_TREE, &client, settings.tiling_interest_area_padding,
+          settings.skewport_target_time_in_seconds,
+          settings.skewport_extrapolation_limit_in_screen_pixels,
+          settings.max_preraster_distance_in_screen_pixels);
+  PictureLayerTiling* pending_tiling =
+      pending_set->AddTiling(gfx::AxisTransform2d(), raster_source);
+  pending_tiling->set_resolution(HIGH_RESOLUTION);
+  pending_set->set_skewport_lookahead_allowed(false);
+  EXPECT_TRUE(pending_set->UpdateTilePriorities(gfx::Rect(0, 200, 100, 100),
+                                                1.f, 4.016, Occlusion(), true));
+  client.set_twin_tiling_set(pending_set.get());
+
+  tiling_set->UpdateTilingsToCurrentRasterSourceForActivation(
+      raster_source, pending_set.get(), Region(), 1.f, 1.f);
+  client.set_twin_tiling_set(nullptr);
+  for (const Tile* tile : tiling->AllTilesForTesting()) {
+    gfx::Rect bounds = tiling->TilingDataForTesting().TileBounds(
+        tile->tiling_i_index(), tile->tiling_j_index());
+    EXPECT_TRUE(bounds.y() < 200 ||
+                bounds.Intersects(gfx::Rect(0, 200, 100, 100)));
+  }
+
+  // Record a second resting sample on the active set (allowed == false), then
+  // activate a pending twin where a 2D animation just started (allowed == true)
+  // after a 2-second idle gap. Activation must route through
+  // set_skewport_lookahead_allowed(true) so stale active history is flushed and
+  // the next active VSync pair immediately extrapolates full skewport tiles.
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 200, 100, 100), 1.f,
+                                               4.032, Occlusion(), true));
+  pending_set->RemoveAllTilings();
+  PictureLayerTiling* anim_pending_tiling =
+      pending_set->AddTiling(gfx::AxisTransform2d(), raster_source);
+  anim_pending_tiling->set_resolution(HIGH_RESOLUTION);
+  pending_set->set_skewport_lookahead_allowed(true);
+  EXPECT_TRUE(pending_set->UpdateTilePriorities(gfx::Rect(0, 200, 100, 100),
+                                                1.f, 6.0, Occlusion(), true));
+  client.set_twin_tiling_set(pending_set.get());
+  tiling_set->UpdateTilingsToCurrentRasterSourceForActivation(
+      raster_source, pending_set.get(), Region(), 1.f, 1.f);
+  client.set_twin_tiling_set(nullptr);
+
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 250, 100, 100), 1.f,
+                                               6.0, Occlusion(), true));
+  EXPECT_TRUE(tiling_set->UpdateTilePriorities(gfx::Rect(0, 300, 100, 100), 1.f,
+                                               6.016, Occlusion(), true));
+  bool found_post_activation_lookahead = false;
+  for (const Tile* tile : tiling->AllTilesForTesting()) {
+    if (tiling->IsSkewportLookaheadTile(tile)) {
+      found_post_activation_lookahead = true;
+    }
+  }
+  EXPECT_TRUE(found_post_activation_lookahead);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace
 }  // namespace cc

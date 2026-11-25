@@ -35,6 +35,11 @@
 #include "ui/native_theme/native_theme_utils.h"
 #include "ui/native_theme/overlay_scrollbar_constants_aura.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/numerics/safe_conversions.h"
+#include "ui/gfx/geometry/size_conversions.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace blink {
 
 namespace {
@@ -659,10 +664,13 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   // which disables pre-rastering to reduce GPU texture memory usage. When the
   // feature is disabled the upstream Chromium defaults are left untouched
   // (1.0 for software raster, 0.2 for GPU raster).
+  bool skewport_target_time_overridden = false;
+  bool gpu_skewport_target_time_overridden = false;
   if (base::FeatureList::IsEnabled(base::features::kCobaltSkewportTargetTime)) {
     double value = base::features::kCobaltSkewportTargetTimeInSeconds.Get();
     if (value >= 0.0) {
       settings.skewport_target_time_in_seconds = static_cast<float>(value);
+      skewport_target_time_overridden = value > 0.0;
     }
     double gpu_value =
         base::features::kCobaltGpuRasterizationSkewportTargetTimeInSeconds
@@ -670,6 +678,46 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     if (gpu_value >= 0.0) {
       settings.gpu_rasterization_skewport_target_time_in_seconds =
           static_cast<float>(gpu_value);
+      gpu_skewport_target_time_overridden = gpu_value > 0.0;
+    }
+  }
+  // When `kCobaltAnimationTileLookahead` is enabled, reuse Chromium's skewport
+  // extrapolation (0.3s, unless already overridden to a positive value via
+  // `kCobaltSkewportTargetTime`) and scale
+  // `skewport_extrapolation_limit_in_screen_pixels` to `max_viewport_fraction`
+  // of screen height (e.g. 432 px = 40% at 1080p, 864 px at 4K). Keeping this
+  // gated here leaves `kCobaltSkewportTargetTime` at 0.0s whenever
+  // `kCobaltAnimationTileLookahead` is disabled via Finch.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltAnimationTileLookahead)) {
+    constexpr float kLookaheadSkewportTargetTimeSeconds = 0.3f;
+    if (!skewport_target_time_overridden) {
+      settings.skewport_target_time_in_seconds =
+          kLookaheadSkewportTargetTimeSeconds;
+    }
+    if (!gpu_skewport_target_time_overridden) {
+      settings.gpu_rasterization_skewport_target_time_in_seconds =
+          kLookaheadSkewportTargetTimeSeconds;
+    }
+    const gfx::Size scaled_screen_size = gfx::ScaleToFlooredSize(
+        initial_screen_size, initial_device_scale_factor);
+    const int screen_height =
+        scaled_screen_size.height() > 0 ? scaled_screen_size.height() : 1080;
+    const double max_fraction = std::clamp(
+        base::features::kCobaltAnimationTileLookaheadMaxViewportFraction.Get(),
+        0.0, 2.0);
+    const int lookahead_px = base::ClampRound(screen_height * max_fraction);
+    settings.skewport_extrapolation_limit_in_screen_pixels = lookahead_px;
+    if (lookahead_px > 0) {
+      // Keep `tiling_interest_area_padding` strictly above `lookahead_px` (at
+      // 1080p SmallerInterestArea is already 500 >= 497, leaving 500 px
+      // unchanged while scaling proportionally on 4K) so incoming offscreen
+      // shelf layers pre-seed `visible_rect_history_` before entering the
+      // skewport lookahead zone.
+      const int min_interest_padding =
+          lookahead_px + std::max(64, base::ClampRound(lookahead_px * 0.15));
+      settings.tiling_interest_area_padding =
+          std::max(settings.tiling_interest_area_padding, min_interest_padding);
     }
   }
 #endif
