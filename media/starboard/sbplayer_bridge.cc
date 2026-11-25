@@ -29,13 +29,13 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
-#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "media/base/starboard/experimental_features.h"
+#include "media/base/starboard/sbmedia_histograms.h"
 #include "media/base/timestamp_constants.h"
 #include "media/starboard/buildflags.h"
 #include "media/starboard/starboard_utils.h"
@@ -94,45 +94,22 @@ bool IsFirstSbPlayerCreateInProcess() {
   return first_call_pending.exchange(false);
 }
 
-// TODO(b/586977031): Consolidate UMA strings to one file.
-// Records the latency of the Starboard call that creates the player:
-// SbPlayerCreate(), or SbUrlPlayerCreate() for the tvOS URL player. Every call
-// is recorded, including ones that fail to create a valid player.
-constexpr std::string_view kSbPlayerCreateHistogram =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreate";
-// Records the time from the call that creates the player until the player
-// first reports kSbPlayerStateInitialized.
-constexpr std::string_view kSbPlayerCreateToInitializedHistogram =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
-// Suffix of the variant of the above histograms for every call after the first
-// one in the process.
-constexpr std::string_view kSubsequentCallSuffix = ".Subsequent";
-// Latency of SbPlayerDestroy(), split by the state suffixes below.
-constexpr std::string_view kSbPlayerDestroyHistogram =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
-// Suffixes for the last state reported by the player.
-constexpr std::string_view kSbPlayerDestroyBeforePrerollingSuffix =
-    ".BeforePrerolling";
-constexpr std::string_view kSbPlayerDestroyPrerollingSuffix = ".Prerolling";
-constexpr std::string_view kSbPlayerDestroyPresentingSuffix = ".Presenting";
-constexpr std::string_view kSbPlayerDestroyEndOfStreamSuffix = ".EndOfStream";
-
-std::string_view GetSbPlayerDestroyStateSuffix(
+std::string_view GetSbPlayerDestroyHistogram(
     std::optional<SbPlayerState> last_player_state) {
   if (!last_player_state) {
-    return kSbPlayerDestroyBeforePrerollingSuffix;
+    return kSbPlayerDestroyBeforePrerollingHistogram;
   }
   switch (*last_player_state) {
     case kSbPlayerStateInitialized:
       // Grouped with players still initializing, as the pipeline seeks right
       // away.
-      return kSbPlayerDestroyBeforePrerollingSuffix;
+      return kSbPlayerDestroyBeforePrerollingHistogram;
     case kSbPlayerStatePrerolling:
-      return kSbPlayerDestroyPrerollingSuffix;
+      return kSbPlayerDestroyPrerollingHistogram;
     case kSbPlayerStatePresenting:
-      return kSbPlayerDestroyPresentingSuffix;
+      return kSbPlayerDestroyPresentingHistogram;
     case kSbPlayerStateEndOfStream:
-      return kSbPlayerDestroyEndOfStreamSuffix;
+      return kSbPlayerDestroyEndOfStreamHistogram;
     case kSbPlayerStateDestroyed:
       // Never stored by OnPlayerStatus().
       break;
@@ -140,22 +117,11 @@ std::string_view GetSbPlayerDestroyStateSuffix(
   NOTREACHED();
 }
 
-// Returns the suffix of the variant for the first call in the process, or for
-// a later one. |is_first_call| refers to the call that created the player, so
-// that all of a player's metrics use the same variant.
-std::string_view GetOccurrenceSuffix(bool is_first_call) {
-  return is_first_call ? std::string_view() : kSubsequentCallSuffix;
-}
-
-// Records |elapsed| to |histogram_name| followed by |suffix|.
-void RecordLatency(std::string_view histogram_name,
-                   std::string_view suffix,
-                   base::TimeDelta elapsed) {
-  const std::string name = base::StrCat({histogram_name, suffix});
+void RecordLatency(std::string_view histogram_name, base::TimeDelta elapsed) {
   base::UmaHistogramCustomMicrosecondsTimes(
-      name, elapsed, /*min=*/base::Milliseconds(1), /*max=*/base::Seconds(10),
-      /*buckets=*/50);
-  LOG(INFO) << name << " took " << elapsed.InMicroseconds() << " us.";
+      histogram_name, elapsed, /*min=*/base::Milliseconds(1),
+      /*max=*/base::Seconds(10), /*buckets=*/50);
+  LOG(INFO) << histogram_name << " took " << elapsed.InMicroseconds() << " us.";
 }
 
 // Removes the buffer at |index| of |buffer_queue| if it has |handle|. Returns
@@ -249,16 +215,16 @@ SbPlayer SbPlayerBridge::CreateWithUmaLatency(CreateFn&& create_fn) {
   const base::ElapsedTimer timer;
   sb_player_create_start_time_ = timer.start_time();
   SbPlayer player = std::forward<CreateFn>(create_fn)();
-  RecordLatency(kSbPlayerCreateHistogram,
-                GetOccurrenceSuffix(is_first_sb_player_create_),
+  RecordLatency(is_first_sb_player_create_ ? kSbPlayerCreateHistogram
+                                           : kSbPlayerCreateSubsequentHistogram,
                 timer.Elapsed());
   return player;
 }
 
 void SbPlayerBridge::DestroyPlayer() {
   CHECK(SbPlayerIsValid(player_));
-  const std::string_view state_suffix =
-      GetSbPlayerDestroyStateSuffix(last_player_state_);
+  const std::string_view histogram_name =
+      GetSbPlayerDestroyHistogram(last_player_state_);
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   cval_stats_->StartTimer(MediaTiming::SbPlayerDestroy, pipeline_identifier_);
@@ -272,7 +238,7 @@ void SbPlayerBridge::DestroyPlayer() {
 #endif  // BUILDFLAG(COBALT_MEDIA_ENABLE_CVAL)
   player_ = kSbPlayerInvalid;
 
-  RecordLatency(kSbPlayerDestroyHistogram, state_suffix, elapsed);
+  RecordLatency(histogram_name, elapsed);
 }
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING)
@@ -1283,8 +1249,9 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
     // Only the first kSbPlayerStateInitialized after the player is created is
     // recorded, as a later one wouldn't reflect the initialization latency.
     if (sb_player_create_start_time_) {
-      RecordLatency(kSbPlayerCreateToInitializedHistogram,
-                    GetOccurrenceSuffix(is_first_sb_player_create_),
+      RecordLatency(is_first_sb_player_create_
+                        ? kSbPlayerCreateToInitializedHistogram
+                        : kSbPlayerCreateToInitializedSubsequentHistogram,
                     base::TimeTicks::Now() - *sb_player_create_start_time_);
       sb_player_create_start_time_.reset();
     }
@@ -1707,15 +1674,15 @@ void SbPlayerBridge::SendColorSpaceHistogram() const {
   const auto& cs_info = video_config_.color_space_info();
 
   if (video_stream_info_.color_metadata.bits_per_channel > 8) {
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Primaries", cs_info.primaries);
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Transfer", cs_info.transfer);
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Matrix", cs_info.matrix);
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Range", cs_info.range);
+    UmaHistogramEnumeration(kHdrPrimariesHistogram, cs_info.primaries);
+    UmaHistogramEnumeration(kHdrTransferHistogram, cs_info.transfer);
+    UmaHistogramEnumeration(kHdrMatrixHistogram, cs_info.matrix);
+    UmaHistogramEnumeration(kHdrRangeHistogram, cs_info.range);
   } else {
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Primaries", cs_info.primaries);
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Transfer", cs_info.transfer);
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Matrix", cs_info.matrix);
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Range", cs_info.range);
+    UmaHistogramEnumeration(kSdrPrimariesHistogram, cs_info.primaries);
+    UmaHistogramEnumeration(kSdrTransferHistogram, cs_info.transfer);
+    UmaHistogramEnumeration(kSdrMatrixHistogram, cs_info.matrix);
+    UmaHistogramEnumeration(kSdrRangeHistogram, cs_info.range);
   }
 }
 
