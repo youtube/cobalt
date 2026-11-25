@@ -18,12 +18,9 @@
 #include "base/base64.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
-<<<<<<< ours
 #include "base/containers/span.h"
-=======
 #include "base/feature_list.h"
 #include "base/features.h"
->>>>>>> theirs
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/lazy_instance.h"
