@@ -562,8 +562,14 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
         input_buffers.front()->video_stream_info().color_metadata;
     if (!IsIdentity(color_metadata)) {
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
-      SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
-      TeardownCodec();
+      const bool skip_redundant_codec_teardown =
+          IsAndroidVideoDecoderImprovementEnabled(
+              decoder_improvements_flags_,
+              android_video_decoder_improvements::kSkipRedundantCodecTeardown);
+      if (!skip_redundant_codec_teardown || media_decoder_ != nullptr) {
+        SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
+        TeardownCodec();
+      }
       color_metadata_ = color_metadata;
     }
 
