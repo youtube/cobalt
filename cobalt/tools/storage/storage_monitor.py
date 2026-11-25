@@ -41,7 +41,9 @@ except ImportError:  # pragma: no cover
 DEFAULT_PACKAGE = "dev.cobalt.coat"
 DEFAULT_ACTIVITY = "dev.cobalt.app.MainActivity"
 DEFAULT_HOME_URL = "https://www.youtube.com/tv"
-DEFAULT_VIDEO_URL = "https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ"
+# Kimono opens Home for https://www.youtube.com/tv#/watch?v=..., but plays
+# the video for the canonical watch URL.
+DEFAULT_VIDEO_URL = "https://www.youtube.com/watch?v=1La4QzGeaaQ"
 DEFAULT_CDP_PORT = 9222
 
 SUPPORTED_PLATFORMS = ("android",)
@@ -126,6 +128,7 @@ class ProcIoSample:
   pid: int
   read_bytes: int = 0
   write_bytes: int = 0
+  cancelled_write_bytes: int = 0
   total_fds: int = 0
   total_vmas: int = 0
   storage_fd_paths: Tuple[str, ...] = ()
@@ -167,6 +170,7 @@ class FileRecord:
   first_seen_sec: float
   last_seen_sec: float
   existed_at_end: bool = False
+  created: bool = False  # Not in the first snapshot.
   start_bytes: int = 0
   peak_bytes: int = 0
   final_bytes: int = 0
@@ -424,6 +428,7 @@ def parse_proc_io_output(output: str) -> Optional[ProcIoSample]:
       pid=values["pid"],
       read_bytes=values["read_bytes"],
       write_bytes=values["write_bytes"],
+      cancelled_write_bytes=values.get("cancelled_write_bytes", 0),
       total_fds=values.get("total_fds", 0),
       total_vmas=values.get("total_vmas", 0),
       storage_fd_paths=tuple(fd_paths),
@@ -436,7 +441,10 @@ _warned_unreadable_io = [False]
 
 def collect_android_proc_io(
     package: str = DEFAULT_PACKAGE) -> Optional[ProcIoSample]:
-  """Reads /proc/<pid>/{io,fd,maps} of the package's main process."""
+  """Reads /proc/<pid>/{io,fd,maps} of the first PID that pidof returns.
+
+  Other processes of the package are not read.
+  """
   cmd = (f"sh -c 'pid=$(pidof {package}); pid=${{pid%% *}}; "
          "[ -z \"$pid\" ] && exit 0; "
          "echo \"pid: $pid\"; "
@@ -753,10 +761,16 @@ class StorageTracker:
     self.block_read.add(sample.read_bytes - base_read, dt_sec, elapsed_sec)
     self.block_write.add(sample.write_bytes - base_write, dt_sec, elapsed_sec)
 
-  def record_snapshot(self, elapsed_sec: float,
-                      snapshot: Dict[str, Tuple[int, int]]) -> None:
-    """Ingests a point-in-time file snapshot at elapsed_sec."""
-    if not snapshot:
+  def record_snapshot(self,
+                      elapsed_sec: float,
+                      snapshot: Dict[str, Tuple[int, int]],
+                      listed: bool = False) -> None:
+    """Ingests a point-in-time file snapshot at elapsed_sec.
+
+    An empty snapshot is a failed listing and is skipped, unless |listed|
+    says that the listing worked but found no files (e.g. a fresh profile).
+    """
+    if not snapshot and not listed:
       return
     self.sample_count += 1
     current_type_bytes: Dict[str, int] = {}
@@ -778,6 +792,7 @@ class StorageTracker:
             storage_type=storage_type,
             first_seen_sec=elapsed_sec,
             last_seen_sec=elapsed_sec,
+            created=self.sample_count > 1,
             start_bytes=size_bytes if self.sample_count == 1 else 0,
             peak_bytes=size_bytes,
             final_bytes=size_bytes,
@@ -812,8 +827,10 @@ class StorageTracker:
       files_now = current_type_files.get(storage_type, {})
 
       if stats.start_bytes is None:
-        stats.start_bytes = total_b
-      elif self.sample_count > 1 and files_now != stats.files_seen:
+        # A type first seen after the first snapshot (from an open FD) had no
+        # files in it.
+        stats.start_bytes = total_b if self.sample_count == 1 else 0
+      if self.sample_count > 1 and files_now != stats.files_seen:
         stats.write_ticks += 1
 
       if total_b > stats.peak_bytes:
@@ -868,21 +885,34 @@ class StorageTracker:
                        mtime_changes, -f.peak_bytes, f.relative_path),
     )
     section_b: List[Dict[str, Any]] = []
+    # SimpleCache entries: [created, created bytes, removed, removed bytes]
+    # per cache directory, instead of one Section B row per entry.
+    cache_churn: Dict[str, List[int]] = {}
     for f in sorted_files:
       if is_simple_cache_entry_blob(f.relative_path):
+        churn = cache_churn.setdefault(
+            f.relative_path.rsplit("/", 1)[0], [0, 0, 0, 0])
+        if f.created:
+          churn[0] += 1
+          churn[1] += f.peak_bytes
+        if not f.existed_at_end:
+          churn[2] += 1
+          churn[3] += f.last_size
         continue
-      # Proposal 1 filter: include only transient (deleted), truncated/spiked,
+      # Proposal 1 filter: include only transient (deleted), shrunk,
       # or actively written files (exclude untouched static baseline files).
       is_transient = not f.existed_at_end
-      is_truncated = f.peak_bytes > f.final_bytes
+      # At least 4 KiB below the peak, so that an atomic rewrite a few bytes
+      # shorter does not count.
+      shrank = f.peak_bytes - f.final_bytes >= 4096
       is_active = f.mtime_changes >= 2 or f.final_bytes != f.start_bytes
-      if not (is_transient or is_truncated or is_active):
+      if not (is_transient or shrank or is_active):
         continue
 
       if is_transient:
         status = "**Transient (Deleted)**"
-      elif is_truncated:
-        status = "**Truncated**"
+      elif shrank:
+        status = "**Shrank**"
       else:
         status = "Active"
 
@@ -904,6 +934,13 @@ class StorageTracker:
     start_pers_kb = (self.start_persistent_bytes or 0) / 1024.0
     peak_pers_kb = self.peak_persistent_bytes / 1024.0
     final_pers_kb = self.final_persistent_bytes / 1024.0
+    churn_rows = [{
+        "dir": path,
+        "created": churn[0],
+        "created_kb": round(churn[1] / 1024.0, 2),
+        "removed": churn[2],
+        "removed_kb": round(churn[3] / 1024.0, 2),
+    } for path, churn in sorted(cache_churn.items()) if churn[0] or churn[2]]
 
     summary: Dict[str, Any] = {
         "metadata": {
@@ -937,6 +974,7 @@ class StorageTracker:
         },
         "storage_type_summary": section_a,
         "files_inventory": section_b,
+        "simple_cache_churn": churn_rows,
     }
     if self.storage_api_verification is not None:
       summary["storage_api_verification"] = self.storage_api_verification
@@ -964,7 +1002,8 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
        f"(Duration: `{duration_sec}s`, "
        f"Samples: `{sample_count}`, "
        f"Interval: `{interval_sec}s`)"),
-      (f"- **Persistent Footprint**: "
+      (f"- **Persistent Footprint** (logical `st_size` of all app files "
+       f"outside caches, not only UserData): "
        f"Start: `{start_pers_kb:.2f} KB` | "
        f"Peak: `{peak_pers_kb:.2f} KB` (`t={peak_pers_at}s`) | "
        f"Final: `{final_pers_kb:.2f} KB`"),
@@ -987,6 +1026,12 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
                  f"(peak `{peak_write_kbps:.2f} KB/s` at "
                  f"`t={peak_write_at}s`) | "
                  f"Processes: `{pids_tracked}`")
+    growth_kb = sum(
+        r["final_kb"] - r["start_kb"] for r in report["storage_type_summary"])
+    ratio = (f"{write_kb / growth_kb:.1f}x the growth"
+             if growth_kb > 0 else "no net growth")
+    lines.append(f"- **Writes vs. growth**: `{write_kb:.0f} KB` written; all "
+                 f"app files grew by `{growth_kb:+.0f} KB` logical ({ratio})")
     peak_fds = proc_io.get("peak_total_fds", 0)
     peak_vmas = proc_io.get("peak_total_vmas", 0)
     if peak_fds > 0 or peak_vmas > 0:
@@ -1055,8 +1100,8 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
       "",
       "## Section B: Transient & High-Churn File Hotspots (Filtered)",
       "",
-      ("| Relative File Path | Storage Type | Status | Lifespan | "
-       "Start KB | Peak KB | Final KB | Delta KB | Writes (`mtime_changes`) |"),
+      ("| Relative File Path | Storage Type | Status | Lifespan | Start KB | "
+       "Peak KB | Final KB | Delta KB | Changes (`mtime_changes`) |"),
       "| :--- | :--- | :---: | :---: | ---: | ---: | ---: | ---: | ---: |",
   ])
 
@@ -1078,6 +1123,22 @@ def format_markdown_report(report: Dict[str, Any]) -> str:
                  f"{lifespan_str} | "
                  f"{start_kb:.2f} | {peak_kb:.2f} | {final_kb:.2f} | "
                  f"{delta_kb:+.2f} | {writes} |")
+
+  churn = report.get("simple_cache_churn")
+  if churn:
+    lines.extend([
+        "",
+        ("SimpleCache entries (not listed above) that appeared or disappeared "
+         "between polls; entries that lived less than one poll are missed:"),
+        "",
+        "| Cache Directory | Created | Created KB | Removed | Removed KB |",
+        "| :--- | ---: | ---: | ---: | ---: |",
+    ])
+    for c in churn:
+      name, created, removed = c["dir"], c["created"], c["removed"]
+      created_kb, removed_kb = c["created_kb"], c["removed_kb"]
+      lines.append(f"| `{name}` | {created} | {created_kb:.2f} | {removed} | "
+                   f"{removed_kb:.2f} |")
 
   lines.append("")
   return "\n".join(lines)
@@ -1148,15 +1209,21 @@ def _record_poll(
     timeline: Optional[storage_footprint.FootprintTimeline],
     entries_fn: Optional[Callable[[],
                                   List[storage_footprint.StatEntry]]]) -> None:
-  """Takes one storage snapshot and /proc sample and records them."""
+  """Takes one storage snapshot and /proc sample and records them.
+
+  Everything is read from the device before anything is recorded, so that
+  Ctrl+C during a read drops the whole poll from the tracker and the timeline.
+  """
   if timeline and entries_fn:
     entries = entries_fn()
-    tracker.record_snapshot(elapsed_sec,
-                            snapshot_from_entries(entries, tracker.package))
+    snapshot = snapshot_from_entries(entries, tracker.package)
   else:
     entries = None
-    tracker.record_snapshot(elapsed_sec, snapshot_fn())
+    snapshot = snapshot_fn()
   proc_io = proc_io_fn() if proc_io_fn else None
+  # The listing includes the app directories, so it is never empty when it
+  # worked, even on a fresh profile without files.
+  tracker.record_snapshot(elapsed_sec, snapshot, listed=bool(entries))
   if proc_io_fn:
     tracker.record_proc_io(elapsed_sec, proc_io)
   if timeline and entries:
@@ -1164,7 +1231,8 @@ def _record_poll(
         elapsed_sec,
         entries,
         pid=proc_io.pid if proc_io else None,
-        io=(proc_io.read_bytes, proc_io.write_bytes) if proc_io else None)
+        io=(proc_io.read_bytes, proc_io.write_bytes,
+            proc_io.cancelled_write_bytes) if proc_io else None)
 
 
 def _launch_cobalt_android(url: str,
@@ -1187,6 +1255,8 @@ def _launch_cobalt_android(url: str,
           cleaned = f"--{cleaned}"
         cmd_args.append(cleaned)
   if package == DEFAULT_PACKAGE:
+    # Cobalt loads --url as is, so use the TV app's own watch route.
+    url = url.replace("youtube.com/watch?", "youtube.com/tv#/watch?")
     cmd_args.append(f"--url={url}")
     joined_args = ",".join(cmd_args)
     cmd = (f"am start -n {package}/{DEFAULT_ACTIVITY} "
@@ -1433,7 +1503,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
       "--verify-storage-apis",
       action="store_true",
       help=("Verify Web Storage (sessionStorage, localStorage, "
-            "document.cookie) and MediaCapabilities JS APIs via CDP."))
+            "document.cookie) and MediaCapabilities JS APIs via CDP. The "
+            "probe writes to the profile: it sets and removes a "
+            "sessionStorage and a localStorage key and a cookie."))
   parser.add_argument(
       "--cdp-port",
       type=int,

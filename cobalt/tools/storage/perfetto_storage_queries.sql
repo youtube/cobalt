@@ -21,20 +21,45 @@
 -- <stem>.q<n>.csv. To run a query by hand, paste its block into the Query
 -- (SQL) page of https://ui.perfetto.dev.
 --
--- Q7 and Q8 select the app process by name or as the owner of the
+-- Q5, Q7 and Q8 select the app process by name or as the owner of the
 -- CrBrowserMain thread; profile_storage_perfetto.py replaces
 -- 'com.google.android.youtube.tv' with --package. Timestamps use the trace
 -- clock (CLOCK_BOOTTIME), the same clock as /proc/uptime.
+--
+-- Q1, Q2, Q5 and Q6 read the same storage slices (Ops): Chromium's SQLite,
+-- LevelDB, base::File, IndexedDB and ServiceWorkerStorage slices on files of
+-- the app (or fd-backed files, which have no path). Storage slices nest, also
+-- across tracks of one thread (WritableFile::Sync > File::Flush,
+-- CommitTransaction > COMMIT statement), so Q1 and Q2 sum self time: the
+-- duration minus the storage slices directly inside the slice on the same
+-- thread. Database::Statement slices last until the statement is reset, so
+-- they are not statement execution time (see Sql.Statement.ExecutionTime.*).
 
--- Q1: Storage I/O by subsystem and operation (excluding /proc/self/smaps and File lifetime spans)
+-- Q1: Storage I/O by subsystem and operation (self time, so nested slices count once)
+WITH Ops AS MATERIALIZED (
+  SELECT s.*, t.name AS track_name,
+    COALESCE(tt.utid, EXTRACT_ARG(s.arg_set_id, 'legacy_event.passthrough_utid')) AS utid
+  FROM slice s JOIN track t ON s.track_id = t.id LEFT JOIN thread_track tt ON s.track_id = tt.id
+  WHERE s.dur > 0 AND s.name != 'File'
+    AND (s.category IN ('sql', 'leveldb', 'disabled-by-default-file', 'IndexedDB') OR s.name GLOB 'ServiceWorkerStorage::*')
+    AND (COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') = '' OR EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/' || 'com.google.android.youtube.tv' || '/*')
+),
+-- The innermost storage slice around each slice on the same thread, and the
+-- time of the slices directly inside each slice.
+Parent AS MATERIALIZED (
+  SELECT b.id, (SELECT a.id FROM Ops a WHERE a.utid = b.utid AND a.id != b.id AND a.ts <= b.ts AND a.ts + a.dur >= b.ts + b.dur AND (a.ts < b.ts OR a.dur > b.dur OR a.id < b.id)
+    ORDER BY a.ts DESC, a.dur, a.id DESC LIMIT 1) AS parent
+  FROM Ops b
+),
+Nested AS (
+  SELECT p.parent AS id, SUM(c.dur) AS dur FROM Parent p JOIN Ops c ON c.id = p.id GROUP BY p.parent
+)
 SELECT
   CASE
-    WHEN s.category = 'sql' AND EXTRACT_ARG(s.arg_set_id, 'debug.statement') GLOB '* cookies*' THEN 'USER_DATA: SQLite Cookies'
-    WHEN s.category = 'sql' AND (EXTRACT_ARG(s.arg_set_id, 'debug.statement') GLOB '* bounces*' OR EXTRACT_ARG(s.arg_set_id, 'debug.statement') GLOB '* popups*') THEN 'USER_DATA: SQLite DIPS'
-    WHEN s.category = 'sql' AND EXTRACT_ARG(s.arg_set_id, 'debug.statement') GLOB '* buckets*' THEN 'USER_DATA: SQLite QuotaManager'
-    WHEN s.category = 'sql' AND EXTRACT_ARG(s.arg_set_id, 'debug.statement') GLOB '* dictionaries*' THEN 'USER_DATA: SQLite Shared Dictionary'
-    WHEN s.category = 'sql' THEN 'USER_DATA: SQLite (open / commit / unresolved DB)'
+    WHEN s.track_name GLOB 'Database: *' THEN 'USER_DATA: SQLite ' || SUBSTR(s.track_name, 11)
+    WHEN s.category = 'sql' THEN 'USER_DATA: SQLite (open, transactions)'
     WHEN s.category = 'leveldb' THEN 'USER_DATA: LevelDB (Sync / SyncParent)'
+    WHEN s.category IN ('IndexedDB', 'ServiceWorker') THEN 'USER_DATA: ' || s.category
     WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Local Storage/leveldb*' THEN 'USER_DATA: Local Storage (leveldb)'
     WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Session Storage*' THEN 'USER_DATA: Session Storage (leveldb)'
     WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Service Worker*' THEN 'USER_DATA: Service Worker (leveldb)'
@@ -44,43 +69,55 @@ SELECT
     WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Cache/Cache_Data/*' THEN 'CACHE: SimpleCache (HTTP Cache_Data)'
     WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Code Cache/js/*' THEN 'CACHE: V8 Code Cache (js)'
     WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/GrShaderCache*' THEN 'CACHE: GrShaderCache'
-    -- The ParkableImage swap file is opened by path once, then written with
-    -- positional File::Write calls that carry an empty path.
-    WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/cache/.org.chromium.Chromium*' OR (EXTRACT_ARG(s.arg_set_id, 'debug.path') = '' AND s.name = 'File::Write') THEN 'CACHE: ParkableImage swap (cache/.org.chromium.Chromium.*)'
-    WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') = '' THEN 'USER_DATA: ImportantFileWriter (temp_file)'
+    WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/cache/.org.chromium.Chromium*' THEN 'CACHE: temporary files (cache/.org.chromium.Chromium.*)'
+    WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') = '' THEN 'fd-backed File (no path)'
     ELSE COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), s.category)
   END AS storage_subsystem,
   s.category,
   s.name AS operation,
   COUNT(*) AS ops,
-  ROUND(SUM(COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.size'), 0)) / 1024.0, 1) AS total_kb,
-  ROUND(SUM(s.dur) / 1e6, 2) AS total_ms,
-  ROUND(MAX(s.dur) / 1e6, 2) AS max_ms
-FROM slice s
-WHERE s.category IN ('sql', 'leveldb', 'disabled-by-default-file')
-  AND s.name != 'File'
-  AND COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') NOT GLOB '*/proc/self/smaps*'
+  -- Requested by File::Read*/Write* calls, not transferred.
+  ROUND(SUM(CASE WHEN s.name GLOB 'File::Read*' OR s.name GLOB 'File::Write*' THEN COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.size'), 0) ELSE 0 END) / 1024.0, 1) AS requested_kb,
+  ROUND(SUM(s.dur - COALESCE(i.dur, 0)) / 1e6, 2) AS self_ms,
+  ROUND(MAX(s.dur - COALESCE(i.dur, 0)) / 1e6, 2) AS max_self_ms
+FROM Ops s
+LEFT JOIN Nested i USING (id)
 GROUP BY storage_subsystem, s.category, operation
-ORDER BY total_ms DESC;
+ORDER BY self_ms DESC;
 
--- Q2: Top 30 slowest storage operations with calling thread, file path and SQL statement
+-- Q2: Top 30 storage operations by self time, with calling thread, file path and SQL statement
+WITH Ops AS MATERIALIZED (
+  SELECT s.*, t.name AS track_name,
+    COALESCE(tt.utid, EXTRACT_ARG(s.arg_set_id, 'legacy_event.passthrough_utid')) AS utid
+  FROM slice s JOIN track t ON s.track_id = t.id LEFT JOIN thread_track tt ON s.track_id = tt.id
+  WHERE s.dur > 0 AND s.name != 'File'
+    AND (s.category IN ('sql', 'leveldb', 'disabled-by-default-file', 'IndexedDB') OR s.name GLOB 'ServiceWorkerStorage::*')
+    AND (COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') = '' OR EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/' || 'com.google.android.youtube.tv' || '/*')
+),
+-- The innermost storage slice around each slice on the same thread, and the
+-- time of the slices directly inside each slice.
+Parent AS MATERIALIZED (
+  SELECT b.id, (SELECT a.id FROM Ops a WHERE a.utid = b.utid AND a.id != b.id AND a.ts <= b.ts AND a.ts + a.dur >= b.ts + b.dur AND (a.ts < b.ts OR a.dur > b.dur OR a.id < b.id)
+    ORDER BY a.ts DESC, a.dur, a.id DESC LIMIT 1) AS parent
+  FROM Ops b
+),
+Nested AS (
+  SELECT p.parent AS id, SUM(c.dur) AS dur FROM Parent p JOIN Ops c ON c.id = p.id GROUP BY p.parent
+)
 SELECT
   s.id,
   ROUND((s.ts - (SELECT start_ts FROM trace_bounds)) / 1e9, 3) AS time_sec,
-  COALESCE(th1.name, th2.name, 'Async') AS calling_thread,
+  COALESCE(th.name, '?') AS calling_thread,
   s.category,
   s.name,
   ROUND(s.dur / 1e6, 2) AS dur_ms,
+  ROUND((s.dur - COALESCE(i.dur, 0)) / 1e6, 2) AS self_ms,
   COALESCE(NULLIF(EXTRACT_ARG(s.arg_set_id, 'debug.path'), ''), EXTRACT_ARG(s.arg_set_id, 'debug.statement'), '') AS path_or_sql,
   COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.size'), 0) AS bytes
-FROM slice s
-LEFT JOIN thread_track tt ON s.track_id = tt.id
-LEFT JOIN thread th1 ON tt.utid = th1.utid
-LEFT JOIN thread th2 ON EXTRACT_ARG(s.arg_set_id, 'legacy_event.passthrough_utid') = th2.utid
-WHERE s.category IN ('sql', 'leveldb', 'disabled-by-default-file')
-  AND s.name != 'File'
-  AND COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') NOT GLOB '*/proc/self/smaps*'
-ORDER BY s.dur DESC
+FROM Ops s
+LEFT JOIN Nested i USING (id)
+LEFT JOIN thread th USING (utid)
+ORDER BY s.dur - COALESCE(i.dur, 0) DESC
 LIMIT 30;
 
 -- Q3: Storage UMA histogram samples (aggregated)
@@ -107,7 +144,19 @@ WHERE s.name = 'HistogramSample'
     OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Cookie.*'
     OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Sql.*'
     OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Memory.Parkable*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'ImportantFile.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Prefs.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Gpu.GrShaderCache*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Gpu.Gr*Us'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Cobalt.Startup.Timeline.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Quota.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'ServiceWorkerCache.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Net.SharedDictionary*'
   )
+  -- Hundreds of samples per launch that say nothing about storage.
+  AND EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') NOT IN (
+    'Cookie.CookieSchemeRequestScheme', 'Cookie.FromStorageWithValidLength',
+    'V8.CompileEvalMicroSeconds')
 GROUP BY histogram_name
 ORDER BY histogram_name;
 
@@ -130,15 +179,36 @@ WHERE s.name = 'HistogramSample'
     OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'SimpleCache.Code.Eviction.*'
     OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Cookie.Time*'
     OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Sql.Database.Success.OpenInternalTime.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Sql.Statement.ExecutionTime.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') = 'Sql.vfs.SyncTime'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'LocalStorage.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Memory.Parkable*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'ImportantFile.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') = 'Gpu.GrShaderCacheEnabled'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Cobalt.Startup.Timeline.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Quota.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'ServiceWorkerCache.*'
+    OR EXTRACT_ARG(s.arg_set_id, 'chrome_histogram_sample.name') GLOB 'Net.SharedDictionary*'
   )
 ORDER BY s.ts;
 
--- Q5: Storage engine first/last touch (offsets from the first storage slice, plus CLOCK_BOOTTIME seconds to compare with <stem>.phases.json)
-WITH StorageOps AS (
+-- Q5: Storage engine first/last I/O, in ms after the app process started (empty if it started before the trace) and in CLOCK_BOOTTIME seconds as in <stem>.phases.json
+WITH Ops AS MATERIALIZED (
+  SELECT s.*, t.name AS track_name,
+    COALESCE(tt.utid, EXTRACT_ARG(s.arg_set_id, 'legacy_event.passthrough_utid')) AS utid
+  FROM slice s JOIN track t ON s.track_id = t.id LEFT JOIN thread_track tt ON s.track_id = tt.id
+  WHERE s.dur > 0 AND s.name != 'File'
+    AND (s.category IN ('sql', 'leveldb', 'disabled-by-default-file', 'IndexedDB') OR s.name GLOB 'ServiceWorkerStorage::*')
+    AND (COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') = '' OR EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/' || 'com.google.android.youtube.tv' || '/*')
+),
+StorageOps AS (
   SELECT
     s.ts,
     s.dur,
     CASE
+      WHEN s.track_name = 'Database: Cookie' THEN 'Cookies'
+      WHEN s.track_name = 'Database: Quota' THEN 'QuotaManager'
+      WHEN s.track_name GLOB 'Database: *' THEN SUBSTR(s.track_name, 11)
       WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Local Storage/*' THEN 'LocalStorage'
       WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Code Cache/*' THEN 'CodeCache'
       WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Service Worker*' OR s.category = 'ServiceWorker' THEN 'ServiceWorker'
@@ -154,35 +224,48 @@ WITH StorageOps AS (
       WHEN s.category = 'sql' THEN 'SQLite::Query'
       ELSE NULL
     END AS engine
-  FROM slice s
-  WHERE s.category IN ('sql', 'leveldb', 'ServiceWorker', 'disabled-by-default-file')
-    AND s.name != 'File'
+  FROM Ops s
 ),
 Origin AS (
-  SELECT MIN(ts) AS t0 FROM StorageOps WHERE engine IS NOT NULL
+  SELECT MIN(start_ts) AS t0 FROM process
+  WHERE name = 'com.google.android.youtube.tv' OR upid IN (SELECT upid FROM thread WHERE name = 'CrBrowserMain')
 )
 SELECT
   engine,
-  ROUND((MIN(ts) - (SELECT t0 FROM Origin)) / 1e6, 1) AS first_offset_ms,
-  ROUND((MAX(ts + dur) - (SELECT t0 FROM Origin)) / 1e6, 1) AS last_end_ms,
+  ROUND((MIN(ts) - (SELECT t0 FROM Origin)) / 1e6, 1) AS first_ms_after_app_start,
+  ROUND((MAX(ts + dur) - (SELECT t0 FROM Origin)) / 1e6, 1) AS last_end_ms_after_app_start,
   COUNT(*) AS ops,
-  ROUND(SUM(dur) / 1e6, 2) AS total_dur_ms,
   ROUND(MIN(ts) / 1e9, 3) AS first_boottime_s,
   ROUND(MAX(ts + dur) / 1e9, 3) AS last_end_boottime_s
 FROM StorageOps
 WHERE engine IS NOT NULL
 GROUP BY engine
-ORDER BY first_offset_ms ASC;
+ORDER BY MIN(ts);
 
--- Q6: Cross-thread eMMC contention: overlapping >= 5 ms storage slices of two different engines (each engine pair counted once)
-WITH EngineSlices AS (
+-- Q6: Overlapping >= 5 ms storage slices of two engines on different threads (innermost slices only; overlap does not prove contention)
+WITH Ops AS MATERIALIZED (
+  SELECT s.*, t.name AS track_name,
+    COALESCE(tt.utid, EXTRACT_ARG(s.arg_set_id, 'legacy_event.passthrough_utid')) AS utid
+  FROM slice s JOIN track t ON s.track_id = t.id LEFT JOIN thread_track tt ON s.track_id = tt.id
+  WHERE s.dur > 0 AND s.name != 'File'
+    AND (s.category IN ('sql', 'leveldb', 'disabled-by-default-file', 'IndexedDB') OR s.name GLOB 'ServiceWorkerStorage::*')
+    AND (COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') = '' OR EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/' || 'com.google.android.youtube.tv' || '/*')
+),
+-- Slices with another storage slice inside them on the same thread.
+Containers AS (
+  SELECT DISTINCT a.id FROM Ops a JOIN Ops b ON a.utid = b.utid AND a.id != b.id AND a.ts <= b.ts AND a.ts + a.dur >= b.ts + b.dur AND (a.ts < b.ts OR a.dur > b.dur OR a.id < b.id)
+),
+EngineSlices AS (
   SELECT
     s.id,
-    s.track_id,
+    s.utid,
     s.ts,
     s.ts + s.dur AS end_ts,
     s.dur,
     CASE
+      WHEN s.track_name = 'Database: Cookie' THEN 'Cookies'
+      WHEN s.track_name = 'Database: Quota' THEN 'QuotaManager'
+      WHEN s.track_name GLOB 'Database: *' THEN SUBSTR(s.track_name, 11)
       WHEN s.category = 'leveldb' THEN 'LevelDB::Sync'
       WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Cookies*' THEN 'Cookies'
       WHEN EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/Local Storage/*' THEN 'LocalStorage'
@@ -197,11 +280,8 @@ WITH EngineSlices AS (
       ELSE 'OtherFileIO'
     END AS engine,
     COALESCE(NULLIF(EXTRACT_ARG(s.arg_set_id, 'debug.path'), ''), s.name) AS detail
-  FROM slice s
-  WHERE s.category IN ('sql', 'leveldb', 'disabled-by-default-file')
-    AND s.name != 'File'
-    AND s.dur >= 5000000
-    AND COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') NOT GLOB '*/proc/self/smaps*'
+  FROM Ops s
+  WHERE s.dur >= 5000000 AND s.id NOT IN (SELECT id FROM Containers)
 )
 SELECT
   a.engine AS engine_a,
@@ -213,14 +293,14 @@ SELECT
 FROM EngineSlices a
 JOIN EngineSlices b
   ON a.engine < b.engine
-  AND a.track_id != b.track_id
+  AND a.utid != b.utid
   AND a.ts < b.end_ts
   AND b.ts < a.end_ts
 GROUP BY engine_a, engine_b
 ORDER BY overlap_ms DESC
 LIMIT 25;
 
--- Q7: Kernel block I/O wait (thread_state state = D and io_wait = 1) of the app by thread and kernel function
+-- Q7: Kernel uninterruptible sleep (thread_state D) of the app by thread: io_wait = 1 (block I/O, e.g. page-ins) and other D time
 SELECT
   p.name AS process_name,
   -- ftrace and /proc thread names are truncated to 15 characters.
@@ -234,10 +314,12 @@ SELECT
     WHEN t.name GLOB 'CompositorTileW*' THEN 'CompositorTileWorker'
     ELSE t.name
   END AS thread_name,
-  COALESCE(ts.blocked_function, '') AS blocked_function,
-  COUNT(*) AS io_wait_spans,
-  ROUND(SUM(ts.dur) / 1e6, 2) AS total_io_wait_ms,
-  ROUND(MAX(ts.dur) / 1e6, 2) AS max_io_wait_ms
+  COUNT(*) AS d_spans,
+  ROUND(SUM(CASE WHEN ts.io_wait = 1 THEN ts.dur ELSE 0 END) / 1e6, 2) AS io_wait_ms,
+  -- io_wait = 0 or unknown (e.g. locks, journal commits).
+  ROUND(SUM(CASE WHEN ts.io_wait = 1 THEN 0 ELSE ts.dur END) / 1e6, 2) AS other_d_ms,
+  ROUND(SUM(ts.dur) / 1e6, 2) AS total_d_ms,
+  ROUND(MAX(ts.dur) / 1e6, 2) AS max_d_ms
 FROM thread_state ts
 JOIN thread t USING (utid)
 JOIN process p USING (upid)
@@ -245,17 +327,20 @@ JOIN process p USING (upid)
 -- "<pre-initialized>", so also match the process that owns CrBrowserMain.
 WHERE (p.name = 'com.google.android.youtube.tv' OR p.upid IN (SELECT upid FROM thread WHERE name = 'CrBrowserMain'))
   AND ts.state = 'D'
-  AND ts.io_wait = 1
   AND ts.dur > 0
-GROUP BY process_name, thread_name, blocked_function
-ORDER BY total_io_wait_ms DESC
+GROUP BY process_name, thread_name
+ORDER BY total_d_ms DESC
 LIMIT 30;
 
--- Q8: UI/Renderer/GPU/Compositor kernel io_wait overlapped by concurrent storage blockers (one row per victim thread and blocker category)
--- overlap_ms is the part of the victim's io_wait time during which at least
--- one blocker of the category was active (blockers that overlap each other
--- are not double counted). top_blocker is the "name / thread" label with the
--- most overlap.
+-- Q8: UI/Renderer/GPU/Compositor kernel io_wait that overlaps storage activity (one row per thread and activity category; overlap, not cause)
+-- overlap_ms is the part of the thread's io_wait time during which at least
+-- one event of the category was active (events that overlap each other are
+-- not double counted). It does not show what the thread waited for:
+-- io_wait means waiting for a block request, so block_rq (device-wide)
+-- overlaps almost all of it, and the thread that issued a request is often
+-- a kernel worker, not the requester, so block_rq has no top_blocker. Flush
+-- requests are not paired. fsync_system_wide counts every process's ext4 and
+-- f2fs fsyncs. top_blocker is the "name / thread" label with the most overlap.
 WITH
 -- Same 15-character thread name normalization as Q7.
 thread_norm AS (
@@ -299,7 +384,8 @@ worker_slice AS (
   LEFT JOIN thread_track tt ON s.track_id = tt.id
   WHERE s.dur > 0
     AND s.name != 'File'
-    AND COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') NOT GLOB '/proc/*'
+    AND (COALESCE(EXTRACT_ARG(s.arg_set_id, 'debug.path'), '') = ''
+      OR EXTRACT_ARG(s.arg_set_id, 'debug.path') GLOB '*/' || 'com.google.android.youtube.tv' || '/*')
     AND (
       s.category IN ('sql', 'leveldb', 'disabled-by-default-file')
       -- Only file, SQLite and LevelDB blocking calls (not DNS, certificate
@@ -344,7 +430,7 @@ blocker AS (
   -- MemoryInfra reads /proc files through base/files ScopedBlockingCalls.
   WHERE NOT (w.name GLOB 'ScopedBlockingCall*' AND tn.name IS 'MemoryInfra')
   UNION ALL
-  SELECT 'fsync', e.ts, e.next_ts, e.utid, REPLACE(e.name, '_enter', '') || ' / ' || COALESCE(tn.name, '?')
+  SELECT 'fsync_system_wide', e.ts, e.next_ts, e.utid, REPLACE(e.name, '_enter', '') || ' / ' || COALESCE(tn.name, '?')
   FROM fsync_event e
   LEFT JOIN thread_norm tn USING (utid)
   WHERE e.name GLOB '*_enter' AND e.next_name = REPLACE(e.name, '_enter', '_exit')
@@ -400,8 +486,8 @@ SELECT
   ROUND(vt.io_wait_ns / 1e6, 2) AS victim_io_wait_ms,
   ROUND(c.overlap_ns / 1e6, 2) AS overlap_ms,
   ROUND(100.0 * c.overlap_ns / vt.io_wait_ns, 1) AS overlap_pct,
-  l.label AS top_blocker,
-  ROUND(l.label_ns / 1e6, 2) AS top_blocker_ms
+  CASE WHEN c.category = 'block_rq' THEN '' ELSE l.label END AS top_blocker,
+  CASE WHEN c.category = 'block_rq' THEN '' ELSE ROUND(l.label_ns / 1e6, 2) END AS top_blocker_ms
 FROM category_total c
 JOIN victim_total vt USING (victim_thread)
 JOIN top_label l ON l.victim_thread = c.victim_thread AND l.category = c.category AND l.rn = 1

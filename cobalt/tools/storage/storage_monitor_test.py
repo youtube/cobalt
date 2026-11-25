@@ -210,8 +210,8 @@ class StorageMonitorTest(unittest.TestCase):
     self.assertIn("## Section A: Storage Type Summary", md)
     self.assertIn("## Section B: Transient & High-Churn File Hotspots", md)
     self.assertIn(
-        "| Relative File Path | Storage Type | Status | Lifespan | "
-        "Start KB | Peak KB | Final KB | Delta KB | Writes (`mtime_changes`) |",
+        "| Relative File Path | Storage Type | Status | Lifespan | Start KB | "
+        "Peak KB | Final KB | Delta KB | Changes (`mtime_changes`) |",
         md,
     )
     self.assertIn("-64.00", md)
@@ -238,6 +238,7 @@ class StorageMonitorTest(unittest.TestCase):
             pid=1234,
             read_bytes=40960,
             write_bytes=81920,
+            cancelled_write_bytes=4096,
             total_fds=310,
             total_vmas=2920,
             storage_fd_paths=(
@@ -365,6 +366,81 @@ class StorageMonitorTest(unittest.TestCase):
         interval_sec=1.0)["process_io_summary"]
     self.assertEqual(pio["read_kb"], 10.0)
     self.assertEqual(pio["write_kb"], 2.0)
+
+  def test_fresh_profile_and_late_types_start_at_zero(self):
+    tracker = storage_monitor.StorageTracker()
+    ud = "app_content_shell/content_shell"
+    # The listing worked but found no files yet (fresh profile).
+    tracker.record_snapshot(0.0, {}, listed=True)
+    # DIPS is first seen as an open FD, before the next listing.
+    tracker.record_proc_io(
+        0.5,
+        storage_monitor.ProcIoSample(
+            pid=7, storage_fd_paths=(f"/data/data/dev.cobalt.coat/{ud}/DIPS",)))
+    tracker.record_snapshot(1.0, {
+        f"{ud}/DIPS": (20480, 1),
+        f"{ud}/Cookies": (8192, 1)
+    })
+    report = tracker.build_summary_data(
+        platform="android",
+        cuj="cold_start",
+        duration_sec=1.0,
+        interval_sec=1.0)
+    self.assertEqual(report["metadata"]["sample_count"], 2)
+    self.assertEqual(report["metadata"]["start_persistent_kb"], 0.0)
+    by_type = {r["storage_type"]: r for r in report["storage_type_summary"]}
+    self.assertEqual(by_type["DIPS"]["start_kb"], 0.0)
+    self.assertEqual(by_type["Cookies"]["start_kb"], 0.0)
+
+  def test_interrupted_poll_records_nothing(self):
+    tracker = storage_monitor.StorageTracker()
+
+    def interrupted_proc_io():
+      raise KeyboardInterrupt
+
+    with self.assertRaises(KeyboardInterrupt):
+      storage_monitor._record_poll(  # pylint: disable=protected-access
+          tracker,
+          1.0,
+          lambda: {"files/a": (1, 1)},
+          proc_io_fn=interrupted_proc_io,
+          timeline=None,
+          entries_fn=None)
+    self.assertEqual(tracker.sample_count, 0)
+
+  def test_shrank_needs_4_kib_and_cache_entries_are_summed(self):
+    tracker = storage_monitor.StorageTracker()
+    js = "cache/Code Cache/js"
+    tracker.record_snapshot(
+        0.0, {
+            "cache/Variations": (85, 1),
+            "files/x-journal": (16384, 1),
+            f"{js}/a_0": (4096, 1)
+        })
+    # An atomic rewrite one byte shorter, a truncated journal, and an
+    # evicted and a new code cache entry.
+    tracker.record_snapshot(
+        1.0, {
+            "cache/Variations": (84, 2),
+            "files/x-journal": (0, 2),
+            f"{js}/b_0": (8192, 2)
+        })
+    report = tracker.build_summary_data(
+        platform="android", cuj="manual", duration_sec=1.0, interval_sec=1.0)
+    inventory = report["files_inventory"]
+    status = {f["relative_path"]: f["status"] for f in inventory}
+    self.assertEqual(status["cache/Variations"], "Active")
+    self.assertEqual(status["files/x-journal"], "**Shrank**")
+    self.assertNotIn(f"{js}/b_0", status)
+    self.assertEqual(report["simple_cache_churn"], [{
+        "dir": js,
+        "created": 1,
+        "created_kb": 8.0,
+        "removed": 1,
+        "removed_kb": 4.0
+    }])
+    self.assertIn(f"| `{js}` | 1 | 8.00 | 1 | 4.00 |",
+                  storage_monitor.format_markdown_report(report))
 
   def test_parse_args_defaults_and_custom_package(self):
     args = storage_monitor.parse_args([])

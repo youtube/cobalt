@@ -31,6 +31,7 @@ import math
 import os
 import re
 import shlex
+import signal
 import string
 import subprocess
 import sys
@@ -105,7 +106,15 @@ HEALTH_COUNTERS = (
     "sorter_push_event_out_of_order",
 )
 _HEALTH_NAMES = ", ".join(f"'{name}'" for name in HEALTH_COUNTERS)
-HEALTH_SQL = f"""SELECT 'stat' AS kind, name, idx, severity, value
+HEALTH_SQL = f"""WITH histogram AS (
+  SELECT ts, EXTRACT_ARG(arg_set_id, 'chrome_histogram_sample.name') AS name,
+    EXTRACT_ARG(arg_set_id, 'chrome_histogram_sample.sample') AS sample
+  FROM slice WHERE name = 'HistogramSample'
+), main_ready AS (
+  SELECT * FROM histogram
+  WHERE name GLOB 'Cobalt.Startup.Timeline.MainReady*' ORDER BY ts LIMIT 1
+)
+SELECT 'stat' AS kind, name, idx, severity, value
 FROM stats
 WHERE value > 0 AND (name IN ({_HEALTH_NAMES}) OR severity = 'data_loss')
 UNION ALL
@@ -115,7 +124,27 @@ WHERE name IN ('android_build_fingerprint', 'cr-user-agent',
                'ftrace_setup_errors', 'trace_time_clock_id',
                'tracing_disabled_ns')
 UNION ALL
-SELECT 'meta', 'duration_ns', NULL, NULL, end_ts - start_ts FROM trace_bounds;
+SELECT 'meta', 'duration_ns', NULL, NULL, end_ts - start_ts FROM trace_bounds
+UNION ALL
+SELECT 'meta', 'trace_start_ns', NULL, NULL, start_ts FROM trace_bounds
+UNION ALL
+SELECT 'meta', 'app_start_ns', NULL, NULL, MIN(start_ts) FROM process
+WHERE name = {SQL_PACKAGE_LITERAL}
+  OR upid IN (SELECT upid FROM thread WHERE name = 'CrBrowserMain')
+UNION ALL
+-- Chromium trace events; the config only accepts the app's producer.
+SELECT 'meta', 'app_slices', NULL, NULL, COUNT(*) FROM slice
+WHERE category IS NOT NULL
+UNION ALL
+SELECT 'meta', 'first_app_slice_ns', NULL, NULL, MIN(ts) FROM slice
+WHERE category IS NOT NULL
+UNION ALL
+SELECT 'meta', 'main_ready', NULL, NULL, name || ' = ' || sample FROM main_ready
+UNION ALL
+SELECT 'meta', 'main_ready_ns', NULL, NULL, ts FROM main_ready
+UNION ALL
+SELECT 'meta', 'startup_read_kb', NULL, NULL, sample FROM histogram
+WHERE name = 'Cobalt.Storage.ProcessIo.StartupReadKB';
 """
 
 _CONFIG_TEMPLATE = string.Template("""\
@@ -431,8 +460,7 @@ def run_cuj(args: argparse.Namespace, events: List[Dict[str, Any]]) -> int:
   else:
     try:
       if args.cuj_cmd:
-        returncode = subprocess.run(
-            args.cuj_cmd, shell=True, check=False).returncode
+        returncode = _run_cuj_cmd(args.cuj_cmd, args.duration_s)
       elif args.duration_s:
         time.sleep(args.duration_s)
       else:
@@ -442,6 +470,30 @@ def run_cuj(args: argparse.Namespace, events: List[Dict[str, Any]]) -> int:
     except KeyboardInterrupt:
       print("\nStopping the trace...")
   return returncode
+
+
+def _run_cuj_cmd(command: str, timeout_s: Optional[float]) -> int:
+  """Runs --cuj-cmd and returns its exit code (0 if stopped at timeout_s).
+
+  The command gets its own process group, so that a timeout or Ctrl+C also
+  stops the processes it started.
+  """
+  proc = subprocess.Popen(  # pylint: disable=consider-using-with
+      command,
+      shell=True,
+      start_new_session=True)
+  try:
+    return proc.wait(timeout=timeout_s)
+  except subprocess.TimeoutExpired:
+    print(f"--cuj-cmd still running after {timeout_s:g} s; stopping it.")
+    return 0
+  finally:
+    if proc.poll() is None:
+      try:
+        os.killpg(proc.pid, signal.SIGKILL)
+      except OSError:
+        pass
+      proc.wait()
 
 
 def phase_bounds(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -645,11 +697,15 @@ def parse_health(
   # traced writes tracing_disabled_ns and the final stats when tracing stops.
   # Without them the trace was cut off and the counters above are incomplete.
   truncated = "tracing_disabled_ns" not in metadata
+  # The app's tracing producer never connected, so Q1-Q6 would be empty.
+  no_app_data = metadata.get("app_slices") == "0"
   health: Dict[str, Any] = {
-      "healthy": (not truncated and not data_loss and
+      "healthy": (not truncated and not data_loss and not no_app_data and
                   not any(counters.values()) and not parse_errors),
       "truncated":
           truncated,
+      "no_app_data":
+          no_app_data,
       "counters":
           counters,
       "data_loss":
@@ -687,10 +743,62 @@ def health_banner(health: Dict[str, Any]) -> str:
   problems = [f"`{d}`" for d in health["data_loss"]]
   if health["truncated"]:
     problems.insert(0, "truncated: no `tracing_disabled_ns` or final stats")
+  if health.get("no_app_data"):
+    problems.insert(0, "no Chromium trace events from the app")
   if health.get("error"):
     problems.insert(0, "health query failed: " + health["error"])
   details = "; ".join(problems) or "nonzero counters"
-  return f"**WARNING: DATA LOSS** ({details}): {counters}."
+  title = "NO_APP_DATA" if health.get("no_app_data") else "DATA LOSS"
+  return f"**WARNING: {title}** ({details}): {counters}."
+
+
+def _coverage(metadata: Dict[str, str]) -> Dict[str, Any]:
+  """Time bases and startup facts from HEALTH_SQL (None if not in the trace)."""
+
+  def seconds(name: str) -> Optional[float]:
+    value = _parse_nonneg_int(metadata.get(name))
+    return None if value is None else round(value / 1e9, 3)
+
+  return {
+      "trace_start_s": seconds("trace_start_ns"),
+      "app_start_s": seconds("app_start_ns"),
+      "first_app_slice_s": seconds("first_app_slice_ns"),
+      "main_ready": metadata.get("main_ready", ""),
+      "main_ready_s": seconds("main_ready_ns"),
+      "startup_read_kb": _parse_nonneg_int(metadata.get("startup_read_kb")),
+  }
+
+
+def _coverage_lines(coverage: Dict[str, Any]) -> List[str]:
+  """The Coverage section of the Markdown report."""
+  if not isinstance(coverage, dict) or coverage.get("trace_start_s") is None:
+    return []
+  trace_start = coverage["trace_start_s"]
+  lines = [
+      "", "## Coverage", "", f"- Trace start: {trace_start:.3f} s "
+      "CLOCK_BOOTTIME; `time_sec` in Q2 and Q4 counts from it."
+  ]
+  app_start = coverage.get("app_start_s")
+  first = coverage.get("first_app_slice_s")
+  if app_start is not None and first is not None:
+    lines.append(f"- App process start: {app_start:.3f} s. The first Chromium "
+                 f"trace event came {first - app_start:.2f} s later; storage "
+                 "I/O before it is not in Q1-Q6.")
+  ready, ready_s = coverage.get("main_ready"), coverage.get("main_ready_s")
+  if ready and ready_s is not None:
+    after = (f" ({ready_s - app_start:.2f} s after the app process start)"
+             if app_start is not None else "")
+    lines.append(f"- MainReady: `{ready}`, recorded at {ready_s:.3f} s{after}.")
+  read_kb = coverage.get("startup_read_kb")
+  if read_kb is not None:
+    lines.append("- `Cobalt.Storage.ProcessIo.StartupReadKB`: "
+                 f"{read_kb} KB. Tens of MB mean that code "
+                 "and data were read from flash (cold page cache); a warm page "
+                 "cache needs a few MB at most.")
+  lines.append("- Q1-Q6 never see Java or Android framework storage, code "
+               "page-ins, or SQLite file reads. Ftrace (Q7, Q8) covers every "
+               "process.")
+  return lines
 
 
 def _after_home(phases: List[Dict[str, Any]], q5_rows: List[List[str]]) -> str:
@@ -826,6 +934,7 @@ def format_markdown(summary: Dict[str, Any], results: List[Dict[str,
   if health["ftrace_setup_errors"]:
     lines.append("Ftrace setup errors: " +
                  "; ".join(health["ftrace_setup_errors"]) + ".")
+  lines += _coverage_lines(summary.get("coverage") or {})
   q5_rows = next((r["rows"] for r in results if r["number"] == 5), [])
   lines += _phase_lines(summary.get("capture") or {}, q5_rows)
   for result in results:
@@ -857,8 +966,9 @@ def analyze_trace(trace: str, report_dir: str, trace_processor: str,
     return 1
   results = []
   with tempfile.TemporaryDirectory() as tmp_dir:
-    health_text, health_error = _run_query(trace_processor, trace, HEALTH_SQL,
-                                           tmp_dir)
+    health_text, health_error = _run_query(
+        trace_processor, trace,
+        HEALTH_SQL.replace(SQL_PACKAGE_LITERAL, f"'{package}'"), tmp_dir)
     for number, title, sql in load_queries(package):
       text, error = _run_query(trace_processor, trace, sql, tmp_dir)
       csv_name = f"{stem}.q{number}.csv"
@@ -904,6 +1014,7 @@ def analyze_trace(trace: str, report_dir: str, trace_processor: str,
           "chrome_user_agent": metadata.get("cr-user-agent", ""),
       },
       "trace_health": health,
+      "coverage": _coverage(metadata),
       "queries": [{
           k: v for k, v in r.items() if k != "rows"
       } for r in results],
@@ -948,13 +1059,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
       "--duration-s",
       type=float,
       help=(f"cold_start: seconds to trace after launch (default: "
-            f"{COLD_START_DURATION_S:g}). manual: optional time limit."))
+            f"{COLD_START_DURATION_S:g}). manual: optional time limit, which "
+            "also stops --cuj-cmd and the processes it started."))
   parser.add_argument(
       "--cuj-cmd",
       default="",
       help=("manual only: host shell command to run after the launch; "
             "tracing stops when it exits. It must not restart the app, "
-            "which would drop the tracing feature flag."))
+            "which would drop the tracing feature flag. Its own steps are "
+            "not recorded as phases (only the launch and the stop)."))
   parser.add_argument(
       "--golden-tar",
       default="",
@@ -1008,8 +1121,6 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.error("--analyze-only and --out cannot be combined")
   if args.cuj_cmd and args.cuj != "manual":
     parser.error("--cuj-cmd requires --cuj manual")
-  if args.cuj_cmd and args.duration_s is not None:
-    parser.error("--cuj-cmd and --duration-s cannot be combined")
   if args.duration_s is not None and args.cuj == "lifecycle":
     parser.error("--duration-s does not apply to --cuj lifecycle")
   if args.cuj == "cold_start" and args.duration_s is None:
