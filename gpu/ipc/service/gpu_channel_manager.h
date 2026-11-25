@@ -168,6 +168,11 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   void SetDefaultOffscreenSurface(scoped_refptr<gl::GLSurface> surface) {
     default_offscreen_surface_ = std::move(surface);
   }
+
+  // Returns true if background cleanup should keep all GL state, including the
+  // EGL display: kCobaltKeepWebGLContextsOnBackground is enabled and a channel
+  // has an active stateful (WebGL/WebGPU) context.
+  bool ShouldKeepGLStateOnBackground() const;
 #endif
 
   MemoryTracker::Observer* peak_memory_monitor() {

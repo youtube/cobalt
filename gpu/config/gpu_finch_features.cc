@@ -140,6 +140,15 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "interval",
                    base::Minutes(1));
 
+// When enabled, background cleanup keeps all GL state, including the EGL
+// display, while a stateful (WebGL/WebGPU) context is alive, so the page can
+// keep rendering after the app is revealed again. Uses more GPU memory while
+// in the background with WebGL open. When disabled, every context is lost and
+// the EGL display is terminated on background cleanup.
+BASE_FEATURE(kCobaltKeepWebGLContextsOnBackground,
+             "CobaltKeepWebGLContextsOnBackground",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, uses Android SurfaceControl for the display compositor with
 // Starboard media, removes the primary UI plane, and releases VizBufferQueue UI
