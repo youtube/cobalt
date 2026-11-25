@@ -1,17 +1,14 @@
-name: aosp
+name: aosp_staging
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - staging
+      - autoroll-chromium/main-to-staging
   push:
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - staging
   workflow_dispatch:
     inputs:
       nightly:
