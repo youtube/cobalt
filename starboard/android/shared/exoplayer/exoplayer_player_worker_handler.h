@@ -20,6 +20,7 @@
 #include <string>
 
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
+#include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -50,8 +51,8 @@ namespace starboard {
 class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
                                      private JobQueue::JobOwner {
  public:
-  explicit ExoPlayerPlayerWorkerHandler(
-      const SbPlayerCreationParam* creation_param);
+  ExoPlayerPlayerWorkerHandler(const SbPlayerCreationParam* creation_param,
+                               SbDecodeTargetGraphicsContextProvider* provider);
 
  private:
   Result<void> Init(JobQueue* job_queue,
@@ -83,8 +84,10 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
 
   void Update();
 
-  // The following functions must be called only on the ExoPlayer's internal
-  // Looper thread.
+  // The following functions can be called on any thread: the ExoPlayer's
+  // internal Looper thread, the Android UI thread when the video surface is
+  // destroyed, and the PlayerWorker thread. They must not use |bridge_|, which
+  // is null while the bridge is being constructed and after a failed Init().
   void OnError(SbPlayerError error, const std::string& error_message);
   void OnPrerolled();
   void OnEnded();
@@ -101,7 +104,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   JobQueue::JobToken update_job_token_ = JobQueue::JobToken::kUnscheduled;
   const std::function<void()> update_job_;
 
-  std::unique_ptr<ExoPlayerBridge> bridge_;
+  SbDecodeTargetGraphicsContextProvider* const
+      decode_target_graphics_context_provider_;
 
   const AudioStreamInfo audio_stream_info_;
   const VideoStreamInfo video_stream_info_;
@@ -112,6 +116,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   // Prevents additional errors from being reported after the first, as only one
   // error needs to be reported to tear down the player.
   std::atomic_bool reported_error_ = false;
+
+  std::unique_ptr<ExoPlayerBridge> bridge_;
 };
 
 }  // namespace starboard
