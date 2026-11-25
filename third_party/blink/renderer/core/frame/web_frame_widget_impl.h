@@ -1085,6 +1085,15 @@ class CORE_EXPORT WebFrameWidgetImpl
   void NotifyLatchedScrollMarkerGroup(
       const cc::CompositorCommitData& commit_data);
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  FRIEND_TEST_ALL_PREFIXES(WebFrameWidgetSimTest, CobaltMysteryCodeHudToggler);
+
+  bool HandleCobaltMysteryCode(const WebKeyboardEvent& event);
+  void ResetMysteryMenuTimer();
+  void OnMysteryMenuTimeout(uint64_t generation);
+  void CloseMysteryHudMenu(bool reset_all);
+#endif
+
 #if BUILDFLAG(IS_WIN)
   // Computes a contiguous range of character bounds within proximity of
   // `pivot_position` to enable gesture support for StylusHandwritingWin.
@@ -1320,6 +1329,13 @@ class CORE_EXPORT WebFrameWidgetImpl
   // Snapshots resolved by the presentation currently being processed; see
   // OnCobaltPresentationCallback().
   Vector<CobaltMainFrameSnapshot> pending_cobalt_main_snapshots_;
+#endif
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  int mystery_sequence_index_ = 0;
+  bool mystery_hud_menu_active_ = false;
+  uint64_t mystery_menu_generation_ = 0;
+  base::TimeTicks mystery_menu_deadline_;
 #endif
 };
 

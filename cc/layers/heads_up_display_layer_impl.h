@@ -132,6 +132,12 @@ class CC_EXPORT HeadsUpDisplayLayerImpl : public LayerImpl {
                                     int right,
                                     int top,
                                     int width) const;
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  SkRect DrawMysteryHudMenu(PaintCanvas* canvas,
+                            int left,
+                            int top,
+                            int width) const;
+#endif
   void DrawDebugRect(PaintCanvas* canvas,
                      PaintFlags* flags,
                      const DebugRect& rect,

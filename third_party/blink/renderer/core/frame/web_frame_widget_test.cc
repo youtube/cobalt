@@ -2617,4 +2617,88 @@ TEST_F(EventHandlingWebFrameWidgetSimTest, RafAlignedEventWithUpdate) {
   EXPECT_EQ(TestSwapPromise::State::kResolved, swap_promise_state);
 }
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+TEST_F(WebFrameWidgetSimTest, CobaltMysteryCodeHudToggler) {
+  LoadURL("about:blank");
+  WebFrameWidgetImpl* widget = WebView().MainFrameViewWidget();
+  ASSERT_TRUE(widget);
+  ASSERT_TRUE(widget->GetLayerTreeDebugState());
+
+  auto send_key = [&](int key_code) {
+    WebKeyboardEvent event(WebInputEvent::Type::kRawKeyDown,
+                           WebInputEvent::kNoModifiers, base::TimeTicks::Now());
+    event.windows_key_code = key_code;
+    return widget->HandleKeyEvent(event);
+  };
+
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->show_fps_counter);
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->mystery_hud_menu_active);
+
+  // First 8 directional keys pass through to the application.
+  const int kDirections[] = {VKEY_UP,   VKEY_UP,    VKEY_DOWN, VKEY_DOWN,
+                             VKEY_LEFT, VKEY_RIGHT, VKEY_LEFT, VKEY_RIGHT};
+  for (int key : kDirections) {
+    EXPECT_NE(WebInputEventResult::kHandledSystem, send_key(key));
+  }
+
+  // Step 8 (Back) and Step 9 (OK) are consumed and activate the HUD menu.
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_ESCAPE));
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->mystery_hud_menu_active);
+
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_RETURN));
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->mystery_hud_menu_active);
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_fps_counter);
+
+  // Toggle Layer Borders (Right), Paint Flashing (Down), Layout Shifts (Left).
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_RIGHT));
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_debug_borders.any());
+
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_DOWN));
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_paint_rects);
+
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_LEFT));
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_layout_shift_regions);
+
+  // Toggle FPS counter off with Up.
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_UP));
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->show_fps_counter);
+
+  // Press OK to close menu while keeping selected overlays active.
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_RETURN));
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->mystery_hud_menu_active);
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_debug_borders.any());
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_paint_rects);
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_layout_shift_regions);
+
+  // Re-open menu using the OK-OK fallback suffix and reset all with Back.
+  for (int key : kDirections) {
+    send_key(key);
+  }
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_SELECT));
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_SELECT));
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->mystery_hud_menu_active);
+
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_ESCAPE));
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->mystery_hud_menu_active);
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->show_fps_counter);
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->show_debug_borders.any());
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->show_paint_rects);
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->show_layout_shift_regions);
+
+  // Verify 10-second inactivity auto-close preserves enabled overlays.
+  for (int key : kDirections) {
+    send_key(key);
+  }
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_ESCAPE));
+  EXPECT_EQ(WebInputEventResult::kHandledSystem, send_key(VKEY_RETURN));
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->mystery_hud_menu_active);
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_fps_counter);
+
+  // Simulate 10s timeout firing.
+  widget->OnMysteryMenuTimeout(widget->mystery_menu_generation_);
+  EXPECT_FALSE(widget->GetLayerTreeDebugState()->mystery_hud_menu_active);
+  EXPECT_TRUE(widget->GetLayerTreeDebugState()->show_fps_counter);
+}
+#endif
+
 }  // namespace blink
