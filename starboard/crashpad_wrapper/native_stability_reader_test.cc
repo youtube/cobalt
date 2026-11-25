@@ -25,6 +25,7 @@
 
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
+#include "build/build_config.h"
 #include "starboard/extension/native_stability.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/crashpad/crashpad/client/annotation.h"
@@ -38,7 +39,11 @@
 #include "third_party/crashpad/crashpad/snapshot/test/test_system_snapshot.h"
 #include "third_party/crashpad/crashpad/snapshot/test/test_thread_snapshot.h"
 #include "third_party/crashpad/crashpad/util/misc/uuid.h"
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "third_party/crashpad/crashpad/util/mach/mach_extensions.h"
+#else
 #include "third_party/crashpad/crashpad/util/posix/signals.h"
+#endif
 
 namespace crashpad {
 namespace {
@@ -115,8 +120,13 @@ class NativeStabilityReaderTest : public ::testing::Test {
     auto exception = std::make_unique<test::TestExceptionSnapshot>();
     exception->SetThreadID(kArbitraryThreadId);
     if (is_hang) {
+#if BUILDFLAG(IS_IOS_TVOS)
+      exception->SetException(
+          static_cast<uint32_t>(::crashpad::kMachExceptionSimulated));
+#else
       exception->SetException(
           static_cast<uint32_t>(::crashpad::Signals::kSimulatedSigno));
+#endif
     } else {
       exception->SetException(SIGSEGV);
     }
@@ -236,6 +246,21 @@ TEST_F(NativeStabilityReaderTest, ReadsCompletedHangReportFromModuleSnapshot) {
   EXPECT_EQ(count, 1);
   EXPECT_EQ(reports[0].report_type, kSbNativeStabilityReportHang);
   EXPECT_STREQ(reports[0].native_stability_event_uuid, kTestHangUuid);
+  EXPECT_EQ(reports[0].event_time_s, kTestTimestampSec);
+}
+
+TEST_F(NativeStabilityReaderTest, ReadsCompletedCrashReportFromModuleSnapshot) {
+  constexpr int64_t kTestTimestampSec = 550000;
+  AddReportToDatabase(db_path(), kNativeStabilityCrashUuidKey, kTestCrashUuid,
+                      kTestTimestampSec, /*is_hang=*/false,
+                      /*is_completed=*/true,
+                      AnnotationLocation::kModuleSnapshot);
+
+  SbNativeStabilityReport reports[1]{};
+  int count = ReadReportsFromDatabase(db_path(), reports, 1);
+  EXPECT_EQ(count, 1);
+  EXPECT_EQ(reports[0].report_type, kSbNativeStabilityReportCrash);
+  EXPECT_STREQ(reports[0].native_stability_event_uuid, kTestCrashUuid);
   EXPECT_EQ(reports[0].event_time_s, kTestTimestampSec);
 }
 
