@@ -9,6 +9,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"
+#include "base/test/scoped_amount_of_physical_memory_override.h"
 #include "base/test/scoped_feature_list.h"
 #include "cc/base/features.h"
 #endif
@@ -68,6 +69,74 @@ TEST(LayerTreeSettings, CobaltForceGpuMemAvailableFeature) {
       GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
   EXPECT_EQ(128u * 1024u * 1024u, policy.bytes_limit_when_visible);
 }
+
+TEST(LayerTreeSettings, CobaltDefaultGpuMemoryLimitStepsWithResolution) {
+  constexpr int kPhysicalMemoryMB = 2048;
+  // Unknown screens and screens up to 1080p get 64 MB.
+  EXPECT_EQ(64u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(), 1.f,
+                                                  kPhysicalMemoryMB));
+  EXPECT_EQ(64u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(1280, 720), 1.f,
+                                                  kPhysicalMemoryMB));
+  EXPECT_EQ(64u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(1920, 1080), 1.f,
+                                                  kPhysicalMemoryMB));
+  // Above 1080p and up to 1440p get 128 MB.
+  EXPECT_EQ(128u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(1921, 1080), 1.f,
+                                                   kPhysicalMemoryMB));
+  EXPECT_EQ(128u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(2560, 1440), 1.f,
+                                                   kPhysicalMemoryMB));
+  // Above 1440p get 256 MB.
+  EXPECT_EQ(256u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(2561, 1440), 1.f,
+                                                   kPhysicalMemoryMB));
+  EXPECT_EQ(256u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 1.f,
+                                                   kPhysicalMemoryMB));
+  EXPECT_EQ(256u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(7680, 4320), 1.f,
+                                                   kPhysicalMemoryMB));
+  // The device scale factor is applied to get physical pixels.
+  EXPECT_EQ(256u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(1920, 1080), 2.f,
+                                                   kPhysicalMemoryMB));
+}
+
+TEST(LayerTreeSettings, CobaltDefaultGpuMemoryLimitCappedByDeviceMemory) {
+  // 1/8 of the physical memory is the cap.
+  EXPECT_EQ(128u,
+            GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 1.f,
+                                             /*physical_memory_mb=*/1024));
+  EXPECT_EQ(128u,
+            GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(2560, 1440), 1.f,
+                                             /*physical_memory_mb=*/1024));
+  EXPECT_EQ(192u,
+            GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 1.f,
+                                             /*physical_memory_mb=*/1536));
+  // The 1080p baseline is kept even on devices with very little memory.
+  EXPECT_EQ(64u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 1.f,
+                                                  /*physical_memory_mb=*/256));
+  // Unknown device memory does not cap the budget.
+  EXPECT_EQ(256u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 1.f,
+                                                   /*physical_memory_mb=*/0));
+}
+
+#if defined(ARCH_CPU_32_BITS)
+TEST(LayerTreeSettings, CobaltDefaultGpuMemoryPolicyOn32Bit) {
+  // Use the real physical memory, not the 512 MB that low-end device mode
+  // simulates.
+  base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(2048);
+  auto policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                                   gfx::Size(1920, 1080), 1.f);
+  EXPECT_EQ(64u * 1024u * 1024u, policy.bytes_limit_when_visible);
+  policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                              gfx::Size(3840, 2160), 1.f);
+  EXPECT_EQ(256u * 1024u * 1024u, policy.bytes_limit_when_visible);
+
+  // The Finch feature overrides the resolution-based default.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      base::features::kCobaltForceGpuMemAvailable,
+      {{"force_gpu_mem_available_mb", "96"}});
+  policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                              gfx::Size(3840, 2160), 1.f);
+  EXPECT_EQ(96u * 1024u * 1024u, policy.bytes_limit_when_visible);
+}
+#endif  // defined(ARCH_CPU_32_BITS)
 
 TEST(LayerTreeSettings, CobaltAnimationTileLookaheadSettings) {
   {
