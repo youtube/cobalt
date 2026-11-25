@@ -559,12 +559,7 @@ vars = {
   'libcxx_revision':       '5abc7f839700f0f17338434e1c1c6a8c87c00c11',
 
   # GN CIPD package version.
-<<<<<<< HEAD
   'gn_version': 'git_revision:1d86777e7f2562a86ecea77d1809ac4f82bb5bfe',
-=======
-  # Cobalt needs https://gn-review.googlesource.com/c/gn/+/18820 for modular builds.
-  'gn_version': 'git_revision:8ea3af9118a65387fe4d8428db6f59c5927dd55a',
->>>>>>> 15dc5589c1d (Reland "Clean up runtime deps for modular build (#6066)" (#14022))
 
   # ninja CIPD package.
   'ninja_package': 'infra/3pp/tools/ninja/',
