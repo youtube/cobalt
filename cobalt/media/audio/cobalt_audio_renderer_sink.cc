@@ -28,11 +28,8 @@
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/media/audio/audio_helpers.h"
 #include "media/base/audio_glitch_info.h"
-<<<<<<< HEAD
 #include "media/base/audio_sample_types.h"
-=======
 #include "media/base/starboard/sbmedia_histograms.h"
->>>>>>> e310a08a332 (media: Consolidate UMA metrics (#14071))
 
 namespace media {
 

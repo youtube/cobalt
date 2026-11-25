@@ -1680,27 +1680,15 @@ void SbPlayerBridge::SendColorSpaceHistogram() const {
   const auto& cs_info = video_config_.color_space_info();
 
   if (video_stream_info_.color_metadata.bits_per_channel > 8) {
-<<<<<<< HEAD
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Primaries", cs_info.primaries());
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Transfer", cs_info.transfer());
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Matrix", cs_info.matrix());
-    UmaHistogramEnumeration("Cobalt.Media.HDR.Range", cs_info.range());
+    UmaHistogramEnumeration(kHdrPrimariesHistogram, cs_info.primaries());
+    UmaHistogramEnumeration(kHdrTransferHistogram, cs_info.transfer());
+    UmaHistogramEnumeration(kHdrMatrixHistogram, cs_info.matrix());
+    UmaHistogramEnumeration(kHdrRangeHistogram, cs_info.range());
   } else {
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Primaries", cs_info.primaries());
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Transfer", cs_info.transfer());
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Matrix", cs_info.matrix());
-    UmaHistogramEnumeration("Cobalt.Media.SDR.Range", cs_info.range());
-=======
-    UmaHistogramEnumeration(kHdrPrimariesHistogram, cs_info.primaries);
-    UmaHistogramEnumeration(kHdrTransferHistogram, cs_info.transfer);
-    UmaHistogramEnumeration(kHdrMatrixHistogram, cs_info.matrix);
-    UmaHistogramEnumeration(kHdrRangeHistogram, cs_info.range);
-  } else {
-    UmaHistogramEnumeration(kSdrPrimariesHistogram, cs_info.primaries);
-    UmaHistogramEnumeration(kSdrTransferHistogram, cs_info.transfer);
-    UmaHistogramEnumeration(kSdrMatrixHistogram, cs_info.matrix);
-    UmaHistogramEnumeration(kSdrRangeHistogram, cs_info.range);
->>>>>>> e310a08a332 (media: Consolidate UMA metrics (#14071))
+    UmaHistogramEnumeration(kSdrPrimariesHistogram, cs_info.primaries());
+    UmaHistogramEnumeration(kSdrTransferHistogram, cs_info.transfer());
+    UmaHistogramEnumeration(kSdrMatrixHistogram, cs_info.matrix());
+    UmaHistogramEnumeration(kSdrRangeHistogram, cs_info.range());
   }
 }
 
