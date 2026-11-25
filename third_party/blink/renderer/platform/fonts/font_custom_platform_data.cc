@@ -93,8 +93,12 @@ FontCustomPlatformData::FontCustomPlatformData(PassKey,
 
 FontCustomPlatformData::~FontCustomPlatformData() {
   if (v8::Isolate* isolate = v8::Isolate::TryGetCurrent()) {
+#if BUILDFLAG(IS_COBALT)
+    external_memory_accounter_.Clear(isolate);
+#else
     // Safe cast since WebFontDecoder has max decompressed size of 128MB.
     external_memory_accounter_.Decrease(isolate, data_size_);
+#endif
   }
 }
 
