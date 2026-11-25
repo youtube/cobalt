@@ -17,12 +17,17 @@
 #include <memory>
 
 #include "starboard/android/shared/starboard_test_environment.h"
+#include "starboard/shared/starboard/features_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 
 void RunTestBlockingAction(std::function<void()> action) {
   action();
+}
+
+void InitializePlatformTestSuite() {
+  features::InitializeStarboardFeatureListWithDefaults();
 }
 
 void RegisterPlatformTestEnvironments(int argc, char** argv) {

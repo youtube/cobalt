@@ -18,7 +18,6 @@ namespace crashpad {
 
 const char kCrashpadVersionKey[] = "";
 const char kCrashpadProductKey[] = "";
-const char kCrashpadUserAgentStringKey[] = "";
 const char kCrashpadCertScopeKey[] = "";
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {}

@@ -57,7 +57,6 @@ public class PlatformError
   private final Holder<Activity> mActivityHolder;
   private final int mErrorType;
   private final long mData;
-  private final boolean mDisableDismissButton;
   private final Handler mUiThreadHandler;
 
   private Dialog mDialog;
@@ -66,12 +65,10 @@ public class PlatformError
   private ConnectivityManager mConnectivityManager;
   private ConnectivityManager.NetworkCallback mNetworkCallback;
 
-  public PlatformError(
-      Holder<Activity> activityHolder, int errorType, long data, boolean disableDismissButton) {
+  public PlatformError(Holder<Activity> activityHolder, int errorType, long data) {
     mActivityHolder = activityHolder;
     mErrorType = errorType;
     mData = data;
-    mDisableDismissButton = disableDismissButton;
     mUiThreadHandler = new Handler(Looper.getMainLooper());
     mResponse = CANCELLED;
   }
@@ -101,10 +98,8 @@ public class PlatformError
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
-            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
-        if (!mDisableDismissButton) {
-          dialogBuilder.addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
-        }
+            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings)
+            .addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
         break;
       default:
         Log.e(TAG, "Unknown platform error " + mErrorType);

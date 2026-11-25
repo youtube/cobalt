@@ -20,6 +20,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -28,8 +29,10 @@ import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.Debug;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
 import android.view.InputDevice;
 import android.view.Surface;
 import android.view.Window;
@@ -58,6 +61,7 @@ import java.util.TimeZone;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import org.chromium.base.CommandLine;
+import org.chromium.base.memory.CobaltMemoryInfoBridge;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -128,6 +132,27 @@ public class BaseStarboardBridge {
   private volatile boolean mApplicationStopped;
   private volatile boolean mApplicationStarted;
 
+  @VisibleForTesting
+  final CaptioningManager.CaptioningChangeListener mCaptioningChangeListener =
+      new CaptioningManager.CaptioningChangeListener() {
+        @Override
+        public void onEnabledChanged(boolean enabled) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onUserStyleChanged(CaptioningManager.CaptionStyle userStyle) {
+          onCaptionSettingsChanged();
+        }
+
+        @Override
+        public void onFontScaleChanged(float fontScale) {
+          onCaptionSettingsChanged();
+        }
+      };
+
+  private boolean mCaptionListenerRegistered;
+
   private long mAppStartTimestamp = 0;
 
   private final Map<String, CobaltService.Factory> mCobaltServiceFactories =
@@ -145,6 +170,7 @@ public class BaseStarboardBridge {
   private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
   private static final String DEFAULT_DEVICE_NAME = "Android";
+  private static final int INVALID_GRAPHICS_MEMORY_KB = -1;
   private static volatile Boolean sWasLowMemoryKilledForTesting;
   private final Natives mNatives = BaseStarboardBridgeJni.get();
 
@@ -173,6 +199,11 @@ public class BaseStarboardBridge {
     mIsAmatiDevice = false;
     mNativeApp = 0;
     sInstance = this;
+    mNatives.initializeFilesForTesting(
+        getAssetsFromContext(),
+        getFilesCanonicalPath(),
+        getCacheCanonicalPath(),
+        getNativeLibraryDir());
   }
 
   public BaseStarboardBridge(
@@ -223,6 +254,9 @@ public class BaseStarboardBridge {
     long startNativeStarboard(
         AssetManager assetManager, String filesDir, String cacheDir, String nativeLibraryDir);
 
+    void initializeFilesForTesting(
+        AssetManager assetManager, String filesDir, String cacheDir, String nativeLibraryDir);
+
     boolean initJNI(BaseStarboardBridge starboardBridge);
 
     void closeNativeStarboard(long app);
@@ -238,6 +272,8 @@ public class BaseStarboardBridge {
     void setAndroidPlayServicesVersion(long version);
 
     void setYoutubeCertificationScope(String certScope);
+
+    void sendCaptionSettingsChangedEvent();
   }
 
   private static Boolean sActivityLifecycleCoordinationEnabledForTesting = null;
@@ -300,9 +336,11 @@ public class BaseStarboardBridge {
       // Only resume services and trigger foreground logic on 0 -> 1 started activity transition.
       if (activeActivityCount == 0) {
         beforeStartOrResume();
+        registerCaptionSettingsChangeListener();
       }
     } else {
       beforeStartOrResume();
+      registerCaptionSettingsChangeListener();
     }
   }
 
@@ -321,6 +359,7 @@ public class BaseStarboardBridge {
           mActivityHolder.set(null);
         }
         mSysConfigChangeReceiver.setForeground(false);
+        unregisterCaptionSettingsChangeListener();
       } else {
         if (mActivityHolder.get() == activity) {
           mActivityHolder.set(null);
@@ -334,6 +373,7 @@ public class BaseStarboardBridge {
       beforeSuspend();
       if (mActivityHolder.get() == activity) {
         mActivityHolder.set(null);
+        unregisterCaptionSettingsChangeListener();
       }
       mSysConfigChangeReceiver.setForeground(false);
     }
@@ -454,6 +494,7 @@ public class BaseStarboardBridge {
 
   protected void afterStopped() {
     mApplicationStopped = true;
+    unregisterCaptionSettingsChangeListener();
     mTtsHelper.shutdown();
     closeAllCobaltService();
     Activity activity = mActivityHolder.get();
@@ -502,7 +543,7 @@ public class BaseStarboardBridge {
   }
 
   @CalledByNative
-  void raisePlatformError(int errorType, long data, String url, boolean disableDismiss) {}
+  void raisePlatformError(int errorType, long data, String url) {}
 
   @CalledByNative
   public boolean isPlatformErrorShowing() {
@@ -600,6 +641,45 @@ public class BaseStarboardBridge {
     CaptioningManager cm =
         (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
     return new CaptionSettings(cm);
+  }
+
+  private void registerCaptionSettingsChangeListener() {
+    if (mCaptionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm == null) {
+      return;
+    }
+    cm.addCaptioningChangeListener(mCaptioningChangeListener);
+    mCaptionListenerRegistered = true;
+    // Sync current state on foreground start/resume in case system caption settings changed while
+    // the app was stopped in the background.
+    onCaptionSettingsChanged();
+  }
+
+  private void unregisterCaptionSettingsChangeListener() {
+    if (!mCaptionListenerRegistered) {
+      return;
+    }
+    CaptioningManager cm =
+        (CaptioningManager) mAppContext.getSystemService(Context.CAPTIONING_SERVICE);
+    if (cm != null) {
+      cm.removeCaptioningChangeListener(mCaptioningChangeListener);
+    }
+    mCaptionListenerRegistered = false;
+  }
+
+  private void onCaptionSettingsChanged() {
+    if (mApplicationStarted && !mApplicationStopped) {
+      mNatives.sendCaptionSettingsChangedEvent();
+    }
+  }
+
+  @VisibleForTesting
+  boolean isCaptionListenerRegisteredForTesting() {
+    return mCaptionListenerRegistered;
   }
 
   /** Java-layer implementation of SbSystemGetLocaleId. */
@@ -1171,6 +1251,29 @@ public class BaseStarboardBridge {
 
   @CalledByNative
   protected void setStartupDiagnosisInfo(String key, String value) {}
+
+  /**
+   * Returns the "summary.graphics" value of ActivityManager memory info for this process, in KB, or
+   * INVALID_GRAPHICS_MEMORY_KB if it can't be read.
+   */
+  @CalledByNative
+  public int getUsedGraphicsMemoryKb() {
+    ActivityManager activityManager =
+        (ActivityManager) mAppContext.getSystemService(Context.ACTIVITY_SERVICE);
+    if (activityManager == null) {
+      return INVALID_GRAPHICS_MEMORY_KB;
+    }
+    try {
+      Debug.MemoryInfo[] infos = activityManager.getProcessMemoryInfo(new int[] {Process.myPid()});
+      if (infos == null || infos.length == 0 || infos[0] == null) {
+        return INVALID_GRAPHICS_MEMORY_KB;
+      }
+      return CobaltMemoryInfoBridge.getGraphicsMemoryKb(infos[0]);
+    } catch (RuntimeException e) {
+      Log.w(TAG, "Unable to read process memory info", e);
+      return INVALID_GRAPHICS_MEMORY_KB;
+    }
+  }
 
   @CalledByNative
   public boolean getWasLowMemoryKilled() {

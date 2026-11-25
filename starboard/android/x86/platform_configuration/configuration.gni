@@ -15,5 +15,3 @@
 import("//starboard/android/shared/platform_configuration/configuration.gni")
 
 sabi_path = "//starboard/sabi/x86/sabi-v$sb_api_version.json"
-
-sb_enable_opus_sse = false

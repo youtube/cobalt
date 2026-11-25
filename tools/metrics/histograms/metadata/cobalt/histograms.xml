@@ -416,6 +416,83 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
+<histogram
+    name="Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized{Occurrence}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player initialization latency. -->
+
+  <owner>austinosagie@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Time from the start of the Starboard call that creates the platform player
+    (SbPlayerCreate(), or SbUrlPlayerCreate() for the tvOS URL player) until
+    SbPlayerBridge receives the kSbPlayerStateInitialized player status. This
+    includes the synchronous call measured by
+    Cobalt.Media.LatencyTiming.SbPlayerCreate{Occurrence} plus the player's
+    asynchronous initialization. Recorded once per player creation, when the
+    bridge accepts its first kSbPlayerStateInitialized status. Not recorded if
+    player creation fails. Recorded for {Occurrence}, where the occurrence
+    refers to the call that created the player.
+  </summary>
+  <token key="Occurrence">
+    <variant name="" summary="only the first call in the process"/>
+    <variant name=".Subsequent"
+        summary="every call after the first, e.g. for the next video"/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Media.LatencyTiming.SbPlayerCreate{Occurrence}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player creation latency. -->
+
+  <owner>austinosagie@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Wall-clock time taken by the Starboard call that creates the platform player
+    in SbPlayerBridge: SbPlayerCreate(), or SbUrlPlayerCreate() for the tvOS URL
+    player. Recorded for every call, including calls that fail to create a valid
+    player. Every call is recorded in exactly one variant. Recorded for
+    {Occurrence}. See also
+    Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized{Occurrence}.
+  </summary>
+  <token key="Occurrence">
+    <variant name="" summary="only the first call in the process"/>
+    <variant name=".Subsequent"
+        summary="every call after the first, e.g. for the next video"/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Media.LatencyTiming.SbPlayerDestroy{State}"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of Starboard player destruction latency. -->
+
+  <owner>johneocampo@google.com</owner>
+  <owner>cobalt-media-team@google.com</owner>
+  <summary>
+    Wall-clock time of the blocking SbPlayerDestroy() call in SbPlayerBridge.
+    SbPlayerDestroy() waits for the pending work of the player, so the latency
+    is recorded separately for each {State}. Includes players destroyed with the
+    bridge, which may be playing, and on suspend, which are always paused. The
+    state is as seen by the media thread, so a status that is still queued when
+    the player is destroyed isn't taken into account. Not recorded if player
+    creation failed.
+  </summary>
+  <token key="State">
+    <variant name=".BeforePrerolling"
+        summary="players that didn't report kSbPlayerStatePrerolling yet:
+                 players still initializing, whose destroy may include the
+                 rest of their initialization, and initialized players the
+                 pipeline didn't seek yet. Expected to be mostly the former"/>
+    <variant name=".EndOfStream"
+        summary="players that last reported kSbPlayerStateEndOfStream"/>
+    <variant name=".Prerolling"
+        summary="players that last reported kSbPlayerStatePrerolling"/>
+    <variant name=".Presenting"
+        summary="players that last reported kSbPlayerStatePresenting,
+                 including paused and suspended players"/>
+  </token>
+</histogram>
+
 <histogram name="Cobalt.Network.NavigationTimeout" enum="Boolean"
     expires_after="never">
   <owner>charleykim@google.com</owner>
@@ -521,6 +598,48 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Responsiveness.IOJanksTotalPerMinute" units="janks"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt's copy of Browser.Responsiveness.IOJanksTotalPerMinute. Like
+    Cobalt.Responsiveness.IOJankyIntervalsPerMinute, but sums the janky
+    intervals of all threads instead of counting each 1-second interval once, so
+    concurrent stalls on several threads (e.g. storage engines contending for
+    the disk) all count.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Responsiveness.IOJankyIntervalsPerMinute"
+    units="intervals" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Cobalt's copy of Browser.Responsiveness.IOJankyIntervalsPerMinute, from
+    base::EnableIOJankMonitoringForProcess() in the browser process. Recorded
+    once per minute of browser process uptime: the number (0-60) of 1-second
+    intervals in that minute to which a ScopedBlockingCall(MAY_BLOCK) of 1
+    second or longer on a non-background thread (e.g. the UI and IO threads and
+    foreground thread pool workers doing disk I/O) was attributed. A blocking
+    call is attributed to the interval in which it began and to as many
+    intervals as its length, rounded to the nearest second. Not recorded across
+    device sleep or while the process is frozen.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.SplashScreen.ClearCachedFilesResult"
+    enum="SplashCacheClearResult" expires_after="never">
+  <owner>linxinan@google.com</owner>
+  <owner>borongchen@google.com</owner>
+  <summary>
+    Records the result of deleting the splash assets that the WebApp cached
+    (splash.webm and splash.png in the default and music caches), as they may
+    have crashed Cobalt. Recorded once per launch in Finch's crash safe mode,
+    i.e., when the empty experiment config is used due to the crash streak.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.SplashScreen.ContentEndedBeforeSwitch.{SplashMode}"
     enum="Boolean" expires_after="never">
   <owner>borongchen@google.com</owner>
@@ -595,7 +714,8 @@ Always run the pretty print utility on this file after editing:
   </token>
 </histogram>
 
-<histogram name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.HighestMilestone.{ExitReason}"
     units="milestone" expires_after="2027-10-01">
   <owner>avvall@google.com</owner>
   <owner>cobalt-memory-team@google.com</owner>
@@ -606,7 +726,8 @@ Always run the pretty print utility on this file after editing:
   <token key="ExitReason" variants="AndroidExitReasonToken"/>
 </histogram>
 
-<histogram name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
+<histogram
+    name="Cobalt.Stability.Android.PriorSessionExit.StartupGuardArmed.{ExitReason}"
     enum="Boolean" expires_after="2027-10-01">
   <owner>avvall@google.com</owner>
   <owner>cobalt-memory-team@google.com</owner>
@@ -746,54 +867,6 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
-<histogram name="Cobalt.Startup.MilestoneDuration.{Milestone}" units="ms"
-    expires_after="never">
-  <owner>avvall@google.com</owner>
-  <summary>
-    Measures the duration in milliseconds taken for startup milestone
-    {Milestone} since the previous milestone.
-  </summary>
-  <token key="Milestone">
-    <variant name="ActivityOnDestroy"/>
-    <variant name="ActivityOnPause"/>
-    <variant name="ActivityOnResume"/>
-    <variant name="ActivityOnStart"/>
-    <variant name="ActivityOnStop"/>
-    <variant name="ActivityWindowConfigured"/>
-    <variant name="ApplicationAndroidInitialize"/>
-    <variant name="DidFinishNavigation"/>
-    <variant name="DidStartNavigation"/>
-    <variant name="JavaActivityCreated"/>
-    <variant name="MainDelegateBasicStartupComplete"/>
-    <variant name="MainDelegatePostEarlyInitialization"/>
-    <variant name="MainDelegatePreSandboxStartup"/>
-    <variant name="PlatformErrorRaised"/>
-    <variant name="PostLibraryLoaderInit"/>
-    <variant name="PostStarboardBridgeInit"/>
-    <variant name="PreCreateThreads"/>
-    <variant name="PreLibraryLoaderInit"/>
-    <variant name="PreStarboardBridgeInit"/>
-    <variant name="ShellCreateWindowNoSplash"/>
-    <variant name="ShellCreateWindowWithSplash"/>
-    <variant name="ShellDidFinishLoad"/>
-    <variant name="ShellDidFinishNavigationNonSplash"/>
-    <variant name="ShellDidStartLoading"/>
-    <variant name="ShellDidStartNavigationNonSplash"/>
-    <variant name="ShellDocumentElementAvailable"/>
-    <variant name="ShellRenderFrameCreated"/>
-    <variant name="SplashObserverDidFailLoad"/>
-    <variant name="SplashObserverDidFinishNavigation"/>
-    <variant name="SplashObserverDidStartLoading"/>
-    <variant name="SplashObserverDidStartNavigation"/>
-    <variant name="StarboardBridgeNativeInit"/>
-    <variant name="StartupGuardObserverDidFailLoad"/>
-    <variant name="StartupGuardObserverDidFinishNavigation"/>
-    <variant name="StartupGuardObserverDidRedirectNavigation"/>
-    <variant name="StartupGuardObserverDidStartLoading"/>
-    <variant name="StartupGuardObserverDidStartNavigation"/>
-  </token>
-</histogram>
-
 <histogram name="Cobalt.Startup.MilestoneReached" enum="CobaltStartupMilestone"
     expires_after="never">
   <owner>avvall@google.com</owner>
@@ -820,7 +893,7 @@ Always run the pretty print utility on this file after editing:
     is created, to when {Event}. That's the earliest point in native code that
     all platforms share, so earlier startup work isn't included, e.g., process
     launch, the Android Activity startup and native library loading (see
-    Cobalt.Startup.MilestoneDuration.*), or the Evergreen loader app loading the
+    Cobalt.Startup.TimeToMilestone.*), or the Evergreen loader app loading the
     Cobalt library (see Cobalt.LoaderApp.ElfLoadDuration). The splash content is
     shown when the image is painted or the video starts playing, and ends when
     the video reaches its end or the image splash screen closes itself. The main
@@ -854,6 +927,66 @@ Always run the pretty print utility on this file after editing:
     <variant name="Image" summary="The splash screen showed an image."/>
     <variant name="NoSplash" summary="No splash screen was shown."/>
     <variant name="Video" summary="The splash screen played a video."/>
+  </token>
+</histogram>
+
+<histogram name="Cobalt.Startup.TimeToMilestone.{Milestone}" units="ms"
+    expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <owner>avvall@google.com</owner>
+  <summary>
+    Time from the start of the Android process
+    (android.os.Process.getStartElapsedRealtime()) to the first time the
+    StartupGuard startup milestone {Milestone} is reached. Recorded at most once
+    per milestone per process, and only for the first Activity created in the
+    process: recording stops once a second Activity is created. Every milestone
+    shares the same origin, so samples are comparable across milestones even
+    though the concurrent startup sequences (Activity lifecycle, native
+    initialization, main and splash WebContents, navigation observers) reach
+    them in a nondeterministic order; the difference between two milestones'
+    averages is the average span between them. Samples of 3 minutes or more land
+    in the overflow bucket. Android only. Replaces
+    Cobalt.Startup.MilestoneDuration.{Milestone}, which measured the time since
+    whichever milestone happened to be recorded last.
+  </summary>
+  <token key="Milestone">
+    <variant name="ActivityWindowConfigured"/>
+    <variant name="ApplicationAndroidInitialize"/>
+    <variant name="DidFinishNavigation"/>
+    <variant name="DidStartNavigation"/>
+    <variant name="JavaActivityCreated"/>
+    <variant name="MainDelegateBasicStartupComplete"/>
+    <variant name="MainDelegatePostEarlyInitialization"/>
+    <variant name="MainDelegatePreSandboxStartup"/>
+    <variant name="PlatformErrorRaised"/>
+    <variant name="PostActivityOnCreate"/>
+    <variant name="PostActivityOnResume"/>
+    <variant name="PostActivityOnStart"/>
+    <variant name="PostLibraryLoaderInit"/>
+    <variant name="PostStarboardBridgeInit"/>
+    <variant name="PreActivityOnResume"/>
+    <variant name="PreActivityOnStart"/>
+    <variant name="PreCreateThreads"/>
+    <variant name="PreLibraryLoaderInit"/>
+    <variant name="PreStarboardBridgeInit"/>
+    <variant name="ShellCreateWindowNoSplash"/>
+    <variant name="ShellCreateWindowWithSplash"/>
+    <variant name="ShellDidFinishLoad"/>
+    <variant name="ShellDidFinishNavigationNonSplash"/>
+    <variant name="ShellDidStartLoading"/>
+    <variant name="ShellDidStartNavigationNonSplash"/>
+    <variant name="ShellDocumentElementAvailable"/>
+    <variant name="ShellRenderFrameCreated"/>
+    <variant name="SplashObserverDidFailLoad"/>
+    <variant name="SplashObserverDidFinishNavigation"/>
+    <variant name="SplashObserverDidStartLoading"/>
+    <variant name="SplashObserverDidStartNavigation"/>
+    <variant name="StarboardBridgeNativeInit"/>
+    <variant name="StartupGuardObserverDidFailLoad"/>
+    <variant name="StartupGuardObserverDidFinishNavigation"/>
+    <variant name="StartupGuardObserverDidRedirectNavigation"/>
+    <variant name="StartupGuardObserverDidStartLoading"/>
+    <variant name="StartupGuardObserverDidStartNavigation"/>
   </token>
 </histogram>
 
@@ -1016,18 +1149,59 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration"
+    units="ms" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the time it takes to write HttpServerProperties to disk when the app
+    pauses and CobaltFlushHttpServerPropertiesOnPause is enabled. Recorded only
+    when an update was pending and therefore actually written; pauses where
+    nothing was pending are counted in
+    Cobalt.Storage.OnPause.HttpServerPropertiesFlushed instead.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.OnPause.HttpServerPropertiesFlushed"
+    enum="Boolean" expires_after="never">
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records, for each app pause with CobaltFlushHttpServerPropertiesOnPause
+    enabled, whether HttpServerProperties had an update pending that was written
+    to disk by the pause flush. The true/false ratio shows how often the 60 s
+    write-coalescing timer would have lost state to a background kill.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.ProcessIo.StartupMajorPageFaults"
+    units="faults" expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the number of major page faults (page faults that had to read from
+    storage, e.g. paging in the native library, APK assets, ICU data and fonts
+    through mmap) of the browser process since it started, sampled 10 seconds
+    after browser startup from getrusage(RUSAGE_SELF) ru_majflt. High values
+    mean a cold page cache. Recorded once per browser process launch. Android
+    only.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.Storage.ProcessIo.StartupReadKB" units="KB"
     expires_after="never">
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the cumulative block-layer kilobytes read from storage
-    (/proc/self/io read_bytes) by the browser process during the first 10
-    seconds after browser startup. Recorded once per browser process launch; it
-    is not recorded again when Cobalt resumes from the background. On platforms
-    that preload Cobalt, this window may fall entirely within the preload,
-    before the app is visible. Sampled before computing directory sizes so that
-    metadata stat() calls do not inflate the reading.
+    Records the cumulative block-layer kilobytes read from storage by the
+    browser process since it started, sampled 10 seconds after browser startup.
+    Source: getrusage(RUSAGE_SELF) ru_inblock on Android, which reports the same
+    kernel counter as /proc/self/io read_bytes but, unlike /proc/self/io, is
+    readable on release (non-debuggable) APKs; /proc/self/io read_bytes on other
+    platforms. Older Android builds read /proc/self/io and so recorded this only
+    on debuggable APKs. Recorded once per browser process launch; it is not
+    recorded again when Cobalt resumes from the background. On platforms that
+    preload Cobalt, this window may fall entirely within the preload, before the
+    app is visible. Sampled before computing directory sizes so that metadata
+    stat() calls do not inflate the reading.
   </summary>
 </histogram>
 
@@ -1036,12 +1210,14 @@ Always run the pretty print utility on this file after editing:
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-    Records the cumulative block-layer kilobytes written to storage
-    (/proc/self/io write_bytes) by the browser process during the first 10
-    seconds after browser startup. Recorded once per browser process launch; it
-    is not recorded again when Cobalt resumes from the background. On platforms
-    that preload Cobalt, this window may fall entirely within the preload,
-    before the app is visible.
+    Records the cumulative block-layer kilobytes written to storage by the
+    browser process since it started, sampled 10 seconds after browser startup.
+    Source: getrusage(RUSAGE_SELF) ru_oublock on Android (the same kernel
+    counter as /proc/self/io write_bytes, readable on release APKs);
+    /proc/self/io write_bytes on other platforms. Recorded once per browser
+    process launch; it is not recorded again when Cobalt resumes from the
+    background. On platforms that preload Cobalt, this window may fall entirely
+    within the preload, before the app is visible.
   </summary>
 </histogram>
 
@@ -1051,11 +1227,12 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records the steady-state block-layer write rate in kilobytes per minute,
-    sampled every 5 minutes on a BEST_EFFORT background sequence from
-    /proc/self/io write_bytes deltas after the 10-second post-startup baseline.
-    Sampling continues for the life of the browser process, including while
-    Cobalt is in the background; if the OS freezes the process, the next sample
-    covers the longer interval.
+    sampled every 5 minutes on a BEST_EFFORT background sequence from deltas of
+    the Cobalt.Storage.ProcessIo.StartupWriteKB counter (getrusage on Android,
+    /proc/self/io elsewhere) after the 10-second post-startup baseline. Sampling
+    continues for the life of the browser process, including while Cobalt is in
+    the background; if the OS freezes the process, the next sample covers the
+    longer interval.
   </summary>
 </histogram>
 
@@ -1069,6 +1246,25 @@ Always run the pretty print utility on this file after editing:
     on a BEST_EFFORT background thread. Recorded once per browser process
     launch; it is not recorded again when Cobalt resumes from the background or
     is revealed after a preload, so each sample represents one process launch.
+    Capped at 100,000 KB (~97.7 MiB); use
+    Cobalt.Storage.UserData.StartupTotalSizeKB2 for unclipped upper-tail values
+    up to 1,000,000 KB (~976.6 MiB) on profiles carrying legacy 6.x caches.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.Storage.UserData.StartupTotalSizeKB2" units="KB"
+    expires_after="never">
+  <owner>haozheng@google.com</owner>
+  <owner>charleykim@google.com</owner>
+  <summary>
+    Records the total on-disk size in kilobytes (1 KB to 1,000,000 KB across 100
+    exponential buckets) of Cobalt's persistent user data directory
+    (content::SHELL_DIR_USER_DATA), 10 seconds after browser startup, on a
+    BEST_EFFORT background thread. Emitted alongside
+    Cobalt.Storage.UserData.StartupTotalSizeKB to resolve upgraded profiles
+    above 100,000 KB without altering v1 bucket boundaries. Recorded once per
+    browser process launch; not re-emitted on background resume or preload
+    reveal.
   </summary>
 </histogram>
 

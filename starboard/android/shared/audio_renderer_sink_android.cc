@@ -70,8 +70,7 @@ AudioRendererSinkImpl::CreateAudioSinkFunc GetDefaultCreateAudioSinkFunc(
         frame_buffers_size_in_frames,
         {update_source_status_func, consume_frames_func, error_func},
         start_media_time, options.tunnel_mode_audio_session_id,
-        /*is_web_audio=*/false, options.allow_audio_writing_on_pause,
-        options.pause_using_audio_track_state, context);
+        /*is_web_audio=*/false, options.audio_track_options, context);
   };
 }
 

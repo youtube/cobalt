@@ -155,34 +155,20 @@ jobs:
           set -x
           test_package=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_package')
           echo "test_package=${test_package}" >> "${GITHUB_OUTPUT}"
-      - name: Set e2e tests
-        id: set-test-e2e
+      - name: Set internal tests configuration
+        id: set-internal-tests
         shell: bash
         run: |
           set -x
-          test_e2e=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_e2e')
-          echo "test_e2e=${test_e2e}" >> "${GITHUB_OUTPUT}"
-      - name: Set Linux E2E tests
-        id: set-test-linux-e2e
-        shell: bash
-        run: |
-          set -x
-          test_linux_e2e=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_linux_e2e // false')
-          echo "test_linux_e2e=${test_linux_e2e}" >> "${GITHUB_OUTPUT}"
-      - name: Set YTS tests
-        id: set-test-yts
-        shell: bash
-        run: |
-          set -x
-          test_yts=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_yts')
-          echo "test_yts=${test_yts}" >> "${GITHUB_OUTPUT}"
-      - name: Set YTS Playback tests
-        id: set-test-yts-playback
-        shell: bash
-        run: |
-          set -x
-          test_yts_playback=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_yts_playback')
-          echo "test_yts_playback=${test_yts_playback}" >> "${GITHUB_OUTPUT}"
+          config_file="${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json"
+          {
+            echo "test_e2e=$(jq -rc '.test_e2e // false' "${config_file}")"
+            echo "test_linux_e2e=$(jq -rc '.test_linux_e2e // false' "${config_file}")"
+            echo "test_yts=$(jq -rc '.test_yts // false' "${config_file}")"
+            echo "test_yts_playback=$(jq -rc '.test_yts_playback // false' "${config_file}")"
+            echo "test_yts_wpt=$(jq -rc '.test_yts_wpt // false' "${config_file}")"
+            echo "test_yts_finch=$(jq -rc '.test_yts_finch // false' "${config_file}")"
+          } >> "${GITHUB_OUTPUT}"
       - name: Set Browser tests
         id: set-test-browser
         shell: bash
@@ -190,20 +176,6 @@ jobs:
           set -x
           test_browser=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_browser')
           echo "test_browser=${test_browser}" >> "${GITHUB_OUTPUT}"
-      - name: Set YTS WPT tests
-        id: set-test-yts-wpt
-        shell: bash
-        run: |
-          set -x
-          test_yts_wpt=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_yts_wpt')
-          echo "test_yts_wpt=${test_yts_wpt}" >> "${GITHUB_OUTPUT}"
-      - name: Set YTS Finch tests
-        id: set-test-yts-finch
-        shell: bash
-        run: |
-          set -x
-          test_yts_finch=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_yts_finch // "false"')
-          echo "test_yts_finch=${test_yts_finch}" >> "${GITHUB_OUTPUT}"
       - name: Set web tests
         id: set-web-tests
         shell: bash
@@ -232,20 +204,13 @@ jobs:
           set -x
           test_device_family=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_device_family // empty')
           echo "test_device_family=${test_device_family}" >> "${GITHUB_OUTPUT}"
-      - name: Set YTS test targets
-        id: set-yts-test-targets
+      - name: Set test artifact name
+        id: set-test-artifact-name
         shell: bash
         run: |
           set -x
-          yts_test_targets=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -cr '.yts_test_targets // []')
-          echo "yts_test_targets=${yts_test_targets}" >> "${GITHUB_OUTPUT}"
-      - name: Set YTS Playback test targets
-        id: set-yts-playback-test-targets
-        shell: bash
-        run: |
-          set -x
-          yts_playback_test_targets=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -cr '.yts_playback_test_targets // []')
-          echo "yts_playback_test_targets=${yts_playback_test_targets}" >> "${GITHUB_OUTPUT}"
+          test_artifact_name=$(jq -rc '.test_artifact_name // empty' "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json")
+          echo "test_artifact_name=${test_artifact_name}" >> "${GITHUB_OUTPUT}"
       - name: Set Browser test targets
         id: set-browser-test-targets
         shell: bash
@@ -271,27 +236,6 @@ jobs:
           else
             echo "run_browser_tests=false" >> "${GITHUB_OUTPUT}"
           fi
-      - name: Set YTS WPT test targets
-        id: set-yts-wpt-test-targets
-        shell: bash
-        run: |
-          set -x
-          yts_wpt_test_targets=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -cr '.yts_wpt_test_targets // []')
-          echo "yts_wpt_test_targets=${yts_wpt_test_targets}" >> "${GITHUB_OUTPUT}"
-      - name: Set YTS Finch test targets
-        id: set-yts-finch-test-targets
-        shell: bash
-        run: |
-          set -x
-          yts_finch_test_targets=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -cr '.yts_finch_test_targets // []')
-          echo "yts_finch_test_targets=${yts_finch_test_targets}" >> "${GITHUB_OUTPUT}"
-      - name: Set E2E test targets
-        id: set-e2e-test-targets
-        shell: bash
-        run: |
-          set -x
-          e2e_test_targets=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -cr '.e2e_test_targets // []')
-          echo "e2e_test_targets=${e2e_test_targets}" >> "${GITHUB_OUTPUT}"
       - name: Set test device dimensions
         id: set-test-dimensions
         shell: bash
@@ -299,13 +243,6 @@ jobs:
           set -x
           test_dimensions=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_dimensions')
           echo "test_dimensions=${test_dimensions}" >> "${GITHUB_OUTPUT}"
-      - name: Set test attempts
-        id: set-test-attempts
-        shell: bash
-        run: |
-          set -x
-          test_attempts=$(cat "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json" | jq -rc '.test_attempts // empty')
-          echo "test_attempts=${test_attempts}" >> "${GITHUB_OUTPUT}"
       - name: Set number of on-host unit test shards
         id: set-gtest-shards
         shell: bash
@@ -340,46 +277,119 @@ jobs:
         env:
           TEST_ON_HOST: ${{ steps.set-test-on-host.outputs.test_on_host }}
           TEST_ON_DEVICE: ${{ steps.set-test-on-device.outputs.test_on_device }}
+          TEST_E2E: ${{ steps.set-internal-tests.outputs.test_e2e }}
+          TEST_YTS: ${{ steps.set-internal-tests.outputs.test_yts }}
+          TEST_YTS_PLAYBACK: ${{ steps.set-internal-tests.outputs.test_yts_playback }}
+          TEST_YTS_WPT: ${{ steps.set-internal-tests.outputs.test_yts_wpt }}
+          TEST_YTS_FINCH: ${{ steps.set-internal-tests.outputs.test_yts_finch }}
           LABELS: ${{ steps.get-labels.outputs.labels }}
+          IS_NIGHTLY_OR_SCHEDULE: ${{ inputs.nightly == 'true' || github.event_name == 'schedule' }}
+          IS_PUSH: ${{ github.event_name == 'push' }}
         run: |
           set -x
           run_on_device_test="false"
+          run_e2e_test="false"
+          run_yts_test="false"
+          run_yts_playback_test="false"
+          run_yts_wpt_test="false"
+          run_yts_finch_test="false"
           expected_tests="[]"
+          internal_test_matrix="[]"
 
-          first_platform=$(jq -r '.platforms[0]' "${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json")
-          test_targets_json_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
+          config_file="${GITHUB_WORKSPACE}/.github/config/${PLATFORM}.json"
+          first_platform=$(jq -r '.platforms[0]' "${config_file}")
+          targets_file="cobalt/build/testing/targets/${first_platform}/test_targets.json"
 
-          if [ -f "${test_targets_json_file}" ]; then
-            has_runtest_label=$(echo "${LABELS}" | jq 'any(. == "runtest")')
-            if [[ "${TEST_ON_DEVICE}" == "true" && (
-                  "${IS_NON_DRAFT_PULL_REQUEST}" == "true" ||
-                  "${RUN_ODT_ON_NIGHTLY}" == "true" ||
-                  "${RUN_ODT_ON_PUSH}" == "true" ||
-                  "${has_runtest_label}" == "true" ) ]]; then
-              run_on_device_test="true"
-            fi
+          has_runtest_label=$(echo "${LABELS}" | jq 'any(. == "runtest")')
+          has_yts_playback_label=$(echo "${LABELS}" | jq 'any(. == "yts_playback_test")')
 
-            # The expected test targets is a list of all those targets that we
-            # want standard results processing jobs to apply to. Currently this
-            # includes all gtest and junit test targets that will be executed
-            # in this run.
+          is_odt_enabled="false"
+          if [[ "${IS_NON_DRAFT_PULL_REQUEST}" == "true" ||
+                "${RUN_ODT_ON_NIGHTLY}" == "true" ||
+                "${RUN_ODT_ON_PUSH}" == "true" ||
+                "${has_runtest_label}" == "true" ]]; then
+            is_odt_enabled="true"
+          fi
+
+          [[ "${TEST_ON_DEVICE}" == "true" && "${is_odt_enabled}" == "true" ]] && run_on_device_test="true"
+          [[ "${TEST_E2E}" == "true" && "${is_odt_enabled}" == "true" ]] && run_e2e_test="true"
+          [[ "${TEST_YTS}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_test="true"
+          [[ "${TEST_YTS_PLAYBACK}" == "true" && "${has_yts_playback_label}" == "true" ]] && run_yts_playback_test="true"
+          if [[ "${TEST_YTS_WPT}" == "true" ]] && [[ "${IS_NON_DRAFT_PULL_REQUEST}" == "true" || "${IS_NIGHTLY_OR_SCHEDULE}" == "true" || "${IS_PUSH}" == "true" ]]; then
+            run_yts_wpt_test="true"
+          fi
+          [[ "${TEST_YTS_FINCH}" == "true" && "${is_odt_enabled}" == "true" ]] && run_yts_finch_test="true"
+
+          if [[ ! -f "${targets_file}" ]] && [[ "${TEST_E2E}" == "true" ||
+                "${TEST_YTS}" == "true" || "${TEST_YTS_PLAYBACK}" == "true" ||
+                "${TEST_YTS_WPT}" == "true" || "${TEST_YTS_FINCH}" == "true" ]]; then
+            echo "::error::Missing ${targets_file} while internal test suites are enabled for ${first_platform}."
+            exit 1
+          fi
+
+          if [ -f "${targets_file}" ]; then
+            include_name=$(jq -er '.includes[0].name' "${config_file}")
+            internal_test_matrix=$(jq -c \
+              --arg platform "${first_platform}" \
+              --arg name "${include_name}" \
+              --arg run_e2e_test "${run_e2e_test}" \
+              --arg run_yts_test "${run_yts_test}" \
+              --arg run_yts_playback_test "${run_yts_playback_test}" \
+              --arg run_yts_wpt_test "${run_yts_wpt_test}" \
+              --arg run_yts_finch_test "${run_yts_finch_test}" \
+              '
+              . as $targets |
+              [
+                {suite: "e2e", type: "e2e_test", gateway_type: "e2e_test", enabled: ($run_e2e_test == "true")},
+                {suite: "yts", type: "yts_test", gateway_type: "yts_test", enabled: ($run_yts_test == "true")},
+                {suite: "yts_playback", type: "yts_playback_test", gateway_type: "yts_test", enabled: ($run_yts_playback_test == "true")},
+                {suite: "yts_wpt", type: "yts_wpt_test", gateway_type: "e2e_test", enabled: ($run_yts_wpt_test == "true")},
+                {suite: "yts_finch", type: "yts_finch_test", gateway_type: "yts_test", enabled: ($run_yts_finch_test == "true")}
+              ]
+              | map(. as $s | [$targets[] | select(((.target // .internal_target) != null) and .runs_on == "device" and .test_type == $s.type)] as $matched
+                | select($s.enabled and ($matched | length) > 0) | {
+                  platform: $platform,
+                  name: $name,
+                  config: "devel",
+                  suite: $s.suite,
+                  target_test_type: $s.type,
+                  gateway_test_type: $s.gateway_type,
+                  continue_on_error: ($matched | all(.required == false))
+                })
+              ' "${targets_file}")
+
+            # Filter expected test targets to the exact (test_type, runs_on)
+            # pairs executed by active runner jobs that feed test-results.
             expected_tests=$(jq -c \
               --arg run_on_device_test "${run_on_device_test}" \
               --arg run_on_host_test "${TEST_ON_HOST}" \
+              --arg run_e2e_test "${run_e2e_test}" \
+              --arg run_yts_test "${run_yts_test}" \
+              --arg run_yts_playback_test "${run_yts_playback_test}" \
+              --arg run_yts_wpt_test "${run_yts_wpt_test}" \
+              --arg run_yts_finch_test "${run_yts_finch_test}" \
               '[
                 .[] | select(
-                  (.target != null) and
-                  (.test_type == "gtest" or .test_type == "junit") and
+                  ((.target // .internal_target) != null) and
                   (
-                    (.runs_on == "device" and $run_on_device_test == "true") or
-                    (.runs_on == "host"  and $run_on_host_test == "true")
+                    (.runs_on == "device" and (
+                      (.test_type == "gtest" and $run_on_device_test == "true") or
+                      (.test_type == "e2e_test" and $run_e2e_test == "true") or
+                      (.test_type == "yts_test" and $run_yts_test == "true") or
+                      (.test_type == "yts_playback_test" and $run_yts_playback_test == "true") or
+                      (.test_type == "yts_wpt_test" and $run_yts_wpt_test == "true") or
+                      (.test_type == "yts_finch_test" and $run_yts_finch_test == "true")
+                    )) or
+                    (.runs_on == "host" and $run_on_host_test == "true" and
+                      (.test_type == "gtest" or .test_type == "junit"))
                   )
-                )
-              ]' "${test_targets_json_file}")
+                ) | del(.internal_target) + {target: (.target // .internal_target), required: (.required != false)}
+              ]' "${targets_file}")
           fi
 
           {
             echo "run_on_device_test=${run_on_device_test}"
+            echo "internal_test_matrix=${internal_test_matrix}"
             echo "expected_tests_json=${expected_tests}"
           } >> "${GITHUB_OUTPUT}"
         shell: bash
@@ -395,31 +405,24 @@ jobs:
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
       test_package: ${{ steps.set-test-package.outputs.test_package }}
-      test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
-      test_linux_e2e: ${{ steps.set-test-linux-e2e.outputs.test_linux_e2e }}
-      test_yts: ${{ steps.set-test-yts.outputs.test_yts }}
-      test_yts_playback: ${{ steps.set-test-yts-playback.outputs.test_yts_playback }}
+      test_e2e: ${{ steps.set-internal-tests.outputs.test_e2e }}
+      test_linux_e2e: ${{ steps.set-internal-tests.outputs.test_linux_e2e }}
+      test_yts: ${{ steps.set-internal-tests.outputs.test_yts }}
       test_browser: ${{ steps.set-test-browser.outputs.test_browser }}
-      test_yts_wpt: ${{ steps.set-test-yts-wpt.outputs.test_yts_wpt }}
-      test_yts_finch: ${{ steps.set-test-yts-finch.outputs.test_yts_finch }}
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_chromedriver: ${{ steps.set-test-chromedriver.outputs.test_chromedriver }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
-      yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
-      yts_playback_test_targets: ${{ steps.set-yts-playback-test-targets.outputs.yts_playback_test_targets }}
+      test_artifact_name: ${{ steps.set-test-artifact-name.outputs.test_artifact_name }}
       browser_test_targets: ${{ steps.set-browser-test-targets.outputs.browser_test_targets }}
       run_browser_tests: ${{ steps.set-browser-test-targets.outputs.run_browser_tests }}
-      yts_wpt_test_targets: ${{ steps.set-yts-wpt-test-targets.outputs.yts_wpt_test_targets }}
-      yts_finch_test_targets: ${{ steps.set-yts-finch-test-targets.outputs.yts_finch_test_targets }}
-      e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
       browser_test_targets_json: ${{ steps.set-browser-test-targets.outputs.browser_test_targets_json }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
-      test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       enable_sccache: ${{ steps.set-enable-sccache.outputs.enable_sccache }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
       expected_tests_json: ${{ steps.generate-expected-test-targets-json.outputs.expected_tests_json }}
+      internal_test_matrix: ${{ steps.generate-expected-test-targets-json.outputs.internal_test_matrix }}
       run_on_device_test: ${{ steps.generate-expected-test-targets-json.outputs.run_on_device_test }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
@@ -671,35 +674,28 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-          test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
+          test_type: unit_test
+          test_targets_json: ${{ steps.parse-device-targets.outputs.test_target_configs_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
-          test_attempts: '${{ needs.initialize.outputs.test_attempts }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
           retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
-  e2e-test:
+  internal-test:
     needs: [initialize, build]
-    # Run E2E tests for presumit.
-    # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
-    if: |
-      needs.initialize.outputs.test_e2e == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
-        )
+    if: needs.initialize.outputs.internal_test_matrix != '[]'
     runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_e2e_tests
+    name: ${{ matrix.name }}_${{ matrix.suite }}_tests
+    # Non-required suites (such as yts_wpt while productionizing) are driven by manifest required: false.
+    continue-on-error: ${{ matrix.continue_on_error }}
     permissions: {}
     strategy:
       fail-fast: false
       matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
+        include: ${{ fromJson(needs.initialize.outputs.internal_test_matrix) }}
+    env:
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_${{ matrix.suite }}_results
     steps:
       - name: Restore CI Essentials
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -707,77 +703,35 @@ jobs:
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Run E2E Tests
-        uses: ./.github/actions/internal_tests
+      - name: Parse Test Target JSON
+        id: parse-targets
+        uses: ./.github/actions/test_targets_json
         with:
-          test_type: 'e2e_test'
-          test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
+          test_type: ${{ matrix.target_test_type }}
+          runs_on: device
+          test_targets_json_file: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+      - name: Verify Test Targets Found
+        if: fromJson(steps.parse-targets.outputs.test_targets_count) == 0
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          SUITE: ${{ matrix.suite }}
+        shell: bash
+        run: |
+          echo "::error::No internal test targets resolved for platform=${PLATFORM}, suite=${SUITE}."
+          exit 1
+      - name: Run Internal Tests
+        uses: ./.github/actions/on_device_tests
+        with:
+          nightly: ${{ inputs.nightly }}
+          test_type: ${{ matrix.gateway_test_type }}
+          test_targets_json: ${{ steps.parse-targets.outputs.test_target_configs_json }}
+          artifact_name: ${{ needs.initialize.outputs.test_artifact_name }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          retry_filter_key: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ matrix.suite }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
-
-  yts-test:
-    needs: [initialize, build]
-    # Run YTS tests via presumit.
-    # Also, run YTS tests on push and schedule if not explicitly disabled via repo vars.
-    if: |
-      needs.initialize.outputs.test_yts == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
-        )
-    runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_yts_tests
-    permissions: {}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-    steps:
-      - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Run YTS Tests
-        uses: ./.github/actions/internal_tests
-        with:
-          test_type: 'yts_test'
-          test_targets: '${{ needs.initialize.outputs.yts_test_targets }}'
-          test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
-          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
-
-  yts-playback-test:
-    needs: [initialize, build]
-    # Run YTS Playback tests via presumit.
-    if: |
-      needs.initialize.outputs.test_yts_playback == 'true' &&
-      contains(fromJson(needs.initialize.outputs.labels), 'yts_playback_test')
-    runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_yts_playback_tests
-    permissions: {}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-    steps:
-      - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Run YTS Playback Tests
-        uses: ./.github/actions/internal_tests
-        with:
-          test_type: 'yts_test'
-          test_targets: '${{ needs.initialize.outputs.yts_playback_test_targets }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family }}'
+          retry_all: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
 
   browser-test-on-host:
     needs: [initialize, build, docker-unittest-image]
@@ -838,71 +792,6 @@ jobs:
           platform: ${{ matrix.platform }}
           config: ${{ matrix.config }}
 
-
-  yts-wpt-test:
-    needs: [initialize, build]
-    # Run YTS tests via presumit.
-    if: |
-      needs.initialize.outputs.test_yts_wpt == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          (inputs.nightly == 'true' || github.event_name == 'schedule') ||
-          (github.event_name == 'push')
-        )
-    runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_yts_wpt_tests
-    continue-on-error: true # Ignoring errors while we are working to productionize
-    permissions: {}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-    steps:
-      - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Run YTS WPT Tests
-        uses: ./.github/actions/internal_tests
-        with:
-          test_type: 'yts_wpt_test'
-          test_targets: '${{ needs.initialize.outputs.yts_wpt_test_targets }}'
-
-  yts-finch-test:
-    needs: [initialize, build]
-    if: |
-      needs.initialize.outputs.test_yts_finch == 'true' &&
-        (
-          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
-          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False') ||
-          contains(fromJson(needs.initialize.outputs.labels), 'runtest')
-        )
-    runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_yts_finch_tests
-    permissions: {}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-    steps:
-      - name: Restore CI Essentials
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: ${{ env.CI_ESSENTIALS }}
-      - name: Run YTS Finch Tests
-        uses: ./.github/actions/internal_tests
-        with:
-          test_type: 'yts_test'
-          test_targets: '${{ needs.initialize.outputs.yts_finch_test_targets }}'
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
@@ -1059,11 +948,17 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
 
   test-results:
-    needs: [initialize, build, on-device-test, on-host-test]
+    needs:
+      - initialize
+      - build
+      - on-device-test
+      - on-host-test
+      - internal-test
     if: always() && needs.build.result == 'success' && needs.initialize.outputs.expected_tests_json != '[]'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_info.target }}
+    continue-on-error: ${{ toJSON(matrix.test_info.required) == 'false' }}
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
@@ -1114,7 +1009,7 @@ jobs:
         if: steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/download_test_results
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          pattern: ${{ matrix.platform }}_${{ matrix.name }}_*_results[-_][0-9]*
           path: results/
       - name: Test Results
         id: test-results
@@ -1123,9 +1018,13 @@ jobs:
         with:
           target_name: ${{ matrix.test_info.target }}
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          log_glob: |
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*cobalt.log
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*yts.log
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*device_logcat.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
-          num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+          num_gtest_shards: ${{ matrix.test_info.shards || ((matrix.test_info.test_type == 'gtest' || matrix.test_info.test_type == 'junit') && needs.initialize.outputs.num_gtest_shards || 1) }}
       - name: ${{ matrix.test_info.target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true
@@ -1137,7 +1036,12 @@ jobs:
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:
-          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          log_glob: |
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*cobalt.log
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*yts.log
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*device_logcat.txt
+            results/**/${{ steps.extract-target-name.outputs.test_target }}*symbolized_crash.txt
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           symbolize: 'false'
       - name: Generate Retry Filter
@@ -1213,9 +1117,8 @@ jobs:
       - on-device-test
       - on-host-test
       - web-tests
-      - e2e-test
-      - yts-test
-      - yts-finch-test
+      - internal-test
+      - test-results
       - browser-test-on-host
       - chromedriver-smoketest
       - linux-e2e-test
@@ -1251,18 +1154,52 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           NEEDS_JSON: ${{ toJSON(needs) }}
+          EXPECTED_TESTS_JSON: ${{ needs.initialize.outputs.expected_tests_json }}
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
           xml_files=(results/**/*.xml)
-          test_failures='{}'
-          if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
-            test_failures=$(python3 cobalt/tools/junit_mini_parser.py \
-              "${xml_files[@]}" || true)
-            if [[ -z "${test_failures}" ]]; then
-              test_failures='{}'
-            fi
+
+          non_required_out=$(jq -r '.[] | select(.required == false) | .target | split(":")[-1]' <<< "${EXPECTED_TESTS_JSON}")
+          non_required_targets=()
+          if [[ -n "${non_required_out}" ]]; then
+            mapfile -t non_required_targets <<< "${non_required_out}"
           fi
+
+          required_xmls=()
+          non_required_xmls=()
+          for xml_file in "${xml_files[@]}"; do
+            base_name=$(basename "${xml_file}")
+            is_non_required=false
+            for nr_target in "${non_required_targets[@]}"; do
+              if [[ "${base_name}" == "${nr_target}_testoutput.xml" || "${base_name}" == "${nr_target}_result.xml" || "${base_name}" == "${nr_target}.xml" ]]; then
+                is_non_required=true
+                break
+              fi
+            done
+            if [[ "${is_non_required}" == "true" ]]; then
+              non_required_xmls+=("${xml_file}")
+            else
+              required_xmls+=("${xml_file}")
+            fi
+          done
+
+          parse_junit_failures() {
+            local rc=0 out
+            if [[ $# -eq 0 ]]; then
+              echo '{}'
+              return 0
+            fi
+            out=$(python3 cobalt/tools/junit_mini_parser.py "$@") || rc=$?
+            if [[ "${rc}" -gt 1 ]] || ! jq -e '.failing_tests' <<< "${out}" >/dev/null 2>&1; then
+              echo "::error::junit_mini_parser.py failed (exit ${rc})." >&2
+              return 1
+            fi
+            echo "${out}"
+          }
+
+          test_failures=$(parse_junit_failures "${required_xmls[@]}")
+          non_required_test_failures=$(parse_junit_failures "${non_required_xmls[@]}")
 
           # Generate shepherd_report.json
           jq -n \
@@ -1274,6 +1211,7 @@ jobs:
             --arg run_url "${RUN_URL}" \
             --argjson needs "${NEEDS_JSON}" \
             --argjson failing_tests "${test_failures}" \
+            --argjson non_required_failing_tests "${non_required_test_failures}" \
             --arg completed_at "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
             '{
               platform: $platform,
@@ -1284,7 +1222,8 @@ jobs:
               run_url: $run_url,
               completed_at: $completed_at,
               checks: ($needs | map_values(.result)),
-              test_failures: $failing_tests
+              test_failures: $failing_tests,
+              non_required_test_failures: $non_required_failing_tests
             }' > shepherd_report.json
 
           failing_jobs=$(jq -r '[.checks // {} | to_entries[] | select(.value == "failure" or .value == "cancelled") | .key] | join(", ")' shepherd_report.json)

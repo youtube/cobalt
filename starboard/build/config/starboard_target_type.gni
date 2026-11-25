@@ -31,28 +31,18 @@ if (starboard_target_type == "") {
 }
 
 template("starboard_platform_target") {
-  target(starboard_target_type, target_name) {
-    forward_variables_from(invoker, [ "extra_configs" ])
-    visibility = [
-      ":starboard_group",
-      ":starboard_group($default_toolchain)",
-    ]
-
-    if (starboard_target_type == "shared_library") {
-      output_extension = starboard_shared_library_extension
-    }
-
-    if (defined(invoker.extra_configs)) {
-      configs += extra_configs
-    }
+  group("${target_name}_deps") {
+    visibility = [ ":*" ]
 
     all_dependent_configs = [
       "//starboard/build/config/sabi",
       "//starboard/build/config:starboard",
     ]
-    if (is_android) {
-      # TODO(b/374300500): - Find a way to avoid wrapping this.
-      ldflags = [ "-Wl,--wrap=eglSwapBuffers" ]
+
+    # iOS links the library statically, so it needs no rpath.
+    if (target_os != "ios") {
+      all_dependent_configs +=
+          [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
     }
 
     public_deps = [
@@ -69,5 +59,23 @@ template("starboard_platform_target") {
       public_deps +=
           [ "//starboard/shared/modular:starboard_layer_posix_abi_wrappers" ]
     }
+  }
+
+  target(starboard_target_type, target_name) {
+    forward_variables_from(invoker, [ "extra_configs" ])
+    visibility = [
+      ":*",
+      ":starboard_group($default_toolchain)",
+    ]
+
+    if (starboard_target_type == "shared_library") {
+      output_extension = starboard_shared_library_extension
+    }
+
+    if (defined(invoker.extra_configs)) {
+      configs += extra_configs
+    }
+
+    public_deps = [ ":${target_name}_deps" ]
   }
 }

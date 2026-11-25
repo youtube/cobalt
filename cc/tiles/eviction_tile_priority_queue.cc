@@ -5,6 +5,7 @@
 #include "cc/tiles/eviction_tile_priority_queue.h"
 
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 
 namespace cc {
 
@@ -26,6 +27,23 @@ class EvictionOrderComparator {
     const TilePriority& a_priority = a_tile.priority();
     const TilePriority& b_priority = b_tile.priority();
     bool prioritize_low_res = tree_priority_ == SMOOTHNESS_TAKES_PRIORITY;
+
+#if BUILDFLAG(IS_COBALT)
+    // Mirror `RasterOrderComparator`: genuinely visible NOW tiles
+    // (`distance == 0`) must always be strictly higher priority (evicted after)
+    // offscreen skewport lookahead NOW tiles (`distance > 0`), regardless of
+    // `is_drawing_layer()` or `resolution`. Otherwise a visible LOW_RES /
+    // NON_IDEAL / non-drawing tile can sit ahead of a drawing HIGH_RES
+    // lookahead tile at eviction-queue `Top()`, causing
+    // `FreeTileResourcesWithLowerPriorityUntilUsageIsWithinLimit()` to break
+    // early and OOM a visible tile.
+    if (a_priority.priority_bin == TilePriority::NOW &&
+        b_priority.priority_bin == TilePriority::NOW &&
+        (a_priority.distance_to_visible == 0.f) !=
+            (b_priority.distance_to_visible == 0.f)) {
+      return a_priority.distance_to_visible == 0.f;
+    }
+#endif  // BUILDFLAG(IS_COBALT)
 
     // If the priority bin is the same but one of the tiles is from a
     // non-drawing layer, then the drawing layer has a higher priority.

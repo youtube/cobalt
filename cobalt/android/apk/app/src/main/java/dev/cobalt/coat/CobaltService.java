@@ -38,7 +38,7 @@ import org.jni_zero.NativeMethods;
  */
 public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
-  protected boolean opened = true;
+  protected volatile boolean opened = true;
   private volatile String mServiceName;
   private volatile long mNativeService;
   private final Object lock = new Object();

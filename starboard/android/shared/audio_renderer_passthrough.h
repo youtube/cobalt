@@ -106,10 +106,7 @@ class AudioRendererPassthrough : public AudioRenderer,
   void Pause() override;
   void SetPlaybackRate(double playback_rate) override;
   void Seek(int64_t seek_to_time) override;
-  int64_t GetCurrentMediaTime(bool* is_playing,
-                              bool* is_eos_played,
-                              bool* is_underflow,
-                              double* playback_rate) override;
+  MediaTimeInfo GetCurrentMediaTime() override;
   // Only playback rate 1.0 is supported (see SetPlaybackRate()), so timestamps
   // are never adjusted. Returning max() ensures that VideoRendererImpl never
   // holds back video inputs waiting for audio writes.
@@ -160,10 +157,8 @@ class AudioRendererPassthrough : public AudioRenderer,
   bool end_of_stream_written_ = false;  // Only accessed on PlayerWorker thread.
 
   mutable std::mutex mutex_;
-  bool stop_called_ = false;
+  std::optional<AudioTrack::AudioTimestamp> stopped_timestamp_;
   int64_t total_frames_written_ = 0;
-  int64_t playback_head_position_when_stopped_ = 0;
-  int64_t stopped_at_ = 0;              // microseconds
   int64_t seek_to_time_ = 0;            // microseconds
   int64_t first_audio_timestamp_ = -1;  // microseconds
   double volume_ = 1.0;

@@ -100,12 +100,12 @@ void FakeAudioTrack::SetVolume(double volume) {
   volume_ = volume;
 }
 
-int64_t FakeAudioTrack::GetAudioTimestamp(int64_t* updated_at) {
+AudioTrack::AudioTimestamp FakeAudioTrack::GetAudioTimestamp() {
   std::lock_guard lock(mutex_);
-  if (updated_at) {
-    *updated_at = CurrentMonotonicTime();
-  }
-  return consumed_frames_;
+  AudioTimestamp timestamp;
+  timestamp.updated_at_us = CurrentMonotonicTime();
+  timestamp.frame_position = consumed_frames_;
+  return timestamp;
 }
 
 AudioTrack::AudioDeviceChange FakeAudioTrack::GetAndResetAudioDeviceChange() {
@@ -178,6 +178,17 @@ void FakeAudioTrack::simulate_device_change(bool changed) {
 void FakeAudioTrack::set_underrun_count(int count) {
   std::lock_guard lock(mutex_);
   underrun_count_ = count;
+}
+
+void FakeAudioTrack::set_start_threshold(int start_threshold) {
+  std::lock_guard lock(mutex_);
+  start_threshold_ = start_threshold;
+}
+
+void FakeAudioTrack::simulate_track_recreation(int start_threshold) {
+  std::lock_guard lock(mutex_);
+  start_threshold_ = start_threshold;
+  written_frames_ = 0;
 }
 
 void FakeAudioTrack::set_write_error(int error_code) {

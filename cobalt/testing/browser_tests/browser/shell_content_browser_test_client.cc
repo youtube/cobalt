@@ -58,12 +58,6 @@
 #include "components/variations/android/variations_seed_bridge.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
-#include "components/crash/core/app/crash_switches.h"
-#include "components/crash/core/app/crashpad.h"
-#include "content/public/common/content_descriptors.h"
-#endif
-
 namespace content {
 
 namespace {

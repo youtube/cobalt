@@ -15,9 +15,18 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
+#include <atomic>
 #include <optional>
 #include <string_view>
 
+#include "base/containers/circular_deque.h"
+#include "base/location.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/synchronization/lock.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
+#include "base/thread_annotations.h"
+#include "base/timer/timer.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
@@ -38,6 +47,7 @@ namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
 class RenderProcessHost;
+class StoragePartition;
 class WebContents;
 }  // namespace content
 
@@ -102,6 +112,12 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
 
   // ShellContentBrowserClient overrides.
+  void PostAfterStartupTask(
+      const base::Location& from_here,
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+      base::OnceClosure task) override;
+  bool IsBrowserStartupComplete() override;
+  void SetBrowserStartupIsCompleteForTesting() override;
   std::unique_ptr<content::VideoOverlayWindow>
   CreateWindowForVideoPictureInPicture(
       content::VideoPictureInPictureWindowController* controller) override;
@@ -184,6 +200,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
       override;
 
+  // Returns the StoragePartition of the primary main frame, or nullptr if there
+  // is no WebContents yet.
+  content::StoragePartition* GetPrimaryStoragePartition();
+
   // Flushes dirty cookies and localStorage when backgrounding/exiting.
   // Note: the completion callback is invoked when the cookie store flush
   // completes; localStorage flush runs asynchronously on the background DB
@@ -192,8 +212,42 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Triggers FlushCookiesAndLocalStorage and records
   // Cobalt.Storage.OnPause.FlushDuration.
   void FlushCookiesAndLocalStorageOnPause();
+  // Writes HttpServerProperties to disk now and runs |callback| once it has
+  // been committed; |flushed| is true if an update was pending. See
+  // features::kCobaltFlushHttpServerPropertiesOnPause.
+  void FlushHttpServerProperties(
+      base::OnceCallback<void(bool flushed)> callback);
   void DispatchBlur();
   void DispatchFocus();
+
+  // Holds an explicit
+  // `base::ThreadPoolInstance::ScopedBestEffortExecutionFence` when
+  // `kCobaltDeferAfterStartupTasks` is enabled (used on Android where upstream
+  // `BrowserMainLoop::scoped_best_effort_execution_fence_` is not instantiated)
+  // and queues its release through `PostAfterStartupTask()`.
+  void HoldThreadPoolBestEffortFenceIfDeferred();
+
+  // Releases any active `thread_pool_best_effort_fence_` on the sequence where
+  // it was armed. Safe to call multiple times or during shutdown.
+  void ReleaseThreadPoolBestEffortFence();
+
+  // Arms the bounded failsafe timer
+  // (`CobaltDeferAfterStartupTasks_failsafe_delay`, clamped to [0ms, 9500ms])
+  // when `kCobaltDeferAfterStartupTasks` is enabled so pages or tests that
+  // never call `h5vcc.system.notifyMainReady()` still release `BEST_EFFORT`
+  // tasks ahead of +10s startup metrics.
+  void StartAfterStartupTaskFailsafeTimer();
+
+  // Signals that the primary web app has reached interactive readiness
+  // (`h5vcc.system.notifyMainReady()`), releasing queued `PostAfterStartupTask`
+  // callbacks and Chromium's `BrowserTaskExecutor` / `ThreadPool`
+  // `BEST_EFFORT` startup gates.
+  void OnBrowserStartupComplete() override;
+
+  // Discards any unexecuted `PostAfterStartupTask` callbacks during browser
+  // shutdown without running them, destroying cross-sequence closures on their
+  // target `task_runner` while threads are still alive.
+  void CancelDeferredAfterStartupTasks();
 
   void AddPendingWindowReceiver(
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>
@@ -203,6 +257,19 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Computes the maximum HTTP cache size in bytes based on the platform's
   // total cache directory budget.
   static uint32_t ComputeDefaultHttpCacheSize(uint32_t total_dir_budget_bytes);
+
+  // Populates `network_context_params->http_cache_max_size` using the platform
+  // default, `kCobaltHttpCacheQuota` Finch configuration, and any explicit
+  // `--max-http-cache-size` command-line override.
+  static void ConfigureHttpCacheMaxSize(
+      bool in_memory,
+      uint32_t total_dir_budget_bytes,
+      network::mojom::NetworkContextParams* network_context_params);
+
+  // Populates `network_context_params->initial_ssl_config` with Cobalt's
+  // disabled TLS cipher suites.
+  static void ConfigureSSLConfig(
+      network::mojom::NetworkContextParams* network_context_params);
 
   // Populates `network_context_params->cobalt_extra_request_headers` from
   // `CobaltHeaderValueProvider` when `kCobaltSkipTrustedHeaderClient` is
@@ -215,6 +282,27 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 #endif  // !BUILDFLAG(IS_ANDROIDTV)
 
  private:
+  // Represents a deferred task queued via `PostAfterStartupTask()` prior to
+  // interactive startup readiness. Instances are owned by
+  // `CobaltContentBrowserClient` inside `after_startup_tasks_` under
+  // `after_startup_tasks_lock_` (callable from any thread) and are eventually
+  // posted to or destroyed on their designated `task_runner`.
+  struct AfterStartupTask {
+    AfterStartupTask(const base::Location& from_here,
+                     scoped_refptr<base::SequencedTaskRunner> task_runner,
+                     base::OnceClosure task);
+    AfterStartupTask(AfterStartupTask&&) noexcept;
+    AfterStartupTask& operator=(AfterStartupTask&&) noexcept;
+    ~AfterStartupTask();
+
+    base::Location from_here;
+    scoped_refptr<base::SequencedTaskRunner> task_runner;
+    base::OnceClosure task;
+  };
+
+  bool ShouldDeferAfterStartupTasks() const;
+  void MarkBrowserStartupComplete();
+
   void DispatchEvent(const std::string&, base::OnceClosure);
   void OnSbWindowCreated(SbWindow window);
   void OnSbWindowDestroyed(SbWindow window);
@@ -228,6 +316,14 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   std::vector<
       mojo::PendingReceiver<cobalt::media::mojom::PlatformWindowProvider>>
       pending_window_receivers_;
+
+  std::atomic<bool> browser_startup_complete_{false};
+  base::Lock after_startup_tasks_lock_;
+  base::circular_deque<AfterStartupTask> after_startup_tasks_
+      GUARDED_BY(after_startup_tasks_lock_);
+  std::optional<base::ThreadPoolInstance::ScopedBestEffortExecutionFence>
+      thread_pool_best_effort_fence_;
+  base::OneShotTimer after_startup_task_failsafe_timer_;
 
   COBALT_THREAD_CHECKER(thread_checker_);
 

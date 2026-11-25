@@ -51,6 +51,12 @@
 #include "third_party/blink/public/web/web_view_observer.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/command_line.h"
+#include "cobalt/renderer/renderer_thread_parker.h"
+#include "content/public/common/content_switches.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 #if BUILDFLAG(IS_IOS_TVOS)
 #include "media/starboard/url_player_demuxer.h"
 #if defined(COBALT_INTERNAL_BUILD)
@@ -255,6 +261,15 @@ void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
 void CobaltContentRendererClient::RenderThreadStarted() {
   CHECK(content::RenderThread::IsMainThread());
 
+#if BUILDFLAG(IS_STARBOARD)
+  // The in-process renderer main thread is not joined at shutdown, so let
+  // teardown park it.
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          ::switches::kSingleProcess)) {
+    RegisterCurrentThreadAsRendererForParking();
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+
   // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
@@ -343,6 +358,14 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
                                                      // identifier.
+
+  // A separate decode backend, not a sub-name of the key system above.
+  key_system_infos->push_back(
+      std::make_unique<cdm::PlatformDrmSbdlKeySystemInfo>(
+          kEncryptionSchemes,                            // Encryption schemes.
+          ::media::EmeFeatureSupport::ALWAYS_ENABLED,    // Persistent state.
+          ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive
+                                                         // identifier.
 #endif  // BUILDFLAG(IS_IOS_TVOS) && defined(COBALT_INTERNAL_BUILD)
 }
 

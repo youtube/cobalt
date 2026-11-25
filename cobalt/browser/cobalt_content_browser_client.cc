@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -27,9 +28,11 @@
 #include "base/functional/callback.h"
 #include "base/hash/hash.h"
 #include "base/i18n/rtl.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -40,6 +43,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -71,6 +75,7 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
+#include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
@@ -79,11 +84,15 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/content_constants.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/network/public/mojom/ssl_config.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "starboard/configuration_constants.h"
 #include "storage/browser/quota/quota_device_info_helper.h"
@@ -91,6 +100,8 @@
 #include "storage/browser/quota/quota_settings.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "third_party/blink/public/mojom/v8_cache_options.mojom-shared.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
@@ -138,17 +149,24 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 
 // Budgets for non-HTTP-cache consumers of kSbSystemPathCacheDirectory. The
 // HTTP cache is sized to the remainder (see ComputeDefaultHttpCacheSize).
-// V8 JS code cache (see GetGeneratedCodeCacheSettings).
-constexpr uint32_t kGeneratedCodeCacheBytes = 5 * 1024 * 1024;
+// V8 JS code cache (see GetGeneratedCodeCacheSettings) and Wasm code cache
+// (see GeneratedCodeCacheContext::InitializeOnThread).
+constexpr uint32_t kGeneratedCodeCacheBytes = 5242880;  // 5 MiB
+constexpr int kMinCodeCacheQuotaBytes = 1048576;        // 1 MiB
+constexpr int kMaxCodeCacheQuotaBytes = 1073741824;     // 1024 MiB
 // Directory headroom for index files, persistent metrics, and metadata
 // (matching Cobalt 25's 1 << 20 reserve).
-constexpr uint32_t kCacheDirectoryHeadroomBytes = 1 * 1024 * 1024;
-// Total of 12 MB for non-HTTP caches sharing kSbSystemPathCacheDirectory:
-constexpr uint32_t kNonHttpReserveBytes =
-    kGeneratedCodeCacheBytes +
-    CobaltContentBrowserClient::kCacheStorageQuotaBytes +
-    kCacheDirectoryHeadroomBytes;
-constexpr uint32_t kMinHttpCacheBytes = 1 * 1024 * 1024;
+constexpr uint32_t kCacheDirectoryHeadroomBytes = 1048576;  // 1 MiB
+constexpr uint32_t kMinHttpCacheBytes = 1048576;            // 1 MiB
+
+uint32_t GetConfiguredGeneratedCodeCacheBytes() {
+  if (base::FeatureList::IsEnabled(features::kCobaltCodeCacheOptimization)) {
+    return static_cast<uint32_t>(
+        std::clamp(features::kCobaltGeneratedCodeCacheSizeBytes.Get(),
+                   kMinCodeCacheQuotaBytes, kMaxCodeCacheQuotaBytes));
+  }
+  return kGeneratedCodeCacheBytes;
+}
 
 #if !BUILDFLAG(IS_ANDROIDTV)
 // This value is expected by offline data processing and should not be changed.
@@ -198,6 +216,71 @@ void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
 }
 
 #if BUILDFLAG(IS_ANDROID)
+class FreezeStorageFlushObserver : public CobaltLifecycleManagerObserver,
+                                   public content::WebContentsObserver {
+ public:
+  static FreezeStorageFlushObserver* GetInstance() {
+    static base::NoDestructor<FreezeStorageFlushObserver> instance;
+    return instance.get();
+  }
+
+  void FreezeAndFlush(CobaltContentBrowserClient* client,
+                      content::WebContents* web_contents) {
+    if (!client) {
+      return;
+    }
+    if (!web_contents) {
+      client->FlushCookiesAndLocalStorage(base::DoNothing());
+      return;
+    }
+    client_ = client;
+    pending_web_contents_ = web_contents;
+    Observe(web_contents);
+    if (!observing_) {
+      CobaltLifecycleManager::GetInstance()->AddObserver(this);
+      observing_ = true;
+    }
+    CobaltLifecycleManager::GetInstance()->StartWaitingForAck(
+        web_contents, PendingAck::kFreeze);
+    web_contents->SetPageFrozen(true);
+  }
+
+  // CobaltLifecycleManagerObserver:
+  void OnAllFramesVisible(content::WebContents* web_contents) override {}
+
+  void OnAllFramesFrozen(content::WebContents* web_contents) override {
+    if (web_contents != pending_web_contents_) {
+      return;
+    }
+    FlushAndReset();
+  }
+
+  // content::WebContentsObserver:
+  void WebContentsDestroyed() override { FlushAndReset(); }
+
+ private:
+  friend class base::NoDestructor<FreezeStorageFlushObserver>;
+  FreezeStorageFlushObserver() = default;
+  ~FreezeStorageFlushObserver() override = default;
+
+  void FlushAndReset() {
+    CobaltContentBrowserClient* client = client_;
+    pending_web_contents_ = nullptr;
+    Observe(nullptr);
+    if (observing_) {
+      CobaltLifecycleManager::GetInstance()->RemoveObserver(this);
+      observing_ = false;
+    }
+    if (client) {
+      client->FlushCookiesAndLocalStorage(base::DoNothing());
+    }
+  }
+
+  raw_ptr<CobaltContentBrowserClient> client_ = nullptr;
+  raw_ptr<content::WebContents> pending_web_contents_ = nullptr;
+  bool observing_ = false;
+};
+
 static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
     JNIEnv*) {
   auto* client = CobaltContentBrowserClient::Get();
@@ -205,6 +288,20 @@ static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
     return;
   }
   client->FlushCookiesAndLocalStorage(base::DoNothing());
+}
+
+static void JNI_CobaltContentBrowserClient_FreezeAndFlushCookiesAndLocalStorage(
+    JNIEnv*,
+    const base::android::JavaParamRef<jobject>& jweb_contents) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  content::WebContents* web_contents =
+      jweb_contents ? content::WebContents::FromJavaWebContents(jweb_contents)
+                    : nullptr;
+  FreezeStorageFlushObserver::GetInstance()->FreezeAndFlush(client,
+                                                            web_contents);
 }
 
 static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
@@ -231,6 +328,17 @@ static jboolean JNI_CobaltContentBrowserClient_IsFreezeOnBackgroundEnabled(
 static jint JNI_CobaltContentBrowserClient_GetFreezeOnBackgroundDelayMs(
     JNIEnv*) {
   return std::max(0, features::kCobaltFreezeOnBackgroundDelayMs.Get());
+}
+
+static jboolean JNI_CobaltContentBrowserClient_IsFlushStorageOnFreezeEnabled(
+    JNIEnv*) {
+  return base::FeatureList::IsEnabled(features::kCobaltFlushStorageOnFreeze);
+}
+
+static jboolean
+JNI_CobaltContentBrowserClient_IsPlatformServicesOffUiThreadEnabled(JNIEnv*) {
+  return base::FeatureList::IsEnabled(
+      features::kCobaltPlatformServicesOffUiThread);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -302,9 +410,9 @@ std::optional<storage::QuotaSettings> CalculateCobaltCacheQuotaSettings(
   // `should_remain_available`. Chromium's default (10% of the volume, capped
   // at 2 GiB) is 2.4 MiB on a 24 MiB cache partition, more than the
   // kCacheDirectoryHeadroomBytes left free by the cache directory budget (see
-  // kNonHttpReserveBytes). With the default, a full but within-budget cache
-  // directory would evict YouTube's only bucket, deleting CacheStorage and
-  // unregistering the Service Worker.
+  // ComputeDefaultHttpCacheSize). With the default, a full but within-budget
+  // cache directory would evict YouTube's only bucket, deleting CacheStorage
+  // and unregistering the Service Worker.
   settings.should_remain_available = 0;
   settings.must_remain_available =
       std::min(kMustRemainAvailableFixed,
@@ -333,7 +441,33 @@ CobaltContentBrowserClient::CobaltContentBrowserClient(
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
+// Modeled on upstream `ChromeContentBrowserClient::PostAfterStartupTask()`
+// (`chrome/browser/after_startup_task_utils.cc`) and
+// `AwContentBrowserClient::PostAfterStartupTask()`
+// (`android_webview/browser/aw_content_browser_client.cc`). Base
+// `ContentBrowserClient` (inherited by `ShellContentBrowserClient`) posts
+// immediately at t=0ms; here we queue onto a lock-protected per-instance deque
+// until `h5vcc.system.notifyMainReady()` or the failsafe timer fires.
+CobaltContentBrowserClient::AfterStartupTask::AfterStartupTask(
+    const base::Location& from_here,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    base::OnceClosure task)
+    : from_here(from_here),
+      task_runner(std::move(task_runner)),
+      task(std::move(task)) {}
+
+CobaltContentBrowserClient::AfterStartupTask::AfterStartupTask(
+    AfterStartupTask&&) noexcept = default;
+
+CobaltContentBrowserClient::AfterStartupTask&
+CobaltContentBrowserClient::AfterStartupTask::operator=(
+    AfterStartupTask&&) noexcept = default;
+
+CobaltContentBrowserClient::AfterStartupTask::~AfterStartupTask() = default;
+
 CobaltContentBrowserClient::~CobaltContentBrowserClient() {
+  CancelDeferredAfterStartupTasks();
+  ReleaseThreadPoolBestEffortFence();
 #if BUILDFLAG(IS_STARBOARD)
   ui::PlatformWindowStarboard::ClearWindowCreatedCallback();
   ui::PlatformWindowStarboard::ClearWindowDestroyedCallback();
@@ -344,6 +478,130 @@ CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
   return static_cast<CobaltContentBrowserClient*>(
       content::ShellContentBrowserClient::Get());
+}
+
+bool CobaltContentBrowserClient::ShouldDeferAfterStartupTasks() const {
+  if (browser_startup_complete_.load(std::memory_order_acquire)) {
+    return false;
+  }
+  return base::FeatureList::GetInstance() &&
+         base::FeatureList::IsEnabled(features::kCobaltDeferAfterStartupTasks);
+}
+
+void CobaltContentBrowserClient::PostAfterStartupTask(
+    const base::Location& from_here,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+    base::OnceClosure task) {
+  CHECK(task);
+  CHECK(task_runner);
+  if (!ShouldDeferAfterStartupTasks()) {
+    task_runner->PostTask(from_here, std::move(task));
+    return;
+  }
+
+  {
+    base::AutoLock lock(after_startup_tasks_lock_);
+    if (!browser_startup_complete_.load(std::memory_order_relaxed)) {
+      after_startup_tasks_.emplace_back(from_here, task_runner,
+                                        std::move(task));
+      return;
+    }
+  }
+  task_runner->PostTask(from_here, std::move(task));
+}
+
+bool CobaltContentBrowserClient::IsBrowserStartupComplete() {
+  return !ShouldDeferAfterStartupTasks();
+}
+
+void CobaltContentBrowserClient::SetBrowserStartupIsCompleteForTesting() {
+  MarkBrowserStartupComplete();
+}
+
+void CobaltContentBrowserClient::HoldThreadPoolBestEffortFenceIfDeferred() {
+  if (!ShouldDeferAfterStartupTasks() || !base::ThreadPoolInstance::Get() ||
+      thread_pool_best_effort_fence_.has_value()) {
+    return;
+  }
+  thread_pool_best_effort_fence_.emplace();
+  PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindOnce(
+          &CobaltContentBrowserClient::ReleaseThreadPoolBestEffortFence,
+          weak_factory_.GetWeakPtr()));
+}
+
+void CobaltContentBrowserClient::ReleaseThreadPoolBestEffortFence() {
+  if (base::ThreadPoolInstance::Get()) {
+    thread_pool_best_effort_fence_.reset();
+  }
+}
+
+void CobaltContentBrowserClient::StartAfterStartupTaskFailsafeTimer() {
+  if (!ShouldDeferAfterStartupTasks()) {
+    return;
+  }
+  // `ScheduleCobaltStorageMetricsRecording()`
+  // (`cobalt/browser/metrics/cobalt_storage_metrics_helper.cc`) posts its
+  // startup snapshot on a `ThreadPool` `BEST_EFFORT` runner at +10,000ms
+  // (`kPostStartupStorageMetricsDelay`) so samples land inside Android's +15s
+  // Initial UMA Log. Clamping the failsafe upper bound to 9,500ms leaves a
+  // 500ms buffer before +10s so misconfigured Finch params or pages that never
+  // call `h5vcc.system.notifyMainReady()` cannot delay +10s startup UMAs.
+  constexpr base::TimeDelta kMaxFailsafeDelay = base::Milliseconds(9500);
+  const base::TimeDelta delay =
+      std::clamp(features::kCobaltDeferAfterStartupTasksFailsafeDelay.Get(),
+                 base::TimeDelta(), kMaxFailsafeDelay);
+  scoped_refptr<base::SequencedTaskRunner> runner =
+      content::BrowserThread::IsThreadInitialized(content::BrowserThread::UI)
+          ? content::GetUIThreadTaskRunner({base::TaskPriority::USER_VISIBLE})
+          : base::SequencedTaskRunner::GetCurrentDefault();
+  after_startup_task_failsafe_timer_.SetTaskRunner(std::move(runner));
+  after_startup_task_failsafe_timer_.Start(
+      FROM_HERE, delay,
+      base::BindOnce(&CobaltContentBrowserClient::MarkBrowserStartupComplete,
+                     base::Unretained(this)));
+}
+
+void CobaltContentBrowserClient::OnBrowserStartupComplete() {
+  after_startup_task_failsafe_timer_.Stop();
+  MarkBrowserStartupComplete();
+}
+
+void CobaltContentBrowserClient::CancelDeferredAfterStartupTasks() {
+  after_startup_task_failsafe_timer_.Stop();
+  base::circular_deque<AfterStartupTask> remaining_tasks;
+  {
+    base::AutoLock lock(after_startup_tasks_lock_);
+    browser_startup_complete_.store(true, std::memory_order_release);
+    remaining_tasks.swap(after_startup_tasks_);
+  }
+  for (auto& entry : remaining_tasks) {
+    if (entry.task_runner && !entry.task_runner->RunsTasksInCurrentSequence()) {
+      entry.task_runner->DeleteSoon(
+          entry.from_here,
+          std::make_unique<base::OnceClosure>(std::move(entry.task)));
+    }
+  }
+}
+
+void CobaltContentBrowserClient::MarkBrowserStartupComplete() {
+  base::circular_deque<AfterStartupTask> pending_tasks;
+  {
+    base::AutoLock lock(after_startup_tasks_lock_);
+    if (browser_startup_complete_.exchange(true, std::memory_order_acq_rel)) {
+      return;
+    }
+    pending_tasks.swap(after_startup_tasks_);
+  }
+
+  TRACE_EVENT_INSTANT1(
+      "startup", "CobaltContentBrowserClient::MarkBrowserStartupComplete",
+      TRACE_EVENT_SCOPE_GLOBAL, "QueuedTaskCount", pending_tasks.size());
+
+  for (auto& entry : pending_tasks) {
+    entry.task_runner->PostTask(entry.from_here, std::move(entry.task));
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
@@ -400,7 +658,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto browser_main_parts =
-      std::make_unique<CobaltBrowserMainParts>(deep_link_, is_visible_);
+      std::make_unique<CobaltBrowserMainParts>(deep_link_, is_visible_, this);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
@@ -427,8 +685,11 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
   // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
-  // Increased to 5 MB for Cobalt 27+.
-  size_t size = kGeneratedCodeCacheBytes;
+  // Increased to 5 MB for Cobalt 27+, and configurable (default 10 MB) when
+  // kCobaltCodeCacheOptimization is enabled so cold-start JS bytecode writes do
+  // not cross SimpleCache's 90% eviction watermark (Wasm is capped separately
+  // at 1 MB in GeneratedCodeCacheContext::InitializeOnThread).
+  const size_t size = GetConfiguredGeneratedCodeCacheBytes();
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -438,12 +699,66 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
 // static
 uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
     uint32_t total_dir_budget_bytes) {
-  if (total_dir_budget_bytes <= kNonHttpReserveBytes + kMinHttpCacheBytes) {
+  const uint32_t non_http_reserve_bytes =
+      GetConfiguredGeneratedCodeCacheBytes() +
+      content::kGeneratedWasmCodeCacheBytes + kCacheStorageQuotaBytes +
+      kCacheDirectoryHeadroomBytes;
+  if (total_dir_budget_bytes <= non_http_reserve_bytes + kMinHttpCacheBytes) {
     // For small platform budgets, ensure we do not return 0 or negative.
     return std::min(total_dir_budget_bytes, kMinHttpCacheBytes);
   }
 
-  return total_dir_budget_bytes - kNonHttpReserveBytes;
+  return total_dir_budget_bytes - non_http_reserve_bytes;
+}
+
+// static
+void CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+    bool in_memory,
+    [[maybe_unused]] uint32_t total_dir_budget_bytes,
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!in_memory) {
+    constexpr int kMinHttpCacheQuotaBytes = 1048576;     // 1 MiB
+    constexpr int kMaxHttpCacheQuotaBytes = 1073741824;  // 1024 MiB
+
+#if BUILDFLAG(IS_ANDROID)
+    // Baseline default on Android is 25 MiB (26214400 bytes).
+    // When kCobaltHttpCacheQuota is enabled, Finch configures it (default:
+    // 12582912 bytes / 12 MiB).
+    constexpr int kDefaultAndroidHttpCacheSizeBytes = 26214400;
+    int http_cache_bytes = kDefaultAndroidHttpCacheSizeBytes;
+    if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
+      http_cache_bytes =
+          std::clamp(features::kCobaltMaxHttpCacheSizeBytes.Get(),
+                     kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes);
+    }
+    network_context_params->http_cache_max_size = http_cache_bytes;
+#else
+    uint32_t http_cache_bytes =
+        ComputeDefaultHttpCacheSize(total_dir_budget_bytes);
+    if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
+      const uint32_t configured_bytes = static_cast<uint32_t>(
+          std::clamp(features::kCobaltMaxHttpCacheSizeBytes.Get(),
+                     kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes));
+      http_cache_bytes = http_cache_bytes > 0
+                             ? std::min(http_cache_bytes, configured_bytes)
+                             : configured_bytes;
+    }
+    network_context_params->http_cache_max_size =
+        base::checked_cast<int>(http_cache_bytes);
+#endif
+  }
+
+  // Developer command-line override (only applies if explicitly passed).
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kMaxHttpCacheSize)) {
+    std::string size_str =
+        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+            switches::kMaxHttpCacheSize);
+    int parsed_size = 0;
+    if (base::StringToInt(size_str, &parsed_size) && parsed_size >= 0) {
+      network_context_params->http_cache_max_size = parsed_size;
+    }
+  }
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -485,6 +800,15 @@ void CobaltContentBrowserClient::OverrideWebPreferences(
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebPreferences(
       web_contents, main_frame_site, prefs);
+  if (base::FeatureList::IsEnabled(features::kCobaltCodeCacheOptimization) &&
+      features::kCobaltV8CodeCacheBypassHeatCheck.Get()) {
+    // Cobalt executes a single trusted first-party web application rather than
+    // random one-off web pages; bypass V8's 2-visit HasHotTimestamp gate so
+    // Launch #1 after an app/JS update caches deferred bytecode (via Blink's
+    // existing PostDelayedIdleTask queue) for Launch #2.
+    prefs->v8_cache_options =
+        blink::mojom::V8CacheOptions::kCodeWithoutHeatCheck;
+  }
 }
 
 content::StoragePartitionConfig
@@ -553,23 +877,10 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
           ->sct_auditing_pending_reports_file_name =
           base::FilePath(kSCTAuditingPendingReportsFileName);
     }
-
-    network_context_params->http_cache_max_size = base::checked_cast<int>(
-        ComputeDefaultHttpCacheSize(kSbMaxSystemPathCacheDirectorySize));
   }
 
-#if BUILDFLAG(IS_ANDROID)
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kMaxHttpCacheSize)) {
-    std::string size_str =
-        base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-            switches::kMaxHttpCacheSize);
-    int parsed_size = 0;
-    if (base::StringToInt(size_str, &parsed_size)) {
-      network_context_params->http_cache_max_size = parsed_size;
-    }
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
+  ConfigureHttpCacheMaxSize(in_memory, kSbMaxSystemPathCacheDirectorySize,
+                            network_context_params);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(
@@ -592,6 +903,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   // per-site basis.
   network_context_params->require_network_anonymization_key = true;
 
+  ConfigureSSLConfig(network_context_params);
   PopulateCobaltExtraRequestHeaders(network_context_params);
 }
 
@@ -602,6 +914,35 @@ bool CobaltContentBrowserClient::AllowCompressionDictionaryTransport(
   }
   return content::ShellContentBrowserClient::
       AllowCompressionDictionaryTransport(context);
+}
+
+// static
+void CobaltContentBrowserClient::ConfigureSSLConfig(
+    network::mojom::NetworkContextParams* network_context_params) {
+  if (!network_context_params->initial_ssl_config) {
+    network_context_params->initial_ssl_config =
+        network::mojom::SSLConfig::New();
+  }
+  // Disable TLS 1.2 cipher suites classified as obsolete and disallowed on
+  // HTTP/2 by net::IsTLSCipherSuiteAllowedByHTTP2() (static RSA key exchange
+  // without forward secrecy and non-AEAD CBC-mode ciphers).
+  static const base::NoDestructor<std::vector<uint16_t>> kDisabledCipherSuites(
+      []() {
+        std::vector<uint16_t> disabled;
+        bssl::UniquePtr<SSL_CTX> ssl_ctx(SSL_CTX_new(TLS_method()));
+        if (ssl_ctx) {
+          for (const SSL_CIPHER* cipher : SSL_CTX_get_ciphers(ssl_ctx.get())) {
+            const uint16_t id = SSL_CIPHER_get_protocol_id(cipher);
+            if (!net::IsTLSCipherSuiteAllowedByHTTP2(id)) {
+              disabled.push_back(id);
+            }
+          }
+        }
+        return disabled;
+      }());
+  network_context_params->initial_ssl_config->disabled_cipher_suites.insert(
+      network_context_params->initial_ssl_config->disabled_cipher_suites.end(),
+      kDisabledCipherSuites->begin(), kDisabledCipherSuites->end());
 }
 
 // static
@@ -748,6 +1089,28 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorageOnPause() {
                             timer->Elapsed());
       },
       std::move(start_time)));
+  // Experiment (b/576795220): also persist HttpServerProperties (Alt-Svc,
+  // broken-QUIC marks), which is otherwise written on a 60 s timer that a
+  // background kill does not honor. This lives here rather than in
+  // DispatchBlur() so that both the Activity (DispatchBlur) and the Starboard
+  // (AppEventRunner::DoBlur) lifecycle paths reach it; platform targeting is
+  // left to the Finch study.
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltFlushHttpServerPropertiesOnPause)) {
+    FlushHttpServerProperties(base::BindOnce(
+        [](std::unique_ptr<base::ElapsedTimer> timer, bool flushed) {
+          UMA_HISTOGRAM_BOOLEAN(
+              "Cobalt.Storage.OnPause.HttpServerPropertiesFlushed", flushed);
+          // Only time real writes; a no-op flush would record ~0 ms and hide
+          // the tail.
+          if (flushed) {
+            UMA_HISTOGRAM_TIMES(
+                "Cobalt.Storage.OnPause.HttpServerPropertiesFlushDuration",
+                timer->Elapsed());
+          }
+        },
+        std::make_unique<base::ElapsedTimer>()));
+  }
 }
 
 void CobaltContentBrowserClient::DispatchBlur() {
@@ -801,23 +1164,25 @@ void CobaltContentBrowserClient::OnSbWindowDestroyed(SbWindow window) {
 #endif
 }
 
-void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
-    base::OnceClosure callback) {
+content::StoragePartition*
+CobaltContentBrowserClient::GetPrimaryStoragePartition() {
   if (!web_contents_observer_) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
   auto* web_contents = web_contents_observer_->web_contents();
   if (!web_contents) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
   content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
   if (!rfh) {
-    std::move(callback).Run();
-    return;
+    return nullptr;
   }
-  auto* storage_partition = rfh->GetStoragePartition();
+  return rfh->GetStoragePartition();
+}
+
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
+    base::OnceClosure callback) {
+  content::StoragePartition* storage_partition = GetPrimaryStoragePartition();
   if (!storage_partition) {
     std::move(callback).Run();
     return;
@@ -831,6 +1196,22 @@ void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
   }
   // Flushes cookies; invokes callback upon SQLite commit completion.
   cookie_manager->FlushCookieStore(std::move(callback));
+}
+
+void CobaltContentBrowserClient::FlushHttpServerProperties(
+    base::OnceCallback<void(bool flushed)> callback) {
+  content::StoragePartition* storage_partition = GetPrimaryStoragePartition();
+  if (!storage_partition) {
+    std::move(callback).Run(/*flushed=*/false);
+    return;
+  }
+  network::mojom::NetworkContext* network_context =
+      storage_partition->GetNetworkContext();
+  if (!network_context) {
+    std::move(callback).Run(/*flushed=*/false);
+    return;
+  }
+  network_context->FlushHttpServerProperties(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(

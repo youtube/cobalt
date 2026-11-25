@@ -29,8 +29,6 @@ namespace cobalt::v8_switches {
 // keep-sorted start
 inline constexpr char kBytecodeOldTime[] = "--bytecode-old-time=";
 inline constexpr char kFlushBytecode[] = "--flush-bytecode";
-inline constexpr char kInitialOldSpaceSize[] = "--initial-old-space-size=";
-inline constexpr char kMaxOldSpaceSize[] = "--max-old-space-size=";
 inline constexpr char kMinorMsMinNewSpaceCapacityForConcurrentMarkingMb[] =
     "--minor-ms-min-new-space-capacity-for-concurrent-marking-mb=";
 inline constexpr char kMinorMs[] = "--minor-ms";

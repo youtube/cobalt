@@ -38,6 +38,7 @@ class CobaltContentGpuClient : public content::ContentGpuClient {
   // content::ContentGpuClient:
   using content::ContentGpuClient::GpuServiceInitialized;
   void GpuServiceInitialized(gpu::GpuChannelManager* channel_manager) override;
+  void PostSandboxInitialized() override;
   void PostCompositorThreadCreated(
       base::SingleThreadTaskRunner* task_runner) override;
   media::VideoGeometrySetterService* GetVideoGeometrySetterService() override;

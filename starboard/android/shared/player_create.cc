@@ -229,7 +229,8 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
 
   std::unique_ptr<PlayerWorker::Handler> handler;
   if (use_exoplayer) {
-    handler = std::make_unique<ExoPlayerPlayerWorkerHandler>(creation_param);
+    handler = std::make_unique<ExoPlayerPlayerWorkerHandler>(creation_param,
+                                                             provider);
   } else {
     handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
                                                                provider);

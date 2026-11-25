@@ -1278,6 +1278,9 @@ TEST(SpanTest, EnsureConstexprGoodness) {
   EXPECT_EQ(kArray[size], item);
 }
 
+#if !defined(__ANDROID__)
+// Death tests fork() without exec() inside a multi-threaded ART process on
+// Android, where non-async-signal-safe fatal logging can deadlock.
 TEST(SpanTest, OutOfBoundsDeath) {
   constexpr span<int, 0> kEmptySpan;
   ASSERT_DEATH_IF_SUPPORTED(kEmptySpan[0], "");
@@ -1306,6 +1309,7 @@ TEST(SpanTest, OutOfBoundsDeath) {
                             "");
   ASSERT_DEATH_IF_SUPPORTED(kNonEmptyDynamicSpan.subspan(minus_one, 1), "");
 }
+#endif  // !defined(__ANDROID__)
 
 TEST(SpanTest, SpanExtentConversions) {
   // Statically checks that various conversions between spans of dynamic and

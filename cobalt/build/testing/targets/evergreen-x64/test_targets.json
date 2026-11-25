@@ -137,6 +137,12 @@
     "test_type": "gtest"
   },
   {
+    "target": "starboard:starboard_unittests_wrapper",
+    "executable": "out/evergreen-x64_devel/starboard/starboard_unittests_wrapper",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
     "target": "starboard/nplb:nplb_loader",
     "executable": "out/evergreen-x64_devel/nplb_loader.py",
     "runs_on": "host",
@@ -181,6 +187,12 @@
   {
     "target": "ui/events:events_unittests_loader",
     "executable": "out/evergreen-x64_devel/events_unittests_loader.py",
+    "runs_on": "host",
+    "test_type": "gtest"
+  },
+  {
+    "target": "ui/gl:gl_unittests_loader",
+    "executable": "out/evergreen-x64_devel/gl_unittests_loader.py",
     "runs_on": "host",
     "test_type": "gtest"
   },

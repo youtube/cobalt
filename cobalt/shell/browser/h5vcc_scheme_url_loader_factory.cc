@@ -27,34 +27,27 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/features.h"
+#include "cobalt/shell/browser/splash_cache.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
-#include "components/services/storage/public/cpp/buckets/bucket_locator.h"
-#include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/browser/storage_partition.h"
-#include "content/public/browser/storage_partition_config.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/system/data_pipe.h"
-#include "mojo/public/cpp/system/simple_watcher.h"
 #include "net/base/url_util.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
-#include "services/network/public/cpp/document_isolation_policy.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#include "third_party/blink/public/mojom/blob/blob.mojom.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
 namespace content {
 
-using switches::kDefaultSplashCacheName;
 using switches::kDefaultURL;
 using switches::kMaxSplashContentSize;
 
@@ -74,117 +67,6 @@ const char kH5vccContentSecurityPolicy[] =
     "media-src 'self' data: blob: %s:; "
     "connect-src 'self' blob: data: %s:;";
 }  // namespace
-
-class BlobReader : public blink::mojom::BlobReaderClient {
- public:
-  using ContentReadyCallback = base::OnceCallback<void(std::vector<uint8_t>)>;
-
-  BlobReader(mojo::PendingRemote<blink::mojom::Blob> blob_remote,
-             uint64_t max_content_size,
-             ContentReadyCallback callback)
-      : receiver_(this),
-        max_content_size_(max_content_size),
-        callback_(std::move(callback)) {
-    mojo::ScopedDataPipeProducerHandle producer_handle;
-    MojoResult result =
-        mojo::CreateDataPipe(nullptr, producer_handle, consumer_handle_);
-    if (result != MOJO_RESULT_OK) {
-      LOG(ERROR) << "Failed to create data pipe for blob reading.";
-      std::move(callback_).Run({});
-      return;
-    }
-
-    blob_.Bind(std::move(blob_remote));
-    blob_->ReadAll(std::move(producer_handle),
-                   receiver_.BindNewPipeAndPassRemote());
-
-    watcher_ = std::make_unique<mojo::SimpleWatcher>(
-        FROM_HERE, mojo::SimpleWatcher::ArmingPolicy::MANUAL,
-        base::SequencedTaskRunner::GetCurrentDefault());
-    watcher_->Watch(
-        consumer_handle_.get(),
-        MOJO_HANDLE_SIGNAL_READABLE | MOJO_HANDLE_SIGNAL_PEER_CLOSED,
-        MOJO_TRIGGER_CONDITION_SIGNALS_SATISFIED,
-        base::BindRepeating(&BlobReader::OnDataAvailable,
-                            base::Unretained(this)));
-    watcher_->ArmOrNotify();
-  }
-
-  ~BlobReader() override = default;
-
-  void OnCalculatedSize(uint64_t total_size,
-                        uint64_t expected_content_size) override {
-    if (total_size > max_content_size_) {
-      return Abort();
-    }
-    content_.reserve(total_size);
-  }
-
-  void OnComplete(int32_t status, uint64_t data_length) override {
-    if (status != net::OK) {
-      LOG(ERROR) << "Blob reading failed with status: " << status;
-      watcher_.reset();
-      consumer_handle_.reset();
-      if (callback_) {
-        std::move(callback_).Run({});
-      }
-    }
-  }
-
- private:
-  void OnDataAvailable(MojoResult result,
-                       const mojo::HandleSignalsState& state) {
-    constexpr uint32_t kReadBufferSize = 64 * 1024;
-    if (result != MOJO_RESULT_OK) {
-      watcher_.reset();
-      consumer_handle_.reset();
-      if (callback_) {
-        if (result != MOJO_RESULT_FAILED_PRECONDITION) {
-          LOG(ERROR) << "Data pipe watcher error: " << result;
-        }
-        std::move(callback_).Run(std::move(content_));
-      }
-      return;
-    }
-
-    while (true) {
-      uint8_t buffer[kReadBufferSize];
-      size_t num_bytes = 0;
-      MojoResult read_result = consumer_handle_->ReadData(
-          MOJO_READ_DATA_FLAG_NONE, base::span(buffer), num_bytes);
-      if (read_result == MOJO_RESULT_SHOULD_WAIT) {
-        watcher_->ArmOrNotify();
-        return;
-      }
-      if (read_result != MOJO_RESULT_OK) {
-        OnDataAvailable(read_result, state);
-        return;
-      }
-      if (content_.size() + num_bytes > max_content_size_) {
-        return Abort();
-      }
-      content_.insert(content_.end(), buffer, buffer + num_bytes);
-    }
-  }
-
-  void Abort() {
-    LOG(ERROR) << "Splash content too large, exceeding limit of "
-               << max_content_size_ << " bytes.";
-    watcher_.reset();
-    consumer_handle_.reset();
-    if (callback_) {
-      std::move(callback_).Run({});
-    }
-  }
-
-  mojo::Remote<blink::mojom::Blob> blob_;
-  mojo::Receiver<blink::mojom::BlobReaderClient> receiver_;
-  std::vector<uint8_t> content_;
-  uint64_t max_content_size_;
-  ContentReadyCallback callback_;
-  mojo::ScopedDataPipeConsumerHandle consumer_handle_;
-  std::unique_ptr<mojo::SimpleWatcher> watcher_;
-};
 
 class H5vccSchemeURLLoader : public network::mojom::URLLoader {
  public:
@@ -281,46 +163,24 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                    int32_t intra_priority_value) override {}
 
   void ReadSplashCache(const std::string& path) {
-    auto spc = content::StoragePartitionConfig::CreateDefault(browser_context_);
+    BindSplashCacheStorage(browser_context_, splash_domain_,
+                           cache_storage_remote_.BindNewPipeAndPassReceiver());
 
-    content::StoragePartition* storage_partition =
-        browser_context_->GetStoragePartition(spc);
-    storage::mojom::CacheStorageControl* cache_storage_control =
-        storage_partition->GetCacheStorageControl();
-    url::Origin origin = url::Origin::Create(GURL(splash_domain_));
-    blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
-    storage::BucketLocator bucket_locator =
-        storage::BucketLocator::ForDefaultBucket(storage_key);
-
-    cache_storage_control->AddReceiver(
-        network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
-        network::DocumentIsolationPolicy(), mojo::NullRemote(), bucket_locator,
-        storage::mojom::CacheStorageOwner::kCacheAPI,
-        cache_storage_remote_.BindNewPipeAndPassReceiver());
-
-    auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
-    fetch_api_request->url = GURL(splash_domain_).Resolve(path);
-    fetch_api_request->method = "GET";
-
-    auto match_options = blink::mojom::MultiCacheQueryOptions::New();
-    match_options->query_options = blink::mojom::CacheQueryOptions::New();
-    std::string cache_name;
-    if (net::GetValueForKeyInQuery(url_, "cache", &cache_name)) {
-      match_options->cache_name = base::UTF8ToUTF16(cache_name);
-    } else {
-      match_options->cache_name = kDefaultSplashCacheName;
+    std::u16string cache_name = base::ASCIIToUTF16(kDefaultSplashCacheName);
+    std::string cache_param;
+    if (net::GetValueForKeyInQuery(url_, "cache", &cache_param)) {
+      cache_name = base::UTF8ToUTF16(cache_param);
     }
 
-    std::string cache_name_utf8 =
-        base::UTF16ToUTF8(match_options->cache_name.value());
-
     cache_storage_remote_->Match(
-        std::move(fetch_api_request), std::move(match_options),
+        CreateSplashRequest(splash_domain_, path),
+        CreateSplashMatchOptions(cache_name),
         false, /* in_related_fetch_event */
         false, /* in_range_fetch_event */
         0,     // trace_id
         base::BindOnce(&H5vccSchemeURLLoader::OnCacheMatched,
-                       weak_factory_.GetWeakPtr(), cache_name_utf8));
+                       weak_factory_.GetWeakPtr(),
+                       base::UTF16ToUTF8(cache_name)));
   }
 
   void OnCacheMatched(const std::string& cache_name,
@@ -494,10 +354,7 @@ const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
-    : splash_domain_(url::Origin::Create(
-                         GURL(global_splash_domain_test_.value_or(kDefaultURL)))
-                         .GetURL()
-                         .spec()),
+    : splash_domain_(GetSplashDomain()),
       splash_content_size_limit_(
           global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
       browser_context_(browser_context) {
@@ -538,6 +395,14 @@ bool H5vccSchemeURLLoaderFactory::IsCachedSplashFileEnabled() {
   }
   return base::FeatureList::IsEnabled(
       cobalt::features::kEnableCachedSplashFile);
+}
+
+// static
+std::string H5vccSchemeURLLoaderFactory::GetSplashDomain() {
+  return url::Origin::Create(
+             GURL(global_splash_domain_test_.value_or(kDefaultURL)))
+      .GetURL()
+      .spec();
 }
 
 void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(

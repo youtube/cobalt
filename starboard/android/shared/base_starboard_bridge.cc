@@ -112,6 +112,28 @@ jlong JNI_BaseStarboardBridge_StartNativeStarboard(
   return reinterpret_cast<jlong>(g_native_app_instance);
 }
 
+// Test-only startup path for unit test APKs that do not launch a full
+// ApplicationAndroid instance. Must not be called before
+// JNI_BaseStarboardBridge_StartNativeStarboard in the same process, as
+// StartNativeStarboard assumes SbFileAndroidInitialize has not yet run when
+// g_native_app_instance is null.
+void JNI_BaseStarboardBridge_InitializeFilesForTesting(
+    JNIEnv* env,
+    const JavaParamRef<jobject>& j_asset_manager,
+    const JavaParamRef<jstring>& j_files_dir,
+    const JavaParamRef<jstring>& j_cache_dir,
+    const JavaParamRef<jstring>& j_native_library_dir) {
+  pthread_mutex_lock(&g_native_app_init_mutex);
+  if (g_app_cache_dir == nullptr) {
+    ScopedJavaGlobalRef<jobject> asset_manager(env, j_asset_manager.obj());
+    SbFileAndroidInitialize(std::move(asset_manager),
+                            ConvertJavaStringToUTF8(env, j_files_dir),
+                            ConvertJavaStringToUTF8(env, j_cache_dir),
+                            ConvertJavaStringToUTF8(env, j_native_library_dir));
+  }
+  pthread_mutex_unlock(&g_native_app_init_mutex);
+}
+
 void JNI_BaseStarboardBridge_CloseNativeStarboard(JNIEnv* env,
                                                   jlong nativeApp) {
   auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
@@ -204,6 +226,14 @@ void JNI_BaseStarboardBridge_SetYoutubeCertificationScope(
 #endif  // !BUILDFLAG(IS_STARBOARD)
 }
 
+void JNI_BaseStarboardBridge_SendCaptionSettingsChangedEvent(JNIEnv* env) {
+#if BUILDFLAG(IS_STARBOARD)
+  if (Application* application = Application::GetIfExists()) {
+    application->InjectCaptionSettingsChangedEvent();
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+}
+
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include
 // this header they don't end up with different copies of the inlined code
@@ -218,24 +248,24 @@ void StarboardBridge::Initialize(JNIEnv* env, jobject obj) {
 }
 
 int64_t StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_getAppStartTimestamp(env,
                                                        j_starboard_bridge_);
 }
 
 void StarboardBridge::ApplicationStarted(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   Java_BaseStarboardBridge_applicationStarted(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::ApplicationStopping(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   Java_BaseStarboardBridge_applicationStopping(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::AppendArgs(JNIEnv* env,
                                  std::vector<std::string>* args_vector) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   ScopedJavaLocalRef<jobjectArray> args_java =
       Java_BaseStarboardBridge_getArgs(env, j_starboard_bridge_);
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
@@ -244,28 +274,27 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
 void StarboardBridge::RaisePlatformError(JNIEnv* env,
                                          jint errorType,
                                          jlong data,
-                                         const std::string& url,
-                                         bool disable_dismiss_button) {
-  SB_DCHECK(env);
+                                         const std::string& url) {
+  SB_CHECK(env);
   Java_BaseStarboardBridge_raisePlatformError(
       env, j_starboard_bridge_, errorType, data,
-      ConvertUTF8ToJavaString(env, url), disable_dismiss_button);
+      ConvertUTF8ToJavaString(env, url));
 }
 
 bool StarboardBridge::IsPlatformErrorShowing(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_isPlatformErrorShowing(env,
                                                          j_starboard_bridge_);
 }
 
 void StarboardBridge::RequestSuspend(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   Java_BaseStarboardBridge_requestSuspend(env, j_starboard_bridge_);
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
     JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_getTextToSpeechHelper(env,
                                                         j_starboard_bridge_);
 }
@@ -286,28 +315,28 @@ ScopedJavaLocalRef<jstring> StarboardBridge::GetSystemLocaleId(JNIEnv* env) {
 }
 
 SB_EXPORT_ANDROID std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   ScopedJavaLocalRef<jstring> advertising_id_java =
       Java_BaseStarboardBridge_getAdvertisingId(env, j_starboard_bridge_);
   return ConvertJavaStringToUTF8(env, advertising_id_java);
 }
 
 SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   jboolean limit_ad_tracking_java =
       Java_BaseStarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);
   return limit_ad_tracking_java == JNI_TRUE;
 }
 
 SB_EXPORT_ANDROID std::string StarboardBridge::GetFriendlyName(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   ScopedJavaLocalRef<jstring> friendly_name_java =
       Java_BaseStarboardBridge_getFriendlyName(env, j_starboard_bridge_);
   return ConvertJavaStringToUTF8(env, friendly_name_java);
 }
 
 SB_EXPORT_ANDROID double StarboardBridge::GetScreenDiagonal(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_getScreenDiagonal(env, j_starboard_bridge_);
 }
 
@@ -320,8 +349,21 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetWasLowMemoryKilled(JNIEnv* env) {
              env, j_starboard_bridge_) == JNI_TRUE;
 }
 
+std::optional<int> StarboardBridge::GetUsedGraphicsMemoryKb(JNIEnv* env) {
+  SB_CHECK(env);
+  if (!j_starboard_bridge_) {
+    return std::nullopt;
+  }
+  int graphics_kb = Java_BaseStarboardBridge_getUsedGraphicsMemoryKb(
+      env, j_starboard_bridge_);
+  if (graphics_kb < 0) {
+    return std::nullopt;
+  }
+  return graphics_kb;
+}
+
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_closeApp(env, j_starboard_bridge_);
 }
 
@@ -331,14 +373,14 @@ void StarboardBridge::RequestStop(JNIEnv* env, jint error_level) {
 }
 
 std::string StarboardBridge::GetTimeZoneId(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   ScopedJavaLocalRef<jstring> timezone_id_java =
       Java_BaseStarboardBridge_getTimeZoneId(env, j_starboard_bridge_);
   return ConvertJavaStringToUTF8(env, timezone_id_java);
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetDisplayDpi(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
 }
 
@@ -350,7 +392,7 @@ Size StarboardBridge::GetDeviceResolution(JNIEnv* env) {
 }
 
 void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);
 }
 
@@ -364,25 +406,25 @@ void StarboardBridge::SetCrashContext(JNIEnv* env,
 }
 
 bool StarboardBridge::IsMicrophoneDisconnected(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_isMicrophoneDisconnected(env,
                                                            j_starboard_bridge_);
 }
 
 bool StarboardBridge::IsMicrophoneMute(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_isMicrophoneMute(env, j_starboard_bridge_);
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioPermissionRequester(
     JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_getAudioPermissionRequester(
       env, j_starboard_bridge_);
 }
 
 void StarboardBridge::ResetVideoSurface(JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_resetVideoSurface(env, j_starboard_bridge_);
 }
 
@@ -391,26 +433,26 @@ void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,
                                             int y,
                                             int width,
                                             int height) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_setVideoSurfaceBounds(
       env, j_starboard_bridge_, x, y, width, height);
 }
 
 void StarboardBridge::AddActivePlayer(JNIEnv* env, SbPlayer player) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   Java_BaseStarboardBridge_addActivePlayer(env, j_starboard_bridge_,
                                            reinterpret_cast<jlong>(player));
 }
 
 void StarboardBridge::RemoveActivePlayer(JNIEnv* env, SbPlayer player) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   Java_BaseStarboardBridge_removeActivePlayer(env, j_starboard_bridge_,
                                               reinterpret_cast<jlong>(player));
 }
 
 ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
     JNIEnv* env) {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_getAudioOutputManager(env,
                                                         j_starboard_bridge_);
 }
@@ -421,27 +463,27 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetExoPlayerManager(JNIEnv* env) {
 }
 
 std::string StarboardBridge::GetUserAgentAuxField(JNIEnv* env) const {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return ConvertJavaStringToUTF8(
       env,
       Java_BaseStarboardBridge_getUserAgentAuxField(env, j_starboard_bridge_));
 }
 
 bool StarboardBridge::IsAmatiDevice(JNIEnv* env) const {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return Java_BaseStarboardBridge_getIsAmatiDevice(env, j_starboard_bridge_) ==
          JNI_TRUE;
 }
 
 std::string StarboardBridge::GetBuildFingerprint(JNIEnv* env) const {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return ConvertJavaStringToUTF8(
       env,
       Java_BaseStarboardBridge_getBuildFingerprint(env, j_starboard_bridge_));
 }
 
 int64_t StarboardBridge::GetPlayServicesVersion(JNIEnv* env) const {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   return static_cast<int64_t>(Java_BaseStarboardBridge_getPlayServicesVersion(
       env, j_starboard_bridge_));
 }
@@ -469,17 +511,17 @@ bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
 }
 
 void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   Java_BaseStarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::HideSplashScreen(JNIEnv* env) const {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   Java_BaseStarboardBridge_hideSplashScreen(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::OnPrimaryMainFrameNavigationStarted(JNIEnv* env) const {
-  SB_DCHECK(env);
+  SB_CHECK(env);
   Java_BaseStarboardBridge_onPrimaryMainFrameNavigationStarted(
       env, j_starboard_bridge_);
 }

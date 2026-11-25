@@ -38,6 +38,7 @@
 #include "starboard/common/media.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/experimental_features.h"
@@ -77,7 +78,14 @@ bool IsFeatureEnabledOrDefaultOnAndroidU(
 #endif
 
 bool ShouldEnableFlushDuringSeek(
-    const ExperimentalFeatures& experimental_features) {
+    const ExperimentalFeatures& experimental_features,
+    SbDrmSystem drm_system) {
+  // A secure codec can keep its surface connected while it releases, so a
+  // codec recreated right away on the same surface fails to configure.
+  if (SbDrmSystemIsValid(drm_system) &&
+      static_cast<DrmSystem*>(drm_system)->require_secured_decoder()) {
+    return true;
+  }
 #if !BUILDFLAG(IS_STARBOARD)
   return IsFeatureEnabledOrDefaultOnAndroidU(
       features::kForceFlushDecoderDuringReset, experimental_features,
@@ -185,8 +193,8 @@ CreateOutputFormatAdjustmentCallback(const AudioStreamInfo& audio_stream_info,
   return [output_channels, output_samples_per_second](SbMediaAudioSampleType*,
                                                       int* samples_per_second,
                                                       int* number_of_channels) {
-    SB_DCHECK(samples_per_second);
-    SB_DCHECK(number_of_channels);
+    SB_CHECK(samples_per_second);
+    SB_CHECK(number_of_channels);
     *samples_per_second = output_samples_per_second;
     *number_of_channels = output_channels;
   };
@@ -252,7 +260,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     const VideoMimeParams video_mime_params = video_mime_params_result.value();
 
     bool enable_flush_during_seek =
-        ShouldEnableFlushDuringSeek(experimental_features) ||
+        ShouldEnableFlushDuringSeek(experimental_features,
+                                    creation_parameters.drm_system()) ||
         video_mime_params.enable_flush_during_seek;
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing audio"
@@ -401,7 +410,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << " audio decoder during Reset().";
 
     bool enable_flush_during_seek =
-        ShouldEnableFlushDuringSeek(experimental_features) ||
+        ShouldEnableFlushDuringSeek(experimental_features,
+                                    creation_parameters.drm_system()) ||
         video_mime_params.enable_flush_during_seek;
     SB_LOG_IF(INFO, enable_flush_during_seek)
         << "`enable_flush_during_seek` is set to true, force flushing"
@@ -411,9 +421,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool allow_flush_audio_track_during_seek =
         FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
         experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
+    const bool restart_on_audio_threshold_growth = FeatureList::IsEnabled(
+        features::kRestartPlaybackOnAudioThresholdGrowth);
 #else
     bool allow_flush_audio_track_during_seek =
         experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
+    const bool restart_on_audio_threshold_growth = false;
 #endif
     SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
         << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
@@ -467,14 +480,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       AudioRendererSinkAndroid::Options sink_options;
       sink_options.tunnel_mode_audio_session_id = tunnel_mode_audio_session_id;
-      sink_options.allow_audio_writing_on_pause = allow_audio_writing_on_pause;
       sink_options.enable_video_renderer_vsp_adjustment =
           enable_video_renderer_vsp_adjustment;
       sink_options.allow_flush_during_seek =
           allow_flush_audio_track_during_seek;
-      sink_options.pause_using_audio_track_state =
-          pause_using_audio_track_state;
       sink_options.enable_ndk_audio_pull_sink = enable_ndk_audio_pull_sink;
+      sink_options.audio_track_options.allow_audio_writing_on_pause =
+          allow_audio_writing_on_pause;
+      sink_options.audio_track_options.pause_using_audio_track_state =
+          pause_using_audio_track_state;
+      sink_options.audio_track_options.restart_on_audio_threshold_growth =
+          restart_on_audio_threshold_growth;
 
       auto renderer_sink = std::make_unique<AudioRendererSinkAndroid>(
           creation_parameters.audio_stream_info(), sink_options);

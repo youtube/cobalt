@@ -14,12 +14,12 @@
 
 #include "cobalt/updater/configurator.h"
 
-#include <cctype>
 #include <set>
 #include <utility>
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/updater/network_fetcher.h"
@@ -292,22 +292,25 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   if (updater_channel == "dogfood" || updater_channel == "dogfoodqa") {
     return kOmahaCobalt27DogfoodAppID;
   }
+  // Trunk builds use the "main" purpose token (e.g. 28.main.0); older trunk
+  // builds used "master" (e.g. 27.master.0).
   if (version.find(".lts.") == std::string::npos &&
-      version.find(".master.") != std::string::npos) {
+      (version.find(".main.") != std::string::npos ||
+       version.find(".master.") != std::string::npos)) {
     return kOmahaCobaltTrunkAppID;
   }
   std::string channel(updater_channel);
   // This matches to all static channels for C27 and newer in the format
   // of XXltsY.
   bool is_static = false;
-  if (updater_channel.size() >= 6 && std::isdigit(updater_channel[0]) &&
-      std::isdigit(updater_channel[1]) &&
+  if (updater_channel.size() >= 6 && base::IsAsciiDigit(updater_channel[0]) &&
+      base::IsAsciiDigit(updater_channel[1]) &&
       updater_channel.compare(2, 3, "lts") == 0) {
     int major = (updater_channel[0] - '0') * 10 + (updater_channel[1] - '0');
     if (major >= 27) {
       is_static = true;
       for (size_t i = 5; i < updater_channel.size(); ++i) {
-        if (!std::isdigit(updater_channel[i])) {
+        if (!base::IsAsciiDigit(updater_channel[i])) {
           is_static = false;
           break;
         }
