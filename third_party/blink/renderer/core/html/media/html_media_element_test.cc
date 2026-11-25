@@ -165,13 +165,9 @@ class MockWebMediaPlayer : public EmptyWebMediaPlayer {
                                  CorsMode cors_mode,
                                  bool is_cache_disabled));
   MOCK_CONST_METHOD0(DidLazyLoad, bool());
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(IS_COBALT)
-  MOCK_METHOD0(DidLoadingProgress, bool());
   MOCK_METHOD1(OnHasNativeControlsChanged, void(bool));
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 9833df3f734 (blink/media: Unbundle CobaltSkipHiddenMediaControlsWork and preserve error-pausing (#13922))
 
   MOCK_METHOD0(GetSrcAfterRedirects, GURL());
 };
@@ -3398,13 +3394,7 @@ TEST_P(HTMLMediaElementTest, MediaShouldBeOpaque_NetworkState) {
 TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
-<<<<<<< HEAD
-      features::kCobaltSkipHiddenMediaControlsWork);
-=======
       features::kCobaltSkipHiddenMediaControlsCreation);
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
->>>>>>> 9833df3f734 (blink/media: Unbundle CobaltSkipHiddenMediaControlsWork and preserve error-pausing (#13922))
 
   Media()->GetDocument().body()->AppendChild(Media());
   UpdateLifecyclePhases();
@@ -3415,16 +3405,9 @@ TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
 
 TEST_P(HTMLMediaElementTest, CobaltSkipsHiddenMediaControlsWhenFeatureEnabled) {
   base::test::ScopedFeatureList feature_list;
-<<<<<<< HEAD
-  feature_list.InitAndEnableFeature(
-      features::kCobaltSkipHiddenMediaControlsWork);
-=======
   feature_list.InitWithFeatures(
       /*enabled_features=*/{features::kCobaltSkipHiddenMediaControlsCreation},
       /*disabled_features=*/{features::kCobaltSkipMediaProgressLayoutUpdate});
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
->>>>>>> 9833df3f734 (blink/media: Unbundle CobaltSkipHiddenMediaControlsWork and preserve error-pausing (#13922))
 
   Media()->GetDocument().body()->AppendChild(Media());
   UpdateLifecyclePhases();
@@ -3445,8 +3428,6 @@ TEST_P(HTMLMediaElementTest,
   feature_list.InitWithFeatures(
       /*enabled_features=*/{features::kCobaltSkipMediaProgressLayoutUpdate},
       /*disabled_features=*/{features::kCobaltSkipHiddenMediaControlsCreation});
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
 
   Media()->GetDocument().body()->AppendChild(Media());
   UpdateLifecyclePhases();
@@ -3464,8 +3445,6 @@ TEST_P(HTMLMediaElementTest,
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       features::kCobaltSkipHiddenMediaControlsCreation);
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
 
   Media()->GetDocument().body()->AppendChild(Media());
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
@@ -3484,8 +3463,6 @@ TEST_P(HTMLMediaElementTest,
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       features::kCobaltSkipHiddenMediaControlsCreation);
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
 
   Media()->GetDocument().body()->AppendChild(Media());
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
@@ -3510,8 +3487,6 @@ TEST_P(HTMLMediaElementTest,
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       features::kCobaltSkipHiddenMediaControlsCreation);
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
 
   Media()->GetDocument().body()->AppendChild(Media());
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
@@ -3534,8 +3509,6 @@ TEST_P(
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       features::kCobaltSkipHiddenMediaControlsCreation);
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
 
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
   Media()->Play();
@@ -3556,9 +3529,6 @@ TEST_P(
 TEST_P(
     HTMLMediaElementTest,
     CobaltPausesInUpdateControlsVisibilityWhenControlsAlreadyExistAndErrorPresent) {
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
-
   // Initialize controls while the feature is disabled.
   {
     base::test::ScopedFeatureList disable_feature;
@@ -3596,8 +3566,6 @@ TEST_P(HTMLMediaElementTest,
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(
       features::kCobaltSkipHiddenMediaControlsCreation);
-  ScopedLazyInitializeMediaControlsForTest lazy_init(true);
-  ScopedMediaCastOverlayButtonForTest cast_overlay(true);
 
   Element* host = Media()->GetDocument().CreateRawElement(html_names::kDivTag);
   Media()->GetDocument().body()->AppendChild(host);

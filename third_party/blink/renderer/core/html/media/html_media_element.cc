@@ -4765,28 +4765,29 @@ void HTMLMediaElement::UpdateControlsVisibility() {
   if (!isConnected())
     return;
 
-<<<<<<< HEAD
-=======
   bool native_controls = ShouldShowControls();
 
-  // When LazyInitializeMediaControls is enabled, initialize the controls only
-  // if native controls should be used or if using the cast overlay.
->>>>>>> 9833df3f734 (blink/media: Unbundle CobaltSkipHiddenMediaControlsWork and preserve error-pausing (#13922))
 #if BUILDFLAG(IS_COBALT)
   // Cobalt does not show native controls or the cast overlay button, so skip
   // creating MediaControlsImpl, its shadow DOM, and its media event listeners
   // when native controls are not needed.
-<<<<<<< HEAD
-  if (base::FeatureList::IsEnabled(
-          features::kCobaltSkipHiddenMediaControlsWork) &&
-      !ShouldShowControls()) {
-    return;
+  const bool skip_controls_creation =
+      base::FeatureList::IsEnabled(
+          features::kCobaltSkipHiddenMediaControlsCreation) &&
+      !native_controls;
+  if (skip_controls_creation && error()) {
+    // Preserve MediaControlsImpl::Reset()'s error-pausing side effect when
+    // MediaControls creation is skipped while an error is already present.
+    pause();
   }
+  const bool should_create_controls = !skip_controls_creation;
+#else
+  const bool should_create_controls = true;
 #endif  // BUILDFLAG(IS_COBALT)
 
   // It might be nice to lazily initialize only the controls we need when they
   // are actually visible, but cursory tests don't show any memory improvements.
-  if (!media_controls_) {
+  if (should_create_controls && !media_controls_) {
     ShadowRoot& shadow_root = EnsureUserAgentShadowRoot();
     UseCounterMuteScope scope(*this);
     media_controls_ =
@@ -4796,41 +4797,12 @@ void HTMLMediaElement::UpdateControlsVisibility() {
     // so that they are rendered in front of captions and subtitles. This check
     // is verifying the contract.
     AssertShadowRootChildren(shadow_root);
-  } else {
+  } else if (should_create_controls) {
     // This is necessary if controls change visibility because many of the state
     // computations within MediaControlsImpl key off the visibility state.
     media_controls_->Reset();
-=======
-  const bool skip_controls_creation =
-      base::FeatureList::IsEnabled(
-          features::kCobaltSkipHiddenMediaControlsCreation) &&
-      !native_controls;
-  if (!skip_controls_creation &&
-      (!RuntimeEnabledFeatures::LazyInitializeMediaControlsEnabled() ||
-       RuntimeEnabledFeatures::MediaCastOverlayButtonEnabled() ||
-       native_controls)) {
-#else
-  if (!RuntimeEnabledFeatures::LazyInitializeMediaControlsEnabled() ||
-      RuntimeEnabledFeatures::MediaCastOverlayButtonEnabled() ||
-      native_controls) {
-#endif  // BUILDFLAG(IS_COBALT)
-    EnsureMediaControls();
-
-    // TODO(mlamouri): this doesn't sound needed but the following tests, on
-    // Android fails when removed:
-    // fullscreen/compositor-touch-hit-rects-fullscreen-video-controls.html
-    GetMediaControls()->Reset();
->>>>>>> 9833df3f734 (blink/media: Unbundle CobaltSkipHiddenMediaControlsWork and preserve error-pausing (#13922))
   }
-#if BUILDFLAG(IS_COBALT)
-  if (skip_controls_creation && error()) {
-    // Preserve MediaControlsImpl::Reset()'s error-pausing side effect when
-    // MediaControls creation is skipped while an error is already present.
-    pause();
-  }
-#endif  // BUILDFLAG(IS_COBALT)
 
-  bool native_controls = ShouldShowControls();
   if (native_controls) {
     media_controls_->MaybeShow();
   } else if (media_controls_) {
