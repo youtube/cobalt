@@ -431,6 +431,12 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   // Count of context lost.
   int context_lost_count_ = 0;
 
+#if BUILDFLAG(IS_COBALT)
+  // Reason used by LoseAllContexts(). Background cleanup sets it to kInnocent
+  // while it releases the contexts on purpose.
+  error::ContextLostReason lose_all_contexts_reason_ = error::kUnknown;
+#endif
+
   bool application_backgrounded_ = false;
 
   THREAD_CHECKER(thread_checker_);

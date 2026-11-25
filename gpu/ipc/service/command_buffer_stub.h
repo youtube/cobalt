@@ -189,7 +189,7 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
   void AddDestructionObserver(DestructionObserver* observer);
   void RemoveDestructionObserver(DestructionObserver* observer);
 
-  void MarkContextLost();
+  void MarkContextLost(error::ContextLostReason reason = error::kUnknown);
 
   scoped_refptr<gl::GLShareGroup> share_group() { return share_group_; }
 
