@@ -40,8 +40,7 @@ class RelocationsTest : public ::testing::Test {
     base_addr_ = reinterpret_cast<Addr>(&buf_);
     dynamic_table_[0].d_tag = DT_REL;
 
-    dynamic_section_.reset(
-        new DynamicSection(base_addr_, dynamic_table_, 1, 0));
+    dynamic_section_.reset(new DynamicSection(base_addr_, dynamic_table_, 1));
     dynamic_section_->InitDynamicSection();
 
     exported_symbols_.reset(new ExportedSymbols());
@@ -83,7 +82,7 @@ class RelocationsTest : public ::testing::Test {
 
  private:
   char buf_[128];
-  Dyn dynamic_table_[10];
+  Dyn dynamic_table_[10] = {};
   std::unique_ptr<DynamicSection> dynamic_section_;
   std::unique_ptr<ExportedSymbols> exported_symbols_;
 };
@@ -453,7 +452,7 @@ TEST_F(RelocationsTest, ApplyAllRelocationsReclaimsInteriorPages) {
   dyn_entries[4].d_un.d_val = plt_reloc_size;
   dyn_entries[5].d_tag = DT_NULL;
 
-  DynamicSection dyn_section(mapped_base, dyn_entries, 6, 0);
+  DynamicSection dyn_section(mapped_base, dyn_entries, 6);
   ASSERT_TRUE(dyn_section.InitDynamicSection());
 
   ExportedSymbols symbols;
@@ -593,7 +592,7 @@ TEST_F(RelocationsTest, ApplyAllRelocationsSkipsHostDlsymForWeakUndefined) {
   mem.dynamic_table[4].d_un.d_val = sizeof(mem.relocs);
   mem.dynamic_table[5].d_tag = DT_NULL;
 
-  DynamicSection dyn_section(base, mem.dynamic_table, 6, 0);
+  DynamicSection dyn_section(base, mem.dynamic_table, 6);
   ASSERT_TRUE(dyn_section.InitDynamicSection());
 
   ExportedSymbols symbols;
@@ -613,6 +612,71 @@ TEST_F(RelocationsTest, ApplyAllRelocationsSkipsHostDlsymForWeakUndefined) {
 #else
   EXPECT_FALSE(relocs.ApplyAllRelocations());
 #endif
+}
+
+// When a PT_DYNAMIC segment is padded with entries after its DT_NULL
+// terminator, Relocations::InitRelocations must stop at DT_NULL rather than
+// parsing trailing entries as active relocation tags.
+TEST_F(RelocationsTest, InitRelocationsStopsAtDtNull) {
+  Dyn dyn_entries[2] = {};
+  dyn_entries[0].d_tag = DT_NULL;
+#if defined(USE_RELA)
+  dyn_entries[1].d_tag = DT_REL;
+#else
+  dyn_entries[1].d_tag = DT_RELA;
+#endif
+
+  DynamicSection dyn_section(base_addr_, dyn_entries, 2);
+  ASSERT_TRUE(dyn_section.InitDynamicSection());
+
+  ExportedSymbols symbols;
+  Relocations relocs(base_addr_, &dyn_section, &symbols);
+  EXPECT_TRUE(relocs.InitRelocations());
+}
+
+// When Relocations::InitRelocations is given a DynamicSection with a null
+// dynamic table pointer, initialization must fail cleanly rather than
+// dereferencing null memory.
+TEST_F(RelocationsTest, InitRelocationsFailsOnNullDynamicTable) {
+  DynamicSection dyn_section(base_addr_, nullptr, 1);
+  ExportedSymbols symbols;
+  Relocations relocs(base_addr_, &dyn_section, &symbols);
+  EXPECT_FALSE(relocs.InitRelocations());
+}
+
+// When a malformed ELF has a symbol-bearing relocation but lacks DT_SYMTAB or
+// DT_STRTAB, ApplyAllRelocations must fail cleanly rather than streaming a
+// null symbol name into error logging.
+TEST_F(RelocationsTest, ApplyAllRelocationsFailsCleanlyWithoutSymbolStrings) {
+  struct MissingSymtabMemory {
+    Addr got_slot;
+    rel_t reloc;
+    Dyn dynamic_table[3];
+  };
+  MissingSymtabMemory mem = {};
+  const Addr base = reinterpret_cast<Addr>(&mem);
+
+  mem.reloc.r_offset = reinterpret_cast<Addr>(&mem.got_slot) - base;
+  mem.reloc.r_info = MakeRelocInfo(1, kGlobDatRelocType);
+
+#if defined(USE_RELA)
+  mem.dynamic_table[0].d_tag = DT_RELA;
+  mem.dynamic_table[1].d_tag = DT_RELASZ;
+#else
+  mem.dynamic_table[0].d_tag = DT_REL;
+  mem.dynamic_table[1].d_tag = DT_RELSZ;
+#endif
+  mem.dynamic_table[0].d_un.d_ptr = reinterpret_cast<Addr>(&mem.reloc) - base;
+  mem.dynamic_table[1].d_un.d_val = sizeof(mem.reloc);
+  mem.dynamic_table[2].d_tag = DT_NULL;
+
+  DynamicSection dyn_section(base, mem.dynamic_table, 3);
+  ASSERT_TRUE(dyn_section.InitDynamicSection());
+
+  ExportedSymbols symbols;
+  Relocations relocs(base, &dyn_section, &symbols);
+  ASSERT_TRUE(relocs.InitRelocations());
+  EXPECT_FALSE(relocs.ApplyAllRelocations());
 }
 
 }  // namespace

@@ -38,7 +38,9 @@ class ElfHashTable {
   size_t dyn_symbols_offset() const { return 1; }
 
   // Number of dynamic symbols in the ELF symbol table.
-  size_t dyn_symbols_count() const { return hash_chain_size_ - 1; }
+  size_t dyn_symbols_count() const {
+    return hash_chain_size_ > 0 ? hash_chain_size_ - 1 : 0;
+  }
 
   // Lookup |symbol_name| in the table. |symbol_table| should point to the
   // ELF symbol table, and |string_table| to the start of its string table.
