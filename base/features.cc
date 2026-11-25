@@ -63,6 +63,16 @@ BASE_FEATURE(kCobaltDiscardableSingleMapping,
              "CobaltDiscardableSingleMapping",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltDiscardableModeratePressureLimit,
+             "CobaltDiscardableModeratePressureLimit",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltDiscardableModeratePressureLimitFraction,
+                   &kCobaltDiscardableModeratePressureLimit,
+                   "moderate_limit_fraction",
+                   0.25);
+
 BASE_FEATURE(kCobaltMemoryPressureCooldown,
              "CobaltMemoryPressureCooldown",
              FEATURE_DISABLED_BY_DEFAULT);
