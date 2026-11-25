@@ -4032,6 +4032,118 @@ TEST_P(PartitionAllocTest, FewerMemoryRegions) {
 #endif  // PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_ANDROID) ||
         // PA_BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_COBALT) && !PA_BUILDFLAG(IS_WIN)
+// Covers long-running non-Windows streaming sessions (Linux, Android, tvOS)
+// where PartitionAlloc with fewer_memory_regions enabled repeatedly frees,
+// decommits, and recommits non-PartitionPage-aligned slot spans;
+// committed-page and max-committed-page accounting must remain exact without
+// drifting or underflowing size_t.
+TEST_P(PartitionAllocTest, FewerMemoryRegionsRecommitAccounting) {
+  auto* root = allocator.root();
+  ASSERT_FALSE(root->settings.fewer_memory_regions);
+  root->settings.fewer_memory_regions = true;
+
+  PartitionBucket* incomplete_regular_bucket = nullptr;
+  PartitionBucket* incomplete_single_slot_bucket = nullptr;
+  const size_t extra_size = ExtraAllocSize(allocator);
+  for (auto& bucket : root->buckets) {
+    if (!bucket.is_valid() || bucket.is_direct_mapped() ||
+        bucket.slot_size <= extra_size) {
+      continue;
+    }
+    if (&root->buckets[SizeToIndex(bucket.slot_size)] != &bucket) {
+      continue;
+    }
+    if (bucket.get_bytes_per_span() ==
+        (bucket.get_pages_per_slot_span() << PartitionPageShift())) {
+      continue;
+    }
+    if (bucket.get_slots_per_span() == 1) {
+      if (!incomplete_single_slot_bucket) {
+        incomplete_single_slot_bucket = &bucket;
+      }
+    } else if (!incomplete_regular_bucket) {
+      incomplete_regular_bucket = &bucket;
+    }
+    if (incomplete_regular_bucket && incomplete_single_slot_bucket) {
+      break;
+    }
+  }
+  if (!incomplete_regular_bucket) {
+    GTEST_SKIP();
+  }
+
+  auto verify_recommit_cycles =
+      [](PartitionRoot* target_root, PartitionBucket* bucket, size_t alloc_size,
+         size_t expected_committed, size_t expected_max_committed) {
+        ASSERT_EQ(0u, target_root->get_total_size_of_committed_pages());
+        void* first_ptr = nullptr;
+        for (int i = 0; i < 16; ++i) {
+          void* ptr = target_root->Alloc(alloc_size, "");
+          ASSERT_TRUE(ptr);
+          EXPECT_EQ(bucket, SlotSpanMetadata<MetadataKind::kReadOnly>::FromAddr(
+                                UntagPtr(ptr))
+                                ->bucket);
+          if (i == 0) {
+            first_ptr = ptr;
+          } else {
+            // Confirm subsequent iterations reuse and recommit the decommitted
+            // span.
+            PA_EXPECT_PTR_EQ(first_ptr, ptr);
+          }
+          EXPECT_EQ(expected_committed,
+                    target_root->get_total_size_of_committed_pages());
+          EXPECT_EQ(expected_max_committed,
+                    target_root->get_max_size_of_committed_pages());
+
+          target_root->Free(ptr);
+          target_root->PurgeMemory(PurgeFlags::kDecommitEmptySlotSpans);
+          EXPECT_EQ(0u, target_root->get_total_size_of_committed_pages());
+          EXPECT_EQ(expected_max_committed,
+                    target_root->get_max_size_of_committed_pages());
+        }
+      };
+
+  const size_t regular_expected =
+      incomplete_regular_bucket->SlotSpanCommittedSize(root);
+  ASSERT_GT(regular_expected, incomplete_regular_bucket->get_bytes_per_span());
+  verify_recommit_cycles(root, incomplete_regular_bucket,
+                         incomplete_regular_bucket->slot_size - extra_size,
+                         regular_expected, regular_expected);
+
+  if (incomplete_single_slot_bucket) {
+    const size_t single_expected =
+        incomplete_single_slot_bucket->SlotSpanCommittedSize(root);
+    ASSERT_GT(single_expected,
+              incomplete_single_slot_bucket->get_bytes_per_span());
+    const size_t max_expected = std::max(regular_expected, single_expected);
+    verify_recommit_cycles(
+        root, incomplete_single_slot_bucket,
+        incomplete_single_slot_bucket->slot_size - extra_size, single_expected,
+        max_expected);
+  }
+
+  // Control: with fewer_memory_regions disabled, recommits must continue to
+  // account for get_bytes_per_span() exactly.
+  partition_alloc::PartitionAllocatorForTesting control_allocator;
+  InitializeTestRoot(control_allocator.root(), GetCommonPartitionOptions(),
+                     PartitionTestOptions{.use_memory_reclaimer = true,
+                                          .uncap_empty_slot_span_memory = true,
+                                          .set_bucket_distribution = true});
+  auto* control_root = control_allocator.root();
+  ASSERT_FALSE(control_root->settings.fewer_memory_regions);
+  auto* control_bucket =
+      &control_root->buckets[SizeToIndex(incomplete_regular_bucket->slot_size)];
+  const size_t control_expected = control_bucket->get_bytes_per_span();
+  ASSERT_EQ(control_expected,
+            control_bucket->SlotSpanCommittedSize(control_root));
+  verify_recommit_cycles(
+      control_root, control_bucket,
+      control_bucket->slot_size - ExtraAllocSize(control_allocator),
+      control_expected, control_expected);
+}
+#endif  // BUILDFLAG(IS_COBALT) && !PA_BUILDFLAG(IS_WIN)
+
 TEST_P(PartitionAllocTest, ZeroFreedMemory) {
   auto* root = allocator.root();
   ASSERT_TRUE(root->settings.eventually_zero_freed_memory);
