@@ -208,7 +208,7 @@ void OpusAudioDecoder::TeardownCodec() {
 
 void OpusAudioDecoder::DecodePendingBuffers() {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(!pending_audio_buffers_.empty());
+  SB_CHECK(!pending_audio_buffers_.empty());
   SB_DCHECK(consumed_cb_);
 
   for (int i = 0; i < kMinimumBuffersToDecode; ++i) {

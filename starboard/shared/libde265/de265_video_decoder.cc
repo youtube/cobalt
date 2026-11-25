@@ -65,7 +65,7 @@ void De265VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 
   if (!decoder_thread_) {
     decoder_thread_ = JobThread::Create("de265_video_decoder");
-    SB_DCHECK(decoder_thread_);
+    SB_CHECK(decoder_thread_);
   }
 
   const auto& input_buffer = input_buffers[0];

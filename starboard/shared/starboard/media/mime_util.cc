@@ -204,7 +204,7 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
   // MimeSupportabilityCache::GetMimeSupportability() returns
   // kSupportabilityNotSupported if ParsedMimeInfo is not valid, so |mime_info|
   // must be valid here.
-  SB_DCHECK(mime_info);
+  SB_CHECK(mime_info);
 
   const MimeType& mime_type = mime_info->mime_type();
   const std::vector<std::string>& codecs = mime_type.GetCodecs();

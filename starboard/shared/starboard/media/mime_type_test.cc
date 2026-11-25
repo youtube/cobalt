@@ -14,6 +14,9 @@
 
 #include "starboard/shared/starboard/media/mime_type.h"
 
+#include <string>
+
+#include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -532,6 +535,48 @@ TEST(MimeTypeTest, NonAsciiBytesAreNotWhitespace) {
   EXPECT_EQ("\xc3\xa9\xa0\xff",
             mime_type->GetParamStringValue(kMimeParamCodecs, ""));
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+// Android native tests run inside the multi-threaded CobaltTestActivity JVM
+// process where "fast" fork()-without-exec() death tests risk deadlocking on
+// allocator/logging locks and "threadsafe" re-exec is unsupported (matching
+// base/test/gtest_util.h).
+TEST(MimeTypeDeathTest, OutOfBoundsParamIndexAborts) {
+  const std::string previous_style = GTEST_FLAG_GET(death_test_style);
+  GTEST_FLAG_SET(death_test_style, "threadsafe");
+
+  auto mime_type = MimeType::Create("video/mp4; width=1920");
+  ASSERT_TRUE(mime_type);
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamType(MimeType::kInvalidParamIndex),
+      "Check failed: index >= 0");
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamIntValue(MimeType::kInvalidParamIndex),
+      "Check failed: index >= 0");
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamFloatValue(MimeType::kInvalidParamIndex),
+      "Check failed: index >= 0");
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamStringValue(MimeType::kInvalidParamIndex),
+      "Check failed: index >= 0");
+  EXPECT_DEATH_IF_SUPPORTED(
+      mime_type->GetParamBoolValue(MimeType::kInvalidParamIndex),
+      "Check failed: index >= 0");
+
+  EXPECT_DEATH_IF_SUPPORTED(mime_type->GetParamType(1),
+                            "Check failed: index < GetParamCount\\(\\)");
+  EXPECT_DEATH_IF_SUPPORTED(mime_type->GetParamIntValue(1),
+                            "Check failed: index < GetParamCount\\(\\)");
+  EXPECT_DEATH_IF_SUPPORTED(mime_type->GetParamFloatValue(1),
+                            "Check failed: index < GetParamCount\\(\\)");
+  EXPECT_DEATH_IF_SUPPORTED(mime_type->GetParamStringValue(1),
+                            "Check failed: index < GetParamCount\\(\\)");
+  EXPECT_DEATH_IF_SUPPORTED(mime_type->GetParamBoolValue(1),
+                            "Check failed: index < GetParamCount\\(\\)");
+
+  GTEST_FLAG_SET(death_test_style, previous_style);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 

@@ -670,7 +670,7 @@ void AudioRendererPassthrough::OnDecoderConsumed() {
 void AudioRendererPassthrough::OnDecoderOutput() {
   int decoded_audio_sample_rate;
   auto decoded_audio = decoder_->Read(&decoded_audio_sample_rate);
-  SB_DCHECK(decoded_audio);
+  SB_CHECK(decoded_audio);
 
   if (!decoded_audio->is_end_of_stream()) {
     SB_DCHECK_GT(decoded_audio->size_in_bytes(), 0);

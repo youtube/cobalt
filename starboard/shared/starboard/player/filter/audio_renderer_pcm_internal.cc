@@ -739,7 +739,7 @@ void AudioRendererPcm::ProcessAudioData() {
 
 bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   SB_CHECK(BelongsToCurrentThread());
-  SB_DCHECK(is_frame_buffer_full);
+  SB_CHECK(is_frame_buffer_full);
 
   *is_frame_buffer_full = false;
 

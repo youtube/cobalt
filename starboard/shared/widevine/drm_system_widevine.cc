@@ -266,7 +266,7 @@ DrmSystemWidevine::~DrmSystemWidevine() {
 
 // static
 bool DrmSystemWidevine::IsKeySystemSupported(const char* key_system) {
-  SB_DCHECK(key_system);
+  SB_CHECK(key_system);
 
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`.  We prepend "key_system/"

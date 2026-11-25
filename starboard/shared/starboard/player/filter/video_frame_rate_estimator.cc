@@ -53,8 +53,8 @@ void VideoFrameRateEstimator::CalculateInitialFrameRate(
     const Frames& frames,
     int64_t previous_frame_duration) {
   SB_DCHECK_EQ(frame_rate_, kInvalidFrameRate);
-  SB_DCHECK(!frames.empty());
-  SB_DCHECK(frames.size() >= 2 || previous_frame_duration > 0);
+  SB_CHECK(!frames.empty());
+  SB_CHECK(frames.size() >= 2 || previous_frame_duration > 0);
 
   if (previous_frame_duration > 0) {
     accumulated_frame_durations_ = previous_frame_duration;
