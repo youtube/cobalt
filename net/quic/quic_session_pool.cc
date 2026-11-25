@@ -33,6 +33,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "crypto/openssl_util.h"
 #include "net/base/address_list.h"
 #include "net/base/connection_endpoint_metadata.h"
@@ -1067,6 +1068,35 @@ void QuicSessionPool::OnBlackholeAfterHandshakeConfirmed(
   if (ping_timeout_ > reduced_ping_timeout_) {
     ping_timeout_ = reduced_ping_timeout_;
   }
+#if BUILDFLAG(IS_COBALT)
+  // b/505079764#comment34: mark the origin (and any IP-pooled aliases on
+  // this session) broken now rather than after the failed request's TCP
+  // retry completes, so follow-up requests go straight to TCP instead of
+  // starting new QUIC handshakes into the dead path. Skip origins already
+  // marked broken so exponential backoff is not double-counted.
+  if (http_server_properties_ &&
+      base::FeatureList::IsEnabled(features::kCobaltEnableQuic) &&
+      features::kCobaltQuicMarkBrokenOnBlackhole.Get()) {
+    auto mark_if_not_broken = [this](const QuicSessionKey& key) {
+      const AlternativeService alt_svc(NextProto::kProtoQUIC,
+                                       key.server_id().host(),
+                                       key.server_id().port());
+      if (!http_server_properties_->IsAlternativeServiceBroken(
+              alt_svc, key.network_anonymization_key())) {
+        http_server_properties_
+            ->MarkAlternativeServiceBrokenUntilDefaultNetworkChanges(
+                alt_svc, key.network_anonymization_key());
+      }
+    };
+    if (auto it = session_aliases_.find(session);
+        it != session_aliases_.end()) {
+      for (const auto& alias : it->second) {
+        mark_if_not_broken(alias.session_key());
+      }
+    }
+    mark_if_not_broken(session->quic_session_key());
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void QuicSessionPool::CancelRequest(QuicSessionRequest* request) {

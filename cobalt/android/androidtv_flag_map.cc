@@ -24,6 +24,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/features.h"
+#include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
@@ -176,13 +177,14 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
     }
   };
 
-  // An explicit --enable-quic (qa and devel builds pass switches through the
-  // launch intent) wins over the experiment default: the network session
-  // configurator only honours --disable-quic, so appending it here would
-  // silently override the user's switch.
-  if (!flag_map.Has(flags::kEnableQuic) &&
-      !cmd_line->HasSwitch(::switches::kEnableQuic)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kDisableQuic);
+  // On Android, QUIC is off unless the CobaltEnableQuic feature is enabled
+  // (net/base/features.h). The EnableQUIC key and --enable-quic are
+  // deprecated and no longer turn QUIC on; warn so that a stale startup
+  // config or launch switch does not go unnoticed.
+  if (flag_map.Has(flags::kEnableQuic) ||
+      cmd_line->HasSwitch(::switches::kEnableQuic)) {
+    LOG(WARNING) << "EnableQUIC and --enable-quic are deprecated and ignored. "
+                    "Use --enable-features=CobaltEnableQuic instead.";
   }
 
   if (flag_map.Has(flags::kUseMinorMsForMinorGc)) {

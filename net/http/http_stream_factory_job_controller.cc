@@ -7,6 +7,11 @@
 #include <string>
 #include <utility>
 
+<<<<<<< HEAD
+=======
+#include "base/containers/contains.h"
+#include "base/feature_list.h"
+>>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -15,6 +20,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/optional_ref.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
 #include "net/base/load_timing_internal_info.h"
@@ -1298,6 +1304,18 @@ void HttpStreamFactory::JobController::MaybeReportBrokenAlternativeService(
 
   HistogramBrokenAlternateProtocolLocation(
       BROKEN_ALTERNATE_PROTOCOL_LOCATION_HTTP_STREAM_FACTORY_JOB_ALT);
+#if BUILDFLAG(IS_COBALT)
+  // Avoid double-counting the broken mark (and overwriting its
+  // until-default-network-changes status) when
+  // QuicSessionPool::OnBlackholeAfterHandshakeConfirmed() already marked
+  // this origin broken.
+  if (base::FeatureList::IsEnabled(features::kCobaltEnableQuic) &&
+      features::kCobaltQuicMarkBrokenOnBlackhole.Get() &&
+      session_->http_server_properties()->IsAlternativeServiceBroken(
+          alt_service, request_info_.network_anonymization_key)) {
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   session_->http_server_properties()->MarkAlternativeServiceBroken(
       alt_service, request_info_.network_anonymization_key);
 }
@@ -1408,11 +1426,27 @@ HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal(
         return AdvertisedAlternativeService();
       }
 #endif
+      AlternativeService alt_svc(NextProto::kProtoQUIC, origin.host(),
+                                 origin.port());
+      // Honour broken marks for the synthetic entry when CobaltEnableQuic's
+      // black-hole marking is enabled. Gated on the feature so that QUIC
+      // without it keeps its existing behaviour.
+      if (base::FeatureList::IsEnabled(features::kCobaltEnableQuic) &&
+          features::kCobaltQuicMarkBrokenOnBlackhole.Get() &&
+          http_server_properties.IsAlternativeServiceBroken(
+              alt_svc, request_info.network_anonymization_key)) {
+        return AlternativeServiceInfo();
+      }
       quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
+<<<<<<< HEAD
       return {AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
           AlternativeService(NextProto::kProtoQUIC, origin.host(), origin.port()),
           base::Time::Max(), versions),
           AdvertisedAltSvcState::kQuicNotBroken};
+=======
+      return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
+          alt_svc, base::Time::Max(), versions);
+>>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
     }
 #endif  // BUILDFLAG(IS_COBALT)
     return AdvertisedAlternativeService();

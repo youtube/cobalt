@@ -107,6 +107,9 @@
 #include "net/ssl/ech_mode_getter.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/storage_access_api/status.h"
+#if BUILDFLAG(IS_COBALT)
+#include "net/third_party/quiche/src/quiche/quic/core/quic_tag.h"
+#endif
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "net/url_request/static_http_user_agent_settings.h"
 #include "net/url_request/url_request.h"
@@ -3192,6 +3195,13 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
   if (network_service_ && network_service_->quic_disabled()) {
     is_quic_force_disabled = true;
   }
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt on Android keeps QUIC off unless the CobaltEnableQuic feature is
+  // enabled. --disable-quic still wins inside ParseCommandLineAndFieldTrials().
+  if (!base::FeatureList::IsEnabled(net::features::kCobaltEnableQuic)) {
+    is_quic_force_disabled = true;
+  }
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 
   auto quic_context = std::make_unique<net::QuicContext>();
   if (params_->quic_idle_connection_timeout_seconds &&
@@ -3204,9 +3214,37 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
       &session_params, quic_context->params());
 
 #if BUILDFLAG(IS_COBALT)
+<<<<<<< HEAD
   // TODO: b/550183348 - disabled as part of the 140.7298 roll.
   session_params.use_quic_for_unknown_origins = false;
 #endif
+=======
+  session_params.use_quic_for_unknown_origins = true;
+  if (session_params.enable_quic &&
+      base::FeatureList::IsEnabled(net::features::kCobaltEnableQuic)) {
+    net::QuicParams* quic_params = quic_context->params();
+    // b/586649769: ask YouTube's video servers to bootstrap the congestion
+    // window per request, as they already do for TCP. An explicit
+    // --quic-connection-options is kept.
+    const std::string options =
+        net::features::kCobaltQuicConnectionOptions.Get();
+    if (quic_params->connection_options.empty() &&
+        !base::EqualsCaseInsensitiveASCII(options, "none")) {
+      quic_params->connection_options = quic::ParseQuicTagVector(options);
+    }
+    // b/586557818: retry a broken QUIC alternative service after a short
+    // initial delay, doubling per consecutive failure, instead of
+    // Chromium's 300 s. Setting 0 keeps Chromium's default.
+    const int initial_delay_s =
+        net::features::kCobaltQuicBrokenInitialDelaySeconds.Get();
+    if (initial_delay_s > 0) {
+      quic_params->initial_delay_for_broken_alternative_service =
+          base::Seconds(initial_delay_s);
+      quic_params->exponential_backoff_on_initial_delay = true;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
 
   session_params.key_auth_cache_server_entries_by_network_anonymization_key =
       params_->split_auth_cache_by_network_anonymization_key;

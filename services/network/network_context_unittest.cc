@@ -823,6 +823,11 @@ TEST_F(NetworkContextTest, DestroyContextWithLiveRequest) {
 }
 
 TEST_F(NetworkContextTest, DisableQuic) {
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  // Cobalt on Android enables QUIC only through the CobaltEnableQuic feature.
+  base::test::ScopedFeatureList scoped_feature_list(
+      net::features::kCobaltEnableQuic);
+#endif
   base::CommandLine::ForCurrentProcess()->AppendSwitch(switches::kEnableQuic);
 
   std::unique_ptr<NetworkContext> network_context =
@@ -1904,7 +1909,11 @@ TEST_F(NetworkContextTest, DefaultHttpNetworkSessionParams) {
       network_context->url_request_context()->quic_context()->params();
 
   EXPECT_TRUE(params.enable_http2);
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+  EXPECT_FALSE(params.enable_quic);
+#else
   EXPECT_TRUE(params.enable_quic);
+#endif
   EXPECT_EQ(1250u, quic_params->max_packet_length);
   EXPECT_TRUE(quic_params->origins_to_force_quic_on.empty());
   EXPECT_FALSE(params.enable_user_alternate_protocol_ports);
