@@ -30,6 +30,7 @@
 #include "starboard/android/shared/media_codec_video_decoder_helpers.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm_android.h"
+#include "starboard/android/shared/video_render_algorithm_android_v2.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -350,6 +351,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
       decoder_improvements_flags_(GetAndroidVideoDecoderImprovementsFlags(
           pipeline_config.experimental_features)),
+      video_render_algorithm_mask_(pipeline_config.experimental_features
+                                       .Get(kMediaVideoRenderAlgorithmMask)
+                                       .value_or(0)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -446,15 +450,21 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
   if (sink_ == nullptr) {
-    sink_ = make_scoped_refptr<Sink>(
-        std::bind(&MediaCodecVideoDecoder::SetPlaybackRate, this, _1));
+    sink_ = make_scoped_refptr<Sink>(std::bind(
+        &MediaCodecVideoDecoder::OnSinkPlaybackRateChanged, this, _1));
   }
   return sink_;
 }
 
 std::unique_ptr<VideoRenderAlgorithm>
 MediaCodecVideoDecoder::GetRenderAlgorithm() {
+  next_tick_wait_duration_us_.store(0, std::memory_order_relaxed);
   if (!tunnel_mode_audio_session_id_) {
+    if (ShouldUseVideoRenderAlgorithmAndroidV2(video_render_algorithm_mask_)) {
+      return std::make_unique<VideoRenderAlgorithmAndroidV2>(
+          this, video_frame_tracker_.get(),
+          static_cast<uint32_t>(video_render_algorithm_mask_));
+    }
     return std::make_unique<VideoRenderAlgorithmAndroid>(
         this, video_frame_tracker_.get());
   }
@@ -780,14 +790,52 @@ void MediaCodecVideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
 }
 
 void MediaCodecVideoDecoder::SetPlaybackRate(double playback_rate) {
-  if (playback_rate_ == playback_rate) {
+  if (playback_rate_.exchange(playback_rate, std::memory_order_relaxed) ==
+      playback_rate) {
     return;
   }
 
-  playback_rate_ = playback_rate;
-  if (media_decoder_) {
+  MediaCodecDecoder* decoder =
+      BelongsToCurrentThread()
+          ? media_decoder_.get()
+          : active_media_decoder_.load(std::memory_order_acquire);
+  if (decoder) {
+    decoder->SetPlaybackRate(playback_rate);
+  }
+}
+
+void MediaCodecVideoDecoder::OnSinkPlaybackRateChanged(double playback_rate) {
+  const double previous_sink_rate =
+      sink_playback_rate_.exchange(playback_rate, std::memory_order_relaxed);
+  const double previous_codec_rate =
+      playback_rate_.exchange(playback_rate, std::memory_order_relaxed);
+  if ((previous_sink_rate != playback_rate ||
+       previous_codec_rate != playback_rate) &&
+      media_decoder_) {
     media_decoder_->SetPlaybackRate(playback_rate);
   }
+}
+
+jni_zero::ScopedJavaLocalRef<jobject>
+MediaCodecVideoDecoder::AcquireJavaSurface() {
+  std::lock_guard lock(active_output_surface_mutex_);
+  if (!active_output_surface_) {
+    return {};
+  }
+  return jni_zero::ScopedJavaLocalRef<jobject>(AttachCurrentThread(),
+                                               active_output_surface_);
+}
+
+void MediaCodecVideoDecoder::SetNextTickWaitDurationUs(
+    int64_t wait_duration_us) {
+  next_tick_wait_duration_us_.store(wait_duration_us > 0 ? wait_duration_us : 0,
+                                    std::memory_order_relaxed);
+}
+
+std::optional<int64_t> MediaCodecVideoDecoder::GetNextTickWaitDurationUs() {
+  const int64_t wait_us =
+      next_tick_wait_duration_us_.load(std::memory_order_relaxed);
+  return wait_us > 0 ? std::make_optional(wait_us) : std::nullopt;
 }
 
 void MediaCodecVideoDecoder::OnFrameAvailable() {
@@ -884,6 +932,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   if (!j_output_surface) {
     return Failure("Video surface does not exist.");
   }
+  {
+    std::lock_guard lock(active_output_surface_mutex_);
+    active_output_surface_.Reset(env, j_output_surface.obj());
+    surface_generation_.fetch_add(1, std::memory_order_relaxed);
+  }
 
   if (needs_fps_to_initialize_codec_) {
     SB_DCHECK_GT(video_fps_, 0);
@@ -929,7 +982,10 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
     }
-    media_decoder_->SetPlaybackRate(playback_rate_);
+    media_decoder_->SetPlaybackRate(
+        playback_rate_.load(std::memory_order_relaxed));
+    active_media_decoder_.store(media_decoder_.get(),
+                                std::memory_order_release);
 
     if (needs_fps_to_initialize_codec_) {
       SB_DCHECK(!pending_input_buffers_.empty());
@@ -942,16 +998,26 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     }
     return Success();
   }
+  active_media_decoder_.store(nullptr, std::memory_order_release);
   media_decoder_.reset();
   return Failure("Media Decoder is not valid: " + result.error());
 }
 
 void MediaCodecVideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
+  {
+    std::lock_guard lock(active_output_surface_mutex_);
+    if (active_output_surface_) {
+      active_output_surface_.Reset();
+      surface_generation_.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
   }
+  // Clear active_media_decoder_ before joining VidDecOut inside reset().
+  active_media_decoder_.store(nullptr, std::memory_order_release);
   media_decoder_.reset();
   color_metadata_ = std::nullopt;
 
@@ -1249,6 +1315,7 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
 
 void MediaCodecVideoDecoder::ResetInternal(bool skip_flush) {
   SB_CHECK(BelongsToCurrentThread());
+  next_tick_wait_duration_us_.store(0, std::memory_order_relaxed);
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
   // re-create |media_decoder_|. If |needs_fps_to_initialize_codec_| is true,

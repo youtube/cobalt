@@ -15,6 +15,7 @@
 #include "starboard/android/shared/video_frame_tracker.h"
 
 #include <string>
+#include <thread>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -212,6 +213,64 @@ TEST(VideoFrameTrackerTest,
   // tracking.
   video_frame_tracker.OnFrameRendered(0);
   video_frame_tracker.OnFrameRendered(10000);
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
+}
+
+TEST(VideoFrameTrackerTest, SkippedFramesAreExcludedFromDroppedCount) {
+  VideoFrameTracker video_frame_tracker(100);
+
+  for (int i = 1; i <= 6; ++i) {
+    video_frame_tracker.OnInputBuffer(i * 10'000);
+  }
+
+  // Simulate Render() on a separate decoder output thread skipping frames
+  // 20000 and 40000 while frame 50000 is genuinely dropped.
+  std::thread decoder_output_thread([&video_frame_tracker] {
+    video_frame_tracker.OnFrameSkipped(20'000);
+    video_frame_tracker.OnFrameSkipped(40'000);
+  });
+  decoder_output_thread.join();
+
+  video_frame_tracker.OnFrameRendered(10'000);
+  video_frame_tracker.OnFrameRendered(30'000);
+  video_frame_tracker.OnFrameRendered(60'000);
+
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 1);
+}
+
+TEST(VideoFrameTrackerTest,
+     SkippedFirstFrameAfterSeekUnlocksStaleCallbackFilter) {
+  VideoFrameTracker video_frame_tracker(
+      /*max_pending_frames_size=*/100,
+      /*ignore_stale_rendered_frames_after_seek=*/true);
+
+  video_frame_tracker.Seek(0);
+  video_frame_tracker.OnInputBuffer(0);
+  video_frame_tracker.OnInputBuffer(10'000);
+  video_frame_tracker.OnInputBuffer(20'000);
+  video_frame_tracker.OnInputBuffer(30'000);
+
+  // Frame 0 is intentionally skipped and Frame 10000 renders first, unlocking
+  // stale-callback filtering so dropping 20000 before 30000 is counted.
+  video_frame_tracker.OnFrameSkipped(0);
+  video_frame_tracker.OnFrameRendered(10'000);
+  video_frame_tracker.OnFrameRendered(30'000);
+
+  EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 1);
+}
+
+TEST(VideoFrameTrackerTest, OnFrameSkippedMatchesWithinMaxAllowedSkew) {
+  VideoFrameTracker video_frame_tracker(/*max_pending_frames_size=*/100);
+
+  video_frame_tracker.OnInputBuffer(10'000);
+  video_frame_tracker.OnInputBuffer(20'000);
+  video_frame_tracker.OnInputBuffer(30'000);
+
+  // Hardware codecs can round output presentationTimeUs by a few microseconds.
+  video_frame_tracker.OnFrameSkipped(20'150);
+  video_frame_tracker.OnFrameRendered(10'000);
+  video_frame_tracker.OnFrameRendered(30'000);
+
   EXPECT_EQ(video_frame_tracker.UpdateAndGetDroppedFrames(), 0);
 }
 

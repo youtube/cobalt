@@ -32,6 +32,7 @@
 #include "starboard/android/shared/media_codec.h"
 #include "starboard/android/shared/media_codec_decoder.h"
 #include "starboard/android/shared/video_frame_tracker.h"
+#include "starboard/android/shared/video_render_algorithm_host.h"
 #include "starboard/android/shared/video_surface_texture_bridge.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/pass_key.h"
@@ -84,6 +85,7 @@ inline bool IsAndroidVideoDecoderImprovementEnabled(
 
 class MediaCodecVideoDecoder : public VideoDecoder,
                                public MediaCodecDecoder::Host,
+                               public VideoRenderAlgorithmHost,
                                public VideoSurfaceTextureBridge::Host,
                                private JobQueue::JobOwner,
                                private VideoSurfaceHolder {
@@ -166,7 +168,16 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
-  void SetPlaybackRate(double playback_rate);
+  void SetPlaybackRate(double playback_rate) override;
+  SbPlayerOutputMode GetOutputMode() const override { return output_mode_; }
+  jni_zero::ScopedJavaLocalRef<jobject> AcquireJavaSurface() override;
+  uint64_t GetSurfaceGeneration() const override {
+    return surface_generation_.load(std::memory_order_relaxed);
+  }
+  void SetNextTickWaitDurationUs(int64_t wait_duration_us) override;
+  bool is_playback_paused() const override {
+    return sink_playback_rate_.load(std::memory_order_relaxed) <= 0.0;
+  }
 
   void OnFrameAvailable() override;
 
@@ -185,6 +196,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFlushing() override;
   bool IsBufferDecodeOnly(
       const scoped_refptr<InputBuffer>& input_buffer) override;
+  std::optional<int64_t> GetNextTickWaitDurationUs() override;
+  void OnSinkPlaybackRateChanged(double playback_rate);
 
   void TryToSignalPrerollForTunnelMode();
   void OnFrameRendered(int64_t frame_timestamp);
@@ -248,6 +261,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
   const uint32_t decoder_improvements_flags_;
+  const int video_render_algorithm_mask_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -279,7 +293,12 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // 1080p, and the frames being played are still at 480p.
   std::vector<FrameSize> frame_sizes_;
 
-  double playback_rate_ = 1.0;
+  std::atomic<double> playback_rate_{1.0};
+  std::atomic<double> sink_playback_rate_{1.0};
+  std::atomic<int64_t> next_tick_wait_duration_us_{0};
+  std::atomic<uint64_t> surface_generation_{0};
+  std::mutex active_output_surface_mutex_;
+  jni_zero::ScopedJavaGlobalRef<jobject> active_output_surface_;
 
   // The last enqueued |SbMediaColorMetadata|.
   std::optional<SbMediaColorMetadata> color_metadata_;
@@ -287,6 +306,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // media_codec_factory_ cannot be null.
   const std::unique_ptr<MediaCodec::Factory> media_codec_factory_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
+  // Published on player_worker so VidDecOut callers in SetPlaybackRate() never
+  // race on std::unique_ptr::reset() during TeardownCodec().
+  std::atomic<MediaCodecDecoder*> active_media_decoder_{nullptr};
 
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;

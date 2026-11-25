@@ -171,6 +171,8 @@ static_library("starboard_platform") {
     "exoplayer/exoplayer_util.h",
     "file_internal.cc",
     "file_internal.h",
+    "fixed_frame_rate_estimator.cc",
+    "fixed_frame_rate_estimator.h",
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
@@ -256,6 +258,8 @@ static_library("starboard_platform") {
     "text_to_speech_helper.h",
     "thread_platform_android.cc",
     "time_zone_get_name.cc",
+    "video_frame_release_platform_helper.cc",
+    "video_frame_release_platform_helper.h",
     "video_frame_tracker.cc",
     "video_frame_tracker.h",
     "video_max_video_input_size.cc",
@@ -264,6 +268,9 @@ static_library("starboard_platform") {
     "video_max_video_resolution.h",
     "video_render_algorithm_android.cc",
     "video_render_algorithm_android.h",
+    "video_render_algorithm_android_v2.cc",
+    "video_render_algorithm_android_v2.h",
+    "video_render_algorithm_host.h",
     "video_surface_texture_bridge.cc",
     "video_surface_texture_bridge.h",
     "video_surface_view.cc",
@@ -447,7 +454,7 @@ static_library("test_support") {
     "//starboard/shared/starboard:features_test_util",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/jni_zero:jni_zero",
+    "//third_party/jni_zero",
   ]
 
   sources = [
@@ -480,6 +487,7 @@ test("starboard_platform_tests") {
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
               "video_max_video_input_size_test.cc",
+              "video_render_algorithm_test.cc",
               "video_surface_view_test.cc",
             ]
 

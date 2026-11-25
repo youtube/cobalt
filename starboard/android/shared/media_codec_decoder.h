@@ -83,6 +83,12 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     virtual bool IsBufferDecodeOnly(
         const scoped_refptr<InputBuffer>& input_buffer) = 0;
 
+    // Optional wait override (in microseconds) before the next non-tunnel
+    // video output Tick(); std::nullopt keeps the default poll interval.
+    virtual std::optional<int64_t> GetNextTickWaitDurationUs() {
+      return std::nullopt;
+    }
+
    protected:
     ~Host() {}
   };
@@ -291,6 +297,9 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   // |mutex_|.  Only used when |enable_codec_thread_improvements_| is true.
   size_t unmatched_input_thread_inputs_ = 0;
   size_t unmatched_input_thread_indices_ = 0;
+  // Set under |mutex_| by SetPlaybackRate() so output/decoder threads wake up
+  // immediately from longer deadline-driven sleeps.
+  bool output_wakeup_requested_ = false;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
