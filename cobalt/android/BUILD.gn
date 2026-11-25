@@ -461,6 +461,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/media/AudioTrackBridgeTest.java",
     "apk/app/src/test/java/dev/cobalt/media/MediaCodecBridgeTest.java",
     "apk/app/src/test/java/dev/cobalt/media/MediaCodecOutputTrackerTest.java",
+    "apk/app/src/test/java/dev/cobalt/testing/WidevineProvisionerTest.java",
     "apk/app/src/test/java/dev/cobalt/util/DeviceUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/DisplayUtilTest.java",
     "apk/app/src/test/java/dev/cobalt/util/JavaSwitchesTest.java",
@@ -472,6 +473,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     ":cobalt_browser_java",
     ":cobalt_main_java",
     ":cobalt_pip_java",
+    ":widevine_provisioner_java",
     "//base:base_cached_flags_java",
     "//base:base_java",
     "//base:base_java_test_support",
@@ -493,12 +495,23 @@ robolectric_binary("cobalt_coat_junit_tests") {
   ignore_all_data_deps = false
 }
 
+android_library("widevine_provisioner_java") {
+  testonly = true
+  sources =
+      [ "apk/app/src/main/java/dev/cobalt/testing/WidevineProvisioner.java" ]
+  deps = [
+    ":cobalt_main_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+  ]
+}
+
 android_library("cobalt_testing_java") {
   testonly = true
   sources =
       [ "apk/app/src/main/java/dev/cobalt/testing/CobaltTestActivity.java" ]
   deps = [
     ":cobalt_main_java",
+    ":widevine_provisioner_java",
     "//base:base_java",
     "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
     "//testing/android/native_test:native_test_java",

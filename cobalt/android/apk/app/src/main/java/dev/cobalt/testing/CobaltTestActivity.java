@@ -69,6 +69,7 @@ public class CobaltTestActivity extends Activity {
   private final Handler mHandler = new Handler(Looper.getMainLooper());
   private TestStarboardBridge mTestStarboardBridge;
   private boolean mVideoSurfaceCreated;
+  private boolean mDrmProvisioningComplete;
   private boolean mStarted;
   private boolean mTestsPosted;
 
@@ -101,6 +102,13 @@ public class CobaltTestActivity extends Activity {
     // destroy the surface during tests.
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+    WidevineProvisioner.ensureProvisionedAsync(
+        mHandler,
+        () -> {
+          mDrmProvisioningComplete = true;
+          maybePostTests();
+        });
+
     // Run the tests once the surface is created.
     VideoSurfaceView videoSurfaceView = new VideoSurfaceView(this);
     videoSurfaceView
@@ -128,9 +136,10 @@ public class CobaltTestActivity extends Activity {
     mStarted = true;
     mHandler.postDelayed(
         () -> {
-          if (!mTestsPosted) {
+          if (!mVideoSurfaceCreated && !mTestsPosted) {
             Log.w(TAG, "Video surface not created, running tests without it.");
-            postTests();
+            mVideoSurfaceCreated = true;
+            maybePostTests();
           }
         },
         VIDEO_SURFACE_TIMEOUT_MS);
@@ -138,7 +147,12 @@ public class CobaltTestActivity extends Activity {
   }
 
   private void maybePostTests() {
-    if (mStarted && mVideoSurfaceCreated && !mTestsPosted) {
+    if (!isFinishing()
+        && !isDestroyed()
+        && mStarted
+        && mVideoSurfaceCreated
+        && mDrmProvisioningComplete
+        && !mTestsPosted) {
       postTests();
     }
   }
