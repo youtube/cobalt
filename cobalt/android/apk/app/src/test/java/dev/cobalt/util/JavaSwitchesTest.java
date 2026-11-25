@@ -16,6 +16,7 @@ package dev.cobalt.util;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import dev.cobalt.features.CobaltFeatureList;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -25,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.FeatureOverrides;
+import org.chromium.base.cached_flags.ValuesReturned;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,6 +45,9 @@ public class JavaSwitchesTest {
     clearConfigFiles();
     JavaSwitches.setOverrideForTesting(null);
     JavaSwitches.takeNativeKeyValues();
+    // Other test classes, e.g. CobaltActivityTest, can leave cached values behind.
+    FeatureOverrides.removeAllIncludingAnnotations();
+    ValuesReturned.clearForTesting();
   }
 
   @After
@@ -49,6 +55,9 @@ public class JavaSwitchesTest {
     JavaSwitches.setOverrideForTesting(null);
     DeviceUtil.resetForTesting();
     clearConfigFiles();
+    // RobolectricTestRunner doesn't run ResettersForTesting, so reset static state here.
+    FeatureOverrides.removeAllIncludingAnnotations();
+    ValuesReturned.clearForTesting();
   }
 
   private void clearConfigFiles() {
@@ -238,24 +247,28 @@ public class JavaSwitchesTest {
   }
 
   @Test
-  public void testApply_LowEndDeviceMode_NotForcedByExperiment() {
-    Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
+  public void testApply_LowEndDeviceMode_OnByDefault() {
+    // Nothing cached by a previous launch, so LowMemoryDeviceThresholdMB is not set.
+    assertThat(apply(new HashMap<>(), true)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
+  }
 
-    List<String> args = apply(switches, true);
+  @Test
+  public void testApply_LowEndDeviceMode_OffWhenThresholdSet() {
+    CobaltFeatureList.sLowMemoryDeviceThresholdMb.setForTesting(2048);
 
-    // No low-end switch is emitted, so base::SysInfo::IsLowEndDevice() falls back to the
-    // physical memory threshold. Devices at or below it stay low-end.
+    List<String> args = apply(new HashMap<>(), true);
+
+    // No low-end switch is emitted, so base compares the device's RAM against the threshold
+    // cached by CobaltFeatureList.
     assertThat(args).containsExactly(DEFAULT_SCALE);
   }
 
   @Test
   public void testApply_LowEndDeviceMode_SafeModeKeepsLowEnd() {
-    Map<String, String> switches = new HashMap<>();
-    switches.put(JavaSwitches.DISABLE_LOW_END_DEVICE_MODE, "1");
+    CobaltFeatureList.sLowMemoryDeviceThresholdMb.setForTesting(2048);
 
     // Safe mode / no experiment config must not silently flip low-end mode off.
-    assertThat(apply(switches, false)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
+    assertThat(apply(new HashMap<>(), false)).containsExactly(LOW_END, DEFAULT_SCALE).inOrder();
   }
 
   @Test
