@@ -19,11 +19,8 @@
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
-<<<<<<< HEAD
 #include "base/logging.h"
-=======
 #include "base/strings/string_util.h"
->>>>>>> 8f009e4d98e (starboard: Add string helper methods mirroring base/strings/string_util.h (#14016))
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/updater/network_fetcher.h"
