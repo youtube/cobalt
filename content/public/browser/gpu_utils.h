@@ -22,6 +22,10 @@ CONTENT_EXPORT const gpu::GpuPreferences GetGpuPreferencesFromCommandLine();
 CONTENT_EXPORT void KillGpuProcess();
 
 #if BUILDFLAG(IS_COBALT)
+// Updates browser-side GPU visibility state on the UI thread so GPU preferences
+// (watchdog_starts_backgrounded) reflect whether the application is visible.
+CONTENT_EXPORT void SetGpuApplicationVisibleOnUI(bool is_visible);
+
 // Asynchronously triggers full GPU resource and EGL display teardown on the
 // GPU service, executing |callback| on the UI thread once the teardown is
 // completely finished via a Mojo IPC barrier. Used during Cobalt conceal
@@ -32,7 +36,7 @@ CONTENT_EXPORT void CleanupGpuProcessOnUI(base::OnceClosure callback);
 // returning to the foreground, re-initializing the EGL display and default
 // offscreen surface, and flushing queued GPU channel requests.
 CONTENT_EXPORT void RestoreGpuProcessOnUI();
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 
 CONTENT_EXPORT gpu::GpuChannelEstablishFactory* GetGpuChannelEstablishFactory();
 

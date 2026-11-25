@@ -75,6 +75,23 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "interval",
                    base::Minutes(1));
 
+// Defers GLDisplayEGL initialization (eglGetDisplay and eglInitialize) and
+// context graphics info collection when the application starts or wakes in a
+// non-visible state until the application becomes visible.
+// Enabling this feature also implies skipping synchronous GPU channel
+// establishment while the renderer is hidden (same behavior as
+// kCobaltSkipSyncGpuChannelWhenHidden) so background script execution does not
+// block CrRendererMain waiting for Reveal.
+// Disabled by default on Android; enabled by default on all other Cobalt
+// platforms (including Starboard Linux/RDK, Evergreen-on-AOSP, and tvOS).
+BASE_FEATURE(kCobaltDeferEglInitUntilVisible,
+             "CobaltDeferEglInitUntilVisible",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, uses Android SurfaceControl for the display compositor with
 // Starboard media, removes the primary UI plane, and releases VizBufferQueue UI

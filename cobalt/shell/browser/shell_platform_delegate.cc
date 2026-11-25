@@ -14,6 +14,7 @@
 
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
+#include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/threading/hang_watcher.h"
 #include "build/build_config.h"
@@ -29,6 +30,7 @@
 #include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "media/starboard/starboard_renderer.h"
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 #include "ui/aura/window_tree_host_platform.h"
@@ -252,9 +254,13 @@ void ShellPlatformDelegate::OnUnfreeze() {
   // Resume the hangwatcher.
   base::HangWatcher::Resume();
 
-  // Restore GPU process on UI early so that renderer IPCs (e.g.
-  // EstablishGpuChannel) are no longer blocked by the backgrounded GPU service.
-  content::RestoreGpuProcessOnUI();
+  if (!base::FeatureList::IsEnabled(
+          features::kCobaltDeferEglInitUntilVisible)) {
+    // When EGL initialization is not deferred, restore the GPU early so that
+    // renderer channel requests are not blocked by the backgrounded GPU
+    // service.
+    content::RestoreGpuProcessOnUI();
+  }
 
   for (auto* shell : Shell::windows()) {
     shell->web_contents()->SetPageFrozen(false);

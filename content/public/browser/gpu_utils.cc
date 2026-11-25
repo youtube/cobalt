@@ -31,8 +31,9 @@
 #include "ui/gl/gl_features.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "content/browser/gpu/gpu_data_manager_impl.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
-#endif
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace {
 
@@ -160,12 +161,20 @@ void KillGpuProcess() {
 }
 
 #if BUILDFLAG(IS_COBALT)
+void SetGpuApplicationVisibleOnUI(bool is_visible) {
+  if (!base::FeatureList::IsEnabled(features::kCobaltDeferEglInitUntilVisible)) {
+    return;
+  }
+  GpuDataManagerImpl::GetInstance()->SetApplicationVisible(is_visible);
+}
+
 // Coordinates background GPU resource teardown from the browser UI thread.
 // Dispatches OnBackgroundCleanup() to the GPU service and establishes a Mojo
 // IPC barrier (via GetVideoMemoryUsageStats query) to ensure all asynchronous
 // GPU channel, context, surface, and display teardown operations on the GPU
 // thread are completed before |callback| is invoked to destroy native windows.
 void CleanupGpuProcessOnUI(base::OnceClosure callback) {
+  SetGpuApplicationVisibleOnUI(false);
   GpuProcessHost::CallOnUI(
       FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
       base::BindOnce(
@@ -196,6 +205,7 @@ void CleanupGpuProcessOnUI(base::OnceClosure callback) {
 // display, create the default offscreen surface, and fulfill any GPU channel
 // establishment requests queued while backgrounded.
 void RestoreGpuProcessOnUI() {
+  SetGpuApplicationVisibleOnUI(true);
   GpuProcessHost::CallOnUI(
       FROM_HERE, GPU_PROCESS_KIND_SANDBOXED, false /* force_create */,
       base::BindOnce([](content::GpuProcessHost* host) {

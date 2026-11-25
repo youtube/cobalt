@@ -264,6 +264,33 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.GPU.DeferEglInit.ColdInitDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for ongoing monitoring of preload-to-reveal EGL deferral latency. -->
+
+  <owner>jfoks@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Records the wall-clock duration on the GPU main thread to initialize
+    GLDisplayEGL, collect context graphics info, and compute GPU driver bug
+    workarounds during the first foreground transition when EGL initialization
+    was deferred while concealed.
+  </summary>
+</histogram>
+
+<histogram name="Cobalt.GPU.DeferEglInit.ShaderBlobReplayDuration" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for ongoing monitoring of preload-to-reveal shader cache replay latency. -->
+
+  <owner>jfoks@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>
+    Records the wall-clock duration on the GPU main thread to validate prefixes
+    and populate Skia's in-memory GrShaderCache with shader blobs that were read
+    from disk while EGL initialization was deferred.
+  </summary>
+</histogram>
+
 <histogram name="Cobalt.LoaderApp.ElfDecompressionDuration" units="ms"
     expires_after="never">
 <!-- expires-never: Needed for long-term tracking of ELF load performance. -->

@@ -510,9 +510,18 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   gpu::GPUInfo gpu_info_;
 
   // Information about general chrome feature support for the GPU.
+#if BUILDFLAG(IS_COBALT)
+  // Mutated at most once on |main_runner_| during deferred cold GL init in
+  // OnForegroundedOnMainThread(), strictly before any GPU channel or root
+  // CompositorFrameSink exists to read these fields from another sequence.
+  gpu::GpuFeatureInfo gpu_feature_info_;
+
+  gpu::GpuDriverBugWorkarounds gpu_driver_bug_workarounds_;
+#else
   const gpu::GpuFeatureInfo gpu_feature_info_;
 
   const gpu::GpuDriverBugWorkarounds gpu_driver_bug_workarounds_;
+#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_WIN)
   gfx::mojom::DXGIInfoPtr dxgi_info_;
@@ -642,7 +651,28 @@ class VIZ_SERVICE_EXPORT GpuServiceImpl
   // upon resume in OnForegroundedOnMainThread().
   std::vector<PendingEstablishGpuChannelRequest>
       pending_establish_gpu_channel_requests_;
-#endif
+
+  struct PendingLoadedBlob {
+    PendingLoadedBlob(const gpu::GpuDiskCacheHandle& handle,
+                      std::string key,
+                      std::string data);
+    PendingLoadedBlob(PendingLoadedBlob&& other);
+    PendingLoadedBlob& operator=(PendingLoadedBlob&& other);
+    ~PendingLoadedBlob();
+
+    gpu::GpuDiskCacheHandle handle;
+    std::string key;
+    std::string data;
+  };
+
+  void HandleDeferredInitMemoryPressure(
+      base::MemoryPressureListener::MemoryPressureLevel level);
+
+  bool deferred_gl_init_pending_ = false;
+  std::vector<PendingLoadedBlob> pending_loaded_blobs_;
+  std::unique_ptr<base::MemoryPressureListener>
+      deferred_gl_init_memory_pressure_listener_;
+#endif  // BUILDFLAG(IS_COBALT)
   base::WeakPtrFactory<GpuServiceImpl> weak_ptr_factory_{this};
 };
 

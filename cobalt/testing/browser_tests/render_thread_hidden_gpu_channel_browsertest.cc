@@ -36,6 +36,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/renderer/render_thread_impl.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/client/gpu_channel_host.h"
 #include "gpu/ipc/common/memory_stats.h"
 #include "services/viz/privileged/mojom/gl/gpu_service.mojom.h"
@@ -248,11 +249,26 @@ IN_PROC_BROWSER_TEST_F(RenderThreadHiddenGpuChannelBrowserTest,
   EXPECT_NE(resumed_context_provider, nullptr);
 }
 
-using RenderThreadHiddenGpuChannelDefaultDisabledBrowserTest =
-    RenderThreadHiddenGpuChannelBrowserTestBase;
+class RenderThreadHiddenGpuChannelBothFeaturesDisabledBrowserTest
+    : public RenderThreadHiddenGpuChannelBrowserTestBase {
+ public:
+  RenderThreadHiddenGpuChannelBothFeaturesDisabledBrowserTest() {
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{},
+        /*disabled_features=*/{features::kCobaltSkipSyncGpuChannelWhenHidden,
+                               features::kCobaltDeferEglInitUntilVisible});
+  }
 
-IN_PROC_BROWSER_TEST_F(RenderThreadHiddenGpuChannelDefaultDisabledBrowserTest,
-                       DisabledByDefaultRestoresSyncChannelWhileHidden) {
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+// Covers the user journey where both hidden sync-channel skipping and deferred
+// EGL initialization are disabled via their kill switches, verifying that a
+// hidden renderer can still re-establish a synchronous GPU channel.
+IN_PROC_BROWSER_TEST_F(
+    RenderThreadHiddenGpuChannelBothFeaturesDisabledBrowserTest,
+    BothFeaturesDisabledRestoresSyncChannelWhileHidden) {
   ASSERT_TRUE(
       content::NavigateToURL(shell()->web_contents(), GURL("about:blank")));
 

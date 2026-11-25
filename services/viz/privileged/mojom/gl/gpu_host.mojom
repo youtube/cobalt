@@ -46,6 +46,13 @@ interface GpuHost {
   // process.
   DidUpdateGPUInfo(gpu.mojom.GpuInfo gpu_info);
 
+  // Tells the GPU host that deferred GPUInfo, GpuFeatureInfo, and GpuExtraInfo
+  // collection has completed in the GPU process.
+  [EnableIf=is_cobalt]
+  DidUpdateGPUInfoAndFeatures(gpu.mojom.GpuInfo gpu_info,
+                              gpu.mojom.GpuFeatureInfo gpu_feature_info,
+                              gfx.mojom.GpuExtraInfo gpu_extra_info);
+
   // Tells the GPU host that the overlay info has been updated in the GPU
   // process.
   [EnableIf=is_win]

@@ -178,10 +178,10 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   }
 
 #if BUILDFLAG(IS_COBALT)
-  void SetDefaultOffscreenSurface(scoped_refptr<gl::GLSurface> surface) {
-    default_offscreen_surface_ = std::move(surface);
-  }
-#endif
+  void SetDefaultOffscreenSurface(scoped_refptr<gl::GLSurface> surface);
+  void UpdateGpuFeatureInfo(const GpuFeatureInfo& gpu_feature_info);
+  void RunWhenDefaultOffscreenSurfaceReady(base::OnceClosure callback);
+#endif  // BUILDFLAG(IS_COBALT)
 
   GpuMemoryBufferFactory* gpu_memory_buffer_factory() {
     return gpu_memory_buffer_factory_;
@@ -348,7 +348,11 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   scoped_refptr<base::SingleThreadTaskRunner> io_task_runner_;
 
   const GpuPreferences gpu_preferences_;
+#if BUILDFLAG(IS_COBALT)
+  GpuDriverBugWorkarounds gpu_driver_bug_workarounds_;
+#else
   const GpuDriverBugWorkarounds gpu_driver_bug_workarounds_;
+#endif  // BUILDFLAG(IS_COBALT)
 
   const raw_ptr<GpuChannelManagerDelegate> delegate_;
 
@@ -427,6 +431,10 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
   int context_lost_count_ = 0;
 
   bool application_backgrounded_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  std::vector<base::OnceClosure> pending_offscreen_surface_ready_callbacks_;
+#endif  // BUILDFLAG(IS_COBALT)
 
   THREAD_CHECKER(thread_checker_);
 
