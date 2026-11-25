@@ -298,6 +298,34 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
                          });
   }
 
+  NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
+  CreateGlobalSurfaceDecoder(
+      const VideoStreamInfo& stream_info,
+      ExperimentalFeatures experimental_features,
+      bool enable_flush_during_seek = false,
+      FakeMediaCodecFactory** out_fake_factory = nullptr) {
+    auto factory = std::make_unique<FakeMediaCodecFactory>();
+    if (out_fake_factory) {
+      *out_fake_factory = factory.get();
+    }
+
+    MediaCodecVideoDecoder::StreamConfig stream_config{
+        stream_info,
+        /*drm_system=*/kSbDrmSystemInvalid, kSbPlayerOutputModePunchOut,
+        /*decode_target_graphics_context_provider=*/
+        &fake_graphics_context_provider_,
+        /*surface_view=*/nullptr};
+    MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
+    MediaCodecVideoDecoder::PipelineConfig pipeline_config;
+    pipeline_config.experimental_features = std::move(experimental_features);
+    pipeline_config.enable_flush_during_seek = enable_flush_during_seek;
+    MediaCodecVideoDecoder::PlatformOptions platform_options;
+
+    return MediaCodecVideoDecoder::CreateForTesting(
+        std::move(factory), &job_queue_, stream_config, tunnel_config,
+        pipeline_config, platform_options);
+  }
+
   std::atomic<bool> error_called_{false};
 
   std::mutex callback_mutex_;
@@ -707,36 +735,24 @@ TEST_F(MediaCodecVideoDecoderTest,
 
 TEST_F(MediaCodecVideoDecoderTest,
        GlobalSurfaceDestroyedOrHeldByOtherDecoderSkipsCleanupWhenGuarded) {
+  using android_video_decoder_improvements::
+      kGuardSurfaceResetAndCleanupByOwnership;
+
   ScopedGlobalVideoSurface scoped_surface;
   ASSERT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
 
-  MediaCodecVideoDecoder::StreamConfig global_surface_stream_config{
-      kDefaultVideoStreamInfo,
-      /*drm_system=*/kSbDrmSystemInvalid, kSbPlayerOutputModePunchOut,
-      /*decode_target_graphics_context_provider=*/
-      &fake_graphics_context_provider_,
-      /*surface_view=*/nullptr};
-  MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
-  MediaCodecVideoDecoder::PipelineConfig pipeline_config;
-  pipeline_config.experimental_features = MakeVideoDecoderImprovementsFeatures(
-      android_video_decoder_improvements::
-          kGuardSurfaceResetAndCleanupByOwnership);
-  MediaCodecVideoDecoder::PlatformOptions platform_options;
-
-  auto first_decoder = MediaCodecVideoDecoder::CreateForTesting(
-      std::make_unique<FakeMediaCodecFactory>(), &job_queue_,
-      global_surface_stream_config, tunnel_config, pipeline_config,
-      platform_options);
+  auto first_decoder = CreateGlobalSurfaceDecoder(
+      kDefaultVideoStreamInfo, MakeVideoDecoderImprovementsFeatures(
+                                   kGuardSurfaceResetAndCleanupByOwnership));
   ASSERT_TRUE(first_decoder);
   EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
 
   // A second punch-out decoder failing to acquire the global surface must not
   // clear the first decoder's active surface when its failed instance is
   // destroyed.
-  auto second_decoder = MediaCodecVideoDecoder::CreateForTesting(
-      std::make_unique<FakeMediaCodecFactory>(), &job_queue_,
-      global_surface_stream_config, tunnel_config, pipeline_config,
-      platform_options);
+  auto second_decoder = CreateGlobalSurfaceDecoder(
+      kDefaultVideoStreamInfo, MakeVideoDecoderImprovementsFeatures(
+                                   kGuardSurfaceResetAndCleanupByOwnership));
   EXPECT_FALSE(second_decoder);
   EXPECT_EQ(gles_context_runner_count_, 0);
 
@@ -749,43 +765,302 @@ TEST_F(MediaCodecVideoDecoderTest,
   EXPECT_EQ(gles_context_runner_count_, 0);
 }
 
+TEST_F(MediaCodecVideoDecoderTest,
+       Av1DelayedInitHoldsGlobalSurfaceFromConstructionUntilDestruction) {
+  using android_video_decoder_improvements::
+      kGuardSurfaceResetAndCleanupByOwnership;
+  using android_video_decoder_improvements::kHoldVideoSurfaceForDecoderLifetime;
+
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  ScopedGlobalVideoSurface scoped_surface;
+  ASSERT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // Without bit 1, delayed AV1 construction leaves the global surface unowned.
+  auto unguarded_av1 = CreateGlobalSurfaceDecoder(
+      kAv1VideoStreamInfo, MakeVideoDecoderImprovementsFeatures(
+                               kGuardSurfaceResetAndCleanupByOwnership));
+  ASSERT_TRUE(unguarded_av1);
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+  unguarded_av1.value().reset();
+
+  // With bit 1 enabled, delayed AV1 construction acquires the global surface
+  // immediately, blocks concurrent punch-out decoders, skips cleanup when torn
+  // down before `InitializeCodec()` (with bit 0), and releases ownership on
+  // destruction.
+  FakeMediaCodecFactory* first_factory = nullptr;
+  auto first_decoder = CreateGlobalSurfaceDecoder(
+      kAv1VideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(
+          kGuardSurfaceResetAndCleanupByOwnership |
+          kHoldVideoSurfaceForDecoderLifetime),
+      /*enable_flush_during_seek=*/false, &first_factory);
+  ASSERT_TRUE(first_decoder);
+  ASSERT_NE(first_factory, nullptr);
+  EXPECT_EQ(first_factory->last_created_video_codec(), nullptr);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  auto second_decoder = CreateGlobalSurfaceDecoder(
+      kAv1VideoStreamInfo, MakeVideoDecoderImprovementsFeatures(
+                               kGuardSurfaceResetAndCleanupByOwnership |
+                               kHoldVideoSurfaceForDecoderLifetime));
+  EXPECT_FALSE(second_decoder);
+  EXPECT_EQ(gles_context_runner_count_, 0);
+
+  first_decoder.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 0);
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // Once 3 AV1 inputs trigger `InitializeCodec()`, the already-owned surface is
+  // reused, remains owned across `ResetForTeardown()`, is cleaned up in
+  // `~MediaCodecVideoDecoder()`, and is released only after cleanup.
+  FakeMediaCodecFactory* initialized_factory = nullptr;
+  auto initialized_av1 = CreateGlobalSurfaceDecoder(
+      kAv1VideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(kHoldVideoSurfaceForDecoderLifetime),
+      /*enable_flush_during_seek=*/false, &initialized_factory);
+  ASSERT_TRUE(initialized_av1);
+  ASSERT_NE(initialized_factory, nullptr);
+  auto sink = initialized_av1.value()->GetSink();
+  sink->SetRenderCB([](const VideoRendererSink::DrawFrameCB&) {});
+  initialized_av1.value()->Initialize(
+      [](VideoDecoder::Status, const scoped_refptr<VideoFrame>&) {},
+      [](SbPlayerError, const std::string&) {});
+
+  initialized_av1.value()->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kAv1VideoStreamInfo),
+       CreateDummyVideoInputBuffer(33'333, 1024, &kAv1VideoStreamInfo),
+       CreateDummyVideoInputBuffer(66'666, 1024, &kAv1VideoStreamInfo)});
+  ASSERT_NE(initialized_factory->last_created_video_codec(), nullptr);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  initialized_av1.value()->ResetForTeardown();
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+  EXPECT_EQ(gles_context_runner_count_, 0);
+
+  initialized_av1.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 1);
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       HoldsGlobalSurfaceAcrossSeekHdrTransitionsAndTeardown) {
+  using android_video_decoder_improvements::
+      kGuardSurfaceResetAndCleanupByOwnership;
+  using android_video_decoder_improvements::kHoldVideoSurfaceForDecoderLifetime;
+
+  ScopedGlobalVideoSurface scoped_surface;
+  ASSERT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // Baseline without bit 1 drops surface ownership during non-flushing Reset()
+  // and `ResetForTeardown()`.
+  auto baseline_decoder = CreateGlobalSurfaceDecoder(
+      kDefaultVideoStreamInfo, MakeVideoDecoderImprovementsFeatures(
+                                   kGuardSurfaceResetAndCleanupByOwnership));
+  ASSERT_TRUE(baseline_decoder);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+  baseline_decoder.value()->Reset();
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+  baseline_decoder.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 1);
+
+  // With bit 1 enabled, non-flushing seeks retain ownership across codec
+  // teardown and HDR re-initialization.
+  FakeMediaCodecFactory* seek_factory = nullptr;
+  auto seek_decoder = CreateGlobalSurfaceDecoder(
+      kDefaultVideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(
+          kGuardSurfaceResetAndCleanupByOwnership |
+          kHoldVideoSurfaceForDecoderLifetime),
+      /*enable_flush_during_seek=*/false, &seek_factory);
+  ASSERT_TRUE(seek_decoder);
+  ASSERT_NE(seek_factory, nullptr);
+  auto seek_sink = seek_decoder.value()->GetSink();
+  seek_sink->SetRenderCB([](const VideoRendererSink::DrawFrameCB&) {});
+  bool error_called = false;
+  seek_decoder.value()->Initialize(
+      [](VideoDecoder::Status, const scoped_refptr<VideoFrame>&) {},
+      [&error_called](SbPlayerError, const std::string&) {
+        error_called = true;
+      });
+
+  seek_decoder.value()->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024)});
+  const int initial_create_count = seek_factory->video_codec_create_count();
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  seek_decoder.value()->Reset();
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  seek_decoder.value()->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(50'000'000, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(seek_factory->video_codec_create_count(), initial_create_count + 1);
+  EXPECT_FALSE(error_called);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  seek_decoder.value()->ResetForTeardown();
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  seek_decoder.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 2);
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // Flush-seek SDR-to-HDR transition also retains surface ownership across
+  // `NeedsCodecTransition()` teardown and rebuild.
+  FakeMediaCodecFactory* flush_factory = nullptr;
+  auto flush_decoder = CreateGlobalSurfaceDecoder(
+      kDefaultVideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(
+          kGuardSurfaceResetAndCleanupByOwnership |
+          kHoldVideoSurfaceForDecoderLifetime),
+      /*enable_flush_during_seek=*/true, &flush_factory);
+  ASSERT_TRUE(flush_decoder);
+  ASSERT_NE(flush_factory, nullptr);
+  auto flush_sink = flush_decoder.value()->GetSink();
+  flush_sink->SetRenderCB([](const VideoRendererSink::DrawFrameCB&) {});
+  flush_decoder.value()->Initialize(
+      [](VideoDecoder::Status, const scoped_refptr<VideoFrame>&) {},
+      [&error_called](SbPlayerError, const std::string&) {
+        error_called = true;
+      });
+
+  flush_decoder.value()->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024)});
+  const int flush_initial_count = flush_factory->video_codec_create_count();
+  flush_decoder.value()->Reset();
+  flush_decoder.value()->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(100'000'000, 1024, &kHdrVideoStreamInfo,
+                                   /*is_key_frame=*/true)});
+  EXPECT_EQ(flush_factory->video_codec_create_count(), flush_initial_count + 1);
+  EXPECT_FALSE(error_called);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  flush_decoder.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 3);
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       GlobalSurfaceReplacedWhileHeldWithLifetimeFlagSkipsCleanup) {
+  using android_video_decoder_improvements::
+      kGuardSurfaceResetAndCleanupByOwnership;
+  using android_video_decoder_improvements::kHoldVideoSurfaceForDecoderLifetime;
+
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  ScopedGlobalVideoSurface scoped_surface;
+  ASSERT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // Replacing the surface while an uninitialized AV1 decoder holds it notifies
+  // `OnSurfaceDestroyed()` and leaves the replacement surface untouched.
+  auto delayed_av1 = CreateGlobalSurfaceDecoder(
+      kAv1VideoStreamInfo, MakeVideoDecoderImprovementsFeatures(
+                               kGuardSurfaceResetAndCleanupByOwnership |
+                               kHoldVideoSurfaceForDecoderLifetime));
+  ASSERT_TRUE(delayed_av1);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  scoped_surface.ReplaceSurface();
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+  delayed_av1.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 0);
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // Replacing the surface after `ResetForTeardown()` on an initialized decoder
+  // also skips cleanup and preserves a new decoder's ownership of the
+  // replacement surface.
+  auto initialized_decoder = CreateGlobalSurfaceDecoder(
+      kDefaultVideoStreamInfo, MakeVideoDecoderImprovementsFeatures(
+                                   kGuardSurfaceResetAndCleanupByOwnership |
+                                   kHoldVideoSurfaceForDecoderLifetime));
+  ASSERT_TRUE(initialized_decoder);
+  initialized_decoder.value()->ResetForTeardown();
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  scoped_surface.ReplaceSurface();
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  auto replacement_owner = CreateGlobalSurfaceDecoder(
+      kDefaultVideoStreamInfo, MakeVideoDecoderImprovementsFeatures(
+                                   kGuardSurfaceResetAndCleanupByOwnership |
+                                   kHoldVideoSurfaceForDecoderLifetime));
+  ASSERT_TRUE(replacement_owner);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  initialized_decoder.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 0);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  replacement_owner.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 1);
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+}
+
 TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
   using android_video_decoder_improvements::
       kGuardSurfaceResetAndCleanupByOwnership;
-  constexpr uint32_t kOtherImprovementBit = 1u << 1;
+  using android_video_decoder_improvements::kHoldVideoSurfaceForDecoderLifetime;
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(ExperimentalFeatures()),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(ExperimentalFeatures()),
+      kHoldVideoSurfaceForDecoderLifetime));
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(0)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(0)),
+      kHoldVideoSurfaceForDecoderLifetime));
 
-  // Negative values act as disabled/placebo even though bit 0 is set in two's
-  // complement representation.
+  // Negative values act as disabled/placebo even though bits 0 and 1 are set in
+  // two's complement representation.
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(-1)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(-1)),
+      kHoldVideoSurfaceForDecoderLifetime));
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
-          MakeVideoDecoderImprovementsFeatures(kOtherImprovementBit)),
+          MakeVideoDecoderImprovementsFeatures(
+              kHoldVideoSurfaceForDecoderLifetime)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kHoldVideoSurfaceForDecoderLifetime)),
+      kHoldVideoSurfaceForDecoderLifetime));
 
   EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(
               kGuardSurfaceResetAndCleanupByOwnership)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceResetAndCleanupByOwnership)),
+      kHoldVideoSurfaceForDecoderLifetime));
 
   EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(
-              kGuardSurfaceResetAndCleanupByOwnership | kOtherImprovementBit)),
+              kGuardSurfaceResetAndCleanupByOwnership |
+              kHoldVideoSurfaceForDecoderLifetime)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceResetAndCleanupByOwnership |
+              kHoldVideoSurfaceForDecoderLifetime)),
+      kHoldVideoSurfaceForDecoderLifetime));
 }
 
 }  // namespace
