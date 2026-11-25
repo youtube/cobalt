@@ -251,7 +251,6 @@ BASE_DECLARE_FEATURE(kCobaltCodeCacheOptimization);
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltGeneratedCodeCacheSizeBytes);
 BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 
-<<<<<<< HEAD
 // Gates independent Finch/Mendel experimentation on Cobalt's on-disk HTTP cache
 // capacity (DIR_CACHE/Cache), decoupled from V8 code-cache optimizations. When
 // enabled, `cobalt_http_cache_size_bytes` (default: 12582912 bytes / 12 MiB,
@@ -260,7 +259,7 @@ BASE_DECLARE_FEATURE_PARAM(bool, kCobaltV8CodeCacheBypassHeatCheck);
 // caps Starboard's HTTP cache within `ComputeDefaultHttpCacheSize()`.
 BASE_DECLARE_FEATURE(kCobaltHttpCacheQuota);
 BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeBytes);
-=======
+
 // Modeled on upstream `ChromeContentBrowserClient::PostAfterStartupTask()`
 // (`chrome/browser/after_startup_task_utils.cc`) and
 // `AwContentBrowserClient::PostAfterStartupTask()`
@@ -298,7 +297,6 @@ BASE_DECLARE_FEATURE_PARAM(int, kCobaltMaxHttpCacheSizeBytes);
 BASE_DECLARE_FEATURE(kCobaltDeferAfterStartupTasks);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                            kCobaltDeferAfterStartupTasksFailsafeDelay);
->>>>>>> 1e294b06333 (cobalt: Hold PostAfterStartupTask and BEST_EFFORT fences until notifyMainReady() (#14154))
 
 }  // namespace features
 }  // namespace cobalt

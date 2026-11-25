@@ -43,16 +43,7 @@ class FilePath;
 
 namespace cobalt {
 
-<<<<<<< HEAD
-=======
-#if BUILDFLAG(IS_ANDROID)
-namespace memory {
-class AndroidOsSignalEvaluator;
-}  // namespace memory
-#endif
-
 class CobaltContentBrowserClient;
->>>>>>> 1e294b06333 (cobalt: Hold PostAfterStartupTask and BEST_EFFORT fences until notifyMainReady() (#14154))
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
 class GlobalFeatures;
@@ -90,6 +81,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   int PreEarlyInitialization() override;
   int PreCreateThreads() override;
   int PreMainMessageLoopRun() override;
+  void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
 // TODO(cobalt, b/383301493): we should consider moving any ATV-specific

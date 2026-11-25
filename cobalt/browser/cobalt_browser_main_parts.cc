@@ -842,22 +842,13 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
   }
 }
 
-<<<<<<< HEAD
-=======
 void CobaltBrowserMainParts::PostMainMessageLoopRun() {
   if (browser_client_) {
     browser_client_->CancelDeferredAfterStartupTasks();
   }
-#if BUILDFLAG(IS_ANDROID)
-  android_os_signal_evaluator_.reset();
-#endif
-#if BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_ANDROID)
-  memory_pressure_monitor_.reset();
-#endif
   ShellBrowserMainParts::PostMainMessageLoopRun();
 }
 
->>>>>>> 1e294b06333 (cobalt: Hold PostAfterStartupTask and BEST_EFFORT fences until notifyMainReady() (#14154))
 void CobaltBrowserMainParts::PostDestroyThreads() {
 #if BUILDFLAG(IS_ANDROID)
   if (browser_client_) {

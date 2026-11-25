@@ -260,7 +260,6 @@ BASE_FEATURE_PARAM(bool,
                    "CobaltCodeCacheOptimization_bypass_heat_check",
                    true);
 
-<<<<<<< HEAD
 BASE_FEATURE(kCobaltHttpCacheQuota,
              "CobaltHttpCacheQuota",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -270,7 +269,7 @@ BASE_FEATURE_PARAM(int,
                    &kCobaltHttpCacheQuota,
                    "cobalt_http_cache_size_bytes",
                    12582912);
-=======
+
 BASE_FEATURE(kCobaltDeferAfterStartupTasks,
              "CobaltDeferAfterStartupTasks",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -280,7 +279,6 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    &kCobaltDeferAfterStartupTasks,
                    "CobaltDeferAfterStartupTasks_failsafe_delay",
                    base::Milliseconds(8500));
->>>>>>> 1e294b06333 (cobalt: Hold PostAfterStartupTask and BEST_EFFORT fences until notifyMainReady() (#14154))
 
 }  // namespace features
 }  // namespace cobalt

@@ -23,6 +23,7 @@
 #include "base/location.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/lock.h"
+#include "base/task/execution_fence.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/thread_annotations.h"
@@ -208,8 +209,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void DispatchBlur();
   void DispatchFocus();
 
-  // Holds an explicit
-  // `base::ThreadPoolInstance::ScopedBestEffortExecutionFence` when
+  // Holds an explicit `base::ScopedBestEffortExecutionFence` when
   // `kCobaltDeferAfterStartupTasks` is enabled (used on Android where upstream
   // `BrowserMainLoop::scoped_best_effort_execution_fence_` is not instantiated)
   // and queues its release through `PostAfterStartupTask()`.
@@ -316,7 +316,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   base::Lock after_startup_tasks_lock_;
   base::circular_deque<AfterStartupTask> after_startup_tasks_
       GUARDED_BY(after_startup_tasks_lock_);
-  std::optional<base::ThreadPoolInstance::ScopedBestEffortExecutionFence>
+  std::optional<base::ScopedBestEffortExecutionFence>
       thread_pool_best_effort_fence_;
   base::OneShotTimer after_startup_task_failsafe_timer_;
 
