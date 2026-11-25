@@ -90,11 +90,10 @@
 #include "url/scheme_host_port.h"
 #include "url/url_constants.h"
 
-<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_WEBSOCKETS)
 #include "net/websockets/websocket_quic_spdy_stream.h"
 #endif  // BUILDFLAG(ENABLE_WEBSOCKETS)
-=======
+
 #if BUILDFLAG(IS_COBALT)
 #include <algorithm>
 #include <cstring>
@@ -107,7 +106,6 @@
 #include "net/socket/udp_server_socket.h"
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 #endif
->>>>>>> 90f07ca14b9 (cobalt: Pool QUIC receive buffers and gate smaller read batch sizes (#14161))
 
 using testing::_;
 
@@ -3614,7 +3612,8 @@ TEST_F(QuicChromiumPacketReaderCobaltTest,
   ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
 
   auto real_client = std::make_unique<UDPClientSocket>(
-      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      handles::kInvalidNetworkHandle);
   ASSERT_THAT(real_client->Connect(server_address), IsOk());
   ASSERT_THAT(real_client->SetReceiveBufferSize(64 * 1024), IsOk());
 

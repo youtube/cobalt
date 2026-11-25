@@ -2217,7 +2217,6 @@ TEST_F(UDPSocketTest, LimitConnectMultithreaded) {
   EXPECT_EQ(0, GetGlobalUDPSocketCountForTesting());
 }
 
-<<<<<<< HEAD
 // Helper to get addresses of a specific family from network interfaces.
 // Returns addresses suitable for use as SSM source addresses.
 // For IPv6, filters out link-local addresses (fe80::) which don't work
@@ -2822,7 +2821,7 @@ TEST_F(UDPSocketTest, ReadMultiple_Async) {
   EXPECT_EQ(base::as_string_view(packet_span), packet);
 }
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-=======
+
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 // Clears the process-wide recvmmsg scratch buffer pool on construction and
 // destruction so tests never inherit or leak pooled allocations.
@@ -2856,7 +2855,8 @@ TEST_F(UDPSocketTest, ReadMultiplePacketsCapsBatchAt16AndDrainsRemaining) {
   ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
 
   auto client = std::make_unique<UDPClientSocket>(
-      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      handles::kInvalidNetworkHandle);
   ASSERT_THAT(client->Connect(server_address), IsOk());
   ASSERT_THAT(client->SetReceiveBufferSize(64 * 1024), IsOk());
 
@@ -2931,9 +2931,11 @@ TEST_F(UDPSocketTest, ReadMultiplePacketsReleasesBufferWhenIdleAndReusesPool) {
   ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
 
   auto client1 = std::make_unique<UDPClientSocket>(
-      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      handles::kInvalidNetworkHandle);
   auto client2 = std::make_unique<UDPClientSocket>(
-      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      handles::kInvalidNetworkHandle);
   ASSERT_THAT(client1->Connect(server_address), IsOk());
   ASSERT_THAT(client2->Connect(server_address), IsOk());
 
@@ -3192,7 +3194,8 @@ TEST_F(UDPSocketTest, ReadMultiplePacketsRespectsFinchBatchParamAndClamps) {
     ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
 
     auto client = std::make_unique<UDPClientSocket>(
-        DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+        DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+        handles::kInvalidNetworkHandle);
     ASSERT_THAT(client->Connect(server_address), IsOk());
     ASSERT_THAT(client->SetReceiveBufferSize(64 * 1024), IsOk());
 
@@ -3273,7 +3276,8 @@ TEST_F(UDPSocketTest, ReadMultiplePacketsRespectsFinchBatchParamAndClamps) {
   ASSERT_THAT(server->Listen(server_address), IsOk());
   ASSERT_THAT(server->GetLocalAddress(&server_address), IsOk());
   auto client = std::make_unique<UDPClientSocket>(
-      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource());
+      DatagramSocket::DEFAULT_BIND, NetLog::Get(), NetLogSource(),
+      handles::kInvalidNetworkHandle);
   ASSERT_THAT(client->Connect(server_address), IsOk());
 
   TestCompletionCallback err_cb;
@@ -3356,6 +3360,5 @@ TEST_F(UDPSocketTest, CobaltQuicReadBatchResolvesLazilyAndResetsOnClose) {
   }
 }
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
->>>>>>> 90f07ca14b9 (cobalt: Pool QUIC receive buffers and gate smaller read batch sizes (#14161))
 
 }  // namespace net
