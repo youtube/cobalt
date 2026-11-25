@@ -51,63 +51,46 @@ common_added_configs = [
   "//build/config/compiler:optimize_speed",
 ]
 
-config("common_unwind_dependents_config") {
+config("common_unwind_config") {
+  configs = [ "//buildtools/third_party/libunwind:libunwind_config" ]
   include_dirs = [ "include" ]
-  defines = [
-    "LLVM_PATH=" +
-        rebase_path("//third_party/llvm-project/llvm/", root_build_dir),
-  ]
+
+  # Hide the unwinder, so that the library that links it calls this unwinder
+  # rather than one the platform has already loaded.
+  defines = [ "_LIBUNWIND_HIDE_SYMBOLS" ]
 }
 
-# TODO: this conditional is only to prevent gn check errors related to evergreen
-# dependencies from spilling over to gn check when run for non-evergreen
-# platforms (e.g., linux-x64x11_devel). It can and should be removed once the gn
-# check errors have been resolved for evergreen.
-# TODO: b/295702296 Fix libunwind for modular  builds.
-if (sb_is_evergreen || (sb_is_modular && host_os == "win")) {
-  config("unwind_config") {
-    configs = [
-      ":common_unwind_dependents_config",
-      "//buildtools/third_party/libunwind:libunwind_config",
-    ]
+config("unwind_config") {
+  configs = [ ":common_unwind_config" ]
 
-    defines = [
-      "LIBUNWIND_PRINT_APIS",
-      "LIBUNWIND_PRINT_DWARF",
-      "LIBUNWIND_PRINT_UNWINDING",
-    ]
-    include_dirs = [ "//third_party/llvm-project/compiler-rt/include" ]
-  }
+  defines = [
+    "LIBUNWIND_PRINT_APIS",
+    "LIBUNWIND_PRINT_DWARF",
+    "LIBUNWIND_PRINT_UNWINDING",
+  ]
+  include_dirs = [ "//third_party/llvm-project/compiler-rt/include" ]
+}
 
-  static_library("unwind") {
-    sources = common_sources
+static_library("unwind") {
+  sources = common_sources
 
-    configs -= common_removed_configs
-    configs += common_added_configs
-    configs += [ ":unwind_config" ]
-    all_dependent_configs = [ ":common_unwind_dependents_config" ]
+  configs -= common_removed_configs
+  configs += common_added_configs
+  configs += [ ":unwind_config" ]
 
-    deps = [
-      "//starboard/common",
-      "//third_party/musl:c",
-    ]
-  }
+  deps = [
+    "//starboard/common",
+    "//third_party/musl:c",
+  ]
 }
 
 config("unwind_starboard_config") {
   configs = [
-    ":common_unwind_dependents_config",
-    "//buildtools/third_party/libunwind:libunwind_config",
+    ":common_unwind_config",
     "//starboard/build/config:starboard_implementation",
   ]
 
   defines = [ "NDEBUG" ]
-}
-
-config("unwind_hide_symbols_config") {
-  cflags = [ "-fvisibility=hidden" ]
-
-  defines = [ "_LIBUNWIND_HIDE_SYMBOLS" ]
 }
 
 static_library("unwind_starboard") {
@@ -115,11 +98,7 @@ static_library("unwind_starboard") {
 
   configs -= common_removed_configs
   configs += common_added_configs
-  configs += [
-    ":unwind_starboard_config",
-    ":unwind_hide_symbols_config",
-  ]
-  all_dependent_configs = [ ":common_unwind_dependents_config" ]
+  configs += [ ":unwind_starboard_config" ]
 
   public_deps = [
     "//starboard/common",
