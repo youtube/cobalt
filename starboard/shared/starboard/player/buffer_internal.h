@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "starboard/common/check_op.h"
+#include "starboard/common/span.h"
 #include "starboard/shared/internal_only.h"
 
 namespace starboard {
@@ -82,6 +83,11 @@ class Buffer {
   uint8_t* data() { return size_ == 0 ? nullptr : data_ + kPaddingSize; }
   const uint8_t* data() const {
     return size_ == 0 ? nullptr : data_ + kPaddingSize;
+  }
+
+  span<uint8_t> as_span() { return {data(), static_cast<size_t>(size_)}; }
+  span<const uint8_t> as_span() const {
+    return {data(), static_cast<size_t>(size_)};
   }
 
  private:

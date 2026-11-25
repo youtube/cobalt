@@ -39,33 +39,29 @@ constexpr SbMediaAudioSampleType kSampleTypes[] = {
 // 1. When `stride` is one, all samples filled with be continuous.
 // 2. When `stride` is 2, filling `data` and `data + 1` fills an interleaved
 //    stereo audio buffer with samples.
-void Fill(int16_t* data,
+void Fill(span<int16_t> data,
           double initial_angle,
           double angle_step,
           int count,
           int stride) {
-  SB_DCHECK(data);
-
   auto current_angel = initial_angle;
   for (int i = 0; i < count; ++i) {
-    *data = static_cast<int16_t>(sin(current_angel) * 32767);
+    data[static_cast<size_t>(i * stride)] =
+        static_cast<int16_t>(sin(current_angel) * 32767);
     current_angel += angle_step;
-    data += stride;
   }
 }
 
-void Fill(float* data,
+void Fill(span<float> data,
           double initial_angle,
           double angle_step,
           int count,
           int stride) {
-  SB_DCHECK(data);
-
   auto current_angel = initial_angle;
   for (int i = 0; i < count; ++i) {
-    *data = static_cast<float>(sin(current_angel));
+    data[static_cast<size_t>(i * stride)] =
+        static_cast<float>(sin(current_angel));
     current_angel += angle_step;
-    data += stride;
   }
 }
 
@@ -75,41 +71,35 @@ void Fill(float* data,
 // 1. When `stride` is one, all samples will be treated as continuous.
 // 2. When `stride` is 2, verifying against `data` and `data + 1` verifies an
 //    interleaved stereo audio buffer.
-void Verify(const int16_t* data,
+void Verify(span<const int16_t> data,
             double initial_angle,
             double angle_step,
             int count,
             int stride) {
-  SB_DCHECK(data);
-
   auto current_angel = initial_angle;
   for (int i = 0; i < count; ++i) {
     const auto current_value = static_cast<int16_t>(sin(current_angel) * 32767);
     // Using `ASSERT_NEAR()` to allow for small value drifting due to
     // conversions between sample types.
-    ASSERT_NEAR(static_cast<double>(*data), static_cast<double>(current_value),
-                2.0 / 32767);
+    ASSERT_NEAR(static_cast<double>(data[static_cast<size_t>(i * stride)]),
+                static_cast<double>(current_value), 2.0 / 32767);
     current_angel += angle_step;
-    data += stride;
   }
 }
 
-void Verify(const float* data,
+void Verify(span<const float> data,
             double initial_angle,
             double angle_step,
             int count,
             int stride) {
-  SB_DCHECK(data);
-
   auto current_angel = initial_angle;
   for (int i = 0; i < count; ++i) {
     const auto current_value = static_cast<float>(sin(current_angel));
     // Using `ASSERT_NEAR()` to allow for small value drifting due to
     // conversions between sample types.
-    ASSERT_NEAR(static_cast<double>(*data), static_cast<double>(current_value),
-                2.0 / 32767);
+    ASSERT_NEAR(static_cast<double>(data[static_cast<size_t>(i * stride)]),
+                static_cast<double>(current_value), 2.0 / 32767);
     current_angel += angle_step;
-    data += stride;
   }
 }
 
@@ -117,17 +107,22 @@ void Verify(const float* data,
 // channel.
 void Fill(DecodedAudio* decoded_audio) {
   SB_DCHECK(decoded_audio);
+  if (decoded_audio->frames() == 0) {
+    return;
+  }
 
   bool is_int16 =
       decoded_audio->sample_type() == kSbMediaAudioSampleTypeInt16Deprecated;
 
   for (int i = 0; i < decoded_audio->channels(); ++i) {
     if (is_int16) {
-      Fill(decoded_audio->data_as_int16() + i, kPi / 2 * i, kPi / 180,
-           decoded_audio->frames(), decoded_audio->channels());
+      Fill(decoded_audio->as_span<int16_t>().subspan(static_cast<size_t>(i)),
+           kPi / 2 * i, kPi / 180, decoded_audio->frames(),
+           decoded_audio->channels());
     } else {
-      Fill(decoded_audio->data_as_float32() + i, kPi / 2 * i, kPi / 180,
-           decoded_audio->frames(), decoded_audio->channels());
+      Fill(decoded_audio->as_span<float>().subspan(static_cast<size_t>(i)),
+           kPi / 2 * i, kPi / 180, decoded_audio->frames(),
+           decoded_audio->channels());
     }
   }
 }
@@ -135,18 +130,24 @@ void Fill(DecodedAudio* decoded_audio) {
 // verify `decoded_audio` against sine wave samples, with phase shift of Pi/2 on
 // each channel.
 void Verify(const DecodedAudio& decoded_audio) {
+  if (decoded_audio.frames() == 0) {
+    return;
+  }
+
   bool is_int16 =
       decoded_audio.sample_type() == kSbMediaAudioSampleTypeInt16Deprecated;
 
   for (int i = 0; i < decoded_audio.channels(); ++i) {
     if (is_int16) {
-      ASSERT_NO_FATAL_FAILURE(
-          Verify(decoded_audio.data_as_int16() + i, kPi / 2 * i, kPi / 180,
-                 decoded_audio.frames(), decoded_audio.channels()));
+      ASSERT_NO_FATAL_FAILURE(Verify(
+          decoded_audio.as_span<int16_t>().subspan(static_cast<size_t>(i)),
+          kPi / 2 * i, kPi / 180, decoded_audio.frames(),
+          decoded_audio.channels()));
     } else {
       ASSERT_NO_FATAL_FAILURE(
-          Verify(decoded_audio.data_as_float32() + i, kPi / 2 * i, kPi / 180,
-                 decoded_audio.frames(), decoded_audio.channels()));
+          Verify(decoded_audio.as_span<float>().subspan(static_cast<size_t>(i)),
+                 kPi / 2 * i, kPi / 180, decoded_audio.frames(),
+                 decoded_audio.channels()));
     }
   }
 }
@@ -379,6 +380,63 @@ TEST(DecodedAudioTest, MoveAssignment) {
   EXPECT_EQ(original.size_in_bytes(), 0);
   EXPECT_EQ(original.timestamp(), 0);
   EXPECT_EQ(original.data(), nullptr);
+}
+
+TEST(DecodedAudioTest, SpanAccessorsTrackOffsetsAndShrink) {
+  DecodedAudio audio(kChannels, kSbMediaAudioSampleTypeFloat32, kTimestampUsec,
+                     kSizeInBytes);
+  Fill(&audio);
+
+  ASSERT_EQ(audio.as_span().size(), static_cast<size_t>(kSizeInBytes));
+  ASSERT_EQ(audio.as_span<float>().size(),
+            static_cast<size_t>(audio.frames() * kChannels));
+  EXPECT_EQ(reinterpret_cast<const uint8_t*>(audio.as_span<float>().data()),
+            audio.as_span().data());
+
+  const int64_t duration = AudioFramesToDuration(audio.frames(), kSampleRate);
+  audio.AdjustForSeekTime(kSampleRate, kTimestampUsec + duration / 2);
+  EXPECT_EQ(audio.as_span().data(), audio.data());
+  EXPECT_EQ(audio.as_span().size(), static_cast<size_t>(audio.size_in_bytes()));
+  EXPECT_EQ(audio.as_span<float>().size(),
+            static_cast<size_t>(audio.frames() * kChannels));
+
+  const int shrunk_bytes = 8 * sizeof(float) * kChannels;
+  audio.ShrinkTo(shrunk_bytes);
+  EXPECT_EQ(audio.as_span().size(), static_cast<size_t>(shrunk_bytes));
+  EXPECT_EQ(audio.as_span<float>().size(), 8U * kChannels);
+
+  audio.ShrinkTo(0);
+  EXPECT_TRUE(audio.as_span().empty());
+  EXPECT_TRUE(audio.as_span<float>().empty());
+
+  // 100% front discard moves offset_in_bytes_ to storage_.size() with 0 bytes
+  // remaining; verify spans remain valid and empty.
+  DecodedAudio fully_discarded(kChannels, kSbMediaAudioSampleTypeFloat32,
+                               kTimestampUsec, kSizeInBytes);
+  fully_discarded.AdjustForDiscardedDurations(kSampleRate, duration * 4, 0);
+  EXPECT_EQ(fully_discarded.frames(), 0);
+  EXPECT_TRUE(fully_discarded.as_span().empty());
+  EXPECT_TRUE(fully_discarded.as_span<float>().empty());
+}
+
+TEST(DecodedAudioTest, EmptyAndEOSBufferSpans) {
+  DecodedAudio eos = DecodedAudio::CreateEOSBuffer();
+  EXPECT_TRUE(eos.as_span().empty());
+
+  DecodedAudio empty_audio(kChannels, kSbMediaAudioSampleTypeFloat32,
+                           kTimestampUsec, 0);
+  EXPECT_TRUE(empty_audio.as_span().empty());
+  EXPECT_TRUE(empty_audio.as_span<float>().empty());
+}
+
+TEST(DecodedAudioTest, SampleTypeSpanCheckDeath) {
+  DecodedAudio float_audio(kChannels, kSbMediaAudioSampleTypeFloat32,
+                           kTimestampUsec, 64);
+  EXPECT_DEATH_IF_SUPPORTED({ float_audio.as_span<int16_t>(); }, "");
+
+  DecodedAudio int16_audio(kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
+                           kTimestampUsec, 64);
+  EXPECT_DEATH_IF_SUPPORTED({ int16_audio.as_span<float>(); }, "");
 }
 
 }  // namespace
