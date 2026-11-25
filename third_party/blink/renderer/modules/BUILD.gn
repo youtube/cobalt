@@ -772,6 +772,7 @@ source_set("unit_tests") {
   if (is_cobalt) {
     sources -= filter_include(sources, [ "mediarecorder/*" ])
     sources += [
+      "cobalt/cobalt_lifecycle_controller_test.cc",
       "cobalt/h5vcc_accessibility/h_5_vcc_accessibility_test.cc",
       "cobalt/h5vcc_experiments/experiments_utils_test.cc",
     ]
@@ -869,7 +870,10 @@ source_set("unit_tests") {
   }
 
   if (is_cobalt) {
-    deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
+    deps += [
+      "//cobalt/browser/lifecycle/public/mojom:mojom_blink",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils",
+    ]
     deps -= [
       "//third_party/blink/renderer/modules/hid:unit_tests",
       "//third_party/blink/renderer/modules/ml:unit_tests",

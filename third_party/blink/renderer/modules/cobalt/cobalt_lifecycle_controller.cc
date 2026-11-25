@@ -18,6 +18,8 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/platform/heap/persistent.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
 
@@ -35,7 +37,8 @@ void CobaltLifecycleController::BindReceiver(
     LocalFrame* frame,
     mojo::PendingReceiver<cobalt::mojom::blink::CobaltLifecycleController>
         receiver) {
-  if (!frame || !frame->DomWindow()) {
+  if (!frame || !frame->GetPage() || !frame->DomWindow() ||
+      frame->DomWindow()->IsContextDestroyed()) {
     return;
   }
   LocalDOMWindow& window = *frame->DomWindow();
@@ -123,15 +126,13 @@ void CobaltLifecycleController::PageVisibilityChanged() {
     return;
   }
   if (GetPage()) {
-    NotifyObserver(base::BindOnce(
-        [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
-               observer,
-           bool visible) {
-          if (observer.is_bound()) {
-            observer->OnPageVisibilityChanged(visible);
+    NotifyObserver(WTF::BindOnce(
+        [](WeakPersistent<CobaltLifecycleController> controller, bool visible) {
+          if (controller && controller->remote_observer_.is_bound()) {
+            controller->remote_observer_->OnPageVisibilityChanged(visible);
           }
         },
-        std::ref(remote_observer_), visible));
+        WrapWeakPersistent(this), visible));
   }
 }
 
@@ -142,23 +143,21 @@ void CobaltLifecycleController::FocusedFrameChanged() {
   if (GetPage()) {
     bool is_focused = GetPage()->GetFocusController().IsFocused();
     if (is_focused) {
-      NotifyObserver(base::BindOnce(
-          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
-                 observer) {
-            if (observer.is_bound()) {
-              observer->OnPageFocused();
+      NotifyObserver(WTF::BindOnce(
+          [](WeakPersistent<CobaltLifecycleController> controller) {
+            if (controller && controller->remote_observer_.is_bound()) {
+              controller->remote_observer_->OnPageFocused();
             }
           },
-          std::ref(remote_observer_)));
+          WrapWeakPersistent(this)));
     } else {
-      NotifyObserver(base::BindOnce(
-          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
-                 observer) {
-            if (observer.is_bound()) {
-              observer->OnPageBlurred();
+      NotifyObserver(WTF::BindOnce(
+          [](WeakPersistent<CobaltLifecycleController> controller) {
+            if (controller && controller->remote_observer_.is_bound()) {
+              controller->remote_observer_->OnPageBlurred();
             }
           },
-          std::ref(remote_observer_)));
+          WrapWeakPersistent(this)));
     }
   }
 }
@@ -167,14 +166,13 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
     mojom::blink::FrameLifecycleState state) {
   if (state == mojom::blink::FrameLifecycleState::kRunning) {
     if (remote_observer_.is_bound()) {
-      NotifyObserver(base::BindOnce(
-          [](HeapMojoRemote<cobalt::mojom::blink::CobaltLifecycleObserver>&
-                 observer) {
-            if (observer.is_bound()) {
-              observer->OnPageResumed();
+      NotifyObserver(WTF::BindOnce(
+          [](WeakPersistent<CobaltLifecycleController> controller) {
+            if (controller && controller->remote_observer_.is_bound()) {
+              controller->remote_observer_->OnPageResumed();
             }
           },
-          std::ref(remote_observer_)));
+          WrapWeakPersistent(this)));
     }
   } else if (state == mojom::blink::FrameLifecycleState::kFrozen) {
     // LocalFrame::OnPageLifecycleStateUpdated() invokes DidFreeze() (which
@@ -207,11 +205,11 @@ void CobaltLifecycleController::ContextLifecycleStateChanged(
 // exact same line as pending JS DOM events, forcing Blink's scheduler to
 // execute them in strict FIFO (First-In-First-Out) sequential order.
 void CobaltLifecycleController::NotifyObserver(base::OnceClosure callback) {
-  if (!GetExecutionContext()) {
+  ExecutionContext* context = GetExecutionContext();
+  if (!context || context->IsContextDestroyed()) {
     return;
   }
-  GetExecutionContext()
-      ->GetTaskRunner(TaskType::kDOMManipulation)
+  context->GetTaskRunner(TaskType::kDOMManipulation)
       ->PostTask(FROM_HERE, std::move(callback));
 }
 
