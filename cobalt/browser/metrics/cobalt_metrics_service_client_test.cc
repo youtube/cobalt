@@ -952,8 +952,8 @@ TEST_F(CobaltMetricsServiceClientBaseTest,
 }
 
 TEST_F(CobaltMetricsServiceClientBaseTest,
-       StabilityMetricsDeduplicationDisabledByDefault) {
-  EXPECT_FALSE(base::FeatureList::IsEnabled(
+       StabilityMetricsDeduplicationEnabledByDefault) {
+  EXPECT_TRUE(base::FeatureList::IsEnabled(
       features::kCobaltStabilityMetricsDeduplication));
 
   auto synthetic_trial_registry =
@@ -966,11 +966,11 @@ TEST_F(CobaltMetricsServiceClientBaseTest,
 }
 
 TEST_F(CobaltMetricsServiceClientBaseTest,
-       StabilityMetricsDeduplicationEnabledSkipsFileMetricsProvider) {
+       StabilityMetricsDeduplicationDisabledRegistersFileMetricsProvider) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
+  feature_list.InitAndDisableFeature(
       features::kCobaltStabilityMetricsDeduplication);
-  EXPECT_TRUE(base::FeatureList::IsEnabled(
+  EXPECT_FALSE(base::FeatureList::IsEnabled(
       features::kCobaltStabilityMetricsDeduplication));
 
   auto synthetic_trial_registry =
