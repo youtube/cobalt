@@ -520,6 +520,19 @@ TEST(MimeTypeTest, GetAndValidateParamWithKey) {
             mime_type->GetParamStringValue(kMimeParamEotf, "default_eotf"));
 }
 
+TEST(MimeTypeTest, NonAsciiBytesAreNotWhitespace) {
+  MimeType::Param param;
+  EXPECT_TRUE(MimeType::ParseParamString("val=\xc3\xa9\xa0\xff", &param));
+  EXPECT_EQ(param.name, "val");
+  EXPECT_EQ(param.type, MimeType::kParamTypeString);
+  EXPECT_EQ(param.string_value, "\xc3\xa9\xa0\xff");
+
+  auto mime_type = MimeType::Create("video/mp4; codecs=\"\xc3\xa9\xa0\xff\"");
+  ASSERT_TRUE(mime_type);
+  EXPECT_EQ("\xc3\xa9\xa0\xff",
+            mime_type->GetParamStringValue(kMimeParamCodecs, ""));
+}
+
 }  // namespace
 
 }  // namespace starboard

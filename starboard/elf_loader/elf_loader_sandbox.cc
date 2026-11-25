@@ -21,7 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/no_destructor.h"
 #include "starboard/common/paths.h"
-#include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
