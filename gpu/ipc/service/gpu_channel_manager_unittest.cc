@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_trace_processor.h"
 #include "base/test/trace_event_analyzer.h"
 #include "base/test/trace_test_utils.h"
@@ -17,6 +18,7 @@
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/context_result.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
+#include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/common/command_buffer_id.h"
 #include "gpu/ipc/common/gpu_channel.mojom.h"
 #include "gpu/ipc/service/gpu_channel.h"
@@ -115,8 +117,9 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
     }
 
 #if BUILDFLAG(IS_COBALT)
-    // Cobalt keeps all GL state, including the shared raster state, while a
-    // stateful (WebGL) context is alive, and releases it otherwise.
+    // With kCobaltKeepWebGLContextsOnBackground, Cobalt keeps all GL state,
+    // including the shared raster state, while a stateful (WebGL) context is
+    // alive. Otherwise it releases everything.
     if (should_destroy_channel) {
       ASSERT_NE(channel_manager()->GetSharedContextState(&result).get(),
                 raster_decoder_state.get());
@@ -153,9 +156,28 @@ TEST_F(GpuChannelManagerTest, OnBackgroundedWithoutWebGL) {
   TestApplicationBackgrounded(CONTEXT_TYPE_OPENGLES2, true);
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGL) {
+  // kCobaltKeepWebGLContextsOnBackground is disabled by default.
+  TestApplicationBackgrounded(CONTEXT_TYPE_WEBGL2, true);
+}
+
+TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGLKeepContextsEnabled) {
+  base::test::ScopedFeatureList feature_list(
+      features::kCobaltKeepWebGLContextsOnBackground);
+  TestApplicationBackgrounded(CONTEXT_TYPE_WEBGL2, false);
+}
+
+TEST_F(GpuChannelManagerTest, OnBackgroundedWithoutWebGLKeepContextsEnabled) {
+  base::test::ScopedFeatureList feature_list(
+      features::kCobaltKeepWebGLContextsOnBackground);
+  TestApplicationBackgrounded(CONTEXT_TYPE_OPENGLES2, true);
+}
+#else
 TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGL) {
   TestApplicationBackgrounded(CONTEXT_TYPE_WEBGL2, false);
 }
+#endif  // BUILDFLAG(IS_COBALT)
 
 #endif
 

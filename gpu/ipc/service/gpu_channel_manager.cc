@@ -836,14 +836,15 @@ void GpuChannelManager::OnBackgroundCleanup() {
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  // Keep all GL state while a stateful (WebGL/WebGPU) context is alive. The
-  // page owns that GPU state and usually cannot rebuild it, so losing it leaves
-  // the canvas blank after the app is revealed again. The other contexts can't
-  // be torn down on their own either: raster contexts share SharedContextState,
-  // and losing it makes OnContextLost() lose all contexts when the passthrough
-  // decoder (ANGLE) is used. Only purge caches in that case; the full teardown
-  // below runs once no stateful context is left.
-  if (HasActiveStatefulContext()) {
+  // With kCobaltKeepWebGLContextsOnBackground, keep all GL state while a
+  // stateful (WebGL/WebGPU) context is alive. The page owns that GPU state and
+  // usually cannot rebuild it, so losing it leaves the canvas blank after the
+  // app is revealed again. The other contexts can't be torn down on their own
+  // either: raster contexts share SharedContextState, and losing it makes
+  // OnContextLost() lose all contexts when the passthrough decoder (ANGLE) is
+  // used. Only purge caches in that case; the full teardown below runs once no
+  // stateful context is left.
+  if (ShouldKeepGLStateOnBackground()) {
     if (program_cache_) {
       program_cache_->Trim(0u);
     }
@@ -885,8 +886,12 @@ void GpuChannelManager::OnBackgroundCleanup() {
   SkGraphics::PurgeAllCaches();
 }
 
-bool GpuChannelManager::HasActiveStatefulContext() const {
+bool GpuChannelManager::ShouldKeepGLStateOnBackground() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!base::FeatureList::IsEnabled(
+          features::kCobaltKeepWebGLContextsOnBackground)) {
+    return false;
+  }
   for (const auto& kv : gpu_channels_) {
     if (kv.second->HasActiveStatefulContext()) {
       return true;

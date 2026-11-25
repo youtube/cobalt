@@ -182,9 +182,10 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
     default_offscreen_surface_ = std::move(surface);
   }
 
-  // Returns true if any channel has an active stateful (WebGL/WebGPU) context.
-  // Background cleanup keeps those contexts, and the EGL display, alive.
-  bool HasActiveStatefulContext() const;
+  // Returns true if background cleanup should keep all GL state, including the
+  // EGL display: kCobaltKeepWebGLContextsOnBackground is enabled and a channel
+  // has an active stateful (WebGL/WebGPU) context.
+  bool ShouldKeepGLStateOnBackground() const;
 #endif
 
   GpuMemoryBufferFactory* gpu_memory_buffer_factory() {
