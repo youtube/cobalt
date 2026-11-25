@@ -1,10 +1,6 @@
 {
   "failing_tests": [
-<<<<<<< HEAD
-=======
     "CobaltMetricsServiceClientBaseTest.StabilityMetricsDeduplicationEnabledSkipsFileMetricsProvider",
-    "CobaltMetricsServiceClientTest.IdleTimerIsRepeatingAndKeepsFiring",
->>>>>>> fd276bc3ff3 (Add flaky StabilityMetricsDeduplicationEnabledSkipsFileMetricsProvider to cobalt_unittests filter (#13987))
     "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
   ]
 }
