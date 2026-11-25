@@ -103,6 +103,8 @@ enum class MemoryPressureListenerTag {
   kLongScreenshotsTabService = 70,
   // Cobalt: media::DecoderBufferAllocator.
   kCobaltDecoderBufferAllocator = 71,
+  // Cobalt: blink::MemorySaverController.
+  kCobaltMemorySaverController = 72,
 };
 
 // base::MemoryPressureListener is deprecated. Use base::MemoryConsumer instead.
