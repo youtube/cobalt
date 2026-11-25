@@ -29,6 +29,7 @@
 #include "cobalt/media/audio/audio_helpers.h"
 #include "media/base/audio_glitch_info.h"
 #include "media/base/audio_sample_types.h"
+#include "media/base/starboard/sbmedia_histograms.h"
 
 namespace media {
 
@@ -41,19 +42,17 @@ int AlignUp(int value, int alignment) {
   return decremented_value + alignment - (decremented_value % alignment);
 }
 
-// Records the latency of an SbAudioSinkCreate() call. The first call in the
-// process is recorded under kFirstCallHistogram; every later call (e.g. from
-// another AudioContext or Flush()) is recorded under kSubsequentCallHistogram.
+// Records the latency of an SbAudioSinkCreate() call. Every call after the
+// first one in the process (e.g. from another AudioContext or Flush()) is
+// recorded in the Subsequent variant.
 void RecordSbAudioSinkCreateLatency(base::TimeDelta elapsed) {
-  static constexpr char kFirstCallHistogram[] =
-      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate";
-  static constexpr char kSubsequentCallHistogram[] =
-      "Cobalt.Media.LatencyTiming.SbAudioSinkCreate.Subsequent";
   static std::atomic<bool> first_call_pending{true};
 
   const bool is_first_call = first_call_pending.exchange(false);
   base::UmaHistogramCustomMicrosecondsTimes(
-      is_first_call ? kFirstCallHistogram : kSubsequentCallHistogram, elapsed,
+      is_first_call ? kSbAudioSinkCreateHistogram
+                    : kSbAudioSinkCreateSubsequentHistogram,
+      elapsed,
       /*min=*/base::Microseconds(100), /*max=*/base::Seconds(1),
       /*buckets=*/50);
   LOG(INFO) << (is_first_call ? "First" : "Subsequent")
