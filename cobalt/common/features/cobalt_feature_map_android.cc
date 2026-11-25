@@ -45,3 +45,5 @@ static jlong JNI_CobaltFeatureMap_GetNativeMap(JNIEnv* env) {
 }
 
 }  // namespace cobalt::features
+
+DEFINE_JNI(CobaltFeatureMap)

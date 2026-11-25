@@ -39,14 +39,11 @@ int GetCachedLowMemoryDeviceThresholdMb() {
   return static_cast<int>(Java_SysUtils_getLowMemoryDeviceThresholdMb(env));
 }
 
-<<<<<<< HEAD
 bool IsProcessInBackground() {
   JNIEnv* env = AttachCurrentThread();
   return Java_SysUtils_isProcessInBackground(env);
 }
 
-=======
->>>>>>> ab415d8daaf (BACKPORT: Enable low-end device mode on Android (#12967))
 }  // namespace android
 
 }  // namespace base
