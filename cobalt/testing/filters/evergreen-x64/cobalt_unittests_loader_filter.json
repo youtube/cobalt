@@ -1,5 +1,3 @@
 {
-  "failing_tests": [
-    "GlobalFeaturesTest.ActiveExperimentIdsUnchangedAfterInitialization"
-  ]
+  "failing_tests": []
 }
