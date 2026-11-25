@@ -336,6 +336,7 @@ static_library("starboard_platform") {
 
   if (is_starboard) {
     sources -= [
+      "android_media_session_client.cc",
       "crash_handler.cc",
       "crash_handler.h",
     ]
@@ -350,6 +351,7 @@ static_library("starboard_platform") {
       "//starboard/shared/stub/speech_synthesis_is_supported.cc",
       "//starboard/shared/stub/speech_synthesis_speak.cc",
       "//starboard/shared/stub/system_network_is_disconnected.cc",
+      "android_media_session_client_aosp.cc",
       "asset_manager.cc",
       "asset_manager.h",
       "elf_loader_file_open.cc",
