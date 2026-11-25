@@ -5741,6 +5741,26 @@ void Document::ClearFocusedElement(bool omit_blur_events) {
   SetFocusedElement(nullptr, params);
 }
 
+#if BUILDFLAG(IS_COBALT)
+namespace {
+
+bool IsElementEditableForFocus(const Element* element) {
+  if (!element) {
+    return false;
+  }
+  if (element->editContext()) {
+    return true;
+  }
+  const auto* text_control = ToTextControlOrNull(element);
+  return IsEditable(*element) ||
+         (text_control && !text_control->IsDisabledOrReadOnly()) ||
+         EqualIgnoringASCIICase(
+             element->FastGetAttribute(html_names::kRoleAttr), "textbox");
+}
+
+}  // namespace
+#endif  // BUILDFLAG(IS_COBALT)
+
 void Document::SendFocusNotification(Element* new_focused_element,
                                      mojom::blink::FocusType focus_type) {
   if (!GetPage())
@@ -5749,10 +5769,32 @@ void Document::SendFocusNotification(Element* new_focused_element,
   bool is_editable = false;
   bool is_richly_editable = false;
   gfx::Rect element_bounds_in_dips;
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltLightweightNonEditableFocus)) {
+    is_editable = IsElementEditableForFocus(new_focused_element);
+    if (!is_editable) {
+      if (last_notified_focus_was_editable_) {
+        last_notified_focus_was_editable_ = false;
+        if (!ExistingAXObjectCache()) {
+          GetFrame()->GetLocalFrameHostRemote().FocusedElementChanged(
+              /*is_editable_element=*/false,
+              /*is_richly_editable_element=*/false, gfx::Rect(), focus_type);
+          return;
+        }
+      } else if (!ExistingAXObjectCache()) {
+        return;
+      }
+    } else {
+      last_notified_focus_was_editable_ = true;
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   if (new_focused_element) {
     auto* text_control = ToTextControlOrNull(new_focused_element);
     is_editable =
         IsEditable(*new_focused_element) ||
+        new_focused_element->editContext() != nullptr ||
         (text_control && !text_control->IsDisabledOrReadOnly()) ||
         EqualIgnoringASCIICase(
             new_focused_element->FastGetAttribute(html_names::kRoleAttr),
@@ -5809,8 +5851,20 @@ void Document::NotifyFocusedElementChanged(Element* old_focused_element,
 
     // Ensures that further text input state can be sent even when previously
     // focused input and the newly focused input share the exact same state.
-    if (GetFrame()->GetWidgetForLocalRoot())
+    if (GetFrame()->GetWidgetForLocalRoot()) {
+#if BUILDFLAG(IS_COBALT)
+      const bool skip_clear_for_non_editable =
+          base::FeatureList::IsEnabled(
+              features::kCobaltLightweightNonEditableFocus) &&
+          !IsElementEditableForFocus(old_focused_element) &&
+          !IsElementEditableForFocus(new_focused_element);
+      if (!skip_clear_for_non_editable) {
+        GetFrame()->GetWidgetForLocalRoot()->ClearTextInputState();
+      }
+#else
       GetFrame()->GetWidgetForLocalRoot()->ClearTextInputState();
+#endif  // BUILDFLAG(IS_COBALT)
+    }
     GetFrame()->Client()->FocusedElementChanged(new_focused_element);
 
     GetPage()->GetChromeClient().SetKeyboardFocusURL(new_focused_element);
