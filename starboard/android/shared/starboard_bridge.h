@@ -17,12 +17,9 @@
 
 #include <jni.h>
 
-<<<<<<< HEAD
+#include <optional>
 #include <string>
 #include <vector>
-=======
-#include <optional>
->>>>>>> 79d6264879d (android: Report used GPU memory from Starboard (#14043))
 
 #include "base/memory/singleton.h"
 #include "starboard/common/size.h"
