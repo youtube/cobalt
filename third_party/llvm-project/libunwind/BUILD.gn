@@ -51,19 +51,17 @@ common_added_configs = [
   "//build/config/compiler:optimize_speed",
 ]
 
-config("common_unwind_dependents_config") {
+config("common_unwind_config") {
+  configs = [ "//buildtools/third_party/libunwind:libunwind_config" ]
   include_dirs = [ "include" ]
-  defines = [
-    "LLVM_PATH=" +
-        rebase_path("//third_party/llvm-project/llvm/", root_build_dir),
-  ]
+
+  # Hide the unwinder, so that the library that links it calls this unwinder
+  # rather than one the platform has already loaded.
+  defines = [ "_LIBUNWIND_HIDE_SYMBOLS" ]
 }
 
 config("unwind_config") {
-  configs = [
-    ":common_unwind_dependents_config",
-    "//buildtools/third_party/libunwind:libunwind_config",
-  ]
+  configs = [ ":common_unwind_config" ]
 
   defines = [
     "LIBUNWIND_PRINT_APIS",
@@ -78,13 +76,7 @@ static_library("unwind") {
 
   configs -= common_removed_configs
   configs += common_added_configs
-  configs += [
-    ":unwind_config",
-
-    # Bind the library's own calls to this unwinder, rather than to one the
-    # platform has already loaded.
-    ":unwind_hide_symbols_config",
-  ]
+  configs += [ ":unwind_config" ]
 
   deps = [
     "//starboard/common",
@@ -94,18 +86,11 @@ static_library("unwind") {
 
 config("unwind_starboard_config") {
   configs = [
-    ":common_unwind_dependents_config",
-    "//buildtools/third_party/libunwind:libunwind_config",
+    ":common_unwind_config",
     "//starboard/build/config:starboard_implementation",
   ]
 
   defines = [ "NDEBUG" ]
-}
-
-config("unwind_hide_symbols_config") {
-  cflags = [ "-fvisibility=hidden" ]
-
-  defines = [ "_LIBUNWIND_HIDE_SYMBOLS" ]
 }
 
 static_library("unwind_starboard") {
@@ -113,11 +98,7 @@ static_library("unwind_starboard") {
 
   configs -= common_removed_configs
   configs += common_added_configs
-  configs += [
-    ":unwind_starboard_config",
-    ":unwind_hide_symbols_config",
-  ]
-  all_dependent_configs = [ ":common_unwind_dependents_config" ]
+  configs += [ ":unwind_starboard_config" ]
 
   public_deps = [
     "//starboard/common",
