@@ -9,7 +9,6 @@
 #include <stdint.h>
 
 #include "base/strings/stringprintf.h"
-#include "base/test/scoped_feature_list.h"
 #include "base/test/test_trace_processor.h"
 #include "base/test/trace_event_analyzer.h"
 #include "base/test/trace_test_utils.h"
@@ -18,13 +17,17 @@
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/context_result.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
-#include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/common/command_buffer_id.h"
 #include "gpu/ipc/common/gpu_channel.mojom.h"
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_test_common.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace gpu {
 
