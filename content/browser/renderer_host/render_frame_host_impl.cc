@@ -367,12 +367,6 @@
 #include "content/public/browser/android/java_interfaces.h"
 #include "content/public/browser/authenticator_request_client_delegate.h"
 #else
-<<<<<<< ours
-=======
-#if !BUILDFLAG(IS_COBALT)
-#include "content/browser/hid/hid_service.h"
-#endif
->>>>>>> theirs
 #include "content/browser/host_zoom_map_impl.h"
 #endif
 
@@ -15001,10 +14995,7 @@ void RenderFrameHostImpl::BindModelContextHost(
   ModelContextUserData::Bind(this, std::move(receiver));
 }
 
-<<<<<<< ours
-=======
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
+An empty snippet cannot be represented without stripping the conflict markers entirely, so here is the exact resolution (nothing to add; taking `ours`):
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   HidService::Create(this, std::move(receiver));
@@ -15112,18 +15103,6 @@ void RenderFrameHostImpl::BindDigitalIdentityRequestReceiver(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
-<<<<<<< ours
-=======
-void RenderFrameHostImpl::BindFederatedAuthRequestReceiver(
-    mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver) {
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-  webid::RequestService* service =
-      webid::RequestService::GetOrCreateForCurrentDocument(this);
-  service->BindFederatedAuthRequest(std::move(receiver));
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-}
-
->>>>>>> theirs
 void RenderFrameHostImpl::BindFederatedRequestServiceReceiver(
     mojo::PendingReceiver<blink::mojom::FederatedRequestService> receiver) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
