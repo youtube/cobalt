@@ -84,6 +84,12 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
                        const scoped_refptr<VideoFrame>& frame);
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb);
   void OnSeekTimeout();
+  // Logs how the preroll timeout ended preroll.  |path| is "timer" (the call
+  // made when the timeout expired), "poll" (a later call that the timeout
+  // re-posted), "event" (a decoded frame after the timeout expired) or
+  // "fallback" (mode 2 gave up waiting for a second frame).  Can be called on
+  // any thread.
+  void LogPrerollTimeout(const char* path, int decoded_frames);
   void WritePendingInputs();
 
   MediaTimeProvider* const media_time_provider_;
@@ -94,6 +100,17 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   const std::optional<int> min_decoded_frames_;
   const bool enable_video_renderer_vsp_adjustment_;
   const bool enable_trivial_optimizations_;
+  // The value of Media.VideoPrerollTimeoutMode.  It decides what happens once
+  // the preroll timeout has expired:
+  // 0: preroll ends when OnSeekTimeout(), which re-posts itself every 25 ms,
+  //    finds a decoded frame.
+  // 1: as 0, and preroll also ends as soon as a frame is decoded.
+  // 2: as 1, but two decoded frames are required.  If a second frame doesn't
+  //    come, preroll ends with one frame at the second poll in a row that
+  //    finds exactly one.
+  const int preroll_timeout_mode_;
+  // The number of decoded frames that ends preroll after the timeout expired.
+  const int preroll_timeout_min_frames_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
@@ -110,6 +127,20 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   std::atomic_bool need_more_input_{true};
   std::atomic_bool seeking_{false};
+  // Set once OnSeekTimeout() has found too few frames to end preroll, so that
+  // OnDecoderStatus() can end it.  Never set when |preroll_timeout_mode_| is 0.
+  std::atomic_bool preroll_timeout_expired_{false};
+  // Bumped whenever buffered frames are cleared (Seek() or kReleaseAllFrames)
+  // so OnSeekTimeout() resets |one_frame_polls_| even if a replacement frame is
+  // decoded before the next poll runs.
+  std::atomic<uint64_t> frames_generation_{0};
+  // The following three are only used on the PlayerWorker thread.  The number
+  // of calls to OnSeekTimeout() since the last seek, the number of polls in a
+  // row that found exactly one frame from the same |frames_generation_| (mode 2
+  // only), and the |frames_generation_| observed by |one_frame_polls_|.
+  int seek_timeout_calls_ = 0;
+  int one_frame_polls_ = 0;
+  uint64_t one_frame_polls_generation_ = 0;
   std::atomic<int32_t> input_buffers_sent_{0};
   int64_t seeking_to_time_ = 0;  // microseconds
 
@@ -159,8 +190,10 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   int64_t time_of_last_render_call_ = -1;  // microseconds
 
-  int64_t first_input_written_at_ = 0;  // microseconds
-#endif                                  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  std::atomic<int64_t> first_input_written_at_{0};  // microseconds
+  // When the current seek started, which is when the preroll timer was armed.
+  std::atomic<int64_t> seek_started_at_{0};  // microseconds
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
 }  // namespace starboard

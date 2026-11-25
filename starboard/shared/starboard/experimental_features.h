@@ -264,6 +264,14 @@ inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
 
+// Selects what ends video preroll once the preroll timeout of the video
+// decoder has expired with too few decoded frames.  When unset or 0, a poll
+// every 25 ms that looks for one decoded frame.  1: also the next decoded
+// frame, as soon as it is decoded.  2: as 1, but two decoded frames are
+// required, or one if a second doesn't come within about 50 ms.
+inline constexpr ExperimentalFeatureKey<int> kMediaVideoPrerollTimeoutMode(
+    "Media.VideoPrerollTimeoutMode");
+
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoRendererMinDecodedFrames("Media.VideoRendererMinDecodedFrames");
 

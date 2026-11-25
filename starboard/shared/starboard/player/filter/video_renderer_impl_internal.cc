@@ -36,6 +36,26 @@ using std::placeholders::_2;
 
 const int64_t kSeekTimeoutRetryInterval = 25'000;  // 25ms
 
+// Values of Media.VideoPrerollTimeoutMode, see |preroll_timeout_mode_|.  1 is
+// the event mode with one frame.
+const int kPrerollTimeoutModePoll = 0;
+const int kPrerollTimeoutModeEventTwoFrames = 2;
+
+// In mode 2, the number of polls in a row that find exactly one decoded frame
+// before preroll ends with that one frame.
+const int kMaxOneFramePolls = 2;
+
+int GetPrerollTimeoutMode(const ExperimentalFeatures& experimental_features) {
+  const int mode = experimental_features.Get(kMediaVideoPrerollTimeoutMode)
+                       .value_or(kPrerollTimeoutModePoll);
+  if (mode < kPrerollTimeoutModePoll ||
+      mode > kPrerollTimeoutModeEventTwoFrames) {
+    SB_LOG(WARNING) << "Ignoring unknown video_preroll_timeout_mode " << mode;
+    return kPrerollTimeoutModePoll;
+  }
+  return mode;
+}
+
 }  // namespace
 
 VideoRendererImpl::VideoRendererImpl(
@@ -57,7 +77,10 @@ VideoRendererImpl::VideoRendererImpl(
       enable_video_renderer_vsp_adjustment_(experimental_features.GetBool(
           kMediaEnableVideoRendererVspAdjustment)),
       enable_trivial_optimizations_(
-          experimental_features.GetBool(kMediaEnableTrivialOptimizations)) {
+          experimental_features.GetBool(kMediaEnableTrivialOptimizations)),
+      preroll_timeout_mode_(GetPrerollTimeoutMode(experimental_features)),
+      preroll_timeout_min_frames_(
+          preroll_timeout_mode_ == kPrerollTimeoutModeEventTwoFrames ? 2 : 1) {
   SB_CHECK(decoder_);
   SB_CHECK(algorithm_);
   SB_DCHECK_GT(decoder_->GetMaxNumberOfCachedFrames(), 1U);
@@ -80,6 +103,10 @@ VideoRendererImpl::VideoRendererImpl(
                  << ", min_decoded_frames=" << *min_decoded_frames_ << "}";
   } else {
     SB_LOG(INFO) << "VideoRendererImpl is created: using default preroll logic";
+  }
+  if (preroll_timeout_mode_ != kPrerollTimeoutModePoll) {
+    SB_LOG(INFO) << "video_preroll_timeout_mode is set to "
+                 << preroll_timeout_mode_ << ".";
   }
 }
 
@@ -145,7 +172,8 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
   if (!first_input_written_) {
     first_input_written_ = true;
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-    first_input_written_at_ = CurrentMonotonicTime();
+    first_input_written_at_.store(CurrentMonotonicTime(),
+                                  std::memory_order_relaxed);
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   }
 
@@ -240,6 +268,9 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   // After decoder_->Reset(), OnDecoderStatus() won't be called before another
   // WriteSample().  So it is safe to modify |seeking_to_time_| here.
   seeking_to_time_ = std::max<int64_t>(seek_to_time, 0);
+  preroll_timeout_expired_.store(false);
+  seek_timeout_calls_ = 0;
+  one_frame_polls_ = 0;
   seeking_.store(true);
   input_buffers_sent_.store(0);
   end_of_stream_written_.store(false);
@@ -256,11 +287,20 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
     Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
              preroll_timeout);
   }
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  seek_started_at_.store(CurrentMonotonicTime(), std::memory_order_relaxed);
+  SB_LOG(INFO) << "Video preroll timer armed at seek: timeout(msec)="
+               << (preroll_timeout == std::numeric_limits<int64_t>::max()
+                       ? -1
+                       : preroll_timeout / 1'000);
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   std::scoped_lock lock(decoder_frames_mutex_, sink_frames_mutex_);
   decoder_frames_.clear();
   sink_frames_.clear();
   number_of_frames_.store(0);
+  one_frame_polls_generation_ =
+      frames_generation_.fetch_add(1, std::memory_order_acq_rel) + 1;
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   buffering_state_ = kWaitForBuffer;
@@ -349,6 +389,7 @@ void VideoRendererImpl::OnDecoderStatus(
     decoder_frames_.clear();
     sink_frames_.clear();
     number_of_frames_.store(0);
+    frames_generation_.fetch_add(1, std::memory_order_release);
     return;
   }
 
@@ -405,14 +446,29 @@ void VideoRendererImpl::OnDecoderStatus(
 
     if (should_call_preroll_cb) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      const int64_t now = CurrentMonotonicTime();
+      const int64_t first_input_at =
+          first_input_written_at_.load(std::memory_order_relaxed);
+      const int64_t seek_at = seek_started_at_.load(std::memory_order_relaxed);
       SB_LOG(INFO) << "Video preroll complete: elapsed(msec)="
-                   << FormatWithDigitSeparators(
-                          (CurrentMonotonicTime() - first_input_written_at_) /
-                          1'000)
+                   << FormatWithDigitSeparators((now - first_input_at) / 1'000)
+                   << ", elapsed_since_seek(msec)=" << (now - seek_at) / 1'000
                    << ", input_buffers_sent=" << input_buffers_sent_.load()
                    << ", decoded_frames=" << number_of_frames_.load();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
       Schedule(prerolled_cb_);
+    } else if (preroll_timeout_mode_ != kPrerollTimeoutModePoll &&
+               preroll_timeout_expired_.load() && seeking_.load()) {
+      // The preroll timeout has expired without enough frames.  End preroll
+      // on this frame instead of waiting for the next poll in
+      // OnSeekTimeout().  The poll goes on, and whichever comes first ends
+      // preroll, as both go through |seeking_|.
+      const int decoded_frames = number_of_frames_.load();
+      if (decoded_frames >= preroll_timeout_min_frames_ &&
+          seeking_.exchange(false)) {
+        LogPrerollTimeout("event", decoded_frames);
+        Schedule(prerolled_cb_);
+      }
     }
   }
 
@@ -495,19 +551,70 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
 
 void VideoRendererImpl::OnSeekTimeout() {
   SB_CHECK(BelongsToCurrentThread());
-  if (number_of_frames_.load() > 0) {
+  // The first call since the seek is made when the timeout expires, the later
+  // ones are polls.
+  const bool is_poll = seek_timeout_calls_ > 0;
+  ++seek_timeout_calls_;
+  const char* path = is_poll ? "poll" : "timer";
+
+  int decoded_frames = number_of_frames_.load();
+  bool end_preroll = decoded_frames >= preroll_timeout_min_frames_;
+  if (!end_preroll && preroll_timeout_mode_ != kPrerollTimeoutModePoll) {
+    // From now on OnDecoderStatus() ends preroll when enough frames are
+    // decoded.  A frame may have been decoded between the read above and the
+    // store below, and OnDecoderStatus() would not have acted on it, so read
+    // the number of frames again.
+    preroll_timeout_expired_.store(true);
+    decoded_frames = number_of_frames_.load();
+    const uint64_t generation =
+        frames_generation_.load(std::memory_order_acquire);
+    end_preroll = decoded_frames >= preroll_timeout_min_frames_;
+    if (!end_preroll) {
+      if (generation != one_frame_polls_generation_) {
+        one_frame_polls_generation_ = generation;
+        one_frame_polls_ = 0;
+      }
+      // With one frame required a frame always ends preroll above, so this is
+      // only reached with one frame when two are required.
+      if (decoded_frames != 1) {
+        one_frame_polls_ = 0;
+      } else if (is_poll && ++one_frame_polls_ >= kMaxOneFramePolls) {
+        // A second frame hasn't come.  Don't wait for it any longer.
+        end_preroll = true;
+        path = "fallback";
+      }
+    }
+  }
+
+  if (end_preroll) {
     if (seeking_.exchange(false)) {
-#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-      SB_LOG(INFO) << "Video preroll timeout:"
-                   << " input_buffers_sent=" << input_buffers_sent_.load()
-                   << ", decoded_frames=" << number_of_frames_.load();
-#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+      LogPrerollTimeout(path, decoded_frames);
       Schedule(prerolled_cb_);
     }
   } else if (seeking_.load()) {
+    // The poll is kept in all modes, so preroll never depends on
+    // OnDecoderStatus() alone once the timeout has expired.
     Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
              kSeekTimeoutRetryInterval);
   }
+}
+
+void VideoRendererImpl::LogPrerollTimeout(const char* path,
+                                          int decoded_frames) {
+#if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+  // -1 if no input has been written since the seek.
+  const int64_t now = CurrentMonotonicTime();
+  const int64_t seek_at = seek_started_at_.load(std::memory_order_relaxed);
+  const int64_t first_input_at =
+      first_input_written_at_.load(std::memory_order_relaxed);
+  SB_LOG(INFO) << "Video preroll timeout: elapsed_since_seek(msec)="
+               << (now - seek_at) / 1'000
+               << ", elapsed_since_first_input(msec)="
+               << (first_input_at < seek_at ? -1
+                                            : (now - first_input_at) / 1'000)
+               << ", input_buffers_sent=" << input_buffers_sent_.load()
+               << ", decoded_frames=" << decoded_frames << ", path=" << path;
+#endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
 void VideoRendererImpl::WritePendingInputs() {
