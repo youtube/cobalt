@@ -19,10 +19,12 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <set>
+#include <string>
 
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -36,15 +38,17 @@ namespace starboard {
 // feeds it samples until it presents, seeks it, and waits for player states,
 // so that the benchmarks only contain the calls they time. All waits on player
 // callbacks are bounded and report failures through their return values, so
-// that a benchmark can report them with SkipWithError() (note that missing
-// testdata .dmp files still fail fast via VideoDmpReader's SB_CHECKs).
+// that a benchmark can report them with SkipWithError() (missing testdata .dmp
+// files are reported the same way, while corrupt ones still fail fast via
+// VideoDmpReader's SB_CHECKs).
 //
 // Lifetime and ownership: Typically instantiated on the stack by a benchmark
 // function for the duration of that benchmark. Owns its
 // FakeGraphicsContextProvider, any SbPlayer created via InitializePlayer(), and
-// the loaded VideoDmpReader instances, destroying them in DestroyPlayer() or on
-// destruction (benchmarks that call SbPlayerCreate() directly with
-// GetCreationParam() own that SbPlayer themselves).
+// all cached VideoDmpReader instances, destroying the player in DestroyPlayer()
+// or on destruction and the readers on destruction (benchmarks that call
+// SbPlayerCreate() directly with GetCreationParam() own that SbPlayer
+// themselves).
 //
 // Threading model: Thread-affine; all public non-static methods must be called
 // on the construction thread (enforced by |thread_checker_|). Registered
@@ -65,21 +69,82 @@ class SbPlayerBenchmarkHelper {
     kFailed,
   };
 
+  enum class ColorMetadataMode {
+    kDefault,
+    kHdr10,
+    kBt601,
+    kAbrBt709Bt601,
+  };
+
   // Default upper bound for the waits on player callbacks. Hitting it means
   // that the player has stalled, so the benchmark should report an error
   // rather than hang.
   static constexpr Clock::duration kDefaultTimeout = std::chrono::seconds(5);
 
+  // Timestamps recorded by InitializePlayer(). |created| and |initialized| are
+  // only set if the corresponding step succeeded; |initialized| is recorded
+  // inside the status callback, like the presenting time.
+  struct InitializeTimes {
+    Clock::time_point create_start;
+    std::optional<Clock::time_point> created;
+    std::optional<Clock::time_point> initialized;
+  };
+
+  // The first error reported by the player through its error callback.
+  struct PlayerError {
+    SbPlayerError error;
+    std::string message;
+  };
+
   SbPlayerBenchmarkHelper();
   ~SbPlayerBenchmarkHelper();
 
-  // Initializes the player with specific audio and video DMP files.
+  // Loads and caches the audio and video DMP files (a null file means no stream
+  // of that type) and selects them as the active files, reusing any file that
+  // was already loaded on this helper. Cached files stay in memory across
+  // DestroyPlayer() and subsequent LoadDmpFiles() calls so switching between
+  // preloaded clips does not touch the filesystem. Returns false and sets
+  // |out_error| if a file cannot be found or has no samples of its type. Must
+  // not be called while a player exists, as the player may still reference
+  // samples of the loaded files.
+  bool LoadDmpFiles(const char* audio_file,
+                    const char* video_file,
+                    std::string* out_error);
+
+  // Returns true if |output_mode| is supported for the loaded DMP files.
+  bool IsOutputModeSupportedForDmpFiles(SbPlayerOutputMode output_mode);
+
+  // Returns the playable duration (in microseconds) of the active DMP files, or
+  // the shorter of audio and video when both are loaded.
+  int64_t GetDurationUs() const;
+
+  // Initializes the player with specific audio and video DMP files, loading
+  // them with LoadDmpFiles() first. If |out_times| is non-null, it receives
+  // the timestamps of the creation steps. If the player was created but did
+  // not initialize, it is left for DestroyPlayer() (or the destructor), so
+  // that the caller can time its destruction.
   InitResult InitializePlayer(const char* audio_file,
                               const char* video_file,
-                              SbPlayerOutputMode output_mode);
+                              SbPlayerOutputMode output_mode,
+                              InitializeTimes* out_times = nullptr);
 
-  // Safely destroys the player and releases loaded DMP readers.
+  // Safely destroys the player, if any.
   void DestroyPlayer();
+
+  // Sets the Starboard experimental features (key and integer value pairs) for
+  // the players created from now on; the constructor sets none.
+  // SbPlayerCreate() reads the features of the calling thread, so this must be
+  // called on the thread that initializes the players. Starboard ignores keys
+  // it does not know. Returns false if the platform does not support
+  // experimental features.
+  bool SetExperimentalFeatures(const std::map<std::string, int64_t>& features);
+
+  void SetColorMetadataMode(ColorMetadataMode mode) {
+    color_metadata_mode_ = mode;
+  }
+
+  // Returns the first error reported by the current player, if any.
+  std::optional<PlayerError> GetPlayerError();
 
   // Generates synthetic creation parameters for standard 1920x1080 AVC and
   // stereo AAC playback (used by the create/destroy benchmarks; the seek
@@ -145,12 +210,22 @@ class SbPlayerBenchmarkHelper {
                                   SbPlayerError error,
                                   const char* message);
 
-  void ConfigureExperimentalFeaturesForCurrentThread() const;
+  bool ConfigureExperimentalFeaturesForCurrentThread(
+      const std::map<std::string, int64_t>& features) const;
+  SbMediaColorMetadata ApplyColorMetadataOverride(
+      const SbMediaColorMetadata& base) const;
+  void GetCreationParamForDmpFiles(SbPlayerOutputMode output_mode,
+                                   SbPlayerCreationParam* out_creation_param);
   void Seek(int64_t seek_time_us);
   void WriteSamples(SbMediaType type);
   void PumpDecodeTarget();
   size_t FindAudioStartIndex(int64_t target_time_us);
   size_t FindVideoStartIndex(int64_t target_time_us);
+
+  struct LoadedDmp {
+    std::unique_ptr<VideoDmpReader> reader;
+    std::string mime;
+  };
 
   ThreadChecker thread_checker_;
   FakeGraphicsContextProvider fake_graphics_context_provider_;
@@ -159,14 +234,22 @@ class SbPlayerBenchmarkHelper {
   SbPlayer player_ = kSbPlayerInvalid;
   SbPlayerOutputMode output_mode_ = kSbPlayerOutputModeInvalid;
 
-  std::unique_ptr<VideoDmpReader> audio_reader_;
-  std::unique_ptr<VideoDmpReader> video_reader_;
+  std::map<std::string, LoadedDmp> loaded_audio_dmps_;
+  std::map<std::string, LoadedDmp> loaded_video_dmps_;
+  VideoDmpReader* audio_reader_ = nullptr;
+  VideoDmpReader* video_reader_ = nullptr;
+  // Point into |loaded_*_dmps_| and are referenced by creation parameters.
+  const std::string* audio_mime_ = nullptr;
+  const std::string* video_mime_ = nullptr;
 
   size_t next_audio_sample_index_ = 0;
   size_t next_video_sample_index_ = 0;
 
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
+  ColorMetadataMode color_metadata_mode_ = ColorMetadataMode::kDefault;
+  int seek_color_phase_ = 0;
+  bool initial_seek_pending_ = false;
 
   // Thread synchronization and callback state tracking. All the state below is
   // guarded by |mutex_|, and every callback state change is signalled through
@@ -176,12 +259,14 @@ class SbPlayerBenchmarkHelper {
 
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   std::set<SbPlayerState> received_player_states_;
+  std::optional<Clock::time_point> initialized_time_;
   std::optional<Clock::time_point> presenting_time_;
 
   bool audio_needs_data_ = false;
   bool video_needs_data_ = false;
 
   bool error_occurred_ = false;
+  std::optional<PlayerError> player_error_;
 };
 
 // Tracks the asynchronous initialization and error state of an SbPlayer
