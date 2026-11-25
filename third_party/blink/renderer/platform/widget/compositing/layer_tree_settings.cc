@@ -36,6 +36,8 @@
 #include "ui/native_theme/overlay_scrollbar_constants_aura.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include <cmath>
+
 #include "base/numerics/safe_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
 #endif  // BUILDFLAG(IS_COBALT)
@@ -174,6 +176,14 @@ size_t GetCobaltDefaultGpuMemoryLimitMB(const gfx::Size& screen_size,
   // Never spend more than 1/8 of the physical memory on tiles: 128 MB on a
   // 1 GB device, 256 MB on a 2 GB device.
   constexpr int kPhysicalMemoryDivisor = 8;
+
+  // Fall back to the 1080p budget if the screen size or scale is unknown or
+  // invalid (e.g. a NaN scale factor would otherwise fail every comparison
+  // below and get the 4K budget).
+  if (screen_size.IsEmpty() || !std::isfinite(device_scale_factor) ||
+      device_scale_factor <= 0.0f) {
+    return kMemoryMB1080p;
+  }
 
   const double pixels =
       static_cast<double>(screen_size.width()) * device_scale_factor *

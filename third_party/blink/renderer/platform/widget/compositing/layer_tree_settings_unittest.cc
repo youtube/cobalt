@@ -8,8 +8,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include <limits>
+
+#include "base/base_switches.h"
 #include "base/features.h"
 #include "base/test/scoped_amount_of_physical_memory_override.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "cc/base/features.h"
 #endif
@@ -115,10 +119,34 @@ TEST(LayerTreeSettings, CobaltDefaultGpuMemoryLimitCappedByDeviceMemory) {
                                                    /*physical_memory_mb=*/0));
 }
 
+TEST(LayerTreeSettings, CobaltDefaultGpuMemoryLimitInvalidInputs) {
+  constexpr int kPhysicalMemoryMB = 2048;
+  // Invalid device scale factors fall back to the 1080p budget.
+  EXPECT_EQ(64u,
+            GetCobaltDefaultGpuMemoryLimitMB(
+                gfx::Size(3840, 2160), std::numeric_limits<float>::quiet_NaN(),
+                kPhysicalMemoryMB));
+  EXPECT_EQ(64u,
+            GetCobaltDefaultGpuMemoryLimitMB(
+                gfx::Size(3840, 2160), std::numeric_limits<float>::infinity(),
+                kPhysicalMemoryMB));
+  EXPECT_EQ(64u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 0.f,
+                                                  kPhysicalMemoryMB));
+  EXPECT_EQ(64u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), -1.f,
+                                                  kPhysicalMemoryMB));
+  // So does an empty screen in either dimension.
+  EXPECT_EQ(64u, GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 0), 1.f,
+                                                  kPhysicalMemoryMB));
+}
+
 #if defined(ARCH_CPU_32_BITS)
+// Verifies that 32-bit devices with 2 GB of RAM still get the 256 MB 4K tile
+// budget when Cobalt runs with --enable-low-end-device-mode, which caps
+// base::SysInfo::AmountOfPhysicalMemoryMB() at 512 MB.
 TEST(LayerTreeSettings, CobaltDefaultGpuMemoryPolicyOn32Bit) {
-  // Use the real physical memory, not the 512 MB that low-end device mode
-  // simulates.
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      ::switches::kEnableLowEndDeviceMode);
   base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(2048);
   auto policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
                                    gfx::Size(1920, 1080), 1.f);
