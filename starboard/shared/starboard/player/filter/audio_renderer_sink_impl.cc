@@ -57,13 +57,11 @@ AudioRendererSinkImpl::~AudioRendererSinkImpl() {
   Stop();
 }
 
-void AudioRendererSinkImpl::GetAudioRendererParams(
-    const AudioStreamInfo& audio_stream_info,
-    int* max_cached_frames,
-    int* min_frames_per_append) const {
-  SB_CHECK(max_cached_frames);
-  SB_CHECK(min_frames_per_append);
-  *min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
+AudioRendererSink::AudioRendererParams
+AudioRendererSinkImpl::GetAudioRendererParams(
+    const AudioStreamInfo& audio_stream_info) const {
+  AudioRendererParams params;
+  params.min_frames_per_append = kDefaultAudioSinkMinFramesPerAppend;
   // AudioRenderer prefers to use kSbMediaAudioSampleTypeFloat32 and only uses
   // kSbMediaAudioSampleTypeInt16Deprecated when float32 is not supported.
   int min_frames_required = SbAudioSinkGetMinBufferSizeInFrames(
@@ -76,9 +74,11 @@ void AudioRendererSinkImpl::GetAudioRendererParams(
   // frames in the sink. The sleeping time is 1/4 of |max_cached_frames|. So, to
   // maintain required min buffer size of audio sink, the |max_cached_frames|
   // need to be larger than |min_frames_required| * 4/3.
-  *max_cached_frames = static_cast<int>(min_frames_required * 1.4) +
-                       kDefaultAudioSinkMinFramesPerAppend;
-  *max_cached_frames = AlignUp(*max_cached_frames, kAudioSinkFramesAlignment);
+  params.max_cached_frames = static_cast<int>(min_frames_required * 1.4) +
+                             kDefaultAudioSinkMinFramesPerAppend;
+  params.max_cached_frames =
+      AlignUp(params.max_cached_frames, kAudioSinkFramesAlignment);
+  return params;
 }
 
 bool AudioRendererSinkImpl::HasStarted() const {
