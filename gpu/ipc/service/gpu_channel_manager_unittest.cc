@@ -24,6 +24,11 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/scoped_feature_list.h"
+#include "gpu/config/gpu_finch_features.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace gpu {
 
 class GpuChannelManagerTest : public GpuChannelTestCommon {
@@ -70,7 +75,7 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
                                   GpuPeakMemoryAllocationSource::UNKNOWN);
   }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
   void TestApplicationBackgrounded(ContextType type,
                                    bool should_destroy_channel) {
     ASSERT_TRUE(channel_manager());
@@ -114,9 +119,22 @@ class GpuChannelManagerTest : public GpuChannelTestCommon {
       EXPECT_TRUE(channel);
     }
 
+#if BUILDFLAG(IS_COBALT)
+    // With kCobaltKeepWebGLContextsOnBackground, Cobalt keeps all GL state,
+    // including the shared raster state, while a stateful (WebGL) context is
+    // alive. Otherwise it releases everything.
+    if (should_destroy_channel) {
+      ASSERT_NE(channel_manager()->GetSharedContextState(&result).get(),
+                raster_decoder_state.get());
+    } else {
+      ASSERT_EQ(channel_manager()->GetSharedContextState(&result).get(),
+                raster_decoder_state.get());
+    }
+#else
     // We should always clear the shared raster state on background cleanup.
     ASSERT_NE(channel_manager()->GetSharedContextState(&result).get(),
               raster_decoder_state.get());
+#endif
   }
 #endif
 
@@ -136,14 +154,33 @@ TEST_F(GpuChannelManagerTest, EstablishChannel) {
   EXPECT_EQ(channel_manager()->LookupChannel(kClientId), channel);
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_COBALT)
 TEST_F(GpuChannelManagerTest, OnBackgroundedWithoutWebGL) {
   TestApplicationBackgrounded(CONTEXT_TYPE_OPENGLES2, true);
 }
 
+#if BUILDFLAG(IS_COBALT)
+TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGL) {
+  // kCobaltKeepWebGLContextsOnBackground is disabled by default.
+  TestApplicationBackgrounded(CONTEXT_TYPE_WEBGL2, true);
+}
+
+TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGLKeepContextsEnabled) {
+  base::test::ScopedFeatureList feature_list(
+      features::kCobaltKeepWebGLContextsOnBackground);
+  TestApplicationBackgrounded(CONTEXT_TYPE_WEBGL2, false);
+}
+
+TEST_F(GpuChannelManagerTest, OnBackgroundedWithoutWebGLKeepContextsEnabled) {
+  base::test::ScopedFeatureList feature_list(
+      features::kCobaltKeepWebGLContextsOnBackground);
+  TestApplicationBackgrounded(CONTEXT_TYPE_OPENGLES2, true);
+}
+#else
 TEST_F(GpuChannelManagerTest, OnBackgroundedWithWebGL) {
   TestApplicationBackgrounded(CONTEXT_TYPE_WEBGL2, false);
 }
+#endif  // BUILDFLAG(IS_COBALT)
 
 #endif
 
