@@ -249,9 +249,9 @@ class GPU_IPC_SERVICE_EXPORT GpuChannelManager
 
   // raster::GrShaderCache::Client implementation.
   void StoreShader(const std::string& key, const std::string& shader) override;
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
   void TouchShaderOnDisk(const std::string& key) override;
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_COBALT)
 
   void SetImageDecodeAcceleratorWorkerForTesting(
       ImageDecodeAcceleratorWorker* worker);

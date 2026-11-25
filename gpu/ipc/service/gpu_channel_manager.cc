@@ -1188,14 +1188,14 @@ void GpuChannelManager::StoreShader(const std::string& key,
   delegate_->StoreBlobToDisk(kGrShaderGpuDiskCacheHandle, key, shader);
 }
 
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
 void GpuChannelManager::TouchShaderOnDisk(const std::string& key) {
   // Reuse `StoreBlobToDisk` with an empty blob so `GpuDiskCache::Cache()`
   // refreshes the entry's LRU timestamp via `backend_->OnExternalCacheHit(key)`
   // without rewriting shader bytes or adding a separate `GpuHost` Mojo IPC.
   delegate_->StoreBlobToDisk(kGrShaderGpuDiskCacheHandle, key, std::string());
 }
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_COBALT)
 
 void GpuChannelManager::SetImageDecodeAcceleratorWorkerForTesting(
     ImageDecodeAcceleratorWorker* worker) {

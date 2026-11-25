@@ -34,12 +34,12 @@ class RASTER_EXPORT GrShaderCache
 
     virtual void StoreShader(const std::string& key,
                              const std::string& shader) = 0;
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
     // Touches an already-persisted shader entry in the host disk cache when it
     // is reused in RAM so its on-disk LRU/MRU timestamp is refreshed without
     // rewriting the shader blob.
     virtual void TouchShaderOnDisk(const std::string& key) {}
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_COBALT)
   };
 
   class RASTER_EXPORT ScopedCacheUse {

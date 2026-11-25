@@ -95,6 +95,16 @@ sk_sp<SkData> GrShaderCache::load(const SkData& key) {
     // cache even if we just loaded it. It should happen only once per GrContext
     // creation.
     need_store_pipeline_cache_ = true;
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+    // Refresh the disk-cache timestamp the first time a preloaded shader is
+    // used, so the bounded cold-start preload keeps it. Android batches this
+    // into FlushPendingDiskWrites() instead.
+    if (base::FeatureList::IsEnabled(features::kCobaltGpuShaderDiskCache) &&
+        !base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
+      client_->TouchShaderOnDisk(
+          base::Base64Encode(MakeString(it->first.data.get())));
+    }
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
   }
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
   if (defer_disk_writes_ && !it->second.pending_disk_write) {
