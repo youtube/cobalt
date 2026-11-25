@@ -51,6 +51,39 @@ vpython3 pull_uma_histogram_set_via_cdp.py [OPTIONS]
     If set, suppresses all non-essential print output. Useful for cleaner logs
     or for running in automated scripts.
 
+### A/B Verification (Android Only: `experiment/android_cdp_puller.py`, `experiment/android_ab_harness.py`, `experiment/android_ab_report.py`)
+
+**Note:** The A/B experiment harness and runner under [`cobalt/tools/uma/experiment/`](experiment/README.md) are **implemented for Android only**.
+
+The single-launch Android runner (`android_cdp_puller.py`), paired A/B experiment
+harness (`android_ab_harness.py`), statistical report generator
+(`android_ab_report.py`), and shared UMA snapshot/WPR helpers
+(`android_uma_dump.py`) live in [`cobalt/tools/uma/experiment/`](experiment/README.md).
+
+Every launch, in both arms, also gets `--remote-allow-origins=*` and
+`--enable-features=CobaltMetricsInterval:memory-metrics-interval/10`. That is a
+memory dump every 10 s (production default: the feature is disabled and its
+interval is 300 s); it is why `Memory.*` gauges have samples in short runs.
+Use an even number of pairs, at least 6 (the default): the report needs n >= 6
+for a 95% CI of the median, so fewer pairs never get a significance tag.
+
+```bash
+vpython3 cobalt/tools/uma/experiment/android_ab_harness.py \
+    --serial localhost:40501 \
+    --results-dir out/ab/localstorage \
+    --experiment ls_home \
+    --mode homefeed \
+    --pairs 6 \
+    --poll-interval-s 65 \
+    --exit-flush \
+    --arm-a-flags=--disable-features=CobaltLocalStorageOptimization \
+    --arm-b-flags=--enable-features=CobaltLocalStorageOptimization
+python3 cobalt/tools/uma/experiment/android_ab_report.py \
+    --results-dir out/ab/localstorage \
+    --experiment ls_home \
+    --out out/ab/localstorage/ls_home_report.md
+```
+
 ### Verifying Cobalt Memory Breakdown Metrics via CDP
 
 Cobalt integrates real-time live memory metrics, session median (P50) breakdown histograms, and time-windowed peak guardrails directly into the Chrome DevTools Protocol (`Performance.getMetrics`).
