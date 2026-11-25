@@ -187,16 +187,6 @@ BASE_FEATURE(kCobaltStorageCleanup,
              "CobaltStorageCleanup",
              FEATURE_DISABLED_BY_DEFAULT);
 
-<<<<<<< ours
-=======
-BASE_FEATURE(kCobaltSkipCookieUpdateAccess,
-             "CobaltSkipCookieUpdateAccess",
-             FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
-             "CobaltLocalStorageReuseLogsAndSkipEmptyCommits",
-             FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCobaltAnimationTileLookahead,
              "CobaltAnimationTileLookahead",
 #if BUILDFLAG(IS_ANDROID)
@@ -210,8 +200,6 @@ BASE_FEATURE_PARAM(double,
                    &kCobaltAnimationTileLookahead,
                    "max_viewport_fraction",
                    0.4);
-
->>>>>>> theirs
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",
