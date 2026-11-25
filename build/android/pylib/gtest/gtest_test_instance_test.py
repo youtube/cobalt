@@ -5,6 +5,7 @@
 
 
 import unittest
+from unittest import mock
 
 from pylib.base import base_test_result
 from pylib.gtest import gtest_test_instance
@@ -375,6 +376,35 @@ class GtestTestInstanceTests(unittest.TestCase):
         .TestNameWithoutDisabledPrefix(test_name)
     expected = 'A.B'
     self.assertEqual(expected, actual)
+
+  @mock.patch('pylib.utils.test_filter.InitializeFiltersFromArgs',
+              return_value=[])
+  @mock.patch('pylib.constants.GetOutDirectory', return_value='/tmp/out')
+  @mock.patch('os.path.exists', return_value=True)
+  @mock.patch('devil.android.apk_helper.ApkHelper')
+  def testSuiteThreadAndShardTimeouts(self, mock_apk_helper, *_):
+    mock_apk_helper.return_value.GetActivityName.return_value = 'TestActivity'
+    sub_key = getattr(gtest_test_instance, '_EXTRA_RUN_IN_SUB_THREAD')
+    nano_key = gtest_test_instance.EXTRA_SHARD_NANO_TIMEOUT
+
+    def mk(suite, dbg=False):
+      args = mock.MagicMock(suite_name=[suite],
+                            shard_timeout=120,
+                            wait_for_java_debugger=dbg)
+      for attr in ('timeout_scale', 'executable_dist_dir', 'app_data_files',
+                   'test_apk_incremental_install_json', 'command_line_flags',
+                   'test_launcher_batch_limit', 'device_flags_file'):
+        setattr(args, attr, None)
+      return gtest_test_instance.GtestTestInstance(args, None, self.fail)
+
+    unit, browser = mk('base_unittests'), mk('cobalt_browsertests')
+    self.assertEqual(
+        (1, int(120e9), 180),
+        (unit.extras.get(sub_key), unit.extras[nano_key], unit.shard_timeout))
+    self.assertEqual((None, int(120e9), 1200),
+                     (browser.extras.get(sub_key), browser.extras[nano_key],
+                      browser.shard_timeout))
+    self.assertEqual(int(1e15), mk('base_unittests', dbg=True).extras[nano_key])
 
 
 if __name__ == '__main__':

@@ -135,11 +135,14 @@ class TestCIConfigConsistency(unittest.TestCase):
           f'{item_label}: shards is only supported for runs_on="device"',
       )
       target_name = target.split(':')[-1] if isinstance(target, str) else ''
-      self.assertIn(
-          'cobalt_browsertests',
-          target_name,
-          f'{item_label}: shards is only supported on cobalt_browsertests '
-          'targets',
+      executable = entry.get('executable')
+      is_android_apk_gtest = (
+          entry.get('test_type') == 'gtest' and isinstance(executable, str) and
+          executable.endswith('.apk') and 'junit' not in target_name.lower())
+      self.assertTrue(
+          'cobalt_browsertests' in target_name or is_android_apk_gtest,
+          f'{item_label}: shards is only supported on cobalt_browsertests or '
+          'non-JUnit Android APK GTest targets',
       )
 
   def test_test_targets_shards_consistency(self):
@@ -177,6 +180,13 @@ class TestCIConfigConsistency(unittest.TestCase):
                 'test_type': 'gtest',
                 'shards': 10,
             },
+            {
+                'target': 'base:base_unittests',
+                'executable': 'out/android-arm_devel/base_unittests-debug.apk',
+                'runs_on': 'device',
+                'test_type': 'gtest',
+                'shards': 2,
+            },
         ],
         'valid_sample',
     )
@@ -211,6 +221,20 @@ class TestCIConfigConsistency(unittest.TestCase):
             'target': 'cobalt/testing/browser_tests:cobalt_browsertests',
             'runs_on': 'host',
             'shards': 4,
+        },
+        {
+            'target': 'base:base_unittests',
+            'executable': 'out/android-arm_devel/base_unittests-debug.apk',
+            'runs_on': 'host',
+            'test_type': 'gtest',
+            'shards': 2,
+        },
+        {
+            'target': 'starboard/nplb:nplb_loader',
+            'executable': 'out/evergreen-arm-hardfp-rdk_devel/nplb_loader.py',
+            'runs_on': 'device',
+            'test_type': 'gtest',
+            'shards': 2,
         },
         {
             'target': 'cobalt:cobalt_unittests',

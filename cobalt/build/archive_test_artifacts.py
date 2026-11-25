@@ -134,19 +134,22 @@ def _handle_browsertests(
     out_dir: str,
     destination_dir: str,
     compression: str,
+    *,
     archive_name: str = 'cobalt_browsertests_deps',
+    toolchain_only: bool = False,
 ):
   # Handle cobalt_browsertests using the specialized script.
-  collect_script = os.path.join(source_dir, 'cobalt', 'testing',
-                                'browser_tests', 'tools',
-                                'collect_test_artifacts.py')
+  collect_script = os.path.join(
+      os.path.abspath(source_dir), 'cobalt', 'testing', 'browser_tests',
+      'tools', 'collect_test_artifacts.py')
   output_name = f'{archive_name}.tar.{compression}'
   cmd = [
-      sys.executable, collect_script, out_dir, '-o', output_name,
-      '--output_dir', destination_dir, '--compression', compression
-  ]
+      sys.executable, collect_script,
+      os.path.abspath(out_dir), '-o', output_name, '--output_dir',
+      os.path.abspath(destination_dir), '--compression', compression
+  ] + (['--toolchain-only'] if toolchain_only else [])
   print(f"Running: {' '.join(cmd)}")
-  subprocess.check_call(cmd)
+  subprocess.check_call(cmd, cwd=source_dir)
 
 
 def _find_deps_file(*, target: str, target_name: str, target_path: str,
@@ -208,26 +211,26 @@ def create_archive(
     else:
       print('Warning: --strip requested but no strip tool found.')
 
+  if use_android_deps_path and targets:
+    host_deps = os.path.join(destination_dir,
+                             f'android_test_host_deps.tar.{compression}')
+    if not os.path.exists(host_deps):
+      _handle_browsertests(
+          source_dir,
+          out_dir,
+          destination_dir,
+          compression,
+          archive_name='android_test_host_deps',
+          toolchain_only=True)
+
   combined_deps = set()
   for target in targets:
-    # TODO(b/483460300): Unify unittest and browsertest packaging
-    if target.endswith(':cobalt_browsertests') or (
-        use_android_deps_path and
-        target.endswith(':cobalt_browsertests_loader')):
-      if not use_android_deps_path:
-        _handle_browsertests(source_dir, out_dir, destination_dir, compression)
-        # If this was the only target, we are done.
-        if len(targets) == 1:
-          return
-        continue
-      else:
-        # Generate host runner archive and lightweight device archive
-        _handle_browsertests(
-            source_dir,
-            out_dir,
-            destination_dir,
-            compression,
-            archive_name='cobalt_browsertests_host_deps')
+    if not use_android_deps_path and target.endswith(':cobalt_browsertests'):
+      _handle_browsertests(source_dir, out_dir, destination_dir, compression)
+      # If this was the only target, we are done.
+      if len(targets) == 1:
+        return
+      continue
 
     # Junit tests have some exceptions to normal packaging steps.
     is_junit_test = 'junit' in target
