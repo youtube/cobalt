@@ -1510,15 +1510,14 @@ TEST_F(
     VideoFrameSubmitterTest,
     CobaltContextLostWhilePageHiddenDefersContextProviderRequestUntilPageVisible) {
   int context_provider_requests = 0;
-  MakeSubmitter(
-      base::BindLambdaForTesting(
-          [&](scoped_refptr<viz::RasterContextProvider>,
-              base::OnceCallback<void(
-                  bool, scoped_refptr<viz::RasterContextProvider>,
-                  scoped_refptr<gpu::ClientSharedImageInterface>)>) {
-            ++context_provider_requests;
-          }),
-      base::DoNothing());
+  MakeSubmitter(base::BindLambdaForTesting(
+                    [&](scoped_refptr<viz::RasterContextProvider>,
+                        base::OnceCallback<void(
+                            bool, scoped_refptr<viz::RasterContextProvider>,
+                            scoped_refptr<gpu::SharedImageInterface>)>) {
+                      ++context_provider_requests;
+                    }),
+                base::DoNothing());
   EXPECT_EQ(context_provider_requests, 1);
 
   EXPECT_CALL(*sink_, SetNeedsBeginFrame(false));
@@ -1548,14 +1547,14 @@ TEST_F(
     CobaltSetIsPageVisibleIgnoresRedundantCallsAndCancelsInFlightRequest) {
   int context_provider_requests = 0;
   base::OnceCallback<void(bool, scoped_refptr<viz::RasterContextProvider>,
-                          scoped_refptr<gpu::ClientSharedImageInterface>)>
+                          scoped_refptr<gpu::SharedImageInterface>)>
       pending_reply_cb;
   MakeSubmitter(
       base::BindLambdaForTesting(
           [&](scoped_refptr<viz::RasterContextProvider>,
               base::OnceCallback<void(
                   bool, scoped_refptr<viz::RasterContextProvider>,
-                  scoped_refptr<gpu::ClientSharedImageInterface>)> reply_cb) {
+                  scoped_refptr<gpu::SharedImageInterface>)> reply_cb) {
             ++context_provider_requests;
             pending_reply_cb = std::move(reply_cb);
           }),

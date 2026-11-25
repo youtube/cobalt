@@ -1,14 +1,10 @@
 name: aosp_staging
 
+# The non-Evergreen AOSP configs (#14092) don't pass `gn gen --check` on
+# staging yet (copied_base Java targets in the Starboard toolchain reference a
+# build_java.params.json no target generates), so only run on demand until the
+# port is fixed.
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
-    branches:
-      - staging
-      - autoroll-chromium/main-to-staging
-  push:
-    branches:
-      - staging
   workflow_dispatch:
     inputs:
       nightly:

@@ -312,7 +312,7 @@ static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
 
 static void JNI_CobaltContentBrowserClient_FreezeAndFlushCookiesAndLocalStorage(
     JNIEnv*,
-    const base::android::JavaParamRef<jobject>& jweb_contents) {
+    const jni_zero::JavaParamRef<jobject>& jweb_contents) {
   auto* client = CobaltContentBrowserClient::Get();
   if (!client) {
     return;
