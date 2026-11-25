@@ -17,11 +17,8 @@
 #include <memory>
 #include <string_view>
 
-<<<<<<< HEAD
 #include "base/logging.h"
-=======
 #include "base/strings/string_split.h"
->>>>>>> 19e64b787e8 (starboard: Load GL through ANGLE in hermetic Starboard builds (#14108))
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 #include "ui/ozone/common/egl_util.h"

@@ -15,13 +15,9 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_GL_OZONE_EGL_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_GL_OZONE_EGL_STARBOARD_H_
 
-<<<<<<< HEAD
-#include "ui/gfx/native_ui_types.h"
-=======
 #include "base/gtest_prod_util.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_ui_types.h"
 #include "ui/gl/gl_implementation.h"
->>>>>>> 19e64b787e8 (starboard: Load GL through ANGLE in hermetic Starboard builds (#14108))
 #include "ui/ozone/common/gl_ozone_egl.h"
 
 struct SbEglInterface;
