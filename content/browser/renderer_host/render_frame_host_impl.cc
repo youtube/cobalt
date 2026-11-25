@@ -112,7 +112,9 @@
 #include "content/browser/generic_sensor/frame_sensor_provider_proxy.h"
 #include "content/browser/geolocation/geolocation_service_impl.h"
 #include "content/browser/guest_page_holder_impl.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/hid/hid_service.h"
+#endif
 #include "content/browser/idle/idle_manager_impl.h"
 #include "content/browser/installedapp/installed_app_provider_impl.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
@@ -14995,10 +14997,11 @@ void RenderFrameHostImpl::BindModelContextHost(
   ModelContextUserData::Bind(this, std::move(receiver));
 }
 
-An empty snippet cannot be represented without stripping the conflict markers entirely, so here is the exact resolution (nothing to add; taking `ours`):
 void RenderFrameHostImpl::GetHidService(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
+#if !BUILDFLAG(IS_COBALT)
   HidService::Create(this, std::move(receiver));
+#endif
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
