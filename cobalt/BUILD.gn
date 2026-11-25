@@ -541,7 +541,10 @@ test("cobalt_unittests") {
   }
 
   if (is_starboard) {
-    deps += [ "//ui/ozone/platform/starboard" ]
+    deps += [
+      "//cobalt/browser/media_session:unit_tests",
+      "//ui/ozone/platform/starboard",
+    ]
   }
 
   if (is_android) {

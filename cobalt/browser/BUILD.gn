@@ -162,6 +162,7 @@ source_set("browser") {
 
   if (is_starboard) {
     deps += [
+      "//cobalt/browser/media_session",
       "//components/memory_pressure",
       "//media",
       "//media:media_buildflags",

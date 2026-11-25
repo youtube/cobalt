@@ -69,6 +69,9 @@ namespace cobalt {
 class GlobalFeatures;
 class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
+#if BUILDFLAG(IS_STARBOARD)
+class MediaSessionExtensionBridge;
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 void ParseAndApplyH5vccSettingsForTesting(std::string_view settings_value,
                                           GlobalFeatures* global_features);
@@ -311,6 +314,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   bool is_visible_;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
+#if BUILDFLAG(IS_STARBOARD)
+  // Connects the main WebContents' MediaSession to the platform's Starboard
+  // MediaSession extension, if the platform provides one.
+  std::unique_ptr<MediaSessionExtensionBridge> media_session_bridge_;
+#endif  // BUILDFLAG(IS_STARBOARD)
 
   uint64_t cached_sb_window_ = 0;
   std::vector<
