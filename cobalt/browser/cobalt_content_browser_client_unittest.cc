@@ -15,7 +15,9 @@
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <string>
 #include <variant>
@@ -370,14 +372,25 @@ TEST_F(CobaltContentBrowserClientTest, GetGeneratedCodeCacheSettings) {
     EXPECT_EQ(settings.size_in_bytes(), 1073741824u);
   }
 #else
-  // 2. Enabling kCobaltCodeCacheOptimization (10 MiB) alone overflows 24 MiB
-  // (with 9 MiB HTTP default -> 29 MiB > 24 MiB) and resets JS to 5 MiB.
+  // 2. Enabling kCobaltCodeCacheOptimization (10 MiB) alone overflows budgets
+  // below 29 MiB on Starboard (27 MiB on non-Starboard, where no preload GPU
+  // shader cache is reserved) and resets JS to 5 MiB; larger budgets keep
+  // 10 MiB.
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
     content::GeneratedCodeCacheSettings settings =
         client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
-    EXPECT_EQ(settings.size_in_bytes(), 5242880u);
+#if BUILDFLAG(IS_STARBOARD)
+    constexpr uint32_t kNeededForDefault10MiBJs = 29u * 1024 * 1024;
+#else
+    constexpr uint32_t kNeededForDefault10MiBJs = 27u * 1024 * 1024;
+#endif
+    const int64_t expected_bytes =
+        kSbMaxSystemPathCacheDirectorySize >= kNeededForDefault10MiBJs
+            ? 10u * 1024 * 1024
+            : 5u * 1024 * 1024;
+    EXPECT_EQ(settings.size_in_bytes(), expected_bytes);
   }
 
   // 3. Combined with kCobaltHttpCacheQuota lowering HTTP to 4 MiB fits in
@@ -579,6 +592,15 @@ TEST_F(CobaltContentBrowserClientTest,
     CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
         /*in_memory=*/false, kBudget24MiB, params.get());
     EXPECT_EQ(params->http_cache_max_size, kExpectedDefaultHttp);
+  }
+
+  // 8. Very large platform budgets (> INT_MAX) saturate rather than crashing.
+  {
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, std::numeric_limits<uint32_t>::max(),
+        params.get());
+    EXPECT_EQ(params->http_cache_max_size, std::numeric_limits<int>::max());
   }
 }
 #endif  // !BUILDFLAG(IS_ANDROID)

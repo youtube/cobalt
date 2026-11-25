@@ -820,13 +820,7 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   // configured via kCobaltCodeCacheOptimization) is validated additively
   // against kSbMaxSystemPathCacheDirectorySize alongside the other DIR_CACHE
   // consumers and resets to 5 MiB if the combined sum exceeds the budget.
-  const size_t size =
-      startup_cache_quotas_.has_value()
-          ? startup_cache_quotas_->js_code_cache_bytes
-          : ResolveCacheQuotas(kSbMaxSystemPathCacheDirectorySize, is_visible_,
-                               *base::CommandLine::ForCurrentProcess(),
-                               /*log_warnings_and_errors=*/false)
-                .js_code_cache_bytes;
+  const size_t size = GetResolvedCacheQuotas().js_code_cache_bytes;
 #endif
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
@@ -925,7 +919,7 @@ void CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
         ResolveCacheQuotas(total_dir_budget_bytes, is_visible,
                            *base::CommandLine::ForCurrentProcess());
     network_context_params->http_cache_max_size =
-        base::checked_cast<int>(quotas.http_cache_bytes);
+        base::saturated_cast<int>(quotas.http_cache_bytes);
   }
 #endif
 }
@@ -1051,7 +1045,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   if (startup_cache_quotas_.has_value()) {
     if (!in_memory) {
       network_context_params->http_cache_max_size =
-          base::checked_cast<int>(startup_cache_quotas_->http_cache_bytes);
+          base::saturated_cast<int>(startup_cache_quotas_->http_cache_bytes);
     }
   } else {
     ConfigureHttpCacheMaxSize(in_memory, kSbMaxSystemPathCacheDirectorySize,

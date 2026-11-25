@@ -67,9 +67,12 @@
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 
+#if !BUILDFLAG(IS_ANDROID)
+#include "starboard/configuration_constants.h"
+#endif
+
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/debug/dump_without_crashing.h"
-#include "starboard/configuration_constants.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/system.h"
 #endif
@@ -209,15 +212,13 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     base::CommandLine::ForCurrentProcess()->RemoveSwitch(
         switches::kDisableGpuShaderDiskCache);
   }
-#endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_STARBOARD)
+#else
   // PostEarlyInitialization() also runs in child processes (where
   // browser_client_ is null). In the browser process, resolve quotas once
   // (logging any warnings/errors) and cache the pre-mutation result before
-  // ApplyPreloadGpuShaderDiskCache() rewrites --gpu-disk-cache-size-kb so
-  // later browser-side quota readers and startup UMAs observe the same
-  // allocation result.
+  // Starboard's ApplyPreloadGpuShaderDiskCache() rewrites
+  // --gpu-disk-cache-size-kb so later browser-side quota readers and startup
+  // UMAs observe the same allocation result.
   std::optional<CobaltContentBrowserClient::CacheQuotas> startup_quotas;
   if (browser_client_) {
     startup_quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
@@ -226,9 +227,11 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
         /*log_warnings_and_errors=*/true);
     browser_client_->SetStartupCacheQuotas(*startup_quotas);
   }
+#if BUILDFLAG(IS_STARBOARD)
   ApplyPreloadGpuShaderDiskCache(base::CommandLine::ForCurrentProcess(),
                                  is_visible_, startup_quotas);
 #endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
