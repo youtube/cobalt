@@ -25,7 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/once.h"
-#include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -62,9 +62,11 @@ std::string RemoveAttributeFromMime(const char* mime,
   std::string mime_without_attribute;
   const char* start_pos = strstr(mime, attribute_name);
   while (start_pos) {
-    if ((start_pos == mime || start_pos[-1] == ';' || isspace(start_pos[-1])) &&
+    if ((start_pos == mime || start_pos[-1] == ';' ||
+         IsAsciiWhitespace(start_pos[-1])) &&
         (start_pos[name_length] &&
-         (start_pos[name_length] == '=' || isspace(start_pos[name_length])))) {
+         (start_pos[name_length] == '=' ||
+          IsAsciiWhitespace(start_pos[name_length])))) {
       break;
     }
     start_pos += name_length;
@@ -85,7 +87,7 @@ std::string RemoveAttributeFromMime(const char* mime,
 
     end_pos++;
     // Remove leading spaces.
-    while (*end_pos && isspace(*end_pos)) {
+    while (*end_pos && IsAsciiWhitespace(*end_pos)) {
       end_pos++;
     }
     if (*end_pos) {
@@ -95,7 +97,7 @@ std::string RemoveAttributeFromMime(const char* mime,
     } else {
       // Target attribute is the last one. Remove trailing spaces.
       size_t mime_length = start_pos - mime;
-      while (mime_length > 0 && (isspace(mime[mime_length - 1]))) {
+      while (mime_length > 0 && IsAsciiWhitespace(mime[mime_length - 1])) {
         mime_length--;
       }
       mime_without_attribute = std::string(mime, mime_length);
@@ -104,7 +106,7 @@ std::string RemoveAttributeFromMime(const char* mime,
     // It can't find a trailing ';'. The target attribute must be the last one.
     size_t mime_length = start_pos - mime;
     // Remove trailing spaces.
-    while (mime_length > 0 && (isspace(mime[mime_length - 1]))) {
+    while (mime_length > 0 && IsAsciiWhitespace(mime[mime_length - 1])) {
       mime_length--;
     }
     // Remove the trailing ';'.

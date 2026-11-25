@@ -25,7 +25,7 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 
 // We find the current amount of used memory on Linux by opening
 // '/proc/self/status' and scan the file for its "VmRSS" and "VmSwap" entries.
@@ -53,7 +53,7 @@ int64_t SearchForMemoryValue(const char* search_key, const char* buffer) {
     return 0;
   }
 
-  while (*found != '\0' && (*found < '0' || *found > '9')) {
+  while (*found != '\0' && !starboard::IsAsciiDigit(*found)) {
     ++found;
   }
 
@@ -65,7 +65,7 @@ int64_t SearchForMemoryValue(const char* search_key, const char* buffer) {
 
   // Convert the number string into an integer.
   int64_t memory_value_in_kilobytes = 0;
-  while (*found >= '0' && *found <= '9') {
+  while (starboard::IsAsciiDigit(*found)) {
     memory_value_in_kilobytes = memory_value_in_kilobytes * 10 + (*found - '0');
     ++found;
   }
