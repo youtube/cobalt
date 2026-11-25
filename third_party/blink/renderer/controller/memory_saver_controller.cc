@@ -4,12 +4,9 @@
 
 #include "third_party/blink/renderer/controller/memory_saver_controller.h"
 
-<<<<<<< HEAD
-#include "base/byte_size.h"
-=======
 #include <algorithm>
 
->>>>>>> 6a1fa88335a (Cobalt: Enable v8 memory saver mode on memory pressure (#13911))
+#include "base/byte_size.h"
 #include "base/system/sys_info.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/workers/worker_backing_thread.h"
@@ -31,22 +28,20 @@ MemorySaverController::MemorySaverController() {
       Thread::MainThread()->Scheduler()->ToMainThreadScheduler();
   DCHECK(scheduler);
   sample_timer_.SetTaskRunner(scheduler->NonWakingTaskRunner());
-<<<<<<< HEAD
-  if (base::SysInfo::AmountOfTotalPhysicalMemory() >= base::MiBU(4000)) {
-=======
 #if BUILDFLAG(IS_COBALT)
   if (base::FeatureList::IsEnabled(
           features::kCobaltV8MemorySaverOnMemoryPressure)) {
-    memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-        FROM_HERE, WTF::BindRepeating(&MemorySaverController::OnMemoryPressure,
-                                      WTF::Unretained(this)));
+    memory_pressure_listener_registration_ =
+        std::make_unique<base::MemoryPressureListenerRegistration>(
+            FROM_HERE,
+            base::MemoryPressureListenerTag::kCobaltMemorySaverController,
+            this);
     // Like |sample_timer_|, don't wake the device just to end the hold time.
     memory_pressure_hold_timer_.SetTaskRunner(
         scheduler->NonWakingTaskRunner());
   }
 #endif  // BUILDFLAG(IS_COBALT)
-  if (base::SysInfo::AmountOfPhysicalMemory() >= 4000 * kMB) {
->>>>>>> 6a1fa88335a (Cobalt: Enable v8 memory saver mode on memory pressure (#13911))
+  if (base::SysInfo::AmountOfTotalPhysicalMemory() >= base::MiBU(4000)) {
     return;
   }
   if (base::FeatureList::IsEnabled(features::kMemorySaverModeRenderTuning)) {
@@ -56,23 +51,19 @@ MemorySaverController::MemorySaverController() {
 }
 
 void MemorySaverController::Sample() {
-<<<<<<< HEAD
   const base::ByteSize available_ram =
       base::SysInfo::AmountOfAvailablePhysicalMemory();
-  if (available_ram <
-      base::MiBS(features::kAvailableMemoryThresholdParamMb.Get())
-          .AsByteSize()) {
-=======
-  uint64_t available_ram = base::SysInfo::AmountOfAvailablePhysicalMemory();
 #if BUILDFLAG(IS_COBALT)
   // Combine with memory pressure, so that neither input turns memory saver
   // mode off while the other still asks for it.
   available_memory_low_ =
-      available_ram < features::kAvailableMemoryThresholdParamMb.Get() * kMB;
+      available_ram <
+      base::MiBS(features::kAvailableMemoryThresholdParamMb.Get()).AsByteSize();
   UpdateMemorySaverMode();
 #else
-  if (available_ram < features::kAvailableMemoryThresholdParamMb.Get() * kMB) {
->>>>>>> 6a1fa88335a (Cobalt: Enable v8 memory saver mode on memory pressure (#13911))
+  if (available_ram <
+      base::MiBS(features::kAvailableMemoryThresholdParamMb.Get())
+          .AsByteSize()) {
     if (!memory_saver_enabled_) {
       SetMemorySaverModeForAllIsolates(true);
       memory_saver_enabled_ = true;
@@ -85,15 +76,14 @@ void MemorySaverController::Sample() {
 }
 
 #if BUILDFLAG(IS_COBALT)
-void MemorySaverController::OnMemoryPressure(
-    base::MemoryPressureListener::MemoryPressureLevel level) {
+void MemorySaverController::OnMemoryPressure(base::MemoryPressureLevel level) {
   // NONE is not reliably delivered in Cobalt, so memory saver mode is turned
   // off by the hold timer instead.
-  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_NONE) {
+  if (level == base::MEMORY_PRESSURE_LEVEL_NONE) {
     return;
   }
   if (features::kCobaltV8MemorySaverOnCriticalOnly.Get() &&
-      level != base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+      level != base::MEMORY_PRESSURE_LEVEL_CRITICAL) {
     return;
   }
   memory_pressure_active_ = true;
