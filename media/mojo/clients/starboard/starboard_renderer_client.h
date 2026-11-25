@@ -123,6 +123,8 @@ class MEDIA_EXPORT StarboardRendererClient
   void OnDurationChange(base::TimeDelta duration) override;
   void OnBufferedTimeRangesChange(base::TimeDelta start,
                                   base::TimeDelta length) override;
+  void OnUrlPlayerMetadata(base::TimeDelta duration,
+                           const gfx::Size& natural_size) override;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   void RequestOverlayInfo() override;
@@ -153,7 +155,7 @@ class MEDIA_EXPORT StarboardRendererClient
   }
   void OnMojoRendererInitialized(PipelineStatus status);
   // Runs |init_cb_| once the Initialize() reply has arrived and, on success,
-  // the rendering mode and, for the URL player, the duration.
+  // the rendering mode and, for the URL player, the metadata.
   void MaybeRunInitCB();
 #if BUILDFLAG(IS_IOS_TVOS)
   bool IsUrlPlayer() const;
@@ -191,8 +193,8 @@ class MEDIA_EXPORT StarboardRendererClient
   raw_ptr<RendererClient> client_ = nullptr;
 #if BUILDFLAG(IS_IOS_TVOS)
   raw_ptr<UrlPlayerMediaResource> url_resource_ = nullptr;
-  // Whether OnDurationChange() has been called. |init_cb_| waits for it.
-  bool has_url_player_duration_ = false;
+  // Whether OnUrlPlayerMetadata() has been called. |init_cb_| waits for it.
+  bool has_url_player_metadata_ = false;
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   PipelineStatusCallback init_cb_;
 

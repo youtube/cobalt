@@ -696,11 +696,19 @@ void StarboardRenderer::OnUrlPlayerInitialized() {
   }
 
   const TimeDelta duration = player_bridge_->GetInfo().duration;
+  int width = 0, height = 0;
+  player_bridge_->GetVideoResolution(&width, &height);
 
   // Keep the raw value so that GetMediaTime() doesn't push it again.
   last_duration_ = duration;
-  if (duration_change_cb_) {
-    duration_change_cb_.Run(MapUrlPlayerDuration(duration));
+  // |url_player_video_size_| is left unset so that the first
+  // UpdateUrlPlayerVideoResolution() call still paints the video hole.
+  gfx::Size natural_size;
+  if (width > 0 && height > 0) {
+    natural_size = gfx::Size(width, height);
+  }
+  if (url_player_metadata_cb_) {
+    url_player_metadata_cb_.Run(MapUrlPlayerDuration(duration), natural_size);
   }
 }
 
