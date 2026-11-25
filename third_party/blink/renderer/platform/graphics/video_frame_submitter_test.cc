@@ -1342,7 +1342,6 @@ TEST_F(VideoFrameSubmitterTest, OpaqueFramesNotifyEmbedder) {
   DrainMainThread();
 }
 
-<<<<<<< HEAD
 // Uses MOCK_TIME so base::TimeTicks::Now() is controlled for display-time and
 // vsync tests. Friendship with VideoFrameSubmitter is not inherited from the
 // base fixture, so this derived type remains a friend in
@@ -1502,7 +1501,7 @@ TEST_F(VideoFrameSubmitterMockTimeTest,
 
   EXPECT_EQ(SnapToNearestVsync(estimate), kBoundary);
 }
-=======
+
 #if BUILDFLAG(IS_COBALT)
 // When the user backgrounds the app and the GPU context is lost while hidden,
 // requesting a new ContextProvider is deferred until the user returns to the
@@ -1615,6 +1614,5 @@ TEST_F(
   EXPECT_EQ(context_provider_requests, 3);
 }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 6bd017ac15e (media: Add SbPlayerDestroy lifecycle tests (#13099))
 
 }  // namespace blink

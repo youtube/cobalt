@@ -1149,8 +1149,7 @@ TEST_F(StarboardRendererTest,
       .WillOnce(Return(true));
   EXPECT_CALL(mock_sbplayer_interface_, GetInfo(player, _));
   EXPECT_CALL(mock_sbplayer_interface_, Destroy(player))
-      .WillOnce(Invoke(
-          [](SbPlayer p) { delete reinterpret_cast<MockSbPlayer*>(p); }));
+      .WillOnce([](SbPlayer p) { delete reinterpret_cast<MockSbPlayer*>(p); });
   EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_ABORT)));
 
   base::MockOnceClosure barrier_cb;

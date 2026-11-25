@@ -3834,9 +3834,7 @@ TEST_F(WebMediaPlayerImplTest,
   // and SuspendForFrameClosed() must preserve visibility_pause_reason_ while
   // suspending the pipeline.
   EXPECT_CALL(client_, PausePlayback(WebMediaPlayer::PauseReason::kPageHidden))
-      .WillOnce(Invoke([this](WebMediaPlayer::PauseReason reason) {
-        Pause(reason);
-      }));
+      .WillOnce([this](WebMediaPlayer::PauseReason reason) { Pause(reason); });
   HidePlayerPage();
   wmpi_->SuspendForFrameClosed();
   EXPECT_TRUE(IsPausedBecausePageHidden());
@@ -3844,9 +3842,7 @@ TEST_F(WebMediaPlayerImplTest,
 
   // Revealing the page when the web app did not explicitly pause playback
   // automatically resumes playback and unsuspends the pipeline.
-  EXPECT_CALL(client_, ResumePlayback()).WillOnce(Invoke([this]() {
-    Play();
-  }));
+  EXPECT_CALL(client_, ResumePlayback()).WillOnce([this]() { Play(); });
   ShowPlayerPage();
   EXPECT_FALSE(IsPausedBecausePageHidden());
   EXPECT_FALSE(IsSuspended());
@@ -3873,9 +3869,7 @@ TEST_F(WebMediaPlayerImplTest,
   Play();
 
   EXPECT_CALL(client_, PausePlayback(WebMediaPlayer::PauseReason::kPageHidden))
-      .WillOnce(Invoke([this](WebMediaPlayer::PauseReason reason) {
-        Pause(reason);
-      }));
+      .WillOnce([this](WebMediaPlayer::PauseReason reason) { Pause(reason); });
   HidePlayerPage();
   wmpi_->SuspendForFrameClosed();
   EXPECT_TRUE(IsPausedBecausePageHidden());
