@@ -249,7 +249,8 @@ void SkipTestIfNotSupported(const SbPlayerTestConfig& config) {
 }
 
 bool IsWidevineKeySystem(std::string_view key_system) {
-  return key_system.rfind("com.widevine", 0) == 0;
+  return key_system.rfind("com.widevine", 0) == 0 ||
+         key_system == kWidevineL3KeySystem;
 }
 
 void GenerateWidevineSessionUpdateRequest(SbDrmSystem drm_system) {
