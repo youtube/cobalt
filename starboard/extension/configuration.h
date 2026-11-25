@@ -63,8 +63,7 @@ typedef struct CobaltExtensionConfigurationApi {
   // this value is defaulted to |false|.
   bool (*CobaltRenderDirtyRegionOnly)();
 
-  // Cobalt will call eglSwapInterval() and specify this value before calling
-  // eglSwapBuffers() each frame.
+  // Deprecated.
   int (*CobaltEglSwapInterval)();
 
   // The URL of default build time splash screen - see
@@ -189,19 +188,7 @@ typedef struct CobaltExtensionConfigurationApi {
   // than normal, for the purpose of finding or reproducing bugs.
   bool (*CobaltGcZeal)();
 
-  // Defines what kind of rasterizer will be used.  This can be adjusted to
-  // force a stub graphics implementation.
-  // It can be one of the following options:
-  //   'direct-gles' -- Uses a light wrapper over OpenGL ES to handle most
-  //                    draw elements. This will fall back to the skia hardware
-  //                    rasterizer for some render tree node types, but is
-  //                    generally faster on the CPU and GPU. This can handle
-  //                    360 rendering.
-  //   'hardware'    -- As much hardware acceleration of graphics commands as
-  //                    possible. This uses skia to wrap OpenGL ES commands.
-  //                    Required for 360 rendering.
-  //   'stub'        -- Stub graphics rasterization.  A rasterizer object will
-  //                    still be available and valid, but it will do nothing.
+  // Deprecated.
   const char* (*CobaltRasterizerType)();
 
   // Controls whether or not just in time code should be used.

@@ -26,7 +26,6 @@ except ImportError:
 PLATFORMS = {
     'stub': 'starboard/stub',
     'linux-x64x11': 'starboard/linux/x64x11',
-    'linux-x64x11-skia': 'starboard/linux/x64x11/skia',
     'android-arm': 'starboard/android/arm',
     'android-arm64': 'starboard/android/arm64',
     'android-x86': 'starboard/android/x86',
