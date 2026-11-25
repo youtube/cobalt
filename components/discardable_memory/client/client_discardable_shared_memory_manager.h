@@ -19,6 +19,7 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/thread_checker.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "build/build_config.h"
 #include "components/discardable_memory/common/discardable_memory_export.h"
 #include "components/discardable_memory/common/discardable_shared_memory_heap.h"
 #include "components/discardable_memory/public/mojom/discardable_shared_memory_manager.mojom.h"
@@ -26,6 +27,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 
 namespace base {
+class DiscardableSharedMemory;
 class SingleThreadTaskRunner;
 }
 
@@ -76,6 +78,15 @@ class DISCARDABLE_MEMORY_EXPORT ClientDiscardableSharedMemoryManager
   void OnForegrounded();
   void OnBackgrounded();
 
+#if BUILDFLAG(IS_COBALT)
+  // Lets tests enable the Cobalt discardable address-space features
+  // (kCobaltDiscardableChunkSize, kCobaltDiscardableRescuePurge) on 64-bit
+  // builds, where they are otherwise ignored.
+  static void SetAddressSpaceFeaturesOn64BitForTesting(bool enabled);
+#endif  // BUILDFLAG(IS_COBALT)
+  // The payload size of a new segment for small allocations, uncached.
+  static size_t GetAllocationSizeForTesting();
+
   void SetBytesAllocatedLimitForTesting(size_t limit) {
     bytes_allocated_limit_for_testing_ = limit;
   }
@@ -100,6 +111,11 @@ class DISCARDABLE_MEMORY_EXPORT ClientDiscardableSharedMemoryManager
   ~ClientDiscardableSharedMemoryManager() override;
   explicit ClientDiscardableSharedMemoryManager(
       scoped_refptr<base::SingleThreadTaskRunner> io_task_runner);
+
+  // Virtual for testing. Default forwards to |memory->Map(size)|.
+  virtual bool MapDiscardableSharedMemory(base::DiscardableSharedMemory* memory,
+                                          size_t size);
+  void FlushMojoForTesting();
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   mutable base::Lock lock_;
@@ -188,6 +204,17 @@ class DISCARDABLE_MEMORY_EXPORT ClientDiscardableSharedMemoryManager
       DiscardableMemoryImpl* memory,
       std::unique_ptr<DiscardableSharedMemoryHeap::Span> span)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  // Takes a span of `pages` from the free lists, locks it and returns it, or
+  // returns nullptr if no free span fits.
+  std::unique_ptr<base::DiscardableMemory> AllocateFromFreeListsLocked(
+      size_t pages,
+      size_t slack,
+      size_t allocation_pages) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  // Purges unlocked allocations last used before `cutoff` and returns how
+  // many it purged.
+  size_t PurgeUnlockedMemoryLocked(base::TimeTicks cutoff)
+      EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
   void ReleaseSpan(std::unique_ptr<DiscardableSharedMemoryHeap::Span> span)
       EXCLUSIVE_LOCKS_REQUIRED(lock_);
 

@@ -182,6 +182,8 @@ class DISCARDABLE_MEMORY_EXPORT DiscardableSharedMemoryManager
   // Virtual for tests.
   virtual base::Time Now() const;
   virtual void ScheduleEnforceMemoryPolicy() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  virtual base::UnsafeSharedMemoryRegion DuplicateRegion(
+      const base::DiscardableSharedMemory& memory) const;
 
   // Invalidate weak pointers for the mojo thread.
   void InvalidateMojoThreadWeakPtrs(base::WaitableEvent* event);

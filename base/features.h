@@ -27,6 +27,23 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltEnableModerateMemoryPressure);
 // descriptor and maps a segment only briefly when purging it.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableSingleMapping);
 
+// 32-bit builds only. When enabled, each discardable shared memory segment
+// for small allocations (up to `CobaltDiscardableChunkSize_chunk_kb` KiB less
+// a page) maps exactly `CobaltDiscardableChunkSize_chunk_kb` KiB, header page
+// included (512 to 16384, whole pages; other values are ignored). Today a
+// segment's payload is 4 MiB, so it maps 4 MiB plus a page and can't use an
+// exact 4 MiB hole; 1024 makes 1 MiB maps that fit between PartitionAlloc
+// super pages. (Params carry the feature name because Cobalt's Finch loader
+// puts all features' params in one map.)
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableChunkSize);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCobaltDiscardableChunkSizeKb);
+
+// 32-bit builds only. When enabled, a discardable allocation that can't map a
+// new segment, which is fatal for most callers, first discards all unlocked
+// allocations, searches the free lists again and unmaps wholly free segments,
+// then retries once if that unmapped anything.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltDiscardableRescuePurge);
+
 // When enabled, MODERATE memory pressure makes DiscardableSharedMemoryManager
 // purge unlocked discardable segments until usage is within
 // |moderate_limit_fraction| of the memory limit, instead of upstream's 1/2.
