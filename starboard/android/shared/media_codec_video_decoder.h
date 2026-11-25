@@ -200,9 +200,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   bool NeedsCodecTransition(
       const scoped_refptr<InputBuffer>& input_buffer) const;
 
+  // Current stream's video codec; may change after a reset.
+  SbMediaVideoCodec video_codec_;
+
   // These variables will be initialized inside ctor or Initialize() and will
   // not be changed during the life time of this class.
-  const SbMediaVideoCodec video_codec_;
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
   DrmSystem* drm_system_;
@@ -237,7 +239,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
-  const bool needs_fps_to_initialize_codec_;
+  bool needs_fps_to_initialize_codec_;
   // Workaround for b/506257255, which skips some video frames to make the
   // effective frame rate no more than 60 fps. This is only used for tunnel
   // mode.
@@ -291,7 +293,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::atomic<int32_t> number_of_frames_being_decoded_{0};
   scoped_refptr<Sink> sink_;
 
-  bool is_flushed_ = false;
+  bool is_first_input_after_reset_ = false;
 
   int input_buffer_written_ = 0;
   bool first_texture_received_ = false;

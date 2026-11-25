@@ -16,8 +16,10 @@
 #include "starboard/media.h"
 // clang-format on
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
 
 namespace {
@@ -58,18 +60,24 @@ bool SbMediaCanChangeType(const char* current_mime, const char* new_mime) {
     return false;
   }
 
-  // Reject cross-family video codec switches (e.g. VP9 -> AV1).
+  // ExoPlayer does not yet support cross-codec video transitions.
+#if !BUILDFLAG(IS_STARBOARD)
   if (current_mime_info->has_video_info() &&
-      current_mime_info->video_info().codec_info.codec !=
-          new_mime_info->video_info().codec_info.codec) {
-    SB_DLOG(INFO) << "Cannot change video codec family from "
-                  << starboard::GetMediaVideoCodecName(
-                         current_mime_info->video_info().codec_info.codec)
-                  << " to "
-                  << starboard::GetMediaVideoCodecName(
-                         new_mime_info->video_info().codec_info.codec);
-    return false;
+      starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableExoPlayer)) {
+    const SbMediaVideoCodec current_codec =
+        current_mime_info->video_info().codec_info.codec;
+    const SbMediaVideoCodec new_codec =
+        new_mime_info->video_info().codec_info.codec;
+    if (current_codec != new_codec) {
+      SB_DLOG(INFO) << "Cannot change video codec family from "
+                    << starboard::GetMediaVideoCodecName(current_codec)
+                    << " to " << starboard::GetMediaVideoCodecName(new_codec)
+                    << " when ExoPlayer is enabled.";
+      return false;
+    }
   }
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
   // Reject cross-family audio codec switches (e.g. AAC -> AC-3), except
   // between AAC and Opus.

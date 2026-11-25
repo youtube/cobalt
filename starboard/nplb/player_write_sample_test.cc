@@ -446,6 +446,8 @@ TEST_P(SbPlayerWriteSampleTest, VideoCodecSwitching) {
   int64_t timestamp_offset =
       player_fixture.GetVideoSampleTimestamp(kVideoSamplesToWrite);
 
+  // Seek before switching codecs (mirrors seek-based changeType()).
+  ASSERT_NO_FATAL_FAILURE(player_fixture.Seek(timestamp_offset));
   player_fixture.SwitchVideoDmp(target_video_filename);
 
   GroupedSamples samples_part2;
