@@ -16,6 +16,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "net/quic/platform/impl/quic_chromium_clock.h"
+#include "net/socket/diff_serv_code_point.h"
 
 #ifdef UNSAFE_BUFFERS_BUILD
 #pragma allow_unsafe_buffers
@@ -154,8 +155,13 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
     if (read_packet->result <= 0) {
       continue;
     }
-    quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
-                                    clock_->ApproximateNow());
+    DscpAndEcn tos = TosToDscpAndEcn(read_packet->tos);
+    quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
+    quic::QuicReceivedPacket packet(
+        read_packet->buffer, read_packet->result, clock_->ApproximateNow(),
+        /*owns_buffer=*/false, /*ttl=*/0, /*ttl_valid=*/true,
+        /*packet_headers=*/nullptr, /*headers_length=*/0,
+        /*owns_header_buffer=*/false, ecn);
     if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
           self)) {
       return false;
@@ -285,22 +291,22 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
     return visitor_->OnReadError(result, socket_.get());
   }
 
+  DscpAndEcn tos = socket_->GetLastTos();
+  quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
 #if BUILDFLAG(IS_COBALT)
   // Keep the backing buffer alive across OnPacket() in case the visitor closes
   // the socket (which resets read_buffer_) or destroys |this|.
   scoped_refptr<IOBufferWithSize> read_buffer = read_buffer_;
-  quic::QuicReceivedPacket packet(read_buffer->data(), result,
-                                  clock_->ApproximateNow());
+  quic::QuicTime receipt_time = clock_->ApproximateNow();
 #else
-  DscpAndEcn tos = socket_->GetLastTos();
-  quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
-  quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now(),
+  quic::QuicTime receipt_time = clock_->Now();
+#endif
+  quic::QuicReceivedPacket packet(read_buffer_->data(), result, receipt_time,
                                   /*owns_buffer=*/false, /*ttl=*/0,
                                   /*ttl_valid=*/true,
                                   /*packet_headers=*/nullptr,
                                   /*headers_length=*/0,
                                   /*owns_header_buffer=*/false, ecn);
-#endif
   IPEndPoint local_address;
   IPEndPoint peer_address;
   socket_->GetLocalAddress(&local_address);

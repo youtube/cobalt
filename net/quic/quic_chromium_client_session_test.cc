@@ -91,7 +91,9 @@
 #include <cstring>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "net/net_buildflags.h"
+#include "net/socket/diff_serv_code_point.h"
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 #include "base/strings/string_number_conversions.h"
 #include "net/socket/udp_client_socket.h"
@@ -102,6 +104,26 @@
 using testing::_;
 
 namespace net::test {
+#if BUILDFLAG(IS_COBALT)
+// Test peer granting controlled inspection of QuicChromiumPacketReader's
+// private buffer state and static multi-packet fallback flag.
+class QuicChromiumPacketReaderPeer {
+ public:
+  static bool GetTryReadingMultiplePackets() {
+    return QuicChromiumPacketReader::try_reading_multiple_packets_;
+  }
+  static void SetTryReadingMultiplePackets(bool value) {
+    QuicChromiumPacketReader::try_reading_multiple_packets_ = value;
+  }
+  static bool HasReadBuffer(const QuicChromiumPacketReader* reader) {
+    return reader->read_buffer_ != nullptr;
+  }
+  static bool HasReadResultsBuffer(const QuicChromiumPacketReader* reader) {
+    return reader->read_results_.buffer != nullptr;
+  }
+};
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace {
 
 const IPEndPoint kIpEndPoint = IPEndPoint(IPAddress::IPv4AllZeros(), 0);
@@ -2366,6 +2388,189 @@ TEST_P(QuicChromiumClientSessionTest, ReportsReceivedEcn) {
   EXPECT_TRUE(mock_quic_data.AllWriteDataConsumed());
 }
 
+#if BUILDFLAG(IS_COBALT)
+class ScopedTryReadingMultiplePackets {
+ public:
+  explicit ScopedTryReadingMultiplePackets(bool value)
+      : previous_(
+            QuicChromiumPacketReaderPeer::GetTryReadingMultiplePackets()) {
+    QuicChromiumPacketReaderPeer::SetTryReadingMultiplePackets(value);
+  }
+  ~ScopedTryReadingMultiplePackets() {
+    QuicChromiumPacketReaderPeer::SetTryReadingMultiplePackets(previous_);
+  }
+
+ private:
+  const bool previous_;
+};
+
+class BatchEcnMockUDPClientSocket : public MockUDPClientSocket {
+ public:
+  struct QueuedPacket {
+    std::string payload;
+    uint8_t tos;
+  };
+
+  BatchEcnMockUDPClientSocket(const IPEndPoint& local_address,
+                              const IPEndPoint& peer_address,
+                              std::vector<QueuedPacket> packets);
+  ~BatchEcnMockUDPClientSocket() override;
+
+  int Read(IOBuffer* buf,
+           int buf_len,
+           CompletionOnceCallback callback) override;
+  int ReadMultiplePackets(ReadPacketResults* results,
+                          int read_buffer_size,
+                          CompletionOnceCallback callback) override;
+  int GetLocalAddress(IPEndPoint* address) const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+
+  int read_multiple_packets_calls() const {
+    return read_multiple_packets_calls_;
+  }
+  int single_read_calls() const { return single_read_calls_; }
+
+ private:
+  IPEndPoint local_address_;
+  IPEndPoint peer_address_;
+  std::vector<QueuedPacket> queued_packets_;
+  int read_multiple_packets_calls_ = 0;
+  int single_read_calls_ = 0;
+};
+
+BatchEcnMockUDPClientSocket::BatchEcnMockUDPClientSocket(
+    const IPEndPoint& local_address,
+    const IPEndPoint& peer_address,
+    std::vector<QueuedPacket> packets)
+    : MockUDPClientSocket(nullptr, nullptr),
+      local_address_(local_address),
+      peer_address_(peer_address),
+      queued_packets_(std::move(packets)) {}
+
+BatchEcnMockUDPClientSocket::~BatchEcnMockUDPClientSocket() = default;
+
+int BatchEcnMockUDPClientSocket::Read(IOBuffer* buf,
+                                      int buf_len,
+                                      CompletionOnceCallback callback) {
+  ++single_read_calls_;
+  return ERR_IO_PENDING;
+}
+
+int BatchEcnMockUDPClientSocket::ReadMultiplePackets(
+    ReadPacketResults* results,
+    int read_buffer_size,
+    CompletionOnceCallback callback) {
+  ++read_multiple_packets_calls_;
+  if (queued_packets_.empty()) {
+    return ERR_IO_PENDING;
+  }
+
+  const size_t count = queued_packets_.size();
+  CHECK(results->AcquireBuffer(static_cast<int>(count), read_buffer_size));
+
+  auto packet_slots = UNSAFE_BUFFERS(base::span(results->packets, count));
+  for (size_t i = 0; i < count; ++i) {
+    const std::string& src = queued_packets_[i].payload;
+    CHECK_LE(src.size(), static_cast<size_t>(read_buffer_size));
+    UNSAFE_BUFFERS(base::span(packet_slots[i].buffer, src.size()))
+        .copy_from(base::span<const char>(src));
+    packet_slots[i].result = static_cast<int>(src.size());
+    packet_slots[i].tos = queued_packets_[i].tos;
+  }
+  results->result = static_cast<int>(count);
+  queued_packets_.clear();
+  return results->result;
+}
+
+int BatchEcnMockUDPClientSocket::GetLocalAddress(IPEndPoint* address) const {
+  *address = local_address_;
+  return OK;
+}
+
+int BatchEcnMockUDPClientSocket::GetPeerAddress(IPEndPoint* address) const {
+  *address = peer_address_;
+  return OK;
+}
+
+// User journey: When Cobalt receives a multi-packet QUIC burst via recvmmsg
+// carrying mixed DSCP and ECN marks (ECT0, ECT1, CE), each packet's 2-bit ECN
+// codepoint must be decoded and reported accurately in outgoing QUIC ACK frames
+// for both RFCv1 and RFCv2 connections.
+TEST_P(QuicChromiumClientSessionTest, ReportsReceivedEcnMultiplePackets) {
+  Socket::ReadPacketResults::ClearBufferPoolForTesting();
+  MockQuicData mock_quic_data(version_);
+  int write_packet_num = 1, read_packet_num = 0;
+  quic::QuicEcnCounts first_ack_ecn(1, 0, 0);
+  quic::QuicEcnCounts second_ack_ecn(1, 1, 1);
+
+  mock_quic_data.AddWrite(
+      ASYNC, client_maker_.MakeInitialSettingsPacket(write_packet_num++));
+  mock_quic_data.AddRead(
+      ASYNC, server_maker_.MakeInitialSettingsPacket(read_packet_num++));
+  mock_quic_data.AddWrite(SYNCHRONOUS, client_maker_.Packet(write_packet_num++)
+                                           .AddAckFrame(0, 1, 0, first_ack_ecn)
+                                           .Build());
+  mock_quic_data.AddWrite(SYNCHRONOUS, client_maker_.Packet(write_packet_num++)
+                                           .AddAckFrame(0, 3, 0, second_ack_ecn)
+                                           .Build());
+  mock_quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  mock_quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+
+  auto packet_ect0 =
+      server_maker_.Packet(read_packet_num++).AddPingFrame().Build();
+  auto packet_ect1 =
+      server_maker_.Packet(read_packet_num++).AddPingFrame().Build();
+  auto packet_ce =
+      server_maker_.Packet(read_packet_num++).AddPingFrame().Build();
+
+  mock_quic_data.AddSocketDataToFactory(&socket_factory_);
+  Initialize();
+  CompleteCryptoHandshake();
+  base::RunLoop().RunUntilIdle();
+
+  IPEndPoint local_address;
+  IPEndPoint peer_address;
+  ASSERT_THAT(session_->GetDefaultSocket()->GetLocalAddress(&local_address),
+              IsOk());
+  ASSERT_THAT(session_->GetDefaultSocket()->GetPeerAddress(&peer_address),
+              IsOk());
+
+  // Combine non-zero DSCP values with each ECN codepoint to verify DSCP bits
+  // are masked out rather than cast directly into QuicEcnCodepoint.
+  std::vector<BatchEcnMockUDPClientSocket::QueuedPacket> batch;
+  batch.push_back({std::string(packet_ect0->data(), packet_ect0->length()),
+                   static_cast<uint8_t>((DSCP_CS2 << 2) | ECN_ECT0)});
+  batch.push_back({std::string(packet_ect1->data(), packet_ect1->length()),
+                   static_cast<uint8_t>((DSCP_AF41 << 2) | ECN_ECT1)});
+  batch.push_back({std::string(packet_ce->data(), packet_ce->length()),
+                   static_cast<uint8_t>((DSCP_CS5 << 2) | ECN_CE)});
+
+  auto batch_socket = std::make_unique<BatchEcnMockUDPClientSocket>(
+      local_address, peer_address, std::move(batch));
+  BatchEcnMockUDPClientSocket* raw_batch_socket = batch_socket.get();
+
+  ScopedTryReadingMultiplePackets enable_multi_packet_reads(true);
+  QuicChromiumPacketReader batch_reader(
+      std::move(batch_socket), &clock_, session_.get(),
+      kQuicYieldAfterPacketsRead,
+      quic::QuicTime::Delta::FromMilliseconds(
+          kQuicYieldAfterDurationMilliseconds),
+      net_log_with_source_);
+  batch_reader.StartReading();
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_GE(raw_batch_socket->read_multiple_packets_calls(), 1);
+  EXPECT_EQ(raw_batch_socket->single_read_calls(), 0);
+  const quic::QuicEcnCounts& received_ecn =
+      session_->connection()->GetStats().num_ecn_marks_received;
+  EXPECT_EQ(received_ecn.ect0, 1u);
+  EXPECT_EQ(received_ecn.ect1, 1u);
+  EXPECT_EQ(received_ecn.ce, 1u);
+  EXPECT_TRUE(mock_quic_data.AllWriteDataConsumed());
+  Socket::ReadPacketResults::ClearBufferPoolForTesting();
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 TEST_P(QuicChromiumClientSessionTest, OnOriginFrame) {
   const std::string kExampleOrigin1 = "https://www.example.com";
   const std::string kExampleOrigin2 = "https://www.example.com:443";
@@ -2542,42 +2747,7 @@ TEST_P(QuicChromiumClientSessionTest, SendPeriodicPings) {
 }  // namespace
 
 #if BUILDFLAG(IS_COBALT)
-// Test peer granting controlled inspection of QuicChromiumPacketReader's
-// private buffer state and static multi-packet fallback flag.
-class QuicChromiumPacketReaderPeer {
- public:
-  static bool GetTryReadingMultiplePackets() {
-    return QuicChromiumPacketReader::try_reading_multiple_packets_;
-  }
-  static void SetTryReadingMultiplePackets(bool value) {
-    QuicChromiumPacketReader::try_reading_multiple_packets_ = value;
-  }
-  static bool HasReadBuffer(const QuicChromiumPacketReader* reader) {
-    return reader->read_buffer_ != nullptr;
-  }
-  static bool HasReadResultsBuffer(const QuicChromiumPacketReader* reader) {
-    return reader->read_results_.buffer != nullptr;
-  }
-};
-
 namespace {
-
-// Restores QuicChromiumPacketReader::try_reading_multiple_packets_ on exit so
-// individual tests never leak global fallback state.
-class ScopedTryReadingMultiplePackets {
- public:
-  explicit ScopedTryReadingMultiplePackets(bool value)
-      : previous_(
-            QuicChromiumPacketReaderPeer::GetTryReadingMultiplePackets()) {
-    QuicChromiumPacketReaderPeer::SetTryReadingMultiplePackets(value);
-  }
-  ~ScopedTryReadingMultiplePackets() {
-    QuicChromiumPacketReaderPeer::SetTryReadingMultiplePackets(previous_);
-  }
-
- private:
-  bool previous_;
-};
 
 // Minimal fake DatagramClientSocket driving deterministic multi-packet and
 // single-packet reads without real OS sockets.
