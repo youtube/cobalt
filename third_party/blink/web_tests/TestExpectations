@@ -8949,7 +8949,6 @@ crbug.com/417479566 [ Mac ] external/wpt/css/css-transitions/transitioncancel-00
 # Gardener 2025-05-19
 crbug.com/418572857 external/wpt/background-fetch/fetch.https.window.html [ Failure Pass Timeout ]
 
-<<<<<<< HEAD
 # Flaky on headless_shell_wpt_tests
 crbug.com/420130712 external/wpt/client-hints/meta-equiv-delegate-ch-malformed-header.https.html [ Failure Pass ]
 
@@ -9499,20 +9498,3 @@ crbug.com/526066305 [ Linux ] external/wpt/webdriver/tests/classic/element_click
 crbug.com/524467548 [ Linux ] external/wpt/webdriver/tests/classic/get_current_url/file.py [ Failure Pass ]
 crbug.com/526696413 [ Linux ] external/wpt/webdriver/tests/classic/get_element_property/get.py [ Failure Pass Timeout ]
 crbug.com/523483431 [ Linux ] external/wpt/webdriver/tests/classic/new_session/invalid_capabilities.py [ Failure Pass Timeout ]
-
-# Cobalt bug: b/461834934.
-wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
-
-# Cobalt bug: b/405993906.
-wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
-
-# Cobalt bug: b/405997906.
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
-=======
-# Skipped due to feature implementation in progress
-crbug.com/420393952 external/wpt/html/semantics/permission-element/quirks-mode-no-height-is-still-bounded.tentative.html [ Failure Skip ]
->>>>>>> 548911691b4 (cobalt: Add CobaltTestExpectations file (#13293))
