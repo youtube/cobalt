@@ -27,6 +27,16 @@ static_library("features") {
   ]
 
   if (is_android) {
-    deps += [ "//cobalt/android:jni_headers" ]
+    deps += [ ":cobalt_feature_map_android" ]
+  }
+}
+
+if (is_android) {
+  source_set("cobalt_feature_map_android") {
+    sources = [ "cobalt_feature_map_android.cc" ]
+    deps = [
+      "//base",
+      "//cobalt/android:cobalt_feature_map_jni",
+    ]
   }
 }

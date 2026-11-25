@@ -242,6 +242,7 @@ public class JavaSwitches {
     // Read by Java SysUtils.isLowEndDevice(), which caches the result, and by
     // SysInfo::IsLowEndDevice() in JNI_LibraryLoader_LibraryLoaded() (orderfile optimization).
     // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices.
+    // TODO(cobalt, b/567120883): Remove this if we use the Finch flag LowEndMemoryExperiment.
     if (!javaSwitches.containsKey(DISABLE_LOW_END_DEVICE_MODE)) {
       args.add("--" + BaseSwitches.ENABLE_LOW_END_DEVICE_MODE);
     }
