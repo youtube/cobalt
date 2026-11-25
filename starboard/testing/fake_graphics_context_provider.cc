@@ -18,6 +18,8 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <string_view>
+#include <vector>
 
 #include "build/build_config.h"
 #include "starboard/common/gettid.h"
@@ -50,6 +52,8 @@
 #define EGL_BLUE_SIZE SB_EGL_BLUE_SIZE
 #define EGL_CONTEXT_CLIENT_VERSION SB_EGL_CONTEXT_CLIENT_VERSION
 #define EGL_DEFAULT_DISPLAY SB_EGL_DEFAULT_DISPLAY
+#define EGL_DONT_CARE SB_EGL_DONT_CARE
+#define EGL_EXTENSIONS SB_EGL_EXTENSIONS
 #define EGL_GREEN_SIZE SB_EGL_GREEN_SIZE
 #define EGL_HEIGHT SB_EGL_HEIGHT
 #define EGL_NONE SB_EGL_NONE
@@ -95,6 +99,32 @@
 
 namespace starboard {
 
+namespace {
+
+bool HasEglExtension(const char* extensions, std::string_view target) {
+  if (!extensions || target.empty()) {
+    return false;
+  }
+  std::string_view ext_list(extensions);
+  size_t pos = 0;
+  while (pos < ext_list.size()) {
+    size_t next_space = ext_list.find(' ', pos);
+    std::string_view token = (next_space == std::string_view::npos)
+                                 ? ext_list.substr(pos)
+                                 : ext_list.substr(pos, next_space - pos);
+    if (token == target) {
+      return true;
+    }
+    if (next_space == std::string_view::npos) {
+      break;
+    }
+    pos = next_space + 1;
+  }
+  return false;
+}
+
+}  // namespace
+
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     : display_(EGL_NO_DISPLAY),
       surface_(EGL_NO_SURFACE),
@@ -111,7 +141,9 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   if (gles_context_thread_) {
     gles_context_thread_->Join();
   }
-  EGL_CALL(eglDestroySurface(display_, surface_));
+  if (surface_ != EGL_NO_SURFACE) {
+    EGL_CALL(eglDestroySurface(display_, surface_));
+  }
   EGL_CALL(eglTerminate(display_));
   SbWindowDestroy(window_);
 }
@@ -245,32 +277,67 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // First, query how many configs match the given attribute list.
   EGLint num_configs = 0;
   EGL_CALL(eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs));
-  SB_CHECK_NE(0, num_configs);
 
-  // Allocate space to receive the matching configs and retrieve them.
-  std::vector<EGLConfig> configs(num_configs);
-  EGL_CALL(eglChooseConfig(display_, kAttributeList, configs.data(),
-                           num_configs, &num_configs));
-  // "If configs is not NULL, up to config_size configs will be returned in the
-  // array pointed to by configs. The number of configs actually returned will
-  // be returned in *num_config." Assert that and resize if needed.
-  SB_CHECK_LE(static_cast<size_t>(num_configs), configs.size());
-  configs.resize(num_configs);
-
-  // Find the first config that successfully allows a pBuffer surface (i.e. an
-  // offscreen EGLsurface) to be created.
   EGLConfig config = EGLConfig();
-  for (auto maybe_config : configs) {
-    constexpr EGLint kPBufferAttribs[] = {EGL_WIDTH, 1920, EGL_HEIGHT, 1080,
-                                          EGL_NONE};
-    surface_ = EGL_CALL_SIMPLE(
-        eglCreatePbufferSurface(display_, maybe_config, kPBufferAttribs));
-    if (EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError())) {
-      config = maybe_config;
-      break;
+  if (num_configs > 0) {
+    // Allocate space to receive the matching configs and retrieve them.
+    std::vector<EGLConfig> configs(num_configs);
+    EGL_CALL(eglChooseConfig(display_, kAttributeList, configs.data(),
+                             num_configs, &num_configs));
+    // "If configs is not NULL, up to config_size configs will be returned in
+    // the array pointed to by configs. The number of configs actually returned
+    // will be returned in *num_config." Assert that and resize if needed.
+    SB_CHECK_LE(static_cast<size_t>(num_configs), configs.size());
+    configs.resize(num_configs);
+
+    // Find the first config that successfully allows a pBuffer surface (i.e. an
+    // offscreen EGLsurface) to be created.
+    for (auto maybe_config : configs) {
+      constexpr EGLint kPBufferAttribs[] = {EGL_WIDTH, 1920, EGL_HEIGHT, 1080,
+                                            EGL_NONE};
+      surface_ = EGL_CALL_SIMPLE(
+          eglCreatePbufferSurface(display_, maybe_config, kPBufferAttribs));
+      if (EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError())) {
+        config = maybe_config;
+        break;
+      }
     }
   }
-  SB_DCHECK_NE(surface_, EGL_NO_SURFACE);
+
+  if (surface_ == EGL_NO_SURFACE) {
+    // Fall back to a surfaceless context when the platform lacks
+    // EGL_PBUFFER_BIT support but advertises EGL_KHR_surfaceless_context.
+    const char* extensions =
+        EGL_CALL_SIMPLE(eglQueryString(display_, EGL_EXTENSIONS));
+    SB_CHECK(HasEglExtension(extensions, "EGL_KHR_surfaceless_context"))
+        << "No EGL_PBUFFER_BIT config found and EGL_KHR_surfaceless_context "
+           "is not supported.";
+
+    constexpr EGLint kSurfacelessAttributeList[] = {EGL_RED_SIZE,
+                                                    8,
+                                                    EGL_GREEN_SIZE,
+                                                    8,
+                                                    EGL_BLUE_SIZE,
+                                                    8,
+                                                    EGL_ALPHA_SIZE,
+                                                    8,
+                                                    EGL_SURFACE_TYPE,
+                                                    EGL_DONT_CARE,
+                                                    EGL_RENDERABLE_TYPE,
+                                                    EGL_OPENGL_ES2_BIT,
+                                                    EGL_NONE};
+    num_configs = 0;
+    EGL_CALL(eglChooseConfig(display_, kSurfacelessAttributeList, nullptr, 0,
+                             &num_configs));
+    SB_CHECK_NE(0, num_configs);
+
+    EGLint returned_configs = 0;
+    EGL_CALL(eglChooseConfig(display_, kSurfacelessAttributeList, &config, 1,
+                             &returned_configs));
+    SB_CHECK_EQ(1, returned_configs);
+    SB_LOG(INFO) << "FakeGraphicsContextProvider falling back to "
+                    "EGL_KHR_surfaceless_context.";
+  }
 
   // Create an OpenGL ES 3 context, falling back to ES 2.0 if the platform
   // cannot provide one.
@@ -340,6 +407,9 @@ void FakeGraphicsContextProvider::MakeNoContextCurrent() {
 }
 
 void FakeGraphicsContextProvider::Render() {
+  if (surface_ == EGL_NO_SURFACE) {
+    return;
+  }
   GL_CALL(glClear(SB_GL_COLOR_BUFFER_BIT));
   EGL_CALL(eglSwapBuffers(display_, surface_));
 }
