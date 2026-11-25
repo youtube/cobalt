@@ -17,6 +17,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ptr_exclusion.h"
+#include "build/build_config.h"
 #include "cc/base/region.h"
 #include "cc/base/tiling_data.h"
 #include "cc/cc_export.h"
@@ -129,6 +130,12 @@ class CC_EXPORT PictureLayerTiling {
   bool can_require_tiles_for_activation() const {
     return can_require_tiles_for_activation_;
   }
+#if BUILDFLAG(IS_COBALT)
+  void set_skewport_lookahead_allowed(bool allowed) {
+    skewport_lookahead_allowed_ = allowed;
+  }
+  bool IsSkewportLookaheadTile(const Tile* tile) const;
+#endif  // BUILDFLAG(IS_COBALT)
 
   gfx::Size raster_size() const { return raster_source()->size(); }
   const scoped_refptr<RasterSource>& raster_source() const {
@@ -404,6 +411,9 @@ class CC_EXPORT PictureLayerTiling {
                                       PriorityRectType priority_rect_type,
                                       bool is_tile_occluded) const;
   PriorityRectType ComputePriorityRectTypeForTile(const Tile* tile) const;
+#if BUILDFLAG(IS_COBALT)
+  bool UsesSkewportLookahead() const;
+#endif  // BUILDFLAG(IS_COBALT)
   bool has_visible_rect_tiles() const { return has_visible_rect_tiles_; }
   bool has_skewport_rect_tiles() const { return has_skewport_rect_tiles_; }
   bool has_soon_border_rect_tiles() const {
@@ -456,6 +466,10 @@ class CC_EXPORT PictureLayerTiling {
   gfx::Rect live_tiles_rect_;
 
   bool can_require_tiles_for_activation_ = false;
+#if BUILDFLAG(IS_COBALT)
+  bool skewport_lookahead_allowed_ = false;
+  bool was_using_skewport_lookahead_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   gfx::Rect tiling_rect_in_layer_space_;
 

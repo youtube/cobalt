@@ -150,6 +150,15 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltSkipCookieUpdateAccess);
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kCobaltLocalStorageReuseLogsAndSkipEmptyCommits);
 
+// When enabled, configures Chromium's compositor skewport (0.3s target time,
+// clamped to max_viewport_fraction of screen height) and promotes unoccluded
+// skewport tiles during active 2D translation animations to TilePriority::NOW
+// (with distance > 0) under CUTOFF_ALLOW_REQUIRED_ONLY.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltAnimationTileLookahead);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kCobaltAnimationTileLookaheadMaxViewportFraction);
+
 #if BUILDFLAG(IS_ANDROID)
 // When enabled, sets InProcessRendererThread to kDisplayCritical thread type
 // on Android, matching multi-process Chromium renderer main thread priority.
