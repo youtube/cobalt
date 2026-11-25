@@ -21,6 +21,7 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #include "components/services/storage/public/cpp/constants.h"
 #include "components/services/storage/service_worker/service_worker_disk_cache.h"
 #include "components/services/storage/service_worker/service_worker_resource_ops.h"
@@ -33,6 +34,11 @@
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
 
 namespace storage {
+
+#if BUILDFLAG(IS_COBALT)
+BASE_FEATURE(kCobaltReclaimEmptyServiceWorkerDatabase,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace {
 
@@ -1666,6 +1672,30 @@ void ServiceWorkerStorage::ReadInitialDataFromDB() {
     DidReadInitialData(std::move(data), status);
     return;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(kCobaltReclaimEmptyServiceWorkerDatabase) &&
+      data->keys.empty() && !GetDatabasePath().empty() &&
+      base::PathExists(GetDatabasePath().AppendASCII("CURRENT"))) {
+    std::vector<int64_t> uncommitted_ids;
+    std::vector<int64_t> purgeable_ids;
+    if (database_->GetUncommittedResourceIds(&uncommitted_ids) ==
+            ServiceWorkerDatabase::Status::kOk &&
+        uncommitted_ids.empty() &&
+        database_->GetPurgeableResourceIds(&purgeable_ids) ==
+            ServiceWorkerDatabase::Status::kOk &&
+        purgeable_ids.empty()) {
+      const ServiceWorkerDatabase::Status destroy_status =
+          database_->DestroyDatabase();
+      database_ = std::make_unique<ServiceWorkerDatabase>(GetDatabasePath());
+      if (destroy_status == ServiceWorkerDatabase::Status::kOk) {
+        data->next_registration_id = 0;
+        data->next_version_id = 0;
+        data->next_resource_id = 0;
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   DidReadInitialData(std::move(data), status);
 
