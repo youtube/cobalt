@@ -129,7 +129,7 @@ class GPU_IPC_SERVICE_EXPORT GpuChannel : public IPC::Listener,
   CommandBufferStub* LookupCommandBuffer(int32_t route_id);
 
   bool HasActiveStatefulContext() const;
-  void MarkAllContextsLost();
+  void MarkAllContextsLost(error::ContextLostReason reason = error::kUnknown);
 
   // Called to add a listener for a particular message routing ID.
   // Returns true if succeeded.

@@ -9,6 +9,7 @@
 #include <utility>
 #include <variant>
 
+#include "base/auto_reset.h"
 #include "base/command_line.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
@@ -647,7 +648,11 @@ void GpuChannelManager::LoseAllContexts() {
   passthrough_discardable_manager_.OnContextLost();
   share_group_ = base::MakeRefCounted<gl::GLShareGroup>();
   for (auto& kv : gpu_channels_) {
+#if BUILDFLAG(IS_COBALT)
+    kv.second->MarkAllContextsLost(lose_all_contexts_reason_);
+#else
     kv.second->MarkAllContextsLost();
+#endif
   }
   task_runner_->PostTask(FROM_HERE,
                          base::BindOnce(&GpuChannelManager::DestroyAllChannels,
@@ -857,9 +862,18 @@ void GpuChannelManager::OnBackgroundCleanup() {
     return;
   }
 
-  // 1. Mark all GPU channel contexts lost and destroy all GPU channels.
-  for (auto& kv : gpu_channels_) {
-    kv.second->MarkAllContextsLost();
+  // 1. Mark all GPU channel contexts lost and destroy all GPU channels. The
+  // contexts are lost on purpose, not because of a GPU fault, so report them
+  // as innocent: otherwise the browser blocks 3D APIs for their URLs (see
+  // GpuHostImpl::DidLoseContext), and pages cannot restore WebGL on reveal.
+  // Losing a raster context also loses SharedContextState, which can call
+  // LoseAllContexts() for the other contexts, so use the same reason there.
+  {
+    base::AutoReset<error::ContextLostReason> reason(&lose_all_contexts_reason_,
+                                                     error::kInnocent);
+    for (auto& kv : gpu_channels_) {
+      kv.second->MarkAllContextsLost(error::kInnocent);
+    }
   }
   DestroyAllChannels();
 

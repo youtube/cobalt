@@ -860,9 +860,9 @@ bool GpuChannel::HasActiveStatefulContext() const {
   return false;
 }
 
-void GpuChannel::MarkAllContextsLost() {
+void GpuChannel::MarkAllContextsLost(error::ContextLostReason reason) {
   for (auto& kv : stubs_)
-    kv.second->MarkContextLost();
+    kv.second->MarkContextLost(reason);
 }
 
 bool GpuChannel::AddRoute(int32_t route_id, SequenceId sequence_id) {
