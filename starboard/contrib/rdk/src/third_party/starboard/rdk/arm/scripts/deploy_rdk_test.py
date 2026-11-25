@@ -20,6 +20,7 @@ requiring actual hardware or builds.
 """
 
 import importlib.util
+import io
 import os
 from pathlib import Path
 import sys
@@ -48,6 +49,10 @@ class TestDeployRdk(unittest.TestCase):
             cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
             if "cat /version.txt" in cmd_str:
                 return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260420\n"
+            elif "readlink /usr/lib/libloader_app.so" in cmd_str:
+                return "/data/out_cobalt/libloader_app.so\n"
+            elif "readlink /etc/WPEFramework/plugins/Cobalt.json" in cmd_str:
+                return "/etc/WPEFramework/plugins/Cobalt_custom.json\n"
             return "Everything is up-to-date"
         self.mock_run.side_effect = run_cmd_side_effect
 
@@ -143,6 +148,10 @@ class TestDeployRdk(unittest.TestCase):
             cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
             if "cat /version.txt" in cmd_str:
                 return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260420\n"
+            elif "readlink /usr/lib/libloader_app.so" in cmd_str:
+                return "/data/out_cobalt/libloader_app.so\n"
+            elif "readlink /etc/WPEFramework/plugins/Cobalt.json" in cmd_str:
+                return "/etc/WPEFramework/plugins/Cobalt_custom.json\n"
             elif "Controller.1.configuration@YouTube" in cmd_str:
                 return '{"jsonrpc":"2.0","id":1,"result":{"url":"https://www.youtube.com/tv","sbmainargs":[]}}'
             return "Everything is up-to-date"
@@ -253,6 +262,8 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
                 return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260420\n"
             elif "readlink /usr/lib/libloader_app.so" in cmd_str:
                 return "/data/out_cobalt/libloader_app.so\n"
+            elif "readlink /etc/WPEFramework/plugins/Cobalt.json" in cmd_str:
+                return "/etc/WPEFramework/plugins/Cobalt_custom.json\n"
             return "Everything is up-to-date"
         self.mock_run.side_effect = run_cmd_side_effect
 
@@ -409,12 +420,20 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
 
         self.mock_sub_run.side_effect = sub_run_mock
 
+        boot_ids = iter(["boot-id-before\n", "boot-id-after\n"])
+
         def run_cmd_mock(cmd, *args, **kwargs):
             cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
             if "cat /version.txt" in cmd_str:
                 return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260420\n"
             elif "readlink /usr/lib/libloader_app.so" in cmd_str:
                 return "/usr/lib/libloader_app_c25.so\n"
+            elif "readlink /etc/WPEFramework/plugins/Cobalt.json" in cmd_str:
+                return "/etc/WPEFramework/plugins/Cobalt_c25.json\n"
+            elif "cat /proc/sys/kernel/random/boot_id" in cmd_str:
+                return next(boot_ids, "boot-id-after\n")
+            elif "Controller.1.status" in cmd_str:
+                return '{"jsonrpc":"2.0","id":1,"result":[]}\n'
             elif "echo ok" in cmd_str:
                 return "ok\n"
             return "Everything is up-to-date"
@@ -425,11 +444,13 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
             with mock.patch("sys.argv", ["deploy_rdk.py", "--force-deploy"]):
                 deploy_rdk.main()
 
-        # Check that chCobalt custom_cobalt, reboot, and echo ok were called
+        # Check that chCobalt custom_cobalt, reboot, boot_id, echo ok, and WPEFramework status were called
         run_calls = [str(call) for call in self.mock_run.call_args_list]
         self.assertTrue(any("chCobalt custom_cobalt" in call for call in run_calls))
         self.assertTrue(any("reboot" in call for call in run_calls))
+        self.assertTrue(any("boot_id" in call for call in run_calls))
         self.assertTrue(any("echo ok" in call for call in run_calls))
+        self.assertTrue(any("Controller.1.status" in call for call in run_calls))
         
         # Check that sleep was called to wait for reboot
         mock_sleep.assert_any_call(30)
@@ -441,11 +462,14 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
                 return mock.MagicMock(returncode=0, stdout="List of devices attached\nonly_device\tdevice\n")
             elif "cat /etc/device.properties" in cmd_str:
                 return mock.MagicMock(returncode=0, stdout="MODEL_NAME=AH212\n")
-            elif "cat /version.txt" in cmd_str:
-                return mock.MagicMock(returncode=0, stdout="custom version: RDK_V6_AH212_20251218\n")
             return mock.MagicMock(returncode=1, stdout="")
 
         self.mock_sub_run.side_effect = sub_run_side_effect
+        self.mock_run.side_effect = (
+            lambda cmd, *args, **kwargs: "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20251218\n"
+            if "cat /version.txt" in str(cmd)
+            else ""
+        )
 
         with mock.patch("sys.argv", ["deploy_rdk.py"]):
             with self.assertRaises(SystemExit):
@@ -460,11 +484,14 @@ class TestDeployRdkDeviceDetection(unittest.TestCase):
                 return mock.MagicMock(returncode=0, stdout="List of devices attached\nonly_device\tdevice\n")
             elif "cat /etc/device.properties" in cmd_str:
                 return mock.MagicMock(returncode=0, stdout="MODEL_NAME=AH212\n")
-            elif "cat /version.txt" in cmd_str:
-                return mock.MagicMock(returncode=0, stdout="custom version: RDK_V6_AH212_20269999\n")
             return mock.MagicMock(returncode=1, stdout="")
 
         self.mock_sub_run.side_effect = sub_run_side_effect
+        self.mock_run.side_effect = (
+            lambda cmd, *args, **kwargs: "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20269999\n"
+            if "cat /version.txt" in str(cmd)
+            else ""
+        )
 
         with mock.patch("sys.argv", ["deploy_rdk.py"]):
             with self.assertRaises(SystemExit):
@@ -589,6 +616,371 @@ class TestRemoveDuplicateSbArgs(unittest.TestCase):
             result,
             ["--v=1", "--url=https://old.com", "--remote-debugging-port=9999", "--enable-heap-profiling"]
         )
+
+
+class TestDeployRdk7Support(unittest.TestCase):
+    """Unit tests for side-by-side RDK6 and RDK7 build, setup, and ABI safety."""
+
+    def setUp(self):
+        super().setUp()
+        self.mock_run = mock.patch.object(deploy_rdk, "run_command").start()
+        self.mock_sub_run = mock.patch("subprocess.run").start()
+        self.mock_sleep = mock.patch("time.sleep").start()
+        self.mock_exit = mock.patch("sys.exit", side_effect=SystemExit(1)).start()
+
+        def sub_run_side_effect(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else cmd
+            if "adb devices" in cmd_str:
+                return mock.MagicMock(returncode=0, stdout="List of devices attached\nrdk_dev\tdevice\n")
+            if "cat /etc/device.properties" in cmd_str:
+                return mock.MagicMock(returncode=0, stdout="MODEL_NAME=AH212\n")
+            return mock.MagicMock(returncode=0, stdout="")
+
+        self.mock_sub_run.side_effect = sub_run_side_effect
+
+    def tearDown(self):
+        mock.patch.stopall()
+        super().tearDown()
+
+    # User journey: Deploying to an RDK7 AH212 box whose multi-line /version.txt
+    # lists RDK_V7_AH212_20261110 first (above older RDK_V6 entries) parses the
+    # first line and enforces the RDK7 minimum date (20261110).
+    def test_rdk7_version_validation_uses_first_line_and_rdk7_floor(self):
+        self.mock_run.return_value = (
+            "imagename: RDK_V7\n"
+            "custom version: RDK_V7_AH212_20261110\n"
+            "custom version: RDK_V6_AH212_20260420\n"
+        )
+        self.assertEqual(deploy_rdk.assert_software_version("rdk_dev", None), 7)
+
+        self.mock_run.return_value = (
+            "imagename: RDK_V7\n"
+            "custom version: RDK_V7_AH212_20261001\n"
+        )
+        with self.assertRaises(SystemExit):
+            deploy_rdk.assert_software_version("rdk_dev", None)
+
+    # User journey: Developer with RDK6 RDK_HOME in ~/.bashrc builds and deploys
+    # for RDK7 via `--rdk-version 7`; deploy_rdk defaults out_dir to
+    # out/evergreen-arm-hardfp-rdk7_qa, resolves ~/rdk/toolchain_ah212_7 ahead of
+    # RDK_HOME, and forwards --rdk-version 7 to cobalt/build/gn.py.
+    def test_rdk7_flag_defaults_out_dir_and_forwards_to_gn(self):
+        def run_cmd_mock(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "cat /version.txt" in cmd_str:
+                return "imagename: RDK_V7\ncustom version: RDK_V7_AH212_20261110\n"
+            if "readlink /usr/lib/libloader_app.so" in cmd_str:
+                return "/data/out_cobalt/libloader_app.so\n"
+            if "readlink /etc/WPEFramework/plugins/Cobalt.json" in cmd_str:
+                return "/etc/WPEFramework/plugins/Cobalt_custom.json\n"
+            if "autoninja" in cmd_str:
+                return "Everything is up-to-date"
+            if "[ -d " in cmd_str:
+                return "yes"
+            return ""
+
+        self.mock_run.side_effect = run_cmd_mock
+        env = {"HOME": "/mock/home", "RDK_HOME": "/workspaces/rdk/toolchain"}
+        with mock.patch.dict(os.environ, env, clear=True), \
+             mock.patch(
+                 "os.path.exists",
+                 side_effect=lambda p: p == "/mock/home/rdk/toolchain_ah212_7/sysroots",
+             ), \
+             mock.patch("sys.argv", ["deploy_rdk.py", "--rdk-version", "7", "--skip-deploy"]):
+            deploy_rdk.main()
+
+        gn_call = next(c for c in self.mock_run.call_args_list if "gn.py" in str(c))
+        gn_cmd = gn_call[0][0]
+        self.assertIn("out/evergreen-arm-hardfp-rdk7_qa", gn_cmd)
+        self.assertIn("--rdk-version", gn_cmd)
+        self.assertIn("7", gn_cmd)
+
+    # User journey: Developer runs `--setup-toolchain --rdk-version 7` while
+    # RDK_HOME points to RDK6 in ~/.bashrc and PYTHONPATH/VIRTUAL_ENV are active;
+    # the installer targets ~/rdk/toolchain_ah212_7, runs from /tmp with a clean
+    # environment, and falls back to ~/Downloads when GCS returns 404.
+    @mock.patch("tempfile.TemporaryDirectory")
+    @mock.patch("os.makedirs")
+    def test_setup_toolchain_rdk7_clean_env_and_downloads_fallback(
+        self, mock_makedirs, mock_temp_dir
+    ):
+        del mock_makedirs
+        mock_temp_dir.return_value.__enter__.return_value = "/tmp/mock_sdk_dir"
+
+        def run_cmd_side_effect(cmd, *args, **kwargs):
+            if isinstance(cmd, list) and cmd[0] == "wget":
+                raise SystemExit(8)
+            return ""
+
+        self.mock_run.side_effect = run_cmd_side_effect
+        env = {
+            "HOME": "/mock/home",
+            "RDK_HOME": "/workspaces/rdk/toolchain",
+            "PYTHONPATH": "/venv/site-packages",
+            "PYTHONHOME": "/venv/pythonhome",
+            "VIRTUAL_ENV": "/venv",
+            "LD_LIBRARY_PATH": "/custom/lib",
+            "PATH": "/venv/bin:/usr/bin",
+        }
+        expected_fallback = (
+            "/mock/home/Downloads/20260415_rdk-glibc-x86_64-arm-toolchain-2.0.sh"
+        )
+        with mock.patch.dict(os.environ, env, clear=True), \
+             mock.patch("os.path.exists", return_value=False), \
+             mock.patch("os.path.isfile", side_effect=lambda p: p == expected_fallback), \
+             mock.patch("sys.argv", ["deploy_rdk.py", "--setup-toolchain", "--rdk-version", "7"]):
+            deploy_rdk.main()
+
+        sh_call = next(
+            c for c in self.mock_run.call_args_list
+            if isinstance(c[0][0], list) and c[0][0][0] == "sh"
+        )
+        self.assertEqual(
+            sh_call[0][0],
+            ["sh", expected_fallback, "-d", "/mock/home/rdk/toolchain_ah212_7", "-y"],
+        )
+        self.assertEqual(sh_call[1]["cwd"], "/tmp")
+        clean_env = sh_call[1]["env"]
+        self.assertNotIn("PYTHONPATH", clean_env)
+        self.assertNotIn("PYTHONHOME", clean_env)
+        self.assertNotIn("VIRTUAL_ENV", clean_env)
+        self.assertNotIn("LD_LIBRARY_PATH", clean_env)
+        self.assertEqual(clean_env["PATH"], "/usr/local/bin:/usr/bin:/bin")
+
+    # User journey: Developer runs `--setup-toolchain --rdk-version 7` on a host
+    # without wget installed; FileNotFoundError falls back to ~/Downloads.
+    @mock.patch("tempfile.TemporaryDirectory")
+    @mock.patch("os.makedirs")
+    def test_setup_toolchain_wget_oserror_falls_back_to_downloads(
+        self, mock_makedirs, mock_temp_dir
+    ):
+        del mock_makedirs
+        mock_temp_dir.return_value.__enter__.return_value = "/tmp/mock_sdk_dir"
+
+        def run_cmd_side_effect(cmd, *args, **kwargs):
+            if isinstance(cmd, list) and cmd[0] == "wget":
+                raise FileNotFoundError("wget not found")
+            return ""
+
+        self.mock_run.side_effect = run_cmd_side_effect
+        expected_fallback = (
+            "/mock/home/Downloads/20260415_rdk-glibc-x86_64-arm-toolchain-2.0.sh"
+        )
+        with mock.patch.dict(os.environ, {"HOME": "/mock/home"}, clear=True), \
+             mock.patch("os.path.exists", return_value=False), \
+             mock.patch("os.path.isfile", side_effect=lambda p: p == expected_fallback), \
+             mock.patch("sys.argv", ["deploy_rdk.py", "--setup-toolchain", "--rdk-version", "7"]):
+            deploy_rdk.main()
+
+        sh_call = next(
+            c for c in self.mock_run.call_args_list
+            if isinstance(c[0][0], list) and c[0][0][0] == "sh"
+        )
+        self.assertEqual(
+            sh_call[0][0],
+            ["sh", expected_fallback, "-d", "/mock/home/rdk/toolchain_ah212_7", "-y"],
+        )
+
+    # User journey: Developer runs `--setup-toolchain --rdk-version 7` with an
+    # explicit `--toolchain-installer` local file, bypassing wget entirely.
+    @mock.patch("os.makedirs")
+    def test_setup_toolchain_local_installer_bypasses_download(self, mock_makedirs):
+        del mock_makedirs
+        with mock.patch.dict(os.environ, {"HOME": "/mock/home"}, clear=True), \
+             mock.patch(
+                 "os.path.exists",
+                 side_effect=lambda p: p == "/tmp/local_rdk7.sh",
+             ), \
+             mock.patch(
+                 "sys.argv",
+                 [
+                     "deploy_rdk.py",
+                     "--setup-toolchain",
+                     "--rdk-version",
+                     "7",
+                     "--toolchain-installer",
+                     "/tmp/local_rdk7.sh",
+                 ],
+             ):
+            deploy_rdk.main()
+
+        self.assertFalse(any("wget" in str(c) for c in self.mock_run.call_args_list))
+        sh_call = self.mock_run.call_args_list[0]
+        self.assertEqual(
+            sh_call[0][0],
+            ["sh", "/tmp/local_rdk7.sh", "-d", "/mock/home/rdk/toolchain_ah212_7", "-y"],
+        )
+
+    # User journey: Accidentally targeting an RDK6 box with `--rdk-version 7`
+    # fails immediately before compiling, and deploying prebuilt RDK7 native
+    # binaries (libloader_app.so or elf_loader_sandbox) to RDK6 fails before push,
+    # while `--only-lib` (OS-agnostic libcobalt.lz4) is allowed.
+    def test_abi_mismatch_rejects_rdk7_on_rdk6_and_allows_only_lib(self):
+        def run_rdk6_device(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "cat /version.txt" in cmd_str:
+                return "imagename: RDK_V6\ncustom version: RDK_V6_AH212_20260825\n"
+            if "readlink /usr/lib/libloader_app.so" in cmd_str:
+                return "/data/out_cobalt/libloader_app.so\n"
+            if "readlink /etc/WPEFramework/plugins/Cobalt.json" in cmd_str:
+                return "/etc/WPEFramework/plugins/Cobalt_custom.json\n"
+            return ""
+
+        self.mock_run.side_effect = run_rdk6_device
+
+        # 1. Pre-build guard rejects --rdk-version 7 on RDK6 before gn.py/autoninja.
+        with mock.patch("sys.argv", ["deploy_rdk.py", "--rdk-version", "7"]):
+            with self.assertRaises(SystemExit):
+                deploy_rdk.main()
+        self.assertFalse(any("gn.py" in str(c) for c in self.mock_run.call_args_list))
+
+        # 2. Pre-deploy guard rejects RDK7 libloader_app.so on RDK6.
+        self.mock_run.reset_mock()
+        with mock.patch.object(Path, "exists", return_value=True), \
+             mock.patch.object(
+                 Path,
+                 "open",
+                 side_effect=lambda *a, **kw: io.BytesIO(b"\x7fELF...GLIBC_2.34..."),
+             ), \
+             mock.patch("sys.argv", ["deploy_rdk.py", "--skip-build", "--out-dir", "out/rdk7_qa"]):
+            with self.assertRaises(SystemExit):
+                deploy_rdk.main()
+        self.assertFalse(any("tar" in str(c) for c in self.mock_run.call_args_list))
+
+        # 3. Pre-deploy guard rejects RDK7 elf_loader_sandbox for --tests on RDK6.
+        self.mock_run.reset_mock()
+        with mock.patch.object(Path, "exists", return_value=True), \
+             mock.patch.object(
+                 Path,
+                 "open",
+                 side_effect=lambda *a, **kw: io.BytesIO(b"\x7fELF...GLIBCXX_3.4.29..."),
+             ), \
+             mock.patch("sys.argv", ["deploy_rdk.py", "--tests", "nplb", "--skip-build"]):
+            with self.assertRaises(SystemExit):
+                deploy_rdk.main()
+        self.assertFalse(any("tar" in str(c) for c in self.mock_run.call_args_list))
+
+        # 4. --only-lib pushes OS-agnostic libcobalt.lz4 and skips native ABI rejection.
+        self.mock_run.reset_mock()
+        with mock.patch.object(Path, "exists", return_value=True), \
+             mock.patch.object(
+                 Path,
+                 "open",
+                 side_effect=lambda *a, **kw: io.BytesIO(b"\x7fELF...GLIBC_2.34..."),
+             ), \
+             mock.patch("sys.argv", ["deploy_rdk.py", "--only-lib", "--skip-build"]):
+            deploy_rdk.main()
+        self.assertTrue(any("libcobalt.lz4" in str(c) for c in self.mock_run.call_args_list))
+
+    # User journey: Chunked ABI scanning detects RDK7 markers even when they
+    # straddle a 64 KiB read boundary and classifies clean large binaries as RDK6.
+    def test_detect_binary_rdk_version_handles_chunk_boundary_marker(self):
+        boundary_payload = (b"\x00" * 65532) + b"GLIBC_2.34" + (b"\x00" * 100)
+        with mock.patch.object(Path, "exists", return_value=True), \
+             mock.patch.object(
+                 Path,
+                 "open",
+                 side_effect=lambda *a, **kw: io.BytesIO(boundary_payload),
+             ):
+            self.assertEqual(
+                deploy_rdk.detect_binary_rdk_version(Path("out/rdk7/libloader_app.so")),
+                7,
+            )
+
+        rdk6_payload = (b"\x00" * 65532) + b"GLIBC_2.30" + (b"\x00" * 100)
+        with mock.patch.object(Path, "exists", return_value=True), \
+             mock.patch.object(
+                 Path,
+                 "open",
+                 side_effect=lambda *a, **kw: io.BytesIO(rdk6_payload),
+             ):
+            self.assertEqual(
+                deploy_rdk.detect_binary_rdk_version(Path("out/rdk6/libloader_app.so")),
+                6,
+            )
+
+    # User journey: Deploying an RDK6-compiled binary to an RDK7 device logs a
+    # warning without failing the deployment.
+    def test_rdk6_binary_on_rdk7_device_warns_without_failing(self):
+        with mock.patch.object(Path, "exists", return_value=True), \
+             mock.patch.object(
+                 Path,
+                 "open",
+                 side_effect=lambda *a, **kw: io.BytesIO(b"\x7fELF...GLIBC_2.30..."),
+             ):
+            self.assertTrue(
+                deploy_rdk.verify_abi_compatibility(
+                    Path("out/rdk6_qa"), 7, is_test=False, only_lib=False
+                )
+            )
+        self.mock_exit.assert_not_called()
+
+    # User journey: Freshly flashed device where libloader_app.so points to
+    # custom Cobalt but Cobalt.json still points to c25 triggers chCobalt,
+    # waits for boot_id to change across reboot, and polls Controller.1.status.
+    def test_switch_verifies_cobalt_json_boot_id_change_and_wpe_readiness(self):
+        boot_ids = iter(["same-boot\n", "same-boot\n", "new-boot\n"])
+        wpe_statuses = iter(["", '{"jsonrpc":"2.0","id":1,"result":[]}\n'])
+
+        def run_cmd_mock(cmd, *args, **kwargs):
+            cmd_str = " ".join(cmd) if isinstance(cmd, list) else str(cmd)
+            if "readlink /usr/lib/libloader_app.so" in cmd_str:
+                return "/data/out_cobalt/libloader_app.so\n"
+            if "readlink /etc/WPEFramework/plugins/Cobalt.json" in cmd_str:
+                return "/etc/WPEFramework/plugins/Cobalt_c25.json\n"
+            if "cat /proc/sys/kernel/random/boot_id" in cmd_str:
+                return next(boot_ids)
+            if "echo ok" in cmd_str:
+                return "ok\n"
+            if "Controller.1.status" in cmd_str:
+                return next(wpe_statuses)
+            return ""
+
+        self.mock_run.side_effect = run_cmd_mock
+        deploy_rdk.check_and_switch_cobalt_version("rdk_dev", None)
+
+        run_calls = [str(c) for c in self.mock_run.call_args_list]
+        self.assertTrue(any("chCobalt custom_cobalt" in c for c in run_calls))
+        self.assertEqual(sum(1 for c in run_calls if "boot_id" in c), 3)
+        self.assertEqual(sum(1 for c in run_calls if "Controller.1.status" in c), 2)
+
+    # User journey: Packaging cobalt_loader.runtime_deps that already includes
+    # ./libloader_app.so does not pass libloader_app.so a second time to tar,
+    # avoiding a self-hardlink entry that RDK7 BusyBox tar fails to extract.
+    def test_package_and_deploy_skips_duplicate_libloader_app_in_runtime_deps(self):
+        self.mock_run.return_value = ""
+        with mock.patch.object(Path, "exists", return_value=True), \
+             mock.patch.object(
+                 Path,
+                 "read_text",
+                 return_value="app/cobalt/lib/libcobalt.lz4\n./libloader_app.so\n",
+             ), \
+             mock.patch.object(Path, "unlink"):
+            deploy_rdk.package_and_deploy(
+                "rdk_dev",
+                None,
+                Path("out/evergreen-arm-hardfp-rdk7_qa"),
+                "/data/out_cobalt",
+                Path("out/evergreen-arm-hardfp-rdk7_qa/cobalt_loader.runtime_deps"),
+                is_test=False,
+            )
+
+        tar_call = next(c for c in self.mock_run.call_args_list if c[0][0][0] == "tar")
+        tar_args = tar_call[0][0]
+        self.assertNotIn("libloader_app.so", tar_args)
+        self.assertIn("gen/build_info.json", tar_args)
+
+    # User journey: Running on-device GTest suites via `deploy_rdk.py --tests
+    # nplb --run` adapts XDG_RUNTIME_DIR to /tmp (RDK7) or /run (RDK6) based on
+    # where rdkDisplay creates test-0, and defaults TZ=UTC when /etc/localtime
+    # does not resolve so devel builds do not abort in SbTimeZoneGetName.
+    def test_launch_on_device_test_probes_wayland_socket_and_localtime_tz(self):
+        self.mock_run.return_value = ""
+        deploy_rdk.launch_on_device("rdk_dev", None, "/data/test", "nplb")
+        launch_cmd = " ".join(self.mock_run.call_args[0][0])
+        self.assertIn("if [ -S /tmp/test-0 ]; then xdg_runtime_dir=/tmp; else xdg_runtime_dir=/run; fi", launch_cmd)
+        self.assertIn(r"if [ ! -e /etc/localtime ]; then export TZ=\${TZ:-UTC}; fi", launch_cmd)
+        self.assertIn(r"XDG_RUNTIME_DIR=\$xdg_runtime_dir WAYLAND_DISPLAY=test-0 ./nplb_loader.py", launch_cmd)
 
 
 if __name__ == "__main__":
