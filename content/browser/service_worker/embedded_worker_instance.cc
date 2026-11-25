@@ -801,10 +801,7 @@ void EmbeddedWorkerInstance::BindCacheStorage(
   BindCacheStorageInternal();
 }
 
-<<<<<<< ours
-=======
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
+#if !BUILDFLAG(IS_COBALT)
 void EmbeddedWorkerInstance::BindHidService(
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
@@ -818,10 +815,7 @@ void EmbeddedWorkerInstance::BindHidService(
                        std::move(receiver));
   }
 }
-<<<<<<< ours
-=======
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_COBALT)
 void EmbeddedWorkerInstance::BindUsbService(
