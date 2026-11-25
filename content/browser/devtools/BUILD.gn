@@ -111,6 +111,8 @@ if (enable_devtools_backend) {
       "protocol/device_access.h",
       "protocol/device_orientation.cc",
       "protocol/device_orientation.h",
+      "protocol/digital_credentials.cc",
+      "protocol/digital_credentials.h",
       "protocol/dom.cc",
       "protocol/dom.h",
       "protocol/emulation.cc",
