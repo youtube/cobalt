@@ -1,0 +1,35 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Cobalt-specific event type names. These are kept separate from Chromium's
+// third_party/blink/renderer/core/events/event_type_names.json5 so that
+// Cobalt additions do not conflict with upstream changes during rebases.
+//
+// Generates event_type_cobalt_names.{h,cc}, exposing the names in the
+// blink::event_type_names namespace (e.g. event_type_names::kDeeplink).
+{
+  metadata: {
+    namespace: "event_type_names",
+    suffix: "Cobalt",
+    export: "MODULES_EXPORT",
+  },
+
+  data: [
+    "deeplink",
+    "hide",
+    "lowmemory",
+    "metrics",
+    "texttospeechchange",
+  ],
+}
