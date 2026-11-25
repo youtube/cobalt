@@ -326,6 +326,8 @@ class PortTestCase(LoggingTestCase):
             port.host.filesystem.join(port.web_tests_dir(),
                                       'StaleTestExpectations'),
             port.host.filesystem.join(port.web_tests_dir(), 'SlowTests'),
+            port.host.filesystem.join(port.web_tests_dir(),
+                                      'CobaltTestExpectations'),
         ])
 
     def test_default_expectations_ordering(self):
@@ -366,6 +368,8 @@ class PortTestCase(LoggingTestCase):
             port.host.filesystem.join(port.web_tests_dir(),
                                       'StaleTestExpectations'),
             port.host.filesystem.join(port.web_tests_dir(), 'SlowTests'),
+            port.host.filesystem.join(port.web_tests_dir(),
+                                      'CobaltTestExpectations'),
             port.host.filesystem.join(port.web_tests_dir(), 'FlagExpectations',
                                       'a'),
             '/tmp/foo',
