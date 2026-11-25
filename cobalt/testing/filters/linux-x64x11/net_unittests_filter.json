@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "comment": "Expired certificates cause a lot of the failures.",
   "failing_tests": [
     "*/CertVerifyProcInternalTest.*",
@@ -35,5 +36,33 @@
     "URLRequestTestReferrerPolicy.*",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1",
     "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2"
+=======
+  "comment": "b/453909269 - Only run Cobalt-specific tests until upstream net_unittests failures are resolved.",
+  "failing_tests": [],
+  "tests_to_run": [
+    "HttpCacheTest.CobaltFontMimeTypesCachedWhenFeatureEnabled",
+    "HttpCacheTest.CobaltShouldPassThroughExcludedUrls",
+    "HttpCacheTest.CobaltShouldPassThroughSecFetchDestMediaButNotEmpty",
+    "QuicChromiumPacketReaderCobaltTest.BurstDrainReusesBufferWithoutPoolRoundTrip",
+    "QuicChromiumPacketReaderCobaltTest.CloseSocketCancelsYieldedTaskAndReleasesBuffers",
+    "QuicChromiumPacketReaderCobaltTest.FallbackSinglePacketKeepsBufferAliveDuringOnPacketCloseSocket",
+    "QuicChromiumPacketReaderCobaltTest.FallbackToSinglePacketLazilyAllocatesReadBuffer",
+    "QuicChromiumPacketReaderCobaltTest.LazyReadBufferAndBufferRecycling",
+    "QuicChromiumPacketReaderCobaltTest.MultiPacketOnPacketCloseSocketKeepsPayloadValidAndRecyclesBuffer",
+    "QuicChromiumPacketReaderCobaltTest.NonFallbackErrorDoesNotFallThroughToSinglePacketRead",
+    "QuicChromiumPacketReaderCobaltTest.RealUdpSocketSpyVerifiesConfiguredRecvmmsgBatchSize",
+    "UDPSocketTest.CobaltQuicReadBatchResolvesLazilyAndResetsOnClose",
+    "UDPSocketTest.ReadMultiplePacketsCapsBatchAt16AndDrainsRemaining",
+    "UDPSocketTest.ReadMultiplePacketsCloseWhilePendingReleasesState",
+    "UDPSocketTest.ReadMultiplePacketsDefaultsTosWithoutSetRecvTos",
+    "UDPSocketTest.ReadMultiplePacketsReleasesBufferWhenIdleAndReusesPool",
+    "UDPSocketTest.ReadMultiplePacketsRespectsFinchBatchParamAndClamps",
+    "UDPSocketTest.ReadMultiplePacketsVerifyDscpAndEcnV4",
+    "UDPSocketTest.ReadMultiplePacketsVerifyDscpAndEcnV6",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv1",
+    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcnMultiplePackets/RFCv2"
+>>>>>>> 7c6edb94a3b (cobalt: Forward received ECN marks on single and batched QUIC reads (#14224))
   ]
 }
