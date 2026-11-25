@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <errno.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -152,6 +153,14 @@ long syscall(long number, ...) {
       const char* pathname = va_arg(ap, const char*);
       va_end(ap);
       return libc_wrapper_SYS_rmdir(pathname);
+    }
+#endif
+#ifdef __NR_sigaltstack
+    case __NR_sigaltstack: {
+      const stack_t* ss = va_arg(ap, const stack_t*);
+      stack_t* old_ss = va_arg(ap, stack_t*);
+      va_end(ap);
+      return libc_wrapper_SYS_sigaltstack(ss, old_ss);
     }
 #endif
 #ifdef __NR_unlink
