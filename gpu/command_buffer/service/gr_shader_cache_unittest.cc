@@ -10,6 +10,7 @@
 #include "gpu/command_buffer/service/gr_shader_cache.h"
 
 #include <thread>
+#include <vector>
 
 #include "base/base64.h"
 #include "base/command_line.h"
@@ -38,8 +39,17 @@ class GrShaderCacheTest : public GrShaderCache::Client, public testing::Test {
     disk_cache_[key] = shader;
   }
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  void TouchShaderOnDisk(const std::string& key) override {
+    cache_hits_.push_back(key);
+  }
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+
   GrShaderCache cache_;
   std::unordered_map<std::string, std::string> disk_cache_;
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  std::vector<std::string> cache_hits_;
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 };
 
 TEST_F(GrShaderCacheTest, DoesNotCacheForIncognito) {
@@ -270,6 +280,54 @@ TEST_F(GrShaderCacheTest, MultipleThreadsUsingSameCache) {
   EXPECT_EQ(cache_.curr_size_bytes_for_testing(), 2 * shader->size());
 }
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+TEST_F(GrShaderCacheTest, CobaltTouchesUsedPreloadedEntriesWhenEnabled) {
+  int32_t regular_client_id = 3;
+  auto key_disabled = SkData::MakeWithCString("key_disabled");
+  auto key_incognito = SkData::MakeWithCString("key_incognito");
+  auto key_unused = SkData::MakeWithCString("key_unused");
+  auto key_used = SkData::MakeWithCString("key_used");
+  auto key_new = SkData::MakeWithCString("key_new");
+  auto shader = SkData::MakeWithCString(kShader);
+  auto encode = [](const SkData& data) {
+    return base::Base64Encode(
+        std::string(static_cast<const char*>(data.data()), data.size()));
+  };
+  for (const auto& key : {key_disabled, key_incognito, key_unused, key_used}) {
+    cache_.PopulateCache(encode(*key), kShader);
+  }
+
+  // The control arm (feature off) never touches.
+  {
+    GrShaderCache::ScopedCacheUse cache_use(&cache_, regular_client_id);
+    EXPECT_NE(cache_.load(*key_disabled), nullptr);
+  }
+  EXPECT_TRUE(cache_hits_.empty());
+
+  base::test::ScopedFeatureList feature_list(
+      ::features::kCobaltGpuShaderDiskCache);
+  // Neither does incognito.
+  base::CommandLine::ForCurrentProcess()->AppendSwitch("incognito");
+  {
+    GrShaderCache::ScopedCacheUse cache_use(&cache_, regular_client_id);
+    EXPECT_NE(cache_.load(*key_incognito), nullptr);
+  }
+  base::CommandLine::ForCurrentProcess()->RemoveSwitch("incognito");
+  EXPECT_TRUE(cache_hits_.empty());
+
+  // Only the first load() of a used preloaded entry is touched; unused and
+  // newly stored entries aren't.
+  {
+    GrShaderCache::ScopedCacheUse cache_use(&cache_, regular_client_id);
+    EXPECT_NE(cache_.load(*key_used), nullptr);
+    EXPECT_NE(cache_.load(*key_used), nullptr);
+    cache_.store(*key_new, *shader);
+    EXPECT_NE(cache_.load(*key_new), nullptr);
+  }
+  EXPECT_EQ(cache_hits_, std::vector<std::string>{encode(*key_used)});
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 class GrShaderCacheDeferredWritesTest : public GrShaderCache::Client,
                                         public testing::Test {
@@ -277,6 +335,10 @@ class GrShaderCacheDeferredWritesTest : public GrShaderCache::Client,
   void StoreShader(const std::string& key, const std::string& shader) override {
     disk_cache_[key] = shader;
     ++num_disk_writes_;
+  }
+
+  void TouchShaderOnDisk(const std::string& key) override {
+    cache_hits_.push_back(key);
   }
 
  protected:
@@ -303,6 +365,7 @@ class GrShaderCacheDeferredWritesTest : public GrShaderCache::Client,
 
   base::test::ScopedFeatureList feature_list_;
   std::unordered_map<std::string, std::string> disk_cache_;
+  std::vector<std::string> cache_hits_;
   size_t num_disk_writes_ = 0u;
   std::optional<GrShaderCache> cache_;
 };
@@ -317,6 +380,7 @@ TEST_F(GrShaderCacheDeferredWritesTest, WritesOnlyOnFlush) {
 
   cache_->FlushPendingDiskWrites();
   EXPECT_EQ(num_disk_writes_, 1u);
+  EXPECT_TRUE(cache_hits_.empty());
   ASSERT_EQ(disk_cache_.count(EncodedKey(*key)), 1u);
   EXPECT_EQ(
       disk_cache_[EncodedKey(*key)],
@@ -338,6 +402,32 @@ TEST_F(GrShaderCacheDeferredWritesTest, DoesNotFlushEntriesLoadedFromDisk) {
 
   cache_->FlushPendingDiskWrites();
   EXPECT_EQ(num_disk_writes_, 0u);
+}
+
+TEST_F(GrShaderCacheDeferredWritesTest,
+       RecordsCacheHitsOnlyForUsedPreloadedEntries) {
+  CreateCache(/*feature_enabled=*/true);
+  auto key_unused = SkData::MakeWithCString("key_unused");
+  auto key_used = SkData::MakeWithCString("key_used");
+
+  cache_->PopulateCache(EncodedKey(*key_unused), kShader);
+  cache_->PopulateCache(EncodedKey(*key_used), kShader);
+
+  {
+    GrShaderCache::ScopedCacheUse cache_use(&cache_.value(), kClientId);
+    EXPECT_NE(cache_->load(*key_used), nullptr);
+    // Repeated hits coalesce into a single touch per flush.
+    EXPECT_NE(cache_->load(*key_used), nullptr);
+  }
+
+  cache_->FlushPendingDiskWrites();
+  EXPECT_EQ(num_disk_writes_, 0u);
+  // |key_unused| is never touched.
+  EXPECT_EQ(cache_hits_, std::vector<std::string>{EncodedKey(*key_used)});
+
+  cache_hits_.clear();
+  cache_->FlushPendingDiskWrites();
+  EXPECT_TRUE(cache_hits_.empty());
 }
 
 TEST_F(GrShaderCacheDeferredWritesTest, FlushesBeforeMemoryPressureEviction) {
@@ -378,6 +468,17 @@ TEST_F(GrShaderCacheDeferredWritesTest, WritesImmediatelyWhenFeatureDisabled) {
 
   cache_->FlushPendingDiskWrites();
   EXPECT_EQ(num_disk_writes_, 1u);
+  EXPECT_TRUE(cache_hits_.empty());
+
+  // Hits on preloaded entries aren't touched on disk either.
+  auto preloaded_key = SkData::MakeWithCString("preloaded_key");
+  cache_->PopulateCache(EncodedKey(*preloaded_key), kShader);
+  {
+    GrShaderCache::ScopedCacheUse cache_use(&cache_.value(), kClientId);
+    EXPECT_NE(cache_->load(*preloaded_key), nullptr);
+  }
+  cache_->FlushPendingDiskWrites();
+  EXPECT_TRUE(cache_hits_.empty());
 }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
 

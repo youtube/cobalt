@@ -445,6 +445,14 @@ int64_t Backend::CalculateSizeOfEntriesBetween(
   return net::ERR_NOT_IMPLEMENTED;
 }
 
+#if BUILDFLAG(IS_COBALT)
+std::unique_ptr<Backend::Iterator> Backend::CreateMostRecentIterator(
+    size_t max_entries,
+    base::Time min_last_used_time) {
+  return CreateIterator();
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 uint8_t Backend::GetEntryInMemoryData(const std::string& key) {
   return 0;
 }

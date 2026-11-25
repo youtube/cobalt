@@ -37,6 +37,10 @@
 #include <sys/time.h>
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include <functional>
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace {
 
 // How many milliseconds we delay writing the index to disk since the last cache
@@ -351,6 +355,39 @@ std::unique_ptr<SimpleIndex::HashList> SimpleIndex::GetEntriesBetween(
 std::unique_ptr<SimpleIndex::HashList> SimpleIndex::GetAllHashes() {
   return GetEntriesBetween(base::Time(), base::Time());
 }
+
+#if BUILDFLAG(IS_COBALT)
+std::unique_ptr<SimpleIndex::HashList> SimpleIndex::GetMostRecentHashes(
+    size_t max_entries,
+    base::Time min_last_used_time) {
+  DCHECK(initialized_);
+  auto ret_hashes = std::make_unique<HashList>();
+  if (max_entries == 0 || entries_set_.empty()) {
+    return ret_hashes;
+  }
+
+  std::vector<std::pair<uint32_t, uint64_t>> timed_hashes;
+  timed_hashes.reserve(entries_set_.size());
+  for (const auto& [entry_hash, metadata] : entries_set_) {
+    if (!min_last_used_time.is_null() &&
+        metadata.GetLastUsedTime() < min_last_used_time) {
+      continue;
+    }
+    timed_hashes.emplace_back(metadata.RawTimeForSorting(), entry_hash);
+  }
+  const size_t top_k = std::min(max_entries, timed_hashes.size());
+  std::partial_sort(timed_hashes.begin(), timed_hashes.begin() + top_k,
+                    timed_hashes.end(), std::greater<>());
+
+  // SimpleIterator pops from back(), so push the top-K entries from K-th most
+  // recent to #1 most recent.
+  ret_hashes->reserve(top_k);
+  for (size_t i = top_k; i > 0; --i) {
+    ret_hashes->push_back(timed_hashes[i - 1].second);
+  }
+  return ret_hashes;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 int32_t SimpleIndex::GetEntryCount() const {
   // TODO(pasko): return a meaningful initial estimate before initialized.

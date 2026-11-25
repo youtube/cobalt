@@ -293,6 +293,15 @@ class NET_EXPORT Backend {
   // undefined order.
   virtual std::unique_ptr<Iterator> CreateIterator() = 0;
 
+#if BUILDFLAG(IS_COBALT)
+  // Returns an iterator over at most `max_entries` most-recently-used entries
+  // whose last-used time is at or after `min_last_used_time` (if non-null).
+  // Backends without in-memory MRU metadata fall back to `CreateIterator()`.
+  virtual std::unique_ptr<Iterator> CreateMostRecentIterator(
+      size_t max_entries,
+      base::Time min_last_used_time);
+#endif  // BUILDFLAG(IS_COBALT)
+
   // Return a list of cache statistics.
   virtual void GetStats(base::StringPairs* stats) = 0;
 

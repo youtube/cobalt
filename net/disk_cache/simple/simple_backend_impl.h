@@ -123,6 +123,11 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl final : public Backend,
       base::Time end_time,
       Int64CompletionOnceCallback callback) override;
   std::unique_ptr<Iterator> CreateIterator() override;
+#if BUILDFLAG(IS_COBALT)
+  std::unique_ptr<Iterator> CreateMostRecentIterator(
+      size_t max_entries,
+      base::Time min_last_used_time) override;
+#endif  // BUILDFLAG(IS_COBALT)
   void GetStats(base::StringPairs* stats) override;
   void OnExternalCacheHit(const std::string& key) override;
   uint8_t GetEntryInMemoryData(const std::string& key) override;

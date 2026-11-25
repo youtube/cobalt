@@ -986,4 +986,46 @@ TEST_F(SimpleIndexAppCacheTest, DiskWriteQueued) {
   EXPECT_FALSE(index()->HasPendingWrite());
 }
 
+#if BUILDFLAG(IS_COBALT)
+class SimpleIndexShaderCacheTest : public SimpleIndexTest {
+ protected:
+  net::CacheType CacheType() const override { return net::SHADER_CACHE; }
+};
+
+TEST_F(SimpleIndexShaderCacheTest, GetMostRecentHashesTopKAndMaxAgeCutoff) {
+  const base::Time base_time = base::Time::Now();
+  const uint64_t kExpiredHash = hashes_.at<1>();
+  const uint64_t kStaleHash = hashes_.at<2>();
+  const uint64_t kMiddleHash = hashes_.at<3>();
+  const uint64_t kNewestHash = hashes_.at<4>();
+
+  InsertIntoIndexFileReturn(kMiddleHash, base_time + base::Seconds(20), 100u);
+  InsertIntoIndexFileReturn(kNewestHash, base_time + base::Seconds(30), 100u);
+  InsertIntoIndexFileReturn(kExpiredHash, base_time, 100u);
+  InsertIntoIndexFileReturn(kStaleHash, base_time + base::Seconds(10), 100u);
+  ReturnIndexFile();
+
+  // GetAllHashes() remains untouched and returns all 4 entries.
+  std::unique_ptr<SimpleIndex::HashList> all_hashes = index()->GetAllHashes();
+  EXPECT_EQ(4u, all_hashes->size());
+
+  // SimpleIterator pops from back(), so GetMostRecentHashes(2) must return only
+  // the top 2 entries with 2nd-newest at [0] and #1 newest at back().
+  std::unique_ptr<SimpleIndex::HashList> top_two =
+      index()->GetMostRecentHashes(/*max_entries=*/2);
+  ASSERT_EQ(2u, top_two->size());
+  EXPECT_EQ(kMiddleHash, (*top_two)[0]);
+  EXPECT_EQ(kNewestHash, (*top_two)[1]);
+
+  // Applying a min_last_used_time cutoff excludes older shaders even when
+  // max_entries exceeds the surviving count.
+  std::unique_ptr<SimpleIndex::HashList> fresh_only =
+      index()->GetMostRecentHashes(/*max_entries=*/10,
+                                   base_time + base::Seconds(15));
+  ASSERT_EQ(2u, fresh_only->size());
+  EXPECT_EQ(kMiddleHash, (*fresh_only)[0]);
+  EXPECT_EQ(kNewestHash, (*fresh_only)[1]);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace disk_cache
