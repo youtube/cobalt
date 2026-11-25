@@ -482,6 +482,7 @@ test("cobalt_unittests") {
     "//components/metrics:test_support",
     "//components/prefs",
     "//components/prefs:test_support",
+    "//components/services/storage",
     "//components/services/storage/public/cpp",
     "//components/variations",
     "//components/variations/service",
