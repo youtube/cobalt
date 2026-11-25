@@ -90,6 +90,15 @@ def get_rolled_source_items(rev_range):
              r'Cherry pick PR #)(\d+)')
   for m in re.finditer(pattern, output):
     prs.add(int(m.group(1)))
+  for block in re.findall(
+      r'^Original pull requests:\r?\n'
+      r'((?:- (?:#\d+|[0-9a-fA-F]{7,40})(?:\r?\n|\Z))+)', output, re.MULTILINE):
+    for line in block.splitlines():
+      item = line[2:]
+      if item.startswith('#'):
+        prs.add(int(item[1:]))
+      else:
+        shas.add(item)
   return shas, prs
 
 

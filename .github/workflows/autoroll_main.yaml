@@ -262,4 +262,5 @@ jobs:
               -f "reviewers[]=linxinan-yt" \
               -f "reviewers[]=oxve" \
               -f "reviewers[]=briantting"
+            git checkout "${ROLL_BRANCH}"
           done

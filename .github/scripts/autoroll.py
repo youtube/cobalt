@@ -64,6 +64,7 @@ def main():
           'refs/remotes/origin/'
       ]).splitlines())
 
+  limit_reached = False
   for sha, title, pr_num in commits_to_target:
     identifier = f'- #{pr_num}' if pr_num else f'- {sha}'
 
@@ -100,14 +101,16 @@ def main():
       if target_label not in labels:
         continue
 
-    if len(commits_added) >= args.max_commits:
+    if not limit_reached and len(commits_added) >= args.max_commits:
       lib.log(f'Reached commit limit ({args.max_commits}).')
-      break
+      limit_reached = True
+    if limit_reached and not had_conflict_branch:
+      continue
 
     # Commit PR
     metadata = lib.get_cherry_pick_metadata(sha, title, pr_num)
-    autoroll_sha = sha if args.mode == 'full' else target_start
-    autoroll_metadata = (args.autoroll_file, autoroll_sha, args.mode == 'full')
+    autoroll_metadata = (args.autoroll_file, sha, args.mode == 'full' and
+                         not limit_reached)
 
     result, _ = cherry_pick(sha, metadata, False, autoroll_metadata)
 

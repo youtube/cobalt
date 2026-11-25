@@ -1111,6 +1111,111 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assertIn('staging edit', committed)
     self.assertIn('main edit', committed)
 
+  def test_squashed_autoroll_commit_deduplication(self):
+    """Squashed autoroll commits deduplicate PRs and clean stale conflicts."""
+    self.init_target_branch('staging')
+
+    self.commit_file('a.txt', 'content a\n', 'Feature 101 (#101)')
+    sha2 = self.commit_file('b.txt', 'content b\n', 'Direct commit')
+    self.commit_file('c.txt', 'content c\n', 'Feature 103 (#103)')
+
+    self.git('checkout', 'staging')
+    with open('a.txt', 'w', encoding='utf-8') as f:
+      f.write('content a\n')
+    with open('b.txt', 'w', encoding='utf-8') as f:
+      f.write('content b\n')
+    self.git('add', 'a.txt', 'b.txt')
+    squashed_msg = ('Autoroll from main to staging (#999)\r\n\r\n'
+                    'Automated cherry-pick roll to staging.\r\n\r\n'
+                    'Original pull requests:\r\n'
+                    '- #101\r\n'
+                    f'- {sha2}\r\n')
+    self.git('commit', '-m', squashed_msg)
+
+    # Simulate a stale conflict branch left over for #101
+    cb = 'autoroll-main-to-staging-conflict-101'
+    self.git('checkout', '-b', cb)
+    self.git('commit', '--allow-empty', '-m', 'CONFLICTED Cherry pick PR #101')
+    self.git('push', 'origin', cb)
+
+    self.git('checkout', 'staging')
+    self.git('checkout', '-b', 'autoroll-main-to-staging')
+
+    exit_code, stdout, _ = self.run_autoroll([
+        '--source-branch', 'main', '--target-branch', 'staging',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '10',
+        '--existing-pr-sha', '', '--mode', 'full'
+    ])
+
+    self.assertEqual(exit_code, 0)
+    self.assertEqual(stdout.strip(), '- #103')
+    self.assert_working_tree_clean()
+    commit_titles = self.get_branch_commit_titles('staging')
+    self.assertEqual(len(commit_titles), 1)
+    self.assertTrue(commit_titles[0].startswith('Cherry pick PR #103:'))
+    self.assertNotIn(cb, self.git('branch', '--list', cb).stdout)
+    self.assertNotIn(f'origin/{cb}',
+                     self.git('branch', '-r', '--list', f'origin/{cb}').stdout)
+
+  def test_existing_conflict_retried_past_max_commits(self):
+    """Existing conflicts retry past max_commits without moving cursor."""
+    self.commit_file('context.txt', 'line 1\n', 'Add base context file')
+    base_sha = self.get_head_sha()
+
+    self.git('checkout', '-b', 'staging', base_sha)
+    self.commit_file('.github/AUTOROLL', f'{base_sha}\n',
+                     'Init autoroll on staging')
+
+    self.git('checkout', 'main')
+    sha101 = self.commit_file('a.txt', 'a\n', 'Feature 101 (#101)')
+    self.commit_file('c.txt', 'c\n', 'Feature 103 (#103)')
+    sha104 = self.commit_file('context.txt', 'line 1\ndep\n',
+                              'Prerequisite (#104)')
+    self.commit_file('context.txt', 'line 1\ndep\nfeat\n', 'Dependent (#105)')
+
+    # Prepare roll branch with #101 (cursor at sha101) and #104 landed.
+    self.git('checkout', 'staging')
+    self.git('checkout', '-b', 'autoroll-main-to-staging')
+    with open('.github/AUTOROLL', 'w', encoding='utf-8') as f:
+      f.write(f'{sha101}\n')
+    self.git('add', '.github/AUTOROLL')
+    self.commit_file('a.txt', 'a\n', 'Cherry pick PR #101: Feature 101')
+
+    # Simulate an existing remote conflict branch for #105 created before #104.
+    cb = 'autoroll-main-to-staging-conflict-105'
+    self.git('checkout', '-b', cb)
+    self.git('commit', '--allow-empty', '-m', 'CONFLICTED Cherry pick PR #105')
+    self.git('push', 'origin', cb)
+
+    # Now prerequisite #104 lands on the roll branch.
+    self.git('checkout', 'autoroll-main-to-staging')
+    self.commit_file(
+        'context.txt', 'line 1\ndep\n', f'Cherry pick PR #104: Prerequisite\n\n'
+        f'Refer to original PR: #104\n\n'
+        f'(cherry picked from commit {sha104})')
+
+    exit_code, stdout, stderr = self.run_autoroll([
+        '--source-branch', 'main', '--target-branch', 'staging',
+        '--autoroll-file', '.github/AUTOROLL', '--max-commits', '1',
+        '--existing-pr-sha', '', '--mode', 'full'
+    ])
+
+    self.assertEqual(exit_code, 0)
+    self.assertIn('Reached commit limit (1).', stderr)
+    self.assertEqual(stdout.strip(), '- #101\n- #104\n- #105')
+    self.assert_working_tree_clean()
+    # #103 was skipped due to max_commits; #105 was retried and unconflicted.
+    self.assertFalse(os.path.exists('c.txt'))
+    with open('context.txt', 'r', encoding='utf-8') as f:
+      self.assertEqual(f.read(), 'line 1\ndep\nfeat\n')
+    # Cursor must remain at sha101 so skipped #103 is not lost.
+    self.assertEqual(
+        self.git('show', 'HEAD:.github/AUTOROLL').stdout.strip(), sha101)
+    # Conflict branch for #105 must be cleaned up.
+    self.assertNotIn(cb, self.git('branch', '--list', cb).stdout)
+    self.assertNotIn(f'origin/{cb}',
+                     self.git('branch', '-r', '--list', f'origin/{cb}').stdout)
+
 
 if __name__ == '__main__':
   unittest.main()
