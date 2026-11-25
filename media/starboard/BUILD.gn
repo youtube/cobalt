@@ -42,6 +42,8 @@ source_set("starboard") {
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.cc",
       "decoder_buffer_memory_info.h",
+      "media_pool_direct_map.cc",
+      "media_pool_direct_map.h",
       "sbplayer_bridge.cc",
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",
@@ -121,6 +123,7 @@ source_set("unit_tests") {
     sources += [
       "decoder_buffer_allocator_strategy_test.cc",
       "decoder_buffer_allocator_test.cc",
+      "media_pool_direct_map_unittest.cc",
       "sbplayer_bridge_test.cc",
       "starboard_media_external_memory_allocator_unittest.cc",
       "starboard_memory_allocator_test.cc",

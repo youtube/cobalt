@@ -147,13 +147,7 @@ void* EmbeddedMetadataReuseAllocatorBase::Allocate(size_t size,
                                                    size_t alignment) {
   SB_DCHECK_EQ(sizeof(BlockMetadata) % alignment, 0U);
 
-  if (!pending_frees_.empty()) {
-    for (auto address_to_free : pending_frees_) {
-      bool freed = TryFree(address_to_free);
-      SB_DCHECK(freed);
-    }
-    pending_frees_.clear();
-  }
+  FlushPendingFrees();
 
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment) +
          sizeof(BlockMetadata);
@@ -236,6 +230,23 @@ void EmbeddedMetadataReuseAllocatorBase::Free(void* memory) {
       pending_frees_.clear();
     }
   }
+}
+
+bool EmbeddedMetadataReuseAllocatorBase::EnsureHeadroom(size_t bytes) {
+  FlushPendingFrees();
+  return GrowForHeadroom(
+      bytes, allocation_increment_, kMinAlignment,
+      [this](void* address, intptr_t index, size_t size) {
+        AddFreeBlock(MemoryBlock(static_cast<int>(index), address, size));
+      });
+}
+
+void EmbeddedMetadataReuseAllocatorBase::FlushPendingFrees() {
+  for (auto address_to_free : pending_frees_) {
+    bool freed = TryFree(address_to_free);
+    SB_DCHECK(freed);
+  }
+  pending_frees_.clear();
 }
 
 void EmbeddedMetadataReuseAllocatorBase::PrintAllocations(
@@ -426,7 +437,14 @@ EmbeddedMetadataReuseAllocatorBase::EmbeddedMetadataReuseAllocatorBase(
           enable_decommit_only_on_memory_pressure) {
   if (initial_capacity > 0) {
     FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
-    SB_DCHECK(iter != free_blocks_.end());
+    if (FallbackCanAllocateContiguously()) {
+      SB_DCHECK(iter != free_blocks_.end());
+    } else if (iter == free_blocks_.end()) {
+      // A fallback allocator that can fail softly (guarded blocks): start
+      // empty and grow on demand.
+      SB_LOG(WARNING) << "Failed to allocate the initial " << initial_capacity
+                      << " bytes; the pool will grow on demand.";
+    }
   }
 
   pending_frees_.reserve(16 * 1024);
@@ -501,7 +519,10 @@ EmbeddedMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
     return free_block_iter;
   }
 
-  if (free_blocks_.empty()) {
+  // The top-up below only helps if the new block can be adjacent to the last
+  // free block; with guarded fallback blocks it would only strand a small
+  // block that can't serve this request.
+  if (free_blocks_.empty() || !FallbackCanAllocateContiguously()) {
     SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }

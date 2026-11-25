@@ -325,6 +325,10 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data,
   auto data_span = base::span(data, base::checked_cast<size_t>(frame_size));
   scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
       data_span, true, DemuxerStream::AUDIO, kMpegAudioTrackId);
+  if (!buffer) {
+    MEDIA_LOG(ERROR, media_log_) << "Failed to allocate a media buffer.";
+    return -1;
+  }
   buffer->set_timestamp(timestamp_helper_->GetTimestamp());
   buffer->set_duration(timestamp_helper_->GetFrameDuration(sample_count));
   buffers->push_back(buffer);

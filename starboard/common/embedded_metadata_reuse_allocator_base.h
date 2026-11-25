@@ -57,6 +57,13 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
 
   bool TryFree(void* memory);
 
+  // Makes sure the pool has at least `bytes` free, idle blocks included,
+  // growing it with new blocks for the shortfall (see
+  // ReuseAllocatorBase::GrowForHeadroom()). Doesn't allocate from the pool,
+  // so the free space may be split across blocks. Returns false if the pool
+  // can't grow that far.
+  bool EnsureHeadroom(size_t bytes);
+
  protected:
   class MemoryBlock {
    public:
@@ -162,6 +169,7 @@ class EmbeddedMetadataReuseAllocatorBase : public ReuseAllocatorBase {
   };
 
   FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
+  void FlushPendingFrees();
 
   void AddAllocatedBlock(const MemoryBlock& block);
   FreeBlockSet::iterator AddFreeBlock(MemoryBlock block_to_add);

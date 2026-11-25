@@ -26,6 +26,7 @@
 #include "base/check_op.h"
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "media/starboard/media_pool_direct_map.h"
 #include "starboard/common/allocator.h"
 #include "starboard/common/memory.h"
 #include "starboard/common/pointer_arithmetic.h"
@@ -40,12 +41,19 @@ using starboard::Allocator;
 using DecommitMode = starboard::Allocator::DecommitMode;
 
 // StarboardMemoryAllocator is an allocator that allocates and frees memory
-// using posix_memalign() and free().
+// using posix_memalign() and free(), or with kCobaltMediaPoolSoftFail on 32-bit
+// builds, MediaPoolDirectMap.
 class StarboardMemoryAllocator : public starboard::Allocator {
  public:
-  StarboardMemoryAllocator(bool enable_decommit, bool enable_page_alignment)
+  // With kCobaltMediaPoolSoftFail, a request smaller than 2 MiB may be served
+  // by a larger mid-sized block (see AllocateForAlignment()), but never by one
+  // larger than `max_step_size`; 0 means always the requested size.
+  StarboardMemoryAllocator(bool enable_decommit,
+                           bool enable_page_alignment,
+                           size_t max_step_size = 0)
       : enable_decommit_(enable_decommit),
         enable_page_alignment_(enable_page_alignment),
+        max_step_size_(max_step_size),
         page_size_(static_cast<size_t>(sysconf(_SC_PAGESIZE))) {
     LOG(INFO) << "StarboardMemoryAllocator: decommit is "
               << (enable_decommit_ ? "enabled" : "disabled")
@@ -66,11 +74,55 @@ class StarboardMemoryAllocator : public starboard::Allocator {
       alignment = std::max(alignment, page_size_);
       *size = AlignUp(*size, page_size_);
     }
+    // kCobaltMediaPoolSoftFail: every block, whatever its size, comes from
+    // page-aligned mmap(), and a failed mmap() returns nullptr instead of
+    // falling back to posix_memalign(). On 32-bit, PartitionAlloc can't fail
+    // softly here: a small block may need a new 2 MiB-aligned super page and a
+    // large one a 2 MiB-aligned direct map, and either failure crashes.
+    // EmbeddedMetadataReuseAllocatorBase::ExpandToFit() retries a failed
+    // expansion with the size of the allocation that triggered it; if that
+    // fails too, the caller sees an allocation failure.
+    if (alignment <= page_size_ && MediaPoolDirectMap::IsEnabled()) {
+      if (*size == 0) {
+        return nullptr;
+      }
+      // Any request smaller than 2 MiB (in practice, a retry after a failed
+      // expansion by the pool's increment, which asks for one frame's size)
+      // prefers a mid-sized block if a hole that size exists, so that a
+      // degraded pool doesn't become one guarded mapping per frame. Steps
+      // never exceed `max_step_size_`, which the media pool sets to its
+      // allocation increment. The pool has no maximum capacity
+      // (BidirectionalFitReuseAllocator passes 0), so a step can't push it
+      // past one. Over-aligned requests (alignment > page) keep
+      // posix_memalign().
+      for (size_t step :
+           {size_t{2} << 20, size_t{1} << 20, size_t{512} << 10}) {
+        if (step > *size && step <= max_step_size_) {
+          size_t step_size = step;
+          if (void* block = MediaPoolDirectMap::Map(&step_size)) {
+            *size = step_size;
+            return block;
+          }
+        }
+      }
+      return MediaPoolDirectMap::Map(size);
+    }
     void* p = nullptr;
     std::ignore = posix_memalign(&p, std::max(alignment, sizeof(void*)), *size);
     return p;
   }
-  void Free(void* memory) override { free(memory); }
+
+  bool CanAllocateContiguously() const override {
+    // MediaPoolDirectMap blocks have a guard page at each end.
+    return !MediaPoolDirectMap::IsEnabled();
+  }
+
+  void Free(void* memory) override {
+    if (MediaPoolDirectMap::Unmap(memory)) {
+      return;
+    }
+    free(memory);
+  }
 
   void Decommit(void* memory, size_t size, DecommitMode mode) override {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -117,6 +169,7 @@ class StarboardMemoryAllocator : public starboard::Allocator {
  private:
   const bool enable_decommit_;
   const bool enable_page_alignment_;
+  const size_t max_step_size_;
   const size_t page_size_;
 };
 

@@ -56,6 +56,11 @@ class MEDIA_EXPORT ExternalMemoryAllocator {
   virtual std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
       base::span<const base::span<const uint8_t>> parts,
       DemuxerStream::Type type) = 0;
+
+  // Makes room for about `bytes` of upcoming frames, growing the pool if it
+  // needs to. Returns false if it can't, so that an append can be rejected
+  // with QuotaExceededError (and retried) before any of it is parsed.
+  virtual bool EnsureHeadroom(size_t bytes) { return true; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

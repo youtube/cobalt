@@ -1481,20 +1481,33 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
                 sample_head, base::checked_cast<size_t>(sample_size),
                 max_parse_offset_);
         CHECK(segments);
+        auto memory = alloc->CopyFrom(*segments, buffer_type);
+        if (!memory) {
+          // The media pool couldn't hold the sample.
+          MEDIA_LOG(ERROR, media_log_) << "Failed to allocate a media buffer.";
+          return ParseResult::kError;
+        }
         stream_buf = StreamParserBuffer::FromExternalMemory(
-            alloc->CopyFrom(*segments, buffer_type), is_keyframe, buffer_type,
-            runs_->track_id());
+            std::move(memory), is_keyframe, buffer_type, runs_->track_id());
       } else
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       {
+        const base::span<const uint8_t> sample_span =
+            frame_buf.empty()
+                ? (heap_frame_buf.empty()
+                       ? base::span<const uint8_t>{buf, buf + sample_size}
+                       : base::span<const uint8_t>(heap_frame_buf))
+                : base::span<const uint8_t>(frame_buf);
+        auto memory = alloc->CopyFrom(sample_span);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+        if (!memory && !sample_span.empty()) {
+          // The media pool couldn't hold the sample.
+          MEDIA_LOG(ERROR, media_log_) << "Failed to allocate a media buffer.";
+          return ParseResult::kError;
+        }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
         stream_buf = StreamParserBuffer::FromExternalMemory(
-            alloc->CopyFrom(
-                frame_buf.empty()
-                    ? (heap_frame_buf.empty()
-                           ? base::span<const uint8_t>{buf, buf + sample_size}
-                           : heap_frame_buf)
-                    : frame_buf),
-            is_keyframe, buffer_type, runs_->track_id());
+            std::move(memory), is_keyframe, buffer_type, runs_->track_id());
       }
     }
   }
@@ -1546,6 +1559,10 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!stream_buf) {
+    MEDIA_LOG(ERROR, media_log_) << "Failed to allocate a media buffer.";
+    return ParseResult::kError;
+  }
   CHECK_GE(scratch_frame_buf_.capacity(), original_scratch_capacity)
       << "scratch_frame_buf_ capacity was reduced, indicating the vector was likely std::moved.";
 #endif

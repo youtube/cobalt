@@ -78,6 +78,11 @@ class Allocator {
   // Frees memory previously allocated via any call to Allocate().
   virtual void Free(void* memory) = 0;
 
+  // Whether a new allocation may land directly after an earlier one, so that
+  // a reuse allocator can extend its last free block with a small top-up
+  // allocation. Allocators that guard every block return false.
+  virtual bool CanAllocateContiguously() const { return true; }
+
   // Frees memory with a size. By default it will delegate to Free().
   virtual void FreeWithSize(void* memory, size_t /*size*/) { Free(memory); }
 

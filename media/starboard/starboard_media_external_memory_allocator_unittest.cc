@@ -16,10 +16,15 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr.h"
+#include "media/base/decoder_buffer.h"
+#include "media/base/demuxer_stream.h"
 #include "media/starboard/decoder_buffer_allocator.h"
+#include "media/starboard/media_pool_direct_map.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
@@ -177,6 +182,184 @@ TEST_F(StarboardMediaExternalMemoryAllocatorTest, CopyFromPartsReclaimsMemory) {
   ext_mem.reset();
   EXPECT_EQ(DecoderBufferAllocator::Get()->GetAllocatedMemory(),
             initial_allocated);
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest,
+       CopyFromReturnsNullWhenMapFailsUnderSoftFail) {
+  // Replace the global DecoderBufferAllocator with an empty on-demand pool
+  // while MediaPoolDirectMap::Map() always fails so TryAllocate() returns
+  // kInvalidHandle on every non-empty request.
+  struct ScopedFailingPool {
+    explicit ScopedFailingPool()
+        : prev_allocator(DecoderBuffer::Allocator::Get()) {
+      MediaPoolDirectMap::SetEnabledForTesting(true);
+      MediaPoolDirectMap::SetMapFailForTesting(true);
+      DecoderBuffer::Allocator::Set(nullptr);
+      pool.emplace(/*is_memory_pool_allocated_on_demand=*/true,
+                   /*initial_capacity=*/0,
+                   /*allocation_unit=*/4 * 1024 * 1024);
+      DecoderBuffer::Allocator::Set(&*pool);
+    }
+    ~ScopedFailingPool() {
+      DecoderBuffer::Allocator::Set(nullptr);
+      pool.reset();
+      DecoderBuffer::Allocator::Set(prev_allocator);
+      MediaPoolDirectMap::SetMapFailForTesting(false);
+      MediaPoolDirectMap::SetEnabledForTesting(std::nullopt);
+    }
+    DecoderBuffer::Allocator* prev_allocator;
+    std::optional<DecoderBufferAllocator> pool;
+  } scoped_pool;
+
+  StarboardMediaExternalMemoryAllocator allocator;
+  const std::vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04};
+  const std::vector<uint8_t> data2 = {0x05, 0x06};
+
+  // Single-span overloads return nullptr on non-empty input.
+  EXPECT_EQ(allocator.CopyFrom(data), nullptr);
+  EXPECT_EQ(allocator.CopyFrom(data, DemuxerStream::VIDEO), nullptr);
+
+  // Single-part and multi-part overloads also return nullptr on non-empty data.
+  const std::vector<base::span<const uint8_t>> single_part = {data};
+  EXPECT_EQ(allocator.CopyFrom(single_part, DemuxerStream::AUDIO), nullptr);
+  const std::vector<base::span<const uint8_t>> multi_part = {data, data2};
+  EXPECT_EQ(allocator.CopyFrom(multi_part, DemuxerStream::VIDEO), nullptr);
+
+  // Empty span and all-empty parts do not need a pool allocation and still
+  // succeed with a zero-size ExternalMemory wrapper.
+  base::span<const uint8_t> empty;
+  auto empty_mem = allocator.CopyFrom(empty);
+  ASSERT_NE(empty_mem, nullptr);
+  EXPECT_TRUE(empty_mem->Span().empty());
+
+  const std::vector<base::span<const uint8_t>> empty_parts = {empty, empty};
+  auto empty_parts_mem = allocator.CopyFrom(empty_parts, DemuxerStream::AUDIO);
+  ASSERT_NE(empty_parts_mem, nullptr);
+  EXPECT_TRUE(empty_parts_mem->Span().empty());
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest,
+       EnsureHeadroomTrueWithoutSoftFail) {
+  MediaPoolDirectMap::SetEnabledForTesting(false);
+  MediaPoolDirectMap::SetMapFailForTesting(true);
+  const size_t base_blocks = MediaPoolDirectMap::BlockCountForTesting();
+
+  StarboardMediaExternalMemoryAllocator allocator;
+  EXPECT_TRUE(allocator.EnsureHeadroom(2 * 1024 * 1024));
+  EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
+
+  MediaPoolDirectMap::SetMapFailForTesting(false);
+  MediaPoolDirectMap::SetEnabledForTesting(std::nullopt);
+}
+
+// Installs a fresh DecoderBufferAllocator as the global allocator with
+// MediaPoolDirectMap forced on, and restores everything on destruction, even
+// if an ASSERT returns early.
+class ScopedSoftFailPool {
+ public:
+  ScopedSoftFailPool(bool on_demand, bool map_fail)
+      : prev_allocator_(DecoderBuffer::Allocator::Get()) {
+    MediaPoolDirectMap::SetEnabledForTesting(true);
+    MediaPoolDirectMap::SetMapFailForTesting(map_fail);
+    DecoderBuffer::Allocator::Set(nullptr);
+    pool_.emplace(/*is_memory_pool_allocated_on_demand=*/on_demand,
+                  /*initial_capacity=*/0,
+                  /*allocation_unit=*/4 * 1024 * 1024);
+    DecoderBuffer::Allocator::Set(&*pool_);
+  }
+  ScopedSoftFailPool(const ScopedSoftFailPool&) = delete;
+  ScopedSoftFailPool& operator=(const ScopedSoftFailPool&) = delete;
+  ~ScopedSoftFailPool() {
+    DecoderBuffer::Allocator::Set(nullptr);
+    pool_.reset();
+    DecoderBuffer::Allocator::Set(prev_allocator_);
+    MediaPoolDirectMap::SetMapFailForTesting(false);
+    MediaPoolDirectMap::SetEnabledForTesting(std::nullopt);
+  }
+
+  DecoderBufferAllocator& pool() { return *pool_; }
+
+ private:
+  const raw_ptr<DecoderBuffer::Allocator> prev_allocator_;
+  std::optional<DecoderBufferAllocator> pool_;
+};
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest,
+       EnsureHeadroomFalseWhenMapFailsUnderSoftFailNoLeaks) {
+  for (bool on_demand : {false, true}) {
+    const size_t base_blocks = MediaPoolDirectMap::BlockCountForTesting();
+    ScopedSoftFailPool scoped_pool(on_demand, /*map_fail=*/true);
+    StarboardMediaExternalMemoryAllocator allocator;
+
+    EXPECT_TRUE(allocator.EnsureHeadroom(0));
+
+    // An empty pool that can't grow fails without keeping any block.
+    EXPECT_FALSE(allocator.EnsureHeadroom(2 * 1024 * 1024));
+    EXPECT_EQ(scoped_pool.pool().GetAllocatedMemory(), 0u);
+    EXPECT_EQ(scoped_pool.pool().GetCurrentMemoryCapacity(), 0u);
+    EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
+  }
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest,
+       EnsureHeadroomTrueWhenMapWorksAndGrowsCapacity) {
+  const size_t base_blocks = MediaPoolDirectMap::BlockCountForTesting();
+  {
+    // A persistent (not on-demand) pool keeps the blocks it grew.
+    ScopedSoftFailPool scoped_pool(/*on_demand=*/false, /*map_fail=*/false);
+    DecoderBufferAllocator& pool = scoped_pool.pool();
+    constexpr size_t kNeeded = 6 * 1024 * 1024;
+    StarboardMediaExternalMemoryAllocator allocator;
+    EXPECT_TRUE(allocator.EnsureHeadroom(kNeeded));
+    EXPECT_EQ(pool.GetAllocatedMemory(), 0u);
+    EXPECT_GE(pool.GetCurrentMemoryCapacity(), kNeeded);
+    EXPECT_GT(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
+
+    // With Map() failing, headroom within the grown pool still succeeds, and
+    // more than the pool holds fails without changing it.
+    MediaPoolDirectMap::SetMapFailForTesting(true);
+    const size_t blocks_before_fail =
+        MediaPoolDirectMap::BlockCountForTesting();
+    const size_t cap_before_fail = pool.GetCurrentMemoryCapacity();
+    EXPECT_TRUE(allocator.EnsureHeadroom(2 * 1024 * 1024));
+    EXPECT_FALSE(allocator.EnsureHeadroom(cap_before_fail + 4 * 1024 * 1024));
+    EXPECT_EQ(pool.GetAllocatedMemory(), 0u);
+    EXPECT_EQ(pool.GetCurrentMemoryCapacity(), cap_before_fail);
+    EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting(), blocks_before_fail);
+  }
+  EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
+}
+
+TEST_F(StarboardMediaExternalMemoryAllocatorTest,
+       EnsureHeadroomOnDemandPoolWithAndWithoutLiveBuffer) {
+  const size_t base_blocks = MediaPoolDirectMap::BlockCountForTesting();
+  {
+    ScopedSoftFailPool scoped_pool(/*on_demand=*/true, /*map_fail=*/false);
+    DecoderBufferAllocator& pool = scoped_pool.pool();
+    StarboardMediaExternalMemoryAllocator allocator;
+
+    // An idle on-demand pool is released again right after the check.
+    EXPECT_TRUE(allocator.EnsureHeadroom(1024 * 1024));
+    EXPECT_EQ(pool.GetAllocatedMemory(), 0u);
+    EXPECT_EQ(pool.GetCurrentMemoryCapacity(), 0u);
+    EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
+
+    // With a live allocation held, the pool keeps the grown capacity, and the
+    // check doesn't change how much is allocated.
+    const std::vector<uint8_t> live_data(1024, 0x7E);
+    auto live = allocator.CopyFrom(live_data);
+    ASSERT_NE(live, nullptr);
+    const size_t allocated = pool.GetAllocatedMemory();
+    constexpr size_t kNeeded = 6 * 1024 * 1024;
+    EXPECT_TRUE(allocator.EnsureHeadroom(kNeeded));
+    EXPECT_GE(pool.GetCurrentMemoryCapacity(), kNeeded);
+    EXPECT_EQ(pool.GetAllocatedMemory(), allocated);
+    EXPECT_GT(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
+
+    live.reset();
+    EXPECT_EQ(pool.GetCurrentMemoryCapacity(), 0u);
+  }
+  EXPECT_EQ(MediaPoolDirectMap::BlockCountForTesting(), base_blocks);
 }
 
 }  // namespace

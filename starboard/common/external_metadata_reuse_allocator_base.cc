@@ -184,6 +184,14 @@ void ExternalMetadataReuseAllocatorBase::Free(void* memory) {
   SB_DCHECK(result);
 }
 
+bool ExternalMetadataReuseAllocatorBase::EnsureHeadroom(size_t bytes) {
+  return GrowForHeadroom(
+      bytes, allocation_increment_, kMinAlignment,
+      [this](void* address, intptr_t index, size_t size) {
+        AddFreeBlock(MemoryBlock(static_cast<int>(index), address, size));
+      });
+}
+
 void ExternalMetadataReuseAllocatorBase::PrintAllocations(
     bool align_allocated_size,
     int max_allocations_to_print) const {
@@ -344,7 +352,14 @@ ExternalMetadataReuseAllocatorBase::ExternalMetadataReuseAllocatorBase(
           enable_decommit_only_on_memory_pressure) {
   if (initial_capacity > 0) {
     FreeBlockSet::iterator iter = ExpandToFit(initial_capacity, kMinAlignment);
-    SB_DCHECK(iter != free_blocks_.end());
+    if (FallbackCanAllocateContiguously()) {
+      SB_DCHECK(iter != free_blocks_.end());
+    } else if (iter == free_blocks_.end()) {
+      // A fallback allocator that can fail softly (guarded blocks): start
+      // empty and grow on demand.
+      SB_LOG(WARNING) << "Failed to allocate the initial " << initial_capacity
+                      << " bytes; the pool will grow on demand.";
+    }
   }
 }
 
@@ -417,7 +432,10 @@ ExternalMetadataReuseAllocatorBase::ExpandToFit(size_t size, size_t alignment) {
     return free_block_iter;
   }
 
-  if (free_blocks_.empty()) {
+  // The top-up below only helps if the new block can be adjacent to the last
+  // free block; with guarded fallback blocks it would only strand a small
+  // block that can't serve this request.
+  if (free_blocks_.empty() || !FallbackCanAllocateContiguously()) {
     SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }

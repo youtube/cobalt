@@ -46,6 +46,7 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "media/base/media_switches.h"
+#include "media/filters/chunk_demuxer.h"
 #include "third_party/blink/renderer/core/typed_arrays/array_buffer/array_buffer_contents.h"
 #include "third_party/blink/renderer/modules/cobalt/h_5_vcc.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h_5_vcc_settings.h"
@@ -161,6 +162,8 @@ scoped_refptr<media::StreamParserBuffer> MakeAudioStreamParserBuffer(
   auto stream_parser_buffer = media::StreamParserBuffer::CopyFrom(
       *audio_chunk.buffer(), audio_chunk.buffer()->is_key_frame(),
       media::DemuxerStream::AUDIO, kWebCodecsAudioTrackId);
+  // A media pool allocation failure stays fatal on this path, as before.
+  CHECK(stream_parser_buffer);
 
   // Currently, we do not populate any side_data in these converters.
   DCHECK(!stream_parser_buffer->side_data());
@@ -184,6 +187,8 @@ scoped_refptr<media::StreamParserBuffer> MakeVideoStreamParserBuffer(
   auto stream_parser_buffer = media::StreamParserBuffer::CopyFrom(
       *video_chunk.buffer(), video_chunk.buffer()->is_key_frame(),
       media::DemuxerStream::VIDEO, kWebCodecsVideoTrackId);
+  // A media pool allocation failure stays fatal on this path, as before.
+  CHECK(stream_parser_buffer);
 
   // Currently, we do not populate any side_data in these converters.
   DCHECK(!stream_parser_buffer->side_data());
@@ -2031,6 +2036,19 @@ bool SourceBuffer::PrepareAppend(double media_time,
     //    If the incoming data exceeds wtf_size_t::max, then our implementation
     //    cannot deal with it, so we also throw a QuotaExceededError.
     DVLOG(3) << __func__ << " this=" << this << " -> throw QuotaExceededError";
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // kCobaltMediaPoolSoftFail: a distinct message, so that player telemetry
+    // can tell media pool exhaustion from a full SourceBuffer.
+    if (media::ChunkDemuxer::TakeMediaPoolExhausted()) {
+      MediaSource::LogAndThrowQuotaExceededError(
+          exception_state,
+          "The media buffer pool is exhausted and cannot grow to append "
+          "additional buffers.");
+      TRACE_EVENT_NESTABLE_ASYNC_END0("media", "SourceBuffer::prepareAppend",
+                                      TRACE_ID_LOCAL(this));
+      return false;
+    }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     MediaSource::LogAndThrowQuotaExceededError(
         exception_state,
         "The SourceBuffer is full, and cannot free space to append additional "

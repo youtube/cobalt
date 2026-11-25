@@ -35,8 +35,17 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     TrackId track_id) {
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
-      return StreamParserBuffer::FromExternalMemory(
-          alloc->CopyFrom(data), is_key_frame, type, track_id);
+      auto memory = alloc->CopyFrom(data);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      // The media pool couldn't hold the frame. Report it rather than wrap a
+      // null ExternalMemory, which would become a silent zero-size buffer.
+      if (!memory && !data.empty()) {
+        return nullptr;
+      }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      return StreamParserBuffer::FromExternalMemory(std::move(memory),
+                                                    is_key_frame, type,
+                                                    track_id);
     }
   }
   return base::MakeRefCounted<StreamParserBuffer>(
@@ -53,8 +62,15 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
 
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
-      return StreamParserBuffer::FromExternalMemory(
-          alloc->CopyFrom(parts, type), is_key_frame, type, track_id);
+      auto memory = alloc->CopyFrom(parts, type);
+      // As above: a pool allocation failure is reported, not hidden.
+      if (!memory && std::any_of(parts.begin(), parts.end(),
+                                 [](const auto& part) { return !part.empty(); })) {
+        return nullptr;
+      }
+      return StreamParserBuffer::FromExternalMemory(std::move(memory),
+                                                    is_key_frame, type,
+                                                    track_id);
     }
   }
 

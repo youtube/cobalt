@@ -16,6 +16,7 @@
 #include <array>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -24,14 +25,21 @@
 #include "base/strings/string_number_conversions.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decrypt_config.h"
+#include "media/base/media_client.h"
 #include "media/base/mock_media_log.h"
 #include "media/base/test_helpers.h"
 #include "media/base/timestamp_constants.h"
 #include "media/formats/webm/cluster_builder.h"
 #include "media/formats/webm/opus_packet_builder.h"
 #include "media/formats/webm/webm_constants.h"
+#include "media/media_buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/functional/callback_helpers.h"
+#include "media/formats/common/segmented_byte_queue.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using ::testing::HasSubstr;
 using ::testing::InSequence;
@@ -1093,5 +1101,105 @@ TEST_F(WebMClusterParserTest, DontReadEncodedDurationWhenEncrypted) {
   // Will verify that duration of buffer matches that of BlockDuration.
   ASSERT_TRUE(VerifyBuffers(parser_, kBlockInfo, block_count));
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+
+class FailingWebMExternalMemoryAllocator : public ExternalMemoryAllocator {
+ public:
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const uint8_t> /*span*/) override {
+    return nullptr;
+  }
+  std::unique_ptr<DecoderBuffer::ExternalMemory> CopyFrom(
+      base::span<const base::span<const uint8_t>> /*parts*/,
+      DemuxerStream::Type /*type*/) override {
+    return nullptr;
+  }
+};
+
+class FailingWebMMediaClient : public MediaClient {
+ public:
+  bool IsDecoderSupportedAudioType(const AudioType& /*type*/) override {
+    return true;
+  }
+  bool IsDecoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsEncoderSupportedVideoType(const VideoType& /*type*/) override {
+    return true;
+  }
+  bool IsSupportedBitstreamAudioCodec(AudioCodec /*codec*/) override {
+    return false;
+  }
+  std::optional<AudioRendererAlgorithmParameters>
+  GetAudioRendererAlgorithmParameters(
+      AudioParameters /*audio_parameters*/) override {
+    return std::nullopt;
+  }
+  ExternalMemoryAllocator* GetMediaAllocator() override { return &allocator_; }
+
+ private:
+  FailingWebMExternalMemoryAllocator allocator_;
+};
+
+class ScopedFailingWebMMediaClient {
+ public:
+  ScopedFailingWebMMediaClient()
+      : prev_allocator_(DecoderBuffer::Allocator::Get()) {
+    DecoderBuffer::Allocator::Set(nullptr);
+    client_.emplace();
+    SetMediaClient(&*client_);
+  }
+  ~ScopedFailingWebMMediaClient() {
+    SetMediaClient(nullptr);
+    DecoderBuffer::Allocator::Set(nullptr);
+    DecoderBuffer::Allocator::Set(prev_allocator_);
+    client_.reset();
+  }
+
+ private:
+  DecoderBuffer::Allocator* prev_allocator_;
+  std::optional<FailingWebMMediaClient> client_;
+};
+
+}  // namespace
+
+TEST_F(WebMClusterParserTest, OnBlockAllocationFailureLinear) {
+  ScopedFailingWebMMediaClient scoped_client;
+
+  const BlockInfo kBlockInfo[] = {
+      {kVideoTrackNum, 0, kTestVideoFrameDefaultDurationInMs, true, nullptr, 0,
+       true},
+  };
+  std::unique_ptr<Cluster> cluster(
+      CreateCluster(0, kBlockInfo, std::size(kBlockInfo)));
+
+  EXPECT_MEDIA_LOG(HasSubstr("Failed to allocate a media buffer."));
+  int result = parser_->Parse(cluster->data(), cluster->bytes_used());
+  EXPECT_EQ(-1, result);
+}
+
+TEST_F(WebMClusterParserTest, OnBlockAllocationFailureSegmented) {
+  ScopedFailingWebMMediaClient scoped_client;
+
+  const BlockInfo kBlockInfo[] = {
+      {kVideoTrackNum, 0, kTestVideoFrameDefaultDurationInMs, true, nullptr, 0,
+       true},
+  };
+  std::unique_ptr<Cluster> cluster(
+      CreateCluster(0, kBlockInfo, std::size(kBlockInfo)));
+
+  auto queue = SegmentedByteQueue::Create(/*borrow_mode=*/true);
+  ASSERT_TRUE(queue->Push(
+      base::span<const uint8_t>(cluster->data(),
+                                static_cast<size_t>(cluster->bytes_used())),
+      base::ScopedClosureRunner()));
+
+  EXPECT_MEDIA_LOG(HasSubstr("Failed to allocate a media buffer."));
+  int result = parser_->Parse(*queue, 0, cluster->bytes_used());
+  EXPECT_EQ(-1, result);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

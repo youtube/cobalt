@@ -719,6 +719,10 @@ bool WebMClusterParser::OnBlock(bool is_simple_block,
   auto data_span = base::span(data, size).subspan(data_offset);
   auto buffer = StreamParserBuffer::CopyFrom(data_span, is_keyframe,
                                              buffer_type, track_num);
+  if (!buffer) {
+    MEDIA_LOG(ERROR, media_log_) << "Failed to allocate a media buffer.";
+    return false;
+  }
   if (additional_size) {
     buffer->WritableSideData().alpha_data =
         base::HeapArray<uint8_t>::CopiedFrom(
@@ -907,6 +911,10 @@ bool WebMClusterParser::OnBlock(bool is_simple_block,
                                          is_keyframe, buffer_type, track_num)
           : StreamParserBuffer::CopyFrom(*data_segments, is_keyframe,
                                          buffer_type, track_num);
+  if (!buffer) {
+    MEDIA_LOG(ERROR, media_log_) << "Failed to allocate a media buffer.";
+    return false;
+  }
   if (additional_size) {
     buffer->WritableSideData().alpha_data =
         base::HeapArray<uint8_t>::CopiedFrom(

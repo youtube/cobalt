@@ -84,6 +84,12 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     virtual size_t GetCapacity() const = 0;
     virtual size_t GetAllocated() const = 0;
 
+    // Makes sure the free space in the pool adds up to at least `bytes`,
+    // growing the pool for the shortfall. Doesn't allocate from the pool, and
+    // the free space may be split across blocks. Returns false if the pool
+    // can't grow that far.
+    virtual bool EnsureHeadroom(size_t bytes) = 0;
+
     // Informs the strategy whether the application is currently suspended.
     virtual void SetSuspended(bool is_suspended) = 0;
 
@@ -113,6 +119,20 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   // DecoderBuffer::Allocator methods.
   Handle Allocate(DemuxerStream::Type type, size_t size) override;
   void Free(DemuxerStream::Type type, Handle p, size_t size) override;
+
+  // Like Allocate(), but returns kInvalidHandle when the pool can't grow
+  // (possible only with kCobaltMediaPoolSoftFail). Used by
+  // StarboardMediaExternalMemoryAllocator, whose callers report the failure
+  // as a parse error.
+  Handle TryAllocate(DemuxerStream::Type type, size_t size);
+
+  // Makes sure the pool has about `bytes` free, counting free space in its
+  // blocks and growing it only for the shortfall, without allocating from
+  // it (see Strategy::EnsureHeadroom()). Returns false if the pool can't
+  // grow that far (possible only with kCobaltMediaPoolSoftFail). The pool
+  // keeps any blocks it grew, except an idle on-demand pool, which is
+  // released as on any last Free().
+  bool TryEnsureHeadroom(size_t bytes);
 
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
 
@@ -183,6 +203,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void EnablePeriodicDecommitLoop();
   void StopPeriodicDecommitLoop();
   void SchedulePeriodicDecommitTask_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  // Releases the pool once it holds no allocations, if it is allocated on
+  // demand or a strategy switch is pending.
+  void MaybeResetStrategy_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);

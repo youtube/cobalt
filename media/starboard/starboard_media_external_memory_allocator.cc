@@ -23,6 +23,7 @@
 #include "base/logging.h"
 #include "media/base/demuxer_stream.h"
 #include "media/starboard/decoder_buffer_allocator.h"
+#include "media/starboard/media_pool_direct_map.h"
 
 namespace media {
 
@@ -119,7 +120,7 @@ StarboardMediaExternalMemoryAllocator::CopyFrom(base::span<const uint8_t> span,
         pool, DecoderBuffer::Allocator::kInvalidHandle, 0, nullptr, type);
   }
 
-  auto handle = pool->Allocate(type, span.size());
+  auto handle = pool->TryAllocate(type, span.size());
   if (handle == DecoderBuffer::Allocator::kInvalidHandle) {
     LOG(ERROR) << "Failed to allocate " << span.size()
                << " bytes from Starboard media buffer pool.";
@@ -155,7 +156,7 @@ StarboardMediaExternalMemoryAllocator::CopyFrom(
         pool, DecoderBuffer::Allocator::kInvalidHandle, 0, nullptr, type);
   }
 
-  auto handle = pool->Allocate(type, total_size);
+  auto handle = pool->TryAllocate(type, total_size);
   if (handle == DecoderBuffer::Allocator::kInvalidHandle) {
     LOG(ERROR) << "Failed to allocate " << total_size
                << " bytes from Starboard media buffer pool.";
@@ -175,6 +176,24 @@ StarboardMediaExternalMemoryAllocator::CopyFrom(
 
   return std::make_unique<StarboardPoolExternalMemory>(pool, handle, total_size,
                                                        data_ptr, type);
+}
+
+bool StarboardMediaExternalMemoryAllocator::EnsureHeadroom(size_t bytes) {
+  // Without kCobaltMediaPoolSoftFail, a pool that can't grow crashes anyway,
+  // so there is nothing to report.
+  if (!MediaPoolDirectMap::IsEnabled() || bytes == 0) {
+    return true;
+  }
+  auto* pool = DecoderBufferAllocator::Get();
+  if (!pool) {
+    return true;
+  }
+  if (!pool->TryEnsureHeadroom(bytes)) {
+    LOG(WARNING) << "Media pool can't grow by " << bytes
+                 << " bytes; rejecting the append as QuotaExceededError.";
+    return false;
+  }
+  return true;
 }
 
 }  // namespace media
