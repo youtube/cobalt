@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 #include "base/base_switches.h"
 #include "base/command_line.h"
@@ -42,6 +43,7 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
+#include "base/trace_event/trace_event.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -77,6 +79,7 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
+#include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/overlay_window.h"
 #include "content/public/browser/render_frame_host.h"
@@ -465,7 +468,33 @@ CobaltContentBrowserClient::CobaltContentBrowserClient(
 #endif  // BUILDFLAG(IS_STARBOARD)
 }
 
+// Modeled on upstream `ChromeContentBrowserClient::PostAfterStartupTask()`
+// (`chrome/browser/after_startup_task_utils.cc`) and
+// `AwContentBrowserClient::PostAfterStartupTask()`
+// (`android_webview/browser/aw_content_browser_client.cc`). Base
+// `ContentBrowserClient` (inherited by `ShellContentBrowserClient`) posts
+// immediately at t=0ms; here we queue onto a lock-protected per-instance deque
+// until `h5vcc.system.notifyMainReady()` or the failsafe timer fires.
+CobaltContentBrowserClient::AfterStartupTask::AfterStartupTask(
+    const base::Location& from_here,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    base::OnceClosure task)
+    : from_here(from_here),
+      task_runner(std::move(task_runner)),
+      task(std::move(task)) {}
+
+CobaltContentBrowserClient::AfterStartupTask::AfterStartupTask(
+    AfterStartupTask&&) noexcept = default;
+
+CobaltContentBrowserClient::AfterStartupTask&
+CobaltContentBrowserClient::AfterStartupTask::operator=(
+    AfterStartupTask&&) noexcept = default;
+
+CobaltContentBrowserClient::AfterStartupTask::~AfterStartupTask() = default;
+
 CobaltContentBrowserClient::~CobaltContentBrowserClient() {
+  CancelDeferredAfterStartupTasks();
+  ReleaseThreadPoolBestEffortFence();
 #if BUILDFLAG(IS_STARBOARD)
   ui::PlatformWindowStarboard::ClearWindowCreatedCallback();
   ui::PlatformWindowStarboard::ClearWindowDestroyedCallback();
@@ -476,6 +505,130 @@ CobaltContentBrowserClient::~CobaltContentBrowserClient() {
 CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
   return static_cast<CobaltContentBrowserClient*>(
       content::ShellContentBrowserClient::Get());
+}
+
+bool CobaltContentBrowserClient::ShouldDeferAfterStartupTasks() const {
+  if (browser_startup_complete_.load(std::memory_order_acquire)) {
+    return false;
+  }
+  return base::FeatureList::GetInstance() &&
+         base::FeatureList::IsEnabled(features::kCobaltDeferAfterStartupTasks);
+}
+
+void CobaltContentBrowserClient::PostAfterStartupTask(
+    const base::Location& from_here,
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+    base::OnceClosure task) {
+  CHECK(task);
+  CHECK(task_runner);
+  if (!ShouldDeferAfterStartupTasks()) {
+    task_runner->PostTask(from_here, std::move(task));
+    return;
+  }
+
+  {
+    base::AutoLock lock(after_startup_tasks_lock_);
+    if (!browser_startup_complete_.load(std::memory_order_relaxed)) {
+      after_startup_tasks_.emplace_back(from_here, task_runner,
+                                        std::move(task));
+      return;
+    }
+  }
+  task_runner->PostTask(from_here, std::move(task));
+}
+
+bool CobaltContentBrowserClient::IsBrowserStartupComplete() {
+  return !ShouldDeferAfterStartupTasks();
+}
+
+void CobaltContentBrowserClient::SetBrowserStartupIsCompleteForTesting() {
+  MarkBrowserStartupComplete();
+}
+
+void CobaltContentBrowserClient::HoldThreadPoolBestEffortFenceIfDeferred() {
+  if (!ShouldDeferAfterStartupTasks() || !base::ThreadPoolInstance::Get() ||
+      thread_pool_best_effort_fence_.has_value()) {
+    return;
+  }
+  thread_pool_best_effort_fence_.emplace();
+  PostAfterStartupTask(
+      FROM_HERE, base::SequencedTaskRunner::GetCurrentDefault(),
+      base::BindOnce(
+          &CobaltContentBrowserClient::ReleaseThreadPoolBestEffortFence,
+          weak_factory_.GetWeakPtr()));
+}
+
+void CobaltContentBrowserClient::ReleaseThreadPoolBestEffortFence() {
+  if (base::ThreadPoolInstance::Get()) {
+    thread_pool_best_effort_fence_.reset();
+  }
+}
+
+void CobaltContentBrowserClient::StartAfterStartupTaskFailsafeTimer() {
+  if (!ShouldDeferAfterStartupTasks()) {
+    return;
+  }
+  // `ScheduleCobaltStorageMetricsRecording()`
+  // (`cobalt/browser/metrics/cobalt_storage_metrics_helper.cc`) posts its
+  // startup snapshot on a `ThreadPool` `BEST_EFFORT` runner at +10,000ms
+  // (`kPostStartupStorageMetricsDelay`) so samples land inside Android's +15s
+  // Initial UMA Log. Clamping the failsafe upper bound to 9,500ms leaves a
+  // 500ms buffer before +10s so misconfigured Finch params or pages that never
+  // call `h5vcc.system.notifyMainReady()` cannot delay +10s startup UMAs.
+  constexpr base::TimeDelta kMaxFailsafeDelay = base::Milliseconds(9500);
+  const base::TimeDelta delay =
+      std::clamp(features::kCobaltDeferAfterStartupTasksFailsafeDelay.Get(),
+                 base::TimeDelta(), kMaxFailsafeDelay);
+  scoped_refptr<base::SequencedTaskRunner> runner =
+      content::BrowserThread::IsThreadInitialized(content::BrowserThread::UI)
+          ? content::GetUIThreadTaskRunner({base::TaskPriority::USER_VISIBLE})
+          : base::SequencedTaskRunner::GetCurrentDefault();
+  after_startup_task_failsafe_timer_.SetTaskRunner(std::move(runner));
+  after_startup_task_failsafe_timer_.Start(
+      FROM_HERE, delay,
+      base::BindOnce(&CobaltContentBrowserClient::MarkBrowserStartupComplete,
+                     base::Unretained(this)));
+}
+
+void CobaltContentBrowserClient::OnBrowserStartupComplete() {
+  after_startup_task_failsafe_timer_.Stop();
+  MarkBrowserStartupComplete();
+}
+
+void CobaltContentBrowserClient::CancelDeferredAfterStartupTasks() {
+  after_startup_task_failsafe_timer_.Stop();
+  base::circular_deque<AfterStartupTask> remaining_tasks;
+  {
+    base::AutoLock lock(after_startup_tasks_lock_);
+    browser_startup_complete_.store(true, std::memory_order_release);
+    remaining_tasks.swap(after_startup_tasks_);
+  }
+  for (auto& entry : remaining_tasks) {
+    if (entry.task_runner && !entry.task_runner->RunsTasksInCurrentSequence()) {
+      entry.task_runner->DeleteSoon(
+          entry.from_here,
+          std::make_unique<base::OnceClosure>(std::move(entry.task)));
+    }
+  }
+}
+
+void CobaltContentBrowserClient::MarkBrowserStartupComplete() {
+  base::circular_deque<AfterStartupTask> pending_tasks;
+  {
+    base::AutoLock lock(after_startup_tasks_lock_);
+    if (browser_startup_complete_.exchange(true, std::memory_order_acq_rel)) {
+      return;
+    }
+    pending_tasks.swap(after_startup_tasks_);
+  }
+
+  TRACE_EVENT_INSTANT1(
+      "startup", "CobaltContentBrowserClient::MarkBrowserStartupComplete",
+      TRACE_EVENT_SCOPE_GLOBAL, "QueuedTaskCount", pending_tasks.size());
+
+  for (auto& entry : pending_tasks) {
+    entry.task_runner->PostTask(entry.from_here, std::move(entry.task));
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
@@ -532,7 +685,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto browser_main_parts =
-      std::make_unique<CobaltBrowserMainParts>(deep_link_, is_visible_);
+      std::make_unique<CobaltBrowserMainParts>(deep_link_, is_visible_, this);
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }

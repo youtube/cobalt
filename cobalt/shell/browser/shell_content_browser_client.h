@@ -205,6 +205,10 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       NonNetworkURLLoaderFactoryMap* factories) override;
 
   virtual void CreateFeatureListAndFieldTrials();
+  // Invoked when the primary web application signals interactive startup
+  // readiness (`h5vcc.system.notifyMainReady()`) to release process-wide
+  // deferred startup tasks (distinct from per-window `Shell::OnMainReady()`).
+  virtual void OnBrowserStartupComplete() {}
   ShellBrowserContext* browser_context();
   ShellBrowserContext* off_the_record_browser_context();
   ShellBrowserMainParts* shell_browser_main_parts();

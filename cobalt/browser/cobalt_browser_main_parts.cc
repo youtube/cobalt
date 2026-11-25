@@ -578,9 +578,12 @@ void CobaltBrowserMainParts::InitializeMessageLoopContext() {
 #endif
 }
 
-CobaltBrowserMainParts::CobaltBrowserMainParts(const std::string& deep_link,
-                                               bool is_visible)
-    : ShellBrowserMainParts(deep_link, is_visible) {}
+CobaltBrowserMainParts::CobaltBrowserMainParts(
+    const std::string& deep_link,
+    bool is_visible,
+    CobaltContentBrowserClient* browser_client)
+    : ShellBrowserMainParts(deep_link, is_visible),
+      browser_client_(browser_client) {}
 
 int CobaltBrowserMainParts::PreCreateThreads() {
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
@@ -604,11 +607,30 @@ int CobaltBrowserMainParts::PreCreateThreads() {
   base::android::MemoryPressureListenerAndroid::Initialize(
       base::android::AttachCurrentThread());
 #endif
+#if BUILDFLAG(IS_ANDROID)
+  // All Cobalt platforms previously ran `PostAfterStartupTask()` and
+  // `BEST_EFFORT` tasks at t=0ms because base `ContentBrowserClient` did not
+  // defer `BrowserMainLoop::CreateThreads()`'s startup-complete callback
+  // (`content/browser/browser_main_loop.cc:969`). With
+  // `CobaltContentBrowserClient::PostAfterStartupTask()` deferred,
+  // `!BUILDFLAG(IS_ANDROID)` platforms automatically hold `ThreadPool`
+  // `BEST_EFFORT` tasks via `BrowserMainLoop`'s
+  // `scoped_best_effort_execution_fence_` (`browser_main_loop.cc:492,975`),
+  // whereas upstream omits that fence on `BUILDFLAG(IS_ANDROID)`
+  // (`crbug.com/887407`). Hold an explicit `ScopedBestEffortExecutionFence`
+  // here so Android TV achieves the same `ThreadPool` `BEST_EFFORT` deferral.
+  if (browser_client_) {
+    browser_client_->HoldThreadPoolBestEffortFenceIfDeferred();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   return ShellBrowserMainParts::PreCreateThreads();
 }
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
+  if (browser_client_) {
+    browser_client_->StartAfterStartupTaskFailsafeTimer();
+  }
   LogStabilityMetricsCapacity("PreMainMessageLoopRun");
 
   base::FilePath base_dir;
@@ -820,7 +842,19 @@ void CobaltBrowserMainParts::PostOrRunIfStorageMigrationFinished(
   }
 }
 
+void CobaltBrowserMainParts::PostMainMessageLoopRun() {
+  if (browser_client_) {
+    browser_client_->CancelDeferredAfterStartupTasks();
+  }
+  ShellBrowserMainParts::PostMainMessageLoopRun();
+}
+
 void CobaltBrowserMainParts::PostDestroyThreads() {
+#if BUILDFLAG(IS_ANDROID)
+  if (browser_client_) {
+    browser_client_->ReleaseThreadPoolBestEffortFence();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   GlobalFeatures::GetInstance()->Shutdown();
   ShellBrowserMainParts::PostDestroyThreads();
 }

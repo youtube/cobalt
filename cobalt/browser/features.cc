@@ -270,5 +270,15 @@ BASE_FEATURE_PARAM(int,
                    "cobalt_http_cache_size_bytes",
                    12582912);
 
+BASE_FEATURE(kCobaltDeferAfterStartupTasks,
+             "CobaltDeferAfterStartupTasks",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kCobaltDeferAfterStartupTasksFailsafeDelay,
+                   &kCobaltDeferAfterStartupTasks,
+                   "CobaltDeferAfterStartupTasks_failsafe_delay",
+                   base::Milliseconds(8500));
+
 }  // namespace features
 }  // namespace cobalt
