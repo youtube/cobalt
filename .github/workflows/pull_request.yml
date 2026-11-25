@@ -1,7 +1,7 @@
 # Disable dangerous-triggers rule because this workflow uses pull_request_target
 # and issue_comment strictly for PR automation (anchor comment, commit statuses,
-# and commit message generation) without checking out or executing untrusted
-# code from PR branches.
+# commit message generation, and read-only owner review) without executing
+# untrusted code from PR branches.
 # actionlint: disable dangerous-triggers
 name: 'Pull Request Automation'
 
@@ -222,5 +222,252 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
+              body: body
+            });
+
+  owner_review:
+    name: Owner Review
+    needs: [ci-shepherd-anchor]
+    if: >
+      always() && !cancelled() && (
+        (github.event_name == 'pull_request_target' &&
+          (github.event.action == 'opened' || github.event.action == 'reopened') &&
+          !endsWith(github.event.pull_request.user.login, '-bot') &&
+          !endsWith(github.event.pull_request.user.login, '[bot]')) ||
+        (github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          startsWith(github.event.comment.body, '/owner-review') &&
+          !endsWith(github.event.issue.user.login, '-bot') &&
+          !endsWith(github.event.issue.user.login, '[bot]'))
+      )
+    concurrency:
+      group: ${{ github.workflow }}-owner-review @ ${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
+      cancel-in-progress: true
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    outputs:
+      has_comment: ${{ steps.format_comment.outputs.has_comment }}
+      pr_number: ${{ steps.format_comment.outputs.pr_number }}
+      comment_body: ${{ steps.format_comment.outputs.comment_body }}
+      review_comments: ${{ steps.format_comment.outputs.review_comments }}
+
+    steps:
+      - name: 'Checkout prompts'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            .agent
+            .github
+          sparse-checkout-cone-mode: false
+
+      - name: 'Get PR Diff'
+        env:
+          URL: ${{ github.event.pull_request.url }}${{ github.event.issue.pull_request.url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github.v3.diff" "${URL}" > "${RUNNER_TEMP}/pr.diff"
+          gh api "${URL}/files" --paginate --jq '.[].filename' > "${RUNNER_TEMP}/changed_files.txt"
+
+      - name: 'Resolve Reviewers & Prompt'
+        id: resolve_review
+        run: |
+          set -euo pipefail
+          prompt_file="${RUNNER_TEMP}/review_prompt.txt"
+          review_out_dir="${RUNNER_TEMP}/review-out"
+          review_file="${review_out_dir}/owner_review.json"
+          mkdir -p "${review_out_dir}"
+          rm -f "${review_file}"
+
+          mapfile -t changed_files < "${RUNNER_TEMP}/changed_files.txt"
+          reviewer_paths=""
+          if [[ ${#changed_files[@]} -gt 0 ]]; then
+            reviewer_paths=$(python3 .github/scripts/resolve_codeowners.py --paths "${changed_files[@]}")
+          fi
+
+          if [ -n "${reviewer_paths}" ]; then
+            echo "has_reviewers=true" >> "${GITHUB_OUTPUT}"
+            echo "reviewer_paths=$(printf '%s\n' "${reviewer_paths}" | paste -sd ' ' -)" >> "${GITHUB_OUTPUT}"
+            {
+              echo "Review the PR diff below as the lead reviewer."
+              echo "The full PR source tree is available in read-only mode at ${RUNNER_TEMP}/pr-src (use read_file, list_directory, glob, or grep_search with that path to inspect surrounding code)."
+              echo "Run each matching reviewer persona as a subagent using its prompt file:"
+              for rpath in ${reviewer_paths}; do
+                echo "---"
+                echo "Reviewer prompt (${rpath}):"
+                cat "${rpath}"
+                echo ""
+              done
+              echo "---"
+              echo "Produce comments ONLY on files matching each reviewer's own paths globs (never comment on files outside a reviewer's paths)."
+              echo "In \"comments\", each \"path\" MUST be the repository-relative path from the diff (never prefix it with \"${RUNNER_TEMP}/pr-src/\")."
+              echo "Start EVERY inline comment's body with a markdown header identifying the reviewer persona (e.g. #### 🛡️ Review by \`<reviewer-name>\` followed by a blank line), and include change suggestions in \`\`\`suggestion blocks where appropriate."
+              echo "Write the final review result using the write_file tool directly to ${review_file} as raw JSON (no markdown code fences, overriding any output format in the reviewer prompts above) with fields:"
+              echo '{"summary": "overall review summary", "comments": [{"path": "file/path", "line": 12, "body": "#### 🛡️ Review by `<reviewer-name>`\n\ncomment with ```suggestion\nreplacement\n```"}]}'
+              echo "After writing ${review_file}, respond with a brief confirmation."
+              echo ""
+              echo "<code_diff>"
+              cat "${RUNNER_TEMP}/pr.diff"
+              echo "</code_diff>"
+            } > "${prompt_file}"
+
+            delim="EOF_$(openssl rand -hex 16)"
+            {
+              echo "prompt<<${delim}"
+              cat "${prompt_file}"
+              echo "${delim}"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: 'Checkout PR source read-only'
+        if: steps.resolve_review.outputs.has_reviewers == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          pr_src="${RUNNER_TEMP}/pr-src"
+          if [[ -d "${pr_src}" ]]; then
+            chmod -R u+w "${pr_src}"
+            rm -rf "${pr_src}"
+          fi
+          mkdir -p "${pr_src}"
+          git -C "${pr_src}" init -q
+          auth_header="AUTHORIZATION: basic $(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -C "${pr_src}" -c "http.extraheader=${auth_header}" \
+            fetch -q --depth=1 --no-tags "https://github.com/${REPO}.git" "refs/pull/${PR_NUM}/head"
+          git -C "${pr_src}" checkout -q --detach FETCH_HEAD
+          chmod -R a-w "${pr_src}" .agent .github
+
+      - name: 'Review with Gemini CLI'
+        id: gemini_review
+        if: steps.resolve_review.outputs.has_reviewers == 'true'
+        uses: google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489 # v0.1.22
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: 'true'
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_ACTIONS_API_KEY }}
+          gemini_model: 'gemini-3.8-flash'
+          settings: |-
+            {
+              "context": {
+                "includeDirectories": [
+                  "${{ runner.temp }}/pr-src",
+                  "${{ runner.temp }}/review-out"
+                ],
+                "loadMemoryFromIncludeDirectories": false
+              },
+              "tools": {
+                "core": [
+                  "list_directory",
+                  "read_file",
+                  "glob",
+                  "grep_search",
+                  "write_file"
+                ]
+              }
+            }
+          prompt: ${{ steps.resolve_review.outputs.prompt }}
+
+      - name: 'Format Comment'
+        id: format_comment
+        env:
+          OWNER_REV_RAN: ${{ steps.gemini_review.outcome == 'success' }}
+          PR_NUM: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          out_file="${RUNNER_TEMP}/comment.md"
+          json_file="${RUNNER_TEMP}/comments.json"
+          review_file="${RUNNER_TEMP}/review-out/owner_review.json"
+          echo "[]" > "${json_file}"
+          rm -f "${out_file}"
+          touch "${out_file}"
+
+          if [[ "${OWNER_REV_RAN}" == "true" ]]; then
+            echo "### 🛡️ CODEOWNERS Critic Review" >> "${out_file}"
+            echo "" >> "${out_file}"
+
+            if [ -f "${review_file}" ] && jq -e 'type == "object" and (.summary | type == "string") and (.comments | type == "array")' "${review_file}" >/dev/null 2>&1; then
+              printf '%s\n\n' "$(jq -r .summary "${review_file}")" >> "${out_file}"
+              jq -c .comments "${review_file}" > "${json_file}"
+            else
+              echo "[]" > "${json_file}"
+              echo "Automated code review could not be generated for this change." >> "${out_file}"
+              echo "" >> "${out_file}"
+            fi
+          fi
+
+          if [ -s "${out_file}" ]; then
+            echo "> **💡 Triggering reviews:**" >> "${out_file}"
+            echo "> - Comment \`/owner-review\` to trigger CODEOWNERS review." >> "${out_file}"
+            echo "has_comment=true" >> "${GITHUB_OUTPUT}"
+            echo "pr_number=${PR_NUM}" >> "${GITHUB_OUTPUT}"
+            delim="EOF_$(openssl rand -hex 16)"
+            {
+              echo "comment_body<<${delim}"
+              cat "${out_file}"
+              echo "${delim}"
+            } >> "${GITHUB_OUTPUT}"
+            delim="EOF_$(openssl rand -hex 16)"
+            {
+              echo "review_comments<<${delim}"
+              cat "${json_file}"
+              echo "${delim}"
+            } >> "${GITHUB_OUTPUT}"
+          fi
+
+  post_owner_review:
+    name: Post Owner Review
+    needs: [owner_review]
+    if: always() && !cancelled() && needs.owner_review.result == 'success' && needs.owner_review.outputs.has_comment == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: 'Post Owner Review'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          PR_NUMBER: ${{ needs.owner_review.outputs.pr_number }}
+          COMMENT_BODY: ${{ needs.owner_review.outputs.comment_body }}
+          REVIEW_COMMENTS: ${{ needs.owner_review.outputs.review_comments }}
+        with:
+          script: |
+            const prNumber = Number(process.env.PR_NUMBER);
+            const body = process.env.COMMENT_BODY;
+            let comments = [];
+            try {
+              comments = JSON.parse(process.env.REVIEW_COMMENTS || '[]');
+            } catch (_) {}
+
+            if (comments.length > 0) {
+              try {
+                await github.rest.pulls.createReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  body: body,
+                  event: 'COMMENT',
+                  comments: comments
+                });
+                return;
+              } catch (err) {
+                console.log('Failed to post inline review, falling back to top-level comment:', err.message);
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
               body: body
             });
