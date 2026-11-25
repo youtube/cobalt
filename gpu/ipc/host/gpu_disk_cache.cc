@@ -18,6 +18,8 @@
 #include "net/base/net_errors.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include <limits>
+
 #include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"

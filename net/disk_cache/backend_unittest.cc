@@ -1900,7 +1900,8 @@ TEST_F(DiskCacheBackendTest, SimpleShaderCacheEnumerationReadDataAndHitRank) {
   entry1->Close();
 
   {
-    TestIterator iter(cache_->CreateMostRecentIterator(/*max_entries=*/1));
+    TestIterator iter(
+        cache_->CreateMostRecentIterator(/*max_entries=*/1, base::Time()));
     ASSERT_THAT(iter.OpenNextEntry(&entry2), IsOk());
     EXPECT_EQ(second, entry2->GetKey());
     entry2->Close();
@@ -1913,7 +1914,8 @@ TEST_F(DiskCacheBackendTest, SimpleShaderCacheEnumerationReadDataAndHitRank) {
   OnExternalCacheHit(first);
 
   {
-    TestIterator iter(cache_->CreateMostRecentIterator(/*max_entries=*/2));
+    TestIterator iter(
+        cache_->CreateMostRecentIterator(/*max_entries=*/2, base::Time()));
     ASSERT_THAT(iter.OpenNextEntry(&entry1), IsOk());
     EXPECT_EQ(first, entry1->GetKey());
     entry1->Close();

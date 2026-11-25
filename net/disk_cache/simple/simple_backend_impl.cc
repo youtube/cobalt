@@ -18,6 +18,10 @@
 #include <sys/resource.h>
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include <optional>
+#endif  // BUILDFLAG(IS_COBALT)
+
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"

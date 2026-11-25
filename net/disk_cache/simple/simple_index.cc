@@ -37,6 +37,10 @@
 #include <sys/time.h>
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include <functional>
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace {
 
 // How many milliseconds we delay writing the index to disk since the last cache

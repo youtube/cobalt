@@ -126,7 +126,7 @@ class NET_EXPORT_PRIVATE SimpleBackendImpl final : public Backend,
 #if BUILDFLAG(IS_COBALT)
   std::unique_ptr<Iterator> CreateMostRecentIterator(
       size_t max_entries,
-      base::Time min_last_used_time = base::Time()) override;
+      base::Time min_last_used_time) override;
 #endif  // BUILDFLAG(IS_COBALT)
   void GetStats(base::StringPairs* stats) override;
   void OnExternalCacheHit(const std::string& key) override;

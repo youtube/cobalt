@@ -86,9 +86,6 @@ sk_sp<SkData> GrShaderCache::load(const SkData& key) {
 
   if (it->second.prefetched_but_not_read) {
     it->second.prefetched_but_not_read = false;
-#if BUILDFLAG(IS_COBALT)
-    it->second.pending_disk_touch = true;
-#endif  // BUILDFLAG(IS_COBALT)
     // Skia just loaded shader that was loaded from the disk. We assume it
     // happens during VkGraphicsPipeline creation and might alter the pipeline
     // cache. We'll store it to disk later when we're idle.
@@ -239,14 +236,13 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
   lock_.AssertAcquired();
   DCHECK_NE(current_client_id(), kInvalidClientId);
 
+  if (!data->pending_disk_write)
+    return;
+
   // Only cache the shader on disk if this client id is permitted.
 #if BUILDFLAG(IS_COBALT)
-  if (!data->pending_disk_write && !data->pending_disk_touch) {
-    return;
-  }
 #if BUILDFLAG(IS_ANDROID)
-  // Keep the entry pending; FlushPendingDiskWrites() writes or touches it
-  // later.
+  // Keep the entry pending; FlushPendingDiskWrites() writes it later.
   if (defer_disk_writes_) {
     return;
   }
@@ -256,17 +252,7 @@ void GrShaderCache::WriteToDisk(const CacheKey& key, CacheData* data) {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch("incognito")) {
     return;
   }
-  if (!data->pending_disk_write) {
-    data->pending_disk_touch = false;
-    client_->TouchShaderOnDisk(base::Base64Encode(MakeString(key.data.get())));
-    return;
-  }
-  data->pending_disk_touch = false;
 #else
-  if (!data->pending_disk_write) {
-    return;
-  }
-
   if (client_ids_to_cache_on_disk_.count(current_client_id()) == 0)
     return;
 #endif
@@ -299,21 +285,18 @@ void GrShaderCache::FlushPendingDiskWritesLocked() {
   }
 
   TRACE_EVENT0("gpu", "GrShaderCache::FlushPendingDiskWrites");
-  // Iterate |store_| from LRU (rbegin) to MRU (rend) so the most recently used
-  // shaders receive the newest disk-cache index timestamps.
-  for (auto it = store_.rbegin(); it != store_.rend(); ++it) {
-    const CacheKey& key = it->first;
-    CacheData& data = it->second;
-    if (data.pending_disk_write) {
-      data.pending_disk_write = false;
-      data.pending_disk_touch = false;
-      client_->StoreShader(base::Base64Encode(MakeString(key.data.get())),
-                           MakeString(data.data.get()));
-    } else if (data.pending_disk_touch) {
+  for (auto& [key, data] : store_) {
+    if (data.pending_disk_touch) {
       data.pending_disk_touch = false;
       client_->TouchShaderOnDisk(
           base::Base64Encode(MakeString(key.data.get())));
     }
+    if (!data.pending_disk_write) {
+      continue;
+    }
+    data.pending_disk_write = false;
+    client_->StoreShader(base::Base64Encode(MakeString(key.data.get())),
+                         MakeString(data.data.get()));
   }
 }
 #endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_ANDROID)
