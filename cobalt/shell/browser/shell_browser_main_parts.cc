@@ -14,6 +14,7 @@
 
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
 
+#include <string>
 #include <utility>
 
 #include "base/base_switches.h"
@@ -125,7 +126,10 @@ GURL GetStartupURL(bool should_preload) {
     }
   }
 
-  if (should_preload) {
+  std::string launch_value;
+  if (should_preload &&
+      !(net::GetValueForKeyInQuery(initial_url, "launch", &launch_value) &&
+        launch_value == "preload")) {
     initial_url = net::AppendQueryParameter(initial_url, "launch", "preload");
   }
 
