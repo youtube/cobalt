@@ -159,6 +159,12 @@ base::WeakPtr<CommandBufferStub> RasterCommandBufferStub::AsWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
+#if BUILDFLAG(IS_COBALT)
+bool RasterCommandBufferStub::IsRasterCommandBuffer() const {
+  return true;
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void RasterCommandBufferStub::SetActiveURL(GURL url) {
   active_url_ = ContextUrl(std::move(url));
   UpdateActiveUrl();
