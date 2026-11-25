@@ -171,14 +171,6 @@ config("libraries") {
   ]
 }
 
-config("pedantic_warnings") {
-  cflags = [
-    "-Wall",
-    "-Wextra",
-    "-Wunreachable-code",
-  ]
-}
-
 config("no_pedantic_warnings") {
   cflags = [
     # 'this' pointer cannot be NULL...pointer may be assumed
