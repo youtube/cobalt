@@ -27,6 +27,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.util.Log;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,6 +65,8 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private Set<Integer> mActions;
   private MediaPosition mPosition;
   private Bitmap mArtworkImage;
+  // The fields of the metadata last sent to mMediaSession, to skip sending identical metadata.
+  private List<Object> mLastMetadataKey;
   private final MediaSessionCompat.Callback mMediaSessionCallback;
   // Only read and written on the main looper when CobaltPlatformServicesOffUiThread is enabled.
   private LifecycleCallback mLifecycleCallback = null;
@@ -232,8 +235,14 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     deactivateMediaSession();
   }
 
+  @VisibleForTesting
+  MediaSessionCompat createMediaSessionCompat() {
+    return new MediaSessionCompat(mContext, TAG);
+  }
+
   private void activateMediaSession() {
-    mMediaSession = new MediaSessionCompat(mContext, TAG);
+    mMediaSession = createMediaSessionCompat();
+    mLastMetadataKey = null;
     mMediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
     mMediaSession.setCallback(mMediaSessionCallback);
     mMediaSession.setActive(true);
@@ -258,11 +267,13 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     mMediaSession.setActive(false);
     mMediaSession.release();
     mMediaSession = null;
+    mLastMetadataKey = null;
 
     Log.i(TAG, "MediaSession has been deactivated.");
   }
 
-  private MediaSessionObserver createMediaSessionObserver(MediaSession mediaSession) {
+  @VisibleForTesting
+  MediaSessionObserver createMediaSessionObserver(MediaSession mediaSession) {
     return new MediaSessionObserver(mediaSession) {
       @Override
       public void mediaSessionDestroyed() {
@@ -271,6 +282,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
         mActions = null;
         mPosition = null;
         mArtworkImage = null;
+        mLastMetadataKey = null;
       }
 
       @Override
@@ -379,6 +391,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     mMediaSession.setMetadata(metadataBuilder.build());
+    mLastMetadataKey = null;
   }
 
   private void updateMetadata() {
@@ -391,20 +404,35 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
       return;
     }
 
-    MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
-    metadataBuilder
-        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, mMetadata.getTitle())
-        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mMetadata.getArtist())
-        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, mMetadata.getAlbum());
-    if (mArtworkImage != null) {
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, mArtworkImage);
+    // Every setMetadata() call copies the artwork bitmap into new ashmem mappings, in this process
+    // and in each MediaController that reads it, so skip calls that would change nothing.
+    // Position updates call this too, with the same metadata.
+    List<Object> metadataKey =
+        Arrays.asList(
+            mMetadata.getTitle(),
+            mMetadata.getArtist(),
+            mMetadata.getAlbum(),
+            mArtworkImage,
+            mPosition != null ? mPosition.getDuration() : null);
+    if (metadataKey.equals(mLastMetadataKey)) {
+      return;
     }
-    if (mPosition != null) {
-      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, mPosition.getDuration());
+
+    MediaMetadataCompat metadata = buildMetadata(/* includeArtwork= */ true);
+    try {
+      // Set mediaSession's metadata to update the "Now Playing Card".
+      mMediaSession.setMetadata(metadata);
+    } catch (RuntimeException e) {
+      // Copying the artwork into an ashmem parcel blob fails when the process has no free address
+      // range that large. Showing no artwork is better than crashing.
+      if (mArtworkImage == null) {
+        throw e;
+      }
+      Log.e(TAG, "MediaSession setMetadata with artwork failed, retrying without artwork.", e);
+      metadata = buildMetadata(/* includeArtwork= */ false);
+      mMediaSession.setMetadata(metadata);
     }
-    // Set mediaSession's metadata to update the "Now Playing Card".
-    MediaMetadataCompat metadata = metadataBuilder.build();
-    mMediaSession.setMetadata(metadata);
+    mLastMetadataKey = metadataKey;
 
     Log.i(
         TAG,
@@ -413,6 +441,21 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
         metadata.getString(MediaMetadataCompat.METADATA_KEY_ARTIST),
         metadata.getString(MediaMetadataCompat.METADATA_KEY_ALBUM),
         metadata.getLong(MediaMetadataCompat.METADATA_KEY_DURATION));
+  }
+
+  private MediaMetadataCompat buildMetadata(boolean includeArtwork) {
+    MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
+    metadataBuilder
+        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, mMetadata.getTitle())
+        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mMetadata.getArtist())
+        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, mMetadata.getAlbum());
+    if (includeArtwork && mArtworkImage != null) {
+      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, mArtworkImage);
+    }
+    if (mPosition != null) {
+      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, mPosition.getDuration());
+    }
+    return metadataBuilder.build();
   }
 
   private long computeMediaSessionActions() {
@@ -439,6 +482,11 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
   @Override
   public void onArtworkLoaded(Bitmap bitmap) {
+    if (bitmap == mArtworkImage) {
+      // A re-activated session may not have the metadata yet; this is a no-op if it does.
+      updateMetadata();
+      return;
+    }
     mArtworkImage = bitmap;
     // Reset the metadata to make sure the artwork update correctly.
     resetMetaData();
