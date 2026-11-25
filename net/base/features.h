@@ -804,6 +804,11 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // Enables web font MIME caching and ShouldPassThrough pre-entry filtering in
 // Cobalt's HTTP cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
+
+// Caps the number of UDP packets requested per recvmmsg() call on Cobalt so
+// each pooled scratch buffer fits in a smaller PartitionAlloc slot span.
+NET_EXPORT BASE_DECLARE_FEATURE(kCobaltQuicReadBatch);
+NET_EXPORT extern const base::FeatureParam<int> kCobaltQuicReadBatchPackets;
 #endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace net::features

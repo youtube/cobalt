@@ -58,6 +58,7 @@
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/renderer/renderer_thread_parker.h"
 #include "services/device/time_zone_monitor/time_zone_monitor_starboard.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #endif
@@ -73,6 +74,13 @@ namespace {
 // normal operations to complete, but short enough to avoid unnecessary
 // user-perceived delays.
 constexpr base::TimeDelta kTransitionTimeout = base::Seconds(2);
+
+#if BUILDFLAG(IS_STARBOARD)
+// How long teardown waits for the in-process renderer main thread to park.
+// In testing the thread parked well within this. The limit is kept short so
+// that a thread that cannot park does not delay shutdown for long.
+constexpr base::TimeDelta kRendererParkTimeout = base::Seconds(1);
+#endif  // BUILDFLAG(IS_STARBOARD)
 }  // namespace
 
 namespace {
@@ -152,6 +160,12 @@ class AppEventRunnerImpl : public AppEventRunner,
   void DoStop() override {
     base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_blocking;
 
+#if BUILDFLAG(IS_STARBOARD)
+    // The in-process renderer main thread is not joined during teardown, so
+    // stop it from running more work before the objects it uses are destroyed.
+    RequestRendererThreadPark();
+#endif  // BUILDFLAG(IS_STARBOARD)
+
     content::Shell::OnStop();
 
     content::Shell::Shutdown();
@@ -161,6 +175,16 @@ class AppEventRunnerImpl : public AppEventRunner,
     if (content_main_delegate_) {
       content_main_delegate_->Shutdown();
     }
+
+#if BUILDFLAG(IS_STARBOARD)
+    // Wait here, not earlier: the shutdown above is what releases a renderer
+    // that is blocked on the browser. On timeout, teardown proceeds anyway.
+    if (!WaitUntilRendererThreadParked(kRendererParkTimeout)) {
+      LOG(WARNING) << "Renderer main thread still busy after "
+                   << kRendererParkTimeout.InMilliseconds()
+                   << " ms; continuing teardown.";
+    }
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if !BUILDFLAG(IS_ANDROID)
     // Must be called after content_main_delegate_->Shutdown() to prevent
