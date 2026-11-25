@@ -77,7 +77,8 @@ class TestMergeAutoroll(unittest.TestCase):
                       prs_list=None,
                       rebase_fail=False,
                       close_fail=None,
-                      list_fail=False):
+                      list_fail=False,
+                      rebased=True):
     if prs_list is None:
       prs_list = [{
           'number': 1,
@@ -123,6 +124,14 @@ class TestMergeAutoroll(unittest.TestCase):
         if git_subcmd == 'rebase' and rebase_fail:
           mock_res = MagicMock()
           mock_res.returncode = 1
+          return mock_res
+        if git_subcmd == 'rev-parse':
+          mock_res = MagicMock()
+          mock_res.returncode = 0
+          if args[2] == 'HEAD' and rebased:
+            mock_res.stdout = 'rebasedsha\n'
+          else:
+            mock_res.stdout = 'prheadsha\n'
           return mock_res
 
       mock_res = MagicMock()
@@ -200,6 +209,71 @@ class TestMergeAutoroll(unittest.TestCase):
     ],
                              check=True,
                              env=unittest.mock.ANY)
+
+  def _assert_close_called(self, mock_run):
+    mock_run.assert_any_call([
+        'gh', 'pr', 'close', '1', '--repo', merge_autoroll.REPO_OWNER_PATH,
+        '--delete-branch', '--comment',
+        'Merged into `target` by merge_autoroll.py.'
+    ],
+                             capture_output=True,
+                             text=True,
+                             check=True,
+                             env=unittest.mock.ANY)
+
+  @patch('subprocess.run')
+  @patch('builtins.input', return_value='yes')
+  def test_main_rebased_closes_pr_and_deletes_branch(self, mock_input,
+                                                     mock_run):
+    self._setup_mock_run(mock_run, rebased=True)
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      merge_autoroll.main()
+
+    self._assert_close_called(mock_run)
+    # The PR must only be closed after the target branch has been pushed.
+    calls = [call[0][0] for call in mock_run.call_args_list]
+    push_idx = next(i for i, c in enumerate(calls) if 'push' in c)
+    close_idx = next(
+        i for i, c in enumerate(calls) if c[:3] == ['gh', 'pr', 'close'])
+    self.assertLess(push_idx, close_idx)
+
+  @patch('subprocess.run')
+  @patch('builtins.input', return_value='yes')
+  def test_main_fast_forward_does_not_close_pr(self, mock_input, mock_run):
+    self._setup_mock_run(mock_run, rebased=False)
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      merge_autoroll.main()
+
+    for call in mock_run.call_args_list:
+      self.assertNotEqual(call[0][0][:3], ['gh', 'pr', 'close'])
+
+  @patch('subprocess.run')
+  @patch('builtins.input', return_value='no')
+  def test_main_aborted_does_not_close_pr(self, mock_input, mock_run):
+    self._setup_mock_run(mock_run, rebased=True)
+
+    with patch('sys.stdout'), patch('sys.stderr'):
+      merge_autoroll.main()
+
+    for call in mock_run.call_args_list:
+      self.assertNotEqual(call[0][0][:3], ['gh', 'pr', 'close'])
+
+  @patch('subprocess.run')
+  @patch('builtins.input', return_value='yes')
+  def test_main_close_failures_do_not_raise(self, mock_input, mock_run):
+    for close_fail in ['warning', 'error']:
+      mock_run.reset_mock()
+      self._setup_mock_run(mock_run, rebased=True, close_fail=close_fail)
+
+      with patch('sys.stdout'), patch('sys.stderr'):
+        merge_autoroll.main()
+
+      self._assert_close_called(mock_run)
+      mock_run.assert_any_call(
+          ['git', 'worktree', 'remove', '--force', unittest.mock.ANY],
+          check=False)
 
   @patch('subprocess.run')
   def test_main_no_pr_found(self, mock_run):

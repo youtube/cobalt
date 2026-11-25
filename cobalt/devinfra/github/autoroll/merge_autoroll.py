@@ -179,6 +179,42 @@ def has_conflicts(filepath):
   return False
 
 
+def rev_parse(rev):
+  return git('rev-parse', rev, capture_output=True, text=True).strip()
+
+
+def close_pr_and_delete_branch(pr, target, env):
+  """Closes the autoroll PR and deletes its head branch.
+
+  Leaving the branch behind would cause the next autoroll run to build on
+  top of the already-merged commits.
+  """
+  pr_number = pr['number']
+  head = pr['headRefName']
+  log(f'Closing PR #{pr_number} and deleting branch {head}...')
+  try:
+    gh('pr',
+       'close',
+       str(pr_number),
+       '--repo',
+       REPO_OWNER_PATH,
+       '--delete-branch',
+       '--comment',
+       f'Merged into `{target}` by merge_autoroll.py.',
+       capture_output=True,
+       text=True,
+       env=env)
+  except subprocess.CalledProcessError as e:
+    # The target branch has already been pushed at this point, so don't fail
+    # the merge; just tell the user what needs manual cleanup.
+    if 'Closed pull request' in (e.output or ''):
+      log(f'Warning: Closed PR #{pr_number} but failed to delete branch '
+          f'{head}: {e.stderr}')
+    else:
+      log(f'Warning: Failed to close PR #{pr_number}: {e.stderr}')
+    log(f'Please close PR #{pr_number} and delete branch {head} manually.')
+
+
 def rebase_and_push(target, pr, env):
   head = pr['headRefName']
   pr_number = pr['number']
@@ -216,14 +252,26 @@ def rebase_and_push(target, pr, env):
     log('Rebasing...')
     git('rebase', f'origin/{target}')
 
-    log(f'PR URL: {pr["url"]}')
+    pr_url = pr['url']
+    log(f'PR URL: {pr_url}')
     response = input('Do you want to merge this PR? Type "yes" to confirm: ')
     if response.strip().lower() != 'yes':
       log('Aborting push.')
       return
 
+    # If the rebase was a no-op, the pushed commits are the PR's own commits,
+    # so GitHub marks the PR as merged and auto-deletes the head branch.
+    # Otherwise the rebased commits have new SHAs, GitHub never detects the
+    # merge, and the PR and its branch must be cleaned up explicitly.
+    rebased = rev_parse('HEAD') != rev_parse(f'refs/remotes/origin/{head}')
+
     log(f'Pushing {target}...')
     git('push', REPO_URL, f'HEAD:{target}', authenticated=True, env=env)
+
+    if rebased:
+      close_pr_and_delete_branch(pr, target, env)
+    else:
+      log(f'Fast-forward push; GitHub will mark PR #{pr_number} as merged.')
   finally:
     log('Cleaning up temporary worktree...')
     os.chdir(orig_cwd)
