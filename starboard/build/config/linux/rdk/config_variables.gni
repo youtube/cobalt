@@ -15,10 +15,28 @@
 declare_args() {
   rdk_starboard_root = "/"
   rdk_arm_call_convention = "hardfp"
+  rdk_build_with_yocto = true
+
+  # Path to the standalone RDK SDK root. When empty, falls back to the RDK_HOME
+  # environment variable. Pinning this in args.gn keeps separate RDK6 and RDK7
+  # build directories isolated from shell RDK_HOME changes.
+  rdk_home_dir = ""
+
+  # Path to the RDK target sysroot. When empty, defaults to
+  # "$rdk_home_dir/sysroots/aarch64-rdk-linux". cobalt/build/gn.py auto-detects
+  # the RDK6/RDK7 target sysroot and pins this in args.gn.
+  rdk_sysroot = ""
 }
 
-rdk_home_dir = getenv("RDK_HOME")
-assert(rdk_home_dir != "",
-       "RDK builds require the 'RDK_HOME' environment variable to be set.")
+if (!rdk_build_with_yocto) {
+  if (rdk_home_dir == "") {
+    rdk_home_dir = getenv("RDK_HOME")
+  }
+  assert(rdk_home_dir != "",
+         "RDK builds require 'rdk_home_dir' in args.gn or the 'RDK_HOME' " +
+             "environment variable to be set.")
 
-rdk_sysroot = "$rdk_home_dir/sysroots/aarch64-rdk-linux"
+  if (rdk_sysroot == "") {
+    rdk_sysroot = "$rdk_home_dir/sysroots/aarch64-rdk-linux"
+  }
+}
