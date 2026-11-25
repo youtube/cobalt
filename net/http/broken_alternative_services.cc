@@ -4,11 +4,16 @@
 
 #include "net/http/broken_alternative_services.h"
 
+#include <algorithm>
+
 #include "base/containers/adapters.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/singleton.h"
 #include "base/time/tick_clock.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
+#include "net/base/features.h"
 #include "net/http/http_server_properties.h"
 
 namespace net {
@@ -52,7 +57,17 @@ base::TimeDelta ComputeBrokenAlternativeServiceExpirationDelay(
   } else {
     delay = kDefaultBrokenAlternativeProtocolDelay * (1 << (broken_count - 1));
   }
-  return std::min(delay, kMaxBrokenAlternativeProtocolDelay);
+  base::TimeDelta max_delay = kMaxBrokenAlternativeProtocolDelay;
+#if BUILDFLAG(IS_COBALT)
+  if (base::FeatureList::IsEnabled(features::kCobaltEnableQuic)) {
+    const int max_delay_s = features::kCobaltQuicBrokenMaxDelaySeconds.Get();
+    if (max_delay_s > 0) {
+      max_delay = std::clamp(base::Seconds(max_delay_s), initial_delay,
+                             kMaxBrokenAlternativeProtocolDelay);
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+  return std::min(delay, max_delay);
 }
 
 }  // namespace
