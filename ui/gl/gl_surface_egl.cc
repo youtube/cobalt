@@ -994,11 +994,24 @@ gfx::VSyncProvider* NativeViewGLSurfaceEGL::GetVSyncProvider() {
 void NativeViewGLSurfaceEGL::SetVSyncEnabled(bool enabled) {
   DCHECK(GLContext::GetCurrent() && GLContext::GetCurrent()->IsCurrent(this));
   vsync_enabled_ = enabled;
+#if BUILDFLAG(IS_COBALT)
+  const EGLint swap_interval = enabled ? GetVSyncEnabledSwapInterval() : 0;
+  if (!eglSwapInterval(display_->GetDisplay(), swap_interval)) {
+#else
   if (!eglSwapInterval(display_->GetDisplay(), enabled ? 1 : 0)) {
+#endif  // BUILDFLAG(IS_COBALT)
     LOG(ERROR) << "eglSwapInterval failed with error "
                << GetLastEGLErrorString();
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+int NativeViewGLSurfaceEGL::GetVSyncEnabledSwapInterval() const {
+  // One frame per display refresh, which is what SetVSyncEnabled() uses
+  // without this hook.
+  return 1;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 NativeViewGLSurfaceEGL::~NativeViewGLSurfaceEGL() {
   InvalidateWeakPtrs();
