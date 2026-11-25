@@ -163,6 +163,15 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       return 1;
   }
 }
+
+#if BUILDFLAG(IS_IOS_TVOS)
+TimeDelta MapUrlPlayerDuration(TimeDelta duration) {
+  if (duration == kNoTimestamp || duration <= TimeDelta()) {
+    return kInfiniteDuration;
+  }
+  return duration;
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
@@ -613,17 +622,23 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 
-void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect,
+                                              int z_index) {
   CHECK(task_runner_->RunsTasksInCurrentSequence());
-  if (output_rect_ == output_rect) {
+  const bool output_rect_changed = output_rect_ != output_rect;
+  if (!output_rect_changed && z_index_ == z_index) {
     return;
   }
 
   output_rect_ = output_rect;
+  z_index_ = z_index;
 
 #if BUILDFLAG(IS_ANDROID)
-  if (overlay_ && output_rect_) {
-    overlay_->ScheduleLayout(*output_rect_);
+  if (overlay_) {
+    // AndroidOverlay has no z-order, so only forward changes of the rect.
+    if (output_rect_changed) {
+      overlay_->ScheduleLayout(*output_rect_);
+    }
     return;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -671,6 +686,21 @@ void StarboardRenderer::UpdateUrlPlayerVideoResolution() {
   client_->OnVideoNaturalSizeChange(size);
   if (player_bridge_->GetSbPlayerOutputMode() == kSbPlayerOutputModePunchOut) {
     paint_video_hole_frame_cb_.Run(size);
+  }
+}
+
+void StarboardRenderer::OnUrlPlayerInitialized() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!player_bridge_) {
+    return;
+  }
+
+  const TimeDelta duration = player_bridge_->GetInfo().duration;
+
+  // Keep the raw value so that GetMediaTime() doesn't push it again.
+  last_duration_ = duration;
+  if (duration_change_cb_) {
+    duration_change_cb_.Run(MapUrlPlayerDuration(duration));
   }
 }
 
@@ -921,11 +951,11 @@ void StarboardRenderer::CreatePlayerBridge() {
 }
 
 void StarboardRenderer::ApplyPendingBounds() {
-  if (!player_bridge_ || !output_rect_) {
+  if (!player_bridge_ || !z_index_ || !output_rect_) {
     return;
   }
 
-  player_bridge_->SetBounds(*output_rect_);
+  player_bridge_->SetBounds(*z_index_, *output_rect_);
 }
 
 void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
@@ -1250,6 +1280,11 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   switch (state) {
     case kSbPlayerStateInitialized:
       CHECK(init_cb_);
+#if BUILDFLAG(IS_IOS_TVOS)
+      if (IsUrlPlayer()) {
+        OnUrlPlayerInitialized();
+      }
+#endif  // BUILDFLAG(IS_IOS_TVOS)
       std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
       break;
     case kSbPlayerStatePrerolling:

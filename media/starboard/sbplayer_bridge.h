@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/atomic_sequence_num.h"
 #include "base/containers/circular_deque.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
@@ -144,7 +143,7 @@ class SbPlayerBridge {
   void WriteBuffers(DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
 
-  void SetBounds(const gfx::Rect& rect);
+  void SetBounds(int z_index, const gfx::Rect& rect);
 
   void PrepareForSeek();
   void Seek(base::TimeDelta time);
@@ -257,6 +256,11 @@ class SbPlayerBridge {
   void CreateUrlPlayer(const std::string& url);
 #endif  // BUILDFLAG(IS_IOS_TVOS)
   void CreatePlayer();
+  // Calls |create_fn|, which creates the SbPlayer, and records the latency of
+  // the call to UMA. Also records when the call was made, for the latency until
+  // the player reports kSbPlayerStateInitialized.
+  template <typename CreateFn>
+  SbPlayer CreateWithUmaLatency(CreateFn&& create_fn);
 
 #if BUILDFLAG(COBALT_MEDIA_ENABLE_SUSPEND_RESUME)
   void WriteNextBuffersFromCache(DemuxerStream::Type type,
@@ -414,6 +418,12 @@ class SbPlayerBridge {
   base::Time first_audio_sample_time_{};
   base::Time first_video_sample_time_{};
   base::Time sb_player_state_presenting_time_{};
+  // When the Starboard call that creates the player (SbPlayerCreate() or
+  // SbUrlPlayerCreate()) was made. Used for latency UMA.
+  std::optional<base::TimeTicks> sb_player_create_start_time_;
+  // Whether the last call that created the player was the first one in the
+  // process. Used for latency UMA.
+  bool is_first_sb_player_create_ = false;
 
 #if BUILDFLAG(IS_IOS_TVOS)
   const bool is_url_based_;

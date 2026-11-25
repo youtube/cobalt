@@ -145,7 +145,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #endif  // BUILDFLAG(IS_ANDROID)
   );
 
-  void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  void OnVideoGeometryChange(const gfx::Rect& output_rect, int z_index);
   void OnSbWindowHandleReady(const uint64_t sb_window_handle);
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
@@ -184,6 +184,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
 #if BUILDFLAG(IS_IOS_TVOS)
   bool IsUrlPlayer() const;
+  // Pushes the platform duration before init_cb_ runs.
+  void OnUrlPlayerInitialized();
   // Handles presenting state for URL player: propagates video resolution
   // for hole-punch rendering and re-applies playback rate.
   void OnUrlPlayerPresenting();
@@ -294,6 +296,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // The current overlay info, which possibly specifies an overlay to render to.
   OverlayInfo overlay_info_;
 
+  std::optional<int> z_index_;
   std::optional<gfx::Rect> output_rect_;
 
   // Temporary callback used for Initialize().

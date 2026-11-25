@@ -15,6 +15,7 @@
 #include "media/starboard/url_player_demuxer.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -24,11 +25,13 @@
 #include "base/test/mock_callback.h"
 #include "base/test/task_environment.h"
 #include "media/base/audio_decoder_config.h"
+#include "media/base/data_source.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/eme_constants.h"
 #include "media/base/media_track.h"
 #include "media/base/media_util.h"
 #include "media/base/mock_demuxer_host.h"
+#include "media/base/pipeline.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/ranges.h"
 #include "media/base/video_decoder_config.h"
@@ -162,18 +165,22 @@ class UrlPlayerDemuxerManagerTest : public ::testing::Test {
                              task_environment_.GetMainThreadTaskRunner(),
                              GURL(kHlsUrl))) {}
 
-  // Creates the demuxer through DemuxerManager and stores it in `demuxer_`.
-  void CreateDemuxer() {
+  // Creates the demuxer through DemuxerManager and stores it in `demuxer_`
+  // and the start type in `start_type_`.
+  void CreateDemuxer(DataSource::Preload preload = DataSource::AUTO) {
     PipelineStatus status = demuxer_manager_.CreateDemuxer(
-        /*load_media_source=*/false, DataSource::AUTO,
+        /*load_media_source=*/false, preload,
         /*needs_first_frame=*/false,
         base::BindOnce(
-            [](raw_ptr<Demuxer>* out_demuxer, Demuxer* demuxer,
-               Pipeline::StartType type, bool is_streaming, bool is_static) {
+            [](raw_ptr<Demuxer>* out_demuxer,
+               std::optional<Pipeline::StartType>* out_start_type,
+               Demuxer* demuxer, Pipeline::StartType type, bool is_streaming,
+               bool is_static) {
               *out_demuxer = demuxer;
+              *out_start_type = type;
               return PipelineStatus(PIPELINE_OK);
             },
-            &demuxer_));
+            &demuxer_, &start_type_));
     EXPECT_TRUE(status.is_ok());
   }
 
@@ -182,6 +189,7 @@ class UrlPlayerDemuxerManagerTest : public ::testing::Test {
   NiceMock<MockDemuxerManagerClient> client_;
   DemuxerManager demuxer_manager_;
   raw_ptr<Demuxer> demuxer_ = nullptr;
+  std::optional<Pipeline::StartType> start_type_;
 };
 
 TEST_F(UrlPlayerDemuxerManagerTest, EncryptedInitDataReachesClient) {
@@ -195,6 +203,11 @@ TEST_F(UrlPlayerDemuxerManagerTest, EncryptedInitDataReachesClient) {
   static_cast<UrlPlayerDemuxer*>(demuxer_.get())
       ->OnPlatformEncryptedMediaInitData(EmeInitDataType::CENC, init_data);
   base::RunLoop().RunUntilIdle();
+}
+
+TEST_F(UrlPlayerDemuxerManagerTest, PausedPreloadMetadataStartsNormally) {
+  CreateDemuxer(DataSource::METADATA);
+  EXPECT_EQ(start_type_, Pipeline::StartType::kNormal);
 }
 
 }  // namespace

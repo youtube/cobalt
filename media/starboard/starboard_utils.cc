@@ -33,18 +33,8 @@ namespace {
 
 int GetBitsPerPixel(const std::string& mime_type) {
   auto codecs = ExtractCodecs(mime_type);
-  SbMediaVideoCodec codec;
-  int profile;
-  int level;
-  int bit_depth;
-  SbMediaPrimaryId primary_id;
-  SbMediaTransferId transfer_id;
-  SbMediaMatrixId matrix_id;
-
-  if (starboard::ParseVideoCodec(codecs.c_str(), &codec, &profile, &level,
-                                 &bit_depth, &primary_id, &transfer_id,
-                                 &matrix_id)) {
-    return bit_depth;
+  if (auto codec_info = starboard::ParseVideoCodec(codecs)) {
+    return codec_info->bit_depth;
   }
 
   // Assume SDR when there isn't enough information to determine the bit depth.

@@ -19,6 +19,7 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -36,7 +37,7 @@ class AssetManager {
   int OpenDirectory(const char* path);
   int CloseDirectory(int fd);
   bool IsAssetDirFd(int fd) const;
-  bool GetDirectoryEntries(int fd, std::vector<std::string>* entries) const;
+  std::optional<std::vector<std::string>> GetDirectoryEntries(int fd) const;
 
   // Tracks the DIR handles the asset-path dirent wrappers hand out, so they can
   // be told apart from handles returned by the real opendir()/fdopendir().
