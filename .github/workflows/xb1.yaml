@@ -1,0 +1,21 @@
+# Registration stub on main so GitHub Actions exposes workflow_dispatch for
+# release branches (e.g., 25.lts.1+).
+name: xb1
+
+on:
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  stub:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "xb1 workflow is only active on release branches."

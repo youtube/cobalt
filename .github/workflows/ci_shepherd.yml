@@ -35,6 +35,15 @@ env:
 
 jobs:
   status-and-deflake:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.event == 'pull_request' ||
+      github.event.workflow_run.event == 'pull_request_target' ||
+      github.event.workflow_run.head_branch == 'main' ||
+      github.event.workflow_run.head_branch == '27.lts' ||
+      startsWith(github.event.workflow_run.head_branch, 'experimental/') ||
+      startsWith(github.event.workflow_run.head_branch, 'feature/') ||
+      startsWith(github.event.workflow_run.head_branch, 'stack/')
     runs-on: ubuntu-latest
     permissions:
       statuses: write
@@ -44,6 +53,7 @@ jobs:
     outputs:
       head_sha: ${{ steps.resolve.outputs.head_sha }}
       pr_number: ${{ steps.resolve.outputs.pr_number }}
+      should_run: ${{ steps.resolve.outputs.should_run }}
       rerun_triggered: ${{ steps.deflake.outputs.rerun_triggered || 'false' }}
     steps:
       - name: Resolve Context
@@ -51,8 +61,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
           HEAD_SHA_EVENT: ${{ github.event.workflow_run.head_sha }}
           PR_NUMBER_EVENT: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number }}
+          BASE_BRANCH_EVENT: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
           TRIGGER_EVENT: ${{ github.event.workflow_run.event || 'workflow_dispatch' }}
           HEAD_REPO_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
@@ -62,6 +74,7 @@ jobs:
 
           pr_number="${PR_NUMBER_EVENT:-}"
           head_sha="${HEAD_SHA_EVENT:-}"
+          base_branch="${BASE_BRANCH_EVENT:-}"
 
           # Post-submit runs (push to main/release branches) must never be
           # attributed to an already merged PR, so skip PR resolution there.
@@ -72,28 +85,55 @@ jobs:
             # commits/<sha>/pulls endpoint only knows about commits that exist
             # in this repository. Resolve fork PRs via their head ref instead.
             if [[ -n "${HEAD_REPO_OWNER:-}" && -n "${HEAD_BRANCH:-}" ]]; then
-              pr_number=$(gh api -X GET "repos/${REPO}/pulls" \
+              pr_info=$(gh api -X GET "repos/${REPO}/pulls" \
                   -f head="${HEAD_REPO_OWNER}:${HEAD_BRANCH}" -f state=open -f per_page=100 \
-                | jq -r --arg sha "${head_sha}" '[.[] | select(.head.sha == $sha)][0].number // ""')
+                | jq -r --arg sha "${head_sha}" '[.[] | select(.head.sha == $sha)][0] | "\(.number // "")\t\(.base.ref // "")"')
+              pr_number="${pr_info%%$'\t'*}"
+              base_branch="${base_branch:-${pr_info#*$'\t'}}"
             fi
             if [[ -z "${pr_number}" ]]; then
-              pr_number=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" \
-                | jq -r '[.[] | select(.state == "open")][0].number // ""')
+              pr_info=$(gh api "repos/${REPO}/commits/${head_sha}/pulls" \
+                | jq -r '[.[] | select(.state == "open")][0] | "\(.number // "")\t\(.base.ref // "")"')
+              pr_number="${pr_info%%$'\t'*}"
+              base_branch="${base_branch:-${pr_info#*$'\t'}}"
             fi
             if [[ -z "${pr_number}" ]]; then
-              pr_number=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state open --json number --jq '.[0].number // ""')
+              pr_info=$(gh pr list --repo "${REPO}" --search "${head_sha}" --state open --json number,baseRefName --jq '.[0] | "\(.number // "")\t\(.baseRefName // "")"')
+              pr_number="${pr_info%%$'\t'*}"
+              base_branch="${base_branch:-${pr_info#*$'\t'}}"
             fi
           fi
-          if [[ -z "${head_sha}" && -n "${pr_number}" ]]; then
-            head_sha=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid -q .headRefOid)
+          if [[ -n "${pr_number}" && ( -z "${head_sha}" || -z "${base_branch}" ) ]]; then
+            pr_json=$(gh pr view "${pr_number}" --repo "${REPO}" --json headRefOid,baseRefName)
+            head_sha="${head_sha:-$(echo "${pr_json}" | jq -r '.headRefOid // ""')}"
+            base_branch="${base_branch:-$(echo "${pr_json}" | jq -r '.baseRefName // ""')}"
           fi
 
-          echo "Resolved head_sha=${head_sha} pr_number=${pr_number:-<none>}"
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            should_run="true"
+          else
+            if [[ "${TRIGGER_EVENT}" == "pull_request" || "${TRIGGER_EVENT}" == "pull_request_target" ]]; then
+              target_branch="${base_branch:-${HEAD_BRANCH}}"
+            else
+              target_branch="${HEAD_BRANCH}"
+            fi
+            case "${target_branch}" in
+              main|27.lts|experimental/*|feature/*|stack/*)
+                should_run="true"
+                ;;
+              *)
+                should_run="false"
+                ;;
+            esac
+          fi
+
+          echo "Resolved head_sha=${head_sha} pr_number=${pr_number:-<none>} target_branch=${target_branch:-<dispatch>} should_run=${should_run}"
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
           echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+          echo "should_run=${should_run}" >> "${GITHUB_OUTPUT}"
 
       - name: Set Pending Status on In-Progress
-        if: (github.event.action || inputs.action) == 'in_progress'
+        if: steps.resolve.outputs.should_run == 'true' && (github.event.action || inputs.action) == 'in_progress'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -115,7 +155,7 @@ jobs:
             -f context="CI / All Pass" || true
 
       - name: Checkout Deflake Config
-        if: (github.event.action || inputs.action) != 'in_progress' && github.event.workflow_run.conclusion == 'failure'
+        if: steps.resolve.outputs.should_run == 'true' && (github.event.action || inputs.action) != 'in_progress' && github.event.workflow_run.conclusion == 'failure'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
@@ -125,7 +165,7 @@ jobs:
 
       - name: Deflake Failing Tests
         id: deflake
-        if: (github.event.action || inputs.action) != 'in_progress' && github.event.workflow_run.conclusion == 'failure'
+        if: steps.resolve.outputs.should_run == 'true' && (github.event.action || inputs.action) != 'in_progress' && github.event.workflow_run.conclusion == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -167,7 +207,7 @@ jobs:
 
       - name: Update Workflow and Overall Commit Status
         id: update-commit-status
-        if: (github.event.action || inputs.action) != 'in_progress'
+        if: steps.resolve.outputs.should_run == 'true' && (github.event.action || inputs.action) != 'in_progress'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -252,7 +292,7 @@ jobs:
     needs: [status-and-deflake]
     # Run even when status-and-deflake failed so the comment reflects the
     # current statuses, but only when the run belongs to an open PR.
-    if: ${{ !cancelled() && needs.status-and-deflake.outputs.pr_number != '' && needs.status-and-deflake.outputs.head_sha != '' }}
+    if: ${{ !cancelled() && needs.status-and-deflake.outputs.should_run == 'true' && needs.status-and-deflake.outputs.pr_number != '' && needs.status-and-deflake.outputs.head_sha != '' }}
     permissions:
       statuses: read
       pull-requests: write
@@ -306,8 +346,8 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event.action || inputs.action) == 'completed' &&
-      (github.event.workflow_run.event == 'push' || github.event_name == 'workflow_dispatch') &&
-      (github.event.workflow_run.head_branch == 'main' || github.ref == 'refs/heads/main' || github.repository == 'youtube/cobalt' || github.repository == 'youtube/cobalt_sandbox')
+      ((github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') ||
+       (github.event_name == 'workflow_dispatch' && github.ref_name == 'main'))
     permissions:
       contents: write
       actions: read
