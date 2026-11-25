@@ -1127,15 +1127,6 @@ Always run the pretty print utility on this file after editing:
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-<<<<<<< HEAD
-    Records the cumulative block-layer kilobytes read from storage
-    (/proc/self/io read_bytes) by the browser process during the first 30
-    seconds after browser startup. Recorded once per browser process launch; it
-    is not recorded again when Cobalt resumes from the background. On platforms
-    that preload Cobalt, this window may fall entirely within the preload,
-    before the app is visible. Sampled before computing directory sizes so that
-    metadata stat() calls do not inflate the reading.
-=======
     Records the cumulative block-layer kilobytes read from storage by the
     browser process since it started, sampled 10 seconds after browser startup.
     Source: getrusage(RUSAGE_SELF) ru_inblock on Android, which reports the same
@@ -1147,7 +1138,6 @@ Always run the pretty print utility on this file after editing:
     preload Cobalt, this window may fall entirely within the preload, before the
     app is visible. Sampled before computing directory sizes so that metadata
     stat() calls do not inflate the reading.
->>>>>>> a4e74ecf930 ([Storage] Fix release ProcessIo, add StartupTotalSizeKB2 (1 GB), and record I/O jank (#13979))
   </summary>
 </histogram>
 
@@ -1156,14 +1146,6 @@ Always run the pretty print utility on this file after editing:
   <owner>haozheng@google.com</owner>
   <owner>charleykim@google.com</owner>
   <summary>
-<<<<<<< HEAD
-    Records the cumulative block-layer kilobytes written to storage
-    (/proc/self/io write_bytes) by the browser process during the first 30
-    seconds after browser startup. Recorded once per browser process launch; it
-    is not recorded again when Cobalt resumes from the background. On platforms
-    that preload Cobalt, this window may fall entirely within the preload,
-    before the app is visible.
-=======
     Records the cumulative block-layer kilobytes written to storage by the
     browser process since it started, sampled 10 seconds after browser startup.
     Source: getrusage(RUSAGE_SELF) ru_oublock on Android (the same kernel
@@ -1172,7 +1154,6 @@ Always run the pretty print utility on this file after editing:
     process launch; it is not recorded again when Cobalt resumes from the
     background. On platforms that preload Cobalt, this window may fall entirely
     within the preload, before the app is visible.
->>>>>>> a4e74ecf930 ([Storage] Fix release ProcessIo, add StartupTotalSizeKB2 (1 GB), and record I/O jank (#13979))
   </summary>
 </histogram>
 
@@ -1182,20 +1163,12 @@ Always run the pretty print utility on this file after editing:
   <owner>charleykim@google.com</owner>
   <summary>
     Records the steady-state block-layer write rate in kilobytes per minute,
-<<<<<<< HEAD
-    sampled every 5 minutes on a BEST_EFFORT background sequence from
-    /proc/self/io write_bytes deltas after the 30-second post-startup baseline.
-    Sampling continues for the life of the browser process, including while
-    Cobalt is in the background; if the OS freezes the process, the next sample
-    covers the longer interval.
-=======
     sampled every 5 minutes on a BEST_EFFORT background sequence from deltas of
     the Cobalt.Storage.ProcessIo.StartupWriteKB counter (getrusage on Android,
     /proc/self/io elsewhere) after the 10-second post-startup baseline. Sampling
     continues for the life of the browser process, including while Cobalt is in
     the background; if the OS freezes the process, the next sample covers the
     longer interval.
->>>>>>> a4e74ecf930 ([Storage] Fix release ProcessIo, add StartupTotalSizeKB2 (1 GB), and record I/O jank (#13979))
   </summary>
 </histogram>
 
