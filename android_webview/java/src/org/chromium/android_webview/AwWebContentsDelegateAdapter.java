@@ -20,6 +20,7 @@ import android.widget.FrameLayout;
 import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.Callback;
 import org.chromium.base.ContentUriUtils;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.task.AsyncTask;
@@ -42,7 +43,6 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
     private final AwContents mAwContents;
     private final AwContentsClient mContentsClient;
     private final AwSettings mAwSettings;
-    private final Context mContext;
     private View mContainerView;
     private FrameLayout mCustomView;
     private boolean mDidSynthesizePageLoad;
@@ -51,12 +51,10 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
             AwContents awContents,
             AwContentsClient contentsClient,
             AwSettings settings,
-            Context context,
             View containerView) {
         mAwContents = awContents;
         mContentsClient = contentsClient;
         mAwSettings = settings;
-        mContext = context;
         mDidSynthesizePageLoad = false;
         setContainerView(containerView);
     }
@@ -114,7 +112,10 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
             case KeyEvent.KEYCODE_MEDIA_CLOSE:
             case KeyEvent.KEYCODE_MEDIA_EJECT:
             case KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK:
-                AudioManager am = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+                AudioManager am =
+                        (AudioManager)
+                                ContextUtils.getApplicationContext()
+                                        .getSystemService(Context.AUDIO_SERVICE);
                 am.dispatchMediaKeyEvent(e);
                 break;
             default:
@@ -270,7 +271,7 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
                                     }
                                     GetDisplayNameTask task =
                                             new GetDisplayNameTask(
-                                                    mContext,
+                                                    ContextUtils.getApplicationContext(),
                                                     processId,
                                                     renderId,
                                                     webChromeClientMode,
@@ -351,6 +352,7 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
         if (mAwContents.isFullScreen()) {
             return;
         }
+        Context context = mAwContents.getProvidedContext();
         View fullscreenView = mAwContents.enterFullScreen();
         if (fullscreenView == null) {
             return;
@@ -361,7 +363,7 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
                         mAwContents.requestExitFullscreen();
                     }
                 };
-        mCustomView = new FrameLayout(mContext);
+        mCustomView = new FrameLayout(context);
         mCustomView.addView(fullscreenView);
         mContentsClient.onShowCustomView(mCustomView, cb);
     }
@@ -449,6 +451,7 @@ class AwWebContentsDelegateAdapter extends AwWebContentsDelegate {
      */
     @Override
     protected boolean isPopupSupported() {
-        return ContextMenuUtils.isPopupSupported(mContext);
+        Context context = mAwContents.getProvidedContext();
+        return ContextMenuUtils.isPopupSupported(context);
     }
 }

@@ -12,7 +12,6 @@
 #include "ash/quick_pair/fast_pair_handshake/fake_fast_pair_handshake.h"
 #include "ash/quick_pair/fast_pair_handshake/fast_pair_data_encryptor.h"
 #include "ash/quick_pair/fast_pair_handshake/fast_pair_gatt_service_client.h"
-#include "ash/quick_pair/fast_pair_handshake/fast_pair_handshake_impl_new.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/singleton.h"
@@ -71,8 +70,9 @@ void FakeFastPairHandshakeLookup::Create(
     scoped_refptr<Device> device,
     OnCompleteCallback on_complete) {
   on_complete_callback_ = std::move(on_complete);
-  std::unique_ptr<FastPairHandshakeImplNew> handshake_to_emplace =
-      std::make_unique<FastPairHandshakeImplNew>(std::move(adapter), device);
+  std::unique_ptr<FakeFastPairHandshake> handshake_to_emplace =
+      std::make_unique<FakeFastPairHandshake>(std::move(adapter), device,
+                                              base::DoNothing());
 
   CHECK(!fast_pair_handshakes_.contains(device))
       << "An existing item shouldn't exist";

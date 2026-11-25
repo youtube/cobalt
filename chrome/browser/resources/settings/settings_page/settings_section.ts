@@ -17,62 +17,57 @@
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/cr_shared_vars.css.js';
 
-import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {CrLitElement, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 
-import {getTemplate} from './settings_section.html.js';
+import {getCss} from './settings_section.css.js';
+import {getHtml} from './settings_section.html.js';
 
-export class SettingsSectionElement extends PolymerElement {
+export class SettingsSectionElement extends CrLitElement {
   static get is() {
     return 'settings-section';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
       /**
        * Title for the section header. Initialize so we can use the
        * getTitleHiddenStatus_ method for accessibility.
        */
-      pageTitle: {
-        type: String,
-        value: '',
-      },
+      pageTitle: {type: String},
 
       /**
        * When this attribute is enabled, a send feedback button will be shown
        * that emits a 'send-feedback' event.
        */
-      showSendFeedbackButton: {
-        type: Boolean,
-        value: false,
-      },
+      showSendFeedbackButton: {type: Boolean},
     };
   }
 
-  declare pageTitle: string;
-  declare showSendFeedbackButton: boolean;
+  accessor pageTitle: string = '';
+  accessor showSendFeedbackButton: boolean = false;
 
   /**
    * Get the value to which to set the aria-hidden attribute of the section
    * heading.
-   * @return A return value of false will not add aria-hidden while aria-hidden
-   *    requires a string of 'true' to be hidden as per aria specs. This
-   *    function ensures we have the right return type.
    */
-  private getTitleHiddenStatus_(): boolean|string {
-    return this.pageTitle ? false : 'true';
+  protected getTitleHiddenStatus_(): string|typeof nothing {
+    return this.pageTitle ? nothing : 'true';
   }
 
   override focus() {
-    this.shadowRoot!.querySelector<HTMLElement>('.title')!.focus();
+    this.shadowRoot.querySelector<HTMLElement>('.title')!.focus();
   }
 
-  private onSendFeedbackClick_() {
-    this.dispatchEvent(
-        new CustomEvent('send-feedback', {bubbles: true, composed: true}));
+  protected onSendFeedbackClick_() {
+    this.fire('send-feedback');
   }
 }
 

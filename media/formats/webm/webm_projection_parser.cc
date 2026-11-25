@@ -39,7 +39,6 @@ void WebMProjectionParser::Reset() {
   projection_type_ = std::nullopt;
   projection_private_.clear();
   pose_yaw_ = std::nullopt;
-  pose_pitch_ = std::nullopt;
   pose_roll_ = std::nullopt;
   video_projection_type_ = VideoProjectionType::kNone;
   video_transformation_ = VideoTransformation();
@@ -105,12 +104,6 @@ bool WebMProjectionParser::OnFloat(int id, double val) {
       // Valid range defined:
       // https://www.matroska.org/technical/elements.html#ProjectionPoseYaw
       is_valid = IsValidAngle(val, -180, 180);
-      break;
-    case kWebMIdProjectionPosePitch:
-      dst = &pose_pitch_;
-      // Valid range defined:
-      // https://www.matroska.org/technical/elements.html#ProjectionPosePitch
-      is_valid = IsValidAngle(val, -90, 90);
       break;
     case kWebMIdProjectionPoseRoll:
       dst = &pose_roll_;
@@ -196,9 +189,9 @@ bool WebMProjectionParser::Validate() const {
   }
 
   // According to the EBML/Matroska specification, orientation angle elements
-  // (ProjectionPoseYaw, ProjectionPosePitch, and ProjectionPoseRoll) are
-  // optional and default to 0.0 degrees if omitted by the Muxer. Therefore, we
-  // do not require them to be present during validation.
+  // (ProjectionPoseYaw and ProjectionPoseRoll) are optional and default to 0.0
+  // degrees if omitted by the Muxer. Therefore, we do not require them to be
+  // present during validation.
 
   switch (projection_type_.value()) {
     case kWebMProjectionTypeRectangular:

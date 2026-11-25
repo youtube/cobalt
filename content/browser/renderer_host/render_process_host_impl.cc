@@ -5722,7 +5722,8 @@ void RenderProcessHostImpl::ProcessDied(
 
   compositing_mode_reporter_.reset();
 
-  metrics::HistogramController::GetInstance()->NotifyChildDied(this);
+  metrics::HistogramController::GetInstance()->NotifyChildDied(
+      GetProcessIdForHistogram());
   // This object is not deleted at this point and might be reused later.
   // TODO(darin): clean this up
 }
@@ -6270,6 +6271,10 @@ void RenderProcessHostImpl::BindChildHistogramFetcherFactory(
 
 bool RenderProcessHostImpl::IsWebiumRenderer() const {
   return IsForTopChromeWebUI();
+}
+
+uint64_t RenderProcessHostImpl::GetProcessIdForHistogram() const {
+  return GetID().value();
 }
 
 // static

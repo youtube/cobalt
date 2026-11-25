@@ -80,8 +80,8 @@ SendTabToSelfBrowserAgent::SendTabToSelfBrowserAgent(Browser* browser)
   if (loading_notifier) {
     url_loading_observation_.Observe(loading_notifier);
   }
+  StartObserving(browser_);
   if (base::FeatureList::IsEnabled(send_tab_to_self::kSendTabToSelfAutoOpen)) {
-    web_state_list_observation_.Observe(browser_->GetWebStateList());
     if (web::WebState* web_state =
             browser_->GetWebStateList()->GetActiveWebState()) {
       web_state_observation_.Observe(web_state);
@@ -92,9 +92,12 @@ SendTabToSelfBrowserAgent::SendTabToSelfBrowserAgent(Browser* browser)
   }
 }
 
-SendTabToSelfBrowserAgent::~SendTabToSelfBrowserAgent() = default;
+SendTabToSelfBrowserAgent::~SendTabToSelfBrowserAgent() {
+  StopObserving();
+}
 
 void SendTabToSelfBrowserAgent::BrowserDestroyed(Browser* browser) {
+  StopObserving();
   url_loading_observation_.Reset();
   model_observation_.Reset();
   browser_observation_.Reset();
@@ -133,8 +136,16 @@ void SendTabToSelfBrowserAgent::DisplayNewEntries(
     if (web_state && web_state->IsVisible()) {
       for (const send_tab_to_self::SendTabToSelfEntry* entry : new_entries) {
         OpenEntryInBackgroundTab(entry);
+        send_tab_to_self::RecordAutoOpenOutcome(
+            send_tab_to_self::AutoOpenOutcome::
+                kTabsOpenedImmediatelyInBackground);
       }
       DisplayInfoBar(web_state, new_entries.back());
+    } else {
+      for (size_t ii = 0; ii < new_entries.size(); ++ii) {
+        send_tab_to_self::RecordAutoOpenOutcome(
+            send_tab_to_self::AutoOpenOutcome::kUnopenedImmediately);
+      }
     }
     return;
   }
@@ -151,9 +162,6 @@ void SendTabToSelfBrowserAgent::DisplayNewEntries(
       web_state_observation_.Observe(pending_web_state_.get());
     }
 
-    if (!web_state_list_observation_.IsObserving()) {
-      web_state_list_observation_.Observe(browser_->GetWebStateList());
-    }
 
     // Pick the most recent entry since only one Infobar can be shown at a time.
     // TODO(crbug.com/40619532): Create a function that returns the most
@@ -191,28 +199,43 @@ void SendTabToSelfBrowserAgent::DismissEntries(
   }
 }
 
-#pragma mark - WebStateListObserver
+#pragma mark - TabsDependencyInstaller
 
-void SendTabToSelfBrowserAgent::WebStateListDidChange(
-    WebStateList* web_state_list,
-    const WebStateListChange& change,
-    const WebStateListStatus& status) {
-  // The active WebState can be null if the user close the last tab in the tab
-  // picker.
-  if (!status.active_web_state_change() || !status.new_active_web_state) {
+void SendTabToSelfBrowserAgent::OnWebStateInserted(web::WebState* web_state) {}
+
+void SendTabToSelfBrowserAgent::OnWebStateRemoved(web::WebState* web_state) {}
+
+void SendTabToSelfBrowserAgent::OnWebStateDeleted(web::WebState* web_state) {
+  if (base::FeatureList::IsEnabled(send_tab_to_self::kSendTabToSelfAutoOpen)) {
+    // If the tab is being closed explicitly by the user (and not due to browser
+    // shutdown, tab strip destruction, or tab dragging between windows), log
+    // the abandonment metric.
+    SendTabToSelfTabCardLabelData* label_data =
+        SendTabToSelfTabCardLabelData::FromWebState(web_state);
+    if (label_data) {
+      label_data->WebStateClosedByUser(web_state);
+    }
+  }
+}
+
+void SendTabToSelfBrowserAgent::OnActiveWebStateChanged(
+    web::WebState* old_active,
+    web::WebState* new_active) {
+  if (!new_active) {
     return;
   }
 
   if (base::FeatureList::IsEnabled(send_tab_to_self::kSendTabToSelfAutoOpen)) {
     web_state_observation_.Reset();
-    web_state_observation_.Observe(status.new_active_web_state);
+    web_state_observation_.Observe(new_active);
     CheckAndOpenPendingEntriesIfBrowserVisible();
     return;
   }
 
-  DCHECK(pending_entry_);
-  DisplayInfoBar(status.new_active_web_state, pending_entry_);
-  CleanUpObserversAndVariables();
+  if (pending_entry_) {
+    DisplayInfoBar(new_active, pending_entry_);
+    CleanUpObserversAndVariables();
+  }
 }
 
 #pragma mark - WebStateObserver
@@ -267,8 +290,6 @@ void SendTabToSelfBrowserAgent::DisplayInfoBar(
 void SendTabToSelfBrowserAgent::CleanUpObserversAndVariables() {
   pending_entry_ = nullptr;
 
-  web_state_list_observation_.Reset();
-
   web_state_observation_.Reset();
   pending_web_state_ = nullptr;
 }
@@ -291,9 +312,12 @@ void SendTabToSelfBrowserAgent::TabWillLoadUrl(
       // Attach a tab card label to the web state for the tab switcher UI.
       const send_tab_to_self::SendTabToSelfEntry* entry =
           model_->GetEntryByGUID(params.send_tab_to_self_entry_guid);
-      if (entry) {
+      if (entry
+          // Only attach to tabs opened in the background. This is to avoid the
+          // case where tabs are opened via the system-level notification.
+          && params.in_background()) {
         SendTabToSelfTabCardLabelData::CreateForWebState(
-            web_state.get(), entry->GetDeviceName());
+            web_state.get(), entry->GetGUID(), entry->GetDeviceName());
       }
     }
   }
@@ -315,6 +339,9 @@ void SendTabToSelfBrowserAgent::CheckAndOpenPendingEntriesIfBrowserVisible() {
 
   for (const send_tab_to_self::SendTabToSelfEntry* entry : pending_entries) {
     OpenEntryInBackgroundTab(entry);
+    send_tab_to_self::RecordAutoOpenOutcome(
+        send_tab_to_self::AutoOpenOutcome::
+            kTabsOpenedInBackgroundUponActivation);
   }
   DisplayInfoBar(web_state, pending_entries.back());
 }

@@ -277,10 +277,13 @@ class RtpVideoSenderTestFixture {
   std::unique_ptr<RtpVideoSender> router_;
 };
 
-BitrateAllocationUpdate CreateBitrateAllocationUpdate(int target_bitrate_bps) {
+BitrateAllocationUpdate CreateBitrateAllocationUpdate(
+    int target_bitrate_bps,
+    DataSize packet_overhead = DataSize::Zero()) {
   BitrateAllocationUpdate update;
   update.target_bitrate = DataRate::BitsPerSec(target_bitrate_bps);
   update.round_trip_time = TimeDelta::Zero();
+  update.packet_overhead = packet_overhead;
   return update;
 }
 
@@ -1344,26 +1347,31 @@ TEST(RtpVideoSenderTest, OverheadIsSubtractedFromTargetBitrate) {
   constexpr uint32_t kOverheadPerPacketBytes =
       kRtpHeaderSizeBytes + kTransportPacketOverheadBytes;
   RtpVideoSenderTestFixture test({kSsrc1}, {}, kPayloadType, {}, field_trials);
-  test.router()->OnTransportOverheadChanged(kTransportPacketOverheadBytes);
   test.SetSending(true);
 
   {
-    test.router()->OnBitrateUpdated(CreateBitrateAllocationUpdate(300000),
-                                    /*framerate*/ 15);
+    test.router()->OnBitrateUpdated(
+        CreateBitrateAllocationUpdate(
+            300000, DataSize::Bytes(kTransportPacketOverheadBytes)),
+        /*framerate*/ 15);
     // 1 packet per frame.
     EXPECT_EQ(test.router()->GetPayloadBitrateBps(),
               300000 - kOverheadPerPacketBytes * 8 * 30);
   }
   {
-    test.router()->OnBitrateUpdated(CreateBitrateAllocationUpdate(150000),
-                                    /*framerate*/ 15);
+    test.router()->OnBitrateUpdated(
+        CreateBitrateAllocationUpdate(
+            150000, DataSize::Bytes(kTransportPacketOverheadBytes)),
+        /*framerate*/ 15);
     // 1 packet per frame.
     EXPECT_EQ(test.router()->GetPayloadBitrateBps(),
               150000 - kOverheadPerPacketBytes * 8 * 15);
   }
   {
-    test.router()->OnBitrateUpdated(CreateBitrateAllocationUpdate(1000000),
-                                    /*framerate*/ 30);
+    test.router()->OnBitrateUpdated(
+        CreateBitrateAllocationUpdate(
+            1000000, DataSize::Bytes(kTransportPacketOverheadBytes)),
+        /*framerate*/ 30);
     // 3 packets per frame.
     EXPECT_EQ(test.router()->GetPayloadBitrateBps(),
               1000000 - kOverheadPerPacketBytes * 8 * 30 * 3);

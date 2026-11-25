@@ -35,6 +35,8 @@ import sys
 import tempfile
 import time
 import urllib
+import urllib.error
+import urllib.request
 
 from update import (CDS_URL, CHROMIUM_DIR, CLANG_REVISION, LLVM_BUILD_DIR,
                     FORCE_HEAD_REVISION_FILENAME, FORCE_HEAD_REVISION_FILE,
@@ -245,27 +247,31 @@ def GitRevert(git_repository, commit):
              env=env)
 
 
+def FetchUrl(url, max_tries=5, delay_seconds=1):
+  """Fetch content from a URL. If the fetch fails, retry several times after a
+     short delay."""
+  for i in range(max_tries):
+    try:
+      with urllib.request.urlopen(url) as response:
+        return response.read()
+    except (ConnectionError, urllib.error.URLError) as e:
+      # If this was the last try or a permanent 404 client error, re-raise.
+      if i >= max_tries - 1 or (isinstance(e, urllib.error.HTTPError)
+                                and e.code == 404):
+        raise e
+
+      reason = getattr(e, 'reason', e)
+      print(f"Failed to fetch {url}: {reason} (attempt {i + 1}/{max_tries}). "
+            f"Retrying in {delay_seconds}s...")
+      time.sleep(delay_seconds)
+      delay_seconds *= 2
+
+
 def GetLatestCommit(url):
   """Get the latest commit hash from a git repository's JSON output. If the
      fetch fails, retry several times after a short delay."""
-  max_tries = 5
-  delay_seconds = 1
-  for i in range(max_tries):
-    try:
-      main = json.loads(
-          urllib.request.urlopen(url).read().decode("utf-8").replace(
-              ")]}'", ""))
-      return main['commit']
-    except urllib.error.URLError as e:
-      # If this was the last try then re-raise, otherwise loop again.
-      if i >= max_tries - 1:
-        raise e
-
-      print(
-          f"Failed to fetch latest commit: {e.reason} (attempt {i + 1}/{max_tries}). "
-          f"Retrying in {delay_seconds}s...")
-      time.sleep(delay_seconds)
-      delay_seconds *= 2
+  main = json.loads(FetchUrl(url).decode("utf-8").replace(")]}'", ""))
+  return main['commit']
 
 
 def GetLatestLLVMCommit():

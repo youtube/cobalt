@@ -648,7 +648,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="SBClientPhishing.ClipboardCopyApi.PayloadExtraction.SuspiciousTokenCount"
-    units="tokens" expires_after="2026-10-23">
+    units="tokens" expires_after="2026-12-27">
   <owner>liu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -660,7 +660,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 
 <histogram
     name="SBClientPhishing.ClipboardCopyApi.PayloadExtraction.TokenCount"
-    units="tokens" expires_after="2026-10-23">
+    units="tokens" expires_after="2026-12-27">
   <owner>liu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -682,7 +682,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.ClipboardCopyApi.PayloadLength"
-    units="characters" expires_after="2026-10-25">
+    units="characters" expires_after="2026-12-27">
   <owner>liu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1346,7 +1346,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.RedirectChainContainsForcedTriggerInfo"
-    enum="BooleanExists" expires_after="2026-10-25">
+    enum="BooleanExists" expires_after="2026-12-27">
   <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1358,7 +1358,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.RedirectChainContainsForceRequest"
-    enum="BooleanExists" expires_after="2026-10-25">
+    enum="BooleanExists" expires_after="2026-12-27">
   <owner>nwokedi@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -1489,7 +1489,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SBClientPhishing.ServerSideModelQuotaCountOnScamWarningShown"
-    units="queries" expires_after="2026-10-18">
+    units="queries" expires_after="2026-12-27">
   <owner>xinghuilu@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>

@@ -36,10 +36,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.util.List;
 
-/**
- * A {@link PropertyListModel} implementation to keep information about a list of {@link
- * org.chromium.chrome.browser.tab.Tab}s.
- */
+/** A {@link PropertyListModel} implementation to keep information about a list of {@link Tab}s. */
 @NullMarked
 public class TabListModel extends ModelList {
     @IntDef({
@@ -82,6 +79,14 @@ public class TabListModel extends ModelList {
                 new PropertyModel.WritableFloatPropertyKey();
         public static final PropertyModel.WritableIntPropertyKey CARD_ANIMATION_STATUS =
                 new PropertyModel.WritableIntPropertyKey();
+    }
+
+    /**
+     * @param index The index to check.
+     * @return Whether the given index is a valid position in the model list.
+     */
+    public boolean isValidIndex(int index) {
+        return index >= 0 && index < size();
     }
 
     /** Returns whether the given model is a TAB or TAB_GROUP card. */

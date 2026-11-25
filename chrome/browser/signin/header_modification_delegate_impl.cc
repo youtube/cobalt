@@ -177,10 +177,8 @@ void HeaderModificationDelegateImpl::ProcessRequest(
   }
 
   const PrefService* prefs = profile_->GetPrefs();
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
   syncer::SyncService* sync_service =
       SyncServiceFactory::GetForProfile(profile_);
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   bool is_secondary_account_addition_allowed = true;
@@ -205,6 +203,13 @@ void HeaderModificationDelegateImpl::ProcessRequest(
       // Defaults to kUnknown if the account is not found.
       identity_manager->FindExtendedAccountInfo(account).IsChildAccount();
 
+  // The primary account info at kSignin consent level is obtained to get the
+  // sign-in Gaia ID. This is passed to FixAccountConsistencyRequestHeader
+  // to decouple the sign-in account from the sync status (which is handled
+  // internally inside the function for Mirror and DICE).
+  CoreAccountInfo primary_account =
+      identity_manager->GetPrimaryAccountInfo(ConsentLevel::kSignin);
+
   int incognito_mode_availability =
       prefs->GetInteger(policy::policy_prefs::kIncognitoModeAvailability);
 #if BUILDFLAG(IS_ANDROID)
@@ -214,20 +219,26 @@ void HeaderModificationDelegateImpl::ProcessRequest(
           : static_cast<int>(policy::IncognitoModeAvailability::kDisabled);
 #endif
 
+  // SyncService and IdentityManager updates are not atomic. There are edge
+  // cases where SyncService thinks sync is enabled but IdentityManager has
+  // already cleared the primary account (e.g. if another identity observer
+  // gets notified before SyncService and triggers a request).
+  // See `SyncAuthManager::GetActiveAccountInfo()` for details. Primary account
+  // not empty is a requirement for sync.
+  bool is_sync_feature_enabled = sync_service &&
+                                 sync_service->IsSyncFeatureEnabled() &&
+                                 !primary_account.gaia.empty();
+
   FixAccountConsistencyRequestHeader(
       request_adapter, redirect_url, profile_->IsOffTheRecord(),
       incognito_mode_availability,
       AccountConsistencyModeManager::GetMethodForProfile(profile_),
-      account.gaia, is_child_account,
+      primary_account.gaia, consent_level, is_child_account,
 #if BUILDFLAG(IS_CHROMEOS)
       is_secondary_account_addition_allowed,
 #endif
+      is_sync_feature_enabled,
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-      // This usage of `IsSyncFeatureEnabled()` needs to be kept until the Sync
-      // users are migrated to kSignin state. It tells the Gaia server whether
-      // the sync feature is enabled, which in particular triggers a
-      // confirmation web page on signout.
-      sync_service && sync_service->IsSyncFeatureEnabled(),
       prefs->GetString(prefs::kGoogleServicesSigninScopedDeviceId),
 #endif
       cookie_settings_.get());

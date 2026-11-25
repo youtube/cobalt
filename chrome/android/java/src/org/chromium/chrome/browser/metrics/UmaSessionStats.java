@@ -29,7 +29,6 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
 import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.components.metrics.MetricsReportingLevel;
 import org.chromium.components.variations.SyntheticTrialAnnotationMode;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
@@ -201,22 +200,6 @@ public class UmaSessionStats {
         UmaSessionStatsJni.get().changeMetricsReportingState(enabled, calledFrom);
 
         updateMetricsServiceState();
-    }
-
-    /**
-     * Updates the metrics services based on a change of metrics reporting level. This can happen
-     * during first-run flow, and when the user changes their preferences.
-     */
-    public static void changeMetricsReportingState(
-            @MetricsReportingLevel int level,
-            @ChangeMetricsReportingStateCalledFrom int calledFrom) {
-        boolean enabled =
-                level == MetricsReportingLevel.BASIC || level == MetricsReportingLevel.ADVANCED;
-
-        // Update the metrics reporting preference.
-        PrivacyPreferencesManagerImpl.getInstance().setMetricsReportingLevel(level);
-
-        changeMetricsReportingState(enabled, calledFrom);
     }
 
     /** Initializes the metrics consent bit to false. Used only for testing. */

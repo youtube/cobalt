@@ -790,6 +790,7 @@ html element iframe
     property marginHeight
     property marginWidth
     property name
+    property permissionsPolicy
     property policy
     property privateToken
     property referrerPolicy
@@ -1207,6 +1208,7 @@ html element template
     property shadowRootDelegatesFocus
     property shadowRootMode
     property shadowRootSerializable
+    property shadowRootSlotAssignment
 html element textarea
     property autocomplete
     property checkValidity

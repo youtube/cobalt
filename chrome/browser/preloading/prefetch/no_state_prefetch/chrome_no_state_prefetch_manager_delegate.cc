@@ -14,6 +14,7 @@
 #include "components/content_settings/core/browser/cookie_settings.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_manager_delegate.h"
 #include "content/public/browser/browser_thread.h"
+#include "services/network/public/cpp/constants.h"
 
 namespace prerender {
 
@@ -44,7 +45,8 @@ void ChromeNoStatePrefetchManagerDelegate::MaybePreconnect(const GURL& url) {
   if (loading_predictor) {
     loading_predictor->PrepareForPageLoad(
         /*initiator_origin=*/std::nullopt, url,
-        predictors::HintOrigin::OMNIBOX_PRERENDER_FALLBACK, true);
+        predictors::HintOrigin::OMNIBOX_PRERENDER_FALLBACK,
+        network::GetNoOpNetworkRestrictionsId(), true);
   }
 }
 

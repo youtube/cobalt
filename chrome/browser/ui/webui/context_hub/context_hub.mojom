@@ -56,5 +56,8 @@ interface PageHandler {
   GenerateAutoTodos() => (array<AutoTodoItem>? todos);
 
   // Returns all entries currently stored in the memory bank.
-  GetAllEntries() => (array<MemoryBankEntry> entries);
+  GetAllMemoryBankEntries() => (array<MemoryBankEntry> entries);
+
+  // Deletes entries from the memory bank.
+  DeleteMemoryBankEntries(array<int64> ids) => ();
 };

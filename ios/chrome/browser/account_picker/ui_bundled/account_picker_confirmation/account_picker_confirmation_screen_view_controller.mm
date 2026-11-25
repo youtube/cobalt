@@ -57,8 +57,12 @@ UIFont* GetNavigationBarTitleFont() {
 }
 
 // Returns the width and height of a single pixel in point.
-CGFloat GetPixelLength() {
-  return 1.0 / [UIScreen mainScreen].scale;
+CGFloat GetPixelLength(UITraitCollection* traitCollection) {
+  CGFloat scale = traitCollection.displayScale;
+  if (scale == 0) {
+    scale = 2.0;
+  }
+  return 1.0 / scale;
 }
 
 // Creates the google photos branded title view for the navigation.
@@ -376,7 +380,8 @@ UILabel* CreateGooglePhotosTitleLabel(NSString* title) {
                          constant:16.],
       [separator.trailingAnchor
           constraintEqualToAnchor:identityStackView.trailingAnchor],
-      [separator.heightAnchor constraintEqualToConstant:GetPixelLength()],
+      [separator.heightAnchor
+          constraintEqualToConstant:GetPixelLength(self.traitCollection)],
       // Switch with label constraints
       [switchWithLabelContainer.widthAnchor
           constraintEqualToAnchor:identityStackView.widthAnchor],

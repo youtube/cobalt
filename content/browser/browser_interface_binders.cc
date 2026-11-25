@@ -1271,18 +1271,29 @@ void PopulateBinderMapWithContext(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindNFCReceiver>);
 #endif  // !BUILDFLAG(IS_COBALT)
 #else
+<<<<<<< ours
+=======
 #if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetHidService>);
 #endif  // !BUILDFLAG(IS_COBALT)
 
+>>>>>>> theirs
   map->Add<blink::mojom::InstalledAppProvider>(
       &BindRenderFrameHostImpl<
           &RenderFrameHostImpl::CreateInstalledAppProvider>);
 #endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
         // !BUILDFLAG(IS_IOS_TVOS))
 
+<<<<<<< ours
+#if !BUILDFLAG(IS_IOS)
+  map->Add<blink::mojom::HidService>(
+      &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetHidService>);
+#endif  // !BUILDFLAG(IS_IOS)
+
+=======
 #if !BUILDFLAG(IS_COBALT)
+>>>>>>> theirs
   map->Add<blink::mojom::SerialService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindSerialService>);
 #endif
@@ -1423,9 +1434,6 @@ void PopulateBinderMapWithContext(
   map->Add<blink::mojom::DigitalIdentityRequest>(
       &BindRenderFrameHostImpl<
           &RenderFrameHostImpl::BindDigitalIdentityRequestReceiver>);
-  map->Add<blink::mojom::FederatedAuthRequest>(
-      &BindRenderFrameHostImpl<
-          &RenderFrameHostImpl::BindFederatedAuthRequestReceiver>);
   map->Add<blink::mojom::FederatedRequestService>(
       &BindRenderFrameHostImpl<
           &RenderFrameHostImpl::BindFederatedRequestServiceReceiver>);

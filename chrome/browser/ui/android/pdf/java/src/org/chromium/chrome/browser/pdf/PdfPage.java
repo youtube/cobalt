@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.pdf;
 import android.app.Activity;
 import android.net.Uri;
 import android.os.SystemClock;
+import android.text.TextUtils;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -23,7 +24,7 @@ import org.chromium.components.embedder_support.util.UrlConstants;
 public class PdfPage extends BasicNativePage {
     @VisibleForTesting public final PdfCoordinatorInterface mPdfCoordinator;
     private String mTitle;
-    private final String mUrl;
+    private String mUrl;
     private final boolean mIsIncognito;
     private boolean mIsDownloadSafe;
     private long mTransientDownloadStartTimestamp;
@@ -94,6 +95,23 @@ public class PdfPage extends BasicNativePage {
     }
 
     @Override
+    public void updateForUrl(String url) {
+        super.updateForUrl(url);
+        if (!PdfUtils.isReuseFragmentEnabled()) return;
+
+        mPdfCoordinator.resetLoadState();
+        mUrl = url;
+        // Note that only local PDF loading is handled here. Non-local ones are taken care of
+        // by DownloadController#onDownloadCompleted.
+        if (!PdfUtils.isDownloadedPdf(url)) return;
+
+        // Use the URL encoded in |mUrl| if available i.e. chrome-native://pdf/link?url=...
+        String pageUrl = PdfUtils.decodePdfPageUrl(url);
+        String pdfUrl = pageUrl != null ? pageUrl : url;
+        mPdfCoordinator.onDownloadComplete(pdfUrl, PdfUtils.getFileNameFromUrl(pdfUrl, ""));
+    }
+
+    @Override
     public String getHost() {
         return UrlConstants.PDF_HOST;
     }
@@ -127,6 +145,42 @@ public class PdfPage extends BasicNativePage {
     public void reload() {
         if (PdfUtils.isInlinePdfV2Enabled()) {
             mPdfCoordinator.reload();
+        }
+    }
+
+    @Override
+    public boolean shouldReusePage(@Nullable String curl, String nurl, boolean preferReuse) {
+        if (!PdfUtils.isReuseFragmentEnabled()) return TextUtils.equals(curl, nurl);
+
+        // For PDF page, we reuse NativePage by default, with 2 exceptions:
+        // - When the current NativePage is frozen
+        // - When the URL is reloaded on Activity restart.
+        //
+        // TODO(crbug.com/514819449): If downloading a non-local PDF takes longer, reusing
+        //    NativePage keeps showing the old one, which could be perceived as failure in
+        //    loading. Creating a new NativePage/Fragment can avoid it as it displays
+        //    a spinner while download is progress.
+        return !isFrozen() && !isLoadingAfterActivityRestarted(curl, nurl, preferReuse);
+    }
+
+    private static boolean isLoadingAfterActivityRestarted(
+            @Nullable String curl, String nurl, boolean preferReuse) {
+        if (preferReuse) return false;
+
+        String cdurl = PdfUtils.decodePdfPageUrl(curl);
+        if (PdfUtils.isDownloadedPdf(nurl) && cdurl != null) {
+            // Local pdf. Both new and old one are chrome-native://pdf/link?url=content://
+            String ndurl = PdfUtils.decodePdfPageUrl(nurl);
+            return ndurl != null && TextUtils.equals(cdurl, ndurl);
+        } else {
+            // Non-local pdf
+            // 1) old chrome-native://pdflink?url=encoded(URL) vs. new: URL
+            // 2) old URL == new URL, not for the scheme chrome-native://pdf/link?url=http..
+            //     Upon activiy restart, the reloaded URL is not an encoded form.
+            return curl != null
+                    && (TextUtils.equals(cdurl, nurl)
+                            || (!curl.startsWith(UrlConstants.PDF_URL)
+                                    && TextUtils.equals(curl, nurl)));
         }
     }
 

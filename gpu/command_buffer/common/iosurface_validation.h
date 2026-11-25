@@ -14,12 +14,6 @@
 
 namespace gpu {
 
-// Return the expected four character code pixel format for an IOSurface with
-// the specified format.
-uint32_t GPU_COMMAND_BUFFER_COMMON_EXPORT
-SharedImageFormatToIOSurfacePixelFormat(viz::SharedImageFormat format,
-                                        bool override_rgba_to_bgra);
-
 // Ensure that the IOSurface has the same size and pixel format as those
 // specified by `size` and `format`. A malicious client could lie about
 // this, which, if subsequently used to determine parameters for bounds

@@ -496,8 +496,6 @@ class FakeCall final : public Call, public PacketReceiver {
   TaskQueueBase* worker_thread() const override;
 
   void SignalChannelNetworkState(MediaType media, NetworkState state) override;
-  void OnAudioTransportOverheadChanged(
-      int transport_overhead_per_packet) override;
   void OnUpdateSyncGroup(AudioReceiveStreamInterface& stream,
                          absl::string_view sync_group) override;
   void OnSentPacket(const SentPacketInfo& sent_packet) override;

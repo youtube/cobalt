@@ -45,7 +45,9 @@ class FakeDistiller : public Distiller {
                    DistillationFinishedCallback article_callback,
                    const DistillationUpdateCallback& page_callback) override;
 
-  void RunDistillerCallback(std::unique_ptr<DistilledArticleProto> proto);
+  void RunDistillerCallback(
+      std::unique_ptr<DistilledArticleProto> proto,
+      DistillationParseResult result = DistillationParseResult::kSuccess);
   void RunDistillerUpdateCallback(const ArticleDistillationUpdate& update);
 
   GURL GetUrl() { return url_; }
@@ -55,9 +57,11 @@ class FakeDistiller : public Distiller {
   }
 
  private:
-  void PostDistillerCallback(std::unique_ptr<DistilledArticleProto> proto);
+  void PostDistillerCallback(std::unique_ptr<DistilledArticleProto> proto,
+                             DistillationParseResult result);
   void RunDistillerCallbackInternal(
-      std::unique_ptr<DistilledArticleProto> proto);
+      std::unique_ptr<DistilledArticleProto> proto,
+      DistillationParseResult result);
 
   bool execute_callback_;
   GURL url_;

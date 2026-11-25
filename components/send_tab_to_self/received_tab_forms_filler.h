@@ -51,8 +51,9 @@ class ReceivedTabFormsFiller : public autofill::AutofillManager::Observer {
     using is_transparent = void;
     // Each tuple contains (in order): id_attribute, name_attribute,
     // form_control_type.
-    using KeyTuple =
-        std::tuple<std::u16string_view, std::u16string_view, std::string_view>;
+    using KeyTuple = std::tuple<std::u16string_view,
+                                std::u16string_view,
+                                autofill::FormControlType>;
 
     static KeyTuple ToKey(const PageContext::FormField& field);
 

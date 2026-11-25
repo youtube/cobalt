@@ -152,11 +152,6 @@ ActorNavigationThrottle::WillProcessResponse() {
           base::BindOnce(
               &ActorNavigationThrottle::OnNavigationConfirmationDecision,
               weak_factory_.GetWeakPtr(), /*was_deferred=*/true));
-  if (navigation_handle()->IsInPrerenderedMainFrame()) {
-    return action == content::NavigationThrottle::PROCEED
-               ? action
-               : content::NavigationThrottle::CANCEL_AND_IGNORE;
-  }
   if (action != content::NavigationThrottle::DEFER) {
     OnNavigationConfirmationDecision(
         /*was_deferred=*/false,
@@ -168,8 +163,6 @@ ActorNavigationThrottle::WillProcessResponse() {
 void ActorNavigationThrottle::OnNavigationConfirmationDecision(
     bool was_deferred,
     bool may_continue) {
-  CHECK(!navigation_handle()->IsInPrerenderedMainFrame())
-      << "We should not be prompting for pre-rendered frame navigations.";
   if (may_continue) {
     if (was_deferred) {
       Resume();

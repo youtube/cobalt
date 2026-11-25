@@ -79,24 +79,6 @@ void CookieControlsBridge::OnStatusChanged(
       expiration.InMillisecondsSinceUnixEpoch());
 }
 
-void CookieControlsBridge::OnCookieControlsIconStatusChanged(
-    bool icon_visible,
-    CookieControlsState controls_state,
-    bool should_highlight) {
-  // This function's main use is for web's User Bypass icon, which
-  // does not observe `OnStatusChanged`. Since the Clank icon does
-  // observe `OnStatusChanged`, the only variable we need to pass
-  // on from this function is `should_highlight`.
-  JNIEnv* env = base::android::AttachCurrentThread();
-  Java_CookieControlsBridge_onHighlightCookieControl(
-      env, jobject_, static_cast<bool>(should_highlight));
-}
-
-void CookieControlsBridge::OnReloadThresholdExceeded() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  Java_CookieControlsBridge_onHighlightPwaCookieControl(env, jobject_);
-}
-
 void CookieControlsBridge::SetThirdPartyCookieBlockingEnabledForSite(
     JNIEnv* env,
     bool block_cookies) {
@@ -105,10 +87,6 @@ void CookieControlsBridge::SetThirdPartyCookieBlockingEnabledForSite(
 
 void CookieControlsBridge::OnUiClosing(JNIEnv* env) {
   controller_->OnUiClosing();
-}
-
-void CookieControlsBridge::OnEntryPointAnimated(JNIEnv* env) {
-  controller_->OnEntryPointAnimated();
 }
 
 CookieControlsBridge::~CookieControlsBridge() = default;

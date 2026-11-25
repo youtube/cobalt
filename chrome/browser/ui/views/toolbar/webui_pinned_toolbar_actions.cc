@@ -214,7 +214,57 @@ bool WebUIPinnedToolbarActions::IsActionPinnedOrPoppedOut(
 
 void WebUIPinnedToolbarActions::PostOrQueueActionAfterAnimation(
     base::OnceClosure action) {
-  NOTIMPLEMENTED();
+  // Wait for all buttons to finish their "sliding in" animation.
+  for (const auto& state : delegate_->GetState().pinned_toolbar_actions_state) {
+    if (!state->element_id || state->element_id->empty()) {
+      continue;
+    }
+    std::optional<actions::ActionId> action_id =
+        webui_toolbar::PinnedToolbarActionToActionId(state->action);
+    if (!action_id) {
+      continue;
+    }
+    ui::ElementIdentifier element_id =
+        webui_toolbar::ActionIdToElementIdentifier(*action_id);
+    if (!element_id) {
+      continue;
+    }
+    ui::TrackedElement* element =
+        BrowserElements::From(delegate_->GetBrowser())->GetElement(element_id);
+    if (!element) {
+      // Element has not registered yet with TrackedElementManager, meaning
+      // it's still animating. Wait for it to finish animating.
+      auto subscription =
+          ui::ElementTracker::GetElementTracker()->AddElementShownCallback(
+              element_id,
+              BrowserElements::From(delegate_->GetBrowser())->GetContext(),
+              base::BindRepeating(&WebUIPinnedToolbarActions::OnElementShown,
+                                  base::Unretained(this), *action_id));
+
+      base::OnceCallback<void(BubbleAnchorResult)> adapted_callback =
+          base::BindOnce(&WebUIPinnedToolbarActions::RetryPostOrQueueAction,
+                         base::Unretained(this), std::move(action));
+
+      pending_anchor_requests_.push_back(std::make_unique<PendingAnchorRequest>(
+          *action_id, std::move(adapted_callback), std::move(subscription)));
+      return;
+    }
+  }
+
+  // All buttons are done animating, so invoke callback.
+  std::move(action).Run();
+}
+
+void WebUIPinnedToolbarActions::RetryPostOrQueueAction(
+    base::OnceClosure action,
+    BubbleAnchorResult result) {
+  // If something went wrong, invoke `action` rather than risk getting into an
+  // infinite loop.
+  if (!result.has_value()) {
+    std::move(action).Run();
+    return;
+  }
+  PostOrQueueActionAfterAnimation(std::move(action));
 }
 
 ToolbarButton* WebUIPinnedToolbarActions::GetDownloadButton() {
@@ -265,14 +315,19 @@ void WebUIPinnedToolbarActions::GetBubbleAnchorAsync(
 
 void WebUIPinnedToolbarActions::OnElementShown(actions::ActionId action_id,
                                                ui::TrackedElement* element) {
+  std::vector<base::OnceCallback<void(BubbleAnchorResult)>> callbacks_to_run;
   auto it = pending_anchor_requests_.begin();
   while (it != pending_anchor_requests_.end()) {
     if ((*it)->action_id == action_id) {
-      std::move((*it)->callback).Run(views::BubbleAnchor(element));
+      callbacks_to_run.push_back(std::move((*it)->callback));
       it = pending_anchor_requests_.erase(it);
     } else {
       ++it;
     }
+  }
+
+  for (auto& callback : callbacks_to_run) {
+    std::move(callback).Run(views::BubbleAnchor(element));
   }
 }
 

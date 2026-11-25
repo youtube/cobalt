@@ -167,10 +167,14 @@ def main() -> int:
     parser.add_argument('--build',
                         action='store_true',
                         help='Build the app target before running.')
-    parser.add_argument('--device',
-                        help='The device type to use for running the app.')
     parser.add_argument(
-        '--os', help='The OS version to use for running the app (e.g., 17.5).')
+        '--device',
+        help='The device type or UDID to use for running the app '
+             '(can also be set via IOS_SIMULATOR_DEFAULT_DEVICE).')
+    parser.add_argument(
+        '--os',
+        help='The OS version to use for running the app (e.g., 17.5) '
+             '(can also be set via IOS_SIMULATOR_DEFAULT_OS).')
     parser.add_argument('--enable-features',
                         help='Comma-separated list of feature flags to enable.')
     parser.add_argument(

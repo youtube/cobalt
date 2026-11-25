@@ -301,9 +301,6 @@ class Call final : public webrtc::Call,
 
   void SignalChannelNetworkState(MediaType media, NetworkState state) override;
 
-  void OnAudioTransportOverheadChanged(
-      int transport_overhead_per_packet) override;
-
   void OnUpdateSyncGroup(webrtc::AudioReceiveStreamInterface& stream,
                          absl::string_view sync_group) override;
 
@@ -312,6 +309,7 @@ class Call final : public webrtc::Call,
   // Implements TargetTransferRateObserver,
   void OnTargetTransferRate(TargetTransferRate msg) override;
   void OnStartRateUpdate(DataRate start_rate) override;
+  void OnTransportOverheadChanged(DataSize transport_overhead) override;
 
   // Implements BitrateAllocator::LimitObserver.
   void OnAllocationLimitsChanged(BitrateAllocationLimits limits) override;
@@ -1234,18 +1232,6 @@ void Call::SignalChannelNetworkState(MediaType media, NetworkState state) {
   }
 }
 
-void Call::OnAudioTransportOverheadChanged(int transport_overhead_per_packet) {
-  RTC_DCHECK_RUN_ON(network_thread_);
-  worker_thread_->PostTask(
-      SafeTask(task_safety_.flag(), [this, transport_overhead_per_packet]() {
-        // TODO(bugs.webrtc.org/11993): Move this over to the network thread.
-        RTC_DCHECK_RUN_ON(worker_thread_);
-        for (auto& kv : audio_send_ssrcs_) {
-          kv.second->SetTransportOverhead(transport_overhead_per_packet);
-        }
-      }));
-}
-
 void Call::UpdateAggregateNetworkState() {
   // TODO(bugs.webrtc.org/11993): Move this over to the network thread.
   // RTC_DCHECK_RUN_ON(network_thread_);
@@ -1310,6 +1296,11 @@ void Call::OnSentPacket(const SentPacketInfo& sent_packet) {
 void Call::OnStartRateUpdate(DataRate start_rate) {
   RTC_DCHECK_RUN_ON(&send_transport_sequence_checker_);
   bitrate_allocator_->UpdateStartRate(start_rate.bps<uint32_t>());
+}
+
+void Call::OnTransportOverheadChanged(DataSize transport_overhead) {
+  RTC_DCHECK_RUN_ON(&send_transport_sequence_checker_);
+  bitrate_allocator_->OnTransportOverheadChanged(transport_overhead);
 }
 
 void Call::OnTargetTransferRate(TargetTransferRate msg) {

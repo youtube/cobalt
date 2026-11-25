@@ -28,9 +28,9 @@
 
 @implementation HomeCustomizationMediator {
   // Pref service to handle preference changes.
-  raw_ptr<PrefService, DanglingUntriaged> _prefService;
+  raw_ptr<PrefService> _prefService;
   // Browser agent to be notified of Discover eligibility.
-  raw_ptr<DiscoverFeedVisibilityBrowserAgent, DanglingUntriaged>
+  raw_ptr<DiscoverFeedVisibilityBrowserAgent>
       _discoverFeedVisibilityBrowserAgent;
   // ShoppingService used to determine ShopCard toggle
   // eligibility.
@@ -49,6 +49,12 @@
     _shoppingService = shoppingService;
   }
   return self;
+}
+
+- (void)disconnect {
+  _prefService = nullptr;
+  _discoverFeedVisibilityBrowserAgent = nullptr;
+  _shoppingService = nullptr;
 }
 
 #pragma mark - Public

@@ -50,6 +50,7 @@
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "content/public/test/test_navigation_observer.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -71,12 +72,19 @@ struct InlineLocationSignalingTestCase {
   ContentSetting site_permission = CONTENT_SETTING_BLOCK;
   bool use_https = true;
   bool is_precise = false;
+  bool has_cached_location = true;
+  bool navigate_to_ineligible = false;
   std::string user_input = "a";
   std::string mock_suggest_response;
   std::vector<std::pair<std::u16string, std::u16string>> expected_results;
   std::optional<OmniboxInlineLocationSuggestionShown> expected_shown_state;
   std::optional<size_t> expected_position_metric;
   bool test_parent_click = false;
+  bool send_x_geo_header = true;
+  GeolocationHeaderPrimeLocationOutcome expected_prime_outcome =
+      GeolocationHeaderPrimeLocationOutcome::kNotTriedCachedLocationFresh;
+  GeolocationHeaderGetLocationOutcome expected_get_location_outcome =
+      GeolocationHeaderGetLocationOutcome::kPermissionStateMismatch;
 };
 
 }  // namespace
@@ -92,7 +100,14 @@ class InlineLocationSignalingE2EInteractiveUiTest
     position->latitude = kMockLatitude;
     position->longitude = kMockLongitude;
     position->accuracy = 1.0;
-    position->timestamp = base::Time::Now();
+    // If has_cached_location is false, we set a stale timestamp (25 hours old).
+    // This ensures that even if a focus flow triggers a geolocation query and
+    // updates the cached location via the overrider, the location is treated
+    // as stale (age > 24h) and HasCachedLocation() returns false during
+    // navigation.
+    position->timestamp = GetParam().has_cached_location
+                              ? base::Time::Now()
+                              : base::Time::Now() - base::Hours(25);
     position->is_precise = GetParam().is_precise;
     return position;
   }
@@ -198,7 +213,6 @@ IN_PROC_BROWSER_TEST_P(InlineLocationSignalingE2EInteractiveUiTest,
   TemplateURLData data;
   data.SetShortName(u"Test DSE");
   data.SetKeyword(u"testdse");
-  data.send_x_geo_header = true;
 
   std::string base_url = test_server_->GetURL(kExternalEngineHost, "/").spec();
   if (base::EndsWith(base_url, "/")) {
@@ -221,7 +235,7 @@ IN_PROC_BROWSER_TEST_P(InlineLocationSignalingE2EInteractiveUiTest,
     data.suggestions_url = base_url + "/suggest?q={searchTerms}";
   }
 
-  data.send_x_geo_header = true;
+  data.send_x_geo_header = GetParam().send_x_geo_header;
   TemplateURL* template_url =
       template_url_service->Add(std::make_unique<TemplateURL>(data));
   template_url_service->SetUserSelectedDefaultSearchProvider(template_url);
@@ -229,7 +243,9 @@ IN_PROC_BROWSER_TEST_P(InlineLocationSignalingE2EInteractiveUiTest,
   GeolocationHeaderService* geo_service =
       GeolocationHeaderServiceFactory::GetForProfile(profile);
   ASSERT_TRUE(geo_service);
-  geo_service->SetLocationForTesting(CreateMockGeoposition());
+  if (GetParam().has_cached_location) {
+    geo_service->SetLocationForTesting(CreateMockGeoposition());
+  }
 
   HostContentSettingsMap* settings_map =
       HostContentSettingsMapFactory::GetForProfile(profile);
@@ -249,6 +265,7 @@ IN_PROC_BROWSER_TEST_P(InlineLocationSignalingE2EInteractiveUiTest,
   OmniboxView* omnibox_view =
       BrowserWindow::FromBrowser(browser())->GetLocationBar()->GetOmniboxView();
 
+  base::HistogramTester prime_histogram_tester;
   chrome::FocusLocationBar(browser());
   ASSERT_TRUE(base::test::RunUntil([&]() {
     return static_cast<OmniboxViewViews*>(omnibox_view)->HasFocus();
@@ -261,29 +278,39 @@ IN_PROC_BROWSER_TEST_P(InlineLocationSignalingE2EInteractiveUiTest,
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return !geo_service->is_geolocation_bound_for_testing(); }));
 
+  prime_histogram_tester.ExpectUniqueSample(
+      "Omnibox.GeolocationHeaderService.PrimeLocationOutcome",
+      GetParam().expected_prime_outcome, 1);
+
   base::HistogramTester histogram_tester;
   omnibox_controller->StopAutocomplete(true);
   omnibox_view->OnBeforePossibleChange();
   omnibox_view->SetUserText(base::UTF8ToUTF16(GetParam().user_input));
   omnibox_view->OnAfterPossibleChange(true);
-  EXPECT_TRUE(base::test::RunUntil([&]() {
-    return controller->done() &&
-           std::ranges::any_of(controller->result(), [](const auto& match) {
-             return match.type == AutocompleteMatchType::SEARCH_SUGGEST;
-           });
-  }));
+  if (GetParam().navigate_to_ineligible) {
+    EXPECT_TRUE(base::test::RunUntil([&]() { return controller->done(); }));
+  } else {
+    EXPECT_TRUE(base::test::RunUntil([&]() {
+      return controller->done() &&
+             std::ranges::any_of(controller->result(), [](const auto& match) {
+               return match.type == AutocompleteMatchType::SEARCH_SUGGEST;
+             });
+    }));
+  }
 
   const AutocompleteResult& result = controller->result();
 
-  // Default background providers append extra elements, loop ensures top slots
-  // match layout exactly
-  ASSERT_GE(result.size(), GetParam().expected_results.size());
+  if (!GetParam().navigate_to_ineligible) {
+    // Default background providers append extra elements, loop ensures top
+    // slots match layout exactly
+    ASSERT_GE(result.size(), GetParam().expected_results.size());
 
-  for (size_t i = 0; i < GetParam().expected_results.size(); ++i) {
-    EXPECT_EQ(result.match_at(i).contents,
-              GetParam().expected_results[i].first);
-    EXPECT_EQ(result.match_at(i).description,
-              GetParam().expected_results[i].second);
+    for (size_t i = 0; i < GetParam().expected_results.size(); ++i) {
+      EXPECT_EQ(result.match_at(i).contents,
+                GetParam().expected_results[i].first);
+      EXPECT_EQ(result.match_at(i).description,
+                GetParam().expected_results[i].second);
+    }
   }
 
   std::string permission_str;
@@ -317,9 +344,10 @@ IN_PROC_BROWSER_TEST_P(InlineLocationSignalingE2EInteractiveUiTest,
                                       0);
   }
 
-  if (permission_str.empty()) {
-    return;
-  }
+  // Perform navigation to DSE results page to trigger and verify navigation
+  // telemetry.
+  content::TestNavigationObserver navigation_observer(
+      browser()->tab_strip_model()->GetActiveWebContents());
 
   // Trigger omnibox click navigation to verify click telemetry.
   // 1. Find the parent or the ills suggestion (based on test_parent_click).
@@ -356,8 +384,20 @@ IN_PROC_BROWSER_TEST_P(InlineLocationSignalingE2EInteractiveUiTest,
 
   ASSERT_TRUE(ui_test_utils::SendKeyPressSync(browser(), ui::VKEY_RETURN, false,
                                               false, false, false));
+  navigation_observer.Wait();
 
-  // Verify click telemetry bucket counts.
+  // Verify navigation telemetry.
+  histogram_tester.ExpectUniqueSample(
+      "Omnibox.GeolocationHeaderService.GetLocationOutcome.Automatic",
+      GetParam().expected_get_location_outcome, 1);
+  histogram_tester.ExpectTotalCount(
+      "Omnibox.GeolocationHeaderService.GetLocationOutcome.Automatic", 1);
+
+  if (permission_str.empty()) {
+    return;
+  }
+
+  // Verify click telemetry if suggestion was found/clicked.
   if (suggestion_found) {
     // 2. If the suggestion is found click it and check metrics
     std::string expected_logged_metric =
@@ -491,7 +531,11 @@ const InlineLocationSignalingTestCase kTestCases[] = {
          "{\"google:suggestsubtypes\":[[457]],"
          "\"google:suggestrelevance\":[1400]}]",
      .expected_results = {{u"a", kExpectedDseSearchText},
-                          {u"a-location-relevant-suggestion", u""}}},
+                          {u"a-location-relevant-suggestion", u""}},
+     .expected_prime_outcome =
+         GeolocationHeaderPrimeLocationOutcome::kTriedQueryNextPosition,
+     .expected_get_location_outcome =
+         GeolocationHeaderGetLocationOutcome::kSuccess},
 
     // 7. Tests duplication suppression over insecure connections
     {.test_name = "SkippedOverHttpSchemaConnection",
@@ -507,7 +551,11 @@ const InlineLocationSignalingTestCase kTestCases[] = {
      .expected_results = {{u"a", kExpectedDseSearchText},
                           {u"a-location-relevant-suggestion", u""}},
      .expected_shown_state =
-         OmniboxInlineLocationSuggestionShown::kOnlyParentSuggestionShown},
+         OmniboxInlineLocationSuggestionShown::kOnlyParentSuggestionShown,
+     .expected_prime_outcome =
+         GeolocationHeaderPrimeLocationOutcome::kNotTriedInvalidUrlOrInsecure,
+     .expected_get_location_outcome =
+         GeolocationHeaderGetLocationOutcome::kInsecureConnection},
 
     // 8. Tests that copy duplication triggers strictly on the first eligible
     // match returned
@@ -672,7 +720,9 @@ const InlineLocationSignalingTestCase kTestCases[] = {
                            u"Use precise location"}},
      .expected_shown_state =
          OmniboxInlineLocationSuggestionShown::kLocationSuggestionShown,
-     .expected_position_metric = 2},
+     .expected_position_metric = 2,
+     .expected_prime_outcome =
+         GeolocationHeaderPrimeLocationOutcome::kTriedQueryCachedPosition},
 
     // 16. E2E test for precise location caching + Dynamic accuracy wording.
     // Again, the UI wording must show "Use precise location" even if the
@@ -693,7 +743,9 @@ const InlineLocationSignalingTestCase kTestCases[] = {
                           {u"a-location-relevant-suggestion", u""}},
      .expected_shown_state =
          OmniboxInlineLocationSuggestionShown::kLocationSuggestionShown,
-     .expected_position_metric = 1},
+     .expected_position_metric = 1,
+     .expected_prime_outcome =
+         GeolocationHeaderPrimeLocationOutcome::kTriedQueryCachedPosition},
 
     // 17. E2E test verifying that setting permission to ASK correctly logs
     // to the Ask shown state UMA histogram.
@@ -716,6 +768,70 @@ const InlineLocationSignalingTestCase kTestCases[] = {
          OmniboxInlineLocationSuggestionShown::kLocationSuggestionShown,
      .expected_position_metric = 2,
      .test_parent_click = true},
+
+    // 18. Telemetry verification: No cached location.
+    // Site has permission allowed, DSE uses HTTPS, but device has no location
+    // cached/primed. Expected outcome: kNoCachedLocation (1).
+    {.test_name = "Telemetry_NoCachedLocation",
+     .display_order = "DisplayBelow",
+     .wording = "UseLocation",
+     .site_permission = CONTENT_SETTING_ALLOW,
+     .use_https = true,
+     .is_precise = false,
+     .has_cached_location = false,
+     .user_input = "a",
+     .mock_suggest_response =
+         "[\"a\",[\"a-location-relevant-suggestion\"],[],[],"
+         "{\"google:suggestsubtypes\":[[457]],"
+         "\"google:suggestrelevance\":[1400]}]",
+     .expected_results = {{u"a", kExpectedDseSearchText},
+                          {u"a-location-relevant-suggestion", u""}},
+     .expected_prime_outcome =
+         GeolocationHeaderPrimeLocationOutcome::kTriedQueryNextPosition,
+     .expected_get_location_outcome =
+         GeolocationHeaderGetLocationOutcome::kNoCachedLocation},
+
+    // 19. Telemetry verification: Ineligible URL.
+    // Site has permission allowed, device has cached location, but the user
+    // types a non-DSE URL to navigate. Expected outcome: kIneligibleUrl (4).
+    {.test_name = "Telemetry_IneligibleUrl",
+     .display_order = "DisplayBelow",
+     .wording = "UseLocation",
+     .site_permission = CONTENT_SETTING_ALLOW,
+     .use_https = true,
+     .is_precise = false,
+     .navigate_to_ineligible = true,
+     .user_input = "https://www.yahoo.com",
+     .mock_suggest_response = "",
+     .expected_results = {},
+     .expected_prime_outcome =
+         GeolocationHeaderPrimeLocationOutcome::kTriedQueryNextPosition,
+     .expected_get_location_outcome =
+         GeolocationHeaderGetLocationOutcome::kIneligibleUrl},
+
+    // 20. Telemetry verification: Default Search Provider does not accept
+    // header.
+    // DSE has send_x_geo_header disabled. Expected outcome:
+    // kNotTriedProviderDoesNotAcceptHeader (2) for priming and kIneligibleUrl
+    // (4) for get location.
+    {.test_name = "Telemetry_ProviderDoesNotAcceptHeader",
+     .display_order = "DisplayBelow",
+     .wording = "UseLocation",
+     .site_permission = CONTENT_SETTING_ALLOW,
+     .use_https = true,
+     .is_precise = false,
+     .user_input = "a",
+     .mock_suggest_response =
+         "[\"a\",[\"a-location-relevant-suggestion\"],[],[],"
+         "{\"google:suggestsubtypes\":[[457]],"
+         "\"google:suggestrelevance\":[1400]}]",
+     .expected_results = {{u"a", kExpectedDseSearchText},
+                          {u"a-location-relevant-suggestion", u""}},
+     .send_x_geo_header = false,
+     .expected_prime_outcome = GeolocationHeaderPrimeLocationOutcome::
+         kNotTriedProviderDoesNotAcceptHeader,
+     .expected_get_location_outcome =
+         GeolocationHeaderGetLocationOutcome::kIneligibleUrl},
 };
 
 INSTANTIATE_TEST_SUITE_P(

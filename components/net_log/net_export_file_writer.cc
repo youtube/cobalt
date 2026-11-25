@@ -274,6 +274,12 @@ base::DictValue NetExportFileWriter::GetState() const {
   return dict;
 }
 
+bool NetExportFileWriter::IsLogging() const {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return state_ == STATE_LOGGING || state_ == STATE_STARTING_LOG ||
+         state_ == STATE_STOPPING_LOG;
+}
+
 void NetExportFileWriter::GetFilePathToCompletedLog(
     FilePathCallback path_callback) const {
   DCHECK(thread_checker_.CalledOnValidThread());

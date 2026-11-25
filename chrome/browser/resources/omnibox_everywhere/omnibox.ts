@@ -9,7 +9,7 @@ import '//resources/cr_components/search/animated_glow.js';
 import '//resources/cr_components/composebox/composebox_file_inputs.js';
 import '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 
-import {GlifAnimationState} from '//resources/cr_components/composebox/common.js';
+import {GlifAnimationState, TabSuggestionsState} from '//resources/cr_components/composebox/common.js';
 import {GlowAnimationState} from '//resources/cr_components/search/constants.js';
 import {SearchboxBrowserProxy} from '//resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import type {SearchboxDropdownElement} from '//resources/cr_components/searchbox/searchbox_dropdown.js';
@@ -93,6 +93,8 @@ export class OmniboxEverywhereOmniboxElement extends
       inputState_: {type: Object},
       tabSuggestions_: {type: Array},
       searchboxLayoutMode: {type: String},
+      tabSuggestionsState_: {type: Number},
+      contextManagementInComposeboxEnabled: {type: Boolean},
     };
   }
 
@@ -101,6 +103,7 @@ export class OmniboxEverywhereOmniboxElement extends
       loadTimeData.getBoolean('searchboxCr23Theming');
   accessor searchboxSteadyStateShadow: boolean =
       loadTimeData.getBoolean('searchboxCr23SteadyStateShadow');
+  accessor contextManagementInComposeboxEnabled: boolean = false;
   protected accessor searchboxIcon_: string =
       loadTimeData.getString('searchboxDefaultIcon');
   protected accessor searchboxVoiceSearchEnabled_: boolean =
@@ -120,6 +123,8 @@ export class OmniboxEverywhereOmniboxElement extends
   protected accessor tabSuggestions_: TabInfo[] = [];
   protected accessor searchboxLayoutMode: string =
       loadTimeData.getString('searchboxLayoutMode');
+  protected accessor tabSuggestionsState_: TabSuggestionsState =
+      TabSuggestionsState.NOT_STARTED;
 
   private pageHandler_: PageHandlerInterface;
   private callbackRouter_: PageCallbackRouter;
@@ -274,9 +279,34 @@ export class OmniboxEverywhereOmniboxElement extends
     this.pageHandler().activateMetricsFunnel('PlusButton');
   }
 
-  protected async onContextMenuOpened_() {
-    const {tabs} = await this.pageHandler_.getRecentTabs();
-    this.tabSuggestions_ = [...tabs];
+  protected async refreshTabSuggestions_(forceRefresh: boolean = false) {
+    if (this.tabSuggestionsState_ === TabSuggestionsState.LOADING ||
+        (this.tabSuggestionsState_ === TabSuggestionsState.LOADED &&
+         !forceRefresh)) {
+      return;
+    }
+    this.tabSuggestionsState_ = TabSuggestionsState.LOADING;
+    try {
+      const {tabs} = await this.pageHandler_.getRecentTabs();
+      this.tabSuggestions_ = [...tabs];
+      this.tabSuggestionsState_ = TabSuggestionsState.LOADED;
+    } finally {
+      if (this.tabSuggestionsState_ === TabSuggestionsState.LOADING) {
+        this.tabSuggestionsState_ = TabSuggestionsState.NOT_STARTED;
+      }
+    }
+  }
+
+  protected onContextMenuOpened_() {
+    this.refreshTabSuggestions_(/*forceRefresh=*/ true);
+  }
+
+  protected onContextMenuClosed_() {
+    this.tabSuggestionsState_ = TabSuggestionsState.NOT_STARTED;
+  }
+
+  protected onRequestTabSuggestionsLoad() {
+    this.refreshTabSuggestions_(/*forceRefresh=*/ true);
   }
 
   protected onToolClick_(e: CustomEvent<{toolMode: ToolMode}>) {

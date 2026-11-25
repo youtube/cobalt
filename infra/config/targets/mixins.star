@@ -1519,23 +1519,11 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "mac_15_beta_arm64",
-    swarming = targets.swarming(
-        dimensions = {
-            "cpu": "arm64",
-            "os": "Mac-15|Mac-26",
-        },
-    ),
-)
-
-targets.mixin(
     name = "mac_15_arm64",
     swarming = targets.swarming(
         dimensions = {
             "cpu": "arm64",
-            # TODO(crbug.com/521856600): Remove OR when Mac-26 once upgrade
-            # process is complete and CQ migrates to mac26-arm64-rel-tests.
-            "os": "Mac-15|Mac-26",
+            "os": "Mac-15",
         },
     ),
 )
@@ -1605,7 +1593,7 @@ targets.mixin(
             "cpu": "arm64",
             "gpu": "apple:m2",
             "mac_model": "Mac14,7",
-            "os": "Mac-14.4.1",
+            "os": "Mac-26.5.1",
             "pool": "chromium.tests.gpu",
             "display_attached": "1",
             "hidpi": "1",

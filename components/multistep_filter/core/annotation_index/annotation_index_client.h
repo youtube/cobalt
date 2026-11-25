@@ -12,47 +12,23 @@
 
 #include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
-#include "base/memory/scoped_refptr.h"
-#include "components/version_info/channel.h"
 #include "url/gurl.h"
-
-namespace network {
-class SharedURLLoaderFactory;
-}  // namespace network
-
-namespace signin {
-class IdentityManager;
-}  // namespace signin
 
 namespace multistep_filter {
 
-class MultistepFilterLogRouter;
 struct FilterAnnotation;
 struct FilterSuggestionCandidate;
 
-// `AnnotationIndexClient` serves as the dedicated network and translation layer
-// between the `multistep_filter` component and the remote
-// `SiteAutomationIndexServer`.
+// TODO(crbug.com/530584136): Remove once the optimization guide migration is
+// complete.
+// An interface for querying site automation annotation indexing services and
+// data sources for the `multistep_filter` component.
 //
-// This class abstracts away the complexities of network communication and
-// Protocol Buffer handling from the core `multistep_filter` logic. It
-// achieves this by:
-//  - Accepting standard C++ types as input and serializing them into the
-//    specific Protocol Buffer format required by the backend API.
-//  - Managing asynchronous network requests, including internal handling of
-//    network state, timeouts, and HTTP response codes.
-//  - Deserializing the raw Protocol Buffer byte stream received in the
-//    response.
-//  - Extracting client-relevant data from the deserialized proto and
-//    packaging it into clean, lightweight C++ structs for callers.
+// Implementations of this interface evaluate and retrieve filter suggestion
+// candidates for given URLs and annotations, determine supported task types,
+// and extract filter annotations.
 class AnnotationIndexClient {
  public:
-  // Creates a default instance of `AnnotationIndexClient`.
-  static std::unique_ptr<AnnotationIndexClient> Create(
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      signin::IdentityManager* identity_manager,
-      MultistepFilterLogRouter* log_router);
-
   virtual ~AnnotationIndexClient() = default;
 
   // Evaluates potential filter candidates and generates a list of

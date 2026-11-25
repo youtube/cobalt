@@ -209,6 +209,13 @@ int GetMinimumPageCategoryScoreToPersist();
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 bool ShouldExecutePageVisibilityModelOnPageContent(const std::string& locale);
 
+// Returns whether the on-device category classifier should be executed on page
+// content for a user using `locale` as their browser language.
+COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
+bool ShouldExecuteOnDeviceCategoryClassifierOnPageContent(
+    const std::string& locale,
+    const std::string& country_code);
+
 // The maximum size of the visit annotation cache.
 COMPONENT_EXPORT(PAGE_CONTENT_ANNOTATIONS_FEATURES)
 size_t MaxVisitAnnotationCacheSize();

@@ -137,7 +137,6 @@ public class WebViewCachedFlags {
     }
 
     /** Resets the singleton instance for testing. */
-    @VisibleForTesting
     public static void resetForTesting() {
         synchronized (sLock) {
             sInstance = null;

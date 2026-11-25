@@ -1762,8 +1762,6 @@ void WebRtcVoiceSendChannel::OnNetworkRouteChanged(
     const NetworkRoute& network_route) {
   RTC_DCHECK_RUN_ON(&network_thread_checker_);
 
-  call_->OnAudioTransportOverheadChanged(network_route.packet_overhead);
-
   worker_thread_->PostTask(SafeTask(
       task_safety_.flag(),
       [this, name = std::string(transport_name), route = network_route] {

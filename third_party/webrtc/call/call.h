@@ -134,9 +134,6 @@ class Call {
   virtual void SignalChannelNetworkState(MediaType media,
                                          NetworkState state) = 0;
 
-  virtual void OnAudioTransportOverheadChanged(
-      int transport_overhead_per_packet) = 0;
-
   virtual void OnUpdateSyncGroup(AudioReceiveStreamInterface& stream,
                                  absl::string_view sync_group) = 0;
 

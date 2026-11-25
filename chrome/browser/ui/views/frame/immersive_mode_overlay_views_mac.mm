@@ -4,6 +4,8 @@
 
 #include "chrome/browser/ui/views/frame/immersive_mode_overlay_views_mac.h"
 
+#import <AppKit/AppKit.h>
+
 #include <set>
 
 #include "chrome/browser/themes/theme_service.h"
@@ -42,6 +44,14 @@ OverlayWidgetMac* OverlayWidgetMac::Create(BrowserView* browser_view,
   overlay_widget->SetCheckParentForFullscreen();
 
   overlay_widget->Init(std::move(params));
+  // When clipsToBounds is false, an NSView can report a visibleRect with a size
+  // larger than that of its bounds. We compare visibleRect and bounds sizes for
+  // equality when determining whether the overlay should be moved offscreen
+  // (e.g., if "Always Show Toolbar in Full Screen" is disabled), and rely on
+  // these sizes being equal when the view is not obscured or otherwise hidden.
+  overlay_widget->GetNativeWindow()
+      .GetNativeNSWindow()
+      .contentView.clipsToBounds = YES;
   overlay_widget->SetNativeWindowProperty(BrowserView::kBrowserViewKey,
                                           browser_view);
 

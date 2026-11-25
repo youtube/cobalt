@@ -40,38 +40,58 @@ public class PersonalContextFirstRunServiceBridgeTest {
     }
 
     /**
-     * Test 1: Verify shouldShow is true under state 3, and call noticeAcknowledged does not lead to
-     * crashes.
+     * Test 1: Verify shouldShowAmbientAutofillNotice is true under state 2 (eligible), and calling
+     * ambientAutofillNoticeAcknowledged makes it false.
      */
     @Test
     @SmallTest
     @CommandLineFlags.Add({
         "enable-features=PersonalContextFirstRunNoticePhase2,"
-                + "PersonalContextForceEnablementState:state/3"
+                + "PersonalContextForceEnablementState:state/2"
     })
-    public void testNoticeEligibleInitially() {
+    public void testAmbientAutofillNoticeEligibleInitially() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    // Under state 3, shouldShowNotice must return true
-                    Assert.assertTrue(PersonalContextFirstRunService.shouldShowNotice(mProfile));
+                    // Under state 2 (eligible), shouldShowAmbientAutofillNotice must return true
+                    // initially.
+                    Assert.assertTrue(
+                            PersonalContextFirstRunService.shouldShowAmbientAutofillNotice(
+                                    mProfile));
 
-                    // Call real C++ noticeAcknowledged JNI.
-                    PersonalContextFirstRunService.noticeAcknowledged(mProfile);
+                    // Call real C++ ambientAutofillNoticeAcknowledged JNI.
+                    PersonalContextFirstRunService.ambientAutofillNoticeAcknowledged(mProfile);
+
+                    // Notice should no longer be shown.
+                    Assert.assertFalse(
+                            PersonalContextFirstRunService.shouldShowAmbientAutofillNotice(
+                                    mProfile));
                 });
     }
 
-    /** Test 2: Verify shouldShow is false under state 4 (First run completed). */
+    /**
+     * Test 2: Verify shouldShowAtMemoryNotice is true under state 2 (eligible), and calling
+     * atMemoryNoticeAcknowledged makes it false.
+     */
     @Test
     @SmallTest
     @CommandLineFlags.Add({
         "enable-features=PersonalContextFirstRunNoticePhase2,"
-                + "PersonalContextForceEnablementState:state/4"
+                + "PersonalContextForceEnablementState:state/2"
     })
-    public void testNoticeNotShownAfterAcknowledgement() {
+    public void testAtMemoryNoticeEligibleInitially() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    // Under state 4, shouldShowNotice must return false.
-                    Assert.assertFalse(PersonalContextFirstRunService.shouldShowNotice(mProfile));
+                    // Under state 2 (eligible), shouldShowAtMemoryNotice must return true
+                    // initially.
+                    Assert.assertTrue(
+                            PersonalContextFirstRunService.shouldShowAtMemoryNotice(mProfile));
+
+                    // Call real C++ atMemoryNoticeAcknowledged JNI.
+                    PersonalContextFirstRunService.atMemoryNoticeAcknowledged(mProfile);
+
+                    // Notice should no longer be shown.
+                    Assert.assertFalse(
+                            PersonalContextFirstRunService.shouldShowAtMemoryNotice(mProfile));
                 });
     }
 }

@@ -34,6 +34,9 @@ public interface PdfCoordinatorInterface {
     /** Retrieve uri of the pdf document. */
     @Nullable Uri getUri();
 
+    /** Reset PDF load state so that the page can be reloaded/refreshed. */
+    void resetLoadState();
+
     /** Build structured data including content uri and grant permission. */
     @Nullable String requestAssistContent(String filename, boolean isWorkProfile);
 

@@ -11,8 +11,8 @@
 
 #include "base/uuid.h"
 #include "chrome/common/chromeos/extensions/api/diagnostics.h"
+#include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_exception.mojom.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
-#include "chromeos/crosapi/mojom/telemetry_extension_exception.mojom.h"
 
 // This file contains helper functions used by the routine API to convert its
 // types to/from telemetry service types.
@@ -86,7 +86,7 @@ api::os_diagnostics::RoutineFinishedInfo UncheckedConvertPtr(
 }  // namespace unchecked
 
 api::os_diagnostics::ExceptionReason Convert(
-    crosapi::mojom::TelemetryExtensionException::Reason input);
+    ash::cros_healthd::mojom::Exception::Reason input);
 
 api::os_diagnostics::RoutineWaitingReason Convert(
     crosapi::mojom::TelemetryDiagnosticRoutineStateWaiting::Reason input);

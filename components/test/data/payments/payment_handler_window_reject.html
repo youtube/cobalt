@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!--
+Copyright 2026 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+<html lang="en">
+  <head>
+    <title>Payment App Error After User Interaction</title>
+    <meta charset="utf-8">
+  </head>
+  <body>
+    <button id="reject-button">Reject Payment</button>
+    <script>
+      document.getElementById('reject-button').addEventListener('click', () => {
+        navigator.serviceWorker.controller.postMessage('reject');
+      });
+      // Providing page loaded signal for payment app service worker to
+      // immediately reject promise and cause an error status.
+      navigator.serviceWorker.controller.postMessage('loaded');
+    </script>
+  </body>
+</html>

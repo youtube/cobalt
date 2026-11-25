@@ -17,10 +17,8 @@
 #include <utility>
 #include <vector>
 
-#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
-#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
@@ -566,7 +564,6 @@ TEST_F(SdpMungingTest, IceUfragRestrictedAddresses) {
       {"127.0.1.1:23456", true},  {"8.8.8.8:3456", true},
   };
 
-  int num_blocked = 0;
   for (const auto& address_test : address_tests) {
     std::optional<RTCError> result;
     const std::string candidate = StringFormat(
@@ -587,20 +584,8 @@ TEST_F(SdpMungingTest, IceUfragRestrictedAddresses) {
     if (address_test.second == true) {
       EXPECT_TRUE(result.value().ok());
     } else {
-      std::pair<absl::string_view, absl::string_view> host =
-          absl::StrSplit(address_test.first, ":");
-      int port;
-      ASSERT_TRUE(absl::SimpleAtoi(host.second, &port));
       EXPECT_FALSE(result.value().ok());
       EXPECT_EQ(result.value().type(), RTCErrorType::UNSUPPORTED_OPERATION);
-      num_blocked++;
-      EXPECT_THAT(
-          metrics::Samples(
-              "WebRTC.PeerConnection.RestrictedCandidates.SdpMungingType"),
-          ElementsAre(Pair(SdpMungingType::kIceUfrag, num_blocked)));
-      EXPECT_THAT(
-          metrics::Samples("WebRTC.PeerConnection.RestrictedCandidates.Port"),
-          Contains(Pair(port, 1)));
     }
   }
 }
@@ -682,7 +667,7 @@ TEST_F(SdpMungingTest, IceOptionsRenomination) {
       ElementsAre(Pair(SdpMungingType::kIceOptionsRenomination, 1)));
 }
 
-TEST_F(SdpMungingTest, IceOptionsTrickle) {
+TEST_F(SdpMungingTest, IceOptionsRemovedEmpty) {
   auto pc = CreatePeerConnection();
   pc->AddAudioTrack("audio_track", {});
 
@@ -692,6 +677,24 @@ TEST_F(SdpMungingTest, IceOptionsTrickle) {
   ASSERT_THAT(transport_infos[0].description.transport_options,
               ElementsAre("trickle"));
   transport_infos[0].description.transport_options.clear();
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kIceOptionsRemoved, 1)));
+}
+
+TEST_F(SdpMungingTest, IceOptionsTrickle) {
+  auto pc = CreatePeerConnection();
+  pc->AddAudioTrack("audio_track", {});
+
+  auto offer = pc->CreateOffer();
+  auto& transport_infos = offer->description()->transport_infos();
+  ASSERT_EQ(transport_infos.size(), 1u);
+  ASSERT_THAT(transport_infos[0].description.transport_options,
+              ElementsAre("trickle"));
+  transport_infos[0].description.transport_options = {"unknown-ice-option"};
 
   RTCError error;
   EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));

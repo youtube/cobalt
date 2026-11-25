@@ -31,17 +31,7 @@ class CookieControlsObserver : public base::CheckedObserver {
       // Whether to show the user bypass icon.
       bool icon_visible,
       // The state of the controls for the UI to change.
-      CookieControlsState controls_state,
-      // Whether we should highlight the user bypass icon.
-      bool should_highlight) {}
-
-  // Called when the current page has finished reloading, after the effective
-  // cookie setting was changed on the previous load via the controller.
-  virtual void OnFinishedPageReloadWithChangedSettings() {}
-
-  // Called when the number of recent page reloads exceeds the highlight
-  // heuristic. Intended for use in Clank PWA logic.
-  virtual void OnReloadThresholdExceeded() {}
+      CookieControlsState controls_state) {}
 
   // Called when the bubble should be closed (e.g. due to a successful page
   // reload or another UI element being shown).

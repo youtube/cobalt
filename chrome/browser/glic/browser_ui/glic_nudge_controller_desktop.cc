@@ -6,7 +6,7 @@
 
 #include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/glic/browser_ui/anchored_nudge_controller.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_delegate.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -24,7 +24,11 @@ namespace glic {
 GlicNudgeControllerDesktop::GlicNudgeControllerDesktop(
     BrowserWindowInterface* browser_window_interface,
     TabListInterface* tab_list)
-    : browser_window_interface_(browser_window_interface), tab_list_(tab_list) {
+    : browser_window_interface_(browser_window_interface),
+      tab_list_(tab_list),
+      scoped_unowned_user_data_(
+          browser_window_interface->GetUnownedUserDataHost(),
+          *this) {
   CHECK(tab_list_);
   tab_list_observation_.Observe(tab_list);
 
@@ -45,12 +49,12 @@ GlicNudgeControllerDesktop::GlicNudgeControllerDesktop(
 GlicNudgeControllerDesktop::~GlicNudgeControllerDesktop() = default;
 
 void GlicNudgeControllerDesktop::SetTabStripDelegate(
-    GlicNudgeDelegate* delegate) {
+    GlicSplitButtonDelegate* delegate) {
   tab_strip_delegate_ = delegate;
 }
 
 void GlicNudgeControllerDesktop::SetToolbarDelegate(
-    GlicNudgeDelegate* delegate) {
+    GlicSplitButtonDelegate* delegate) {
   toolbar_delegate_ = delegate;
 }
 
@@ -69,14 +73,13 @@ void GlicNudgeControllerDesktop::UpdateNudgeLabel(
     const std::string& anchored_message_text,
     std::optional<GlicNudgeActivity> activity,
     GlicNudgeActivityCallback callback) {
-  if (auto* active_tab = tab_list_->GetActiveTab()) {
-    if (active_tab->GetContents() != web_contents) {
-      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE,
-          base::BindOnce(std::move(callback),
-                         GlicNudgeActivity::kNudgeNotShownWebContents));
-      return;
-    }
+  tabs::TabInterface* active_tab = tab_list_->GetActiveTab();
+  if (!active_tab || active_tab->GetContents() != web_contents) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback),
+                       GlicNudgeActivity::kNudgeNotShownWebContents));
+    return;
   }
 
   // Empty nudge labels close the nudge, allow those to bypass the
@@ -90,7 +93,7 @@ void GlicNudgeControllerDesktop::UpdateNudgeLabel(
     return;
   }
 
-  GlicNudgeDelegate* delegate = GetActiveDelegate();
+  GlicSplitButtonDelegate* delegate = GetActiveDelegate();
 
   if (activity &&
       (activity == glic::GlicNudgeActivity::
@@ -105,6 +108,12 @@ void GlicNudgeControllerDesktop::UpdateNudgeLabel(
 
   nudge_activity_callback_ = callback;
   prompt_suggestion_ = prompt_suggestion;
+  if (!nudge_label.empty()) {
+    CHECK(active_tab);
+    nudged_tab_handle_ = active_tab->GetHandle();
+  } else {
+    nudged_tab_handle_ = tabs::TabHandle::Null();
+  }
 
   PrefService* const pref_service =
       browser_window_interface_->GetProfile()->GetPrefs();
@@ -152,12 +161,14 @@ void GlicNudgeControllerDesktop::OnNudgeActivity(GlicNudgeActivity activity) {
     case GlicNudgeActivity::kNudgeIgnoredNavigation:
     case GlicNudgeActivity::kNudgeIgnoredOpenedContextualTasksSidePanel:
     case GlicNudgeActivity::kNudgeIgnoredOmniboxContextMenuInteraction:
+      nudged_tab_handle_ = tabs::TabHandle::Null();
       nudge_activity_callback_.Run(activity);
       nudge_activity_callback_.Reset();
       scoped_call_to_action_lock_.reset();
       break;
     case GlicNudgeActivity::kNudgeNotShownWebContents:
     case GlicNudgeActivity::kNudgeNotShownWindowCallToActionUI:
+      nudged_tab_handle_ = tabs::TabHandle::Null();
       scoped_call_to_action_lock_.reset();
       nudge_activity_callback_.Reset();
       break;
@@ -170,14 +181,25 @@ void GlicNudgeControllerDesktop::SetNudgeActivityCallbackForTesting() {
 
 void GlicNudgeControllerDesktop::OnActiveTabChanged(TabListInterface& tab_list,
                                                     tabs::TabInterface* tab) {
-  GlicNudgeDelegate* delegate = GetActiveDelegate();
+  // Ignore active tab changes that correspond to the tab currently showing the
+  // nudge. This avoids race conditions where the JNI or asynchronous tab
+  // activation event is processed after the nudge was shown.
+  if (!nudged_tab_handle_.Get() || tab == nudged_tab_handle_.Get()) {
+    return;
+  }
+  GlicSplitButtonDelegate* delegate = GetActiveDelegate();
   if (delegate && delegate->GetIsShowingGlicNudge()) {
     delegate->OnHideGlicNudgeUI();
     OnNudgeActivity(glic::GlicNudgeActivity::kNudgeIgnoredActiveTabChanged);
   }
 }
 
-GlicNudgeDelegate* GlicNudgeControllerDesktop::GetActiveDelegate() {
+void GlicNudgeControllerDesktop::OnTabListDestroyed(
+    TabListInterface& tab_list) {
+  tab_list_observation_.Reset();
+}
+
+GlicSplitButtonDelegate* GlicNudgeControllerDesktop::GetActiveDelegate() {
   if (anchored_nudge_controller_) {
     return anchored_nudge_controller_.get();
   }

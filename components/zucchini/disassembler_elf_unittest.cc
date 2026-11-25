@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "components/zucchini/test_utils.h"
 #include "components/zucchini/type_elf.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,7 +40,7 @@ TEST(DisassemblerElfTest, IsTargetOffsetInElfSectionList) {
     }
     // The interface to IsTargetOffsetInElfSectionList() takes a list of
     // pointers (since data can be casted from images), so make the conversion.
-    std::vector<const FakeElfShdr*> ptr_list;
+    std::vector<raw_ptr<const FakeElfShdr>> ptr_list;
     for (const FakeElfShdr& header : sorted_list)
       ptr_list.push_back(&header);
     std::string result;

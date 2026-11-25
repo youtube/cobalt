@@ -421,17 +421,6 @@ IN_PROC_BROWSER_TEST_P(WebAppLinkCapturingBrowserTest,
 
 IN_PROC_BROWSER_TEST_P(WebAppLinkCapturingBrowserTest,
                        ParentAppWithChildLinks) {
-#if BUILDFLAG(IS_CHROMEOS)
-  // TODO(b/521860617): Under kV2DefaultOn, the nested app captures the
-  // navigation instead of the parent app because both are default-on.
-  // Skip this test on ChromeOS until the preferred app selection discrepancy
-  // is resolved.
-  if (LinkCapturingEnabledByDefault()) {
-    GTEST_SKIP() << "Skipping due to overlapping scope link capturing "
-                    "discrepancy on ChromeOS under kV2DefaultOn";
-  }
-#endif
-
   // Install the parent app first, then the nested app. This ensures that the
   // nested app's default link capturing preference is not overridden by the
   // parent app's installation.
@@ -447,16 +436,6 @@ IN_PROC_BROWSER_TEST_P(WebAppLinkCapturingBrowserTest,
 
   NavigateCapturable(browser(), GetNestedAppUrl());
 
-  // https://crbug.com/40279851: ChromeOS currently capturing nested app links
-  // into the parent app, but other platforms split the URL space and fully
-  // respect the child app's user setting.
-#if BUILDFLAG(IS_CHROMEOS)
-  Browser* app_browser = browser_created_observer.Wait();
-  EXPECT_NE(browser(), app_browser);
-  EXPECT_TRUE(AppBrowserController::IsForWebApp(app_browser, parent_app_id));
-  ExpectTabs(app_browser, {GetNestedAppUrl()});
-  ExpectTabs(browser(), {about_blank_});
-#else
   if (LinkCapturingEnabledByDefault()) {
     // If link capturing is on by default, then the nested app will also be
     // capturing links in its scope (and thus the nested url will launch a
@@ -467,9 +446,19 @@ IN_PROC_BROWSER_TEST_P(WebAppLinkCapturingBrowserTest,
     ExpectTabs(app_browser, {GetNestedAppUrl()});
     ExpectTabs(browser(), {about_blank_});
   } else {
+#if BUILDFLAG(IS_CHROMEOS)
+    // Under kV2DefaultOff, overlapping scopes support on ChromeOS has a
+    // discrepancy where the parent app captures the link since only the parent
+    // has link capturing enabled. See https://crbug.com/40279851.
+    Browser* app_browser = browser_created_observer.Wait();
+    EXPECT_NE(browser(), app_browser);
+    EXPECT_TRUE(AppBrowserController::IsForWebApp(app_browser, parent_app_id));
+    ExpectTabs(app_browser, {GetNestedAppUrl()});
+    ExpectTabs(browser(), {about_blank_});
+#else
     ExpectTabs(browser(), {about_blank_, GetNestedAppUrl()});
-  }
 #endif
+  }
 }
 
 // Since overlapping scopes support is enabled on ChromeOS, parent and child
@@ -478,12 +467,12 @@ IN_PROC_BROWSER_TEST_P(WebAppLinkCapturingBrowserTest,
 IN_PROC_BROWSER_TEST_P(WebAppLinkCapturingBrowserTest,
                        ParentAppAndChildAppCapture) {
 #if BUILDFLAG(IS_CHROMEOS)
-  // TODO(b/521860617): Under kV2DefaultOff, overlapping scopes support on
-  // ChromeOS has a discrepancy. Skip this test under kV2DefaultOff until
-  // resolved.
+  // Under kV2DefaultOff, overlapping scopes are not supported on ChromeOS (they
+  // conflict by design). Skip this test under kV2DefaultOff on ChromeOS.
   if (!LinkCapturingEnabledByDefault()) {
-    GTEST_SKIP() << "Skipping due to overlapping scope discrepancy on ChromeOS "
-                    "under kV2DefaultOff";
+    GTEST_SKIP()
+        << "Skipping due to overlapping scope conflict by design on ChromeOS "
+           "under kV2DefaultOff";
   }
 #endif
 

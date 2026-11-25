@@ -339,7 +339,7 @@ gfx::Rect WebAppFrameToolbarView::GetFindBarBoundingBox(int contents_bottom) {
 }
 
 void WebAppFrameToolbarView::FocusToolbar() {
-  SetPaneFocus(nullptr);
+  SetPaneFocusAndFocusDefault();
 }
 
 views::AccessiblePaneView* WebAppFrameToolbarView::GetAsAccessiblePaneView() {
@@ -451,6 +451,38 @@ void WebAppFrameToolbarView::SetWindowControlsOverlayToggleVisible(
 PageActionIconController*
 WebAppFrameToolbarView::GetPageActionIconControllerForTesting() {
   return right_container_->page_action_icon_controller();
+}
+views::View* WebAppFrameToolbarView::GetDefaultFocusableChild() {
+  // If the app is in minimal-ui mode and navigation buttons (like back/reload)
+  // are visible, we want focus to start on the leftmost navigation control.
+  const auto* app_controller =
+      web_app::AppBrowserController::From(browser_view_->browser());
+  if (app_controller && app_controller->HasMinimalUiButtons() &&
+      left_container_ && left_container_->GetVisible()) {
+    views::View* first_focusable = GetFirstFocusableChild();
+    if (first_focusable && left_container_->Contains(first_focusable)) {
+      return first_focusable;
+    }
+  }
+
+  // Focus content settings buttons first if active.
+  if (right_container_ && right_container_->content_settings_container()) {
+    for (views::View* view : right_container_->content_settings_container()
+                                 ->get_content_setting_views()) {
+      if (view && view->IsFocusable()) {
+        return view;
+      }
+    }
+  }
+
+  // Fall back to the 3-dot app menu button as the standard default
+  // focus point when the toolbar is focused.
+  if (right_container_ && right_container_->web_app_menu_button() &&
+      right_container_->web_app_menu_button()->IsFocusable()) {
+    return right_container_->web_app_menu_button();
+  }
+
+  return GetFirstFocusableChild();
 }
 
 void WebAppFrameToolbarView::ChildPreferredSizeChanged(views::View* child) {

@@ -138,6 +138,62 @@ TEST(HttpNoVarySearchDataTest, ParseFromHeaderValueFailure) {
   }
 }
 
+// Test cases for round-trip: Parse -> Serialize -> Parse.
+// The first parse (P1) and the second parse (P2) should result in equivalent
+// `HttpNoVarySearchData` objects.
+TEST(HttpNoVarySearchDataTest, ParseSerializeRoundTrip) {
+  struct TestCase {
+    const char* header_value;
+    const char* description;
+  };
+  static const TestCase cases[] = {
+      {"params", "Basic case with only params"},
+      {"key-order", "Basic case with only key-order"},
+      {R"(params=("a" "b"))", "Params with multiple values"},
+      {R"(params, except=("a"))", "Params with except list"},
+      {R"(key-order, params=("a" "b"))",
+       "Key-order and params with multiple values"},
+      {R"(key-order, params, except=("a"))",
+       "Key-order, params and except list"},
+      // Equivalent variants should also round-trip (though the serialized
+      // string might be normalized, the parsed data should be equivalent).
+      {"params=?1", "Equivalent to 'params'"},
+      {"key-order=?1", "Equivalent to 'key-order'"},
+      {R"(params, key-order=?0)",
+       "Equivalent to 'params' (key-order is true by default)"},
+      {R"(params, except=())", "Equivalent to 'params' with empty except"},
+      {R"(params, except=("a"), key-order)",
+       "Equivalent to 'params, except=(\"a\"), key-order=?0'"},
+      // Horrible parameter names that should be correctly escaped/unescaped.
+      {R"(params=("a+b"))", "Parameter name contains space (encoded as '+')"},
+      {R"(params=("a%20b"))",
+       "Parameter name contains space (encoded as '%20')"},
+      {R"(params=("a%22b"))", "Parameter name contains double quote ('\"')"},
+      {R"(params=("a%25b"))", "Parameter name contains percent sign ('%')"},
+      {R"(params=("a%F0%9F%98%80b"))",
+       "Parameter name contains UTF-8 emoji (😀)"},
+      {R"(params=("a%00b"))", "Parameter name contains null character ('\\0')"},
+      {R"(params=("a%0Ab"))", "Parameter name contains newline ('\\n')"},
+      {R"(params=("a%0Db"))",
+       "Parameter name contains carriage return ('\\r')"},
+  };
+
+  for (const auto& c : cases) {
+    SCOPED_TRACE(c.description);
+
+    auto parsed1 = HttpNoVarySearchData::ParseFromHeaderValue(c.header_value);
+    ASSERT_OK_AND_ASSIGN(const auto data1, parsed1);
+
+    std::optional<std::string> serialized = data1.SerializeToString();
+    ASSERT_TRUE(serialized.has_value());
+
+    auto parsed2 = HttpNoVarySearchData::ParseFromHeaderValue(*serialized);
+    ASSERT_OK_AND_ASSIGN(const auto data2, parsed2);
+
+    EXPECT_EQ(data1, data2);
+  }
+}
+
 struct TestData {
   const char* raw_headers;
   const base::flat_set<std::string> expected_affected_params;

@@ -11,6 +11,7 @@
 #include "chrome/browser/dictation/dictation_keyed_service_factory.h"
 #include "chrome/browser/dictation/features.h"
 #include "chrome/browser/dictation/listener_stream_provider.h"
+#include "chrome/browser/dictation/metrics.h"
 #include "chrome/browser/dictation/onboarding_manager.h"
 #include "chrome/browser/dictation/session_controller.h"
 #include "chrome/browser/dictation/session_ui_impl.h"
@@ -19,11 +20,30 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
 
 namespace dictation {
 
 namespace {
 constexpr int kVoiceTypingSettingsDisabled = 2;
+
+tabs::TabInterface* GetTabFromTargetId(const TargetId& target_id) {
+  content::RenderFrameHost* rfh = target_id.document.AsRenderFrameHostIfValid();
+  if (!rfh) {
+    return nullptr;
+  }
+
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(rfh);
+  if (!web_contents) {
+    return nullptr;
+  }
+
+  return tabs::TabInterface::MaybeGetFromContents(web_contents);
+}
+
 }  // namespace
 
 // static
@@ -34,8 +54,8 @@ DictationKeyedService* DictationKeyedService::Get(
 
 DictationKeyedService::SessionState::SessionState(
     SessionControllerDelegate& delegate,
-    base::WeakPtr<BrowserWindowInterface> window)
-    : controller_(delegate), window_(window) {}
+    const TargetId& target_id)
+    : controller_(delegate), target_id_(target_id) {}
 
 DictationKeyedService::SessionState::~SessionState() = default;
 
@@ -49,6 +69,12 @@ DictationKeyedService::DictationKeyedService(Profile* profile)
       prefs::kVoiceTypingSettings,
       base::BindRepeating(&DictationKeyedService::OnPrefChanged,
                           base::Unretained(this)));
+  // `kDictation` is implicitly enabled by virtue of DictationKeyedService being
+  // created (`CHECK`ed above).
+  bool disabled_by_policy =
+      profile_->GetPrefs()->GetInteger(prefs::kVoiceTypingSettings) ==
+      kVoiceTypingSettingsDisabled;
+  RecordDictationIsEnabledOnProfileInit(!disabled_by_policy);
 }
 
 DictationKeyedService::~DictationKeyedService() = default;
@@ -65,32 +91,35 @@ std::unique_ptr<StreamProvider> DictationKeyedService::CreateStreamProvider(
 std::unique_ptr<SessionUi> DictationKeyedService::CreateUi(
     SessionController& controller) const {
   CHECK(session_);
-  if (!session_->window_) {
-    return nullptr;
-  }
+  tabs::TabInterface* tab = GetTabFromTargetId(session_->target_id_);
 
-  return std::make_unique<SessionUiImpl>(*session_->window_, controller);
+  // We must have a tab since this is called synchronously from session
+  // creation.
+  CHECK(tab);
+
+  return std::make_unique<SessionUiImpl>(*tab, controller);
 }
 
-void DictationKeyedService::StartSession(BrowserWindowInterface& window,
-                                         std::unique_ptr<Target> target) {
+void DictationKeyedService::StartSession(
+    tabs::TabInterface& tab,
+    const TargetId& target_id,
+    DictationSessionEntryPoint entry_point) {
   CHECK(IsEnabled());
   CHECK(!session_);
 
-  // ShowOnboardingIfNeeded conditionally moves the target unique_ptr if it
-  // returns true.
-  if (onboarding_manager_.ShowOnboardingIfNeeded(window, target)) {
+  if (onboarding_manager_.ShowOnboardingIfNeeded(tab, target_id, entry_point)) {
     // If onboarding is shown, it will call StartSession again if needed.
     return;
   }
 
-  session_.emplace(*this, window.GetWeakPtr());
+  RecordDictationSessionStartSource(entry_point);
+
+  session_.emplace(*this, target_id);
 
   session_->controller_.Initialize();
 
-  if (target) {
-    session_->controller_.StartDictationStream(std::move(target));
-  }
+  session_->controller_.StartDictationStream(
+      target_id, DictationStreamStartTrigger::kSessionStart);
 }
 
 void DictationKeyedService::EndSession() {
@@ -104,19 +133,28 @@ bool DictationKeyedService::ShouldShowContextMenuItem() const {
   return !session_;
 }
 
-void DictationKeyedService::ContextMenuHandler(
-    BrowserWindowInterface& window,
-    content::RenderFrameHost& rfh,
-    const std::u16string& selected_text) {
+void DictationKeyedService::ContextMenuHandler(content::RenderFrameHost& rfh) {
   // Policy could have changed to disabled while the context menu was open.
   if (!IsEnabled()) {
     return;
   }
 
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(&rfh);
+  if (!web_contents) {
+    return;
+  }
+
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_contents);
+  if (!tab) {
+    return;
+  }
+
   // TODO(crbug.com/525856380): Handle changes to the focused element. Identify
   // the targeted element for the dictation Target.
-  StartSession(
-      window, std::make_unique<Target>(&rfh, base::UTF16ToUTF8(selected_text)));
+  StartSession(*tab, TargetId{rfh.GetWeakDocumentPtr()},
+               DictationSessionEntryPoint::kContextMenu);
 }
 
 bool DictationKeyedService::IsEnabled() const {

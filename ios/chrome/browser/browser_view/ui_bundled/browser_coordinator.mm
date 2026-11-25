@@ -5693,7 +5693,9 @@ const char kChromeAppStoreUrl[] =
 #pragma mark - NonModalSignInPromoCommands
 
 - (void)showNonModalSignInPromoWithType:(NonModalSignInPromoType)promoType {
-  if (!self.nonModalSignInPromoCoordinator) {
+  if (self.nonModalSignInPromoCoordinator || !self.isStarted) {
+    return;
+  }
     self.nonModalSignInPromoCoordinator =
         [[NonModalSignInPromoCoordinator alloc]
             initWithBaseViewController:self.viewController
@@ -5701,7 +5703,6 @@ const char kChromeAppStoreUrl[] =
                              promoType:promoType];
     [self.nonModalSignInPromoCoordinator start];
     self.nonModalSignInPromoCoordinator.delegate = self;
-  }
 }
 
 #pragma mark - NonModalSignInPromoCoordinatorDelegate

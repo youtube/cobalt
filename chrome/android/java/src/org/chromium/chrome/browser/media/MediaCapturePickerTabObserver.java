@@ -134,7 +134,13 @@ public class MediaCapturePickerTabObserver implements AllTabObserver.Observer {
 
     private boolean isTabPickable(Tab tab) {
         // We do not support capture of native pages.
-        if (NativePage.isChromePageUrl(tab.getUrl(), tab.isIncognito())) return false;
+        // Tab.isNativePage may return false negative if the (native) page has not been loaded e.g.
+        // restored from an old window (see b/489249666).
+        // NativePage.isChromePageUrl can identify loaded or unloaded native page by the URL, but
+        // not PDF pages.
+        if (tab.isNativePage() || NativePage.isChromePageUrl(tab.getUrl(), tab.isIncognito())) {
+            return false;
+        }
 
         // Filter out all tabs that are not this tab for capture this tab.
         if (mParams.captureThisTab && tab.getWebContents() != mParams.webContents) return false;

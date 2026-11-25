@@ -6,6 +6,7 @@ import {EventGenerator} from '/common/event_generator.js';
 import {EventHandler} from '/common/event_handler.js';
 import {RectUtil} from '/common/rect_util.js';
 import {TestImportManager} from '/common/testing/test_import_manager.js';
+import {AutomationUtil} from '/common/automation_util.js';
 
 import {AutoScanManager} from '../auto_scan_manager.js';
 import {Navigator} from '../navigator.js';
@@ -215,10 +216,10 @@ export class KeyboardRootNode extends BasicRootNode {
     root.children = children;
   }
 
-  private static getKeyboardObject(): AutomationNode {
+  private static getKeyboardObject(): AutomationNode|undefined {
     if (!this.object_ || !this.object_.role) {
-      this.object_ =
-          Navigator.byItem.desktopNode.find({role: RoleType.KEYBOARD});
+      this.object_ = AutomationUtil.findNodeInDesktopTree(
+          Navigator.byItem.desktopNode, {role: RoleType.KEYBOARD}) || undefined;
     }
     return this.object_;
   }
@@ -234,7 +235,8 @@ export class KeyboardRootNode extends BasicRootNode {
 }
 
 BasicRootNode.builders.push({
-  predicate: rootNode => rootNode.role === RoleType.KEYBOARD,
+  predicate: rootNode => rootNode.role === RoleType.KEYBOARD &&
+      rootNode.root?.role === RoleType.DESKTOP,
   builder: KeyboardRootNode.buildTree,
 });
 

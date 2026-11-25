@@ -20,6 +20,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/autofill/content/renderer/autofill_renderer_test.h"
 #include "components/autofill/content/renderer/form_autofill_util.h"
 #include "components/autofill/core/common/field_data_manager.h"
 #include "components/autofill/core/common/form_data.h"
@@ -84,43 +85,31 @@ std::vector<TestCase> GetTests() {
   return tests;
 }
 
-class DomLabelTest : public content::RenderViewTest,
+class DomLabelTest : public test::AutofillRendererTest,
                      public testing::WithParamInterface<TestCase> {
  public:
   void SetUp() override {
-    content::RenderViewTest::SetUp();
+    test::AutofillRendererTest::SetUp();
     // Fail all requests to external resources (e.g. images).
     CreateFakeURLLoaderFactory();
   }
 
   // Returns all forms found on the page in consistent order.
   std::vector<FormData> ExtractFormDatas() {
-    blink::WebDocument document = GetMainFrame()->GetDocument();
     // `GetTopLevelForms()` returns forms in DOM order.
     std::vector<blink::WebFormElement> form_elements =
-        document.GetTopLevelForms();
+        GetDocument().GetTopLevelForms();
     // Add a null WebFormElement to extract unowned fields into a separate form.
     form_elements.emplace_back();
     std::vector<FormData> result;
     for (const blink::WebFormElement& form_element : form_elements) {
       // Forms might be too large for Autofill.
-      if (std::optional<FormData> form = form_util::ExtractFormData(
-              document, form_element, *field_data_manager_,
-              CallTimerState{
-                  .call_site = CallTimerState::CallSite::kExtractForm,
-                  .last_autofill_agent_reset = {},
-                  .last_dom_content_loaded = {},
-              },
-              /*button_titles_cache=*/nullptr)) {
-        result.push_back(form.value());
+      if (std::optional<FormData> form = ExtractFormData(form_element)) {
+        result.push_back(*form);
       }
     }
     return result;
   }
-
- private:
-  scoped_refptr<FieldDataManager> field_data_manager_ =
-      base::MakeRefCounted<FieldDataManager>();
 };
 
 TEST_P(DomLabelTest, DataDrivenLabels) {

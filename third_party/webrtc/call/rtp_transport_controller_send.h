@@ -117,9 +117,6 @@ class RtpTransportControllerSend final
   void SetSdpBitrateParameters(const BitrateConstraints& constraints) override;
   void SetClientBitratePreferences(const BitrateSettings& preferences) override;
 
-  void OnTransportOverheadChanged(
-      size_t transport_overhead_bytes_per_packet) override;
-
   void AccountForAudioPacketsInPacedSender(bool account_for_audio) override;
   void IncludeOverheadInPacedSender() override;
   void EnsureStarted() override;
@@ -235,7 +232,8 @@ class RtpTransportControllerSend final
   const bool add_pacing_to_cwin_;
   const bool reset_bwe_on_adapter_id_change_;
 
-  size_t transport_overhead_bytes_per_packet_ RTC_GUARDED_BY(worker_thread_);
+  DataSize transport_overhead_per_packet_ RTC_GUARDED_BY(worker_thread_) =
+      DataSize::Zero();
   bool network_available_ RTC_GUARDED_BY(worker_thread_);
   RepeatingTaskHandle pacer_queue_update_task_ RTC_GUARDED_BY(worker_thread_);
   RepeatingTaskHandle controller_task_ RTC_GUARDED_BY(worker_thread_);

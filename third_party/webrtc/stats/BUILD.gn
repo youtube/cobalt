@@ -8,18 +8,6 @@
 
 import("../webrtc.gni")
 
-group("stats") {
-  deps = [ ":rtc_stats" ]
-}
-
-rtc_library("rtc_stats") {
-  visibility = [ "*" ]
-  cflags = []
-  sources = []
-
-  deps = [ "../api:rtc_stats_api" ]
-}
-
 rtc_library("rtc_stats_test_utils") {
   visibility = [ "*" ]
   cflags = []
@@ -29,7 +17,6 @@ rtc_library("rtc_stats_test_utils") {
   ]
 
   deps = [
-    ":rtc_stats",
     "../api:rtc_stats_api",
     "../api/units:timestamp",
     "../rtc_base:checks",
@@ -46,7 +33,6 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
 
     deps = [
-      ":rtc_stats",
       ":rtc_stats_test_utils",
       "../api:rtc_stats_api",
       "../api:scoped_refptr",

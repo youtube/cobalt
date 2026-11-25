@@ -70,7 +70,7 @@ class PerformanceManagerImpl : public PerformanceManager {
       FrameNodeImpl* outer_document_for_fenced_frame,
       int render_frame_id,
       const blink::LocalFrameToken& frame_token,
-      const perfetto::NamedTrack& tracing_track,
+      const perfetto::Track& tracing_track,
       content::BrowsingInstanceId browsing_instance_id,
       content::SiteInstanceGroupId site_instance_group_id,
       bool is_current,
@@ -82,7 +82,7 @@ class PerformanceManagerImpl : public PerformanceManager {
       const GURL& visible_url,
       PagePropertyFlags initial_properties,
       base::TimeTicks visibility_change_time,
-      const perfetto::NamedTrack& tracing_track);
+      const perfetto::Track& tracing_track);
   static std::unique_ptr<ProcessNodeImpl> CreateProcessNode(
       BrowserProcessNodeTag tag);
   static std::unique_ptr<ProcessNodeImpl> CreateProcessNode(

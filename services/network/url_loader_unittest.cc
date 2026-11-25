@@ -17,6 +17,7 @@
 
 #include "base/auto_reset.h"
 #include "base/base64.h"
+#include "base/byte_size.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -991,8 +992,8 @@ class URLLoaderTest : public testing::Test {
 
     client_.RunUntilComplete();
     if (body) {
-      EXPECT_EQ(static_cast<int64_t>(body->size()),
-                client()->completion_status().decoded_body_length);
+      EXPECT_EQ(body->size(),
+                client()->completion_status().decoded_body_length.InBytes());
     }
 
     delete_run_loop.Run();
@@ -1016,14 +1017,14 @@ class URLLoaderTest : public testing::Test {
     EXPECT_EQ(expected, body);
     // The file isn't compressed, so both encoded and decoded body lengths
     // should match the read body length.
-    EXPECT_EQ(static_cast<int64_t>(expected.size()),
-              client()->completion_status().decoded_body_length);
-    EXPECT_EQ(static_cast<int64_t>(expected.size()),
-              client()->completion_status().encoded_body_length);
+    EXPECT_EQ(expected.size(),
+              client()->completion_status().decoded_body_length.InBytes());
+    EXPECT_EQ(expected.size(),
+              client()->completion_status().encoded_body_length.InBytes());
     // Over the wire length should include headers, so should be longer.
     // TODO(mmenke): Worth adding better tests for encoded_data_length?
-    EXPECT_LT(static_cast<int64_t>(expected.size()),
-              client()->completion_status().encoded_data_length);
+    EXPECT_LT(expected.size(),
+              client()->completion_status().encoded_data_length.InBytes());
   }
 
   void SetUpContext(const GURL& url, bool is_trusted) {
@@ -8588,10 +8589,8 @@ TEST_F(URLLoaderTest, ReadAndDiscardBody) {
   loader_client.RunUntilComplete();
   const auto& completion_status = loader_client.completion_status();
   EXPECT_EQ(completion_status.error_code, net::OK);
-  EXPECT_EQ(completion_status.decoded_body_length,
-            static_cast<int64_t>(actual_size.InBytes()));
-  EXPECT_EQ(completion_status.encoded_body_length,
-            static_cast<int64_t>(actual_size.InBytes()));
+  EXPECT_EQ(completion_status.decoded_body_length, actual_size);
+  EXPECT_EQ(completion_status.encoded_body_length, actual_size);
 
   delete_run_loop.Run();
 }

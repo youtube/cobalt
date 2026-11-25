@@ -8,16 +8,21 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/mock_callback.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "build/build_config.h"
 #include "chrome/browser/component_updater/indigo_component_installer.h"
+#include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/indigo/indigo_prefs.h"
+#include "chrome/browser/indigo/proto/indigo_config.pb.h"
 #include "chrome/browser/indigo/proto/indigo_prompts.pb.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
@@ -25,17 +30,30 @@
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "base/mac/mac_util.h"
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#include "base/enterprise_util.h"
+#elif BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
+#include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
 #endif
 
 namespace indigo {
 
 class IndigoServiceTest : public testing::Test {
  public:
+  IndigoServiceTest() {
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kIndigo,
+        {{features::kIndigoAllowForEnterprise.name, "true"}});
+  }
+
   void SetUp() override {
-    scoped_feature_list_.InitAndEnableFeature(features::kIndigo);
     ::indigo::prefs::RegisterProfilePrefs(prefs_.registry());
     if (set_script_switch_in_setup_) {
       scoped_command_line_.GetProcessCommandLine()->AppendSwitchASCII(
@@ -64,11 +82,18 @@ class IndigoServiceTest : public testing::Test {
         base::Unretained(this)));
   }
 
-  void MakeAccountAvailableAndCapable() {
+  void MakeAccountAvailableAndCapable(
+      std::string_view email = "test@non.managed.com",
+      std::string_view hosted_domain = "") {
     AccountInfo info = identity_test_env_.MakePrimaryAccountAvailable(
-        "test@example.com", signin::ConsentLevel::kSignin);
+        std::string(email), signin::ConsentLevel::kSignin);
     AccountCapabilitiesTestMutator mutator(&info);
     mutator.set_can_use_model_execution_features(true);
+    if (!hosted_domain.empty()) {
+      AccountInfo::Builder builder(info);
+      builder.SetHostedDomain(std::string(hosted_domain));
+      info = builder.Build();
+    }
     identity_test_env_.UpdateAccountInfoForAccount(info);
   }
 
@@ -147,7 +172,7 @@ TEST_F(IndigoServiceTest, CapabilitiesDisable) {
   CreateService();
 
   AccountInfo info = identity_test_env_.MakePrimaryAccountAvailable(
-      "test@example.com", signin::ConsentLevel::kSignin);
+      "test@non.managed.com", signin::ConsentLevel::kSignin);
   AccountCapabilitiesTestMutator mutator(&info);
   mutator.set_can_use_model_execution_features(false);
   identity_test_env_.UpdateAccountInfoForAccount(info);
@@ -182,7 +207,8 @@ TEST_F(IndigoServiceTest, RefreshTokenErrorResolved) {
 TEST_F(IndigoServiceTest, GlicRequirementEnabledAndDisabled) {
   scoped_feature_list_.Reset();
   scoped_feature_list_.InitAndEnableFeatureWithParameters(
-      features::kIndigo, {{features::kIndigoRequireGlicEnabling.name, "true"}});
+      features::kIndigo, {{features::kIndigoRequireGlicEnabling.name, "true"},
+                          {features::kIndigoAllowForEnterprise.name, "true"}});
 
   CreateService();
   MakeAccountAvailableAndCapable();
@@ -204,54 +230,6 @@ TEST_F(IndigoServiceTest, GlicRequirementEnabledAndDisabled) {
                            ->FindExtendedAccountInfoByAccountId(account_id);
     service_->OnExtendedAccountInfoUpdated(info);
   }
-  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
-}
-
-TEST_F(IndigoServiceTest, PolicyDisabledFromConstruction) {
-  SetPolicySettings(prefs::Policy::kDisallowed);
-  CreateService();
-  MakeAccountAvailableAndCapable();
-  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kDisabledByPolicy));
-}
-
-TEST_F(IndigoServiceTest, PolicyChangeTriggersUpdate) {
-  CreateService();
-  MakeAccountAvailableAndCapable();
-  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
-
-  SetPolicySettings(prefs::Policy::kDisallowed);
-  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kDisabledByPolicy));
-}
-
-TEST_F(IndigoServiceTest, ManagedDomain) {
-  CreateService();
-
-  AccountInfo info = identity_test_env_.MakePrimaryAccountAvailable(
-      "test@example.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&info);
-  mutator.set_can_use_model_execution_features(true);
-
-  AccountInfo::Builder builder(info);
-  builder.SetHostedDomain("example.com");
-  AccountInfo updated_info = builder.Build();
-  identity_test_env_.UpdateAccountInfoForAccount(updated_info);
-
-  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kManagedDomain));
-}
-
-TEST_F(IndigoServiceTest, GoogleInternalAccountNotManaged) {
-  CreateService();
-
-  AccountInfo info = identity_test_env_.MakePrimaryAccountAvailable(
-      "test@google.com", signin::ConsentLevel::kSignin);
-  AccountCapabilitiesTestMutator mutator(&info);
-  mutator.set_can_use_model_execution_features(true);
-
-  AccountInfo::Builder builder(info);
-  builder.SetHostedDomain("google.com");
-  AccountInfo updated_info = builder.Build();
-  identity_test_env_.UpdateAccountInfoForAccount(updated_info);
-
   EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
 }
 
@@ -450,5 +428,298 @@ TEST_F(IndigoServiceTest, LoadPromptsComponentAlreadyReady) {
 
   EXPECT_EQ(service_->GetPrompt("v5"), "Test prompt v5");
 }
+
+TEST_F(IndigoServiceTest, LoadConfig) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  // Create a test config.
+  chrome::aix::indigo::IndigoConfig proto;
+  auto* heuristic_config = proto.mutable_heuristic_config();
+  heuristic_config->add_allowed_origins("https://allowed1.com");
+  heuristic_config->add_allowed_origins("https://allowed2.com");
+  heuristic_config->add_allowed_keywords("keyword1");
+  heuristic_config->add_allowed_keywords("keyword2");
+  heuristic_config->add_blocked_keywords("blocked1");
+  heuristic_config->add_blocked_keywords("blocked2");
+
+  // Serialize to file.
+  base::FilePath config_path =
+      temp_dir.GetPath().Append(FILE_PATH_LITERAL("indigo_config.bin"));
+  std::string serialized;
+  ASSERT_TRUE(proto.SerializeToString(&serialized));
+  ASSERT_TRUE(base::WriteFile(config_path, serialized));
+
+  CreateService();
+
+  // Initially config should not be loaded.
+  EXPECT_FALSE(service_->IsConfigLoaded());
+
+  // Simulate component ready.
+  component_updater::IndigoComponentInstallerPolicy policy;
+  policy.ComponentReady(base::Version("1.0"), temp_dir.GetPath(),
+                        base::DictValue());
+
+  EXPECT_TRUE(
+      base::test::RunUntil([&]() { return service_->IsConfigLoaded(); }));
+
+  // Verify config is loaded.
+  EXPECT_TRUE(service_->IsConfigLoaded());
+  EXPECT_TRUE(service_->IsOriginAllowed(
+      url::Origin::Create(GURL("https://allowed1.com"))));
+  EXPECT_TRUE(service_->IsOriginAllowed(
+      url::Origin::Create(GURL("https://allowed2.com"))));
+  EXPECT_FALSE(service_->IsOriginAllowed(
+      url::Origin::Create(GURL("https://disallowed.com"))));
+
+  EXPECT_THAT(service_->GetAllowedKeywords(),
+              testing::ElementsAre("keyword1", "keyword2"));
+  EXPECT_THAT(service_->GetBlockedKeywords(),
+              testing::ElementsAre("blocked1", "blocked2"));
+}
+
+TEST_F(IndigoServiceTest, LoadConfigFromCommandLine) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  // Create a test config.
+  chrome::aix::indigo::IndigoConfig proto;
+  auto* heuristic_config = proto.mutable_heuristic_config();
+  heuristic_config->add_allowed_origins("https://allowed1.com");
+
+  // Serialize to file.
+  base::FilePath config_path =
+      temp_dir.GetPath().Append(FILE_PATH_LITERAL("indigo_config.bin"));
+  std::string serialized;
+  ASSERT_TRUE(proto.SerializeToString(&serialized));
+  ASSERT_TRUE(base::WriteFile(config_path, serialized));
+
+  // Set the command line switch.
+  scoped_command_line_.GetProcessCommandLine()->AppendSwitchPath(
+      "indigo-config-proto", config_path);
+
+  CreateService();
+
+  // The service should start loading immediately because of the switch.
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return service_->IsConfigLoaded(); }));
+
+  // Verify config is loaded.
+  EXPECT_TRUE(service_->IsOriginAllowed(
+      url::Origin::Create(GURL("https://allowed1.com"))));
+}
+
+TEST_F(IndigoServiceTest, ComponentUpdateReloadsPromptsAndConfig) {
+  base::ScopedTempDir temp_dir1;
+  ASSERT_TRUE(temp_dir1.CreateUniqueTempDir());
+
+  // Create initial prompt and config in temp_dir1.
+  chrome::aix::indigo::IndigoPrompts prompts_proto1;
+  auto* prompt1 = prompts_proto1.add_prompts();
+  prompt1->set_key("v1");
+  prompt1->set_prompt("Prompt 1");
+  std::string serialized_prompts1;
+  ASSERT_TRUE(prompts_proto1.SerializeToString(&serialized_prompts1));
+  ASSERT_TRUE(base::WriteFile(
+      temp_dir1.GetPath().Append(FILE_PATH_LITERAL("indigo_prompts.bin")),
+      serialized_prompts1));
+
+  chrome::aix::indigo::IndigoConfig config_proto1;
+  config_proto1.mutable_heuristic_config()->add_allowed_origins(
+      "https://allowed1.com");
+  std::string serialized_config1;
+  ASSERT_TRUE(config_proto1.SerializeToString(&serialized_config1));
+  ASSERT_TRUE(base::WriteFile(
+      temp_dir1.GetPath().Append(FILE_PATH_LITERAL("indigo_config.bin")),
+      serialized_config1));
+
+  CreateService();
+
+  component_updater::IndigoComponentInstallerPolicy policy;
+  policy.ComponentReady(base::Version("1.0"), temp_dir1.GetPath(),
+                        base::DictValue());
+
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return service_->IsConfigLoaded(); }));
+  if (service_->GetPrompt("v1") != "Prompt 1") {
+    base::test::TestFuture<void> prompts_loaded_future;
+    service_->SetPromptsLoadedCallbackForTesting(
+        prompts_loaded_future.GetCallback());
+    EXPECT_TRUE(prompts_loaded_future.Wait());
+  }
+
+  EXPECT_EQ(service_->GetPrompt("v1"), "Prompt 1");
+  EXPECT_TRUE(service_->IsOriginAllowed(
+      url::Origin::Create(GURL("https://allowed1.com"))));
+
+  // Now simulate component update with version 2.0 in a new directory.
+  base::ScopedTempDir temp_dir2;
+  ASSERT_TRUE(temp_dir2.CreateUniqueTempDir());
+
+  chrome::aix::indigo::IndigoPrompts prompts_proto2;
+  auto* prompt2 = prompts_proto2.add_prompts();
+  prompt2->set_key("v2");
+  prompt2->set_prompt("Prompt 2");
+  std::string serialized_prompts2;
+  ASSERT_TRUE(prompts_proto2.SerializeToString(&serialized_prompts2));
+  ASSERT_TRUE(base::WriteFile(
+      temp_dir2.GetPath().Append(FILE_PATH_LITERAL("indigo_prompts.bin")),
+      serialized_prompts2));
+
+  chrome::aix::indigo::IndigoConfig config_proto2;
+  config_proto2.mutable_heuristic_config()->add_allowed_origins(
+      "https://allowed2.com");
+  std::string serialized_config2;
+  ASSERT_TRUE(config_proto2.SerializeToString(&serialized_config2));
+  ASSERT_TRUE(base::WriteFile(
+      temp_dir2.GetPath().Append(FILE_PATH_LITERAL("indigo_config.bin")),
+      serialized_config2));
+
+  policy.ComponentReady(base::Version("2.0"), temp_dir2.GetPath(),
+                        base::DictValue());
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return service_->IsOriginAllowed(
+        url::Origin::Create(GURL("https://allowed2.com")));
+  }));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return service_->GetPrompt("v2") == "Prompt 2"; }));
+
+  EXPECT_FALSE(service_->IsOriginAllowed(
+      url::Origin::Create(GURL("https://allowed1.com"))));
+  EXPECT_EQ(service_->GetPrompt("v1"), std::nullopt);
+}
+
+class IndigoServiceManagementPolicyDefaultEnabledTest
+    : public IndigoServiceTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  IndigoServiceManagementPolicyDefaultEnabledTest() {
+    scoped_feature_list_.Reset();
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kIndigo,
+        {{features::kIndigoAllowForEnterprise.name,
+          IsIndigoAllowedForEnterprise() ? "true" : "false"}});
+  }
+
+  bool IsIndigoAllowedForEnterprise() const { return GetParam(); }
+};
+
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
+       PolicyDisabledFromConstruction) {
+  SetPolicySettings(prefs::Policy::kDisallowed);
+  CreateService();
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          policy::ManagementServiceFactory::GetForProfile(&profile_),
+          policy::EnterpriseManagementAuthority::CLOUD);
+  MakeAccountAvailableAndCapable();
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kDisabledByPolicy
+                                          : LocalEligibility::kManagedDomain));
+}
+
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
+       PolicyChangeTriggersUpdate) {
+  CreateService();
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          policy::ManagementServiceFactory::GetForProfile(&profile_),
+          policy::EnterpriseManagementAuthority::CLOUD);
+  MakeAccountAvailableAndCapable();
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kEligible
+                                          : LocalEligibility::kManagedDomain));
+
+  SetPolicySettings(prefs::Policy::kDisallowed);
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kDisabledByPolicy
+                                          : LocalEligibility::kManagedDomain));
+}
+
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest, ManagedDomain) {
+  CreateService();
+  MakeAccountAvailableAndCapable("test@example.com", "example.com");
+  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kManagedDomain));
+}
+
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
+       GoogleInternalAccountNotManaged) {
+  CreateService();
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          policy::ManagementServiceFactory::GetForProfile(&profile_),
+          policy::EnterpriseManagementAuthority::CLOUD);
+  MakeAccountAvailableAndCapable("test@google.com", "google.com");
+
+  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
+}
+
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest, ManagedProfileCloud) {
+  CreateService();
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          policy::ManagementServiceFactory::GetForProfile(&profile_),
+          policy::EnterpriseManagementAuthority::CLOUD);
+  MakeAccountAvailableAndCapable();
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kEligible
+                                          : LocalEligibility::kManagedDomain));
+}
+
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
+       ManagedProfileComputerLocal) {
+  CreateService();
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          policy::ManagementServiceFactory::GetForProfile(&profile_),
+          policy::EnterpriseManagementAuthority::COMPUTER_LOCAL);
+  MakeAccountAvailableAndCapable();
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kEligible
+                                          : LocalEligibility::kManagedDomain));
+}
+
+#if BUILDFLAG(IS_WIN)
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest, EnterpriseDeviceWin) {
+  CreateService();
+  auto scoped_device_override = base::SetIsEnterpriseDeviceForTesting(true);
+  MakeAccountAvailableAndCapable();
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kEligible
+                                          : LocalEligibility::kManagedDomain));
+
+  SetPolicySettings(prefs::Policy::kDisallowed);
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kDisabledByPolicy
+                                          : LocalEligibility::kManagedDomain));
+}
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS)
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
+       EnterpriseDeviceChromeOS) {
+  CreateService();
+  profile_.ScopedCrosSettingsTestHelper()->InstallAttributes()->SetCloudManaged(
+      "example.com", "device_id");
+  MakeAccountAvailableAndCapable();
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kEligible
+                                          : LocalEligibility::kManagedDomain));
+
+  SetPolicySettings(prefs::Policy::kDisallowed);
+  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                          ? LocalEligibility::kDisabledByPolicy
+                                          : LocalEligibility::kManagedDomain));
+}
+#endif
+
+INSTANTIATE_TEST_SUITE_P(
+    /* no prefix */,
+    IndigoServiceManagementPolicyDefaultEnabledTest,
+    testing::Bool(),
+    [](const testing::TestParamInfo<bool>& info) {
+      return info.param ? "AllowedForEnterprise" : "DisallowedForEnterprise";
+    });
 
 }  // namespace indigo

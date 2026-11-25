@@ -11,7 +11,8 @@ namespace content {
 bool operator==(const PreconnectRequest& lhs, const PreconnectRequest& rhs) {
   return lhs.origin == rhs.origin && lhs.num_sockets == rhs.num_sockets &&
          lhs.allow_credentials == rhs.allow_credentials &&
-         lhs.network_anonymization_key == rhs.network_anonymization_key;
+         lhs.network_anonymization_key == rhs.network_anonymization_key &&
+         lhs.network_restrictions_id == rhs.network_restrictions_id;
 }
 
 }  // namespace content

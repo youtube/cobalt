@@ -55,6 +55,7 @@
 #import "ios/web/find_in_page/find_in_page_java_script_feature.h"
 #import "ios/web/js_messaging/java_script_feature_manager.h"
 #import "ios/web/public/js_messaging/java_script_feature_util.h"
+#import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_client.h"
 #import "ios/web/public/test/fakes/fake_web_frame.h"
 #import "ios/web/public/test/fakes/fake_web_frames_manager.h"
@@ -124,6 +125,8 @@ class GeminiBrowserAgentTest : public PlatformTest {
     web_state_ = web_state.get();
     web_state->SetBrowserState(profile_);
     web_state->SetCurrentURL(GURL("chrome://newtab/"));
+    web_state->SetNavigationManager(
+        std::make_unique<web::FakeNavigationManager>());
     GeminiTabHelper::CreateForWebState(web_state.get());
     WebViewProxyTabHelper::CreateForWebState(web_state.get());
     gemini_tab_helper_ = GeminiTabHelper::FromWebState(web_state.get());
@@ -243,6 +246,11 @@ class GeminiBrowserAgentTest : public PlatformTest {
   // Getter for `processing_status_`.
   ios::provider::GeminiClientMode GetProcessingStatus() {
     return gemini_browser_agent_->processing_status_;
+  }
+
+  // Getter for raw `attached_tabs_` member.
+  std::set<web::WebStateID> GetRawAttachedTabs() {
+    return gemini_browser_agent_->attached_tabs_;
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -648,12 +656,14 @@ TEST_F(GeminiBrowserAgentTest,
 }
 
 // Tests that the view mode switches to text/floaty mode on backgrounding if the
-// current mode is live.
+// current mode is live and the page is eligible.
 TEST_F(GeminiBrowserAgentTest, TestSwitchToTextModeOnBackgroundingIfLive) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures({kGeminiLive}, {});
 
   SetIsFloatyInvoked(true);
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->WasShown();
 
   // Set the current mode to Live.
   ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
@@ -668,6 +678,30 @@ TEST_F(GeminiBrowserAgentTest, TestSwitchToTextModeOnBackgroundingIfLive) {
   // Verify it switched to Floaty (text mode).
   EXPECT_EQ(ios::provider::GetCurrentMode(),
             ios::provider::GeminiViewMode::kFloaty);
+  EXPECT_TRUE(IsFloatyInvoked());
+}
+
+// Tests that the floaty is dismissed on backgrounding if the current mode is
+// live but the page is ineligible.
+TEST_F(GeminiBrowserAgentTest, TestDismissOnBackgroundingIfLiveAndIneligible) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive}, {});
+
+  SetIsFloatyInvoked(true);
+  web_state_->SetCurrentURL(GURL("chrome://newtab/"));
+
+  // Set the current mode to Live.
+  ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
+                              /*animated=*/false);
+  EXPECT_EQ(ios::provider::GetCurrentMode(),
+            ios::provider::GeminiViewMode::kLive);
+
+  // Simulate app backgrounding via SceneState activation level callback.
+  gemini_browser_agent_->OnSceneActivationLevelChanged(
+      SceneActivationLevelBackground);
+
+  // Verify it became dismissed instead of switching to Floaty.
+  EXPECT_FALSE(IsFloatyInvoked());
 }
 
 // Tests that the view mode does not change on backgrounding if it is not
@@ -828,6 +862,8 @@ TEST_F(GeminiBrowserAgentTest, TestOnProcessingStatusChangedLiveDormant) {
                    forProtocol:@protocol(FullscreenCommands)];
 
   SetIsFloatyInvoked(true);
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->WasShown();
 
   // Put in Live mode.
   ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
@@ -864,6 +900,8 @@ TEST_F(GeminiBrowserAgentTest,
                    forProtocol:@protocol(FullscreenCommands)];
 
   SetIsFloatyInvoked(true);
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->WasShown();
 
   // Put in Live mode.
   ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
@@ -887,8 +925,7 @@ TEST_F(GeminiBrowserAgentTest,
             ios::provider::GeminiViewMode::kFloaty);
   EXPECT_EQ(GetProcessingStatus(), ios::provider::GeminiClientMode::kDormant);
 
-  id self = nil;
-  OCMVerifyAll(mock_snackbar_handler);
+  EXPECT_OCMOCK_VERIFY(mock_snackbar_handler);
 }
 
 // Tests that OnProcessingStatusChanged handles inactivity timeout dormant
@@ -910,6 +947,8 @@ TEST_F(GeminiBrowserAgentTest,
                    forProtocol:@protocol(FullscreenCommands)];
 
   SetIsFloatyInvoked(true);
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->WasShown();
 
   // Put in Live mode.
   ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
@@ -936,8 +975,7 @@ TEST_F(GeminiBrowserAgentTest,
             ios::provider::GeminiViewMode::kFloaty);
   EXPECT_EQ(GetProcessingStatus(), ios::provider::GeminiClientMode::kDormant);
 
-  id self = nil;
-  OCMVerifyAll(mock_snackbar_handler);
+  EXPECT_OCMOCK_VERIFY(mock_snackbar_handler);
 }
 
 // Tests that OnProcessingStatusChanged handles server pause dormant reason
@@ -958,6 +996,8 @@ TEST_F(GeminiBrowserAgentTest,
                    forProtocol:@protocol(FullscreenCommands)];
 
   SetIsFloatyInvoked(true);
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->WasShown();
 
   // Put in Live mode.
   ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
@@ -984,8 +1024,7 @@ TEST_F(GeminiBrowserAgentTest,
             ios::provider::GeminiViewMode::kFloaty);
   EXPECT_EQ(GetProcessingStatus(), ios::provider::GeminiClientMode::kDormant);
 
-  id self = nil;
-  OCMVerifyAll(mock_snackbar_handler);
+  EXPECT_OCMOCK_VERIFY(mock_snackbar_handler);
 }
 
 // Tests that OnGeminiLiveUserDidBargeIn updates processing_status_ to
@@ -1035,4 +1074,157 @@ TEST_F(GeminiBrowserAgentTest, TestPrepareFloatyToBeShownDisablesFullscreen) {
   gemini_browser_agent_->OnViewStateChanged(
       ios::provider::GeminiViewState::kCollapsed);
   EXPECT_TRUE(controller->IsEnabled());
+}
+
+// Tests that when the floaty is un-minimized (expanded), we check if the
+// selected tabs should be persisted based on whether the active tab is in the
+// selection.
+TEST_F(GeminiBrowserAgentTest, TestPersistSelectedTabsOnUnMinimize) {
+  ios::provider::ResetGemini();
+  SetIsFloatyInvoked(true);
+
+  web::WebStateID active_id = web_state_->GetUniqueIdentifier();
+
+  std::unique_ptr<web::FakeWebState> other_web_state =
+      std::make_unique<web::FakeWebState>();
+  other_web_state->SetBrowserState(profile_);
+  GeminiTabHelper::CreateForWebState(other_web_state.get());
+  WebViewProxyTabHelper::CreateForWebState(other_web_state.get());
+  web::WebStateID other_id = other_web_state->GetUniqueIdentifier();
+  browser_->GetWebStateList()->InsertWebState(
+      std::move(other_web_state),
+      WebStateList::InsertionParams::Automatic().Activate(false));
+
+  std::unique_ptr<web::FakeWebState> non_selected_web_state =
+      std::make_unique<web::FakeWebState>();
+  non_selected_web_state->SetBrowserState(profile_);
+  GeminiTabHelper::CreateForWebState(non_selected_web_state.get());
+  WebViewProxyTabHelper::CreateForWebState(non_selected_web_state.get());
+  browser_->GetWebStateList()->InsertWebState(
+      std::move(non_selected_web_state),
+      WebStateList::InsertionParams::Automatic().Activate(false));
+
+  // Set the initial selection: active tab and another tab.
+  EXPECT_TRUE(active_id.valid());
+  EXPECT_TRUE(other_id.valid());
+  EXPECT_NE(active_id, other_id);
+
+  gemini_browser_agent_->OnTabPickerSelectionChanged({active_id, other_id});
+  EXPECT_EQ(GetRawAttachedTabs().size(), 2u);
+  // GetSelectedWebStateIDs() may return size 1 in downstream unit tests if
+  // GCRGemini provider is uninitialized/nil, so we assert on raw selected IDs.
+
+  // Verify that WebViewProxyTabHelper is attached to the non-selected web
+  // state.
+  web::WebState* raw_non_selected_web_state =
+      browser_->GetWebStateList()->GetWebStateAt(2);
+  ASSERT_NE(raw_non_selected_web_state, nullptr);
+  EXPECT_NE(WebViewProxyTabHelper::FromWebState(raw_non_selected_web_state),
+            nullptr);
+
+  // Simulate minimizing the floaty.
+  gemini_browser_agent_->OnViewStateChanged(
+      ios::provider::GeminiViewState::kCollapsed);
+  gemini_browser_agent_->SetLastShownViewState(
+      ios::provider::GeminiViewState::kCollapsed);
+
+  // Switch the active tab to the non-selected tab (index 2).
+  browser_->GetWebStateList()->ActivateWebStateAt(2);
+
+  // Verify that the selection is cleared immediately upon active tab change.
+  EXPECT_TRUE(GetRawAttachedTabs().empty());
+
+  // Simulate un-minimizing the floaty.
+  gemini_browser_agent_->OnViewStateChanged(
+      ios::provider::GeminiViewState::kExpanded);
+  gemini_browser_agent_->SetLastShownViewState(
+      ios::provider::GeminiViewState::kExpanded);
+
+  // Verify that the selection remains cleared.
+  EXPECT_TRUE(GetRawAttachedTabs().empty());
+}
+
+// Tests that switching from live to floaty mode on an eligible page keeps the
+// floaty.
+TEST_F(GeminiBrowserAgentTest, TestSwitchFromLiveToChatEligible) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive, kGeminiLiveDormantReasons},
+                                       {});
+
+  id mock_snackbar_handler = OCMProtocolMock(@protocol(SnackbarCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_snackbar_handler
+                   forProtocol:@protocol(SnackbarCommands)];
+  id mock_fullscreen_handler = OCMProtocolMock(@protocol(FullscreenCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_fullscreen_handler
+                   forProtocol:@protocol(FullscreenCommands)];
+
+  SetIsFloatyInvoked(true);
+  web_state_->SetCurrentURL(GURL("https://example.com"));
+  web_state_->WasShown();
+
+  // Switch to Live mode.
+  ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
+                              /*animated=*/false);
+
+  // Expect snackbar with bottom offset.
+  OCMExpect([mock_snackbar_handler
+                showSnackbarMessage:[OCMArg checkWithBlock:^BOOL(id obj) {
+                  SnackbarMessage* message = (SnackbarMessage*)obj;
+                  NSString* expected_title = l10n_util::GetNSString(
+                      IDS_IOS_GEMINI_LIVE_CONTINUE_SESSION_SNACKBAR);
+                  return [message.title isEqualToString:expected_title];
+                }]
+                       bottomOffset:0.0])
+      .ignoringNonObjectArgs();
+
+  // Trigger switching to floaty (kDormant status).
+  gemini_browser_agent_->OnProcessingStatusChanged(
+      ios::provider::GeminiClientMode::kDormant,
+      ios::provider::GeminiDormantReason::kInactivityTimeout);
+
+  // The floaty should not be dismissed, meaning it is still invoked.
+  EXPECT_TRUE(IsFloatyInvoked());
+  EXPECT_OCMOCK_VERIFY(mock_snackbar_handler);
+}
+
+// Tests that switching from live to floaty mode on an ineligible page dismisses
+// the floaty.
+TEST_F(GeminiBrowserAgentTest, TestSwitchFromLiveToChatIneligible) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures({kGeminiLive, kGeminiLiveDormantReasons},
+                                       {});
+
+  id mock_snackbar_handler = OCMProtocolMock(@protocol(SnackbarCommands));
+  [browser_->GetCommandDispatcher()
+      startDispatchingToTarget:mock_snackbar_handler
+                   forProtocol:@protocol(SnackbarCommands)];
+
+  SetIsFloatyInvoked(true);
+  web_state_->SetCurrentURL(GURL("chrome://newtab/"));
+
+  // Switch to Live mode.
+  ios::provider::SwitchToMode(ios::provider::GeminiViewMode::kLive,
+                              /*animated=*/false);
+
+  // Expect snackbar.
+  OCMExpect([mock_snackbar_handler
+                showSnackbarMessage:[OCMArg checkWithBlock:^BOOL(id obj) {
+                  SnackbarMessage* message = (SnackbarMessage*)obj;
+                  NSString* expected_title = l10n_util::GetNSString(
+                      IDS_IOS_GEMINI_LIVE_CONTINUE_SESSION_SNACKBAR);
+                  return [message.title isEqualToString:expected_title];
+                }]
+                       bottomOffset:0.0])
+      .ignoringNonObjectArgs();
+
+  // Trigger switching to floaty (kDormant status).
+  gemini_browser_agent_->OnProcessingStatusChanged(
+      ios::provider::GeminiClientMode::kDormant,
+      ios::provider::GeminiDormantReason::kInactivityTimeout);
+
+  // The floaty should be dismissed, meaning it is no longer invoked.
+  EXPECT_FALSE(IsFloatyInvoked());
+  EXPECT_OCMOCK_VERIFY(mock_snackbar_handler);
 }

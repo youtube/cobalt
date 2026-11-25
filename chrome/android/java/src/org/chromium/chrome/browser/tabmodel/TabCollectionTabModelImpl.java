@@ -972,11 +972,14 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
         mTabsList = null;
     }
 
-    @VisibleForTesting
-    List<Tab> getAllTabsFromNativeForTesting() {
+    private void updateCacheOnAddTab(Tab tab, int finalIndex) {
         assertOnUiThread();
-        if (mNativeTabCollectionTabModelImplPtr == 0) return Collections.emptyList();
-        return TabCollectionTabModelImplJni.get().getAllTabs(mNativeTabCollectionTabModelImplPtr);
+        if (mTabsList != null) {
+            List<Tab> updatedList = new ArrayList<>(mTabsList);
+            int safeIndex = MathUtils.clamp(finalIndex, 0, updatedList.size());
+            updatedList.add(safeIndex, tab);
+            mTabsList = Collections.unmodifiableList(updatedList);
+        }
     }
 
     @Override
@@ -1661,7 +1664,7 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
                                 tabGroupId,
                                 createNewGroup,
                                 tab.getIsPinned());
-        invalidateCache();
+        updateCacheOnAddTab(tab, finalIndex);
 
         // When adding the first background tab make sure to select it.
         if (shouldSelectBackgroundTab) {
@@ -2774,12 +2777,6 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
         mClosingTabsCount--;
     }
 
-    void setPendingTabClosureManagerForTesting(
-            @Nullable PendingTabClosureManager pendingTabClosureManager) {
-        mPendingTabClosureManager = pendingTabClosureManager;
-        ResettersForTesting.register(() -> mPendingTabClosureManager = null);
-    }
-
     @NativeMethods
     interface Natives {
         long init(TabCollectionTabModelImpl javaObject, @JniType("Profile*") Profile profile);
@@ -2880,5 +2877,17 @@ public class TabCollectionTabModelImpl extends TabModelJniBridge {
 
         @JniType("tabs::TabStripCollection*")
         TabStripCollection getTabStripCollection(long nativeTabCollectionTabModelImpl);
+    }
+
+    List<Tab> getAllTabsFromNativeForTesting() {
+        assertOnUiThread();
+        if (mNativeTabCollectionTabModelImplPtr == 0) return Collections.emptyList();
+        return TabCollectionTabModelImplJni.get().getAllTabs(mNativeTabCollectionTabModelImplPtr);
+    }
+
+    void setPendingTabClosureManagerForTesting(
+            @Nullable PendingTabClosureManager pendingTabClosureManager) {
+        mPendingTabClosureManager = pendingTabClosureManager;
+        ResettersForTesting.register(() -> mPendingTabClosureManager = null);
     }
 }

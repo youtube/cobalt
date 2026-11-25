@@ -227,6 +227,18 @@ base::optional_ref<const EntityInstance> EntityDataManager::GetEntityInstance(
   return *it;
 }
 
+void EntityDataManager::AddPersonalContextEntities(
+    base::span<const EntityInstance> entities) {
+  CHECK(std::ranges::all_of(entities, [](const EntityInstance& entity) {
+    return entity.record_type() == EntityInstance::RecordType::kPersonalContext;
+  }));
+  // insert() doesn't replace existing values. This suffices, because previously
+  // added entities are deduplicated afterwards.
+  entities_.insert(entities.begin(), entities.end());
+  DedupePersonalContextEntities();
+  NotifyEntityInstancesChanged();
+}
+
 base::optional_ref<EntityInstance> EntityDataManager::GetMutableEntityInstance(
     const EntityInstance::EntityId& guid) {
   auto it = entities_.find(guid);
@@ -261,13 +273,7 @@ void EntityDataManager::OnPrefetchContextComplete(
   if (!entities.has_value() || entities->empty()) {
     return;
   }
-  CHECK(std::ranges::all_of(*entities, [](const EntityInstance& entity) {
-    return entity.record_type() == EntityInstance::RecordType::kPersonalContext;
-  }));
-  // insert() doesn't replace existing values. This suffices, because previously
-  entities_.insert(entities->begin(), entities->end());
-  DedupePersonalContextEntities();
-  NotifyEntityInstancesChanged();
+  AddPersonalContextEntities(*entities);
 }
 
 void EntityDataManager::OnMaskedEntityTypeEvicted(

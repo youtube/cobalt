@@ -529,9 +529,7 @@ std::vector<AutofillProfile> GetProfilesToSuggest(
   // explained above wouldn't apply.
   // TODO(crbug.com/393114125): Change to use `AutofillField::field_modifiers_`.
   if (trigger_field.is_autofilled_according_to_renderer() &&
-      profiles_to_suggest.size() > 1 &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillImproveAddressFieldSwapping)) {
+      profiles_to_suggest.size() > 1) {
     std::erase_if(profiles_to_suggest, [&](const ProfileWithText& profile) {
       return trigger_field.value() == profile.text;
     });

@@ -75,6 +75,16 @@ SdpMungingType DetermineTransportModification(
         transport_infos_to_set[i].description.transport_options) {
       RTC_LOG(LS_WARNING) << "SDP munging: ice_options does not match last "
                              "created description.";
+      bool created_empty_options =
+          last_created_transport_infos[i].description.transport_options.empty();
+      bool set_empty_options =
+          transport_infos_to_set[i].description.transport_options.empty();
+      // This handles the surprisingly common case where the default `trickle`
+      // is removed together with the entire ice-options attribute.
+      if (!created_empty_options && set_empty_options) {
+        return SdpMungingType::kIceOptionsRemoved;
+      }
+
       bool created_renomination =
           absl::c_find(
               last_created_transport_infos[i].description.transport_options,
@@ -87,6 +97,7 @@ SdpMungingType DetermineTransportModification(
       if (!created_renomination && set_renomination) {
         return SdpMungingType::kIceOptionsRenomination;
       }
+
       bool created_trickle =
           absl::c_find(
               last_created_transport_infos[i].description.transport_options,
@@ -99,6 +110,7 @@ SdpMungingType DetermineTransportModification(
       if (created_trickle && !set_trickle) {
         return SdpMungingType::kIceOptionsTrickle;
       }
+
       return SdpMungingType::kIceOptions;
     }
   }

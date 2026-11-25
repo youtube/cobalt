@@ -18,6 +18,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
 #include "src/common/globals.h"
+#include "src/common/synchronization-point-support.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/debug/debug-evaluate.h"
@@ -2873,14 +2874,16 @@ RUNTIME_FUNCTION(Runtime_AllocateHeapNumberWithValue) {
 // This is primarily used for deterministically testing race conditions.
 RUNTIME_FUNCTION(Runtime_BlockAt) {
   HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
   DCHECK_EQ(2, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   CHECK_UNLESS_FUZZING(IsSmi(args[1]));
   DirectHandle<String> phase_name = args.at<String>(0);
   base::TimeDelta timeout =
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
-  isolate->isolate_group()->SetBlockAtSynchronizationPointForTesting(
-      phase_name->ToStdString(), timeout);
+  SynchronizationPointSupport::Get()->RequestBlockAt(phase_name->ToStdString(),
+                                                     timeout);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -2888,11 +2891,13 @@ RUNTIME_FUNCTION(Runtime_BlockAt) {
 // blocked by %BlockAt at the specified synchronization point.
 RUNTIME_FUNCTION(Runtime_Resume) {
   HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
   DCHECK_EQ(1, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   DirectHandle<String> phase_name = args.at<String>(0);
-  bool resumed = isolate->isolate_group()->ResumeSynchronizationPointForTesting(
-      phase_name->ToStdString());
+  bool resumed =
+      SynchronizationPointSupport::Get()->Resume(phase_name->ToStdString());
   if (!resumed) {
     return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
         "No thread is currently blocked at this synchronization point"));
@@ -2905,6 +2910,8 @@ RUNTIME_FUNCTION(Runtime_Resume) {
 // provided in milliseconds.
 RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
   HandleScope scope(isolate);
+  CHECK_UNLESS_FUZZING(v8_flags.allow_natives_syntax ||
+                       v8_flags.allow_natives_for_differential_fuzzing);
   DCHECK_EQ(2, args.length());
   CHECK_UNLESS_FUZZING(IsString(args[0]));
   CHECK_UNLESS_FUZZING(IsSmi(args[1]));
@@ -2913,7 +2920,7 @@ RUNTIME_FUNCTION(Runtime_WaitUntilBlocked) {
       base::TimeDelta::FromMilliseconds(args.smi_value_at(1));
 
   bool timed_out = false;
-  bool blocked = isolate->isolate_group()->WaitUntilBlockedForTesting(
+  bool blocked = SynchronizationPointSupport::Get()->WaitUntilBlocked(
       phase_name->ToStdString(), timeout, timed_out);
   if (!blocked) {
     return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(

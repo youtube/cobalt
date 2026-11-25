@@ -185,6 +185,7 @@ class FakeBinaryUploadService : public CloudBinaryUploadServiceBase {
         case AnalysisConnector::FILE_DOWNLOADED:
         case AnalysisConnector::FILE_TRANSFER:
         case AnalysisConnector::DATA_COPIED:
+        case AnalysisConnector::NETWORK_REQUEST:
           NOTREACHED();
       }
     }
@@ -245,11 +246,12 @@ class MinimalFakeContentAnalysisDelegate : public ContentAnalysisDelegate {
       base::RepeatingClosure quit_closure,
       content::WebContents* web_contents,
       ContentAnalysisDelegate::Data data,
-      ContentAnalysisDelegate::CompletionCallback callback)
+      ContentAnalysisDelegate::CompletionCallback callback,
+      DeepScanAccessPoint access_point)
       : ContentAnalysisDelegate(web_contents,
                                 std::move(data),
                                 std::move(callback),
-                                DeepScanAccessPoint::UPLOAD),
+                                access_point),
         quit_closure_(quit_closure) {}
 
   ~MinimalFakeContentAnalysisDelegate() override { quit_closure_.Run(); }
@@ -258,9 +260,11 @@ class MinimalFakeContentAnalysisDelegate : public ContentAnalysisDelegate {
       base::RepeatingClosure quit_closure,
       content::WebContents* web_contents,
       ContentAnalysisDelegate::Data data,
-      ContentAnalysisDelegate::CompletionCallback callback) {
+      ContentAnalysisDelegate::CompletionCallback callback,
+      DeepScanAccessPoint access_point) {
     return std::make_unique<MinimalFakeContentAnalysisDelegate>(
-        quit_closure, web_contents, std::move(data), std::move(callback));
+        quit_closure, web_contents, std::move(data), std::move(callback),
+        access_point);
   }
 
  private:

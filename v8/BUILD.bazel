@@ -1627,6 +1627,8 @@ filegroup(
         "src/common/segmented-table.h",
         "src/common/segmented-table-inl.h",
         "src/common/simd128.h",
+        "src/common/synchronization-point-support.cc",
+        "src/common/synchronization-point-support.h",
         "src/compiler-dispatcher/lazy-compile-dispatcher.cc",
         "src/compiler-dispatcher/lazy-compile-dispatcher.h",
         "src/compiler-dispatcher/optimizing-compile-dispatcher.cc",
@@ -3150,6 +3152,7 @@ filegroup(
             "src/wasm/baseline/liftoff-assembler.h",
             "src/wasm/baseline/liftoff-assembler-defs.h",
             "src/wasm/baseline/liftoff-assembler-inl.h",
+            "src/wasm/baseline/liftoff-bailout-reasons.h",
             "src/wasm/baseline/liftoff-compiler.cc",
             "src/wasm/baseline/liftoff-compiler.h",
             "src/wasm/baseline/liftoff-register.h",
@@ -3205,7 +3208,6 @@ filegroup(
             "src/wasm/string-builder.h",
             "src/wasm/string-builder-multiline.h",
             "src/wasm/struct-types.h",
-            "src/wasm/sync-streaming-decoder.cc",
             "src/wasm/turboshaft-graph-interface.cc",
             "src/wasm/turboshaft-graph-interface.h",
             "src/wasm/turboshaft-graph-interface-inl.h",
@@ -4972,3 +4974,42 @@ py_test(
         "nosan",
     ],
 )
+
+py_test(
+    name = "icu/intl",
+    size = "medium",
+    srcs = [
+        "test/intl/testcfg.py",
+        "tools/predictable_wrapper.py",
+        "tools/run-tests.py",
+    ] + glob(["tools/testrunner/**/*.py"]),
+    args = [
+        "--no-sorting",
+        "--nopresubmit",
+        "--variant=google3",
+        "--outdir icu",
+        "--verbose",
+    ] + select({
+        "@v8//bazel/config:v8_target_arm64": [
+            "--arch=arm64",
+        ],
+        "@v8//bazel/config:v8_target_x64": [
+            "--arch=x64",
+        ],
+        "//conditions:default": [],
+    }) + [
+        "intl",
+    ],
+    data = [
+        "test",
+        ":icu/d8",
+        ":icu/v8_build_config",
+        "//testing/pybase",
+    ] + glob(["test/**"]) + glob(["tools/**/*.js"]) + glob(["tools/**/*.mjs"]),
+    main = "tools/run-tests.py",
+    tags = [
+        # Disable sanitizers, as they don't work in general in V8.
+        "nosan",
+    ],
+)
+

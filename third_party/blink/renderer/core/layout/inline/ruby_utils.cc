@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_height.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/han_kerning.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -1076,6 +1077,22 @@ RubyBlockPositionCalculator& RubyBlockPositionCalculator::PlaceLines(
   DCHECK(!ruby_lines_.empty()) << "This must be called after GroupLines().";
   annotation_metrics_ = FontHeight();
 
+  if (RuntimeEnabledFeatures::TreeRubyPlacementEnabled()) {
+    RubyLine* root = BuildTree();
+    CHECK(root);
+    FontHeight total_subtree_metrics =
+        ComputeRelativeOffsets(*root, base_line_items, line_box_metrics);
+    ComputeOffsetsFromBase(*root, LayoutUnit());
+
+    if (!root->OverChildren().empty()) {
+      annotation_metrics_.ascent = total_subtree_metrics.ascent;
+    }
+    if (!root->UnderChildren().empty()) {
+      annotation_metrics_.descent = total_subtree_metrics.descent;
+    }
+    return *this;
+  }
+
   // Sort `ruby_lines` from the lowest to the highest.
   std::ranges::sort(ruby_lines_, [](const Member<RubyLine>& line1,
                                     const Member<RubyLine>& line2) {
@@ -1210,6 +1227,112 @@ void RubyBlockPositionCalculator::AccumulateColumnOffsets(
   }
 }
 
+RubyBlockPositionCalculator::RubyLine*
+RubyBlockPositionCalculator::BuildTree() {
+  RubyLine* root = nullptr;
+  for (auto& line : ruby_lines_) {
+    if (line->IsBaseLevel()) {
+      root = line.Get();
+    }
+  }
+
+  for (auto& line : ruby_lines_) {
+    if (line->IsBaseLevel()) {
+      continue;
+    }
+    const RubyLevel& level = line->Level();
+    DCHECK(!level.empty());
+    RubyLevel parent_level;
+    parent_level.append_range(base::span(level).first(level.size() - 1));
+
+    auto parent_it = std::ranges::find_if(
+        ruby_lines_, [&](const Member<RubyLine>& potential_parent) {
+          return std::ranges::equal(potential_parent->Level(), parent_level);
+        });
+    if (parent_it != ruby_lines_.end()) {
+      RubyLine* parent = parent_it->Get();
+      if (level.back() > 0) {
+        parent->AddOverChild(line.Get());
+      } else {
+        parent->AddUnderChild(line.Get());
+      }
+    }
+  }
+
+  for (auto& line : ruby_lines_) {
+    line->SortChildren();
+  }
+
+  return root;
+}
+
+FontHeight RubyBlockPositionCalculator::ComputeRelativeOffsets(
+    RubyLine& node,
+    const LogicalLineItems& base_line_items,
+    const FontHeight& line_box_metrics) {
+  FontHeight node_metrics;
+  if (node.IsBaseLevel()) {
+    if (!node.OverChildren().empty()) {
+      node_metrics = ComputeLogicalLineEmHeight(
+          base_line_items, node.OverChildren().front()->BaseIndexList());
+    } else if (!node.UnderChildren().empty()) {
+      node_metrics = ComputeLogicalLineEmHeight(
+          base_line_items, node.UnderChildren().front()->BaseIndexList());
+    }
+    if (!node_metrics.LineHeight()) {
+      node_metrics = line_box_metrics;
+    }
+  } else {
+    node_metrics = node.UpdateMetrics();
+  }
+
+  LayoutUnit subtree_ascent = node_metrics.ascent;
+  LayoutUnit subtree_descent = node_metrics.descent;
+
+  if (!node.OverChildren().empty()) {
+    LayoutUnit current_offset = -node_metrics.ascent;
+    for (auto& child : node.OverChildren()) {
+      FontHeight child_subtree_metrics =
+          ComputeRelativeOffsets(*child, base_line_items, line_box_metrics);
+      LayoutUnit child_relative_offset =
+          current_offset - child_subtree_metrics.descent;
+      child->SetRelativeOffset(child_relative_offset);
+      current_offset = child_relative_offset - child_subtree_metrics.ascent;
+    }
+    subtree_ascent = -current_offset;
+  }
+
+  if (!node.UnderChildren().empty()) {
+    LayoutUnit current_offset = node_metrics.descent;
+    for (auto& child : node.UnderChildren()) {
+      FontHeight child_subtree_metrics =
+          ComputeRelativeOffsets(*child, base_line_items, line_box_metrics);
+      LayoutUnit child_relative_offset =
+          current_offset + child_subtree_metrics.ascent;
+      child->SetRelativeOffset(child_relative_offset);
+      current_offset = child_relative_offset + child_subtree_metrics.descent;
+    }
+    subtree_descent = current_offset;
+  }
+
+  return {subtree_ascent, subtree_descent};
+}
+
+void RubyBlockPositionCalculator::ComputeOffsetsFromBase(
+    RubyLine& node,
+    LayoutUnit parent_offset_from_base) {
+  LayoutUnit offset_from_base = parent_offset_from_base + node.RelativeOffset();
+  node.SetOffset(offset_from_base);
+  node.MoveInBlockDirection(offset_from_base);
+
+  for (auto& child : node.OverChildren()) {
+    ComputeOffsetsFromBase(*child, offset_from_base);
+  }
+  for (auto& child : node.UnderChildren()) {
+    ComputeOffsetsFromBase(*child, offset_from_base);
+  }
+}
+
 // ================================================================
 
 RubyBlockPositionCalculator::RubyLine::RubyLine(const RubyLevel& level)
@@ -1217,6 +1340,17 @@ RubyBlockPositionCalculator::RubyLine::RubyLine(const RubyLevel& level)
 
 void RubyBlockPositionCalculator::RubyLine::Trace(Visitor* visitor) const {
   visitor->Trace(column_list_);
+  visitor->Trace(over_children_);
+  visitor->Trace(under_children_);
+}
+
+void RubyBlockPositionCalculator::RubyLine::SortChildren() {
+  auto compare_abs_level = [](const Member<RubyLine>& a,
+                              const Member<RubyLine>& b) {
+    return std::abs(a->Level().back()) < std::abs(b->Level().back());
+  };
+  std::ranges::sort(over_children_, compare_abs_level);
+  std::ranges::sort(under_children_, compare_abs_level);
 }
 
 bool RubyBlockPositionCalculator::RubyLine::operator<(

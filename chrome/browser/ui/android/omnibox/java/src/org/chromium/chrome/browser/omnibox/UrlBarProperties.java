@@ -170,6 +170,14 @@ class UrlBarProperties {
     public static final WritableObjectPropertyKey<Runnable> MANAGE_SEARCH_ENGINES_CALLBACK =
             new WritableObjectPropertyKey<>();
 
+    /** Whether the AI Mode pref is currently enabled. */
+    public static final WritableBooleanPropertyKey IS_AI_MODE_PREF_ENABLED =
+            new WritableBooleanPropertyKey();
+
+    /** The callback to run when the "Always Show AI Mode" menu item is toggled. */
+    public static final WritableObjectPropertyKey<Callback<Boolean>> AI_MODE_PREF_TOGGLE_CALLBACK =
+            new WritableObjectPropertyKey<>();
+
     /** The callback to be notified on raw url text changes (rich context). */
     public static final WritableObjectPropertyKey<Callback<UrlBarTextChangeInfo>>
             RICH_TEXT_CHANGE_LISTENER = new WritableObjectPropertyKey<>();
@@ -225,6 +233,8 @@ class UrlBarProperties {
                 KEY_DOWN_LISTENER,
                 LONG_CLICK_LISTENER,
                 MANAGE_SEARCH_ENGINES_CALLBACK,
+                IS_AI_MODE_PREF_ENABLED,
+                AI_MODE_PREF_TOGGLE_CALLBACK,
                 RICH_TEXT_CHANGE_LISTENER,
                 SELECT_ALL_ON_FOCUS,
                 SHOW_HINT_TEXT,

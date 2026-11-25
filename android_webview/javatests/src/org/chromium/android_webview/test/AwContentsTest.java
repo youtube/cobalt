@@ -13,6 +13,7 @@ import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.SINGLE_PRO
 
 import android.annotation.SuppressLint;
 import android.content.ComponentCallbacks2;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -22,9 +23,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.util.Pair;
+import android.view.ContextThemeWrapper;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
@@ -143,6 +146,44 @@ public class AwContentsTest extends AwParameterizedTest {
         mActivityTestRule.destroyAwContentsOnMainSync(awTestContainerView.getAwContents());
         // It should be safe to call destroy multiple times.
         mActivityTestRule.destroyAwContentsOnMainSync(awTestContainerView.getAwContents());
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"AndroidWebView"})
+    public void testUpdateContextAndAdopt() throws Throwable {
+        mActivityTestRule.startBrowserProcess();
+        AwTestContainerView awTestContainerView =
+                mActivityTestRule.createAwTestContainerViewOnMainSync(mContentsClient);
+        AwContents awContents = awTestContainerView.getAwContents();
+
+        mActivityTestRule.loadDataSync(
+                awContents,
+                mContentsClient.getOnPageFinishedHelper(),
+                CommonResources.ABOUT_HTML,
+                "text/html",
+                false);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ViewGroup parent = (ViewGroup) awTestContainerView.getParent();
+                    parent.removeView(awTestContainerView);
+                    Context newContext =
+                            new ContextThemeWrapper(
+                                    mActivityTestRule.getActivity(), android.R.style.Theme_Holo);
+                    AwTestContainerView newContainerView =
+                            new AwTestContainerView(newContext, true);
+                    newContainerView.initialize(awContents);
+                    awContents.adopt(
+                            newContainerView, newContainerView.getInternalAccessDelegate());
+                });
+
+        mActivityTestRule.loadDataSync(
+                awContents,
+                mContentsClient.getOnPageFinishedHelper(),
+                "<html><body>Hello</body></html>",
+                "text/html",
+                false);
     }
 
     @Test

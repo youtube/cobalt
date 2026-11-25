@@ -780,7 +780,6 @@ TEST(PermissionsTest, PermissionMessages) {
   skip.insert(APIPermissionID::kGcm);
   skip.insert(APIPermissionID::kIdle);
   skip.insert(APIPermissionID::kImeWindowEnabled);
-  skip.insert(APIPermissionID::kIdltest);
   skip.insert(APIPermissionID::kLoginState);
   skip.insert(APIPermissionID::kOffscreen);
   skip.insert(APIPermissionID::kOverrideEscFullscreen);

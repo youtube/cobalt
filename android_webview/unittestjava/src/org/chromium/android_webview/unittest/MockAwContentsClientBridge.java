@@ -6,7 +6,9 @@ package org.chromium.android_webview.unittest;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
+import org.mockito.Mockito;
 
+import org.chromium.android_webview.AwContents;
 import org.chromium.android_webview.AwContentsClientBridge;
 import org.chromium.android_webview.ClientCertLookupTable;
 
@@ -17,7 +19,7 @@ class MockAwContentsClientBridge extends AwContentsClientBridge {
     private String[] mKeyTypes;
 
     public MockAwContentsClientBridge() {
-        super(new ClientCertLookupTable());
+        super(Mockito.mock(AwContents.class), new ClientCertLookupTable());
     }
 
     @Override

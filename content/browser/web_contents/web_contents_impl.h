@@ -408,7 +408,7 @@ class CONTENT_EXPORT WebContentsImpl
   BrowserContext* GetBrowserContext() override;
   base::WeakPtr<WebContents> GetWeakPtr() override;
   const UniqueToken& GetUniqueToken() const override;
-  const perfetto::NamedTrack& GetTracingTrack() const override;
+  const perfetto::Track& GetTracingTrack() const override;
   const GURL& GetURL() override;
   const GURL& GetVisibleURL() override;
   const GURL& GetLastCommittedURL() const override;
@@ -850,7 +850,8 @@ class CONTENT_EXPORT WebContentsImpl
   void ResourceLoadComplete(
       RenderFrameHostImpl* render_frame_host,
       const GlobalRequestID& request_id,
-      blink::mojom::ResourceLoadInfoPtr resource_load_information) override;
+      const GURL& original_url,
+      blink::mojom::ResourceLoadInfoPtr resource_load_info) override;
   void OnCookiesAccessed(RenderFrameHostImpl*,
                          const CookieAccessDetails& details) override;
   void OnTrustTokensAccessed(RenderFrameHostImpl*,
@@ -2839,7 +2840,7 @@ class CONTENT_EXPORT WebContentsImpl
   std::optional<DragId> active_drag_id_;
 
   const UniqueToken web_contents_token_;
-  std::optional<base::trace_event::TrackRegistration<perfetto::NamedTrack>>
+  std::optional<base::trace_event::TrackRegistration<perfetto::StateTrack>>
       tracing_track_;
 
   void EmitTracingSlice(const std::string& name);

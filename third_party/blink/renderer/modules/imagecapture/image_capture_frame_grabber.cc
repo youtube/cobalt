@@ -14,7 +14,7 @@
 #include "media/base/video_util.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/video_frame_image_util.h"
 #include "third_party/blink/renderer/platform/heap/cross_thread_handle.h"
@@ -175,7 +175,7 @@ void ImageCaptureFrameGrabber::OnVideoFrame(
     cached_draw_info_.reset();
     snapshot_provider_.reset();
     if (ShouldCreateAcceleratedImages(GetRasterContextProvider().get())) {
-      snapshot_provider_ = CanvasNon2DResourceProviderSharedImage::Create(
+      snapshot_provider_ = CanvasNon2DResourceProvider::Create(
           required_provider_info.size, required_provider_info.format,
           required_provider_info.alpha_type, required_provider_info.color_space,
           required_provider_info.hdr_metadata,

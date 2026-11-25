@@ -1633,7 +1633,7 @@ void StoragePartitionImpl::Initialize(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_153
 
   if (base::FeatureList::IsEnabled(
-          network::features::kDeclarativePerformanceObserver)) {
+          blink::features::kDeclarativePerformanceObserver)) {
     declarative_performance_observer_store_ =
         std::make_unique<DeclarativePerformanceObserverStore>(is_in_memory(),
                                                               path);

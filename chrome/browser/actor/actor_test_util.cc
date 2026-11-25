@@ -558,6 +558,14 @@ std::unique_ptr<ToolRequest> MakeClickRequest(content::RenderFrameHost& rfh,
       mojom::ClickType::kLeft, mojom::ClickCount::kSingle);
 }
 
+std::unique_ptr<ToolRequest> MakeDirectElementActivationClickRequest(
+    content::RenderFrameHost& rfh,
+    int content_node_id) {
+  return std::make_unique<ClickToolRequest>(
+      GetTabHandleForFrame(rfh), MakeTarget(rfh, content_node_id),
+      mojom::ClickType::kLeftOnOccludedTarget, mojom::ClickCount::kSingle);
+}
+
 std::unique_ptr<ToolRequest> MakeClickRequest(TabInterface& tab,
                                               const gfx::Point& click_point) {
   return std::make_unique<ClickToolRequest>(
@@ -848,8 +856,9 @@ ScopedExecutionEngineFactory::~ScopedExecutionEngineFactory() {
 MockActorTaskDelegate::MockActorTaskDelegate() = default;
 MockActorTaskDelegate::~MockActorTaskDelegate() = default;
 
-MockPolicyChecker::MockPolicyChecker(UrlBlockReason reason,
-                                     ContentValidationReason content_reason)
+MockPolicyChecker::MockPolicyChecker(
+    UrlBlockReason reason,
+    std::optional<ContentValidationReason> content_reason)
     : reason_(reason), content_reason_(content_reason) {}
 MockPolicyChecker::~MockPolicyChecker() = default;
 
@@ -862,8 +871,12 @@ void MockPolicyChecker::ValidateContentSentToRenderer(
     content::RenderFrameHost* frame,
     const std::string& content,
     ContentValidationCallback callback) const {
+  if (!content_reason_) {
+    // Silently drop the callback without running it.
+    return;
+  }
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), content_reason_));
+      FROM_HERE, base::BindOnce(std::move(callback), *content_reason_));
 }
 
 const EnterprisePolicyChecker* NoEnterprisePolicyChecker() {

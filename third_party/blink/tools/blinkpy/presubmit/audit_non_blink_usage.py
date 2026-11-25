@@ -278,6 +278,7 @@ _CONFIG = [
             'base::ClampFloor',
             'base::ClampRound',
             'base::IsTypeInRangeForNumericType',
+            'base::IsUnicodeControl',
             'base::IsValueInRangeForNumericType',
             'base::IsValueNegative',
             'base::MakeStrictNum',
@@ -1306,6 +1307,12 @@ _CONFIG = [
     {
         'paths':
         ['third_party/blink/renderer/core/frame/deprecation/deprecation.cc'],
+        'allowed': [
+            'base::CommandLine',
+        ]
+    },
+    {
+        'paths': ['third_party/blink/renderer/core/xml/xslt_processor.cc'],
         'allowed': [
             'base::CommandLine',
         ]

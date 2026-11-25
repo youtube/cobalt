@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/read_only_shared_memory_region.h"
@@ -473,6 +474,7 @@ PageLoadTracker* MetricsWebContentsObserver::GetTrackerOrNullForRequest(
 void MetricsWebContentsObserver::ResourceLoadComplete(
     content::RenderFrameHost* render_frame_host,
     const content::GlobalRequestID& request_id,
+    const GURL& original_url,
     const blink::mojom::ResourceLoadInfo& resource_load_info) {
   if (!ShouldTrackScheme(resource_load_info.final_url.scheme())) {
     return;
@@ -487,7 +489,7 @@ void MetricsWebContentsObserver::ResourceLoadComplete(
     //     was_cached ? 0
     //                : data_reduction_proxy::util::EstimateOriginalBodySize(
     //                      request, lofi_decider);
-    base::ByteCount original_content_length;
+    base::ByteSize original_content_length;
 
     const blink::mojom::CommonNetworkInfoPtr& network_info =
         resource_load_info.network_info;

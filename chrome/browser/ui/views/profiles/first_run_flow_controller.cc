@@ -43,6 +43,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/default_browser_step_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_eligibility_tracker.h"
+#include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_metrics.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/feature_showcase_step_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/google_lens_step_eligibility_checker.h"
 #include "chrome/browser/ui/views/profiles/feature_showcase/password_manager_feature_showcase_eligibility_checker.h"
@@ -147,25 +148,6 @@ std::optional<std::vector<std::string>> GetForcedStepsFromCommandLine() {
                              base::SPLIT_WANT_NONEMPTY);
   }
   return std::nullopt;
-}
-
-FeatureShowcaseStep GetFeatureShowcaseStep(std::string_view step_id) {
-  static const base::NoDestructor<
-      base::flat_map<std::string_view, FeatureShowcaseStep>>
-      kStepMap({
-          {kFeatureShowcaseDefaultBrowserStepIdentifier,
-           FeatureShowcaseStep::kDefaultBrowser},
-          {kFeatureShowcaseGoogleLensStepIdentifier,
-           FeatureShowcaseStep::kGoogleLens},
-          {kFeatureShowcasePasswordManagerStepIdentifier,
-           FeatureShowcaseStep::kPasswordManager},
-          {kFeatureShowcaseThemesAndCustomizationStepIdentifier,
-           FeatureShowcaseStep::kThemesAndCustomization},
-      });
-  if (const auto it = kStepMap->find(step_id); it != kStepMap->end()) {
-    return it->second;
-  }
-  NOTREACHED();
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -445,11 +427,13 @@ class FinishOrContinueStepController : public ProfileManagementStepController {
       ProfilePickerWebContentsHost* host,
       base::OnceCallback<bool()> eligibility_callback,
       base::RepeatingCallback<bool()> query_effects_callback,
-      base::OnceCallback<void(FinishOrContinueChoice)> step_completed_callback)
+      base::OnceCallback<void(FinishOrContinueChoice)> step_completed_callback,
+      base::OnceClosure play_all_set_sound_callback)
       : ProfileManagementStepController(host),
         eligibility_callback_(std::move(eligibility_callback)),
         query_effects_callback_(std::move(query_effects_callback)),
-        step_completed_callback_(std::move(step_completed_callback)) {}
+        step_completed_callback_(std::move(step_completed_callback)),
+        play_all_set_sound_callback_(std::move(play_all_set_sound_callback)) {}
 
   ~FinishOrContinueStepController() override = default;
 
@@ -495,6 +479,9 @@ class FinishOrContinueStepController : public ProfileManagementStepController {
     intro_ui->SetFinishOrContinueCallback(
         base::BindOnce(&FinishOrContinueStepController::OnStepCompleted,
                        weak_ptr_factory_.GetWeakPtr()));
+
+    CHECK(play_all_set_sound_callback_);
+    std::move(play_all_set_sound_callback_).Run();
   }
 
   void OnStepCompleted(FinishOrContinueChoice choice) {
@@ -521,6 +508,7 @@ class FinishOrContinueStepController : public ProfileManagementStepController {
   const base::RepeatingCallback<bool()> query_effects_callback_;
   base::OnceCallback<void(FinishOrContinueChoice)> step_completed_callback_;
   StepSwitchFinishedCallback step_shown_callback_;
+  base::OnceClosure play_all_set_sound_callback_;
   base::WeakPtrFactory<FinishOrContinueStepController> weak_ptr_factory_{this};
 };
 
@@ -848,10 +836,12 @@ std::unique_ptr<ProfileManagementStepController> CreateFinishOrContinueStep(
     ProfilePickerWebContentsHost* host,
     base::OnceCallback<bool()> eligibility_callback,
     base::RepeatingCallback<bool()> query_effects_callback,
-    base::OnceCallback<void(FinishOrContinueChoice)> step_completed_callback) {
+    base::OnceCallback<void(FinishOrContinueChoice)> step_completed_callback,
+    base::OnceClosure play_all_set_sound_callback) {
   return std::make_unique<FinishOrContinueStepController>(
       host, std::move(eligibility_callback), std::move(query_effects_callback),
-      std::move(step_completed_callback));
+      std::move(step_completed_callback),
+      std::move(play_all_set_sound_callback));
 }
 
 FirstRunFlowController::FirstRunFlowController(
@@ -1000,6 +990,8 @@ void FirstRunFlowController::Init() {
           kFeatureShowcaseProgressSoundKey,
           IDR_INTRO_SOUND_FEATURE_SHOWCASE_PROGRESS_FLAC,
           media::AudioCodec::kFLAC, /*loop=*/false);
+      sounds_manager_->Initialize(kAllSetSoundKey, IDR_INTRO_SOUND_ALL_SET_FLAC,
+                                  media::AudioCodec::kFLAC, /*loop=*/false);
       if (AreEffectsEnabled()) {
         sounds_manager_->Play(kLogoSoundKey);
         sounds_manager_->Play(kAmbientSoundKey);
@@ -1133,6 +1125,12 @@ void FirstRunFlowController::PlayFeatureShowcaseProgressSound() {
   }
 }
 
+void FirstRunFlowController::PlayAllSetSound() {
+  if (sounds_manager_ && AreEffectsEnabled()) {
+    sounds_manager_->Play(kAllSetSoundKey);
+  }
+}
+
 void FirstRunFlowController::ToggleMediaEffects(bool active) {
   if (ProfileManagementStepController* current_step_controller =
           GetCurrentStepController()) {
@@ -1148,6 +1146,8 @@ void FirstRunFlowController::ToggleMediaEffects(bool active) {
       // Stop one-shot sounds, safe to call even if not playing.
       sounds_manager_->Stop(kLogoSoundKey);
       sounds_manager_->Stop(kWelcomeBackSoundKey);
+      sounds_manager_->Stop(kFeatureShowcaseProgressSoundKey);
+      sounds_manager_->Stop(kAllSetSoundKey);
     }
   }
 
@@ -1275,7 +1275,11 @@ FirstRunFlowController::RegisterPostIdentitySteps(
                                 // Unretained ok: the callback is passed to a
                                 // step that `this` will own and outlive.
                                 base::Unretained(this)),
-            std::move(finish_or_continue_step_completed)));
+            std::move(finish_or_continue_step_completed),
+            base::BindOnce(&FirstRunFlowController::PlayAllSetSound,
+                           // Unretained ok: the callback is passed to a
+                           // step that `this` will own and outlive.
+                           base::Unretained(this))));
     post_identity_steps.emplace(
         ProfileManagementFlowController::Step::kFinishOrContinue);
   }

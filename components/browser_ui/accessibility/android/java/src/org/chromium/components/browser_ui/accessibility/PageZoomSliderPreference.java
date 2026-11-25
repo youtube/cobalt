@@ -42,6 +42,12 @@ public class PageZoomSliderPreference extends PageZoomPreference implements Cont
         mSlider.setValueFrom(0);
         mSlider.setValueTo(PageZoomUtils.PAGE_ZOOM_MAXIMUM_BAR_VALUE);
         mSlider.setValue(mInitialValue);
+        mSlider.setLabelFormatter(
+                value -> {
+                    long zoomLevel =
+                            Math.round(100 * PageZoomUtils.convertBarValueToZoomLevel((int) value));
+                    return getContext().getString(R.string.page_zoom_level, zoomLevel);
+                });
         mSlider.addOnChangeListener(
                 (slider, value, fromUser) -> {
                     if (fromUser) {
@@ -72,6 +78,8 @@ public class PageZoomSliderPreference extends PageZoomPreference implements Cont
         mTextSizeContrastSlider.setVisibility(View.VISIBLE);
         mTextSizeContrastSlider.setValueFrom(0);
         mTextSizeContrastSlider.setValueTo(PageZoomUtils.TEXT_SIZE_CONTRAST_MAX_LEVEL);
+        mTextSizeContrastSlider.setLabelFormatter(
+                value -> getContext().getString(R.string.text_size_contrast_level, (int) value));
         mTextSizeContrastSlider.addOnChangeListener(
                 (slider, value, fromUser) -> {
                     if (fromUser) {

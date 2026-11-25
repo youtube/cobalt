@@ -28,6 +28,7 @@
 #include "content/browser/devtools/protocol/browser_handler.h"
 #include "content/browser/devtools/protocol/device_access_handler.h"
 #include "content/browser/devtools/protocol/device_orientation_handler.h"
+#include "content/browser/devtools/protocol/digital_credentials_handler.h"
 #include "content/browser/devtools/protocol/dom_handler.h"
 #include "content/browser/devtools/protocol/emulation_handler.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
@@ -441,7 +442,11 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   session->CreateAndAddHandler<protocol::LogHandler>();
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   session->CreateAndAddHandler<protocol::FedCmHandler>();
+<<<<<<< ours
+  session->CreateAndAddHandler<protocol::DigitalCredentialsHandler>();
+=======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+>>>>>>> theirs
 #if !BUILDFLAG(IS_ANDROID)
   session->CreateAndAddHandler<protocol::WebAuthnHandler>();
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -786,8 +791,12 @@ std::string RenderFrameDevToolsAgentHost::GetParentId() {
   if (IsChildFrame()) {
     FrameTreeNode* frame_tree_node =
         GetFrameTreeNodeAncestor(frame_tree_node_->parent()->frame_tree_node());
-    return RenderFrameDevToolsAgentHost::GetOrCreateFor(frame_tree_node)
-        ->GetId();
+    // During teardown/disconnect of the parent frame, the parent's agent host
+    // may have been unmapped. Avoid recreating it here to prevent registering
+    // a duplicate agent host ID (which would cause a crash).
+    DevToolsAgentHostImpl* parent =
+        RenderFrameDevToolsAgentHost::GetFor(frame_tree_node);
+    return parent ? parent->GetId() : std::string();
   }
 
   WebContentsImpl* contents = static_cast<WebContentsImpl*>(web_contents());

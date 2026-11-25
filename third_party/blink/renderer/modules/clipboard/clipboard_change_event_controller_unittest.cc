@@ -35,6 +35,14 @@ class ClipboardChangeEventTest : public ClipboardTestBase {
                             base::Unretained(&permission_service_)));
   }
 
+  void TearDown() override {
+    // Clear the binder before `permission_service_` is destroyed; the broker
+    // holds it Unretained, so a later request would be a use-after-free.
+    GetFrame().DomWindow()->GetBrowserInterfaceBroker().SetBinderForTesting(
+        mojom::blink::PermissionService::Name_, {});
+    ClipboardTestBase::TearDown();
+  }
+
  protected:
   MockClipboardPermissionService permission_service_;
 };

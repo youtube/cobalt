@@ -6,24 +6,38 @@
 #define COMPONENTS_AUTOFILL_CONTENT_RENDERER_AUTOFILL_RENDERER_TEST_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "base/containers/flat_map.h"
+#include "base/time/time.h"
 #include "components/autofill/content/common/mojom/autofill_driver.mojom.h"
 #include "components/autofill/content/renderer/autofill_agent.h"
 #include "components/autofill/content/renderer/autofill_agent_test_api.h"
 #include "components/autofill/content/renderer/password_autofill_agent.h"
 #include "components/autofill/content/renderer/password_generation_agent.h"
+#include "components/autofill/core/common/form_data.h"
+#include "components/autofill/core/common/mojom/autofill_types.mojom.h"
+#include "components/autofill/core/common/password_form_fill_data.h"
+#include "components/autofill/core/common/unique_ids.h"
 #include "content/public/test/render_view_test.h"
 #include "mojo/public/cpp/bindings/associated_receiver_set.h"
-#include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
+#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "mojo/public/cpp/bindings/scoped_interface_endpoint_handle.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
+#include "third_party/blink/public/web/web_document.h"
+#include "third_party/blink/public/web/web_element.h"
+#include "third_party/blink/public/web/web_form_control_element.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
+#include "third_party/blink/public/web/web_input_element.h"
+#include "third_party/blink/public/web/web_local_frame.h"
+#include "ui/gfx/geometry/rect.h"
 
 namespace autofill::test {
 
@@ -136,6 +150,20 @@ class AutofillRendererTest : public content::RenderViewTest {
   blink::WebInputElement GetInputElementById(std::string_view id) {
     return GetWebElementById(id).DynamicTo<blink::WebInputElement>();
   }
+
+  // Wraps `form_util::ExtractFormData`.
+  std::optional<FormData> ExtractFormData(std::string_view form_id);
+  std::optional<FormData> ExtractFormData(blink::WebFormElement form_element);
+
+  // Simulates autofill of a form specified by provided `FormData`. The filling
+  // is initiated by clicking on the HTML element identified using
+  // `initiate_click_element_id`. The filled values are specified by the
+  // provided map. Blocks until the filling action is complete.
+  // Returns true on success, false on failure.
+  testing::AssertionResult SimulateFillForm(
+      const FormData& form_data,
+      std::string_view initiate_click_element_id,
+      const base::flat_map<std::u16string, std::u16string>& fill_values_by_id);
 
   // Simulates a click on the element with id `element_id` and, if, successful,
   // runs until the task environment is idle. Waits until the `TaskEnvironment`

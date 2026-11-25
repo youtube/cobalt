@@ -35,7 +35,7 @@ namespace extension_urls {
 extern const char kChromeWebstoreBaseURL[];
 extern const char kChromeWebstoreUpdateURL[];
 extern const char kNewChromeWebstoreBaseURL[];
-extern const char kExtensionsDocsWhatsNewURL[];
+extern const char kModernWebGuidanceURL[];
 
 // Various utm attribution sources for web store URLs.
 // From the sub-menu item in the extension menu inside the 3-dot menu.
@@ -69,8 +69,9 @@ extern const char kNtpPromoSlUtmSource[];
 GURL GetWebstoreLaunchURL();
 GURL GetNewWebstoreLaunchURL();
 
-// Returns the URL to the Chrome Web Store's "What's New" page for extensions.
-GURL GetDocsWhatsNewURL();
+// Returns the URL to the Chrome Web Store's "Modern Web Guidance" page for
+// extensions.
+GURL GetModernWebGuidanceURL();
 
 // Returns a url with a utm_source query param value of `utm_source_value`
 // appended.

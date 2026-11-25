@@ -9,26 +9,36 @@
   </video>
   <script>
     const video = document.getElementById('video');
-    let event_log = [];
-    setupActionHandlers();
 
     // Called by the test to start media playback.
     function play() {
       video.play();
     }
 
-    function setupActionHandlers() {
-      navigator.mediaSession.setActionHandler('play', _ => {
-        video.play();
-        event_log.push('play');
+    // Helper function used by tests to wait for playback state transitions.
+    // Returns `true` immediately if the video is already in the expected state.
+    // Otherwise, returns a Promise that resolves when the corresponding event is fired.
+    function waitForEvent(eventName) {
+      if (eventName === 'pause' && video.paused) {
+        return true;
+      }
+      if (eventName === 'play' && !video.paused) {
+        return true;
+      }
+      return new Promise(resolve => {
+        video.addEventListener(eventName, () => resolve(true), {once: true});
       });
-      navigator.mediaSession.setActionHandler('pause',  _ => {
-        video.pause();
-        event_log.push('pause');
-      });
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        video.currentTime = details.seekTime;
-        event_log.push('seek ' + details.seekTime);
+    }
+
+    // Helper function used by tests to wait for seek transitions.
+    // Returns `true` immediately if the video has already seeked to `targetTime`.
+    // Otherwise, returns a Promise that resolves when the next native 'seeked' event fires.
+    function waitForSeek(targetTime) {
+      if (Math.abs(video.currentTime - targetTime) < 0.1) {
+        return true;
+      }
+      return new Promise(resolve => {
+        video.addEventListener('seeked', () => resolve(true), {once: true});
       });
     }
   </script>

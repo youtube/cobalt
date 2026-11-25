@@ -70,10 +70,6 @@ class GlicInstance {
   virtual base::CallbackListSubscription RegisterWillBeDestroyed(
       DestructionCallback callback) = 0;
 
-  // Get this instance's Host which manages the chrome://glic WebContents.
-  // DEPRECATED - Use specific GlicInstance methods instead.
-  virtual Host& host() = 0;
-
   // Sends additional context to the instance.
   // DEPRECATED: Use the invoke API instead.
   virtual void SendAdditionalContext(mojom::AdditionalContextPtr context) = 0;
@@ -130,6 +126,10 @@ class GlicInstance {
 
   // Exposes basic pinning controls to external Chrome consumers.
   virtual GlicSharingManager* GetSharingManager() = 0;
+
+  // Returns true if the instance is currently hibernated (its WebUI is not
+  // loaded).
+  virtual bool IsHibernated() const = 0;
 
   // Triggers sending skill previews to the web client.
   virtual void UpdateSkillPreviews(

@@ -6,35 +6,51 @@
 import 'chrome://settings/lazy_load.js';
 
 import {keyDownOn, keyUpOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {CrSliderElement,SettingsSliderElement} from 'chrome://settings/lazy_load.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {PrefService, PrefsBrowserProxy} from 'chrome://settings/settings.js';
+
+import {TestPrefsBrowserProxy} from './test_prefs_browser_proxy.js';
 // clang-format on
 
 /** @fileoverview Suite of tests for settings-slider. */
 suite('SettingsSlider', function() {
   let slider: SettingsSliderElement;
-
-  /**
-   * cr-slider instance wrapped by settings-slider.
-   */
   let crSlider: CrSliderElement;
+  let prefsBrowserProxy: TestPrefsBrowserProxy;
+  let prefService: PrefService;
 
   const ticks: number[] = [2, 4, 8, 16, 32, 64, 128];
 
-  setup(function() {
+  setup(async function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+    const initialPrefs = [
+      {
+        key: 'test_pref',
+        type: chrome.settingsPrivate.PrefType.NUMBER,
+        value: 16,
+      },
+      {
+        key: 'other_pref',
+        type: chrome.settingsPrivate.PrefType.NUMBER,
+        value: 32,
+      },
+    ];
+
+    prefsBrowserProxy = new TestPrefsBrowserProxy(initialPrefs);
+    PrefsBrowserProxy.setInstance(prefsBrowserProxy);
+
+    PrefService.resetInstanceForTesting();
+    prefService = PrefService.getInstance();
+
     slider = document.createElement('settings-slider');
-    slider.pref = {
-      key: '',
-      type: chrome.settingsPrivate.PrefType.NUMBER,
-      value: 16,
-    };
+    slider.prefKey = 'test_pref';
+
     document.body.appendChild(slider);
-    crSlider = slider.shadowRoot!.querySelector('cr-slider')!;
-    return flushTasks();
+    crSlider = slider.shadowRoot.querySelector('cr-slider')!;
+    return microtasksFinished();
   });
 
   function press(key: string) {
@@ -110,25 +126,30 @@ suite('SettingsSlider', function() {
     if (crSlider.updatingFromKey) {
       await eventToPromise('updating-from-key-changed', crSlider);
     }
-    slider.set('pref.value', prefValue);
+    prefsBrowserProxy.fakeApi.sendPrefChanges([
+      {key: 'test_pref', value: prefValue},
+    ]);
+    await microtasksFinished();
     assertEquals(sliderValue, crSlider.value);
   }
 
-  test('enforce value', function() {
+  test('enforce value', async function() {
     // Test that the indicator is not present until after the pref is
     // enforced.
-    let indicator =
-        slider.shadowRoot!.querySelector('cr-policy-pref-indicator');
+    let indicator = slider.shadowRoot.querySelector('cr-policy-pref-indicator');
     assertFalse(!!indicator);
-    slider.pref = {
-      key: '',
+    prefsBrowserProxy.fakeApi.prefs['test_pref'] = {
+      key: 'test_pref',
       controlledBy: chrome.settingsPrivate.ControlledBy.DEVICE_POLICY,
       enforcement: chrome.settingsPrivate.Enforcement.ENFORCED,
       type: chrome.settingsPrivate.PrefType.NUMBER,
       value: 16,
     };
-    flush();
-    indicator = slider.shadowRoot!.querySelector('cr-policy-pref-indicator');
+    prefsBrowserProxy.fakeApi.sendPrefChanges([
+      {key: 'test_pref', value: 16},
+    ]);
+    await microtasksFinished();
+    indicator = slider.shadowRoot.querySelector('cr-policy-pref-indicator');
     assertTrue(!!indicator);
   });
 
@@ -140,11 +161,11 @@ suite('SettingsSlider', function() {
     // settings-slider only supports snapping to a range of tick values.
     // Setting to an in-between value should snap to an indexed value.
     await checkSliderValueFromPref(70, 5);
-    assertEquals(64, slider.pref.value);
+    assertEquals(64, prefService.getPref<number>('test_pref').value);
 
     // Setting the value out-of-range should clamp the slider.
     await checkSliderValueFromPref(-100, 0);
-    assertEquals(2, slider.pref.value);
+    assertEquals(2, prefService.getPref<number>('test_pref').value);
   });
 
   test('move slider', async () => {
@@ -153,43 +174,43 @@ suite('SettingsSlider', function() {
 
     await pressArrowRight();
     assertEquals(5, crSlider.value);
-    assertEquals(64, slider.pref.value);
+    assertEquals(64, prefService.getPref<number>('test_pref').value);
 
     await pressArrowRight();
     assertEquals(6, crSlider.value);
-    assertEquals(128, slider.pref.value);
+    assertEquals(128, prefService.getPref<number>('test_pref').value);
 
     await pressArrowRight();
     assertEquals(6, crSlider.value);
-    assertEquals(128, slider.pref.value);
+    assertEquals(128, prefService.getPref<number>('test_pref').value);
 
     await pressArrowLeft();
     assertEquals(5, crSlider.value);
-    assertEquals(64, slider.pref.value);
+    assertEquals(64, prefService.getPref<number>('test_pref').value);
 
     await pressPageUp();
     assertEquals(6, crSlider.value);
-    assertEquals(128, slider.pref.value);
+    assertEquals(128, prefService.getPref<number>('test_pref').value);
 
     await pressPageDown();
     assertEquals(5, crSlider.value);
-    assertEquals(64, slider.pref.value);
+    assertEquals(64, prefService.getPref<number>('test_pref').value);
 
     await pressHome();
     assertEquals(0, crSlider.value);
-    assertEquals(2, slider.pref.value);
+    assertEquals(2, prefService.getPref<number>('test_pref').value);
 
     await pressArrowDown();
     assertEquals(0, crSlider.value);
-    assertEquals(2, slider.pref.value);
+    assertEquals(2, prefService.getPref<number>('test_pref').value);
 
     await pressArrowUp();
     assertEquals(1, crSlider.value);
-    assertEquals(4, slider.pref.value);
+    assertEquals(4, prefService.getPref<number>('test_pref').value);
 
     await pressEnd();
     assertEquals(6, crSlider.value);
-    assertEquals(128, slider.pref.value);
+    assertEquals(128, prefService.getPref<number>('test_pref').value);
   });
 
   test('scaled slider', async () => {
@@ -200,34 +221,34 @@ suite('SettingsSlider', function() {
 
     await pressArrowRight();
     assertEquals(3, crSlider.value);
-    assertEquals(.3, slider.pref.value);
+    assertEquals(.3, prefService.getPref<number>('test_pref').value);
 
     await pressArrowRight();
     assertEquals(4, crSlider.value);
-    assertEquals(.4, slider.pref.value);
+    assertEquals(.4, prefService.getPref<number>('test_pref').value);
 
     await pressArrowRight();
     assertEquals(4, crSlider.value);
-    assertEquals(.4, slider.pref.value);
+    assertEquals(.4, prefService.getPref<number>('test_pref').value);
 
     await pressHome();
     assertEquals(0, crSlider.value);
-    assertEquals(0, slider.pref.value);
+    assertEquals(0, prefService.getPref<number>('test_pref').value);
 
     await pressEnd();
     assertEquals(4, crSlider.value);
-    assertEquals(.4, slider.pref.value);
+    assertEquals(.4, prefService.getPref<number>('test_pref').value);
 
     await checkSliderValueFromPref(.25, 2.5);
-    assertEquals(.25, slider.pref.value);
+    assertEquals(.25, prefService.getPref<number>('test_pref').value);
 
     await pressPageUp();
     assertEquals(3.5, crSlider.value);
-    assertEquals(.35, slider.pref.value);
+    assertEquals(.35, prefService.getPref<number>('test_pref').value);
 
     await pressPageUp();
     assertEquals(4, crSlider.value);
-    assertEquals(.4, slider.pref.value);
+    assertEquals(.4, prefService.getPref<number>('test_pref').value);
   });
 
   test('update value instantly both off and on with ticks', async () => {
@@ -236,30 +257,31 @@ suite('SettingsSlider', function() {
     slider.updateValueInstantly = false;
     pointerDown(3 / crSlider.max);
     assertEquals(3, crSlider.value);
-    assertEquals(4, slider.pref.value);
+    assertEquals(4, prefService.getPref<number>('test_pref').value);
     pointerUp();
     await eventToPromise('dragging-changed', crSlider);
     assertEquals(3, crSlider.value);
-    assertEquals(16, slider.pref.value);
+    assertEquals(16, prefService.getPref<number>('test_pref').value);
 
     // Once |updateValueInstantly| is turned on, |value| should start updating
     // again during drag.
     pointerDown(0);
     assertEquals(0, crSlider.value);
-    assertEquals(16, slider.pref.value);
+    assertEquals(16, prefService.getPref<number>('test_pref').value);
     slider.updateValueInstantly = true;
-    assertEquals(2, slider.pref.value);
+    await microtasksFinished();
+    assertEquals(2, prefService.getPref<number>('test_pref').value);
     pointerMove(1 / crSlider.max);
     assertEquals(1, crSlider.value);
-    assertEquals(4, slider.pref.value);
+    assertEquals(4, prefService.getPref<number>('test_pref').value);
     slider.updateValueInstantly = false;
     pointerMove(2 / crSlider.max);
     assertEquals(2, crSlider.value);
-    assertEquals(4, slider.pref.value);
+    assertEquals(4, prefService.getPref<number>('test_pref').value);
     pointerUp();
     await eventToPromise('dragging-changed', crSlider);
     assertEquals(2, crSlider.value);
-    assertEquals(8, slider.pref.value);
+    assertEquals(8, prefService.getPref<number>('test_pref').value);
   });
 
   test('update value instantly both off and on', async () => {
@@ -268,29 +290,32 @@ suite('SettingsSlider', function() {
     slider.updateValueInstantly = false;
     pointerDown(.3);
     assertCloseTo(30, crSlider.value);
-    assertEquals(2, slider.pref.value);
+    assertEquals(2, prefService.getPref<number>('test_pref').value);
     pointerUp();
     await eventToPromise('dragging-changed', crSlider);
     assertCloseTo(30, crSlider.value);
-    assertCloseTo(3, slider.pref.value);
+    assertCloseTo(3, prefService.getPref<number>('test_pref').value);
 
     // Once |updateValueInstantly| is turned on, |value| should start updating
     // again during drag.
     pointerDown(0);
     assertEquals(0, crSlider.value);
-    assertCloseTo(3, slider.pref.value);
+    assertCloseTo(3, prefService.getPref<number>('test_pref').value);
     slider.updateValueInstantly = true;
-    assertEquals(0, slider.pref.value);
+    await microtasksFinished();
+    assertEquals(0, prefService.getPref<number>('test_pref').value);
     pointerMove(.1);
     assertCloseTo(10, crSlider.value);
-    assertCloseTo(1, slider.pref.value);
+    assertCloseTo(1, prefService.getPref<number>('test_pref').value);
     slider.updateValueInstantly = false;
     pointerMove(.2);
     assertCloseTo(20, crSlider.value);
-    assertCloseTo(1, slider.pref.value);
+    assertCloseTo(1, prefService.getPref<number>('test_pref').value);
     pointerUp();
     await eventToPromise('dragging-changed', crSlider);
     assertCloseTo(20, crSlider.value);
-    assertCloseTo(2, slider.pref.value);
+    assertCloseTo(2, prefService.getPref<number>('test_pref').value);
   });
+
+
 });

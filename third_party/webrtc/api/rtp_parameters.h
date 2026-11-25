@@ -219,7 +219,7 @@ struct RTC_EXPORT RtpCodec {
   virtual ~RtpCodec();
 
   // Build MIME "type/subtype" string from `name` and `kind`.
-  std::string mime_type() const { return MediaTypeToString(kind) + "/" + name; }
+  std::string mime_type() const;
 
   // Used to identify the codec. Equivalent to MIME subtype.
   std::string name;

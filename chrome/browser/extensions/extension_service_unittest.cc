@@ -1627,33 +1627,6 @@ TEST_F(ExtensionServiceTest, FailOnWrongVersion) {
   ASSERT_TRUE(registry()->enabled_extensions().GetByID(kGoodCrx));
 }
 
-// Install a user script (they get converted automatically to an extension)
-TEST_F(ExtensionServiceTest, InstallUserScript) {
-  // The details of script conversion are tested elsewhere, this just tests
-  // integration with ExtensionService.
-  InitializeEmptyExtensionService();
-
-  base::FilePath path = data_dir().AppendASCII("user_script_basic.user.js");
-
-  ASSERT_TRUE(base::PathExists(path));
-  scoped_refptr<CrxInstaller> installer(CrxInstaller::CreateSilent(profile()));
-  installer->set_allow_silent_install(true);
-  installer->InstallUserScript(
-      path,
-      GURL("http://www.aaronboodman.com/scripts/user_script_basic.user.js"));
-
-  task_environment()->RunUntilIdle();
-  std::vector<std::u16string> errors = GetErrors();
-  EXPECT_TRUE(installed_extension()) << "Nothing was installed.";
-  EXPECT_FALSE(was_update()) << path.value();
-  ASSERT_EQ(1u, loaded_extensions().size()) << "Nothing was loaded.";
-  EXPECT_EQ(0u, errors.size())
-      << "There were errors: " << base::JoinString(errors, u",");
-  EXPECT_TRUE(
-      registry()->enabled_extensions().GetByID(loaded_extensions()[0]->id()))
-      << path.value();
-}
-
 // Extensions don't install during shutdown.
 TEST_F(ExtensionServiceTest, InstallExtensionDuringShutdown) {
   InitializeEmptyExtensionService();

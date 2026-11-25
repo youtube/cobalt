@@ -5,6 +5,7 @@
 #include "chrome/browser/glic/glic_user_status_fetcher.h"
 
 #include <optional>
+#include <utility>
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
@@ -181,7 +182,7 @@ void GlicUserStatusFetcher::UpdateUserStatus() {
 
   // If the admin has disabled Gemini, we don't need to send the request.
   if (profile_->GetPrefs()->GetInteger(::prefs::kGeminiSettings) ==
-      static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled)) {
+      std::to_underlying(glic::prefs::SettingsPolicyState::kDisabled)) {
     return;
   }
 

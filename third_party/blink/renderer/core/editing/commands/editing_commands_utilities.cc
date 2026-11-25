@@ -36,9 +36,11 @@
 #include "third_party/blink/renderer/core/editing/commands/typing_command.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
+#include "third_party/blink/renderer/core/editing/position_units.h"
 #include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/editing/visible_position.h"
 #include "third_party/blink/renderer/core/editing/visible_selection.h"
+#include "third_party/blink/renderer/core/editing/visible_units.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/web_feature_forward.h"
@@ -48,6 +50,9 @@
 #include "third_party/blink/renderer/core/html/html_head_element.h"
 #include "third_party/blink/renderer/core/html/html_html_element.h"
 #include "third_party/blink/renderer/core/html/html_olist_element.h"
+#include "third_party/blink/renderer/core/html/html_table_cell_element.h"
+#include "third_party/blink/renderer/core/html/html_table_row_element.h"
+#include "third_party/blink/renderer/core/html/html_table_section_element.h"
 #include "third_party/blink/renderer/core/html/html_ulist_element.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
@@ -533,6 +538,113 @@ VisibleSelection SelectionForParagraphIteration(
   }
 
   return new_selection;
+}
+
+Position SnapIntoTableCell(const Position& position, TableCellEdge edge) {
+  const bool snap_to_start = edge == TableCellEdge::kStart;
+  Node* anchor = position.AnchorNode();
+  if (!anchor) {
+    return position;
+  }
+  if (!IsA<HTMLTableSectionElement>(*anchor) &&
+      !IsA<HTMLTableRowElement>(*anchor)) {
+    return position;
+  }
+  // Restrict the cell search to the child the offset points at: the child
+  // after the position for a start endpoint, before it for an end endpoint.
+  Node* scope = snap_to_start ? position.ComputeNodeAfterPosition()
+                              : position.ComputeNodeBeforePosition();
+  if (!scope) {
+    return position;
+  }
+  Node* cell = nullptr;
+  if (IsA<HTMLTableCellElement>(*scope)) {
+    cell = scope;
+  } else if (snap_to_start) {
+    for (Node* n = scope; n; n = NodeTraversal::Next(*n, scope)) {
+      if (IsA<HTMLTableCellElement>(*n)) {
+        cell = n;
+        break;
+      }
+    }
+  } else {
+    for (Node* n = &NodeTraversal::LastWithinOrSelf(*scope); n;
+         n = NodeTraversal::Previous(*n, scope)) {
+      if (IsA<HTMLTableCellElement>(*n)) {
+        cell = n;
+        break;
+      }
+    }
+  }
+  if (!cell) {
+    return position;
+  }
+  return snap_to_start ? Position::FirstPositionInNode(*cell)
+                       : Position::LastPositionInNode(*cell);
+}
+
+SelectionInDomTree SelectionForParagraphIteration(
+    const SelectionInDomTree& original) {
+  if (original.IsNone()) {
+    return original;
+  }
+
+  // Canonicalize endpoints to their nearest visible candidate. This handles
+  // the common (non-table) cases; table-internal anchors are handled by the
+  // offset-aware snap below, since MostForward/Backward can't cross a cell
+  // block boundary.
+  Position start_of_selection =
+      MostForwardCaretPosition(original.ComputeStartPosition());
+  Position end_of_selection =
+      MostBackwardCaretPosition(original.ComputeEndPosition());
+
+  // Snap endpoints anchored on table-internal structure into the cell their
+  // offset points at, so paragraph iteration runs per-cell instead of wrapping
+  // the whole table as one paragraph.
+  start_of_selection =
+      SnapIntoTableCell(start_of_selection, TableCellEdge::kStart);
+  end_of_selection = SnapIntoTableCell(end_of_selection, TableCellEdge::kEnd);
+
+  // If the end of the selection to modify is just after a table, and if the
+  // start of the selection is inside that table, then the last paragraph that
+  // we'll want modify is the last one inside the table, not the table itself (a
+  // table is itself a paragraph).
+  if (Element* table = TableElementJustBefore(end_of_selection)) {
+    DCHECK(start_of_selection.IsNotNull());
+    if (start_of_selection.AnchorNode()->IsDescendantOf(table)) {
+      const Position new_end =
+          PreviousPositionOf(end_of_selection, kCannotCrossEditingBoundary);
+      if (new_end.IsNotNull()) {
+        end_of_selection = new_end;
+      } else {
+        end_of_selection = start_of_selection;
+      }
+    }
+  }
+
+  // If the start of the selection to modify is just before a table, and if the
+  // end of the selection is inside that table, then the first paragraph we'll
+  // want to modify is the first one inside the table, not the paragraph
+  // containing the table itself.
+  if (Element* table = TableElementJustAfter(start_of_selection)) {
+    DCHECK(end_of_selection.IsNotNull());
+    if (end_of_selection.AnchorNode()->IsDescendantOf(table)) {
+      const Position new_start =
+          NextPositionOf(start_of_selection, kCannotCrossEditingBoundary);
+      if (new_start.IsNotNull()) {
+        start_of_selection = new_start;
+      } else {
+        start_of_selection = end_of_selection;
+      }
+    }
+  }
+
+  if (start_of_selection == end_of_selection) {
+    return SelectionInDomTree::Builder().Collapse(start_of_selection).Build();
+  }
+  return SelectionInDomTree::Builder()
+      .SetBaseAndExtent(start_of_selection, end_of_selection)
+      .Build();
 }
 
 const String& NonBreakingSpaceString() {

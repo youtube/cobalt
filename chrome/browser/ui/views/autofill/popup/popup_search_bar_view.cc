@@ -8,7 +8,6 @@
 #include <string>
 
 #include "base/functional/bind.h"
-#include "base/functional/callback.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/strings/grit/components_strings.h"

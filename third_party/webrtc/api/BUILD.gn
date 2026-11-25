@@ -1028,6 +1028,7 @@ rtc_source_set("bitrate_allocation") {
   sources = [ "call/bitrate_allocation.h" ]
   deps = [
     "units:data_rate",
+    "units:data_size",
     "units:time_delta",
   ]
 }
@@ -1757,6 +1758,7 @@ if (rtc_include_tests) {
       "rtp_parameters_unittest.cc",
       "scoped_refptr_unittest.cc",
       "sequence_checker_unittest.cc",
+      "test/frame_transformer_factory_unittest.cc",
       "test/peerconnection_quality_test_fixture_unittest.cc",
       "webrtc_sdp_encoding_options_unittest.cc",
       "webrtc_sdp_unittest.cc",
@@ -1766,8 +1768,13 @@ if (rtc_include_tests) {
       ":candidate",
       ":field_trials",
       ":field_trials_view",
+      ":frame_transformer_factory",
+      ":frame_transformer_interface",
       ":function_view",
       ":jsep",
+      ":mock_transformable_audio_frame",
+      ":mock_transformable_video_frame",
+      ":payload_type",
       ":peer_connection_interface",
       ":rtc_error",
       ":rtc_event_log_output_file",
@@ -1818,12 +1825,14 @@ if (rtc_include_tests) {
       "units:time_delta",
       "units:timestamp",
       "units:units_unittests",
+      "video:encoded_frame_unittest",
       "video:frame_buffer_unittest",
       "video:rtp_video_frame_assembler_unittests",
       "video:video_adapter_unittest",
       "video:video_broadcaster_unittest",
       "video:video_common_unittest",
       "video:video_frame",
+      "video:video_frame_metadata",
       "video:video_frame_metadata_unittest",
       "video/corruption_detection:corruption_detection_unittests",
       "video/corruption_detection:frame_instrumentation_data_reader_unittest",
@@ -1941,6 +1950,7 @@ rtc_library("frame_transformer_factory") {
   ]
   deps = [
     ":frame_transformer_interface",
+    ":payload_type",
     "../audio",
     "../modules/rtp_rtcp",
     "../rtc_base:checks",

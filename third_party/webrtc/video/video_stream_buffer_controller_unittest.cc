@@ -799,6 +799,27 @@ TEST_P(VideoStreamBufferControllerTest,
   EXPECT_THAT(WaitForFrameOrTimeout(kFps30Delay), Frame(test::WithId(10)));
 }
 
+TEST_P(VideoStreamBufferControllerTest,
+       OutOfOrderSpatialLayersTriggersKeyframeRequest) {
+  StartNextDecodeForceKeyframe();
+
+  // Insert two spatial layers for the same frame, but out of order.
+  // FrameBuffer sorts by Frame ID, so we insert Spatial 1 with ID 1 and
+  // Spatial 0 with ID 2. We must insert ID 1 first so it doesn't trigger
+  // decoding of a partial temporal unit.
+  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
+      test::FakeFrameBuilder().Id(1).SpatialLayer(1).Time(0).Build()));
+  buffer_->InsertFrame(WithReceiveTimeFromRtpTimestamp(
+      test::FakeFrameBuilder().Id(2).SpatialLayer(0).Time(0).AsLast().Build()));
+
+  // Since Spatial 1 (ID 1) is extracted before Spatial 0 (ID 2), they are out
+  // of order. CombineAndDeleteFrames should fail and return nullptr, which
+  // triggers an immediate keyframe request (OnDecodableFrameTimeout with Zero
+  // delay).
+  EXPECT_THAT(WaitForFrameOrTimeout(TimeDelta::Zero()),
+              Optional(VariantWith<TimeDelta>(TimeDelta::Zero())));
+}
+
 INSTANTIATE_TEST_SUITE_P(VideoStreamBufferController,
                          VideoStreamBufferControllerTest,
                          ::testing::Combine(::testing::Bool(),

@@ -168,6 +168,8 @@ WebAppToolbarButtonContainer::WebAppToolbarButtonContainer(
     button->SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_RIGHT);
     button->SetTooltipText(
         l10n_util::GetStringUTF16(IDS_WEB_APP_UNINSTALL_BUTTON_FRAME_TOOLTIP));
+    button->SetProperty(views::kElementIdentifierKey,
+                        kWebAppUninstallButtonElementId);
     uninstall_button_ = button;
     views::SetHitTestComponent(uninstall_button_, static_cast<int>(HTCLIENT));
   }

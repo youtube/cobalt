@@ -176,6 +176,19 @@ class CORE_EXPORT RubyBlockPositionCalculator {
       return column_list_;
     }
 
+    void AddOverChild(RubyLine* child) { over_children_.push_back(child); }
+    void AddUnderChild(RubyLine* child) { under_children_.push_back(child); }
+    void SortChildren();
+
+    const HeapVector<Member<RubyLine>>& OverChildren() const {
+      return over_children_;
+    }
+    const HeapVector<Member<RubyLine>>& UnderChildren() const {
+      return under_children_;
+    }
+    LayoutUnit RelativeOffset() const { return relative_offset_; }
+    void SetRelativeOffset(LayoutUnit offset) { relative_offset_ = offset; }
+
    private:
     RubyLevel level_;
 
@@ -188,6 +201,10 @@ class CORE_EXPORT RubyBlockPositionCalculator {
 
     FontHeight metrics_ = FontHeight::Empty();
     LayoutUnit offset_;
+
+    HeapVector<Member<RubyLine>> over_children_;
+    HeapVector<Member<RubyLine>> under_children_;
+    LayoutUnit relative_offset_;
   };
 
   // Represents the maximum number of over/under annotations attached to the
@@ -245,6 +262,13 @@ class CORE_EXPORT RubyBlockPositionCalculator {
   void AccumulateColumnOffsets(const LogicalRubyColumn& column,
                                LayoutUnit& min_offset,
                                LayoutUnit& max_offset) const;
+
+  RubyLine* BuildTree();
+  FontHeight ComputeRelativeOffsets(RubyLine& node,
+                                    const LogicalLineItems& base_line_items,
+                                    const FontHeight& line_box_metrics);
+  void ComputeOffsetsFromBase(RubyLine& node,
+                              LayoutUnit parent_offset_from_base);
 
   HeapVector<Member<RubyLine>, 2> ruby_lines_;
 

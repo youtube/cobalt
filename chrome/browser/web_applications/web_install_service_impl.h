@@ -224,6 +224,9 @@ class WebInstallServiceImpl
       blink::mojom::ManifestInstallOptionsPtr options,
       blink::mojom::ManifestPtr manifest);
 
+  void OnManifestInstallNotSupportedDialogClosed(
+      InstallFromManifestCallbackWithGuard callback_with_guard);
+
   // Only one install can be in progress at a time.
   bool install_in_progress_ = false;
 

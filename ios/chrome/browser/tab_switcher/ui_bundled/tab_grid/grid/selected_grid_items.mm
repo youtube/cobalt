@@ -153,8 +153,11 @@
         _webStateList,
         WebStateSearchCriteria{
             .identifier = itemID,
-            .pinned_state = WebStateSearchCriteria::PinnedState::kNonPinned,
+            .pinned_state = WebStateSearchCriteria::PinnedState::kAny,
         });
+    if (!item) {
+      continue;
+    }
     URLWithTitle* URL = [[URLWithTitle alloc] initWithURL:item.URL
                                                     title:item.title];
     [URLs addObject:URL];
@@ -166,12 +169,17 @@
 
 // Returns YES if the provided webState can be shared.
 - (BOOL)isItemWithIDShareable:(web::WebStateID)itemID {
-  web::WebState* webState = GetWebState(
-      _webStateList,
-      WebStateSearchCriteria{
-          .identifier = itemID,
-          .pinned_state = WebStateSearchCriteria::PinnedState::kNonPinned,
-      });
+  web::WebState* webState =
+      GetWebState(_webStateList,
+                  WebStateSearchCriteria{
+                      .identifier = itemID,
+                      .pinned_state = WebStateSearchCriteria::PinnedState::kAny,
+                  });
+
+  if (!webState) {
+    return NO;
+  }
+
   const GURL& URL = webState->GetVisibleURL();
   return URL.is_valid() && URL.SchemeIsHTTPOrHTTPS();
 }

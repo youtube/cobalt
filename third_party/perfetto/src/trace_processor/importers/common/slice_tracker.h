@@ -19,7 +19,6 @@
 
 #include <stdint.h>
 #include <cstdint>
-#include <deque>
 #include <functional>
 #include <optional>
 #include <type_traits>
@@ -41,6 +40,8 @@ class TraceProcessorContext;
 
 class SliceTracker {
  public:
+  static constexpr uint32_t kMaxDepth = 512;
+
   using OnSliceBeginCallback = std::function<void(TrackId, SliceId)>;
 
   // Sentinel default args callback; WantsArgs() compiles arg handling away.
@@ -71,6 +72,12 @@ class SliceTracker {
   // path here and the JSON "spill onto an overflow track" path) so both surface
   // the same queryable context in the TraceImportLogsTable.
   void AddOverlapArgs(const OverlapInfo&, ArgsTracker::BoundInserter&) const;
+
+  // Writes args describing parent and current slice names when max depth is
+  // exceeded onto |inserter|.
+  void AddMaxDepthArgs(StringId parent_name,
+                       StringId current_name,
+                       ArgsTracker::BoundInserter&) const;
 
   explicit SliceTracker(TraceProcessorContext*);
   ~SliceTracker();
@@ -157,7 +164,7 @@ class SliceTracker {
                                   StringId category,
                                   StringId name,
                                   ArgsCb args) {
-    std::optional<ArgsTracker::BoundInserter> inserter;
+    ArgsInserter* inserter = nullptr;
     std::optional<uint32_t> row =
         AddArgsImpl(track_id, category, name, WantsArgs(args), &inserter);
     InvokeArgs(inserter, args);
@@ -175,11 +182,10 @@ class SliceTracker {
   // with this duration placeholder.
   static constexpr int64_t kPendingDuration = -1;
 
-  // |args| is lazily acquired from |args_pool_| only if the slice gets args,
-  // and is null otherwise; recycled on pop.
+  // |args| is created lazily if the slice gets args, and committed on pop.
   struct SliceInfo {
     tables::SliceTable::RowNumber row;
-    ArgsTracker* args = nullptr;
+    std::optional<ArgsInserter> args;
   };
   using SlicesStack = std::vector<SliceInfo>;
 
@@ -207,15 +213,16 @@ class SliceTracker {
   };
 
   // Return of the out-of-line Begin/End fast paths: the new/closed slice id
-  // and, when args were requested, a BoundInserter already bound to its
-  // ArgsTracker.
+  // and, when args were requested, a pointer to the inserter parked in the
+  // slice's SliceInfo (null otherwise). The pointer is valid until the next
+  // mutation of the slice's stack; callers invoke args on it immediately.
   struct StartedSlice {
     std::optional<SliceId> id;
-    std::optional<ArgsTracker::BoundInserter> inserter;
+    ArgsInserter* inserter = nullptr;
   };
   struct EndedSlice {
     std::optional<SliceId> id;
-    std::optional<ArgsTracker::BoundInserter> inserter;
+    ArgsInserter* inserter = nullptr;
     CompleteSliceState state;
   };
 
@@ -242,13 +249,13 @@ class SliceTracker {
   // Second half of End(): legacy args + pop.
   void CompleteSliceFinalize(const CompleteSliceState& state);
 
-  // Body of AddArgs(): finds the slice and (if want_args) returns its inserter.
-  std::optional<uint32_t> AddArgsImpl(
-      TrackId track_id,
-      StringId category,
-      StringId name,
-      bool want_args,
-      std::optional<ArgsTracker::BoundInserter>* inserter);
+  // Body of AddArgs(): finds the slice and (if want_args) returns its inserter
+  // via |inserter| (pointer to the slice's parked inserter, else left null).
+  std::optional<uint32_t> AddArgsImpl(TrackId track_id,
+                                      StringId category,
+                                      StringId name,
+                                      bool want_args,
+                                      ArgsInserter** inserter);
 
   // True if |args| should run (false for NoArgsCallback / empty std::function).
   template <typename ArgsCb>
@@ -268,12 +275,11 @@ class SliceTracker {
   // only per-callsite code for an arg-bearing slice; nothing for
   // NoArgsCallback.
   template <typename ArgsCb>
-  static void InvokeArgs(std::optional<ArgsTracker::BoundInserter>& inserter,
-                         ArgsCb& args) {
+  static void InvokeArgs(ArgsInserter* inserter, ArgsCb& args) {
     if constexpr (std::is_same_v<ArgsCb, NoArgsCallback>) {
       base::ignore_result(inserter, args);
     } else if (inserter) {
-      args(&*inserter);
+      args(inserter);
     }
   }
 
@@ -283,8 +289,9 @@ class SliceTracker {
                                        int64_t duration,
                                        std::optional<OverlapInfo>* overlap_out);
 
-  PERFETTO_NORETURN void LogMaxDepthExceeded(const SliceInfo& parent,
-                                             StringId name);
+  void LogMaxDepthExceeded(const SliceInfo& parent,
+                           StringId name,
+                           int64_t timestamp);
 
   void AddLegacyUnnestableArgs(SliceInfo& slice_info,
                                const TrackInfo& track_info);
@@ -314,8 +321,9 @@ class SliceTracker {
   }
   TrackInfo* FindTrackInfo(TrackId track_id) { return stacks_.Find(track_id); }
 
-  // BoundInserter for |slice_info|, lazily acquiring its pooled ArgsTracker.
-  ArgsTracker::BoundInserter ArgsInserter(SliceInfo& slice_info, SliceId id);
+  // Returns the inserter parked in |slice_info|, lazily creating it (bound to
+  // |id|) on first use. Valid until the slice's stack is next mutated.
+  ArgsInserter* GetArgsInserter(SliceInfo& slice_info, SliceId id);
 
   // Defers args needing translation to end-of-trace (taking ownership of the
   // arg set), else no-op. Requires |slice_info.args| non-null.
@@ -335,13 +343,12 @@ class SliceTracker {
   const StringId overlap_conflicting_ts_key_;
   const StringId overlap_conflicting_dur_key_;
 
+  // Interned arg-name keys for max depth exceeded import logs.
+  const StringId max_depth_parent_name_key_;
+  const StringId max_depth_current_name_key_;
+
   StackMap stacks_;
   std::vector<TranslatableArgs> translatable_args_;
-
-  // Recyclable per-slice ArgsTrackers; deque for pointer stability, free list
-  // of cleared ones.
-  std::deque<ArgsTracker> args_pool_;
-  std::vector<ArgsTracker*> free_args_;
 };
 
 }  // namespace perfetto::trace_processor

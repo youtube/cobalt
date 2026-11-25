@@ -33,9 +33,7 @@ class CookieControlsIconView : public PageActionIconView,
   // CookieControlsObserver:
   void OnCookieControlsIconStatusChanged(
       bool icon_visible,
-      CookieControlsState controls_state,
-      bool should_highlight) override;
-  void OnFinishedPageReloadWithChangedSettings() override;
+      CookieControlsState controls_state) override;
 
   void ShowCookieControlsBubble();
 
@@ -62,14 +60,6 @@ class CookieControlsIconView : public PageActionIconView,
 
   bool GetAssociatedBubble() const;
   bool ShouldBeVisible() const;
-  // Whether a managed IPH is currently active.
-  bool IsManagedIPHActive() const;
-  void OnIPHClosed();
-
-  // Attempts to show IPH for the cookie controls icon.
-  void MaybeShowIPH();
-  // Callback for when we try to show the IPH.
-  void OnShowPromoResult(user_education::FeaturePromoResult result);
 
   void MaybeAnimateIcon();
   void UpdateIcon();
@@ -79,11 +69,6 @@ class CookieControlsIconView : public PageActionIconView,
 
   bool icon_visible_ = false;
   CookieControlsState controls_state_ = CookieControlsState::kHidden;
-  bool state_changed_ = true;
-  bool did_animate_ = false;
-  // Whether we should have a visual indicator highlighting the icon.
-  bool should_highlight_ = false;
-  GURL last_visited_url_;
 
   std::u16string custom_tooltip_text_;
 

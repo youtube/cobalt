@@ -12,6 +12,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/memory_dump_provider.h"
+#include "cc/paint/paint_record.h"
+#include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_canvas.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
@@ -21,7 +23,7 @@
 
 namespace blink {
 
-class Canvas2DResourceProviderSharedImage;
+class Canvas2DResourceProvider;
 
 inline constexpr char kCanvasHibernationEventHistogramName[] =
     "Blink.Canvas.HibernationEvents2";
@@ -35,14 +37,14 @@ class PLATFORM_EXPORT CanvasHibernationHandler {
    public:
     virtual ~Delegate() = default;
 
-    virtual Canvas2DResourceProviderSharedImage* GetSharedImageProvider()
-        const = 0;
+    virtual Canvas2DResourceProvider* GetSharedImageProvider() const = 0;
     virtual bool HasResourceProvider() const = 0;
     virtual bool IsPageVisible() const = 0;
     virtual bool IsContextLost() const = 0;
     virtual void ResetResourceProvider() = 0;
     virtual void SetNeedsCompositingUpdate() = 0;
     virtual void ClearCanvas2DLayerTexture() {}
+    virtual std::optional<cc::PaintRecord> FlushCanvas(FlushReason reason) = 0;
   };
 
   // The values of the enum entries must not change because they are used for

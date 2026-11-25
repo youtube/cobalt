@@ -209,6 +209,7 @@ js2gtest("switch_access_mv3_extjs_tests") {
     "nodes/basic_node_test.js",
     "nodes/desktop_node_test.js",
     "nodes/group_node_test.js",
+    "nodes/keyboard_node_test.js",
     "nodes/tab_node_test.js",
     "point_scan_manager_test.js",
     "switch_access_predicate_test.js",

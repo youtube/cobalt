@@ -16,4 +16,7 @@ public interface VerticalTabsActionDelegate {
      * @param paneId The id of the pane to show.
      */
     void openHubPane(@PaneId int paneId);
+
+    /** Opens the tab search overlay side panel. */
+    void openTabSearch();
 }

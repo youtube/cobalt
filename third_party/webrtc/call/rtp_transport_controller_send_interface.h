@@ -154,9 +154,6 @@ class RtpTransportControllerSendInterface {
   virtual void SetClientBitratePreferences(
       const BitrateSettings& preferences) = 0;
 
-  virtual void OnTransportOverheadChanged(
-      size_t transport_overhead_per_packet) = 0;
-
   virtual void AccountForAudioPacketsInPacedSender(bool account_for_audio) = 0;
   virtual void IncludeOverheadInPacedSender() = 0;
 

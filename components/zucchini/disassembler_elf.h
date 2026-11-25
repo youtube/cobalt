@@ -132,7 +132,7 @@ struct ElfAArch64Traits : public Elf64Traits {
 // Decides whether target |offset| is covered by a section in |sorted_headers|.
 template <class ELF_SHDR>
 bool IsTargetOffsetInElfSectionList(
-    const std::vector<const ELF_SHDR*>& sorted_headers,
+    const std::vector<raw_ptr<const ELF_SHDR>>& sorted_headers,
     offset_t offset) {
   // Use binary search to search in a list of intervals, in a fashion similar to
   // AddressTranslator::OffsetToUnit().
@@ -238,7 +238,7 @@ class DisassemblerElf : public Disassembler {
 
   // Headers of executable sections, sorted by file offsets of the data each
   // header points to.
-  std::vector<const typename Traits::Elf_Shdr*> exec_headers_;
+  std::vector<raw_ptr<const typename Traits::Elf_Shdr>> exec_headers_;
 
   // Sorted file offsets of abs32 locations.
   std::deque<offset_t> abs32_locations_;

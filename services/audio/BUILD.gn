@@ -122,6 +122,8 @@ source_set("audio") {
       "processing_audio_fifo.h",
       "sync_mixing_graph_input.cc",
       "sync_mixing_graph_input.h",
+      "voice_isolation_handler.cc",
+      "voice_isolation_handler.h",
     ]
 
     deps += [ "//third_party/abseil-cpp:absl" ]
@@ -219,6 +221,7 @@ source_set("tests") {
 
   if (chrome_wide_echo_cancellation_supported) {
     sources += [
+      "audio_processor_handler_unittest.cc",
       "loopback_reference_manager_unittest.cc",
       "mixing_graph_impl_unittest.cc",
       "mixing_graph_input_unittest.cc",

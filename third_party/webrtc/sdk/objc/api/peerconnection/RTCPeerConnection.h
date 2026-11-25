@@ -196,8 +196,7 @@ RTC_OBJC_EXPORT
 @property(nonatomic, readonly) RTCIceConnectionState iceConnectionState;
 @property(nonatomic, readonly) RTCPeerConnectionState connectionState;
 @property(nonatomic, readonly) RTCIceGatheringState iceGatheringState;
-@property(nonatomic, readonly, copy) RTC_OBJC_TYPE(RTCConfiguration) *
-    configuration;
+@property(nonatomic, readonly) RTC_OBJC_TYPE(RTCConfiguration) * configuration;
 
 /** Gets all RTCRtpSenders associated with this peer connection.
  *  Note: reading this property returns different instances of RTCRtpSender.

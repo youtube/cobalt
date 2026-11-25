@@ -50,7 +50,6 @@ import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
@@ -99,7 +98,6 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @DisableFeatures(ChromeFeatureList.CROSS_DEVICE_PREF_TRACKER_EXTRA_LOGS)
-@DisabledTest(message = "crbug.com/525121694")
 public class ToolbarPositionControllerTest {
 
     @Rule public MockitoRule mMockitoJUnit = MockitoJUnit.rule();
@@ -311,8 +309,6 @@ public class ToolbarPositionControllerTest {
     private Context mContext;
     private final SettableNonNullObservableSupplier<Boolean> mIsNtpShowing =
             ObservableSuppliers.createNonNull(false);
-    private final SettableNonNullObservableSupplier<Boolean> mIsIncognitoNtpShowing =
-            ObservableSuppliers.createNonNull(false);
     private final SettableNonNullObservableSupplier<Boolean> mIsTabSwitcherShowing =
             ObservableSuppliers.createNonNull(false);
     private final SettableNonNullObservableSupplier<Boolean> mIsOmniboxFocused =
@@ -376,7 +372,11 @@ public class ToolbarPositionControllerTest {
         mBrowserControlsSizer.setControlsPosition(
                 ControlsPosition.TOP, TOOLBAR_HEIGHT, 0, 0, 0, 0, 0);
         mControlContainerLayoutParams.gravity = Gravity.START | Gravity.TOP;
-        mProgressBarLayoutParams.gravity = Gravity.BOTTOM;
+        boolean animatedProgressBarEnabled =
+                ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()
+                        && ChromeFeatureList.sAndroidApb144Patch4.isEnabled();
+        mProgressBarLayoutParams.gravity =
+                animatedProgressBarEnabled ? Gravity.BOTTOM : Gravity.CENTER;
         mProgressBarLayoutParams.anchorGravity = Gravity.BOTTOM;
         mProgressBarLayoutParams.setAnchorId(CONTROL_CONTAINER_ID);
         mProfileSupplier = ObservableSuppliers.createNonNull(mProfile);
@@ -395,7 +395,6 @@ public class ToolbarPositionControllerTest {
                         mBrowserControlsSizer,
                         ContextUtils.getAppSharedPreferences(),
                         mIsNtpShowing,
-                        mIsIncognitoNtpShowing,
                         mIsTabSwitcherShowing,
                         mIsOmniboxFocused,
                         mIsFormFieldFocused.getObservable(),
@@ -1048,6 +1047,7 @@ public class ToolbarPositionControllerTest {
     }
 
     @Test
+    @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testMaybeForceBottomToolbarLayoutUpdateAndCapture() {
         // 1. Test mIsFirstPositionChange is true.
         assertTrue(mController.getIsFirstPositionChangeForTesting());
@@ -1301,7 +1301,12 @@ public class ToolbarPositionControllerTest {
         assertEquals(Gravity.BOTTOM, mHairlineLayoutParams.gravity);
         assertEquals(Gravity.START | Gravity.TOP, mControlContainerLayoutParams.gravity);
         assertEquals(1, mToolbarLayoutParams.bottomMargin);
-        assertEquals(Gravity.BOTTOM, mProgressBarLayoutParams.gravity);
+        boolean animatedProgressBarEnabled =
+                ChromeFeatureList.sAndroidAnimatedProgressBarInBrowser.isEnabled()
+                        && ChromeFeatureList.sAndroidApb144Patch4.isEnabled();
+        assertEquals(
+                animatedProgressBarEnabled ? Gravity.BOTTOM : Gravity.CENTER,
+                mProgressBarLayoutParams.gravity);
         assertEquals(Gravity.BOTTOM, mProgressBarLayoutParams.anchorGravity);
         assertEquals(CONTROL_CONTAINER_ID, mProgressBarLayoutParams.getAnchorId());
     }

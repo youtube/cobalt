@@ -601,7 +601,8 @@ TEST_P(PDFiumEngineTest, GetLanguageTagFromDocumentMetadata) {
   ASSERT_TRUE(engine);
 
   const DocumentMetadata& doc_metadata = engine->GetDocumentMetadata();
-  EXPECT_EQ(base::i18n::language_tags::ENGLISH_US(), doc_metadata.language_tag);
+  EXPECT_EQ(base::i18n::GetKnownLanguageTag("en-US"),
+            doc_metadata.language_tag);
 }
 
 TEST_P(PDFiumEngineTest, HasMeaningfulText) {
@@ -677,6 +678,33 @@ TEST_P(PDFiumEngineTest, HasMeaningfulTextNotLoaded) {
   // Before loading any data, the page count should be 0.
   ASSERT_EQ(0, engine.GetNumberOfPages());
   EXPECT_FALSE(engine.HasMeaningfulText());
+}
+
+TEST_P(PDFiumEngineTest, HasNoJavaScript) {
+  NiceMock<MockTestClient> client(GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(engine);
+  EXPECT_FALSE(engine->HasJavaScript());
+}
+
+TEST_P(PDFiumEngineTest, HasJavaScript) {
+  NiceMock<MockTestClient> client(GetParam());
+  std::unique_ptr<PDFiumEngine> engine =
+      InitializeEngine(&client, FILE_PATH_LITERAL("js_actions.pdf"));
+  ASSERT_TRUE(engine);
+  EXPECT_TRUE(engine->HasJavaScript());
+}
+
+TEST_P(PDFiumEngineTest, HasJavaScriptNotLoaded) {
+  NiceMock<MockTestClient> client(GetParam());
+  InitializeEngineResult initialize_result =
+      InitializeEngineWithoutLoading(&client, FILE_PATH_LITERAL("blank.pdf"));
+  ASSERT_TRUE(initialize_result.engine);
+  PDFiumEngine& engine = *initialize_result.engine;
+
+  ASSERT_EQ(0, engine.GetNumberOfPages());
+  EXPECT_FALSE(engine.HasJavaScript());
 }
 
 TEST_P(PDFiumEngineTest, GetLinearizedDocumentMetadata) {
@@ -2537,29 +2565,74 @@ TEST_P(PDFiumEngineInkTest, CannotSelectTextInAnnotationMode) {
   EXPECT_THAT(engine->GetSelectedText(), IsEmpty());
 }
 
-TEST_P(PDFiumEngineInkTest, ContainsV2InkPath) {
+TEST_P(PDFiumEngineInkTest, ScanForInkAnnotations) {
   TestClient client(/*use_skia_renderer=*/GetParam());
-  std::unique_ptr<PDFiumEngine> engine =
-      InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
-  ASSERT_TRUE(engine);
-  ASSERT_EQ(1, engine->GetNumberOfPages());
-  constexpr base::TimeDelta kContainsV2InkPathTimeout =
-      base::Milliseconds(5000);
-  EXPECT_EQ(engine->ContainsV2InkPath(kContainsV2InkPathTimeout),
-            PDFLoadedWithV2InkAnnotations::kFalse);
+  constexpr base::TimeDelta kTimeout = base::Milliseconds(5000);
 
-  engine = InitializeEngine(&client, FILE_PATH_LITERAL("ink_v2.pdf"));
-  ASSERT_TRUE(engine);
-  ASSERT_EQ(1, engine->GetNumberOfPages());
-  EXPECT_EQ(engine->ContainsV2InkPath(kContainsV2InkPathTimeout),
-            PDFLoadedWithV2InkAnnotations::kTrue);
+  // PDF with no annotations.
+  {
+    std::unique_ptr<PDFiumEngine> engine =
+        InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
+    ASSERT_TRUE(engine);
+    ASSERT_EQ(1, engine->GetNumberOfPages());
+    PDFiumEngine::InkIdentifiers result =
+        engine->ScanForInkAnnotations(kTimeout);
+    EXPECT_EQ(result.ink_text_annotations,
+              PDFLoadedWithInkTextAnnotations::kFalse);
+    EXPECT_EQ(result.v2_ink_path, PDFLoadedWithV2InkAnnotations::kFalse);
+  }
+
+  // PDF with "V2" Ink annotation.
+  {
+    std::unique_ptr<PDFiumEngine> engine =
+        InitializeEngine(&client, FILE_PATH_LITERAL("ink_v2.pdf"));
+    ASSERT_TRUE(engine);
+    ASSERT_EQ(1, engine->GetNumberOfPages());
+    PDFiumEngine::InkIdentifiers result =
+        engine->ScanForInkAnnotations(kTimeout);
+    EXPECT_EQ(result.ink_text_annotations,
+              PDFLoadedWithInkTextAnnotations::kFalse);
+    EXPECT_EQ(result.v2_ink_path, PDFLoadedWithV2InkAnnotations::kTrue);
+  }
+
+  // PDF with Ink text annotation.
+  {
+    std::unique_ptr<PDFiumEngine> engine =
+        InitializeEngine(&client, FILE_PATH_LITERAL("ink_text.pdf"));
+    ASSERT_TRUE(engine);
+    ASSERT_EQ(1, engine->GetNumberOfPages());
+    PDFiumEngine::InkIdentifiers result =
+        engine->ScanForInkAnnotations(kTimeout);
+    EXPECT_EQ(result.ink_text_annotations,
+              PDFLoadedWithInkTextAnnotations::kTrue);
+    EXPECT_EQ(result.v2_ink_path, PDFLoadedWithV2InkAnnotations::kFalse);
+  }
+
+  // PDF with Ink text and "V2" Ink annotation.
+  {
+    std::unique_ptr<PDFiumEngine> engine =
+        InitializeEngine(&client, FILE_PATH_LITERAL("ink_v2_and_text.pdf"));
+    ASSERT_TRUE(engine);
+    ASSERT_EQ(1, engine->GetNumberOfPages());
+    PDFiumEngine::InkIdentifiers result =
+        engine->ScanForInkAnnotations(kTimeout);
+    EXPECT_EQ(result.ink_text_annotations,
+              PDFLoadedWithInkTextAnnotations::kTrue);
+    EXPECT_EQ(result.v2_ink_path, PDFLoadedWithV2InkAnnotations::kTrue);
+  }
 
   // Test timeout.
-  engine = InitializeEngine(&client, FILE_PATH_LITERAL("ink_v2.pdf"));
-  ASSERT_TRUE(engine);
-  ASSERT_EQ(1, engine->GetNumberOfPages());
-  EXPECT_EQ(engine->ContainsV2InkPath(base::Milliseconds(0)),
-            PDFLoadedWithV2InkAnnotations::kUnknown);
+  {
+    std::unique_ptr<PDFiumEngine> engine =
+        InitializeEngine(&client, FILE_PATH_LITERAL("ink_v2.pdf"));
+    ASSERT_TRUE(engine);
+    ASSERT_EQ(1, engine->GetNumberOfPages());
+    PDFiumEngine::InkIdentifiers result =
+        engine->ScanForInkAnnotations(base::Milliseconds(0));
+    EXPECT_EQ(result.ink_text_annotations,
+              PDFLoadedWithInkTextAnnotations::kUnknown);
+    EXPECT_EQ(result.v2_ink_path, PDFLoadedWithV2InkAnnotations::kUnknown);
+  }
 }
 
 TEST_P(PDFiumEngineInkTest, LoadV2InkPathsForPage) {

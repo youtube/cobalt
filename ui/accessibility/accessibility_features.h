@@ -298,6 +298,10 @@ AX_BASE_EXPORT bool IsMainNodeAnnotationsEnabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kImprovedReadAloud);
 AX_BASE_EXPORT bool IsImprovedReadAloudEnabled();
 
+// Enable heuristic enhancements for PDF accessibility.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kPdfAccessibilityHeuristicEnhancements);
+AX_BASE_EXPORT bool IsPdfAccessibilityHeuristicEnhancementsEnabled();
+
 enum class ReadAnythingMenuShuffleExperimentGroup {
   kDefault,              // Leaves in default position
   kPlaceWithSeparation,  // Adds a UI separator from previous element.

@@ -4,6 +4,8 @@
 
 #include "chrome/browser/platform_experience/delegated_tasks/delegated_task_runner.h"
 
+#include <windows.h>
+
 #include <memory>
 #include <utility>
 
@@ -13,9 +15,12 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
+#include "base/memory/weak_ptr.h"
 #include "base/process/launch.h"
+#include "base/process/process.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "base/win/windows_types.h"
 #include "chrome/browser/platform_experience/delegated_tasks/peh_launcher.h"
 #include "chrome/browser/platform_experience/delegated_tasks/peh_switches.h"
 
@@ -45,22 +50,18 @@ DelegatedTaskRunner::DelegatedTaskRunner(
 }
 
 DelegatedTaskRunner::~DelegatedTaskRunner() {
-  if (completion_callback_) {
+  if (task_) {
     CleanupAndReturnResult(
         DelegatedTaskStatus::kRunnerDestroyedBeforeTaskCompletion);
   }
 }
 
 void DelegatedTaskRunner::Run(
-    const DelegatedTask& task,
+    std::unique_ptr<DelegatedTask> task,
     base::OnceCallback<void(DelegatedTaskResult)> callback) {
-  // If an existing task is running, do not execute this task.
-  if (completion_callback_) {
-    ReturnTaskCompletionStatusAsync(DelegatedTaskStatus::kRunnerBusy,
-                                    base::TimeDelta(), std::move(callback));
-    return;
-  }
+  CHECK(task_start_time_.is_null());
 
+  task_ = std::move(task);
   task_start_time_ = base::TimeTicks::Now();
   completion_callback_ = std::move(callback);
 
@@ -72,24 +73,61 @@ void DelegatedTaskRunner::Run(
   }
 
   base::CommandLine cmd_line = base::CommandLine(peh_binary_path);
-  cmd_line.AppendSwitchASCII(kDelegatedTasksSwitch, task.GetTaskName());
+  cmd_line.AppendSwitchASCII(kDelegatedTasksSwitch, task_->GetTaskName());
+  task_->AppendCommandLineSwitches(cmd_line);
 
-  task.AppendCommandLineSwitches(cmd_line);
-
-  // TODO(b/525019455): Implement logic for waiting for the process to complete.
-  base::Process process =
-      peh_launcher_->LaunchProcess(cmd_line, base::LaunchOptions());
-  if (!process.IsValid()) {
+  process_ = peh_launcher_->LaunchProcess(cmd_line, base::LaunchOptions());
+  if (!process_.IsValid()) {
     CleanupAndReturnResult(DelegatedTaskStatus::kProcessLaunchFailure);
     return;
   }
 
-  CleanupAndReturnResult(DelegatedTaskStatus::kSuccess);
+  if (!watcher_.StartWatchingOnce(process_.Handle(), this)) {
+    CleanupAndReturnResult(DelegatedTaskStatus::kWatchProcessHandleFailure);
+    return;
+  }
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(&DelegatedTaskRunner::CleanupAndReturnResult,
+                     weak_factory_.GetWeakPtr(),
+                     DelegatedTaskStatus::kTaskTimeout),
+      task_->GetTimeout());
+}
+
+void DelegatedTaskRunner::OnObjectSignaled(HANDLE object) {
+  DWORD exit_code = 0;
+  DelegatedTaskStatus status = DelegatedTaskStatus::kInvalidExitCode;
+
+  if (::GetExitCodeProcess(process_.Handle(), &exit_code)) {
+    switch (exit_code) {
+      case 0:
+        status = DelegatedTaskStatus::kSuccess;
+        break;
+      case 1:
+        status = DelegatedTaskStatus::kInvalidTaskType;
+        break;
+      default:
+        status = task_->ParseExitCode(static_cast<int>(exit_code));
+    }
+  } else {
+    status = DelegatedTaskStatus::kInvalidExitCode;
+  }
+
+  CleanupAndReturnResult(status);
 }
 
 void DelegatedTaskRunner::CleanupAndReturnResult(DelegatedTaskStatus status) {
-  CHECK(completion_callback_);
+  watcher_.StopWatching();
 
+  if (process_.IsValid() && process_.IsRunning()) {
+    process_.Terminate(/*exit_code=*/1, /*wait=*/false);
+  }
+
+  weak_factory_.InvalidateWeakPtrs();
+  task_.reset();
+
+  CHECK(completion_callback_);
   base::TimeDelta execution_time = base::TimeTicks::Now() - task_start_time_;
   ReturnTaskCompletionStatusAsync(status, execution_time,
                                   std::move(completion_callback_));

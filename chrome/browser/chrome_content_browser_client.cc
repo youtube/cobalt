@@ -3844,13 +3844,22 @@ bool ChromeContentBrowserClient::IsServiceWorkerSyntheticResponseAllowed(
     return false;
   }
 
-  // Prewarm page can be treated as a DSE. As we don't want to enable synthetic
-  // response on the prewarm page, manually exclude it.
   auto* template_url_service =
       TemplateURLServiceFactory::GetForProfile(profile);
   CHECK(template_url_service);
-  if (IsPrewarmUrl(url,
-                   template_url_service->GetDefaultSearchProviderOrigin())) {
+  const url::Origin dse_origin =
+      template_url_service->GetDefaultSearchProviderOrigin();
+
+  // The synthetic registration is created for `url`'s origin. Restrict it to
+  // the default search provider's own origin so that alternate URLs on other
+  // origins don't get a synthetic registration.
+  if (!dse_origin.IsSameOriginWith(url)) {
+    return false;
+  }
+
+  // Prewarm page can be treated as a DSE. As we don't want to enable synthetic
+  // response on the prewarm page, manually exclude it.
+  if (IsPrewarmUrl(url, dse_origin)) {
     return false;
   }
 
@@ -7044,13 +7053,7 @@ bool ChromeContentBrowserClient::ShouldForceDownloadResource(
     content::BrowserContext* browser_context,
     const GURL& url,
     const std::string& mime_type) {
-#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
-  // Special-case user scripts to get downloaded instead of viewed.
-  if (extensions::UserScript::IsURLUserScript(url, mime_type)) {
-    return true;
-  }
-
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(IS_CHROMEOS)
   // QuickOffice file interception is deprecated. If QuickOffice would
   // have intercepted this file and this feature is disabled, download
   // it instead.
@@ -7067,8 +7070,7 @@ bool ChromeContentBrowserClient::ShouldForceDownloadResource(
       }
     }
   }
-#endif  // BUILDFLAG(IS_CHROMEOS)
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS_CORE) && BUILDFLAG(IS_CHROMEOS)
   return false;
 }
 

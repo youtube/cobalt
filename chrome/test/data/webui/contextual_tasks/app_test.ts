@@ -63,6 +63,7 @@ suite('ContextualTasksAppTest', function() {
       composeboxSmartTabSharingVisible: false,
       isAimEligible: true,
       isZeroState: false,
+      contextManagementInComposeboxEnabled: false,
     });
     metrics = fakeMetricsPrivate();
     const proxy = new TestContextualTasksBrowserProxy('http://example.com');
@@ -319,7 +320,9 @@ suite('ContextualTasksAppTest', function() {
 
     const webview = app.shadowRoot.querySelector('webview');
     assertTrue(!!webview);
-    assertEquals(fixtureUrl, webview.getAttribute('src'));
+    const src = webview.getAttribute('src');
+    assertTrue(!!src);
+    assertTrue(src.startsWith(fixtureUrl));
   });
 
   test('task details updated in url', async () => {

@@ -6,24 +6,17 @@
 #define V8_INIT_ISOLATE_GROUP_H_
 
 #include <atomic>
-#include <functional>
-#include <map>
 #include <memory>
 #include <span>
-#include <string>
-#include <string_view>
 
 #include "absl/container/flat_hash_set.h"
 #include "include/v8config.h"
 #include "src/base/logging.h"
 #include "src/base/once.h"
 #include "src/base/page-allocator.h"
-#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/time.h"
 #include "src/codegen/external-reference-table.h"
 #include "src/common/globals.h"
-#include "src/execution/thread-id.h"
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk-constants.h"
 #include "src/sandbox/check.h"
@@ -131,6 +124,7 @@ class PABackedSandboxedArrayBufferAllocator
 #endif  // V8_ENABLE_SANDBOX
 
 class CodeRange;
+class GlobalSafepoint;
 class Isolate;
 class OptimizingCompileTaskExecutor;
 class ReadOnlyHeap;
@@ -279,6 +273,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
     shared_space_isolate_ = isolate;
   }
 
+  GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
+
   OptimizingCompileTaskExecutor* optimizing_compile_task_executor();
 
   ReadOnlyHeap* shared_read_only_heap() const { return shared_read_only_heap_; }
@@ -355,30 +351,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
   V8_INLINE static IsolateGroup* GetDefault() { return default_isolate_group_; }
 
-  // Arms the given synchronization point. When a thread reaches it, it will
-  // block for the specified timeout (or less, if the point is resumed).
-  void SetBlockAtSynchronizationPointForTesting(
-      std::string synchronization_point, base::TimeDelta timeout);
-  // Resumes a thread currently blocked at the given synchronization point.
-  // Returns false if it wasn't armed.
-  bool ResumeSynchronizationPointForTesting(
-      std::string_view synchronization_point);
-  // Waits until the given synchronization point is reached by some thread.
-  // Returns false if it wasn't armed or on timeout (in which case `timed_out`
-  // is set to true as well). Note: this does not arm the synchronization point;
-  // it must be armed first.
-  bool WaitUntilBlockedForTesting(std::string_view synchronization_point,
-                                  base::TimeDelta timeout, bool& timed_out);
-  // Called when the synchronization point is reached; blocks if it was armed.
-  V8_INLINE void DoSynchronizationPointForTesting(
-      std::string_view synchronization_point) {
-    if (!any_synchronization_point_for_testing_.load(std::memory_order_relaxed))
-        [[likely]] {
-      return;
-    }
-    DoSynchronizationPointForTestingSlow(synchronization_point);
-  }
-
  private:
   friend class base::LeakyObject<IsolateGroup>;
   friend class MemoryPool;
@@ -407,27 +379,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   static IsolateGroup* current_non_inlined();
   static void set_current_non_inlined(IsolateGroup* group);
 #endif
-
-  void DoSynchronizationPointForTestingSlow(
-      std::string_view synchronization_point);
-
-  struct SynchronizationPointDataForTesting {
-    base::ConditionVariable cv;
-    // Set to true to signal that any thread that reaches this point should
-    // block.
-    bool block_requested = false;
-    // Number of threads that have reached the point and are currently blocked.
-    int blocked_threads = 0;
-    // The identity of the thread that set the `block_requested` flag.
-    ThreadId block_requester_thread = ThreadId::Invalid();
-    // How long a thread should remain blocked, unless resumed.
-    base::TimeDelta block_timeout;
-  };
-  std::atomic<bool> any_synchronization_point_for_testing_{false};
-  base::Mutex synchronization_point_mutex_for_testing_;
-  std::map<std::string, std::unique_ptr<SynchronizationPointDataForTesting>,
-           std::less<>>
-      synchronization_point_data_for_testing_;
 
   std::atomic<int> reference_count_{1};
   v8::PageAllocator* page_allocator_ = nullptr;
@@ -458,6 +409,8 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
   std::unique_ptr<ReadOnlyArtifacts> read_only_artifacts_;
   ReadOnlyHeap* shared_read_only_heap_ = nullptr;
   Isolate* shared_space_isolate_ = nullptr;
+  // Used to track and safepoint all isolates in this isolate group.
+  std::unique_ptr<GlobalSafepoint> global_safepoint_;
   std::unique_ptr<OptimizingCompileTaskExecutor>
       optimizing_compile_task_executor_;
 
@@ -484,10 +437,5 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 
 }  // namespace internal
 }  // namespace v8
-
-// A synchronization point that allows background threads to be predictably
-// blocked and resumed by JS testing intrinsics (%BlockAt and %Resume).
-#define SYNCHRONIZATION_POINT_FOR_TESTING(sync_point_name) \
-  IsolateGroup::current()->DoSynchronizationPointForTesting(sync_point_name)
 
 #endif  // V8_INIT_ISOLATE_GROUP_H_

@@ -19,6 +19,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "api/media_types.h"
 #include "api/rtc_error.h"
 #include "api/rtp_header_extension_id.h"
 #include "api/rtp_transceiver_direction.h"
@@ -139,6 +140,9 @@ bool RtpCodec::IsResiliencyCodec() const {
 }
 bool RtpCodec::IsMediaCodec() const {
   return !IsResiliencyCodec() && name != kComfortNoiseCodecName;
+}
+std::string RtpCodec::mime_type() const {
+  return (StringBuilder() << MediaTypeToString(kind) << "/" << name).Release();
 }
 RtpCodecCapability::RtpCodecCapability() = default;
 RtpCodecCapability::~RtpCodecCapability() = default;

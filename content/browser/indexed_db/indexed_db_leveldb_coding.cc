@@ -1149,13 +1149,12 @@ int CompareEncodedBinary(std::string_view* slice1,
 }
 
 static int CompareInts(int64_t a, int64_t b) {
-  CHECK_GE(a, 0);
-  CHECK_GE(b, 0);
-  int64_t diff = a - b;
-  if (diff < 0)
-    return -1;
-  if (diff > 0)
+  if (a > b) {
     return 1;
+  }
+  if (b > a) {
+    return -1;
+  }
   return 0;
 }
 

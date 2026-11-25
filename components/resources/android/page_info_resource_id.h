@@ -26,7 +26,7 @@
 // Good:
 DECLARE_RESOURCE_ID(IDR_PAGEINFO_GOOD, R.drawable.omnibox_https_valid_lock)
 // Good (new version):
-DECLARE_RESOURCE_ID(IDR_PAGEINFO_GOOD_NEW, R.drawable.lock)
+DECLARE_RESOURCE_ID(IDR_PAGEINFO_GOOD_NEW, R.drawable.ic_lock_24dp)
 // Bad:
 DECLARE_RESOURCE_ID(IDR_PAGEINFO_BAD, R.drawable.omnibox_not_secure_warning)
 // Internal page:

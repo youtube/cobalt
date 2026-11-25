@@ -44,7 +44,8 @@ class FakeContentAnalysisDelegate : public ContentAnalysisDelegate {
                               std::string dm_token,
                               content::WebContents* web_contents,
                               Data data,
-                              CompletionCallback callback);
+                              CompletionCallback callback,
+                              DeepScanAccessPoint access_point);
   ~FakeContentAnalysisDelegate() override;
 
   // Use with ContentAnalysisDelegate::SetFactoryForTesting() to create
@@ -56,7 +57,8 @@ class FakeContentAnalysisDelegate : public ContentAnalysisDelegate {
       std::string dm_token,
       content::WebContents* web_contents,
       Data data,
-      CompletionCallback callback);
+      CompletionCallback callback,
+      DeepScanAccessPoint access_point);
 
   // Sets a delay to have before returning responses. This is used by tests that
   // need to simulate response taking some time.

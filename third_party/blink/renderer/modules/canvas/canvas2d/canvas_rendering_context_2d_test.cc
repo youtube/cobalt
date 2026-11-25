@@ -102,9 +102,10 @@
 #include "third_party/blink/renderer/modules/webcodecs/video_frame.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_bitmap_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_hibernation_handler.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_types_3d.h"
@@ -579,12 +580,12 @@ void CanvasRenderingContext2DTestBase::TearDown() {
 
 //============================================================================
 
-class FakeCanvasResourceProvider : public Canvas2DResourceProviderSharedImage {
+class FakeCanvasResourceProvider : public Canvas2DResourceProvider {
  public:
   FakeCanvasResourceProvider(gfx::Size size,
                              RasterModeHint hint,
                              CanvasResourceProviderDelegate* delegate)
-      : Canvas2DResourceProviderSharedImage(
+      : Canvas2DResourceProvider(
             size,
             GetN32FormatForCanvas(),
             kPremul_SkAlphaType,
@@ -601,7 +602,7 @@ class FakeCanvasResourceProvider : public Canvas2DResourceProviderSharedImage {
         });
   }
   ~FakeCanvasResourceProvider() override = default;
-  scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason) override {
+  scoped_refptr<CanvasResource> ProduceCanvasResource() override {
     return scoped_refptr<CanvasResource>(
         CanvasResourceSharedImage::CreateForTesting(
             Size(), GetSharedImageFormat(), GetAlphaType(), GetColorSpace(),
@@ -3005,7 +3006,7 @@ TEST_P(CanvasRenderingContext2DTestAccelerated,
 
   Context2D()->fillRect(3, 3, 1, 1);
 
-  const Canvas2DResourceProviderSharedImage* provider =
+  const Canvas2DResourceProvider* provider =
       Context2D()->GetSharedImageProvider();
   ASSERT_THAT(provider, NotNull());
   EXPECT_EQ(provider->NumInflightResourcesForTesting(), 1);
@@ -3551,13 +3552,11 @@ TEST_P(CanvasRenderingContext2DTestLowLatency, LowLatencyIsSingleBuffered) {
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kGPU);
   EXPECT_TRUE(Context2D()->GetSharedImageProvider()->IsSingleBuffered());
   auto frame1_resource =
-      Context2D()->GetSharedImageProvider()->ProduceCanvasResource(
-          FlushReason::kOther);
+      Context2D()->GetSharedImageProvider()->ProduceCanvasResource();
   EXPECT_TRUE(frame1_resource);
   DrawSomething();
   auto frame2_resource =
-      Context2D()->GetSharedImageProvider()->ProduceCanvasResource(
-          FlushReason::kOther);
+      Context2D()->GetSharedImageProvider()->ProduceCanvasResource();
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
 }
@@ -3595,13 +3594,11 @@ TEST_P(CanvasRenderingContext2DTestSwapChain, LowLatencyIsSingleBuffered) {
   EXPECT_EQ(CanvasElement().GetRasterModeForCanvas2D(), RasterMode::kGPU);
   EXPECT_TRUE(Context2D()->GetSharedImageProvider()->IsSingleBuffered());
   auto frame1_resource =
-      Context2D()->GetSharedImageProvider()->ProduceCanvasResource(
-          FlushReason::kOther);
+      Context2D()->GetSharedImageProvider()->ProduceCanvasResource();
   EXPECT_TRUE(frame1_resource);
   DrawSomething();
   auto frame2_resource =
-      Context2D()->GetSharedImageProvider()->ProduceCanvasResource(
-          FlushReason::kOther);
+      Context2D()->GetSharedImageProvider()->ProduceCanvasResource();
   EXPECT_TRUE(frame2_resource);
   EXPECT_EQ(frame1_resource.get(), frame2_resource.get());
 }

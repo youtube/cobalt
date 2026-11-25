@@ -38,28 +38,7 @@
 
 namespace blink {
 
-namespace {
-
-ElementAnimations::CompositedPaintStatus CalculateStatusFromNativePaintReasons(
-    Animation::NativePaintWorkletReasons animation_type,
-    Animation::NativePaintWorkletReasons aggregated_reasons,
-    Animation::NativePaintWorkletReasons overlapping_reasons) {
-  if (animation_type & aggregated_reasons) {
-    return animation_type & overlapping_reasons
-               ? ElementAnimations::CompositedPaintStatus::kNotComposited
-               : ElementAnimations::CompositedPaintStatus::kNeedsRepaint;
-  }
-  return ElementAnimations::CompositedPaintStatus::kNoAnimation;
-}
-
-}  // namespace
-
-ElementAnimations::ElementAnimations()
-    : animation_style_change_(false),
-      composited_background_color_status_(static_cast<unsigned>(
-          CompositedPaintStatus::kNoAnimation)),
-      composited_clip_path_status_(static_cast<unsigned>(
-          CompositedPaintStatus::kNoAnimation)) {}
+ElementAnimations::ElementAnimations() : animation_style_change_(false) {}
 
 ElementAnimations::~ElementAnimations() = default;
 
@@ -74,7 +53,8 @@ void ElementAnimations::Trace(Visitor* visitor) const {
   visitor->Trace(effect_stack_);
   visitor->Trace(animations_);
   visitor->Trace(worklet_animations_);
-  visitor->Trace(clip_path_paint_worklet_candidate_);
+  visitor->Trace(background_color_npw_data_);
+  visitor->Trace(clip_path_npw_data_);
   NodeRareDataField::Trace(visitor);
 }
 
@@ -128,32 +108,39 @@ void ElementAnimations::RecalcCompositedStatusForKeyframeChange(
   if (!element.GetLayoutObject()) {
     return;
   }
-  if ((CompositedBackgroundColorStatus() ==
-       ElementAnimations::CompositedPaintStatus::kComposited) &&
-      (properties &
-       Animation::NativePaintWorkletProperties::kBackgroundColorPaintWorklet)) {
-    SetCompositedBackgroundColorStatus(
-        ElementAnimations::CompositedPaintStatus::kNeedsRepaint);
-    element.GetLayoutObject()->SetShouldDoFullPaintInvalidation();
+
+  if (background_color_npw_data_) {
+    background_color_npw_data_->SetNeedsKeyframeSnapshot();
   }
-  if ((CompositedClipPathStatus() ==
-       ElementAnimations::CompositedPaintStatus::kComposited) &&
-      (properties &
-       Animation::NativePaintWorkletProperties::kClipPathPaintWorklet)) {
-    SetCompositedClipPathStatus(
-        ElementAnimations::CompositedPaintStatus::kNeedsRepaint);
-    element.GetLayoutObject()->SetShouldDoFullPaintInvalidation();
-    // For clip paths, we also need to update the paint properties to switch
-    // from path based to mask based clip.
-    element.GetLayoutObject()->SetNeedsPaintPropertyUpdate();
+  if (clip_path_npw_data_) {
+    clip_path_npw_data_->SetNeedsKeyframeSnapshot();
   }
 }
 
+NativePaintWorkletData* ElementAnimations::EnsureBackgroundColorNpwData(
+    Element* element) {
+  if (!background_color_npw_data_) {
+    background_color_npw_data_ = MakeGarbageCollected<NativePaintWorkletData>(
+        element, Animation::kBackgroundColorPaintWorklet);
+  }
+  return background_color_npw_data_;
+}
+
+NativePaintWorkletData* ElementAnimations::EnsureClipPathNpwData(
+    Element* element) {
+  if (!clip_path_npw_data_) {
+    clip_path_npw_data_ = MakeGarbageCollected<NativePaintWorkletData>(
+        element, Animation::kClipPathPaintWorklet);
+    clip_path_npw_data_->SetUpdateTriggersPaintPropertyUpdate(true);
+  }
+  return clip_path_npw_data_;
+}
+
 void ElementAnimations::RecalcCompositedStatus(Element* element) {
-  clip_path_paint_worklet_candidate_ = nullptr;
   Animation::NativePaintWorkletReasons reasons = Animation::kNoPaintWorklet;
-  // Multiple animations targeting the same property cannot be compsoited as
-  // the compositor does not support composite-ordering.
+  // Multiple animations targeting the same property cannot be composited as
+  // the compositor does not support composite-ordering. The overlapping_reasons
+  // flag is used to catch this condition.
   Animation::NativePaintWorkletReasons overlapping_reasons =
       Animation::kNoPaintWorklet;
   for (auto& entry : Animations()) {
@@ -162,84 +149,69 @@ void ElementAnimations::RecalcCompositedStatus(Element* element) {
       continue;
     }
 
-    overlapping_reasons |= reasons & entry.key->GetNativePaintWorkletReasons();
-    reasons |= entry.key->GetNativePaintWorkletReasons();
+    Animation::NativePaintWorkletReasons reasons_to_add =
+        entry.key->GetNativePaintWorkletReasons();
 
-    if (entry.key->GetNativePaintWorkletReasons() &
-        Animation::kClipPathPaintWorklet) {
-      clip_path_paint_worklet_candidate_ = entry.key;
+    overlapping_reasons |= reasons & reasons_to_add;
+    reasons |= reasons_to_add;
+
+    if (reasons_to_add & Animation::kBackgroundColorPaintWorklet) {
+      EnsureBackgroundColorNpwData(element)->SetAnimation(entry.key);
+    }
+    if (reasons_to_add & Animation::kClipPathPaintWorklet) {
+      EnsureClipPathNpwData(element)->SetAnimation(entry.key);
     }
   }
 
-  if (RuntimeEnabledFeatures::CompositeBGColorAnimationEnabled()) {
-    ElementAnimations::CompositedPaintStatus status =
-        CalculateStatusFromNativePaintReasons(
-            Animation::kBackgroundColorPaintWorklet, reasons,
-            overlapping_reasons);
-    if (SetCompositedBackgroundColorStatus(status) &&
-        element->GetLayoutObject()) {
-      element->GetLayoutObject()->SetShouldDoFullPaintInvalidation();
-    }
+  if (background_color_npw_data_) {
+    background_color_npw_data_->UpdateCompositedPaintStatus(
+        reasons, overlapping_reasons);
   }
-  if (RuntimeEnabledFeatures::CompositeClipPathAnimationEnabled()) {
-    ElementAnimations::CompositedPaintStatus status =
-        CalculateStatusFromNativePaintReasons(Animation::kClipPathPaintWorklet,
-                                              reasons, overlapping_reasons);
-    // Must not run during paint or pre-paint. Can be run post-paint via JS,
-    // during stop due to detach, and post-layout from the post style animation
-    // update.
-    if ((element->GetDocument().Lifecycle().GetState() ==
-         DocumentLifecycle::kInPaint) ||
-        (((composited_clip_path_status_ ==
-           static_cast<unsigned>(
-               ElementAnimations::CompositedPaintStatus::kComposited)) ||
-          (composited_clip_path_status_ ==
-           static_cast<unsigned>(
-               ElementAnimations::CompositedPaintStatus::kNotComposited))) &&
-         (element->GetDocument().Lifecycle().GetState() ==
-          DocumentLifecycle::kInPrePaint))) {
-      DCHECK(false) << "Composited clip path status must not be reset "
-                    << "once it has been resolved in pre-paint.";
+
+  if (clip_path_npw_data_) {
+    DocumentLifecycle::LifecycleState state =
+        element->GetDocument().Lifecycle().GetState();
+    CompositedPaintStatus status = CompositedClipPathStatus();
+    bool has_compositing_decision =
+        status == CompositedPaintStatus::kComposited ||
+        status == CompositedPaintStatus::kNotComposited;
+    if (state == DocumentLifecycle::kInPrePaint && has_compositing_decision) {
+      DCHECK(false) << "A compositing decision must remain consistent "
+                    << "throughout the pre-paint phase of the document "
+                    << "lifecycle";
       base::debug::DumpWithoutCrashing();
     }
-    if (SetCompositedClipPathStatus(status) && element->GetLayoutObject()) {
-      element->GetLayoutObject()->SetShouldDoFullPaintInvalidation();
-      // For clip paths, we also need to update the paint properties to switch
-      // from path based to mask based clip.
-      element->GetLayoutObject()->SetNeedsPaintPropertyUpdate();
-    }
+    clip_path_npw_data_->UpdateCompositedPaintStatus(reasons,
+                                                     overlapping_reasons);
   }
+}
+
+bool ElementAnimations::SetCompositedPaintStatus(
+    Member<NativePaintWorkletData>& data,
+    CompositedPaintStatus status) {
+  bool result = false;
+  // ClipPathClipper::Fallback... and possibly other call sites set the paint
+  // status to not-composited without checking for an animation. It is safe to
+  // interpret this as "if there is an animation, it is not composited".
+  DCHECK(data || status == CompositedPaintStatus::kNotComposited ||
+         status == CompositedPaintStatus::kNoAnimation);
+  if (data) {
+    result = data->SetStatus(status);
+  }
+  if (status == CompositedPaintStatus::kNoAnimation) {
+    data = nullptr;
+  }
+  return result;
 }
 
 bool ElementAnimations::SetCompositedClipPathStatus(
     CompositedPaintStatus status) {
-  if (status == ElementAnimations::CompositedPaintStatus::kNotComposited ||
-      status == ElementAnimations::CompositedPaintStatus::kNoAnimation) {
-    if (clip_path_paint_worklet_candidate_ &&
-        clip_path_paint_worklet_candidate_->HasActiveAnimationsOnCompositor()) {
-      // This can some times be called during pre-paint, we need to ensure the
-      // animation is kept in sync!
-      clip_path_paint_worklet_candidate_->SetCompositorPending(
-          Animation::CompositorPendingReason::kPendingDowngrade);
-    }
-
-    clip_path_paint_worklet_candidate_ = nullptr;
-  }
-
-  if (static_cast<unsigned>(status) != composited_clip_path_status_) {
-    composited_clip_path_status_ = static_cast<unsigned>(status);
-    return true;
-  }
-  return false;
+  return SetCompositedPaintStatus(clip_path_npw_data_, status);
 }
 
 bool ElementAnimations::SetCompositedBackgroundColorStatus(
     CompositedPaintStatus status) {
-  if (static_cast<unsigned>(status) != composited_background_color_status_) {
-    composited_background_color_status_ = static_cast<unsigned>(status);
-    return true;
-  }
-  return false;
+  return SetCompositedPaintStatus(background_color_npw_data_, status);
 }
 
 void ElementAnimations::CancelCompositedAnimationsAffectingProperties(

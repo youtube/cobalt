@@ -815,7 +815,7 @@ class CcFbSendRateAdaptation : public TestWithParam<TestVariant> {
                                                 ->NodeBuilder()
                                                 .capacity_kbps(50)
                                                 .delay_ms(50)
-                                                .packet_queue_length(8)
+                                                .packet_queue_length(20)
                                                 .Build()
                                                 .node;
     EmulatedNetworkNode* callee_to_caller =
@@ -927,7 +927,7 @@ TEST_P(CcFbSendRateAdaptation, RtcpRateIncreaseWhenAudioStopSending) {
         }
       });
 
-  s.ProcessMessages(TimeDelta::Seconds(10));
+  s.ProcessMessages(TimeDelta::Seconds(15));
   TimeDelta duration = s.net()->Now() - start_time;
 
   DataRate average_rtcp_bitrate =

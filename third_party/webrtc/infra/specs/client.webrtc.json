@@ -11252,7 +11252,6 @@
             }
           ],
           "dimensions": {
-            "cores": "12",
             "cpu": "arm64",
             "os": "Mac-26"
           },
@@ -11303,7 +11302,6 @@
             }
           ],
           "dimensions": {
-            "cores": "12",
             "cpu": "arm64",
             "os": "Mac-26"
           },
@@ -12044,7 +12042,6 @@
             }
           ],
           "dimensions": {
-            "cores": "12",
             "cpu": "arm64",
             "os": "Mac-26"
           },
@@ -12095,7 +12092,6 @@
             }
           ],
           "dimensions": {
-            "cores": "12",
             "cpu": "arm64",
             "os": "Mac-26"
           },

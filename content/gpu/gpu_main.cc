@@ -356,7 +356,7 @@ int GpuMain(MainFunctionParams parameters) {
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #endif // !BUILDFLAG(IS_STARBOARD)
 
-  base::PlatformThread::SetCurrentThreadType(base::ThreadType::kPresentation);
+  base::PlatformThread::SetDefaultThreadType(base::ThreadType::kPresentation);
 
   auto gpu_init = std::make_unique<gpu::GpuInit>();
   ContentSandboxHelper sandbox_helper;

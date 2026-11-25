@@ -1234,6 +1234,22 @@ public class ContextMenuTest {
 
     @Test
     @MediumTest
+    @EnableFeatures(ChromeFeatureList.LENS_OVERLAY_ANDROID)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
+    public void testContextMenuRetrievesPageOptions_LensOverlay() throws TimeoutException {
+        GSAUtils.setFakePassableGsaEnvironmentForTesting(true);
+        Tab tab = mActivityTestRule.getActivityTab();
+        switchToDesktopUserAgent(tab);
+        mMenuCoordinator = ContextMenuUtils.openContextMenu(tab, "testEmptySpace");
+
+        Assert.assertNotNull(
+                "Lens Overlay item should be present in the context menu",
+                getMenuTitleFromItem(
+                        mMenuCoordinator, R.id.contextmenu_search_tab_with_google_lens));
+    }
+
+    @Test
+    @MediumTest
     @Restriction(DeviceFormFactor.DESKTOP)
     @DisabledTest(message = "https://crbug.com/445993228")
     @DisableFeatures({UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION})
@@ -1357,8 +1373,8 @@ public class ContextMenuTest {
                         () ->
                                 ContentFeatureMap.isEnabled(
                                                 ContentFeatureList.ANDROID_DEV_TOOLS_FRONTEND)
-                                        && DeviceInput.supportsAlphabeticKeyboard()
-                                        && DeviceInput.supportsPrecisionPointer()),
+                                        && DeviceFormFactor.isNonMultiDisplayContextOnTablet(
+                                                mActivityTestRule.getActivity())),
                 baseItems,
                 new Integer[] {R.id.contextmenu_inspect_element});
     }

@@ -185,11 +185,14 @@ test("components_unittests") {
 
   deps = [
     "//base",
-    "//components/accessibility_annotator/core:unit_tests",
+    "//components/accessibility_annotator/core/annotation_reducer:unit_tests",
+    "//components/accessibility_annotator/core/content_annotator:unit_tests",
+    "//components/accessibility_annotator/core/storage:unit_tests",
     "//components/account_settings:unit_tests",
     "//components/activity_reporter:unit_tests",
     "//components/actor/core:unit_tests",
     "//components/affiliations/core/browser:unit_tests",
+    "//components/affiliations/core/browser/domain_matching:unit_tests",
     "//components/aggregation_service:unit_tests",
     "//components/apdu:unit_tests",
     "//components/application_locale_storage:unit_tests",
@@ -363,6 +366,7 @@ test("components_unittests") {
     "//components/subresource_filter/core/browser:unit_tests",
     "//components/subresource_filter/core/common:unit_tests",
     "//components/subresource_filter/tools:unit_tests",
+    "//components/subscription_eligibility:unit_tests",
     "//components/sync:unit_tests",
     "//components/sync_bookmarks:unit_tests",
     "//components/sync_device_info:unit_tests",
@@ -971,6 +975,7 @@ test("components_unittests") {
       "//components/enterprise/platform_auth:unit_tests",
       "//components/remote_cocoa/app_shim:unit_tests",
       "//components/remote_cocoa/common:unit_tests",
+      "//components/wifi:unit_tests",
     ]
   }
 
@@ -1122,10 +1127,7 @@ if (is_android) {
         "//components/test/android/browsertests_apk/AndroidManifest.xml.jinja2"
     output =
         "${target_gen_dir}/components_browsertests_manifest/AndroidManifest.xml"
-    variables = [
-      "javaless_renderers=$enable_javaless_renderers",
-      "library_name=components_browsertests__library",
-    ]
+    variables = [ "library_name=components_browsertests__library" ]
   }
 
   android_resources("components_browsertests_resources") {
@@ -1289,6 +1291,7 @@ if (use_blink) {
       sources += [
         "pdf/browser/pdf_document_helper_browsertest.cc",
         "pdf/renderer/pdf_accessibility_tree_browsertest.cc",
+        "pdf/renderer/pdf_view_web_plugin_client_browsertest.cc",
       ]
       deps += [
         "//components/pdf/browser",

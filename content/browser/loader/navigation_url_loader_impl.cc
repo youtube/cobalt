@@ -804,8 +804,7 @@ void NavigationURLLoaderImpl::CreateInterceptors() {
         interceptors_.push_back(std::make_unique<PrefetchURLLoaderInterceptor>(
             PrefetchServiceWorkerState::kControlled,
             service_worker_handle_->AsWeakPtr(), frame_tree_node_id_,
-            request_info_->initiator_document_token,
-            request_info_->prefetch_serving_page_metrics_container));
+            request_info_->initiator_document_token));
       }
 
       interceptors_.push_back(std::move(service_worker_interceptor));
@@ -827,8 +826,7 @@ void NavigationURLLoaderImpl::CreateInterceptors() {
   interceptors_.push_back(std::make_unique<PrefetchURLLoaderInterceptor>(
       PrefetchServiceWorkerState::kDisallowed,
       /*service_worker_handle=*/nullptr, frame_tree_node_id_,
-      request_info_->initiator_document_token,
-      request_info_->prefetch_serving_page_metrics_container));
+      request_info_->initiator_document_token));
 
   // See if embedders want to add interceptors.
   std::vector<std::unique_ptr<URLLoaderRequestInterceptor>>
@@ -1601,8 +1599,11 @@ void NavigationURLLoaderImpl::OnReceiveRedirect(
           ? head->bypass_redirect_checks
           : bypass_redirect_checks_;
 
-  if (!bypass_redirect_checks &&
-      !IsSafeRedirectTarget(url_, redirect_info.new_url)) {
+  if (url_.SchemeIsBlob()) {
+    // Loading a blob URL never produces a redirect.
+    error = net::ERR_UNSAFE_REDIRECT;
+  } else if (!bypass_redirect_checks &&
+             !IsSafeRedirectTarget(url_, redirect_info.new_url)) {
     error = net::ERR_UNSAFE_REDIRECT;
   } else if (--redirect_limit_ == 0) {
     error = net::ERR_TOO_MANY_REDIRECTS;
@@ -2170,9 +2171,23 @@ NavigationURLLoaderImpl::NavigationURLLoaderImpl(
       std::move(device_bound_session_observer),
       std::move(accept_ch_frame_observer));
 
+  allow_same_site_none_cookies_override_ =
+      ShouldAllowSameSiteNoneCookiesInSandbox(*frame_tree_node);
   network_loader_factory_ = CreateNetworkLoaderFactory(
       browser_context_, storage_partition_, frame_tree_node,
-      ukm::SourceIdObj::FromInt64(ukm_source_id_), &bypass_redirect_checks_);
+      ukm::SourceIdObj::FromInt64(ukm_source_id_), &bypass_redirect_checks_,
+      allow_same_site_none_cookies_override_);
+
+  if (base::FeatureList::IsEnabled(
+          network::features::kBrowserInitiatedFileUploadValidation) &&
+      resource_request_->request_body) {
+    std::vector<base::FilePath> files =
+        resource_request_->request_body->GetReferencedFiles();
+    if (!files.empty()) {
+      scoped_browser_file_access_ =
+          std::make_unique<ScopedBrowserFileAccess>(std::move(files));
+    }
+  }
 }
 
 // static
@@ -2256,7 +2271,8 @@ NavigationURLLoaderImpl::CreateNetworkLoaderFactory(
     StoragePartitionImpl* storage_partition,
     FrameTreeNode* frame_tree_node,
     const ukm::SourceIdObj& ukm_id,
-    bool* bypass_redirect_checks) {
+    bool* bypass_redirect_checks,
+    bool allow_same_site_none_cookies_override) {
   mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
       header_client;
 
@@ -2288,7 +2304,7 @@ NavigationURLLoaderImpl::CreateNetworkLoaderFactory(
       devtools_params.agent_host(), devtools_cookie_overrides);
 
   net::CookieSettingOverrides cookie_overrides;
-  if (ShouldAllowSameSiteNoneCookiesInSandbox(*frame_tree_node)) {
+  if (allow_same_site_none_cookies_override) {
     // Include a CookieSettingOverride in the UrlLoaderFactoryParams for the
     // frame's SharedURLLoaderFactory if the frame contains the
     // `allow-same-site-none-cookies` value in its sandbox policy.
@@ -2368,6 +2384,27 @@ void NavigationURLLoaderImpl::FollowRedirect(
   resource_request_->UpdateOnRedirect(redirect_info_);
   resource_request_->navigation_redirect_chain.push_back(
       redirect_info_.new_url);
+
+  // The decision to apply the SameSite=None sandbox override depends on the
+  // navigation's tentative origin, which may change after a redirect. Recreate
+  // the network factory and reset the loader if the decision changes so the
+  // override is not applied to the redirected request.
+  if (FrameTreeNode* frame_tree_node =
+          FrameTreeNode::GloballyFindByID(frame_tree_node_id_);
+      frame_tree_node && frame_tree_node->navigation_request()) {
+    const bool allow_same_site_none_cookies_override =
+        ShouldAllowSameSiteNoneCookiesInSandbox(*frame_tree_node);
+    if (allow_same_site_none_cookies_override !=
+        allow_same_site_none_cookies_override_) {
+      allow_same_site_none_cookies_override_ =
+          allow_same_site_none_cookies_override;
+      network_loader_factory_ = CreateNetworkLoaderFactory(
+          browser_context_, storage_partition_, frame_tree_node,
+          ukm::SourceIdObj::FromInt64(ukm_source_id_), &bypass_redirect_checks_,
+          allow_same_site_none_cookies_override_);
+      default_loader_used_ = false;
+    }
+  }
 
   if (base::FeatureList::IsEnabled(
           network::features::kOffloadAcceptCHFrameCheck)) {

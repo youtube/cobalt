@@ -49,6 +49,7 @@
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_constants.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_remover_delegate_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/critical_actions/critical_action_factory.h"
 #include "chrome/browser/custom_handlers/protocol_handler_registry_factory.h"
 #include "chrome/browser/domain_reliability/service_factory.h"
 #include "chrome/browser/download/chrome_download_manager_delegate.h"
@@ -107,6 +108,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/bookmarks/common/bookmark_features.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
 #include "components/browsing_data/content/browsing_data_helper.h"
 #include "components/browsing_data/core/browsing_data_utils.h"
@@ -124,6 +126,8 @@
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/content_settings/core/common/content_settings_utils.h"
 #include "components/content_settings/core/test/content_settings_test_utils.h"
+#include "components/critical_actions/core/browser/critical_action_service.h"
+#include "components/critical_actions/core/browser/features.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/test_protocol_handler_registry_delegate.h"
@@ -1788,6 +1792,45 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, RemoveHistoryForever) {
   EXPECT_FALSE(tester.HistoryContainsURL(kOrigin1));
 }
 
+TEST_F(ChromeBrowsingDataRemoverDelegateTest, ClearCriticalActionsHistory) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      critical_actions::features::kCriticalActionHistory);
+
+  critical_actions::CriticalActionService* critical_action_service =
+      critical_actions::CriticalActionFactory::GetForProfile(GetProfile());
+  ASSERT_NE(critical_action_service, nullptr);
+
+  base::Time time = base::Time::Now() - base::Hours(1);
+  critical_actions::CriticalActionEntry entry;
+  entry.critical_action_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  entry.timestamp = time;
+  entry.action_type = critical_actions::ActionType::kFormFill;
+  critical_action_service->AddCriticalAction(entry);
+
+  // Verify the entry has been successfully added to the database.
+  {
+    base::test::TestFuture<std::optional<critical_actions::CriticalActionEntry>>
+        get_future;
+    critical_action_service->GetCriticalAction(entry.critical_action_id,
+                                               get_future.GetCallback());
+    ASSERT_TRUE(get_future.Get().has_value());
+  }
+
+  // Trigger browsing data removal for history.
+  BlockUntilBrowsingDataRemoved(base::Time(), base::Time::Max(),
+                                constants::DATA_TYPE_HISTORY, false);
+
+  // Verify the entry has been deleted from the database.
+  {
+    base::test::TestFuture<std::optional<critical_actions::CriticalActionEntry>>
+        get_future;
+    critical_action_service->GetCriticalAction(entry.critical_action_id,
+                                               get_future.GetCallback());
+    EXPECT_FALSE(get_future.Get().has_value());
+  }
+}
+
 TEST_F(ChromeBrowsingDataRemoverDelegateTest, RemoveHistoryForLastHour) {
   RemoveHistoryTester tester;
   ASSERT_TRUE(tester.Init(GetProfile()));
@@ -2059,12 +2102,24 @@ TEST_F(ChromeBrowsingDataRemoverDelegateTest, RemoveFaviconsForever) {
   EXPECT_FALSE(favicon_tester.HasFaviconForPageURL(page_url));
 }
 
+// TODO(crbug.com/435317726): There appears to be a race issue between the
+// history service and bookmark model here, it should be cleaned up as part of
+// the removal of kEncryptBookmarks.
+class ChromeBrowsingDataRemoverDelegateCleartextBookmarks
+    : public ChromeBrowsingDataRemoverDelegateTest {
+ public:
+  ChromeBrowsingDataRemoverDelegateCleartextBookmarks() {
+    feature_list_.InitWithFeatures({}, {bookmarks::kEncryptBookmarks});
+  }
+};
+
 // Test that a bookmark's favicon is expired and not deleted when clearing
 // history. Expiring the favicon causes the bookmark's favicon to be updated
 // when the user next visits the bookmarked page. Expiring the bookmark's
 // favicon is useful when the bookmark's favicon becomes incorrect (See
 // crbug.com/40412723 for a sample bug which causes this).
-TEST_F(ChromeBrowsingDataRemoverDelegateTest, ExpireBookmarkFavicons) {
+TEST_F(ChromeBrowsingDataRemoverDelegateCleartextBookmarks,
+       ExpireBookmarkFavicons) {
   GURL bookmarked_page("http://a");
 
   TestingProfile* profile = GetProfile();

@@ -7,11 +7,25 @@
 #include <optional>
 
 #include "components/autofill/core/browser/field_types.h"
+#include "components/send_tab_to_self/page_context.h"
 #include "components/sync/protocol/send_tab_to_self_specifics.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace send_tab_to_self {
 namespace {
+
+// Helper to create a sync_pb::FormField with the given attributes.
+sync_pb::FormField CreateProtoFormField(const std::string& id,
+                                        const std::string& name,
+                                        const std::string& control_type,
+                                        const std::string& value) {
+  sync_pb::FormField field;
+  field.set_id_attribute(id);
+  field.set_name_attribute(name);
+  field.set_form_control_type(control_type);
+  field.set_value(value);
+  return field;
+}
 
 TEST(SendTabToSelfProtoConversionsTest, AutofillFieldTypeToProto_FillableType) {
   EXPECT_EQ(AutofillFieldTypeToProto(autofill::EMAIL_ADDRESS),
@@ -25,6 +39,19 @@ TEST(SendTabToSelfProtoConversionsTest,
   EXPECT_EQ(AutofillFieldTypeToProto(autofill::UNKNOWN_TYPE), std::nullopt);
   EXPECT_EQ(AutofillFieldTypeToProto(autofill::MERCHANT_EMAIL_SIGNUP),
             std::nullopt);
+}
+
+// Tests that PageContextFromProto skips form fields with an invalid
+// form control type, ensuring only valid types are processed.
+TEST(SendTabToSelfProtoConversionsTest,
+     PageContextFromProto_InvalidControlType) {
+  sync_pb::PageContext pb_context;
+  *pb_context.mutable_form_field_info()->add_fields() =
+      CreateProtoFormField("id", "name", "invalid_type", "value");
+
+  PageContext context = PageContextFromProto(pb_context);
+  // The invalid field should have been skipped.
+  EXPECT_TRUE(context.form_field_info.fields.empty());
 }
 
 }  // namespace

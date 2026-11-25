@@ -357,6 +357,14 @@ api::autofill_private::AttributeType AttributeTypeToPrivateApiAttributeType(
 
 std::vector<api::autofill_private::AttributeType> GetRequiredAttributesForType(
     autofill::EntityType entity_type) {
+  // Read-only entity types cannot be created or updated in the UI, so they
+  // do not have required fields in the UI context. Bypassing them also
+  // prevents hitting a CHECK on complex constraints (e.g. for Orders/Shipments)
+  // which the UI cannot represent.
+  if (entity_type.read_only()) {
+    return {};
+  }
+
   return base::ToVector(entity_type.import_constraints(), [](autofill::DenseSet<
                                                               AttributeType>
                                                                  group) {

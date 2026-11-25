@@ -2,15 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/ozone.gni")
 import("//chrome/common/features.gni")
 
 # No absolute !is_android wrapper for the whole file.
 
 source_set("browser_ui") {
   sources = [
-    "glic_actor_nudge_delegate.h",
     "glic_nudge_controller.h",
-    "glic_nudge_delegate.h",
     "glic_split_button_delegate.h",
   ]
 
@@ -59,9 +58,8 @@ source_set("browser_ui") {
 
 source_set("impl") {
   sources = [
-    "glic_actor_nudge_delegate.cc",
     "glic_nudge_controller.cc",
-    "glic_nudge_delegate.cc",
+    "glic_split_button_delegate.cc",
   ]
   if (!is_android) {
     sources += [
@@ -276,6 +274,9 @@ if (!is_android) {
       "//ui/views:test_support",
       "//url",
     ]
+    if (use_ozone) {
+      deps += [ "//ui/ozone" ]
+    }
   }
 
   source_set("browser_tests") {

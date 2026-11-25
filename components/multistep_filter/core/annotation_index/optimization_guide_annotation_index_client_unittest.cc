@@ -1,0 +1,256 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "components/multistep_filter/core/annotation_index/optimization_guide_annotation_index_client.h"
+
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "base/functional/callback.h"
+#include "base/test/task_environment.h"
+#include "base/test/test_future.h"
+#include "components/multistep_filter/core/annotation_index/annotation_index_test_utils.h"
+#include "components/multistep_filter/core/annotation_index/proto/annotation_index.pb.h"
+#include "components/multistep_filter/core/data_models/filter_annotation.h"
+#include "components/multistep_filter/core/data_models/filter_suggestion_candidate.h"
+#include "components/optimization_guide/core/hints/mock_optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_metadata.h"
+#include "components/optimization_guide/core/optimization_guide_proto_util.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
+
+namespace multistep_filter {
+
+namespace {
+
+using ::optimization_guide::AnyWrapProto;
+using ::optimization_guide::MockOptimizationGuideDecider;
+using ::optimization_guide::OptimizationGuideDecision;
+using ::optimization_guide::OptimizationGuideDecisionCallback;
+using ::optimization_guide::OptimizationMetadata;
+using ::optimization_guide::proto::Any;
+using ::optimization_guide::proto::OptimizationType;
+using ::testing::_;
+using ::testing::A;
+using ::testing::NiceMock;
+using ::testing::WithArgs;
+
+constexpr int64_t kTestNavigationId = 12345;
+constexpr char kTestUrl[] = "https://example.com/test";
+constexpr char kTestTaskType1[] = "TASK_TYPE_1";
+constexpr char kTestTaskType2[] = "TASK_TYPE_2";
+constexpr char kTestTaskTypeShopping[] = "SHOPPING";
+constexpr char kTestAttributeKey[] = "key";
+constexpr char kTestAttributeValue[] = "value";
+constexpr char kGetSupportedTasksResponseUrl[] =
+    "type.googleapis.com/multistep_filter.GetSupportedTasksResponse";
+constexpr char kExtractTaskAttributesResponseUrl[] =
+    "type.googleapis.com/multistep_filter.ExtractTaskAttributesResponse";
+
+OptimizationMetadata CreateOptimizationMetadata(const Any& any_metadata) {
+  OptimizationMetadata metadata;
+  metadata.set_any_metadata(any_metadata);
+  return metadata;
+}
+
+OptimizationMetadata CreateMalformedOptimizationMetadata(
+    std::string_view type_url) {
+  Any any_metadata;
+  any_metadata.set_type_url(type_url);
+  any_metadata.set_value("kInvalidProtobufBytes");
+  return CreateOptimizationMetadata(any_metadata);
+}
+
+class OptimizationGuideAnnotationIndexClientTest : public testing::Test {
+ public:
+  OptimizationGuideAnnotationIndexClientTest() {
+    client_ = std::make_unique<OptimizationGuideAnnotationIndexClient>(
+        &mock_decider_, /*log_router=*/nullptr);
+  }
+  ~OptimizationGuideAnnotationIndexClientTest() override = default;
+
+ protected:
+  void SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision decision,
+      OptimizationType optimization_type,
+      const OptimizationMetadata& metadata) {
+    EXPECT_CALL(mock_decider_,
+                CanApplyOptimization(GURL(kTestUrl), optimization_type,
+                                     A<OptimizationGuideDecisionCallback>()))
+        .WillOnce(WithArgs<2>(
+            [decision, metadata](OptimizationGuideDecisionCallback callback) {
+              std::move(callback).Run(decision, metadata);
+            }));
+  }
+
+  base::test::TaskEnvironment task_environment_;
+  NiceMock<MockOptimizationGuideDecider> mock_decider_;
+  std::unique_ptr<OptimizationGuideAnnotationIndexClient> client_;
+};
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       GetFilterSuggestionCandidatesTriggersCallback) {
+  base::test::TestFuture<std::optional<std::vector<FilterSuggestionCandidate>>>
+      future;
+  std::vector<FilterAnnotation> annotations;
+
+  client_->GetFilterSuggestionCandidates(
+      GURL(kTestUrl), annotations, future.GetCallback(), kTestNavigationId);
+
+  EXPECT_EQ(future.Take(), std::nullopt);
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       GetSupportedTasks_ValidMetadata_ReturnsSupportedTasks) {
+  std::vector<std::string> expected_tasks = {kTestTaskType1, kTestTaskType2};
+  GetSupportedTasksResponse response_proto =
+      CreateSupportedTasksResponse(expected_tasks);
+  OptimizationMetadata metadata =
+      CreateOptimizationMetadata(AnyWrapProto(response_proto));
+  SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision::kTrue,
+      OptimizationType::FILTER_TASKS_SUPPORTED, metadata);
+
+  base::test::TestFuture<std::vector<std::string>> future;
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
+
+  EXPECT_EQ(future.Take(), expected_tasks);
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       GetSupportedTasks_FalseDecision_ReturnsEmptyVector) {
+  SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision::kFalse,
+      OptimizationType::FILTER_TASKS_SUPPORTED, OptimizationMetadata());
+
+  base::test::TestFuture<std::vector<std::string>> future;
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
+
+  EXPECT_TRUE(future.Take().empty());
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       GetSupportedTasks_NoMetadata_ReturnsEmptyVector) {
+  SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision::kTrue,
+      OptimizationType::FILTER_TASKS_SUPPORTED, OptimizationMetadata());
+
+  base::test::TestFuture<std::vector<std::string>> future;
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
+
+  EXPECT_TRUE(future.Take().empty());
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       GetSupportedTasks_MalformedMetadata_ReturnsEmptyVector) {
+  OptimizationMetadata metadata =
+      CreateMalformedOptimizationMetadata(kGetSupportedTasksResponseUrl);
+  SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision::kTrue,
+      OptimizationType::FILTER_TASKS_SUPPORTED, metadata);
+
+  base::test::TestFuture<std::vector<std::string>> future;
+  client_->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                             kTestNavigationId);
+
+  EXPECT_TRUE(future.Take().empty());
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       GetSupportedTasks_NullDecider_ReturnsEmptyVector) {
+  auto client = std::make_unique<OptimizationGuideAnnotationIndexClient>(
+      /*optimization_guide_decider=*/nullptr, /*log_router=*/nullptr);
+
+  base::test::TestFuture<std::vector<std::string>> future;
+  client->GetSupportedTasks(GURL(kTestUrl), future.GetCallback(),
+                            kTestNavigationId);
+
+  EXPECT_TRUE(future.Take().empty());
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       ExtractFilterAnnotation_ValidMetadata_ReturnsAnnotation) {
+  ExtractTaskAttributesResponse response_proto =
+      CreateExtractTaskAttributesResponse(
+          kTestTaskTypeShopping, {{kTestAttributeKey, kTestAttributeValue}});
+  OptimizationMetadata metadata =
+      CreateOptimizationMetadata(AnyWrapProto(response_proto));
+  SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision::kTrue,
+      OptimizationType::FILTER_EXTRACT_ATTRIBUTES, metadata);
+
+  base::test::TestFuture<std::optional<FilterAnnotation>> future;
+  client_->ExtractFilterAnnotation(GURL(kTestUrl), future.GetCallback(),
+                                   kTestNavigationId);
+
+  std::optional<FilterAnnotation> annotation = future.Take();
+  ASSERT_TRUE(annotation.has_value());
+  EXPECT_EQ(annotation->task_type, kTestTaskTypeShopping);
+  ASSERT_EQ(annotation->attributes.size(), 1u);
+  EXPECT_EQ(annotation->attributes[0].key, kTestAttributeKey);
+  EXPECT_EQ(annotation->attributes[0].value, kTestAttributeValue);
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       ExtractFilterAnnotation_FalseDecision_ReturnsNullopt) {
+  SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision::kFalse,
+      OptimizationType::FILTER_EXTRACT_ATTRIBUTES, OptimizationMetadata());
+
+  base::test::TestFuture<std::optional<FilterAnnotation>> future;
+  client_->ExtractFilterAnnotation(GURL(kTestUrl), future.GetCallback(),
+                                   kTestNavigationId);
+
+  EXPECT_EQ(future.Take(), std::nullopt);
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       ExtractFilterAnnotation_NoMetadata_ReturnsNullopt) {
+  SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision::kTrue,
+      OptimizationType::FILTER_EXTRACT_ATTRIBUTES, OptimizationMetadata());
+
+  base::test::TestFuture<std::optional<FilterAnnotation>> future;
+  client_->ExtractFilterAnnotation(GURL(kTestUrl), future.GetCallback(),
+                                   kTestNavigationId);
+
+  EXPECT_EQ(future.Take(), std::nullopt);
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       ExtractFilterAnnotation_MalformedMetadata_ReturnsNullopt) {
+  OptimizationMetadata metadata =
+      CreateMalformedOptimizationMetadata(kExtractTaskAttributesResponseUrl);
+  SetupOptimizationGuideDeciderResponse(
+      OptimizationGuideDecision::kTrue,
+      OptimizationType::FILTER_EXTRACT_ATTRIBUTES, metadata);
+
+  base::test::TestFuture<std::optional<FilterAnnotation>> future;
+  client_->ExtractFilterAnnotation(GURL(kTestUrl), future.GetCallback(),
+                                   kTestNavigationId);
+
+  EXPECT_EQ(future.Take(), std::nullopt);
+}
+
+TEST_F(OptimizationGuideAnnotationIndexClientTest,
+       ExtractFilterAnnotation_NullDecider_ReturnsNullopt) {
+  auto client = std::make_unique<OptimizationGuideAnnotationIndexClient>(
+      /*optimization_guide_decider=*/nullptr, /*log_router=*/nullptr);
+
+  base::test::TestFuture<std::optional<FilterAnnotation>> future;
+  client->ExtractFilterAnnotation(GURL(kTestUrl), future.GetCallback(),
+                                  kTestNavigationId);
+
+  EXPECT_EQ(future.Take(), std::nullopt);
+}
+
+}  // namespace
+
+}  // namespace multistep_filter

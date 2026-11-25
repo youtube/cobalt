@@ -84,7 +84,7 @@ class StackCheckLoweringReducer : public Next {
 #ifdef V8_ENABLE_WEBASSEMBLY
   // Returns V<None> or V<WordPtr> or V<Tuple<WordPtr, WordPtr>> depending on
   // inputs.
-  V<Any> REDUCE(WasmStackCheck)(
+  V<AnyOrNone> REDUCE(WasmStackCheck)(
       OptionalV<WasmTrustedInstanceData> trusted_instance_data,
       OptionalV<WordPtr> memory_start, OptionalV<WordPtr> memory_size,
       WasmStackCheckOp::Kind kind) {
@@ -120,11 +120,9 @@ class StackCheckLoweringReducer : public Next {
           MemoryRepresentation::UintPtr(), IsolateData::jslimit_offset());
       IF_NOT (LIKELY(
                   __ StackPointerGreaterThan(limit, StackCheckKind::kWasm))) {
-        OpEffects effects =
-            OpEffects().CanReadMemory().CanAllocate().CanThrowOrTrap();
         V<WordPtr> target =
             __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuard);
-        __ Call(target, {}, ts_call_descriptor, effects);
+        __ Call(target, {}, ts_call_descriptor);
       }
       DCHECK(!memory_start.valid());
       DCHECK(!memory_size.valid());
@@ -144,12 +142,9 @@ class StackCheckLoweringReducer : public Next {
         IsolateData::no_heap_write_interrupt_request_offset());
 
     IF_NOT (LIKELY(__ Word32Equal(limit, 0))) {
-      // Pass custom effects to the `Call` node to mark it as non-writing.
-      OpEffects effects =
-          OpEffects().CanReadMemory().RequiredWhenUnused().CanAllocate();
       V<WordPtr> target =
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmStackGuardLoop);
-      __ Call(target, {}, ts_call_descriptor, effects);
+      __ Call(target, {}, ts_call_descriptor);
 
       if (memory_start.valid() || memory_size.valid()) {
         DCHECK(trusted_instance_data.valid());
@@ -168,11 +163,11 @@ class StackCheckLoweringReducer : public Next {
       }
     }
     if (memory_start.valid() && memory_size.valid()) {
-      return __ MakeTuple(new_mem_start.Get(), new_mem_size.Get());
+      return __ MakeTuple(new_mem_start, new_mem_size);
     } else if (memory_start.valid()) {
-      return new_mem_start.Get();
+      return new_mem_start;
     } else if (memory_size.valid()) {
-      return new_mem_size.Get();
+      return new_mem_size;
     }
     return V<None>::Invalid();
   }

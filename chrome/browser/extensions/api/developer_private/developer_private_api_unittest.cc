@@ -1889,30 +1889,6 @@ TEST_F(DeveloperPrivateApiUnitTest, InstallDroppedFileCrx) {
   EXPECT_EQ("foo", extension->name());
 }
 
-TEST_F(DeveloperPrivateApiUnitTest, InstallDroppedFileUserScript) {
-  base::FilePath script_path =
-      data_dir().AppendASCII("user_script_basic.user.js");
-  base::AutoReset<bool> disable_ui =
-      ExtensionInstallUI::disable_ui_for_tests(true);
-  ScopedTestDialogAutoConfirm auto_confirm(ScopedTestDialogAutoConfirm::ACCEPT);
-
-  std::unique_ptr<content::WebContents> web_contents(
-      content::WebContentsTester::CreateTestWebContents(profile(), nullptr));
-  SetDraggedFile(web_contents.get(), script_path);
-
-  auto function =
-      base::MakeRefCounted<api::DeveloperPrivateInstallDroppedFileFunction>();
-  function->SetRenderFrameHost(web_contents->GetPrimaryMainFrame());
-
-  TestExtensionRegistryObserver observer(registry());
-  ASSERT_TRUE(api_test_utils::RunFunction(function.get(), "[]", profile()))
-      << function->GetError();
-  scoped_refptr<const Extension> extension =
-      observer.WaitForExtensionInstalled();
-  ASSERT_TRUE(extension);
-  EXPECT_EQ("My user script", extension->name());
-}
-
 TEST_F(DeveloperPrivateApiUnitTest, GrantHostPermission) {
   scoped_refptr<const Extension> extension =
       ExtensionBuilder("test").AddHostPermission("<all_urls>").Build();

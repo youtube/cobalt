@@ -18,6 +18,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
+import android.provider.MediaStore;
 
 import org.junit.Before;
 import org.junit.Ignore;
@@ -438,9 +439,19 @@ public class FileUtilsTest {
 
     private static class TestContentProvider extends ContentProvider {
         private final HashMap<String, String> mUriToFilename;
+        private File mInsertedFile;
+        private ContentValues mInsertedValues;
 
         public TestContentProvider() {
             mUriToFilename = new HashMap<String, String>();
+        }
+
+        public void setInsertedFileForTest(File file) {
+            mInsertedFile = file;
+        }
+
+        public ContentValues getInsertedValues() {
+            return mInsertedValues;
         }
 
         public void insertForTest(String uriString, String filename) {
@@ -452,9 +463,14 @@ public class FileUtilsTest {
             String uriString = uri.toString();
             if (mUriToFilename.containsKey(uriString)) {
                 String filename = mUriToFilename.get(uriString);
-                // Throws FileNotFoundException if |filename| is bogus.
-                return ParcelFileDescriptor.open(
-                        new File(filename), ParcelFileDescriptor.MODE_READ_ONLY);
+                int fileMode = ParcelFileDescriptor.MODE_READ_ONLY;
+                if (mode.contains("w")) {
+                    fileMode =
+                            ParcelFileDescriptor.MODE_WRITE_ONLY
+                                    | ParcelFileDescriptor.MODE_CREATE
+                                    | ParcelFileDescriptor.MODE_TRUNCATE;
+                }
+                return ParcelFileDescriptor.open(new File(filename), fileMode);
             }
             return null;
         }
@@ -479,18 +495,32 @@ public class FileUtilsTest {
             return null;
         }
 
+        // This function is currently only used for copyFileToDownloadsCollection, hence the
+        // Downloads restriction.
         @Override
         public Uri insert(Uri uri, ContentValues values) {
+            if (uri.equals(MediaStore.Downloads.EXTERNAL_CONTENT_URI) && mInsertedFile != null) {
+                mInsertedValues = values;
+                Uri itemUri = Uri.parse("content://media/external/downloads/12345");
+                mUriToFilename.put(itemUri.toString(), mInsertedFile.getAbsolutePath());
+                return itemUri;
+            }
             return null;
         }
 
         @Override
         public int delete(Uri uri, String selection, String[] selectionArgs) {
+            if (mUriToFilename.remove(uri.toString()) != null) {
+                return 1;
+            }
             return 0;
         }
 
         @Override
         public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+            if (mUriToFilename.containsKey(uri.toString())) {
+                return 1;
+            }
             return 0;
         }
     }
@@ -535,5 +565,36 @@ public class FileUtilsTest {
             assertNull(FileUtils.queryBitmapFromContentProvider(mContext, bogusFileUri));
             assertNull(FileUtils.queryBitmapFromContentProvider(mContext, nonExistentUri));
         }
+    }
+
+    @Test
+    public void testCopyFileToDownloadsCollection() throws IOException {
+        ProviderInfo info = new ProviderInfo();
+        info.authority = MediaStore.AUTHORITY;
+        TestContentProvider contentProvider =
+                Robolectric.buildContentProvider(TestContentProvider.class).create(info).get();
+
+        File sourceFile = temporaryFolder.newFile("source.log");
+        byte[] testData = "{\"data\": \"test net log content\"}".getBytes();
+        FileUtils.copyStreamToFile(new ByteArrayInputStream(testData), sourceFile);
+
+        File destFile = temporaryFolder.newFile("dest.log");
+        contentProvider.setInsertedFileForTest(destFile);
+
+        String resultUri =
+                FileUtils.copyFileToDownloadsCollection(
+                        sourceFile.getAbsolutePath(), "application/json");
+        assertEquals("content://media/external/downloads/12345", resultUri);
+        assertEquals(
+                "application/json",
+                contentProvider.getInsertedValues().getAsString(MediaStore.MediaColumns.MIME_TYPE));
+        assertEquals(
+                "source.log",
+                contentProvider
+                        .getInsertedValues()
+                        .getAsString(MediaStore.MediaColumns.DISPLAY_NAME));
+
+        byte[] copiedData = FileUtils.readStream(new FileInputStream(destFile));
+        assertTrue(Arrays.equals(testData, copiedData));
     }
 }

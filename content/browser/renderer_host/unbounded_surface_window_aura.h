@@ -24,6 +24,10 @@
 #include "ui/base/hit_test.h"
 #include "ui/events/gestures/motion_event_aura.h"
 
+namespace ui {
+class Layer;
+}
+
 namespace content {
 
 class RenderWidgetHostViewAura;
@@ -104,6 +108,8 @@ class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
                            base::TimeTicks activation_time) override {}
 
  private:
+  class DebugBorderDelegate;
+
   UnboundedSurfaceWindowAura(
       RenderWidgetHostViewAura* parent_view,
       mojo::PendingAssociatedReceiver<blink::mojom::UnboundedSurfaceHost> host,
@@ -122,6 +128,8 @@ class UnboundedSurfaceWindowAura : public UnboundedSurfaceWindow,
   std::unique_ptr<aura::Window> window_;
   raw_ptr<aura::Window> root_window_ = nullptr;
   ui::MotionEventAura pointer_state_;
+  std::unique_ptr<DebugBorderDelegate> debug_border_delegate_;
+  std::unique_ptr<ui::Layer> debug_border_layer_;
   base::WeakPtrFactory<UnboundedSurfaceWindow> weak_ptr_factory_{this};
 };
 

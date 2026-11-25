@@ -257,6 +257,11 @@ void RemotingClient::ControlMicrophone(
   NOTIMPLEMENTED();
 }
 
+void RemotingClient::DeliverTerminalControl(
+    const protocol::TerminalControl& terminal_control) {
+  NOTIMPLEMENTED();
+}
+
 void RemotingClient::InjectClipboardEvent(
     const protocol::ClipboardEvent& event) {
   NOTIMPLEMENTED();

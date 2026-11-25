@@ -90,8 +90,7 @@ body {
   vertical-align: bottom;
 }
 
-#copy-to-clipboard,
-#copy-variations-to-clipboard {
+.copy-button {
   background-color: var(--background-color);
   border: none;
   border-radius: 2px;
@@ -117,13 +116,11 @@ body {
   }
 }
 
-#copy-to-clipboard:hover,
-#copy-variations-to-clipboard:hover {
+.copy-button:hover {
   background-color: var(--hover-background-color);
 }
 
-#copy-to-clipboard:active,
-#copy-variations-to-clipboard:active {
+.copy-button:active {
   background-color: var(--active-background-color);
 }
 

@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.content.Context;
@@ -23,6 +24,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Feature;
@@ -146,15 +148,20 @@ public class PaymentDetailsUpdateConnectionTest {
 
     @Test
     @Feature({"Payments"})
-    public void testServiceDisconnectUnbindsService() throws Throwable {
+    public void testServiceDisconnectUnbindsAndRebindsService() throws Throwable {
         PaymentDetailsUpdateConnection connection =
                 new PaymentDetailsUpdateConnection(
                         mContext, new Intent(), mBrowserService, MAX_RETRY_NUMBER);
         connection.connectToService();
+        verify(mContext, times(1)).bindService(any(), eq(connection), eq(Context.BIND_AUTO_CREATE));
 
-        connection.onServiceDisconnected(/*name=*/null);
+        connection.onServiceDisconnected(/* name= */ null);
 
         verify(mContext).unbindService(eq(connection));
+
+        // Fast-forwards to the scheduled rebind task.
+        ShadowLooper.runMainLooperToNextTask();
+        verify(mContext, times(2)).bindService(any(), eq(connection), eq(Context.BIND_AUTO_CREATE));
     }
 
     @Test
@@ -172,15 +179,39 @@ public class PaymentDetailsUpdateConnectionTest {
 
     @Test
     @Feature({"Payments"})
-    public void testDeadBindingUnbindsService() throws Throwable {
+    public void testDeadBindingUnbindsAndRebindsService() throws Throwable {
         PaymentDetailsUpdateConnection connection =
                 new PaymentDetailsUpdateConnection(
                         mContext, new Intent(), mBrowserService, MAX_RETRY_NUMBER);
         connection.connectToService();
+        verify(mContext, times(1)).bindService(any(), eq(connection), eq(Context.BIND_AUTO_CREATE));
 
-        connection.onBindingDied(/*name=*/null);
+        connection.onBindingDied(/* name= */ null);
 
         verify(mContext).unbindService(eq(connection));
+
+        // Fast-forwards to the scheduled rebind task.
+        ShadowLooper.runMainLooperToNextTask();
+        verify(mContext, times(2)).bindService(any(), eq(connection), eq(Context.BIND_AUTO_CREATE));
+    }
+
+    @Test
+    @Feature({"Payments"})
+    public void testDisconnectAndDeadBindingUnbindsAndRebindsServiceOnce() throws Throwable {
+        PaymentDetailsUpdateConnection connection =
+                new PaymentDetailsUpdateConnection(
+                        mContext, new Intent(), mBrowserService, MAX_RETRY_NUMBER);
+        connection.connectToService();
+        verify(mContext, times(1)).bindService(any(), eq(connection), eq(Context.BIND_AUTO_CREATE));
+
+        connection.onServiceDisconnected(/* name= */ null);
+        connection.onBindingDied(/* name= */ null);
+
+        verify(mContext, times(1)).unbindService(eq(connection));
+
+        // Fast-forwards to the scheduled rebind task.
+        ShadowLooper.runMainLooperToNextTask();
+        verify(mContext, times(2)).bindService(any(), eq(connection), eq(Context.BIND_AUTO_CREATE));
     }
 
     @Test
@@ -206,5 +237,20 @@ public class PaymentDetailsUpdateConnectionTest {
         connection.terminateConnection();
 
         verify(mContext, never()).unbindService(any());
+    }
+
+    @Test
+    @Feature({"Payments"})
+    public void testTerminateConnectionNoOpAfterDisconnected() throws Throwable {
+        PaymentDetailsUpdateConnection connection =
+                new PaymentDetailsUpdateConnection(
+                        mContext, new Intent(), mBrowserService, MAX_RETRY_NUMBER);
+        connection.connectToService();
+
+        connection.onServiceDisconnected(/* name= */ null);
+        verify(mContext, times(1)).unbindService(eq(connection));
+
+        connection.terminateConnection();
+        verify(mContext, times(1)).unbindService(eq(connection));
     }
 }

@@ -1,4 +1,3 @@
-hta@webrtc.org
 perkj@webrtc.org
 tommi@webrtc.org
 
@@ -15,7 +14,6 @@ per-file uma_metrics.h=kron@webrtc.org
 
 # Adding features via SDP munging requires approval from SDP owners
 per-file webrtc_sdp.cc = set noparent
-per-file webrtc_sdp.cc = hta@webrtc.org
 per-file webrtc_sdp.cc = hbos@webrtc.org
 per-file webrtc_sdp.cc = eshr@webrtc.org
 # If none of the above are present
@@ -26,7 +24,6 @@ per-file webrtc_sdp.cc = file:/OWNERS
 # should land there first, before being proposed here. Review by one of
 # the listed owners is strongly recommended.
 per-file stats/rtcstats_objects.h = set noparent
-per-file stats/rtcstats_objects.h = hta@webrtc.org
 per-file stats/rtcstats_objects.h = hbos@webrtc.org
 per-file stats/rtcstats_objects.h = eshr@webrtc.org
 # If none of the above are present

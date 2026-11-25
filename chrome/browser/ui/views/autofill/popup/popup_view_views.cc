@@ -68,7 +68,6 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/favicon/core/large_icon_service.h"
-#include "components/feature_engagement/public/feature_constants.h"
 #include "components/image_fetcher/core/image_fetcher_service.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/password_manager/core/browser/password_sync_util.h"
@@ -131,7 +130,7 @@ int GetContentsVerticalPadding() {
       DISTANCE_CONTENT_LIST_VERTICAL_SINGLE);
 }
 
-bool CanShowRootPopup(AutofillSuggestionController& controller) {
+bool CanShowRootPopup(AutofillPopupController& controller) {
 #if BUILDFLAG(IS_MAC)
   // It's possible for the container_view to not be in a window. In that case,
   // cancel the popup since we can't fully set it up.
@@ -834,14 +833,18 @@ void PopupViewViews::AxAnnounce(const std::u16string& text) {
 }
 
 base::WeakPtr<AutofillPopupView> PopupViewViews::CreateSubPopupView(
-    base::WeakPtr<AutofillSuggestionController> controller) {
+    base::WeakPtr<AutofillPopupController> controller) {
   if (GetWidget() && controller) {
-    return (new PopupViewViews(
-                static_cast<AutofillPopupController&>(*controller).GetWeakPtr(),
-                weak_ptr_factory_.GetWeakPtr(), GetWidget()))
+    return (new PopupViewViews(controller, weak_ptr_factory_.GetWeakPtr(),
+                               GetWidget()))
         ->GetWeakPtr();
   }
   return nullptr;
+}
+
+std::optional<size_t> PopupViewViews::GetIndexOfSubPopupAnchorSuggestion()
+    const {
+  return row_with_open_sub_popup_;
 }
 
 bool PopupViewViews::HasFocus() const {
@@ -1244,64 +1247,13 @@ void PopupViewViews::CreateSuggestionViews() {
                   std::move(filter_match), password_favicon_loader_.get()));
           rows_.push_back(row_view);
 
-          const base::Feature* const feature =
-              suggestions[current_line_number].iph_metadata.feature;
           // Set appropriate element ids for IPH targets, it is important to
           // set them earlier to make sure the elements are discoverable later
           // during popup's visibility change and the promo bubble showing.
-          if (feature == &feature_engagement::
-                             kIPHAutofillVirtualCardSuggestionFeature ||
-              feature == &feature_engagement::
-                             kIPHAutofillDisabledVirtualCardSuggestionFeature ||
-              feature == &feature_engagement::
-                             kIPHAutofillCardInfoRetrievalSuggestionFeature ||
-              feature == &feature_engagement::
-                             kIPHAutofillDownstreamCardAwarenessFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillCreditCardSuggestionEntryElementId);
-          } else if (feature ==
-                     &feature_engagement::
-                         kIPHAutofillVirtualCardCVCSuggestionFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillStandaloneCvcSuggestionElementId);
-          } else if (feature ==
-                     &feature_engagement::
-                         kIPHAutofillExternalAccountProfileSuggestionFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillSuggestionElementId);
-          } else if (feature == &feature_engagement::
-                                    kIPHAutofillCreditCardBenefitFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillCreditCardBenefitElementId);
-          } else if (feature ==
-                     &feature_engagement::
-                         kIPHAutofillBnplAffirmOrZipSuggestionFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillBnplAffirmOrZipSuggestionElementId);
-          } else if (feature ==
-                     &feature_engagement::
-                         kIPHAutofillBnplAffirmZipOrKlarnaSuggestionFeature) {
-            row_view->SetProperty(
-                views::kElementIdentifierKey,
-                kAutofillBnplAffirmZipOrKlarnaSuggestionElementId);
-          } else if (feature ==
-                     &feature_engagement::
-                         kIPHAutofillHomeWorkProfileSuggestionFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillHomeWorkSuggestionElementId);
-          } else if (feature == &feature_engagement::
-                                    kIPHAutofillEnableLoyaltyCardsFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillEnableLoyaltyCardsElementId);
-          } else if (feature ==
-                     &feature_engagement::
-                         kIPHAutofillAccountNameEmailSuggestionFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillAccountNameEmailSuggestionElementId);
-          } else if (feature ==
-                     &feature_engagement::kIPHAutofillAiValuablesFeature) {
-            row_view->SetProperty(views::kElementIdentifierKey,
-                                  kAutofillAiValuablesElementId);
+          if (ui::ElementIdentifier element_id =
+                  GetAutofillPopupCellElementIdentifier(
+                      suggestions[current_line_number].iph_metadata.feature)) {
+            row_view->SetProperty(views::kElementIdentifierKey, element_id);
           }
       }
     }
@@ -1758,7 +1710,7 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(
 
 // static
 base::WeakPtr<AutofillPopupView> AutofillPopupView::Create(
-    base::WeakPtr<AutofillSuggestionController> controller,
+    base::WeakPtr<AutofillPopupController> controller,
     std::optional<const AutofillPopupView::SearchBarConfig> search_bar_config,
     std::optional<const AutofillPopupView::TabbedPaneConfig>
         tabbed_pane_config) {
@@ -1766,10 +1718,8 @@ base::WeakPtr<AutofillPopupView> AutofillPopupView::Create(
     return nullptr;
   }
 
-  // On Desktop, all controllers are `AutofillPopupController`s.
-  return (new PopupViewViews(
-              static_cast<AutofillPopupController&>(*controller).GetWeakPtr(),
-              std::move(search_bar_config), std::move(tabbed_pane_config)))
+  return (new PopupViewViews(controller, std::move(search_bar_config),
+                             std::move(tabbed_pane_config)))
       ->GetWeakPtr();
 }
 

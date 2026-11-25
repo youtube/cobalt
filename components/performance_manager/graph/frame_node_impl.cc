@@ -60,7 +60,7 @@ FrameNodeImpl::FrameNodeImpl(
     FrameNodeImpl* outer_document_for_inner_frame_root,
     int render_frame_id,
     const blink::LocalFrameToken& frame_token,
-    const perfetto::NamedTrack& tracing_track,
+    const perfetto::Track& tracing_track,
     content::BrowsingInstanceId browsing_instance_id,
     content::SiteInstanceGroupId site_instance_group_id,
     bool is_current,
@@ -402,11 +402,6 @@ ProcessNodeImpl* FrameNodeImpl::process_node() const {
 int FrameNodeImpl::render_frame_id() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return render_frame_id_;
-}
-
-perfetto::Track FrameNodeImpl::tracing_track() const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return tracing_track_;
 }
 
 FrameNode::NodeSetView<FrameNodeImpl*> FrameNodeImpl::child_frame_nodes()

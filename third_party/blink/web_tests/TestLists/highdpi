@@ -14,7 +14,6 @@ animations/responsive/interpolation/transform-responsive.html
 animations/responsive/responsive-neutral-keyframes.html
 animations/responsive/stacked-visibility-animations-responsive.html
 animations/responsive/zoom-responsive-transform-animation-001.html
-animations/stability/font-builder-crash.html
 animations/state-at-end-event.html
 animations/svg/animated-filter-svg-element.html
 animations/web-animations/KeyframeEffect-animation.html
@@ -281,6 +280,7 @@ external/wpt/css/css-align/gaps/gap-normal-used-001.html
 external/wpt/css/css-align/parsing/column-gap-invalid.html
 external/wpt/css/css-align/self-alignment/parse-justify-self-001.html
 external/wpt/css/css-animations/animation-important-002.html
+external/wpt/css/css-animations/crashtests/font-builder-crash.html
 external/wpt/css/css-animations/crashtests/replace-keyframes-animating-filter-001.html
 external/wpt/css/css-animations/parsing/animation-invalid.html
 external/wpt/css/css-animations/responsive/column-width-001.html

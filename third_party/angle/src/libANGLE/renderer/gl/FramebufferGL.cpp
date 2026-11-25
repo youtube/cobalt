@@ -282,17 +282,6 @@ bool RequiresMultiviewClear(const FramebufferState &state, bool scissorTestEnabl
     return false;
 }
 
-bool IsEmulatedAlphaChannelTextureAttachment(const FramebufferAttachment *attachment)
-{
-    if (!attachment || attachment->type() != GL_TEXTURE)
-    {
-        return false;
-    }
-
-    const Texture *texture     = attachment->getTexture();
-    const TextureGL *textureGL = GetImplAs<TextureGL>(texture);
-    return textureGL->hasEmulatedAlphaChannel(attachment->getTextureImageIndex());
-}
 
 class [[nodiscard]] ScopedEXTTextureNorm16ReadbackWorkaround
 {
@@ -466,6 +455,18 @@ bool IsNonTrivialClearColor(const GLuint *color)
 
 }  // namespace
 
+bool IsEmulatedAlphaChannelTextureAttachment(const gl::FramebufferAttachment *attachment)
+{
+    if (!attachment || attachment->type() != GL_TEXTURE)
+    {
+        return false;
+    }
+
+    const Texture *texture     = attachment->getTexture();
+    const TextureGL *textureGL = GetImplAs<TextureGL>(texture);
+    return textureGL->hasEmulatedAlphaChannel(attachment->getTextureImageIndex());
+}
+
 FramebufferGL::FramebufferGL(const gl::FramebufferState &data, GLuint id, bool emulatedAlpha)
     : FramebufferImpl(data),
       mFramebufferID(id),
@@ -534,6 +535,8 @@ angle::Result FramebufferGL::invalidate(const gl::Context *context,
                                              finalAttachmentsPtr);
         }
     }
+    ContextGL *contextGL = GetImplAs<ContextGL>(context);
+    contextGL->tickGC();
 
     return angle::Result::Continue;
 }
@@ -1488,6 +1491,12 @@ angle::Result FramebufferGL::syncState(const gl::Context *context,
     {
         stateManager->updateMultiviewBaseViewLayerIndexUniform(
             context->getState().getProgramExecutable(), getState());
+    }
+
+    if (dirtyBits.any())
+    {
+        ContextGL *contextGL = GetImplAs<ContextGL>(context);
+        contextGL->tickGC();
     }
 
     return angle::Result::Continue;

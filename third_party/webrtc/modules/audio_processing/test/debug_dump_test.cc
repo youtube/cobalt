@@ -283,9 +283,9 @@ void DebugDumpTest::VerifyDebugDump(absl::string_view in_filename) {
       // Check that output of APM is bit-exact to the output in the dump.
       ASSERT_EQ(output_config.num_channels(),
                 static_cast<size_t>(msg->output_channel_size()));
-      ASSERT_EQ(output_config.num_frames() * sizeof(float),
-                msg->output_channel(0).size());
       for (int i = 0; i < msg->output_channel_size(); ++i) {
+        ASSERT_EQ(output_config.num_frames() * sizeof(float),
+                  msg->output_channel(i).size());
         ASSERT_EQ(0,
                   memcmp(output->channels()[i], msg->output_channel(i).data(),
                          msg->output_channel(i).size()));

@@ -18,7 +18,7 @@ RTC_OBJC_EXPORT
 @interface RTC_OBJC_TYPE (RTCRtcpParameters) : NSObject
 
 /** The Canonical Name used by RTCP. */
-@property(nonatomic, readonly, copy) NSString *cname;
+@property(nonatomic, readonly) NSString *cname;
 
 /** Whether reduced size RTCP is configured or compound RTCP. */
 @property(nonatomic, assign) BOOL isReducedSize;

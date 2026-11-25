@@ -29,10 +29,13 @@ export function getHtml(this: NtpComposeboxElement) {
       @open-drive-upload="${this.onOpenDriveUpload}"
       @smart-tab-sharing-active-changed="${this.onSmartTabSharingActiveChanged}"
       @share-tabs-flyout-open-changed="${this.onShareTabsFlyoutOpenChanged}"
+      @request-tab-suggestions-load="${this.onRequestTabSuggestionsLoad}"
       .shareTabsFlyoutOpen="${this.shareTabsFlyoutOpen}"
       .inputState="${this.inputState}"
       .usePecApi="${this.usePecApi}"
+      .recentTabId="${this.recentTabId}"
       .smartTabSharingActive="${this.smartTabSharingActive}"
+      .contextManagementInComposeboxEnabled="${this.contextManagementInComposeboxEnabled}"
       .searchboxLayoutMode="${this.searchboxLayoutMode}"
       .tabSuggestions="${this.tabSuggestions}"
       .hasImageFiles="${this.hasImageFiles()}"
@@ -40,6 +43,7 @@ export function getHtml(this: NtpComposeboxElement) {
       .aimThreadRestoredTabs="${this.aimThreadRestoredTabs}"
       .fileNum="${this.files.size}"
       .sharedTabs="${this.getSharedTabs()}"
+      .tabSuggestionsState="${this.tabSuggestionsState}"
       ?upload-button-disabled="${this.uploadButtonDisabled}"
       ?show-context-menu-description="${this.showContextMenuDescription}">
   </cr-composebox-contextual-entrypoint-and-menu>

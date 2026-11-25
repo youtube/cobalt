@@ -27,8 +27,9 @@
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
 #include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
@@ -72,7 +73,7 @@ scoped_refptr<StaticBitmapImage> ImageBitmapRenderingContext::MakeAccelerated(
   constexpr gpu::SharedImageUsageSet kSharedImageUsageFlags =
       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
 #endif  // BUILDFLAG(IS_LINUX)
-  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
+  auto provider = CanvasNon2DResourceProvider::Create(
       source->Size(), source->GetSharedImageFormat(), source->GetAlphaType(),
       source->GetColorSpace(), source->GetHdrMetadata(),
       context_provider_wrapper, kSharedImageUsageFlags);
@@ -344,10 +345,8 @@ void ImageBitmapRenderingContext::ResourceReleasedGpu(
     bool lost_resource) {
   if (image && image->IsValid()) {
     DCHECK(image->IsTextureBacked());
-    if (token.HasData() && image->ContextProvider() &&
-        image->ContextProvider()->InterfaceBase()) {
-      image->ContextProvider()->InterfaceBase()->WaitSyncTokenCHROMIUM(
-          token.GetConstData());
+    if (token.HasData()) {
+      image->UpdateSyncToken(token);
     }
   }
 }
@@ -472,13 +471,13 @@ ImageBitmapRenderingContext::GetResourceForPushFrame(
     const gfx::HDRMetadata hdr_metadata;
     if (is_gpu_compositing_enabled) {
       resource_provider_for_offscreen_canvas_ =
-          CanvasNon2DResourceProviderSharedImage::Create(
+          CanvasNon2DResourceProvider::Create(
               image->Size(), format, alpha_type, color_space, hdr_metadata,
               SharedGpuContext::ContextProviderWrapper(),
               gpu::SHARED_IMAGE_USAGE_DISPLAY_READ, Host());
     } else if (static_cast<OffscreenCanvas*>(Host())->HasPlaceholderCanvas()) {
       resource_provider_for_offscreen_canvas_ =
-          CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
+          CanvasNon2DResourceProvider::CreateForSoftwareCompositor(
               image->Size(), format, alpha_type, color_space, hdr_metadata,
               SharedGpuContext::SharedImageInterfaceProvider(), Host());
     }

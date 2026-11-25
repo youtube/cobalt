@@ -34,8 +34,8 @@ void NoOpMemoryBank::GetAllEntries(GetAllEntriesCallback callback) const {
   std::move(callback).Run({});
 }
 
-void NoOpMemoryBank::DeleteEntry(int64_t id,
-                                 OperationCompleteCallback callback) {
+void NoOpMemoryBank::DeleteEntries(base::span<const int64_t> ids,
+                                   OperationCompleteCallback callback) {
   if (callback) {
     std::move(callback).Run();
   }

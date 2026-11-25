@@ -43,7 +43,6 @@ source_set("impl") {
     "//chrome/browser/ui/qrcode_generator",
     "//chrome/browser/ui/sharing_hub",
     "//chrome/browser/ui/views:layout_provider",
-    "//chrome/browser/ui/views/send_tab_to_self",
     "//components/omnibox/browser:vector_icons",
     "//components/url_formatter",
     "//ui/strings:ui_strings",

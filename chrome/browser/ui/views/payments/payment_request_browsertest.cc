@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "base/strings/utf_string_conversions.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/test/test_browser_dialog.h"
@@ -17,6 +18,7 @@
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/payments/core/features.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -287,5 +289,47 @@ IN_PROC_BROWSER_TEST_F(PaymentRequestSettingsLinkTest, ClickSettingsLink) {
       std::string(chrome::kChromeUISettingsURL) + chrome::kPaymentsSubPage,
       new_tab_contents->GetVisibleURL().spec());
 }
+
+class PaymentRequestMandatoryUiEnabledTest
+    : public PaymentRequestBrowserTestBase {
+ public:
+  PaymentRequestMandatoryUiEnabledTest() {
+    feature_list_.InitAndEnableFeature(
+        payments::features::kPaymentRequestMandatoryPaymentAppUi);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(PaymentRequestMandatoryUiEnabledTest, AsyncCloseDialog) {
+  // Installs two apps so that the Payment Request UI will be shown.
+  std::string a_method_name;
+  InstallPaymentApp("a.com", "/payment_request_success_responder.js",
+                    &a_method_name);
+  std::string b_method_name;
+  InstallPaymentApp("b.com", "/payment_request_success_responder.js",
+                    &b_method_name);
+
+  NavigateTo("/payment_request_no_shipping_test.html");
+  InvokePaymentRequestUIWithJs(content::JsReplace(
+      "buyWithMethods([{supportedMethods:$1}, {supportedMethods:$2}]);",
+      a_method_name, b_method_name));
+
+  // The dialog is open, so we should have 1 payment request.
+  EXPECT_EQ(1U, GetPaymentRequests().size());
+
+  ResetEventWaiter(DialogEvent::DIALOG_CLOSED);
+  // Call CloseDialog, it should asynchronously close widget.
+  dialog_view()->CloseDialog();
+  // Since close dialog is async, the PaymentRequest should still be alive
+  // immediately after the call.
+  EXPECT_EQ(1U, GetPaymentRequests().size());
+  ASSERT_TRUE(WaitForObservedEvent());
+
+  // Now the PaymentRequest should be deleted.
+  EXPECT_TRUE(GetPaymentRequests().empty());
+}
+
 }  // namespace
 }  // namespace payments

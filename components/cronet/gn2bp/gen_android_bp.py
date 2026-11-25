@@ -64,8 +64,9 @@ def turn_off_allocator_shim_for_musl(module):
 
 
 def create_cc_defaults_module(context: translation_context.TranslationContext):
-    defaults = soong_ast.Module('cc_defaults', context.cc_defaults_module,
-                                '//gn:default_deps', context)
+    defaults = soong_ast.create_module('cc_defaults',
+                                       context.cc_defaults_module,
+                                       '//gn:default_deps', context)
     defaults.cflags = [
         # TODO: this list is brittle and painful to maintain. We are too easily
         # broken by changes to Chromium cflags, e.g. https://crbug.com/406704769.
@@ -128,45 +129,54 @@ def create_cc_defaults_module(context: translation_context.TranslationContext):
     return defaults
 
 
+def _clean_gn_label(label: str) -> str:
+    if ':' in label:
+        path, target_name = label.rsplit(':', 1)
+        target_name = re.sub(gn_utils.TOOLCHAIN_SUFFIX + r'[a-zA-Z0-9_]+', '',
+                             target_name)
+        target_name = re.sub(gn_utils.TESTING_SUFFIX, '', target_name)
+        return f"{path}:{target_name}"
+    return label
+
+
 def apply_post_processing(module, context):
-    for key, add_val in context.additional_args.get(module.name, []):
-        curr = getattr(module, key)
-        if add_val and isinstance(add_val, set) and isinstance(curr, set):
-            curr.update(add_val)
-        elif isinstance(curr, list):
-            curr.extend(add_val)
-        elif isinstance(add_val, str) and (not curr or isinstance(curr, str)):
-            setattr(module, key, add_val)
-        elif isinstance(add_val, bool) and (not curr
-                                            or isinstance(curr, bool)):
-            setattr(module, key, add_val)
-        elif isinstance(add_val, dict) and isinstance(curr, dict):
-            curr.update(add_val)
-        elif add_val is None:
-            setattr(module, key, None)
-        elif isinstance(add_val[1], dict) and isinstance(
-                curr[add_val[0]], soong_ast.Module.Target):
-            curr[add_val[0]].__dict__.update(add_val[1])
-        elif isinstance(curr, dict):
-            curr[add_val[0]] = add_val[1]
+    clean_target = _clean_gn_label(module.gn_target)
+    keys = []
+    if module.role is None:
+        keys.append(clean_target)
+        if module._is_test:
+            keys.append(f"{clean_target}#testing")
         else:
-            raise Exception('Unimplemented type %r of additional_args: %r' %
-                            (type(add_val), key))
+            keys.append(f"{clean_target}#nontesting")
+    else:
+        keys.append(f"{clean_target}#{module.role}")
+        if module._is_test:
+            keys.append(f"{clean_target}#{module.role}#testing")
+        else:
+            keys.append(f"{clean_target}#{module.role}#nontesting")
+
+    for key in keys:
+        for override in context.additional_args.get(key, []):
+            override.apply(module)
 
 
 def make_cc_defaults_from_boringssl(
         boringssl_module: soong_ast.Module,
         context: translation_context.TranslationContext) -> soong_ast.Module:
     module_name = boringssl_module.name + "__flags"
-    cc_default_flags_module = soong_ast.Module(
-        "cc_defaults", module_name,
+    cc_default_flags_module = soong_ast.create_module(
+        "cc_defaults",
+        module_name,
         "Flags auto-extracted from BoringSSL GN rules, to be used in manually maintained BoringSSL Android.bp rules",
-        context)
+        context,
+        is_test=boringssl_module._is_test)
 
-    libcrypto_cc_defaults_flags_module = soong_ast.Module(
-        "cc_defaults", f'{module_name}_libcrypto',
+    libcrypto_cc_defaults_flags_module = soong_ast.create_module(
+        "cc_defaults",
+        f'{module_name}_libcrypto',
         f"""This cc_defaults inherits the same flags from {module_name} except some flags that breaks FIPS compliance.""",
-        context)
+        context,
+        is_test=boringssl_module._is_test)
 
     def _get_libcrypto_cflags(cflags):
         return [
@@ -336,29 +346,29 @@ def _rebase_module(module: soong_ast.Module,
     module_copy = copy.deepcopy(module)
     # TODO: Find a better way to rebase attribute and verify if all rebase operations
     # have succeeded or not.
-    if module_copy.crate_root:
+    if getattr(module_copy, 'crate_root', None):
         module_copy.crate_root = _rebase_file(module_copy.crate_root,
                                               blueprint_path)
         if module_copy.crate_root is None:
             return None
 
-    if module_copy.path:
+    if getattr(module_copy, 'path', None):
         module_copy.path = _rebase_file(module_copy.path, blueprint_path)
         if module_copy.path is None:
             return None
 
-    if module_copy.wrapper_src:
+    if getattr(module_copy, 'wrapper_src', None):
         module_copy.wrapper_src = _rebase_file(module_copy.wrapper_src,
                                                blueprint_path)
         if module_copy.wrapper_src is None:
             return None
 
-    if module_copy.srcs:
+    if getattr(module_copy, 'srcs', None):
         module_copy.srcs = _rebase_files(module_copy.srcs, blueprint_path)
         if module_copy.srcs is None:
             return None
 
-    if module_copy.jars:
+    if getattr(module_copy, 'jars', None):
         module_copy.jars = _rebase_files(module_copy.jars, blueprint_path)
         if module_copy.jars is None:
             return None
@@ -395,8 +405,9 @@ def _maybe_create_license_module(
             or license_utils.is_ignored_readme_chromium(readme_relative_path)):
         return None
 
-    license_module = soong_ast.Module("license", _path_to_name(path, context),
-                                      "License-Artificial", context)
+    license_module = soong_ast.create_module("license",
+                                             _path_to_name(path, context),
+                                             "License-Artificial", context)
     license_module.visibility = {":__subpackages__"}
     # Assume that a LICENSE file always exist as we run the
     # create_android_metadata_license.py script each time we run GN2BP.
@@ -444,8 +455,8 @@ def finalize_package_modules(blueprints: Dict[str, soong_ast.Blueprint],
             # manually in Android.extras.bp.
             continue
 
-        package_module = soong_ast.Module("package", None,
-                                          "Package-Artificial", context)
+        package_module = soong_ast.create_module("package", None,
+                                                 "Package-Artificial", context)
         if blueprint.get_license_module():
             package_module.default_applicable_licenses.add(
                 blueprint.get_license_module().name)
@@ -512,7 +523,7 @@ def _locate_android_bp_destination(module: soong_ast.Module) -> str:
   :returns the appropriate location for the blueprint
   """
     crate_root_dir = _get_rust_crate_root_directory_from_crate_root(
-        module.crate_root)
+        getattr(module, 'crate_root', None))
     if module.build_file_path in translation_config.BLUEPRINTS_MAPPING:
         return translation_config.BLUEPRINTS_MAPPING[module.build_file_path]
     if crate_root_dir:
@@ -581,9 +592,11 @@ def main():
         'You can specify multiple --desc options for different target_cpu',
         required=True,
         action='append')
-    parser.add_argument('--repo_root',
-                        required=True,
-                        help='Path to the root of the repistory')
+    parser.add_argument(
+        '--output_dir',
+        required=True,
+        help='Directory where the generated Android.bp files should be written'
+    )
     parser.add_argument(
         '--build_script_output',
         help=
@@ -651,6 +664,7 @@ def main():
             gn.parse_gn_desc(desc, target)
         for test_target in gn2bp_targets.DEFAULT_TESTS:
             gn.parse_gn_desc(desc, test_target, is_test_target=True)
+    gn.propagate_properties()
     top_level_blueprint = create_blueprint_for_targets(
         gn, targets, gn2bp_targets.DEFAULT_TESTS, context)
 
@@ -680,8 +694,8 @@ def main():
 """ % (Path(__file__).name)
 
     for (path, blueprint) in final_blueprints.items():
-        android_bp_file = Path(os.path.join(args.repo_root, path,
-                                            "Android.bp"))
+        android_bp_file = Path(
+            os.path.join(args.output_dir, path, "Android.bp"))
         android_bp_file.parent.mkdir(parents=True, exist_ok=True)
         android_bp_file.write_text("\n".join(
             [header] + translation_config.BLUEPRINTS_EXTRAS.get(path, []) +

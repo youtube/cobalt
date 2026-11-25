@@ -91,7 +91,7 @@ TEST_F(HlsNetworkAccessImplUnittest, TestReadSmallManifest) {
   factory_->AddReadExpectation(800, 16384, 0);
 
   network_access_->ReadManifest(
-      GURL("example.com"),
+      GURL("https://example.com"),
       base::BindOnce([](HlsDataSourceProvider::ReadResult result) {
         ASSERT_TRUE(result.has_value());
         auto stream = std::move(result).value();
@@ -110,7 +110,7 @@ TEST_F(HlsNetworkAccessImplUnittest, TestReadLargeManifest) {
   factory_->AddReadExpectation(20000, 16384, 0);
 
   network_access_->ReadManifest(
-      GURL("example.com"),
+      GURL("https://example.com"),
       base::BindOnce([](HlsDataSourceProvider::ReadResult result) {
         ASSERT_TRUE(result.has_value());
         auto stream = std::move(result).value();

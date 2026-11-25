@@ -43,7 +43,6 @@ public class PageInfoCookiesController extends PageInfoPreferenceSubpageControll
     private int mControlsState;
     private int mEnforcement;
     private long mExpiration;
-    private boolean mShouldDisplaySiteBreakageString;
     private @Nullable Website mWebsite;
     private final boolean mIsSiteSettingsAvailable;
     private @Nullable Integer mDaysUntilExpirationForTesting;
@@ -60,8 +59,6 @@ public class PageInfoCookiesController extends PageInfoPreferenceSubpageControll
         mFullUrl = mainController.getURL().getSpec();
         mIsSiteSettingsAvailable = delegate.isSiteSettingsAvailable();
         mBridge = delegate.createCookieControlsBridge(this);
-
-        mShouldDisplaySiteBreakageString = false;
 
         updateRowParams();
     }
@@ -187,12 +184,6 @@ public class PageInfoCookiesController extends PageInfoPreferenceSubpageControll
         }
     }
 
-    @Override
-    public void onHighlightCookieControl(boolean shouldHighlight) {
-        mShouldDisplaySiteBreakageString = shouldHighlight;
-        mRowView.updateSubtitle(getRowViewSubtitle());
-    }
-
     private boolean isDeletionDisabled() {
         return WebsitePreferenceBridge.isCookieDeletionDisabled(
                 mMainController.getBrowserContext(), mFullUrl);
@@ -216,10 +207,6 @@ public class PageInfoCookiesController extends PageInfoPreferenceSubpageControll
         if (mControlsState == CookieControlsState.ALLOWED3PC) {
             return context.getString(R.string.page_info_cookies_subtitle_allowed);
         } else if (mControlsState == CookieControlsState.BLOCKED3PC) {
-            if (mShouldDisplaySiteBreakageString) {
-                return context.getString(
-                        R.string.page_info_cookies_subtitle_blocked_high_confidence);
-            }
             return context.getString(R.string.page_info_cookies_subtitle_blocked);
         }
         // 3PC controls hidden UI have no subtitle.

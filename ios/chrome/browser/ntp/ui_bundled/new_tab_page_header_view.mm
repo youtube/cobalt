@@ -1637,7 +1637,7 @@ CGFloat Interpolate(CGFloat from, CGFloat to, CGFloat percent) {
 - (UIView*)createDivider {
   UIView* divider = [[UIView alloc] init];
   divider.translatesAutoresizingMaskIntoConstraints = NO;
-  CGFloat dividerWidth = 1.0 / [[UIScreen mainScreen] scale];
+  CGFloat dividerWidth = 1.0 / self.traitCollection.displayScale;
 
   [NSLayoutConstraint activateConstraints:@[
     [divider.heightAnchor constraintEqualToConstant:kIconDividerHeight],

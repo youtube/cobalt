@@ -95,8 +95,6 @@ bool MemoryUsageMonitorPosix::CalculateProcessMemoryFootprint(
 
   // Get total resident and shared sizes from statm file.
   static size_t page_size = getpagesize();
-  uint64_t resident_pages;
-  uint64_t shared_pages;
   uint64_t vm_size_pages;
   constexpr uint32_t kMaxLineSize = 4096;
   char line[kMaxLineSize];
@@ -105,9 +103,7 @@ bool MemoryUsageMonitorPosix::CalculateProcessMemoryFootprint(
 
   // statm format: "vm_size resident shared ..."
   std::string_view statm_view(line);
-  if (!consume_uint64(statm_view, &vm_size_pages) ||
-      !consume_uint64(statm_view, &resident_pages) ||
-      !consume_uint64(statm_view, &shared_pages)) {
+  if (!consume_uint64(statm_view, &vm_size_pages)) {
     return false;
   }
 
@@ -121,11 +117,15 @@ bool MemoryUsageMonitorPosix::CalculateProcessMemoryFootprint(
   if (!parse_status_field(status_view, "VmHWM", vm_hwm_size)) {
     return false;
   }
+  uint64_t rss_anon;
+  if (!parse_status_field(status_view, "RssAnon", &rss_anon)) {
+    return false;
+  }
 
   *vm_hwm_size *= 1024;
   *swap_footprint *= 1024;
-  *private_footprint =
-      (resident_pages - shared_pages) * page_size + *swap_footprint;
+  rss_anon *= 1024;
+  *private_footprint = rss_anon + *swap_footprint;
   *vm_size = vm_size_pages * page_size;
   return true;
 }

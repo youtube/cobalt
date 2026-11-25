@@ -45,7 +45,6 @@ class ProcessMemoryDump;
 namespace blink {
 
 class CanvasImageProvider;
-class CanvasRenderingContext;
 class CanvasRenderingContext2D;
 class CanvasResourceProviderDelegate;
 class OffscreenCanvasRenderingContext2D;
@@ -53,7 +52,7 @@ class OffscreenCanvasRenderingContext2D;
 // Renders canvas2D ops to a Skia RAM-backed bitmap. Mailboxing is not
 // supported : cannot be directly composited. For usage by (Offscreen)Canvas2D
 // as a last-case resort when it is not possible to create
-// CanvasResourceProviderSharedImage.
+// Canvas2DResourceProvider.
 class PLATFORM_EXPORT Canvas2DBitmapProvider final
     : public CanvasMemoryDumpClient,
       public MemoryManagedPaintRecorder::Client,
@@ -101,7 +100,9 @@ class PLATFORM_EXPORT Canvas2DBitmapProvider final
     return base::ByteSize(format_.EstimatedSizeInBytes(size_));
   }
 
-  void FlushIfRecordingLimitExceeded();
+  size_t max_recorded_op_bytes() const { return max_recorded_op_bytes_; }
+  size_t max_pinned_image_bytes() const { return max_pinned_image_bytes_; }
+  bool clear_frame() const { return clear_frame_; }
 
   const MemoryManagedPaintRecorder& Recorder() const { return *recorder_; }
   MemoryManagedPaintRecorder& Recorder() { return *recorder_; }
@@ -114,7 +115,6 @@ class PLATFORM_EXPORT Canvas2DBitmapProvider final
   void ApplyAnimatedImageFrameIndexesForId(SkCanvas* canvas, uint32_t id);
 
  private:
-  friend class CanvasRenderingContext;
   friend class CanvasRenderingContext2D;
   friend class OffscreenCanvasRenderingContext2D;
 
@@ -131,15 +131,6 @@ class PLATFORM_EXPORT Canvas2DBitmapProvider final
       const gfx::ColorSpace& color_space,
       const gfx::HDRMetadata& hdr_metadata,
       CanvasResourceProviderDelegate* delegate = nullptr);
-  static std::unique_ptr<Canvas2DBitmapProvider> CreateWithClear(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      CanvasResourceProviderDelegate* delegate = nullptr) {
-    return CreateWithClear(size, format, alpha_type, color_space,
-                           gfx::HDRMetadata(), delegate);
-  }
   Canvas2DBitmapProvider(gfx::Size size,
                          viz::SharedImageFormat format,
                          SkAlphaType alpha_type,

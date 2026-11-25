@@ -349,8 +349,10 @@ void PerformanceEventTiming::SetPerfettoData(
   event_timing->set_type(GetEventType(name()));
   event_timing->set_cancelable(cancelable());
   if (interaction_id_) {
-    event_timing->set_interaction_id(interaction_id_->id);
-    event_timing->set_interaction_offset(interaction_id_->offset);
+    event_timing->set_interaction_id(
+        static_cast<uint32_t>(interaction_id_->id));
+    event_timing->set_interaction_offset(
+        static_cast<uint32_t>(interaction_id_->offset));
   }
   event_timing->set_node_id(target_ ? target_->GetDomNodeId()
                                     : kInvalidDOMNodeId);

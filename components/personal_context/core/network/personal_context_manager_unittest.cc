@@ -242,11 +242,11 @@ TEST_F(PersonalContextManagerTest, MultipleParallelRequestsLimit) {
   SetAutomaticIssueOfAccessTokens();
 
   personal_context_manager()->FetchContext(
-      proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL, TestMessage(),
+      proto::CONTEXT_MEMORY_FEATURE_AT_MEMORY, TestMessage(),
       /*timeout=*/std::nullopt, response_holder1.GetCallback());
 
   personal_context_manager()->FetchContext(
-      proto::CONTEXT_MEMORY_FEATURE_AMBIENT_AUTOFILL, TestMessage(),
+      proto::CONTEXT_MEMORY_FEATURE_AT_MEMORY, TestMessage(),
       /*timeout=*/std::nullopt, response_holder2.GetCallback());
 
   test_url_loader_factory()->EraseResponse(
@@ -262,17 +262,17 @@ TEST_F(PersonalContextManagerTest, MultipleParallelRequestsLimit) {
   // The cancelled request should record a failure and client cancellation
   // error. The second (successful) request should record success.
   histogram_tester.ExpectTotalCount(
-      "PersonalContext.FetchContext.Result.AmbientAutofill",
+      "PersonalContext.FetchContext.Result.AtMemory",
       /*expected_count=*/2);
   histogram_tester.ExpectBucketCount(
-      "PersonalContext.FetchContext.Result.AmbientAutofill", /*sample=*/false,
+      "PersonalContext.FetchContext.Result.AtMemory", /*sample=*/false,
       /*expected_count=*/1);
   histogram_tester.ExpectBucketCount(
-      "PersonalContext.FetchContext.Result.AmbientAutofill", /*sample=*/true,
+      "PersonalContext.FetchContext.Result.AtMemory", /*sample=*/true,
       /*expected_count=*/1);
 
   histogram_tester.ExpectUniqueSample(
-      "PersonalContext.FetchContext.ErrorStatus.AmbientAutofill",
+      "PersonalContext.FetchContext.ErrorStatus.AtMemory",
       ContextMemoryError::ExecutionError::kCancelled,
       /*expected_bucket_count=*/1);
 }

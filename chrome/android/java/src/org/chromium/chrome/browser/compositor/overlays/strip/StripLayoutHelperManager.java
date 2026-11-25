@@ -60,6 +60,7 @@ import org.chromium.chrome.browser.compositor.layouts.components.TintedComposito
 import org.chromium.chrome.browser.compositor.layouts.components.TintedCompositorTextButton;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.AreaMotionEventFilter;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.AreaMotionEventHandler;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelper.LeadingButtonDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelper.TrailingButtonDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnClickHandler;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutView.StripLayoutViewOnKeyboardFocusHandler;
@@ -248,6 +249,7 @@ public class StripLayoutHelperManager
     private final WindowAndroid mWindowAndroid;
     private TabStripEventHandler mTabStripEventHandler;
     private final TabSwitcherLayoutObserver mTabSwitcherLayoutObserver;
+    private @Nullable Runnable mFadeTransitionThresholdChangedCallback;
     private final View mControlContainer;
     private final ViewStub mTabHoverCardViewStub;
     private float mLastVisibleViewportOffsetY;
@@ -496,6 +498,9 @@ public class StripLayoutHelperManager
      * @param snackbarManager The {@link SnackbarManager} used to show snackbar UI.
      * @param activityResultTracker The {@link ActivityResultTracker}.
      * @param glicClickHandler The {@link GlicButtonDelegate} for the Glic button.
+     * @param leadingButtonDelegate The {@link LeadingButtonDelegate} for the leading button.
+     * @param sideUiStateProviderSupplier Supplier of the {@link SideUiStateProvider}.
+     * @param tabObscuringHandler The {@link TabObscuringHandler} to manage tab obscuring.
      */
     // TODO(crbug.com/484116872): Suppressing to observe SharedPreferences, which is discouraged;
     // should use another messaging channel instead.
@@ -529,6 +534,7 @@ public class StripLayoutHelperManager
             SnackbarManager snackbarManager,
             @Nullable ActivityResultTracker activityResultTracker,
             GlicButtonDelegate glicClickHandler,
+            LeadingButtonDelegate leadingButtonDelegate,
             OneshotSupplier<SideUiStateProvider> sideUiStateProviderSupplier,
             TabObscuringHandler tabObscuringHandler) {
         mContext = context;
@@ -695,6 +701,7 @@ public class StripLayoutHelperManager
                         context,
                         this,
                         trailingButtonDelegate,
+                        leadingButtonDelegate,
                         managerHost,
                         updateHost,
                         renderHost,
@@ -720,6 +727,7 @@ public class StripLayoutHelperManager
                         context,
                         this,
                         trailingButtonDelegate,
+                        leadingButtonDelegate,
                         managerHost,
                         updateHost,
                         renderHost,
@@ -1189,6 +1197,11 @@ public class StripLayoutHelperManager
                         + mTrailingButtonsCoordinator.getTrailingButtonsWidthWithPadding()
                         + (shouldShowMsb ? BUTTON_TOUCH_TARGET_SIZE_DP : 0f);
         return Math.round(thresholdDp);
+    }
+
+    @Override
+    public void setFadeTransitionThresholdChangedCallback(@Nullable Runnable callback) {
+        mFadeTransitionThresholdChangedCallback = callback;
     }
 
     private boolean duringTabStripHeightTransition() {
@@ -1858,6 +1871,10 @@ public class StripLayoutHelperManager
                 trailingButtonsTouchTargetSize, msbTouchTargetSize);
         mIncognitoHelper.updateEndMarginForStripButtons(
                 trailingButtonsTouchTargetSize, msbTouchTargetSize);
+
+        if (mFadeTransitionThresholdChangedCallback != null) {
+            mFadeTransitionThresholdChangedCallback.run();
+        }
     }
 
     private boolean shouldMsbBeVisible() {
@@ -1870,26 +1887,18 @@ public class StripLayoutHelperManager
         if (mModelSelectorButton == null) return;
         mModelSelectorButton.setIncognito(mIsIncognito);
 
-        @ColorRes int iconTintRes = R.color.default_icon_color_tint_list;
-        @ColorRes int bgTintRes = R.color.model_selector_button_bg_color;
-        @ColorRes int bgHoverTintRes = R.color.tab_strip_button_bg_hover_tint;
         @ColorRes
-        int bgPeripheralPressedTintRes = R.color.tab_strip_button_bg_peripheral_pressed_tint;
-
-        if (mIsIncognito) {
-            iconTintRes = R.color.default_icon_color_secondary_light;
-            bgTintRes = R.color.default_bg_color_dark_elev_1_baseline;
-            bgHoverTintRes = R.color.tab_strip_button_bg_incognito_hover_tint;
-            bgPeripheralPressedTintRes =
-                    R.color.tab_strip_button_bg_incognito_peripheral_pressed_tint;
-        }
-
+        int iconTintRes =
+                mIsIncognito
+                        ? R.color.default_icon_color_secondary_light
+                        : R.color.default_icon_color_tint_list;
+        @ColorRes
+        int bgTintRes =
+                mIsIncognito
+                        ? R.color.tab_strip_msb_bg_incognito_tint_list
+                        : R.color.tab_strip_msb_bg_tint_list;
         mModelSelectorButton.setTint(mContext.getColor(iconTintRes));
-        mModelSelectorButton.setBackgroundTint(
-                mContext.getColor(bgTintRes),
-                mContext.getColor(bgHoverTintRes),
-                mContext.getColor(bgTintRes),
-                mContext.getColor(bgPeripheralPressedTintRes));
+        mModelSelectorButton.setBackgroundTint(mContext.getColorStateList(bgTintRes));
 
         mModelSelectorButton.setAccessibilityDescription(
                 mIsIncognito

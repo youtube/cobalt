@@ -4,6 +4,7 @@
 
 #include "content/test/fake_network.h"
 
+#include "base/byte_size.h"
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
@@ -116,7 +117,7 @@ bool FakeNetwork::HandleRequest(URLLoaderInterceptor::RequestParams* params) {
 
   network::URLLoaderCompletionStatus status;
   status.error_code = response_info.error_code;
-  status.decoded_body_length = response_info.body.size();
+  status.decoded_body_length = base::ByteSize(response_info.body.size());
   client->OnComplete(status);
   return true;
 }

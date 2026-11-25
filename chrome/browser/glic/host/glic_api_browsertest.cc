@@ -954,10 +954,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithDaisyChain,
   ContinueJsTest();
 }
 
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetPanelStateAttached) {
-  ExecuteJsTest();
-}
-
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetPanelStateAttachedHidden) {
   ExecuteJsTest();
 
@@ -1238,11 +1234,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testDetachDoesNotLogActivationMetric) {
   histogram_tester->ExpectTotalCount("Glic.Instance.TimeSinceLastActive", 0);
 }
 
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testClosePanel) {
-  ExecuteJsTest();
-  RunTestSequence(WaitForHide(kGlicViewElementId));
-}
-
 class GlicApiTestRuntimeFeatureOff : public GlicApiTestWithOneTab {
  public:
   GlicApiTestRuntimeFeatureOff() {
@@ -1292,43 +1283,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestRuntimeFeatureOff,
   ExecuteJsTest();
 }
 
-#if !BUILDFLAG(IS_CHROMEOS)
-// No file picker on ChromeOS.
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testShowProfilePicker) {
-  base::test::TestFuture<void> profile_picker_opened;
-  ProfilePicker::AddOnProfilePickerOpenedCallbackForTesting(
-      profile_picker_opened.GetCallback());
-  ExecuteJsTest();
-  ASSERT_TRUE(profile_picker_opened.Wait());
-  // TODO(harringtond): Try to test changing profiles.
-}
-#endif
-
-// TODO(https://crbug.com/512641949): Fix flakes.
-#if BUILDFLAG(IS_CHROMEOS) || !defined(NDEBUG)
-#define MAYBE_testPanelActive DISABLED_testPanelActive
-#else
-#define MAYBE_testPanelActive testPanelActive
-#endif
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, MAYBE_testPanelActive) {
-  // Explicitly track this glic instance by ID. When a new browser window is
-  // created below, it will become the most recently activated browser. Without
-  // explicit tracking, GetBrowser() would return the new window (based on
-  // activation order) instead of the original browser where glic was opened.
-  TrackGlicInstanceWithId(GetGlicInstance()->id());
-  ExecuteJsTest();
-
-  // Opening a new browser window will deactivate the previous one, and make
-  // the panel not active.
-  NavigateParams params(browser()->profile(), GURL("about:blank"),
-                        ui::PAGE_TRANSITION_AUTO_TOPLEVEL);
-  params.disposition = WindowOpenDisposition::NEW_WINDOW;
-  base::WeakPtr<content::NavigationHandle> navigation_handle =
-      Navigate(&params);
-
-  ContinueJsTest();
-}
-
 IN_PROC_BROWSER_TEST_P(GlicApiTest, testPanelActiveWithMicrophone) {
   TrackFloatingGlicInstance();
   // Add another tab and open Floaty.
@@ -1376,10 +1330,6 @@ IN_PROC_BROWSER_TEST_P(GlicApiTest, testIsBrowserOpen) {
   CloseMainBrowserWithIncognitoKeepAlive();
 
   ContinueJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetFormFactor) {
-  ExecuteJsTest();
 }
 
 
@@ -1555,10 +1505,6 @@ IN_PROC_BROWSER_TEST_P(DISABLED_GlicApiTestWithOneTabAndPreloading,
                                       expected_count_hidden);
   histogram_tester->ExpectBucketCount("Glic.Api.StatusCounts.Error",
                                       10 /*GetContextFromTab*/, 2);
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetFocusedTabStateV2) {
-  ExecuteJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
@@ -2700,24 +2646,6 @@ IN_PROC_BROWSER_TEST_P(MAYBE_GlicApiTestWithOneTabMoreDebounceDelay,
   RunTestSequence(AddInstrumentedTab(
       kSecondTab, InProcessBrowserTest::embedded_test_server()->GetURL(
                       "/glic/browser_tests/test.html")));
-  ContinueJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetPinCandidatesSingleTab) {
-  // In multi-instance mode, the tab is automatically pinned. Unpin it now.
-  GetGlicInstanceImpl()->GetSharingManagerInternal().UnpinAllTabs();
-  ExecuteJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
-                       testGetPinCandidatesWithPanelClosed) {
-  ExecuteJsTest();
-  RunTestSequence(AddInstrumentedTab(
-      kSecondTab,
-      embedded_test_server()->GetURL("/glic/browser_tests/test.html")));
-  ContinueJsTest();
-  // Opens the panel again.
-  RunTestSequence(ToggleGlicWindow(GlicWindowMode::kDetached));
   ContinueJsTest();
 }
 

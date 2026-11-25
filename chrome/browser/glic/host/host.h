@@ -401,9 +401,6 @@ class Host : public GlicSharingManagerProvider {
                             mojom::InvokeOptionsPtr options,
                             base::OnceClosure callback);
 
-  void NotifyContextualSkillsChanged(
-      std::vector<mojom::SkillPreviewPtr> contextual_skill_previews);
-
   void WebUIPageHandlerAdded(GlicPageHandler* page_handler);
   void WebUIPageHandlerRemoved(GlicPageHandler* page_handler);
 
@@ -461,7 +458,6 @@ class Host : public GlicSharingManagerProvider {
   bool panel_open_ = false;
   bool is_manually_resizing_ = false;
   std::optional<PanelWillOpenOptions> pending_panel_open_options_;
-  std::vector<mojom::SkillPreviewPtr> pending_contextual_skills_;
   base::flat_map<mojom::AdditionalContextSource, mojom::AdditionalContextPtr>
       pending_additional_contexts_;
   mojom::WebUiState primary_webui_state_ = mojom::WebUiState::kUninitialized;

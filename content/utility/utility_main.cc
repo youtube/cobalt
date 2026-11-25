@@ -33,7 +33,6 @@
 #include "content/public/common/main_function_params.h"
 #include "content/public/utility/content_utility_client.h"
 #include "content/utility/utility_thread_impl.h"
-#include "content/utility/webnn/webnn_sandbox_init.h"
 #include "printing/buildflags/buildflags.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
@@ -112,8 +111,10 @@
 #include "base/win/windows_handle_util.h"
 #include "base/win/windows_version.h"
 #include "content/utility/sandbox_delegate_data.mojom.h"
+#include "content/utility/webnn/webnn_sandbox_init.h"
 #include "sandbox/policy/win/sandbox_warmup.h"
 #include "sandbox/win/src/sandbox.h"
+#include "services/webnn/public/mojom/webnn_compiler_service.mojom.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN)
@@ -473,7 +474,10 @@ int UtilityMain(MainFunctionParams parameters) {
   // webnn_sandbox_init.h for the preload helper and
   // content/browser/service_host/utility_sandbox_delegate_win.cc for
   // the broker-side sandbox policy.
-  if (sandbox_type == sandbox::mojom::Sandbox::kWebNNModelCompilation) {
+  //
+  // Regardless of the sandbox status, the ORT environment needs to be
+  // initialized for WebNN Compiler Utility processes.
+  if (utility_sub_type == webnn::mojom::WebNNCompilerService::Name_) {
     CHECK(webnn::PreSandboxInit());
   }
 

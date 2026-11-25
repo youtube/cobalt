@@ -2267,7 +2267,6 @@ AsyncCompileJob::AsyncCompileJob(
       compilation_id_(compilation_id) {
   TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
               "wasm.AsyncCompileJob");
-  CHECK(v8_flags.wasm_async_compilation);
   CHECK(!v8_flags.jitless || v8_flags.wasm_jitless);
 }
 
@@ -3310,8 +3309,22 @@ void AsyncStreamingProcessor::OnFinishedStream(
     constexpr size_t kCodeSizeEstimate = 0;
     std::tie(final_native_module, cache_hit) =
         job_->GetOrCreateNativeModule(std::move(module), kCodeSizeEstimate);
+    if (!cache_hit) {
+      // Modules without code sections are not initialized via the normal path
+      // (as {ProcessCodeSectionHeader} is never called). Thus initialize
+      // compilation progress here.
+      Impl(final_native_module->compilation_state())
+          ->InitializeCompilationProgress(nullptr);
+    }
   } else {
     final_native_module->SetWireBytes(std::move(job_->bytes_copy_));
+  }
+
+  if (v8_flags.wasm_num_compilation_tasks == 0 || v8_flags.wasm_jitless) {
+    // In single-threaded mode there are no worker tasks that will do the
+    // compilation. We call {WaitForBaselineCompileJob} here so that the current
+    // thread participates and finishes the compilation.
+    Impl(final_native_module->compilation_state())->WaitForBaselineCompileJob();
   }
 
   // Only decrement the finisher count *after* setting the wire bytes. The

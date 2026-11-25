@@ -32,6 +32,7 @@
 #include "services/network/public/cpp/content_security_policy/csp_context.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
+#include "url/gurl.h"
 
 namespace content {
 
@@ -153,11 +154,30 @@ NavigationThrottle::ThrottleCheckResult AncestorThrottle::ProcessResponseImpl(
     return NavigationThrottle::BLOCK_RESPONSE;
   }
 
-  if (EvaluateXFrameOptions(logging) == CheckResult::BLOCK)
-    return NavigationThrottle::BLOCK_RESPONSE;
+  GURL url = navigation_handle()->GetURL();
+  if (!is_response_check &&
+      base::FeatureList::IsEnabled(
+          features::kAncestorThrottleEvaluateRedirectSource)) {
+    const std::vector<GURL>& redirect_chain =
+        navigation_handle()->GetRedirectChain();
+    // A redirect response implies that the redirect chain contains at least the
+    // initial URL and the redirect target.
+    CHECK_GE(redirect_chain.size(), 2u);
+    // At the point where WillRedirectRequest is called, the navigation state
+    // has already been updated to the redirect target URL. The response
+    // headers, however, belong to the redirect source URL. We must use the
+    // redirect source URL (the second to last element in the redirect chain)
+    // to evaluate the response headers.
+    url = redirect_chain[redirect_chain.size() - 2];
+  }
 
-  if (EvaluateEmbeddingOptIn(logging) == CheckResult::BLOCK)
+  if (EvaluateXFrameOptions(logging, url) == CheckResult::BLOCK) {
     return NavigationThrottle::BLOCK_RESPONSE;
+  }
+
+  if (EvaluateEmbeddingOptIn(logging, url) == CheckResult::BLOCK) {
+    return NavigationThrottle::BLOCK_RESPONSE;
+  }
 
   return NavigationThrottle::PROCEED;
 }
@@ -171,7 +191,8 @@ AncestorThrottle::AncestorThrottle(NavigationThrottleRegistry& registry)
 
 void AncestorThrottle::ParseXFrameOptionsError(
     const net::HttpResponseHeaders* headers,
-    network::mojom::XFrameOptionsValue disposition) {
+    network::mojom::XFrameOptionsValue disposition,
+    const GURL& url) {
   CHECK(disposition == network::mojom::XFrameOptionsValue::kConflict ||
             disposition == network::mojom::XFrameOptionsValue::kInvalid,
         base::NotFatalUntil::M152);
@@ -186,27 +207,19 @@ void AncestorThrottle::ParseXFrameOptionsError(
         "Refused to display '%s' in a frame because it set multiple "
         "'X-Frame-Options' headers with conflicting values "
         "('%s'). Falling back to 'deny'.",
-        url::Origin::Create(navigation_handle()->GetURL())
-            .GetURL()
-            .spec()
-            .c_str(),
-        value.c_str());
+        url::Origin::Create(url).GetURL().spec().c_str(), value.c_str());
   } else {
     message = base::StringPrintf(
         "Invalid 'X-Frame-Options' header encountered when loading '%s': "
         "'%s' is not a recognized directive. The header will be ignored.",
-        url::Origin::Create(navigation_handle()->GetURL())
-            .GetURL()
-            .spec()
-            .c_str(),
-        value.c_str());
+        url::Origin::Create(url).GetURL().spec().c_str(), value.c_str());
   }
 
   AddMessageToConsole(blink::mojom::ConsoleMessageLevel::kError,
                       std::move(message));
 }
 
-void AncestorThrottle::ConsoleErrorEmbeddingRequiresOptIn() {
+void AncestorThrottle::ConsoleErrorEmbeddingRequiresOptIn(const GURL& url) {
   CHECK(base::FeatureList::IsEnabled(features::kEmbeddingRequiresOptIn),
         base::NotFatalUntil::M152);
   std::string message = base::StringPrintf(
@@ -214,27 +227,22 @@ void AncestorThrottle::ConsoleErrorEmbeddingRequiresOptIn() {
       "embedding by setting either an 'X-Frame-Options' header, or a "
       "'Content-Security-Policy' header containing a 'frame-ancestors' "
       "directive.",
-      url::Origin::Create(navigation_handle()->GetURL())
-          .GetURL()
-          .spec()
-          .c_str());
+      url::Origin::Create(url).GetURL().spec().c_str());
 
   AddMessageToConsole(blink::mojom::ConsoleMessageLevel::kError,
                       std::move(message));
 }
 
 void AncestorThrottle::ConsoleErrorXFrameOptions(
-    network::mojom::XFrameOptionsValue disposition) {
+    network::mojom::XFrameOptionsValue disposition,
+    const GURL& url) {
   CHECK(disposition == network::mojom::XFrameOptionsValue::kDeny ||
             disposition == network::mojom::XFrameOptionsValue::kSameOrigin,
         base::NotFatalUntil::M152);
   std::string message = base::StringPrintf(
       "Refused to display '%s' in a frame because it set 'X-Frame-Options' "
       "to '%s'.",
-      url::Origin::Create(navigation_handle()->GetURL())
-          .GetURL()
-          .spec()
-          .c_str(),
+      url::Origin::Create(url).GetURL().spec().c_str(),
       disposition == network::mojom::XFrameOptionsValue::kDeny ? "deny"
                                                                : "sameorigin");
 
@@ -250,7 +258,8 @@ void AncestorThrottle::AddMessageToConsole(
 }
 
 AncestorThrottle::CheckResult AncestorThrottle::EvaluateXFrameOptions(
-    LoggingDisposition logging) {
+    LoggingDisposition logging,
+    const GURL& url) {
   NavigationRequest* request = NavigationRequest::From(navigation_handle());
   network::mojom::XFrameOptionsValue disposition =
       request->response()->parsed_headers->xfo;
@@ -266,21 +275,26 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateXFrameOptions(
 
   switch (disposition) {
     case network::mojom::XFrameOptionsValue::kConflict:
-      if (logging == LoggingDisposition::LOG_TO_CONSOLE)
-        ParseXFrameOptionsError(request->GetResponseHeaders(), disposition);
+      if (logging == LoggingDisposition::LOG_TO_CONSOLE) {
+        ParseXFrameOptionsError(request->GetResponseHeaders(), disposition,
+                                url);
+      }
       return CheckResult::BLOCK;
 
     case network::mojom::XFrameOptionsValue::kInvalid:
-      if (logging == LoggingDisposition::LOG_TO_CONSOLE)
-        ParseXFrameOptionsError(request->GetResponseHeaders(), disposition);
+      if (logging == LoggingDisposition::LOG_TO_CONSOLE) {
+        ParseXFrameOptionsError(request->GetResponseHeaders(), disposition,
+                                url);
+      }
       // TODO(mkwst): Consider failing here, especially if we end up shipping
       // a new default behavior which requires embedees to explicitly opt-in
       // to being embedded: https://crbug.com/1153274.
       return CheckResult::PROCEED;
 
     case network::mojom::XFrameOptionsValue::kDeny:
-      if (logging == LoggingDisposition::LOG_TO_CONSOLE)
-        ConsoleErrorXFrameOptions(disposition);
+      if (logging == LoggingDisposition::LOG_TO_CONSOLE) {
+        ConsoleErrorXFrameOptions(disposition, url);
+      }
       return CheckResult::BLOCK;
 
     case network::mojom::XFrameOptionsValue::kSameOrigin: {
@@ -289,13 +303,13 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateXFrameOptions(
       // embedders/GuestViews.
       RenderFrameHostImpl* parent = GetParentForFrameAncestors(
           request, request->frame_tree_node()->current_frame_host());
-      url::Origin current_origin =
-          url::Origin::Create(navigation_handle()->GetURL());
+      url::Origin current_origin = url::Origin::Create(url);
       while (parent) {
         if (!parent->GetLastCommittedOrigin().IsSameOriginWith(
                 current_origin)) {
-          if (logging == LoggingDisposition::LOG_TO_CONSOLE)
-            ConsoleErrorXFrameOptions(disposition);
+          if (logging == LoggingDisposition::LOG_TO_CONSOLE) {
+            ConsoleErrorXFrameOptions(disposition, url);
+          }
           return CheckResult::BLOCK;
         }
         parent = GetParentForFrameAncestors(nullptr, parent);
@@ -311,7 +325,8 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateXFrameOptions(
 }
 
 AncestorThrottle::CheckResult AncestorThrottle::EvaluateEmbeddingOptIn(
-    LoggingDisposition logging) {
+    LoggingDisposition logging,
+    const GURL& url) {
   // If the proposal in https://github.com/mikewest/embedding-requires-opt-in is
   // enabled, a response will be blocked unless it's explicitly opted-into
   // being embeddable via 'X-Frame-Options'/'frame-ancestors', or is same-origin
@@ -325,17 +340,18 @@ AncestorThrottle::CheckResult AncestorThrottle::EvaluateEmbeddingOptIn(
     RenderFrameHostImpl* parent = GetParentForFrameAncestors(
         request, request->frame_tree_node()->current_frame_host());
     while (parent) {
-      if (!parent->GetLastCommittedOrigin().IsSameOriginWith(
-              navigation_handle()->GetURL())) {
+      if (!parent->GetLastCommittedOrigin().IsSameOriginWith(url)) {
         GetContentClient()->browser()->LogWebFeatureForCurrentPage(
             parent, blink::mojom::WebFeature::
                         kEmbeddedCrossOriginFrameWithoutFrameAncestorsOrXFO);
 
-        if (!base::FeatureList::IsEnabled(features::kEmbeddingRequiresOptIn))
+        if (!base::FeatureList::IsEnabled(features::kEmbeddingRequiresOptIn)) {
           return CheckResult::PROCEED;
+        }
 
-        if (logging == LoggingDisposition::LOG_TO_CONSOLE)
-          ConsoleErrorEmbeddingRequiresOptIn();
+        if (logging == LoggingDisposition::LOG_TO_CONSOLE) {
+          ConsoleErrorEmbeddingRequiresOptIn(url);
+        }
 
         return CheckResult::BLOCK;
       }

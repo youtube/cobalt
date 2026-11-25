@@ -572,8 +572,6 @@ NetworkControlUpdate GoogCcNetworkController::GetNetworkState(
       last_estimated_fraction_loss_.value_or(0) / 255.0;
   update.target_rate->network_estimate.round_trip_time =
       last_estimated_round_trip_time_;
-  update.target_rate->network_estimate.bwe_period =
-      delay_based_bwe_->GetExpectedBwePeriod();
 
   update.target_rate->at_time = at_time;
   update.target_rate->target_rate = last_pushback_target_rate_;
@@ -626,8 +624,6 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
 
     alr_detector_.SetEstimatedBitrate(loss_based_target_rate);
 
-    TimeDelta bwe_period = delay_based_bwe_->GetExpectedBwePeriod();
-
     TargetTransferRate target_rate_msg;
     target_rate_msg.at_time = at_time;
     if (rate_control_settings_.UseCongestionWindowDropFrameOnly()) {
@@ -639,7 +635,6 @@ void GoogCcNetworkController::MaybeTriggerOnNetworkChanged(
     target_rate_msg.network_estimate.at_time = at_time;
     target_rate_msg.network_estimate.round_trip_time = round_trip_time;
     target_rate_msg.network_estimate.loss_rate_ratio = fraction_loss / 255.0f;
-    target_rate_msg.network_estimate.bwe_period = bwe_period;
     target_rate_msg.is_bandwidth_limited = is_bandwidth_limited;
 
     update->target_rate = target_rate_msg;

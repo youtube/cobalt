@@ -49,6 +49,7 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
         @open-composebox="${this.onOpenComposebox_}"
         @open-lens-search="${this.onOpenLensSearch_}"
         @open-voice-search="${this.onOpenVoiceSearch_}" ?shown="${this.realboxShown_}"
+        @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}"
         ?had-secondary-side="${this.realboxHadSecondarySide}"
         @had-secondary-side-changed="${this.onRealboxHadSecondarySideChanged_}"
         ?can-show-secondary-side="${this.realboxCanShowSecondarySide}"
@@ -61,6 +62,7 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
         ?cycling-placeholders="${this.searchboxCyclingPlaceholders_}"
         context-menu-glif-animation-state="${this.contextMenuGlifAnimationState_}"
         .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled_}"
+        .contextManagementInComposeboxEnabled="${this.contextManagementInComposeboxEnabled_}"
         ?multi-line-enabled="${this.multiLineEnabled_}">
     </ntp-searchbox>
     <div id="dialogAnchor"></div>
@@ -75,6 +77,7 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
               .usePecApi="${this.usePecApi_}"
               .showVoiceSearch="${true}"
               .smartTabSharingVisible="${this.smartTabSharingVisible_}"
+              .contextManagementInComposeboxEnabled="${this.contextManagementInComposeboxEnabled_}"
               @close-composebox="${this.onCloseComposebox_}"
               @voice-search-action="${this.onComposeVoiceSearchAction_}"
               .submitButtonIconType="${SubmitButtonIconType.FORWARD}"
@@ -100,6 +103,7 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
               .energyEffectAnimationEnabled="${this.energyEffectAnimationEnabled_}"
               .usePecApi="${this.usePecApi_}"
               .smartTabSharingVisible="${this.smartTabSharingVisible_}"
+              .contextManagementInComposeboxEnabled="${this.contextManagementInComposeboxEnabled_}"
               @voice-search-action="${this.onComposeVoiceSearchAction_}"
               searchbox-layout-mode="${this.ntpRealboxNextEnabled_ ? 'Compact' : ''}">
           </cr-composebox>
@@ -259,9 +263,10 @@ ${this.showVoiceSearchOverlay_ &&
   <ntp-voice-search-overlay @close="${this.onVoiceSearchOverlayClose}">
   </ntp-voice-search-overlay>
 ` : ''}
-${!this.ntpRealboxNextEnabled_ && this.showComposebox_ ? html`
+${!this.ntpRealboxNextEnabled_ &&
+    (this.showComposebox_ || this.showVoiceSearchScrim_) ? html`
   <div id="scrim"
-      @click="${this.onComposeboxOutsideClick_}"></div>
+      @click="${this.onScrimClick_}"></div>
 ` : ''}
 <svg>
   <defs>

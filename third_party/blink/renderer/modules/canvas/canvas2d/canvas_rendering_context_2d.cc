@@ -102,10 +102,11 @@
 #include "third_party/blink/renderer/platform/geometry/path_builder.h"
 #include "third_party/blink/renderer/platform/geometry/physical_offset.h"
 #include "third_party/blink/renderer/platform/geometry/stroke_data.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_bitmap_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_deferred_paint_record.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_hibernation_handler.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_context_rate_limiter.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
@@ -348,19 +349,7 @@ bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
                                            size_t row_bytes,
                                            int x,
                                            int y) {
-  if (!canvas() || isContextLost()) {
-    return false;
-  }
-
-  if (shared_image_provider_) {
-    if (!shared_image_provider_->IsValid()) {
-      return false;
-    }
-  } else if (bitmap_provider_) {
-    if (!bitmap_provider_->IsValid()) {
-      return false;
-    }
-  } else {
+  if (!IsResourceProviderValid() || isContextLost()) {
     return false;
   }
 
@@ -382,16 +371,9 @@ bool CanvasRenderingContext2D::WritePixels(const SkImageInfo& orig_info,
       recorder->RestartRecording();
     }
   } else {
-    if (shared_image_provider_) {
-      shared_image_provider_->Flush();
-      if (!shared_image_provider_->IsValid()) {
-        return false;
-      }
-    } else {
-      bitmap_provider_->Flush();
-      if (!bitmap_provider_->IsValid()) {
-        return false;
-      }
+    FlushCanvas(FlushReason::kOther);
+    if (!IsResourceProviderValid()) {
+      return false;
     }
   }
 
@@ -491,15 +473,10 @@ MemoryManagedPaintCanvas* CanvasRenderingContext2D::GetOrCreatePaintCanvas() {
     return nullptr;
   }
 
-  if (shared_image_provider_) {
+  if (shared_image_provider_ || bitmap_provider_) {
     if (layer_count_ == 0) [[likely]] {
       // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
-      shared_image_provider_->FlushIfRecordingLimitExceeded();
-    }
-  } else if (bitmap_provider_) {
-    if (layer_count_ == 0) [[likely]] {
-      // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
-      bitmap_provider_->FlushIfRecordingLimitExceeded();
+      FlushIfRecordingLimitExceeded();
     }
   } else {
     // If we have no provider, try creating one.
@@ -567,10 +544,35 @@ void CanvasRenderingContext2D::WillDraw(
   // Always draw everything during printing.
   if (layer_count_ == 0) [[likely]] {
     // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
-    if (shared_image_provider_) {
-      shared_image_provider_->FlushIfRecordingLimitExceeded();
-    } else if (bitmap_provider_) {
-      bitmap_provider_->FlushIfRecordingLimitExceeded();
+    FlushIfRecordingLimitExceeded();
+  }
+}
+
+void CanvasRenderingContext2D::FlushIfRecordingLimitExceeded() {
+  if (shared_image_provider_) {
+    if (shared_image_provider_->IsPrinting() &&
+        shared_image_provider_->clear_frame()) {
+      return;
+    }
+    const MemoryManagedPaintRecorder* recorder = Recorder();
+    CHECK(recorder);
+    if (recorder->ReleasableOpBytesUsed() >
+            shared_image_provider_->max_recorded_op_bytes() ||
+        recorder->ReleasableImageBytesUsed() >
+            shared_image_provider_->max_pinned_image_bytes()) [[unlikely]] {
+      FlushCanvas(FlushReason::kOther);
+    }
+  } else if (bitmap_provider_) {
+    if (bitmap_provider_->IsPrinting() && bitmap_provider_->clear_frame()) {
+      return;
+    }
+    const MemoryManagedPaintRecorder* recorder = Recorder();
+    CHECK(recorder);
+    if (recorder->ReleasableOpBytesUsed() >
+            bitmap_provider_->max_recorded_op_bytes() ||
+        recorder->ReleasableImageBytesUsed() >
+            bitmap_provider_->max_pinned_image_bytes()) [[unlikely]] {
+      FlushCanvas(FlushReason::kOther);
     }
   }
 }
@@ -798,7 +800,8 @@ CanvasRenderingContext2D::PaintRenderingResultsToResource(
     return nullptr;
   }
 
-  return si_provider->ProduceCanvasResource(reason);
+  FlushCanvas(reason);
+  return si_provider->ProduceCanvasResource();
 }
 
 scoped_refptr<StaticBitmapImage>
@@ -1164,7 +1167,7 @@ void CanvasRenderingContext2D::Dispose() {
   CanvasRenderingContext::Dispose();
 }
 
-void CanvasRenderingContext2D::CreateCanvasResourceProvider() {
+void CanvasRenderingContext2D::CreateProvider() {
   CHECK(!shared_image_provider_ && !bitmap_provider_);
 
   canvas()->GetOrCreateResourceDispatcher();
@@ -1205,17 +1208,16 @@ void CanvasRenderingContext2D::CreateCanvasResourceProvider() {
       }
     }
 
-    shared_image_provider_ =
-        Canvas2DResourceProviderSharedImage::CreateWithClear(
-            canvas()->Size(), format, alpha_type, color_space, hdr_metadata,
-            SharedGpuContext::ContextProviderWrapper(), raster_mode,
-            shared_image_usage_flags, canvas());
+    shared_image_provider_ = Canvas2DResourceProvider::CreateWithClear(
+        canvas()->Size(), format, alpha_type, color_space, hdr_metadata,
+        SharedGpuContext::ContextProviderWrapper(), raster_mode,
+        shared_image_usage_flags, canvas());
   } else if (!is_gpu_compositing_enabled) {
     // Create a CanvasResourceProvider that uses a SharedImage backed by a
     // shared-memory buffer that can be written by canvas SW raster and read by
     // the SW compositor.
-    shared_image_provider_ = Canvas2DResourceProviderSharedImage::
-        CreateWithClearForSoftwareCompositor(
+    shared_image_provider_ =
+        Canvas2DResourceProvider::CreateWithClearForSoftwareCompositor(
             canvas()->Size(), format, alpha_type, color_space, hdr_metadata,
             SharedGpuContext::SharedImageInterfaceProvider(), canvas());
   }
@@ -1252,8 +1254,8 @@ bool CanvasRenderingContext2D::IsResourceProviderValid() const {
   return false;
 }
 
-Canvas2DResourceProviderSharedImage*
-CanvasRenderingContext2D::GetSharedImageProvider() const {
+Canvas2DResourceProvider* CanvasRenderingContext2D::GetSharedImageProvider()
+    const {
   return shared_image_provider_.get();
 }
 
@@ -1391,7 +1393,7 @@ void CanvasRenderingContext2D::RecreateResourceProvider() {
   }
 
   if (canvas()->IsValidImageSize()) {
-    CreateCanvasResourceProvider();
+    CreateProvider();
     canvas()->UpdateMemoryUsage();
   }
 
@@ -1457,7 +1459,7 @@ void CanvasRenderingContext2D::WakeUpFromHibernation() {
 }
 
 void CanvasRenderingContext2D::SetCanvas2DResourceProviderForTesting(
-    std::unique_ptr<Canvas2DResourceProviderSharedImage> provider,
+    std::unique_ptr<Canvas2DResourceProvider> provider,
     const gfx::Size& size) {
   canvas()->DiscardResources();
   canvas()->SetSize(size);

@@ -597,6 +597,15 @@ Called by update_autofill_enums.py.-->
   <int value="2" label="Other"/>
 </enum>
 
+<enum name="AutofillAtMemoryQueryCompletedStatus">
+  <int value="0" label="Query returned data"/>
+  <int value="1" label="Query unsupported"/>
+  <int value="2" label="No data"/>
+  <int value="3" label="Network error"/>
+  <int value="4" label="Inference failure"/>
+  <int value="5" label="Internal error"/>
+</enum>
+
 <enum name="AutofillAtMemoryTriggerSource">
   <int value="0" label="Typed trigger"/>
   <int value="1" label="Context menu"/>
@@ -1721,8 +1730,8 @@ Called by update_autofill_enums.py.-->
   <int value="5" label="False Positive (Ambiguous)"/>
   <int value="6" label="False Positive (Unknown)"/>
   <int value="7" label="False Positive (Empty)"/>
-  <int value="8" label="False Negative (Mismatch)"/>
-  <int value="9" label="False Negative (Unknown)"/>
+  <int value="8" label="False Negative (Unknown)"/>
+  <int value="9" label="False Negative (Mismatch)"/>
 </enum>
 
 <enum name="AutofillFieldPredictionQualityByFieldType">
@@ -1737,8 +1746,8 @@ Called by update_autofill_enums.py.-->
   <int value="5" label="AMBIGUOUS: False Positive (Ambiguous)"/>
   <int value="6" label="AMBIGUOUS: False Positive (Unknown)"/>
   <int value="7" label="AMBIGUOUS: False Positive (Empty)"/>
-  <int value="8" label="AMBIGUOUS: False Negative (Mismatch)"/>
-  <int value="9" label="AMBIGUOUS: False Negative (Unknown)"/>
+  <int value="8" label="AMBIGUOUS: False Negative (Unknown)"/>
+  <int value="9" label="AMBIGUOUS: False Negative (Mismatch)"/>
   <int value="256" label="NAME: True Positive"/>
   <int value="257" label="NAME: True Negative (Ambiguous)"/>
   <int value="258" label="NAME: True Negative (Unknown)"/>
@@ -1747,8 +1756,8 @@ Called by update_autofill_enums.py.-->
   <int value="261" label="NAME: False Positive (Ambiguous)"/>
   <int value="262" label="NAME: False Positive (Unknown)"/>
   <int value="263" label="NAME: False Positive (Empty)"/>
-  <int value="264" label="NAME: False Negative (Mismatch)"/>
-  <int value="265" label="NAME: False Negative (Unknown)"/>
+  <int value="264" label="NAME: False Negative (Unknown)"/>
+  <int value="265" label="NAME: False Negative (Mismatch)"/>
   <int value="512" label="COMPANY: True Positive"/>
   <int value="513" label="COMPANY: True Negative (Ambiguous)"/>
   <int value="514" label="COMPANY: True Negative (Unknown)"/>
@@ -1757,8 +1766,8 @@ Called by update_autofill_enums.py.-->
   <int value="517" label="COMPANY: False Positive (Ambiguous)"/>
   <int value="518" label="COMPANY: False Positive (Unknown)"/>
   <int value="519" label="COMPANY: False Positive (Empty)"/>
-  <int value="520" label="COMPANY: False Negative (Mismatch)"/>
-  <int value="521" label="COMPANY: False Negative (Unknown)"/>
+  <int value="520" label="COMPANY: False Negative (Unknown)"/>
+  <int value="521" label="COMPANY: False Negative (Mismatch)"/>
   <int value="768" label="ADDRESS_LINE_1: True Positive"/>
   <int value="769" label="ADDRESS_LINE_1: True Negative (Ambiguous)"/>
   <int value="770" label="ADDRESS_LINE_1: True Negative (Unknown)"/>
@@ -1767,8 +1776,8 @@ Called by update_autofill_enums.py.-->
   <int value="773" label="ADDRESS_LINE_1: False Positive (Ambiguous)"/>
   <int value="774" label="ADDRESS_LINE_1: False Positive (Unknown)"/>
   <int value="775" label="ADDRESS_LINE_1: False Positive (Empty)"/>
-  <int value="776" label="ADDRESS_LINE_1: False Negative (Mismatch)"/>
-  <int value="777" label="ADDRESS_LINE_1: False Negative (Unknown)"/>
+  <int value="776" label="ADDRESS_LINE_1: False Negative (Unknown)"/>
+  <int value="777" label="ADDRESS_LINE_1: False Negative (Mismatch)"/>
   <int value="1024" label="ADDRESS_LINE_2: True Positive"/>
   <int value="1025" label="ADDRESS_LINE_2: True Negative (Ambiguous)"/>
   <int value="1026" label="ADDRESS_LINE_2: True Negative (Unknown)"/>
@@ -1777,8 +1786,8 @@ Called by update_autofill_enums.py.-->
   <int value="1029" label="ADDRESS_LINE_2: False Positive (Ambiguous)"/>
   <int value="1030" label="ADDRESS_LINE_2: False Positive (Unknown)"/>
   <int value="1031" label="ADDRESS_LINE_2: False Positive (Empty)"/>
-  <int value="1032" label="ADDRESS_LINE_2: False Negative (Mismatch)"/>
-  <int value="1033" label="ADDRESS_LINE_2: False Negative (Unknown)"/>
+  <int value="1032" label="ADDRESS_LINE_2: False Negative (Unknown)"/>
+  <int value="1033" label="ADDRESS_LINE_2: False Negative (Mismatch)"/>
   <int value="1280" label="ADDRESS_CITY: True Positive"/>
   <int value="1281" label="ADDRESS_CITY: True Negative (Ambiguous)"/>
   <int value="1282" label="ADDRESS_CITY: True Negative (Unknown)"/>
@@ -1787,8 +1796,8 @@ Called by update_autofill_enums.py.-->
   <int value="1285" label="ADDRESS_CITY: False Positive (Ambiguous)"/>
   <int value="1286" label="ADDRESS_CITY: False Positive (Unknown)"/>
   <int value="1287" label="ADDRESS_CITY: False Positive (Empty)"/>
-  <int value="1288" label="ADDRESS_CITY: False Negative (Mismatch)"/>
-  <int value="1289" label="ADDRESS_CITY: False Negative (Unknown)"/>
+  <int value="1288" label="ADDRESS_CITY: False Negative (Unknown)"/>
+  <int value="1289" label="ADDRESS_CITY: False Negative (Mismatch)"/>
   <int value="1536" label="ADDRESS_STATE: True Positive"/>
   <int value="1537" label="ADDRESS_STATE: True Negative (Ambiguous)"/>
   <int value="1538" label="ADDRESS_STATE: True Negative (Unknown)"/>
@@ -1797,8 +1806,8 @@ Called by update_autofill_enums.py.-->
   <int value="1541" label="ADDRESS_STATE: False Positive (Ambiguous)"/>
   <int value="1542" label="ADDRESS_STATE: False Positive (Unknown)"/>
   <int value="1543" label="ADDRESS_STATE: False Positive (Empty)"/>
-  <int value="1544" label="ADDRESS_STATE: False Negative (Mismatch)"/>
-  <int value="1545" label="ADDRESS_STATE: False Negative (Unknown)"/>
+  <int value="1544" label="ADDRESS_STATE: False Negative (Unknown)"/>
+  <int value="1545" label="ADDRESS_STATE: False Negative (Mismatch)"/>
   <int value="1792" label="ADDRESS_ZIP: True Positive"/>
   <int value="1793" label="ADDRESS_ZIP: True Negative (Ambiguous)"/>
   <int value="1794" label="ADDRESS_ZIP: True Negative (Unknown)"/>
@@ -1807,8 +1816,8 @@ Called by update_autofill_enums.py.-->
   <int value="1797" label="ADDRESS_ZIP: False Positive (Ambiguous)"/>
   <int value="1798" label="ADDRESS_ZIP: False Positive (Unknown)"/>
   <int value="1799" label="ADDRESS_ZIP: False Positive (Empty)"/>
-  <int value="1800" label="ADDRESS_ZIP: False Negative (Mismatch)"/>
-  <int value="1801" label="ADDRESS_ZIP: False Negative (Unknown)"/>
+  <int value="1800" label="ADDRESS_ZIP: False Negative (Unknown)"/>
+  <int value="1801" label="ADDRESS_ZIP: False Negative (Mismatch)"/>
   <int value="2048" label="ADDRESS_COUNTRY: True Positive"/>
   <int value="2049" label="ADDRESS_COUNTRY: True Negative (Ambiguous)"/>
   <int value="2050" label="ADDRESS_COUNTRY: True Negative (Unknown)"/>
@@ -1817,8 +1826,8 @@ Called by update_autofill_enums.py.-->
   <int value="2053" label="ADDRESS_COUNTRY: False Positive (Ambiguous)"/>
   <int value="2054" label="ADDRESS_COUNTRY: False Positive (Unknown)"/>
   <int value="2055" label="ADDRESS_COUNTRY: False Positive (Empty)"/>
-  <int value="2056" label="ADDRESS_COUNTRY: False Negative (Mismatch)"/>
-  <int value="2057" label="ADDRESS_COUNTRY: False Negative (Unknown)"/>
+  <int value="2056" label="ADDRESS_COUNTRY: False Negative (Unknown)"/>
+  <int value="2057" label="ADDRESS_COUNTRY: False Negative (Mismatch)"/>
   <int value="2304" label="ADDRESS_HOME_STREET_NAME: True Positive"/>
   <int value="2305"
       label="ADDRESS_HOME_STREET_NAME: True Negative (Ambiguous)"/>
@@ -1830,9 +1839,9 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_STREET_NAME: False Positive (Ambiguous)"/>
   <int value="2310" label="ADDRESS_HOME_STREET_NAME: False Positive (Unknown)"/>
   <int value="2311" label="ADDRESS_HOME_STREET_NAME: False Positive (Empty)"/>
-  <int value="2312"
+  <int value="2312" label="ADDRESS_HOME_STREET_NAME: False Negative (Unknown)"/>
+  <int value="2313"
       label="ADDRESS_HOME_STREET_NAME: False Negative (Mismatch)"/>
-  <int value="2313" label="ADDRESS_HOME_STREET_NAME: False Negative (Unknown)"/>
   <int value="2560" label="ADDRESS_HOME_HOUSE_NUMBER: True Positive"/>
   <int value="2561"
       label="ADDRESS_HOME_HOUSE_NUMBER: True Negative (Ambiguous)"/>
@@ -1846,9 +1855,9 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_HOUSE_NUMBER: False Positive (Unknown)"/>
   <int value="2567" label="ADDRESS_HOME_HOUSE_NUMBER: False Positive (Empty)"/>
   <int value="2568"
-      label="ADDRESS_HOME_HOUSE_NUMBER: False Negative (Mismatch)"/>
-  <int value="2569"
       label="ADDRESS_HOME_HOUSE_NUMBER: False Negative (Unknown)"/>
+  <int value="2569"
+      label="ADDRESS_HOME_HOUSE_NUMBER: False Negative (Mismatch)"/>
   <int value="2816" label="ADDRESS_HOME_SUBPREMISE: True Positive"/>
   <int value="2817" label="ADDRESS_HOME_SUBPREMISE: True Negative (Ambiguous)"/>
   <int value="2818" label="ADDRESS_HOME_SUBPREMISE: True Negative (Unknown)"/>
@@ -1858,8 +1867,8 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_SUBPREMISE: False Positive (Ambiguous)"/>
   <int value="2822" label="ADDRESS_HOME_SUBPREMISE: False Positive (Unknown)"/>
   <int value="2823" label="ADDRESS_HOME_SUBPREMISE: False Positive (Empty)"/>
-  <int value="2824" label="ADDRESS_HOME_SUBPREMISE: False Negative (Mismatch)"/>
-  <int value="2825" label="ADDRESS_HOME_SUBPREMISE: False Negative (Unknown)"/>
+  <int value="2824" label="ADDRESS_HOME_SUBPREMISE: False Negative (Unknown)"/>
+  <int value="2825" label="ADDRESS_HOME_SUBPREMISE: False Negative (Mismatch)"/>
   <int value="3072" label="PHONE: True Positive"/>
   <int value="3073" label="PHONE: True Negative (Ambiguous)"/>
   <int value="3074" label="PHONE: True Negative (Unknown)"/>
@@ -1868,8 +1877,8 @@ Called by update_autofill_enums.py.-->
   <int value="3077" label="PHONE: False Positive (Ambiguous)"/>
   <int value="3078" label="PHONE: False Positive (Unknown)"/>
   <int value="3079" label="PHONE: False Positive (Empty)"/>
-  <int value="3080" label="PHONE: False Negative (Mismatch)"/>
-  <int value="3081" label="PHONE: False Negative (Unknown)"/>
+  <int value="3080" label="PHONE: False Negative (Unknown)"/>
+  <int value="3081" label="PHONE: False Negative (Mismatch)"/>
   <int value="3328" label="FAX: True Positive"/>
   <int value="3329" label="FAX: True Negative (Ambiguous)"/>
   <int value="3330" label="FAX: True Negative (Unknown)"/>
@@ -1878,8 +1887,8 @@ Called by update_autofill_enums.py.-->
   <int value="3333" label="FAX: False Positive (Ambiguous)"/>
   <int value="3334" label="FAX: False Positive (Unknown)"/>
   <int value="3335" label="FAX: False Positive (Empty)"/>
-  <int value="3336" label="FAX: False Negative (Mismatch)"/>
-  <int value="3337" label="FAX: False Negative (Unknown)"/>
+  <int value="3336" label="FAX: False Negative (Unknown)"/>
+  <int value="3337" label="FAX: False Negative (Mismatch)"/>
   <int value="3584" label="EMAIL: True Positive"/>
   <int value="3585" label="EMAIL: True Negative (Ambiguous)"/>
   <int value="3586" label="EMAIL: True Negative (Unknown)"/>
@@ -1888,8 +1897,8 @@ Called by update_autofill_enums.py.-->
   <int value="3589" label="EMAIL: False Positive (Ambiguous)"/>
   <int value="3590" label="EMAIL: False Positive (Unknown)"/>
   <int value="3591" label="EMAIL: False Positive (Empty)"/>
-  <int value="3592" label="EMAIL: False Negative (Mismatch)"/>
-  <int value="3593" label="EMAIL: False Negative (Unknown)"/>
+  <int value="3592" label="EMAIL: False Negative (Unknown)"/>
+  <int value="3593" label="EMAIL: False Negative (Mismatch)"/>
   <int value="3840" label="CREDIT_CARD_NAME: True Positive"/>
   <int value="3841" label="CREDIT_CARD_NAME: True Negative (Ambiguous)"/>
   <int value="3842" label="CREDIT_CARD_NAME: True Negative (Unknown)"/>
@@ -1898,8 +1907,8 @@ Called by update_autofill_enums.py.-->
   <int value="3845" label="CREDIT_CARD_NAME: False Positive (Ambiguous)"/>
   <int value="3846" label="CREDIT_CARD_NAME: False Positive (Unknown)"/>
   <int value="3847" label="CREDIT_CARD_NAME: False Positive (Empty)"/>
-  <int value="3848" label="CREDIT_CARD_NAME: False Negative (Mismatch)"/>
-  <int value="3849" label="CREDIT_CARD_NAME: False Negative (Unknown)"/>
+  <int value="3848" label="CREDIT_CARD_NAME: False Negative (Unknown)"/>
+  <int value="3849" label="CREDIT_CARD_NAME: False Negative (Mismatch)"/>
   <int value="4096" label="CREDIT_CARD_NUMBER: True Positive"/>
   <int value="4097" label="CREDIT_CARD_NUMBER: True Negative (Ambiguous)"/>
   <int value="4098" label="CREDIT_CARD_NUMBER: True Negative (Unknown)"/>
@@ -1908,8 +1917,8 @@ Called by update_autofill_enums.py.-->
   <int value="4101" label="CREDIT_CARD_NUMBER: False Positive (Ambiguous)"/>
   <int value="4102" label="CREDIT_CARD_NUMBER: False Positive (Unknown)"/>
   <int value="4103" label="CREDIT_CARD_NUMBER: False Positive (Empty)"/>
-  <int value="4104" label="CREDIT_CARD_NUMBER: False Negative (Mismatch)"/>
-  <int value="4105" label="CREDIT_CARD_NUMBER: False Negative (Unknown)"/>
+  <int value="4104" label="CREDIT_CARD_NUMBER: False Negative (Unknown)"/>
+  <int value="4105" label="CREDIT_CARD_NUMBER: False Negative (Mismatch)"/>
   <int value="4352" label="CREDIT_CARD_DATE: True Positive"/>
   <int value="4353" label="CREDIT_CARD_DATE: True Negative (Ambiguous)"/>
   <int value="4354" label="CREDIT_CARD_DATE: True Negative (Unknown)"/>
@@ -1918,8 +1927,8 @@ Called by update_autofill_enums.py.-->
   <int value="4357" label="CREDIT_CARD_DATE: False Positive (Ambiguous)"/>
   <int value="4358" label="CREDIT_CARD_DATE: False Positive (Unknown)"/>
   <int value="4359" label="CREDIT_CARD_DATE: False Positive (Empty)"/>
-  <int value="4360" label="CREDIT_CARD_DATE: False Negative (Mismatch)"/>
-  <int value="4361" label="CREDIT_CARD_DATE: False Negative (Unknown)"/>
+  <int value="4360" label="CREDIT_CARD_DATE: False Negative (Unknown)"/>
+  <int value="4361" label="CREDIT_CARD_DATE: False Negative (Mismatch)"/>
   <int value="4608" label="CREDIT_CARD_TYPE: True Positive"/>
   <int value="4609" label="CREDIT_CARD_TYPE: True Negative (Ambiguous)"/>
   <int value="4610" label="CREDIT_CARD_TYPE: True Negative (Unknown)"/>
@@ -1928,8 +1937,8 @@ Called by update_autofill_enums.py.-->
   <int value="4613" label="CREDIT_CARD_TYPE: False Positive (Ambiguous)"/>
   <int value="4614" label="CREDIT_CARD_TYPE: False Positive (Unknown)"/>
   <int value="4615" label="CREDIT_CARD_TYPE: False Positive (Empty)"/>
-  <int value="4616" label="CREDIT_CARD_TYPE: False Negative (Mismatch)"/>
-  <int value="4617" label="CREDIT_CARD_TYPE: False Negative (Unknown)"/>
+  <int value="4616" label="CREDIT_CARD_TYPE: False Negative (Unknown)"/>
+  <int value="4617" label="CREDIT_CARD_TYPE: False Negative (Mismatch)"/>
   <int value="4864" label="PASSWORD: True Positive"/>
   <int value="4865" label="PASSWORD: True Negative (Ambiguous)"/>
   <int value="4866" label="PASSWORD: True Negative (Unknown)"/>
@@ -1938,8 +1947,8 @@ Called by update_autofill_enums.py.-->
   <int value="4869" label="PASSWORD: False Positive (Ambiguous)"/>
   <int value="4870" label="PASSWORD: False Positive (Unknown)"/>
   <int value="4871" label="PASSWORD: False Positive (Empty)"/>
-  <int value="4872" label="PASSWORD: False Negative (Mismatch)"/>
-  <int value="4873" label="PASSWORD: False Negative (Unknown)"/>
+  <int value="4872" label="PASSWORD: False Negative (Unknown)"/>
+  <int value="4873" label="PASSWORD: False Negative (Mismatch)"/>
   <int value="5120" label="ADDRESS_LINE_3: True Positive"/>
   <int value="5121" label="ADDRESS_LINE_3: True Negative (Ambiguous)"/>
   <int value="5122" label="ADDRESS_LINE_3: True Negative (Unknown)"/>
@@ -1948,8 +1957,8 @@ Called by update_autofill_enums.py.-->
   <int value="5125" label="ADDRESS_LINE_3: False Positive (Ambiguous)"/>
   <int value="5126" label="ADDRESS_LINE_3: False Positive (Unknown)"/>
   <int value="5127" label="ADDRESS_LINE_3: False Positive (Empty)"/>
-  <int value="5128" label="ADDRESS_LINE_3: False Negative (Mismatch)"/>
-  <int value="5129" label="ADDRESS_LINE_3: False Negative (Unknown)"/>
+  <int value="5128" label="ADDRESS_LINE_3: False Negative (Unknown)"/>
+  <int value="5129" label="ADDRESS_LINE_3: False Negative (Mismatch)"/>
   <int value="5376" label="USERNAME: True Positive"/>
   <int value="5377" label="USERNAME: True Negative (Ambiguous)"/>
   <int value="5378" label="USERNAME: True Negative (Unknown)"/>
@@ -1958,8 +1967,8 @@ Called by update_autofill_enums.py.-->
   <int value="5381" label="USERNAME: False Positive (Ambiguous)"/>
   <int value="5382" label="USERNAME: False Positive (Unknown)"/>
   <int value="5383" label="USERNAME: False Positive (Empty)"/>
-  <int value="5384" label="USERNAME: False Negative (Mismatch)"/>
-  <int value="5385" label="USERNAME: False Negative (Unknown)"/>
+  <int value="5384" label="USERNAME: False Negative (Unknown)"/>
+  <int value="5385" label="USERNAME: False Negative (Mismatch)"/>
   <int value="5632" label="STREET_ADDRESS: True Positive"/>
   <int value="5633" label="STREET_ADDRESS: True Negative (Ambiguous)"/>
   <int value="5634" label="STREET_ADDRESS: True Negative (Unknown)"/>
@@ -1968,8 +1977,8 @@ Called by update_autofill_enums.py.-->
   <int value="5637" label="STREET_ADDRESS: False Positive (Ambiguous)"/>
   <int value="5638" label="STREET_ADDRESS: False Positive (Unknown)"/>
   <int value="5639" label="STREET_ADDRESS: False Positive (Empty)"/>
-  <int value="5640" label="STREET_ADDRESS: False Negative (Mismatch)"/>
-  <int value="5641" label="STREET_ADDRESS: False Negative (Unknown)"/>
+  <int value="5640" label="STREET_ADDRESS: False Negative (Unknown)"/>
+  <int value="5641" label="STREET_ADDRESS: False Negative (Mismatch)"/>
   <int value="5888" label="CREDIT_CARD_VERIFICATION: True Positive"/>
   <int value="5889"
       label="CREDIT_CARD_VERIFICATION: True Negative (Ambiguous)"/>
@@ -1981,9 +1990,9 @@ Called by update_autofill_enums.py.-->
       label="CREDIT_CARD_VERIFICATION: False Positive (Ambiguous)"/>
   <int value="5894" label="CREDIT_CARD_VERIFICATION: False Positive (Unknown)"/>
   <int value="5895" label="CREDIT_CARD_VERIFICATION: False Positive (Empty)"/>
-  <int value="5896"
+  <int value="5896" label="CREDIT_CARD_VERIFICATION: False Negative (Unknown)"/>
+  <int value="5897"
       label="CREDIT_CARD_VERIFICATION: False Negative (Mismatch)"/>
-  <int value="5897" label="CREDIT_CARD_VERIFICATION: False Negative (Unknown)"/>
   <int value="6144" label="UNFILLABLE: True Positive"/>
   <int value="6145" label="UNFILLABLE: True Negative (Ambiguous)"/>
   <int value="6146" label="UNFILLABLE: True Negative (Unknown)"/>
@@ -1992,8 +2001,8 @@ Called by update_autofill_enums.py.-->
   <int value="6149" label="UNFILLABLE: False Positive (Ambiguous)"/>
   <int value="6150" label="UNFILLABLE: False Positive (Unknown)"/>
   <int value="6151" label="UNFILLABLE: False Positive (Empty)"/>
-  <int value="6152" label="UNFILLABLE: False Negative (Mismatch)"/>
-  <int value="6153" label="UNFILLABLE: False Negative (Unknown)"/>
+  <int value="6152" label="UNFILLABLE: False Negative (Unknown)"/>
+  <int value="6153" label="UNFILLABLE: False Negative (Mismatch)"/>
   <int value="6400" label="ADDRESS_HOME_APT_NUM: True Positive"/>
   <int value="6401" label="ADDRESS_HOME_APT_NUM: True Negative (Ambiguous)"/>
   <int value="6402" label="ADDRESS_HOME_APT_NUM: True Negative (Unknown)"/>
@@ -2002,8 +2011,8 @@ Called by update_autofill_enums.py.-->
   <int value="6405" label="ADDRESS_HOME_APT_NUM: False Positive (Ambiguous)"/>
   <int value="6406" label="ADDRESS_HOME_APT_NUM: False Positive (Unknown)"/>
   <int value="6407" label="ADDRESS_HOME_APT_NUM: False Positive (Empty)"/>
-  <int value="6408" label="ADDRESS_HOME_APT_NUM: False Negative (Mismatch)"/>
-  <int value="6409" label="ADDRESS_HOME_APT_NUM: False Negative (Unknown)"/>
+  <int value="6408" label="ADDRESS_HOME_APT_NUM: False Negative (Unknown)"/>
+  <int value="6409" label="ADDRESS_HOME_APT_NUM: False Negative (Mismatch)"/>
   <int value="6656" label="ADDRESS_HOME_SORTING_CODE: True Positive"/>
   <int value="6657"
       label="ADDRESS_HOME_SORTING_CODE: True Negative (Ambiguous)"/>
@@ -2017,9 +2026,9 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_SORTING_CODE: False Positive (Unknown)"/>
   <int value="6663" label="ADDRESS_HOME_SORTING_CODE: False Positive (Empty)"/>
   <int value="6664"
-      label="ADDRESS_HOME_SORTING_CODE: False Negative (Mismatch)"/>
-  <int value="6665"
       label="ADDRESS_HOME_SORTING_CODE: False Negative (Unknown)"/>
+  <int value="6665"
+      label="ADDRESS_HOME_SORTING_CODE: False Negative (Mismatch)"/>
   <int value="6912" label="ADDRESS_HOME_DEPENDENT_LOCALITY: True Positive"/>
   <int value="6913"
       label="ADDRESS_HOME_DEPENDENT_LOCALITY: True Negative (Ambiguous)"/>
@@ -2036,9 +2045,9 @@ Called by update_autofill_enums.py.-->
   <int value="6919"
       label="ADDRESS_HOME_DEPENDENT_LOCALITY: False Positive (Empty)"/>
   <int value="6920"
-      label="ADDRESS_HOME_DEPENDENT_LOCALITY: False Negative (Mismatch)"/>
-  <int value="6921"
       label="ADDRESS_HOME_DEPENDENT_LOCALITY: False Negative (Unknown)"/>
+  <int value="6921"
+      label="ADDRESS_HOME_DEPENDENT_LOCALITY: False Negative (Mismatch)"/>
   <int value="7168" label="ADDRESS_HOME_OTHER_SUBUNIT: True Positive"/>
   <int value="7169"
       label="ADDRESS_HOME_OTHER_SUBUNIT: True Negative (Ambiguous)"/>
@@ -2053,9 +2062,9 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_OTHER_SUBUNIT: False Positive (Unknown)"/>
   <int value="7175" label="ADDRESS_HOME_OTHER_SUBUNIT: False Positive (Empty)"/>
   <int value="7176"
-      label="ADDRESS_HOME_OTHER_SUBUNIT: False Negative (Mismatch)"/>
-  <int value="7177"
       label="ADDRESS_HOME_OTHER_SUBUNIT: False Negative (Unknown)"/>
+  <int value="7177"
+      label="ADDRESS_HOME_OTHER_SUBUNIT: False Negative (Mismatch)"/>
   <int value="7424" label="ADDRESS_HOME_ADDRESS: True Positive"/>
   <int value="7425" label="ADDRESS_HOME_ADDRESS: True Negative (Ambiguous)"/>
   <int value="7426" label="ADDRESS_HOME_ADDRESS: True Negative (Unknown)"/>
@@ -2064,8 +2073,8 @@ Called by update_autofill_enums.py.-->
   <int value="7429" label="ADDRESS_HOME_ADDRESS: False Positive (Ambiguous)"/>
   <int value="7430" label="ADDRESS_HOME_ADDRESS: False Positive (Unknown)"/>
   <int value="7431" label="ADDRESS_HOME_ADDRESS: False Positive (Empty)"/>
-  <int value="7432" label="ADDRESS_HOME_ADDRESS: False Negative (Mismatch)"/>
-  <int value="7433" label="ADDRESS_HOME_ADDRESS: False Negative (Unknown)"/>
+  <int value="7432" label="ADDRESS_HOME_ADDRESS: False Negative (Unknown)"/>
+  <int value="7433" label="ADDRESS_HOME_ADDRESS: False Negative (Mismatch)"/>
   <int value="7680" label="ADDRESS_HOME_ADDRESS_WITH_NAME: True Positive"/>
   <int value="7681"
       label="ADDRESS_HOME_ADDRESS_WITH_NAME: True Negative (Ambiguous)"/>
@@ -2082,9 +2091,9 @@ Called by update_autofill_enums.py.-->
   <int value="7687"
       label="ADDRESS_HOME_ADDRESS_WITH_NAME: False Positive (Empty)"/>
   <int value="7688"
-      label="ADDRESS_HOME_ADDRESS_WITH_NAME: False Negative (Mismatch)"/>
-  <int value="7689"
       label="ADDRESS_HOME_ADDRESS_WITH_NAME: False Negative (Unknown)"/>
+  <int value="7689"
+      label="ADDRESS_HOME_ADDRESS_WITH_NAME: False Negative (Mismatch)"/>
   <int value="7936" label="ADDRESS_HOME_FLOOR: True Positive"/>
   <int value="7937" label="ADDRESS_HOME_FLOOR: True Negative (Ambiguous)"/>
   <int value="7938" label="ADDRESS_HOME_FLOOR: True Negative (Unknown)"/>
@@ -2093,8 +2102,8 @@ Called by update_autofill_enums.py.-->
   <int value="7941" label="ADDRESS_HOME_FLOOR: False Positive (Ambiguous)"/>
   <int value="7942" label="ADDRESS_HOME_FLOOR: False Positive (Unknown)"/>
   <int value="7943" label="ADDRESS_HOME_FLOOR: False Positive (Empty)"/>
-  <int value="7944" label="ADDRESS_HOME_FLOOR: False Negative (Mismatch)"/>
-  <int value="7945" label="ADDRESS_HOME_FLOOR: False Negative (Unknown)"/>
+  <int value="7944" label="ADDRESS_HOME_FLOOR: False Negative (Unknown)"/>
+  <int value="7945" label="ADDRESS_HOME_FLOOR: False Negative (Mismatch)"/>
   <int value="8192" label="UNKNOWN_TYPE: True Positive"/>
   <int value="8193" label="UNKNOWN_TYPE: True Negative (Ambiguous)"/>
   <int value="8194" label="UNKNOWN_TYPE: True Negative (Unknown)"/>
@@ -2103,8 +2112,8 @@ Called by update_autofill_enums.py.-->
   <int value="8197" label="UNKNOWN_TYPE: False Positive (Ambiguous)"/>
   <int value="8198" label="UNKNOWN_TYPE: False Positive (Unknown)"/>
   <int value="8199" label="UNKNOWN_TYPE: False Positive (Empty)"/>
-  <int value="8200" label="UNKNOWN_TYPE: False Negative (Mismatch)"/>
-  <int value="8201" label="UNKNOWN_TYPE: False Negative (Unknown)"/>
+  <int value="8200" label="UNKNOWN_TYPE: False Negative (Unknown)"/>
+  <int value="8201" label="UNKNOWN_TYPE: False Negative (Mismatch)"/>
   <int value="8448" label="BIRTHDATE: True Positive"/>
   <int value="8449" label="BIRTHDATE: True Negative (Ambiguous)"/>
   <int value="8450" label="BIRTHDATE: True Negative (Unknown)"/>
@@ -2113,8 +2122,8 @@ Called by update_autofill_enums.py.-->
   <int value="8453" label="BIRTHDATE: False Positive (Ambiguous)"/>
   <int value="8454" label="BIRTHDATE: False Positive (Unknown)"/>
   <int value="8455" label="BIRTHDATE: False Positive (Empty)"/>
-  <int value="8456" label="BIRTHDATE: False Negative (Mismatch)"/>
-  <int value="8457" label="BIRTHDATE: False Negative (Unknown)"/>
+  <int value="8456" label="BIRTHDATE: False Negative (Unknown)"/>
+  <int value="8457" label="BIRTHDATE: False Negative (Mismatch)"/>
   <int value="8704" label="IBAN: True Positive"/>
   <int value="8705" label="IBAN: True Negative (Ambiguous)"/>
   <int value="8706" label="IBAN: True Negative (Unknown)"/>
@@ -2123,8 +2132,8 @@ Called by update_autofill_enums.py.-->
   <int value="8709" label="IBAN: False Positive (Ambiguous)"/>
   <int value="8710" label="IBAN: False Positive (Unknown)"/>
   <int value="8711" label="IBAN: False Positive (Empty)"/>
-  <int value="8712" label="IBAN: False Negative (Mismatch)"/>
-  <int value="8713" label="IBAN: False Negative (Unknown)"/>
+  <int value="8712" label="IBAN: False Negative (Unknown)"/>
+  <int value="8713" label="IBAN: False Negative (Mismatch)"/>
   <int value="8960" label="ADDRESS_HOME_LANDMARK: True Positive"/>
   <int value="8961" label="ADDRESS_HOME_LANDMARK: True Negative (Ambiguous)"/>
   <int value="8962" label="ADDRESS_HOME_LANDMARK: True Negative (Unknown)"/>
@@ -2133,8 +2142,8 @@ Called by update_autofill_enums.py.-->
   <int value="8965" label="ADDRESS_HOME_LANDMARK: False Positive (Ambiguous)"/>
   <int value="8966" label="ADDRESS_HOME_LANDMARK: False Positive (Unknown)"/>
   <int value="8967" label="ADDRESS_HOME_LANDMARK: False Positive (Empty)"/>
-  <int value="8968" label="ADDRESS_HOME_LANDMARK: False Negative (Mismatch)"/>
-  <int value="8969" label="ADDRESS_HOME_LANDMARK: False Negative (Unknown)"/>
+  <int value="8968" label="ADDRESS_HOME_LANDMARK: False Negative (Unknown)"/>
+  <int value="8969" label="ADDRESS_HOME_LANDMARK: False Negative (Mismatch)"/>
   <int value="9216" label="ADDRESS_HOME_BETWEEN_STREETS: True Positive"/>
   <int value="9217"
       label="ADDRESS_HOME_BETWEEN_STREETS: True Negative (Ambiguous)"/>
@@ -2151,9 +2160,9 @@ Called by update_autofill_enums.py.-->
   <int value="9223"
       label="ADDRESS_HOME_BETWEEN_STREETS: False Positive (Empty)"/>
   <int value="9224"
-      label="ADDRESS_HOME_BETWEEN_STREETS: False Negative (Mismatch)"/>
-  <int value="9225"
       label="ADDRESS_HOME_BETWEEN_STREETS: False Negative (Unknown)"/>
+  <int value="9225"
+      label="ADDRESS_HOME_BETWEEN_STREETS: False Negative (Mismatch)"/>
   <int value="9472" label="ADDRESS_HOME_ADMIN_LEVEL2: True Positive"/>
   <int value="9473"
       label="ADDRESS_HOME_ADMIN_LEVEL2: True Negative (Ambiguous)"/>
@@ -2167,9 +2176,9 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_ADMIN_LEVEL2: False Positive (Unknown)"/>
   <int value="9479" label="ADDRESS_HOME_ADMIN_LEVEL2: False Positive (Empty)"/>
   <int value="9480"
-      label="ADDRESS_HOME_ADMIN_LEVEL2: False Negative (Mismatch)"/>
-  <int value="9481"
       label="ADDRESS_HOME_ADMIN_LEVEL2: False Negative (Unknown)"/>
+  <int value="9481"
+      label="ADDRESS_HOME_ADMIN_LEVEL2: False Negative (Mismatch)"/>
   <int value="9728" label="ADDRESS_HOME_STREET_LOCATION: True Positive"/>
   <int value="9729"
       label="ADDRESS_HOME_STREET_LOCATION: True Negative (Ambiguous)"/>
@@ -2186,9 +2195,9 @@ Called by update_autofill_enums.py.-->
   <int value="9735"
       label="ADDRESS_HOME_STREET_LOCATION: False Positive (Empty)"/>
   <int value="9736"
-      label="ADDRESS_HOME_STREET_LOCATION: False Negative (Mismatch)"/>
-  <int value="9737"
       label="ADDRESS_HOME_STREET_LOCATION: False Negative (Unknown)"/>
+  <int value="9737"
+      label="ADDRESS_HOME_STREET_LOCATION: False Negative (Mismatch)"/>
   <int value="9984" label="ADDRESS_HOME_OVERFLOW: True Positive"/>
   <int value="9985" label="ADDRESS_HOME_OVERFLOW: True Negative (Ambiguous)"/>
   <int value="9986" label="ADDRESS_HOME_OVERFLOW: True Negative (Unknown)"/>
@@ -2197,8 +2206,8 @@ Called by update_autofill_enums.py.-->
   <int value="9989" label="ADDRESS_HOME_OVERFLOW: False Positive (Ambiguous)"/>
   <int value="9990" label="ADDRESS_HOME_OVERFLOW: False Positive (Unknown)"/>
   <int value="9991" label="ADDRESS_HOME_OVERFLOW: False Positive (Empty)"/>
-  <int value="9992" label="ADDRESS_HOME_OVERFLOW: False Negative (Mismatch)"/>
-  <int value="9993" label="ADDRESS_HOME_OVERFLOW: False Negative (Unknown)"/>
+  <int value="9992" label="ADDRESS_HOME_OVERFLOW: False Negative (Unknown)"/>
+  <int value="9993" label="ADDRESS_HOME_OVERFLOW: False Negative (Mismatch)"/>
   <int value="10240" label="DELIVERY_INSTRUCTIONS: True Positive"/>
   <int value="10241" label="DELIVERY_INSTRUCTIONS: True Negative (Ambiguous)"/>
   <int value="10242" label="DELIVERY_INSTRUCTIONS: True Negative (Unknown)"/>
@@ -2207,8 +2216,8 @@ Called by update_autofill_enums.py.-->
   <int value="10245" label="DELIVERY_INSTRUCTIONS: False Positive (Ambiguous)"/>
   <int value="10246" label="DELIVERY_INSTRUCTIONS: False Positive (Unknown)"/>
   <int value="10247" label="DELIVERY_INSTRUCTIONS: False Positive (Empty)"/>
-  <int value="10248" label="DELIVERY_INSTRUCTIONS: False Negative (Mismatch)"/>
-  <int value="10249" label="DELIVERY_INSTRUCTIONS: False Negative (Unknown)"/>
+  <int value="10248" label="DELIVERY_INSTRUCTIONS: False Negative (Unknown)"/>
+  <int value="10249" label="DELIVERY_INSTRUCTIONS: False Negative (Mismatch)"/>
   <int value="10496" label="ADDRESS_HOME_OVERFLOW_AND_LANDMARK: True Positive"/>
   <int value="10497"
       label="ADDRESS_HOME_OVERFLOW_AND_LANDMARK: True Negative (Ambiguous)"/>
@@ -2225,9 +2234,9 @@ Called by update_autofill_enums.py.-->
   <int value="10503"
       label="ADDRESS_HOME_OVERFLOW_AND_LANDMARK: False Positive (Empty)"/>
   <int value="10504"
-      label="ADDRESS_HOME_OVERFLOW_AND_LANDMARK: False Negative (Mismatch)"/>
-  <int value="10505"
       label="ADDRESS_HOME_OVERFLOW_AND_LANDMARK: False Negative (Unknown)"/>
+  <int value="10505"
+      label="ADDRESS_HOME_OVERFLOW_AND_LANDMARK: False Negative (Mismatch)"/>
   <int value="10752"
       label="ADDRESS_HOME_BETWEEN_STREETS_OR_LANDMARK: True Positive"/>
   <int value="10753"
@@ -2251,10 +2260,10 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_BETWEEN_STREETS_OR_LANDMARK: False Positive (Empty)"/>
   <int value="10760"
       label="ADDRESS_HOME_BETWEEN_STREETS_OR_LANDMARK: False Negative
-             (Mismatch)"/>
+             (Unknown)"/>
   <int value="10761"
       label="ADDRESS_HOME_BETWEEN_STREETS_OR_LANDMARK: False Negative
-             (Unknown)"/>
+             (Mismatch)"/>
   <int value="11008"
       label="ADDRESS_HOME_STREET_LOCATION_AND_LOCALITY: True Positive"/>
   <int value="11009"
@@ -2279,10 +2288,10 @@ Called by update_autofill_enums.py.-->
              (Empty)"/>
   <int value="11016"
       label="ADDRESS_HOME_STREET_LOCATION_AND_LOCALITY: False Negative
-             (Mismatch)"/>
+             (Unknown)"/>
   <int value="11017"
       label="ADDRESS_HOME_STREET_LOCATION_AND_LOCALITY: False Negative
-             (Unknown)"/>
+             (Mismatch)"/>
   <int value="11264"
       label="ADDRESS_HOME_STREET_LOCATION_AND_LANDMARK: True Positive"/>
   <int value="11265"
@@ -2307,10 +2316,10 @@ Called by update_autofill_enums.py.-->
              (Empty)"/>
   <int value="11272"
       label="ADDRESS_HOME_STREET_LOCATION_AND_LANDMARK: False Negative
-             (Mismatch)"/>
+             (Unknown)"/>
   <int value="11273"
       label="ADDRESS_HOME_STREET_LOCATION_AND_LANDMARK: False Negative
-             (Unknown)"/>
+             (Mismatch)"/>
   <int value="11520"
       label="ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK: True Positive"/>
   <int value="11521"
@@ -2336,10 +2345,10 @@ Called by update_autofill_enums.py.-->
              (Empty)"/>
   <int value="11528"
       label="ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK: False Negative
-             (Mismatch)"/>
+             (Unknown)"/>
   <int value="11529"
       label="ADDRESS_HOME_DEPENDENT_LOCALITY_AND_LANDMARK: False Negative
-             (Unknown)"/>
+             (Mismatch)"/>
   <int value="11776" label="ADDRESS_HOME_HOUSE_NUMBER_AND_APT: True Positive"/>
   <int value="11777"
       label="ADDRESS_HOME_HOUSE_NUMBER_AND_APT: True Negative (Ambiguous)"/>
@@ -2356,9 +2365,9 @@ Called by update_autofill_enums.py.-->
   <int value="11783"
       label="ADDRESS_HOME_HOUSE_NUMBER_AND_APT: False Positive (Empty)"/>
   <int value="11784"
-      label="ADDRESS_HOME_HOUSE_NUMBER_AND_APT: False Negative (Mismatch)"/>
-  <int value="11785"
       label="ADDRESS_HOME_HOUSE_NUMBER_AND_APT: False Negative (Unknown)"/>
+  <int value="11785"
+      label="ADDRESS_HOME_HOUSE_NUMBER_AND_APT: False Negative (Mismatch)"/>
   <int value="12032"
       label="STANDALONE_CREDIT_CARD_VERIFICATION: True Positive"/>
   <int value="12033"
@@ -2376,9 +2385,9 @@ Called by update_autofill_enums.py.-->
   <int value="12039"
       label="STANDALONE_CREDIT_CARD_VERIFICATION: False Positive (Empty)"/>
   <int value="12040"
-      label="STANDALONE_CREDIT_CARD_VERIFICATION: False Negative (Mismatch)"/>
-  <int value="12041"
       label="STANDALONE_CREDIT_CARD_VERIFICATION: False Negative (Unknown)"/>
+  <int value="12041"
+      label="STANDALONE_CREDIT_CARD_VERIFICATION: False Negative (Mismatch)"/>
   <int value="12288" label="AUTOFILL_AI: True Positive"/>
   <int value="12289" label="AUTOFILL_AI: True Negative (Ambiguous)"/>
   <int value="12290" label="AUTOFILL_AI: True Negative (Unknown)"/>
@@ -2387,8 +2396,8 @@ Called by update_autofill_enums.py.-->
   <int value="12293" label="AUTOFILL_AI: False Positive (Ambiguous)"/>
   <int value="12294" label="AUTOFILL_AI: False Positive (Unknown)"/>
   <int value="12295" label="AUTOFILL_AI: False Positive (Empty)"/>
-  <int value="12296" label="AUTOFILL_AI: False Negative (Mismatch)"/>
-  <int value="12297" label="AUTOFILL_AI: False Negative (Unknown)"/>
+  <int value="12296" label="AUTOFILL_AI: False Negative (Unknown)"/>
+  <int value="12297" label="AUTOFILL_AI: False Negative (Mismatch)"/>
   <int value="12544" label="LOYALTY_CARD: True Positive"/>
   <int value="12545" label="LOYALTY_CARD: True Negative (Ambiguous)"/>
   <int value="12546" label="LOYALTY_CARD: True Negative (Unknown)"/>
@@ -2397,8 +2406,8 @@ Called by update_autofill_enums.py.-->
   <int value="12549" label="LOYALTY_CARD: False Positive (Ambiguous)"/>
   <int value="12550" label="LOYALTY_CARD: False Positive (Unknown)"/>
   <int value="12551" label="LOYALTY_CARD: False Positive (Empty)"/>
-  <int value="12552" label="LOYALTY_CARD: False Negative (Mismatch)"/>
-  <int value="12553" label="LOYALTY_CARD: False Negative (Unknown)"/>
+  <int value="12552" label="LOYALTY_CARD: False Negative (Unknown)"/>
+  <int value="12553" label="LOYALTY_CARD: False Negative (Mismatch)"/>
   <int value="12800" label="ONE_TIME_PASSWORD: True Positive"/>
   <int value="12801" label="ONE_TIME_PASSWORD: True Negative (Ambiguous)"/>
   <int value="12802" label="ONE_TIME_PASSWORD: True Negative (Unknown)"/>
@@ -2407,8 +2416,8 @@ Called by update_autofill_enums.py.-->
   <int value="12805" label="ONE_TIME_PASSWORD: False Positive (Ambiguous)"/>
   <int value="12806" label="ONE_TIME_PASSWORD: False Positive (Unknown)"/>
   <int value="12807" label="ONE_TIME_PASSWORD: False Positive (Empty)"/>
-  <int value="12808" label="ONE_TIME_PASSWORD: False Negative (Mismatch)"/>
-  <int value="12809" label="ONE_TIME_PASSWORD: False Negative (Unknown)"/>
+  <int value="12808" label="ONE_TIME_PASSWORD: False Negative (Unknown)"/>
+  <int value="12809" label="ONE_TIME_PASSWORD: False Negative (Mismatch)"/>
   <int value="13056" label="ADDRESS_HOME_ZIP_AND_CITY: True Positive"/>
   <int value="13057"
       label="ADDRESS_HOME_ZIP_AND_CITY: True Negative (Ambiguous)"/>
@@ -2423,9 +2432,9 @@ Called by update_autofill_enums.py.-->
       label="ADDRESS_HOME_ZIP_AND_CITY: False Positive (Unknown)"/>
   <int value="13063" label="ADDRESS_HOME_ZIP_AND_CITY: False Positive (Empty)"/>
   <int value="13064"
-      label="ADDRESS_HOME_ZIP_AND_CITY: False Negative (Mismatch)"/>
-  <int value="13065"
       label="ADDRESS_HOME_ZIP_AND_CITY: False Negative (Unknown)"/>
+  <int value="13065"
+      label="ADDRESS_HOME_ZIP_AND_CITY: False Negative (Mismatch)"/>
 </enum>
 
 <enum name="AutofillFieldType">
@@ -2629,6 +2638,8 @@ Called by update_autofill_enums.py.-->
   <int value="12" label="SelectMultiple"/>
   <int value="14" label="TextArea"/>
 </enum>
+
+<!-- LINT.IfChange(AutofillFormEvent) -->
 
 <enum name="AutofillFormEvent">
   <int value="0" label="Interacted (once)"/>
@@ -2850,7 +2861,18 @@ Called by update_autofill_enums.py.-->
              cards with a benefit available were shown (once)"/>
   <int value="108" label="Local card suggestion selected"/>
   <int value="109" label="Local card suggestion selected (once)"/>
+  <int value="110" label="Suggestion for externally saved card shown"/>
+  <int value="111" label="Suggestion for externally saved card shown (once)"/>
+  <int value="112" label="Suggestion for externally saved card selected"/>
+  <int value="113"
+      label="Suggestion for externally saved card selected (once)"/>
+  <int value="114" label="Suggestion for never used card shown"/>
+  <int value="115" label="Suggestion for never used card shown (once)"/>
+  <int value="116" label="Suggestion for never used card selected"/>
+  <int value="117" label="Suggestion for never used card selected (once)"/>
 </enum>
+
+<!-- LINT.ThenChange(//components/autofill/core/browser/metrics/form_events/form_events.h:FormEvent) -->
 
 <enum name="AutofillGetRealPanResult">
   <int value="0" label="Success"/>
@@ -5431,6 +5453,24 @@ Called by update_autofill_enums.py.-->
   <int value="2" label="The cancel button was pressed, closing the dialog"/>
   <int value="3" label="The accept button was pressed, closing the dialog"/>
 </enum>
+
+<!-- LINT.IfChange(PersonalContextNonEligibilityReason) -->
+
+<enum name="PersonalContextNonEligibilityReason">
+  <int value="0" label="Not signed in"/>
+  <int value="1" label="Not consumer account"/>
+  <int value="2" label="Not age eligible"/>
+  <int value="3" label="Not locale en-US"/>
+  <int value="4" label="Not GeoIP US"/>
+  <int value="5" label="Not opted in to context"/>
+  <int value="6" label="Photos and Workspace context unavailable"/>
+  <int value="7" label="Personal Intelligence preferences disabled"/>
+  <int value="8" label="Not G1 subscriber"/>
+  <int value="9" label="Not Android premium device"/>
+  <int value="10" label="Eligible"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/personal_context/core/personal_context_types.h:PersonalContextNonEligibilityReason) -->
 
 <enum name="PhoneCollectionState">
   <int value="0" label="Phone Not Collected, WebOTP Not Used, OTC Not Used"/>

@@ -9,9 +9,11 @@
 #import "base/functional/bind.h"
 #import "base/memory/raw_ptr.h"
 #import "base/strings/utf_string_conversions.h"
+#import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #import "components/send_tab_to_self/features.h"
+#import "components/send_tab_to_self/metrics_util.h"
 #import "components/send_tab_to_self/page_context.h"
 #import "components/send_tab_to_self/send_tab_to_self_entry.h"
 #import "components/send_tab_to_self/send_tab_to_self_model.h"
@@ -19,6 +21,7 @@
 #import "components/send_tab_to_self/stub_send_tab_to_self_sync_service.h"
 #import "ios/chrome/browser/infobars/model/infobar_manager_impl.h"
 #import "ios/chrome/browser/send_tab_to_self/model/send_tab_to_self_load_navigation_user_data.h"
+#import "ios/chrome/browser/send_tab_to_self/model/send_tab_to_self_tab_card_label_data.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
@@ -81,6 +84,7 @@ class SendTabToSelfBrowserAgentTest : public PlatformTest {
                                        bool activate = true,
                                        bool is_visible = true) {
     auto fake_web_state = std::make_unique<web::FakeWebState>();
+    fake_web_state->SetBrowserState(profile_.get());
     fake_web_state->SetCurrentURL(url);
     // Create a navigation item to match the URL and give it a title.
     std::unique_ptr<web::NavigationItem> item = web::NavigationItem::Create();
@@ -315,6 +319,7 @@ class SendTabToSelfBrowserAgentAutoOpenTest
 
 TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
        ShouldAutoOpenNewEntriesInBackgroundIfActive) {
+  base::HistogramTester histogram_tester;
   web::WebState* web_state = AppendNewWebState(GURL(kBlankURL));
   InfoBarManagerImpl* infobar_manager =
       InfoBarManagerImpl::FromWebState(web_state);
@@ -332,10 +337,15 @@ TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
   [mock_scene_commands_ verify];
   EXPECT_TRUE(model_->GetEntryByGUID(entry->GetGUID())->IsOpened());
   EXPECT_EQ(1UL, infobar_manager->infobars().size());
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.AutoOpenOutcome2",
+      send_tab_to_self::AutoOpenOutcome::kTabsOpenedImmediatelyInBackground, 1);
 }
 
 TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
        ShouldNotAutoOpenNewEntriesIfNotActive) {
+  base::HistogramTester histogram_tester;
   AppendNewWebState(GURL(kBlankURL),
                     /*activate=*/true, /*is_visible=*/false);
 
@@ -347,10 +357,15 @@ TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
 
   [mock_scene_commands_ verify];
   EXPECT_FALSE(model_->GetEntryByGUID(entry->GetGUID())->IsOpened());
+
+  histogram_tester.ExpectUniqueSample(
+      "Sharing.SendTabToSelf.AutoOpenOutcome2",
+      send_tab_to_self::AutoOpenOutcome::kUnopenedImmediately, 1);
 }
 
 TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
        ShouldAutoOpenPendingEntriesInBackgroundOnActivation) {
+  base::HistogramTester histogram_tester;
   const send_tab_to_self::SendTabToSelfEntry* entry1 = model_->AddEntryRemotely(
       GURL("https://www.google.com/"), "title", kDeviceID,
       send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
@@ -373,6 +388,153 @@ TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
   EXPECT_TRUE(model_->GetEntryByGUID(entry2->GetGUID())->IsOpened());
   EXPECT_EQ(1UL,
             InfoBarManagerImpl::FromWebState(web_state)->infobars().size());
+
+  histogram_tester.ExpectBucketCount(
+      "Sharing.SendTabToSelf.AutoOpenOutcome2",
+      send_tab_to_self::AutoOpenOutcome::kUnopenedImmediately, 2);
+  histogram_tester.ExpectBucketCount(
+      "Sharing.SendTabToSelf.AutoOpenOutcome2",
+      send_tab_to_self::AutoOpenOutcome::kTabsOpenedInBackgroundUponActivation,
+      2);
+}
+
+// Tests that SendTabToSelfTabCardLabelData is attached when the tab is loaded
+// in the background, but NOT when loaded in the foreground.
+TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
+       TestTabWillLoadUrlBackgroundOnly) {
+  OCMStub([mock_scene_commands_ openURLInNewTab:[OCMArg any]]);
+  web::WebState* web_state = AppendNewWebState(GURL("http://www.blank.com"));
+
+  // Create an entry in the model.
+  const send_tab_to_self::SendTabToSelfEntry* entry = model_->AddEntryRemotely(
+      GURL("http://www.test.com"), "title", kDeviceID,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+  std::string guid = entry->GetGUID();
+
+  // Trigger TabWillLoadUrl with in_background = false (foreground).
+  UrlLoadParams fg_params =
+      UrlLoadParams::InCurrentTab(GURL("http://www.test.com"));
+  fg_params.send_tab_to_self_entry_guid = guid;
+  fg_params.disposition = WindowOpenDisposition::NEW_FOREGROUND_TAB;
+  EXPECT_FALSE(fg_params.in_background());
+
+  UrlLoadingNotifierBrowserAgent::FromBrowser(browser_.get())
+      ->TabWillLoadUrl(fg_params, web_state->GetWeakPtr());
+
+  // Tracker should NOT be attached.
+  EXPECT_EQ(nullptr, SendTabToSelfTabCardLabelData::FromWebState(web_state));
+
+  // Trigger TabWillLoadUrl with in_background = true (background).
+  UrlLoadParams bg_params =
+      UrlLoadParams::InCurrentTab(GURL("http://www.test.com"));
+  bg_params.send_tab_to_self_entry_guid = guid;
+  bg_params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+  EXPECT_TRUE(bg_params.in_background());
+
+  UrlLoadingNotifierBrowserAgent::FromBrowser(browser_.get())
+      ->TabWillLoadUrl(bg_params, web_state->GetWeakPtr());
+
+  // Tracker SHOULD be attached.
+  EXPECT_NE(nullptr, SendTabToSelfTabCardLabelData::FromWebState(web_state));
+}
+
+// Tests that closing a tab by user action (detaching it with is_user_action =
+// true) with a tab card label attached logs the abandonment metric.
+TEST_F(SendTabToSelfBrowserAgentAutoOpenTest, ClosingTabLogsAbandonment) {
+  OCMStub([mock_scene_commands_ openURLInNewTab:[OCMArg any]]);
+  web::WebState* web_state = AppendNewWebState(GURL("http://www.blank.com"));
+
+  // Create an entry and attach the label.
+  const send_tab_to_self::SendTabToSelfEntry* entry = model_->AddEntryRemotely(
+      GURL("http://www.test.com"), "title", kDeviceID,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+  std::string guid = entry->GetGUID();
+
+  SendTabToSelfTabCardLabelData::CreateForWebState(web_state, guid,
+                                                   "remote_device");
+
+  // Verify it is attached.
+  EXPECT_NE(nullptr, SendTabToSelfTabCardLabelData::FromWebState(web_state));
+
+  // Close the tab (which detaches it with kUserAction).
+  EXPECT_EQ(model_->last_activated_guid(), "");
+
+  int index = browser_->GetWebStateList()->GetIndexOfWebState(web_state);
+  ASSERT_NE(index, WebStateList::kInvalidIndex);
+
+  browser_->GetWebStateList()->CloseWebStateAt(
+      index, WebStateList::ClosingReason::kUserAction);
+
+  // Verify that the abandonment metric was logged.
+  EXPECT_EQ(model_->last_activated_guid(), guid);
+  EXPECT_EQ(model_->last_activated_entry_point(),
+            send_tab_to_self::ShareActivatedEntryPoint::
+                kTabOrBrowserClosedWithoutActivation);
+}
+
+// Tests that closing a tab due to shutdown (detaching it with is_user_action =
+// false) with a tab card label attached does NOT log the abandonment metric.
+TEST_F(SendTabToSelfBrowserAgentAutoOpenTest, ShutdownDoesNotLogAbandonment) {
+  OCMStub([mock_scene_commands_ openURLInNewTab:[OCMArg any]]);
+  web::WebState* web_state = AppendNewWebState(GURL("http://www.blank.com"));
+
+  // Create an entry and attach the label.
+  const send_tab_to_self::SendTabToSelfEntry* entry = model_->AddEntryRemotely(
+      GURL("http://www.test.com"), "title", kDeviceID,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+  std::string guid = entry->GetGUID();
+
+  SendTabToSelfTabCardLabelData::CreateForWebState(web_state, guid,
+                                                   "remote_device");
+
+  // Verify it is attached.
+  EXPECT_NE(nullptr, SendTabToSelfTabCardLabelData::FromWebState(web_state));
+
+  // Close the tab with kDefault (simulating shutdown/default close).
+  EXPECT_EQ(model_->last_activated_guid(), "");
+
+  int index = browser_->GetWebStateList()->GetIndexOfWebState(web_state);
+  ASSERT_NE(index, WebStateList::kInvalidIndex);
+
+  browser_->GetWebStateList()->CloseWebStateAt(
+      index, WebStateList::ClosingReason::kDefault);
+
+  // Verify that the abandonment metric was NOT logged.
+  EXPECT_EQ(model_->last_activated_guid(), "");
+}
+
+// Tests that moving a tab to another window via drag-and-drop (detaching it
+// with is_closing = false) does NOT log the abandonment metric.
+TEST_F(SendTabToSelfBrowserAgentAutoOpenTest,
+       DragAndDropDoesNotLogAbandonment) {
+  OCMStub([mock_scene_commands_ openURLInNewTab:[OCMArg any]]);
+  web::WebState* web_state = AppendNewWebState(GURL("http://www.blank.com"));
+
+  // Create an entry and attach the label.
+  const send_tab_to_self::SendTabToSelfEntry* entry = model_->AddEntryRemotely(
+      GURL("http://www.test.com"), "title", kDeviceID,
+      send_tab_to_self::PageContext(), send_tab_to_self::NavigationHistory());
+  std::string guid = entry->GetGUID();
+
+  SendTabToSelfTabCardLabelData::CreateForWebState(web_state, guid,
+                                                   "remote_device");
+
+  // Verify it is attached.
+  EXPECT_NE(nullptr, SendTabToSelfTabCardLabelData::FromWebState(web_state));
+
+  // Retrieve index.
+  int index = browser_->GetWebStateList()->GetIndexOfWebState(web_state);
+  ASSERT_NE(index, WebStateList::kInvalidIndex);
+
+  // Detach the web state from the list, simulating dragging it to another
+  // window (corresponds to reason kDetached).
+  EXPECT_EQ(model_->last_activated_guid(), "");
+  std::unique_ptr<web::WebState> detached_web_state =
+      browser_->GetWebStateList()->DetachWebStateAt(index);
+
+  // Verify that the abandonment metric was NOT logged because the tab is not
+  // actually closing.
+  EXPECT_EQ(model_->last_activated_guid(), "");
 }
 
 }  // anonymous namespace

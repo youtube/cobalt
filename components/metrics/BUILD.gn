@@ -62,10 +62,7 @@ if (!is_cronet_build && is_android) {
   java_cpp_enum("java_enum_srcjar") {
     # External code should depend on ":metrics_java" instead.
     visibility = [ ":*" ]
-    sources = [
-      "metrics_reporting_level.h",
-      "stability_metrics_helper.h",
-    ]
+    sources = [ "stability_metrics_helper.h" ]
   }
 
   android_library("metrics_java") {
@@ -97,11 +94,6 @@ source_set("client_info") {
     "//build/config/compiler:wexit_time_destructors",
     "//build/config/compiler:wglobal_constructors",
   ]
-}
-
-# Used by the Chrome installer, which doesn't need the whole metrics library.
-source_set("metrics_reporting_level") {
-  sources = [ "metrics_reporting_level.h" ]
 }
 
 # Used by the Chrome installer, which doesn't need the whole metrics library.
@@ -245,6 +237,7 @@ if (!is_cronet_build || is_ios) {
       "metrics_provider.h",
       "metrics_reporting_choice_service.h",
       "metrics_reporting_default_state.h",
+      "metrics_reporting_level.h",
       "metrics_rotation_scheduler.h",
       "metrics_scheduler.h",
       "metrics_service.h",
@@ -282,7 +275,6 @@ if (!is_cronet_build || is_ios) {
       "//components/country_codes",
       "//components/metrics:client_info",
       "//components/metrics:metrics_pref_names",
-      "//components/metrics:metrics_reporting_level",
       "//components/regional_capabilities:country_id",
       "//components/variations",
       "//third_party/metrics_proto",

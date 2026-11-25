@@ -7,16 +7,13 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_delegate.h"
+#include "base/memory/raw_ref.h"
+#include "chrome/browser/glic/browser_ui/glic_split_button_delegate.h"
 
-class TabListInterface;
+class BrowserWindowInterface;
 
 namespace ui {
 class WindowAndroid;
-}
-
-namespace content {
-class WebContents;
 }
 
 namespace glic {
@@ -27,16 +24,15 @@ enum class GlicNudgeActivity;
 // C++ implementation of GlicNudgeDelegate for Android.
 // Acts as JNI bridge to forward C++ nudge trigger/hide calls to Java's
 // GlicNudgeDelegateBridge.
-class GlicNudgeDelegateAndroid : public GlicNudgeDelegate {
+class GlicNudgeDelegateAndroid : public GlicSplitButtonDelegate {
  public:
   GlicNudgeDelegateAndroid(GlicNudgeController* controller,
-                           TabListInterface* tab_list,
-                           content::WebContents* web_contents);
+                           BrowserWindowInterface* browser);
   GlicNudgeDelegateAndroid(const GlicNudgeDelegateAndroid&) = delete;
   GlicNudgeDelegateAndroid& operator=(const GlicNudgeDelegateAndroid&) = delete;
   ~GlicNudgeDelegateAndroid() override;
 
-  // GlicNudgeDelegate:
+  // GlicSplitButtonDelegate:
   void OnTriggerGlicNudgeUI(NudgeParams params) override;
   void OnHideGlicNudgeUI() override;
   bool GetIsShowingGlicNudge() override;
@@ -44,15 +40,10 @@ class GlicNudgeDelegateAndroid : public GlicNudgeDelegate {
   void OnNudgeActivity(GlicNudgeActivity activity);
 
   ui::WindowAndroid* GetWindowAndroid();
-  bool IsActiveTab();
 
  private:
   raw_ptr<GlicNudgeController> controller_ = nullptr;
-  raw_ptr<TabListInterface> tab_list_ = nullptr;
-  // Holding this raw pointer is safe because the WebContents is guaranteed to
-  // outlive this delegate (via its ownership chain: WebContents owns
-  // ContextualCueingHelper -> GlicNudgeControllerAndroid -> this).
-  raw_ptr<content::WebContents> web_contents_ = nullptr;
+  raw_ptr<BrowserWindowInterface> browser_ = nullptr;
 };
 
 }  // namespace glic

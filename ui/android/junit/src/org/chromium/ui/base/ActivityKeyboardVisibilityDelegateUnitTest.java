@@ -150,6 +150,8 @@ public class ActivityKeyboardVisibilityDelegateUnitTest {
     private void setRootViewKeyboardInset(int inset) {
         when(mWindowInsets.getInsets(WindowInsets.Type.systemBars()))
                 .thenReturn(Insets.of(0, 0, 0, 0));
+        when(mWindowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars()))
+                .thenReturn(Insets.of(0, 0, 0, 0));
         when(mWindowInsets.getInsets(WindowInsets.Type.ime()))
                 .thenReturn(Insets.of(0, 0, 0, inset));
     }

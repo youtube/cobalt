@@ -4741,7 +4741,7 @@ INSTANTIATE_TEST_SUITE_P(Sframe,
                          SframeMediaTypeTest,
                          ::testing::Values(MediaType::AUDIO, MediaType::VIDEO),
                          [](const ::testing::TestParamInfo<MediaType>& info) {
-                           return MediaTypeToString(info.param);
+                           return std::string(MediaTypeToString(info.param));
                          });
 
 TEST_F(MediaSessionDescriptionFactoryTest,

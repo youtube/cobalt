@@ -149,9 +149,9 @@ class IsolatedWebAppURLLoaderImpl : public network::mojom::URLLoader {
     network::URLLoaderCompletionStatus status(net_error);
     // For these values we use the same `body_length_` as we don't currently
     // provide encoding in Web Bundles.
-    status.encoded_data_length = (body_length_ + header_length_).InBytes();
-    status.encoded_body_length = body_length_.InBytes();
-    status.decoded_body_length = body_length_.InBytes();
+    status.encoded_data_length = body_length_ + header_length_;
+    status.encoded_body_length = body_length_;
+    status.decoded_body_length = body_length_;
     loader_client_->OnComplete(status);
   }
 

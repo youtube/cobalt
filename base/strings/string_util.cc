@@ -24,9 +24,11 @@
 
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util_impl_helpers.h"
 #include "base/strings/string_util_internal.h"
+#include "base/strings/trim_string_internal.h"
 #include "base/strings/utf_string_conversion_utils.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
@@ -141,13 +143,15 @@ bool TrimString(std::string_view input,
 std::u16string_view TrimString(std::u16string_view input,
                                std::u16string_view trim_chars,
                                TrimPositions positions) {
-  return internal::TrimStringPieceT(input, trim_chars, positions);
+  return internal::TrimStringPieceT(input, trim_chars, positions & TRIM_LEADING,
+                                    positions & TRIM_TRAILING);
 }
 
 std::string_view TrimString(std::string_view input,
                             std::string_view trim_chars,
                             TrimPositions positions) {
-  return internal::TrimStringPieceT(input, trim_chars, positions);
+  return internal::TrimStringPieceT(input, trim_chars, positions & TRIM_LEADING,
+                                    positions & TRIM_TRAILING);
 }
 
 void TruncateUTF8ToByteSize(std::string_view input,
@@ -202,7 +206,8 @@ TrimPositions TrimWhitespace(std::u16string_view input,
 std::u16string_view TrimWhitespace(std::u16string_view input,
                                    TrimPositions positions) {
   return internal::TrimStringPieceT(
-      input, std::u16string_view(kWhitespaceUTF16), positions);
+      input, std::u16string_view(kWhitespaceUTF16), positions & TRIM_LEADING,
+      positions & TRIM_TRAILING);
 }
 
 TrimPositions TrimWhitespaceASCII(std::string_view input,
@@ -215,7 +220,8 @@ TrimPositions TrimWhitespaceASCII(std::string_view input,
 std::string_view TrimWhitespaceASCII(std::string_view input,
                                      TrimPositions positions) {
   return internal::TrimStringPieceT(input, std::string_view(kWhitespaceASCII),
-                                    positions);
+                                    positions & TRIM_LEADING,
+                                    positions & TRIM_TRAILING);
 }
 
 std::u16string CollapseWhitespace(std::u16string_view text,

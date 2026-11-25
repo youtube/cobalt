@@ -14,6 +14,7 @@
 
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/feature_list.h"
 #if BUILDFLAG(IS_COBALT)
 #include "base/features.h"

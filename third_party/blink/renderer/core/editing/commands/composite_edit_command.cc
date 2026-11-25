@@ -26,6 +26,8 @@
 #include "third_party/blink/renderer/core/editing/commands/composite_edit_command.h"
 
 #include <algorithm>
+#include <optional>
+#include <utility>
 
 #include "third_party/blink/renderer/core/accessibility/blink_ax_event_intent.h"
 #include "third_party/blink/renderer/core/accessibility/scoped_blink_ax_event_intent.h"
@@ -1764,6 +1766,93 @@ void CompositeEditCommand::RestoreSelectionFromPlainText(
   }
 }
 
+std::optional<std::pair<Position, Position>>
+CompositeEditCommand::ComputePreservedVisibleSelectionEndpoints(
+    ShouldPreserveSelection should_preserve_selection) {
+  if (should_preserve_selection != kPreserveSelection ||
+      EndingSelection().IsNone()) {
+    return std::nullopt;
+  }
+
+  const VisiblePosition visible_start = EndingVisibleSelection().VisibleStart();
+  const VisiblePosition visible_end = EndingVisibleSelection().VisibleEnd();
+  if (RuntimeEnabledFeatures::
+          HandleDisconnectedSelectionDuringDOMChangesEnabled() &&
+      (visible_start.IsNull() || visible_end.IsNull())) {
+    // A synchronous DOM mutation may invalidate VP endpoints.
+    return std::nullopt;
+  }
+  return std::make_pair(visible_start.DeepEquivalent(),
+                        visible_end.DeepEquivalent());
+}
+
+std::optional<std::pair<Position, Position>>
+CompositeEditCommand::ComputePreservedDomSelectionEndpoints(
+    ShouldPreserveSelection should_preserve_selection) {
+  if (should_preserve_selection != kPreserveSelection ||
+      EndingDomSelection().IsNone()) {
+    return std::nullopt;
+  }
+
+  const Position selection_start = EndingDomSelection().Start();
+  const Position selection_end = EndingDomSelection().End();
+  if (RuntimeEnabledFeatures::
+          HandleDisconnectedSelectionDuringDOMChangesEnabled() &&
+      (!IsPreservedSelectionEndpointUsable(selection_start) ||
+       !IsPreservedSelectionEndpointUsable(selection_end))) {
+    // A synchronous DOM mutation may stale raw-DOM endpoints.
+    return std::nullopt;
+  }
+  return std::make_pair(selection_start, selection_end);
+}
+
+bool CompositeEditCommand::IsPreservedSelectionEndpointUsable(
+    const Position& position) const {
+  // IsValidFor() treats null as valid, so guard null explicitly.
+  return position.IsNotNull() && position.IsValidFor(GetDocument());
+}
+
+std::optional<std::pair<int, int>>
+CompositeEditCommand::ComputePreservedSelectionIndices(
+    const Position& start_of_paragraph,
+    const Position& end_of_paragraph,
+    const Position& selection_start,
+    const Position& selection_end) {
+  bool start_after_paragraph =
+      ComparePositions(selection_start, end_of_paragraph) > 0;
+  bool end_before_paragraph =
+      ComparePositions(selection_end, start_of_paragraph) < 0;
+  if (start_after_paragraph || end_before_paragraph) {
+    return std::nullopt;
+  }
+
+  bool start_in_paragraph =
+      ComparePositions(selection_start, start_of_paragraph) >= 0;
+  bool end_in_paragraph =
+      ComparePositions(selection_end, end_of_paragraph) <= 0;
+  const TextIteratorBehavior behavior =
+      RuntimeEnabledFeatures::EnterInOpenShadowRootsEnabled()
+          ? TextIteratorBehavior::
+                AllVisiblePositionsIncludingShadowRootRangeLengthBehavior()
+          : TextIteratorBehavior::AllVisiblePositionsRangeLengthBehavior();
+
+  int start_index = 0;
+  if (start_in_paragraph) {
+    start_index = TextIterator::RangeLength(
+        start_of_paragraph.ParentAnchoredEquivalent(),
+        selection_start.ParentAnchoredEquivalent(), behavior);
+  }
+
+  int end_index = 0;
+  if (end_in_paragraph) {
+    end_index = TextIterator::RangeLength(
+        start_of_paragraph.ParentAnchoredEquivalent(),
+        selection_end.ParentAnchoredEquivalent(), behavior);
+  }
+
+  return std::make_pair(start_index, end_index);
+}
+
 void CompositeEditCommand::MoveParagraphs(
     const VisiblePosition& start_of_paragraph_to_move,
     const VisiblePosition& end_of_paragraph_to_move,
@@ -1793,54 +1882,16 @@ void CompositeEditCommand::MoveParagraphs(
     return;
   }
 
-  int start_index = -1;
-  int end_index = -1;
+  std::optional<std::pair<int, int>> preserved_selection_indices;
   int destination_index = -1;
-  if (should_preserve_selection == kPreserveSelection &&
-      !EndingSelection().IsNone()) {
-    VisiblePosition visible_start = EndingVisibleSelection().VisibleStart();
-    VisiblePosition visible_end = EndingVisibleSelection().VisibleEnd();
-
-    if (RuntimeEnabledFeatures::
-            HandleDisconnectedSelectionDuringDOMChangesEnabled() &&
-        (visible_start.IsNull() || visible_end.IsNull())) {
-      // Skip preserving the selection if the selection endpoints
-      // visible_start and visible_end are invalid.
-      // It can happen due to a callback of a synchronous event
-      // dispatched by a prior DOM mutation.
-    } else {
-      bool start_after_paragraph =
-          ComparePositions(visible_start, end_of_paragraph_to_move) > 0;
-      bool end_before_paragraph =
-          ComparePositions(visible_end, start_of_paragraph_to_move) < 0;
-
-      if (!start_after_paragraph && !end_before_paragraph) {
-        bool start_in_paragraph =
-            ComparePositions(visible_start, start_of_paragraph_to_move) >= 0;
-        bool end_in_paragraph =
-            ComparePositions(visible_end, end_of_paragraph_to_move) <= 0;
-        const TextIteratorBehavior behavior =
-            RuntimeEnabledFeatures::EnterInOpenShadowRootsEnabled()
-                ? TextIteratorBehavior::
-                      AllVisiblePositionsIncludingShadowRootRangeLengthBehavior()
-                : TextIteratorBehavior::
-                      AllVisiblePositionsRangeLengthBehavior();
-
-        start_index = 0;
-        if (start_in_paragraph) {
-          start_index = TextIterator::RangeLength(
-              start_of_paragraph_to_move.ToParentAnchoredPosition(),
-              visible_start.ToParentAnchoredPosition(), behavior);
-        }
-
-        end_index = 0;
-        if (end_in_paragraph) {
-          end_index = TextIterator::RangeLength(
-              start_of_paragraph_to_move.ToParentAnchoredPosition(),
-              visible_end.ToParentAnchoredPosition(), behavior);
-        }
-      }
-    }
+  // VP overload: preserve endpoints from the VP lane.
+  if (const std::optional<std::pair<Position, Position>> selection_endpoints =
+          ComputePreservedVisibleSelectionEndpoints(
+              should_preserve_selection)) {
+    preserved_selection_indices = ComputePreservedSelectionIndices(
+        start_of_paragraph_to_move.DeepEquivalent(),
+        end_of_paragraph_to_move.DeepEquivalent(), selection_endpoints->first,
+        selection_endpoints->second);
   }
 
   RelocatablePosition* before_paragraph_position =
@@ -1941,8 +1992,9 @@ void CompositeEditCommand::MoveParagraphs(
       return;
   }
 
-  if (should_preserve_selection == kDoNotPreserveSelection || start_index == -1)
+  if (!preserved_selection_indices) {
     return;
+  }
   Element* document_element = GetDocument().documentElement();
   if (!document_element)
     return;
@@ -1950,6 +2002,7 @@ void CompositeEditCommand::MoveParagraphs(
   // We need clean layout in order to compute plain-text ranges below.
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kEditing);
 
+  const auto [start_index, end_index] = *preserved_selection_indices;
   RestoreSelectionFromPlainText(destination_index, start_index, end_index,
                                 *document_element);
 }

@@ -5,15 +5,10 @@
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 
 #include <memory>
-#include <optional>
 
-#include "base/functional/bind.h"
-#include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
-#include "base/uuid.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_merged_surface_service.h"
@@ -21,17 +16,13 @@
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/bookmarks/bookmark_test_helpers.h"
 #include "chrome/browser/bookmarks/managed_bookmark_service_factory.h"
-#include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_test_util.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view_test_helper.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/native_widget_factory.h"
-#include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_profile.h"
@@ -49,7 +40,6 @@
 #include "ui/base/clipboard/clipboard_format_type.h"
 #include "ui/base/dragdrop/drag_drop_types.h"
 #include "ui/base/dragdrop/mojom/drag_drop_types.mojom.h"
-#include "ui/compositor/layer_tree_owner.h"
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/label_button.h"
@@ -192,7 +182,8 @@ class BookmarkBarViewBaseTest : public ChromeViewsTestBase {
     return bookmark_bar_view;
   }
 
-  base::test::ScopedFeatureList feature_list_;
+  base::test::ScopedFeatureList feature_list_{
+      switches::kSyncEnableBookmarksInTransportMode};
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<Browser> browser_;
   std::unique_ptr<BookmarkBarViewTestHelper> test_helper_;
@@ -223,8 +214,6 @@ class BookmarkBarViewTest : public BookmarkBarViewBaseTest {
   }
 
  private:
-  base::test::ScopedFeatureList features_{
-      switches::kSyncEnableBookmarksInTransportMode};
   std::unique_ptr<BookmarkBarView> bookmark_bar_view_;
 };
 

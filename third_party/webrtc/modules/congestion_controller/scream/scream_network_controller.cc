@@ -210,9 +210,6 @@ NetworkControlUpdate ScreamNetworkController::CreateUpdate(Timestamp now) {
     target_rate_msg.target_rate = scream_->target_rate();
     target_rate_msg.network_estimate.at_time = now;
     target_rate_msg.network_estimate.round_trip_time = scream_->rtt();
-    // TODO: bugs.webrtc.org/447037083 - bwe_period must currently be set but
-    // it seems like it is not used for anything sensible. Try to remove it.
-    target_rate_msg.network_estimate.bwe_period = TimeDelta::Millis(25);
     target_rate_msg.is_bandwidth_limited = is_bandwidth_limited;
     update.target_rate = target_rate_msg;
   }

@@ -2700,14 +2700,12 @@ void WebViewImpl::SetPageLifecycleStateInternal(
   UpdateViewTransitionState(restoring_from_bfcache, storing_in_bfcache,
                             page_restore_params);
 
-  if (RuntimeEnabledFeatures::PageRevealEventEnabled()) {
-    if (restoring_from_bfcache) {
-      for (Frame* frame = GetPage()->MainFrame(); frame;
-           frame = frame->Tree().TraverseNext()) {
-        if (auto* local_frame = DynamicTo<LocalFrame>(frame)) {
-          CHECK(local_frame->GetDocument());
-          local_frame->GetDocument()->EnqueuePageRevealEvent();
-        }
+  if (restoring_from_bfcache) {
+    for (Frame* frame = GetPage()->MainFrame(); frame;
+         frame = frame->Tree().TraverseNext()) {
+      if (auto* local_frame = DynamicTo<LocalFrame>(frame)) {
+        CHECK(local_frame->GetDocument());
+        local_frame->GetDocument()->EnqueuePageRevealEvent();
       }
     }
   }

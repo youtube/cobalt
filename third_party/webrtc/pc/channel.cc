@@ -51,7 +51,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/socket.h"
-#include "rtc_base/strings/string_format.h"
+#include "rtc_base/strings/string_builder.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/unique_id_generator.h"
@@ -226,9 +226,9 @@ BaseChannel::~BaseChannel() {
 }
 
 std::string BaseChannel::ToString() const {
-  return StringFormat(
-      "{mid: %s, media_type: %s}", mid().c_str(),
-      MediaTypeToString(media_send_channel_->media_type()).c_str());
+  return (StringBuilder() << "{mid: " << mid() << ", media_type: "
+                          << media_send_channel_->media_type() << "}")
+      .Release();
 }
 
 bool BaseChannel::ConnectToRtpTransport_n(RtpTransportInternal* rtp_transport) {

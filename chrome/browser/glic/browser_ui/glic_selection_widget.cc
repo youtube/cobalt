@@ -7,6 +7,7 @@
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
 #include "chrome/browser/glic/public/features.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/platform_util.h"
@@ -31,7 +32,9 @@
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/display/screen.h"
+#include "ui/gfx/animation/animation.h"
 #include "ui/gfx/image/image_skia_operations.h"
+#include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/menus/simple_menu_model.h"
@@ -68,6 +71,7 @@ constexpr int kCornerRadius = 12;
 // on the sides where they meet.
 constexpr int kCornerRadiusInner = 4;
 constexpr int kMenuVerticalMargin = 4;
+constexpr base::TimeDelta kFadeInDuration = base::Milliseconds(250);
 
 // Custom MenuModel for the selection widget's three-dot menu, providing custom
 // typography styling for the menu items.
@@ -208,6 +212,8 @@ class GlicSelectionContentsView : public views::View,
                             bool initial_pinned_state)
       : widget_delegate_(widget_delegate) {
     SetNotifyEnterExitOnChild(true);
+    SetPaintToLayer();
+    layer()->SetFillsBoundsOpaquely(false);
 
     auto border1 = std::make_unique<views::BubbleBorder>(
         views::BubbleBorder::NONE, views::BubbleBorder::STANDARD_SHADOW);
@@ -267,6 +273,8 @@ class GlicSelectionContentsView : public views::View,
     ask_gemini_btn->SetLabelStyle(views::style::STYLE_BODY_5_MEDIUM);
     ask_gemini_btn->SetCustomPadding(gfx::Insets::TLBR(0, 2, 0, 6));
 
+    ask_gemini_btn_ = ask_gemini_btn;
+
     gfx::ImageSkia* icon_skia =
         ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
             IDR_GLIC_BUTTON_ALT_ICON);
@@ -274,7 +282,7 @@ class GlicSelectionContentsView : public views::View,
         *icon_skia, skia::ImageOperations::RESIZE_BEST,
         gfx::Size(kIconSize, kIconSize));
 
-    auto generator = base::BindRepeating(
+    auto active_generator = base::BindRepeating(
         [](gfx::ImageSkia icon, const ui::ColorProvider* color_provider) {
           if (!color_provider) {
             return icon;
@@ -286,13 +294,37 @@ class GlicSelectionContentsView : public views::View,
         },
         resized_icon);
 
-    auto icon_model = ui::ImageModel::FromImageGenerator(std::move(generator),
-                                                         gfx::Size(20, 20));
+    active_icon_model_ = ui::ImageModel::FromImageGenerator(
+        std::move(active_generator), gfx::Size(20, 20));
 
-    ask_gemini_btn->SetImageModel(views::Button::STATE_NORMAL, icon_model);
-    ask_gemini_btn->SetImageModel(views::Button::STATE_HOVERED, icon_model);
-    ask_gemini_btn->SetImageModel(views::Button::STATE_PRESSED, icon_model);
-    ask_gemini_btn->SetImageModel(views::Button::STATE_DISABLED, icon_model);
+    auto inactive_generator = base::BindRepeating(
+        [](const ui::ColorProvider* color_provider) -> gfx::ImageSkia {
+          if (!color_provider) {
+            return gfx::ImageSkia();
+          }
+          const gfx::VectorIcon& vector_icon =
+              glic::GlicVectorIconManager::GetVectorIcon(
+                  IDR_GLIC_BUTTON_VECTOR_ICON);
+          gfx::ImageSkia icon = gfx::CreateVectorIcon(
+              vector_icon, kIconSize,
+              color_provider->GetColor(ui::kColorSysOnSurfaceVariant));
+          SkColor circle_bg_color =
+              color_provider->GetColor(ui::kColorSysBaseContainer);
+          return gfx::ImageSkiaOperations::CreateImageWithCircleBackground(
+              10, circle_bg_color, icon);
+        });
+
+    inactive_icon_model_ = ui::ImageModel::FromImageGenerator(
+        std::move(inactive_generator), gfx::Size(20, 20));
+
+    ask_gemini_btn_->SetImageModel(views::Button::STATE_NORMAL,
+                                   inactive_icon_model_);
+    ask_gemini_btn_->SetImageModel(views::Button::STATE_HOVERED,
+                                   active_icon_model_);
+    ask_gemini_btn_->SetImageModel(views::Button::STATE_PRESSED,
+                                   active_icon_model_);
+    ask_gemini_btn_->SetImageModel(views::Button::STATE_DISABLED,
+                                   inactive_icon_model_);
 
     views::InkDrop::Get(ask_gemini_btn)
         ->SetMode(views::InkDropHost::InkDropMode::ON);
@@ -309,62 +341,64 @@ class GlicSelectionContentsView : public views::View,
     CreateToolbarInkdropCallbacks(ask_gemini_btn, kColorToolbarInkDropHover,
                                   kColorToolbarInkDropRipple);
 
-    // Copy Button
-    auto copy_tooltip = gfx::LocateAndRemoveAcceleratorChar(
-        l10n_util::GetStringUTF16(IDS_APP_COPY), nullptr, nullptr);
-    auto* copy_btn =
-        ask_pill_->AddChildView(views::ImageButton::CreateIconButton(
-            base::BindRepeating(
-                &GlicSelectionWidgetDelegate::ActionDelegate::OnCopy,
-                base::Unretained(&widget_delegate_->action_delegate())),
-            features::IsRoundedIconsEnabled()
-                ? vector_icons::kContentCopyIcon
-                : vector_icons::kContentCopyOldIcon,
-            copy_tooltip));
-    copy_btn->SetTooltipText(copy_tooltip);
-    copy_btn->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
-    copy_btn->SetBorder(
-        views::CreateEmptyBorder(views::LayoutProvider::Get()->GetInsetsMetric(
-            views::INSETS_VECTOR_IMAGE_BUTTON)));
-    views::SetImageFromVectorIconWithColor(
-        copy_btn,
-        features::IsRoundedIconsEnabled() ? vector_icons::kContentCopyIcon
-                                          : vector_icons::kContentCopyOldIcon,
-        kIconSize,
-        views::IconColors(ui::kColorSysOnSurfaceVariant,
-                          ui::kColorLabelForegroundDisabled,
-                          ui::kColorSysOnSurfaceVariant));
-    CreateToolbarInkdropCallbacks(copy_btn, kColorToolbarInkDropHover,
-                                  kColorToolbarInkDropRipple);
+    if (features::kGlicSelectionShowCopyButtons.Get()) {
+      // Copy Button
+      auto copy_tooltip = gfx::LocateAndRemoveAcceleratorChar(
+          l10n_util::GetStringUTF16(IDS_APP_COPY), nullptr, nullptr);
+      auto* copy_btn =
+          ask_pill_->AddChildView(views::ImageButton::CreateIconButton(
+              base::BindRepeating(
+                  &GlicSelectionWidgetDelegate::ActionDelegate::OnCopy,
+                  base::Unretained(&widget_delegate_->action_delegate())),
+              features::IsRoundedIconsEnabled()
+                  ? vector_icons::kContentCopyIcon
+                  : vector_icons::kContentCopyOldIcon,
+              copy_tooltip));
+      copy_btn->SetTooltipText(copy_tooltip);
+      copy_btn->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
+      copy_btn->SetBorder(
+          views::CreateEmptyBorder(views::LayoutProvider::Get()->GetInsetsMetric(
+              views::INSETS_VECTOR_IMAGE_BUTTON)));
+      views::SetImageFromVectorIconWithColor(
+          copy_btn,
+          features::IsRoundedIconsEnabled() ? vector_icons::kContentCopyIcon
+                                            : vector_icons::kContentCopyOldIcon,
+          kIconSize,
+          views::IconColors(ui::kColorSysOnSurfaceVariant,
+                            ui::kColorLabelForegroundDisabled,
+                            ui::kColorSysOnSurfaceVariant));
+      CreateToolbarInkdropCallbacks(copy_btn, kColorToolbarInkDropHover,
+                                    kColorToolbarInkDropRipple);
 
-    // Copy Link Button
-    auto copy_link_tooltip =
-        l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_COPYLINKTOTEXT);
-    copy_link_btn_ =
-        ask_pill_->AddChildView(views::ImageButton::CreateIconButton(
-            base::BindRepeating(
-                &GlicSelectionWidgetDelegate::ActionDelegate::OnCopyLink,
-                base::Unretained(&widget_delegate_->action_delegate())),
-            features::IsRoundedIconsEnabled()
-                ? omnibox::kShareIcon
-                : omnibox::kShareChromeRefreshOldIcon,
-            copy_link_tooltip));
-    copy_link_btn_->SetTooltipText(copy_link_tooltip);
-    copy_link_btn_->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
-    copy_link_btn_->SetBorder(
-        views::CreateEmptyBorder(views::LayoutProvider::Get()->GetInsetsMetric(
-            views::INSETS_VECTOR_IMAGE_BUTTON)));
-    views::SetImageFromVectorIconWithColor(
-        copy_link_btn_,
-        features::IsRoundedIconsEnabled() ? omnibox::kShareIcon
-                                          : omnibox::kShareChromeRefreshOldIcon,
-        kIconSize,
-        views::IconColors(ui::kColorSysOnSurfaceVariant,
-                          ui::kColorLabelForegroundDisabled,
-                          ui::kColorSysOnSurfaceVariant));
-    CreateToolbarInkdropCallbacks(copy_link_btn_, kColorToolbarInkDropHover,
-                                  kColorToolbarInkDropRipple);
-    copy_link_btn_->SetEnabled(false);
+      // Copy Link Button
+      auto copy_link_tooltip =
+          l10n_util::GetStringUTF16(IDS_CONTENT_CONTEXT_COPYLINKTOTEXT);
+      copy_link_btn_ =
+          ask_pill_->AddChildView(views::ImageButton::CreateIconButton(
+              base::BindRepeating(
+                  &GlicSelectionWidgetDelegate::ActionDelegate::OnCopyLink,
+                  base::Unretained(&widget_delegate_->action_delegate())),
+              features::IsRoundedIconsEnabled()
+                  ? omnibox::kShareIcon
+                  : omnibox::kShareChromeRefreshOldIcon,
+              copy_link_tooltip));
+      copy_link_btn_->SetTooltipText(copy_link_tooltip);
+      copy_link_btn_->SetImageVerticalAlignment(views::ImageButton::ALIGN_MIDDLE);
+      copy_link_btn_->SetBorder(
+          views::CreateEmptyBorder(views::LayoutProvider::Get()->GetInsetsMetric(
+              views::INSETS_VECTOR_IMAGE_BUTTON)));
+      views::SetImageFromVectorIconWithColor(
+          copy_link_btn_,
+          features::IsRoundedIconsEnabled() ? omnibox::kShareIcon
+                                            : omnibox::kShareChromeRefreshOldIcon,
+          kIconSize,
+          views::IconColors(ui::kColorSysOnSurfaceVariant,
+                            ui::kColorLabelForegroundDisabled,
+                            ui::kColorSysOnSurfaceVariant));
+      CreateToolbarInkdropCallbacks(copy_link_btn_, kColorToolbarInkDropHover,
+                                    kColorToolbarInkDropRipple);
+      copy_link_btn_->SetEnabled(false);
+    }
 
     // Pill 2
     control_pill_ = AddChildView(std::make_unique<views::BoxLayoutView>());
@@ -431,6 +465,7 @@ class GlicSelectionContentsView : public views::View,
   }
 
   void OnMouseEntered(const ui::MouseEvent& event) override {
+    UpdateAskGeminiIcon(true);
     if (control_pill_) {
       control_pill_->layer()->SetOpacity(1.0f);
     }
@@ -447,6 +482,7 @@ class GlicSelectionContentsView : public views::View,
   }
 
   void OnMouseExited(const ui::MouseEvent& event) override {
+    UpdateAskGeminiIcon(false);
     if (control_pill_) {
       control_pill_->layer()->SetOpacity(0.0f);
     }
@@ -519,6 +555,15 @@ class GlicSelectionContentsView : public views::View,
     }
   }
 
+  void UpdateAskGeminiIcon(bool is_hovered) {
+    if (!ask_gemini_btn_) {
+      return;
+    }
+    const ui::ImageModel& normal_model =
+        is_hovered ? active_icon_model_ : inactive_icon_model_;
+    ask_gemini_btn_->SetImageModel(views::Button::STATE_NORMAL, normal_model);
+  }
+
   void OnMenuButtonClicked() {
     if (menu_runner_ && menu_runner_->IsRunning()) {
       return;
@@ -562,6 +607,9 @@ class GlicSelectionContentsView : public views::View,
 
  private:
   const raw_ptr<GlicSelectionWidgetDelegate> widget_delegate_;
+  raw_ptr<views::MdTextButton> ask_gemini_btn_ = nullptr;
+  ui::ImageModel inactive_icon_model_;
+  ui::ImageModel active_icon_model_;
   raw_ptr<views::ImageButton> copy_link_btn_ = nullptr;
   raw_ptr<views::ImageButton> pin_btn_ = nullptr;
   raw_ptr<views::ImageButton> menu_btn_ = nullptr;
@@ -615,6 +663,16 @@ void GlicSelectionWidgetDelegate::ShowWidget() {
       this, base::BindOnce(&GlicSelectionWidgetDelegate::OnWidgetClose,
                            weak_ptr_factory_.GetWeakPtr()));
   widget_->ShowInactive();
+
+  ui::Layer* anim_layer =
+      GetContentsView() ? GetContentsView()->layer() : nullptr;
+  if (anim_layer && gfx::Animation::ShouldRenderRichAnimation()) {
+    anim_layer->SetOpacity(0.0f);
+    ui::ScopedLayerAnimationSettings settings(anim_layer->GetAnimator());
+    settings.SetTweenType(gfx::Tween::Type::EASE_IN_OUT);
+    settings.SetTransitionDuration(kFadeInDuration);
+    anim_layer->SetOpacity(1.0f);
+  }
 }
 
 void GlicSelectionWidgetDelegate::CloseWidget() {

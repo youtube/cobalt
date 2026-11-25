@@ -44,7 +44,6 @@ import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.management.ManagementPage;
 import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
 import org.chromium.chrome.browser.ntp.IncognitoNewTabPage;
-import org.chromium.chrome.browser.ntp.IncognitoNtpMetrics;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.ntp.NewTabPageCreationTracker;
 import org.chromium.chrome.browser.ntp.RecentTabsManager;
@@ -274,9 +273,8 @@ public class NativePageFactory {
                 return new IncognitoNewTabPage(
                         mActivity,
                         nativePageHost,
-                        tab,
-                        mEdgeToEdgeControllerSupplier,
-                        createIncognitoNtpMetrics());
+                        tab.getProfile(),
+                        mEdgeToEdgeControllerSupplier);
             }
 
             return new NewTabPage(
@@ -446,13 +444,6 @@ public class NativePageFactory {
                             mBottomSheetController,
                             mModalDialogManagerSupplier.get()));
         }
-
-        private @Nullable IncognitoNtpMetrics createIncognitoNtpMetrics() {
-            if (ChromeFeatureList.sRecordIncognitoNtpTimeToFirstNavigationMetric.isEnabled()) {
-                return new IncognitoNtpMetrics();
-            }
-            return null;
-        }
     }
 
     /**
@@ -487,8 +478,9 @@ public class NativePageFactory {
         }
 
         NativePage page;
-
-        switch (NativePage.nativePageType(gurl, candidatePage, isIncognito, pdfInfo != null)) {
+        boolean isPdf = pdfInfo != null;
+        boolean preferReuse = isPdf && assumeNonNull(pdfInfo).preferReuse;
+        switch (NativePage.nativePageType(gurl, candidatePage, isIncognito, preferReuse, isPdf)) {
             case NativePageType.NONE:
                 return null;
             case NativePageType.CANDIDATE:
@@ -592,7 +584,7 @@ public class NativePageFactory {
             return null;
         }
         NativePage page;
-        if (candidatePage != null && candidatePage.getUrl().equals(url)) {
+        if (candidatePage != null && url.equals(candidatePage.getUrl())) {
             page = candidatePage;
         } else {
             page =

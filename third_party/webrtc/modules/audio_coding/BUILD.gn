@@ -91,6 +91,7 @@ rtc_library("audio_encoder_cng") {
 
   deps = [
     ":webrtc_cng",
+    "../../api:bitrate_allocation",
     "../../api/audio_codecs:audio_codecs_api",
     "../../api/units:time_delta",
     "../../common_audio",
@@ -963,10 +964,12 @@ if (rtc_include_tests) {
 
       deps = [
                ":neteq_input_audio_tools",
+               "../../api:bitrate_allocation",
                "../../api/audio_codecs:audio_codecs_api",
                "../../api/audio_codecs/g722:audio_encoder_g722_config",
                "../../api/audio_codecs/opus:audio_encoder_opus",
                "../../api/audio_codecs/opus:audio_encoder_opus_config",
+               "../../api/units:data_rate",
                "../../rtc_base:buffer",
                "../../rtc_base:checks",
                "../../test:create_test_environment",

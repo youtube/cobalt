@@ -472,7 +472,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   const blink::StorageKey& GetStorageKey() const override;
   int GetRoutingID() const override;
   const blink::LocalFrameToken& GetFrameToken() const override;
-  const perfetto::NamedTrack& GetTracingTrack() const override;
+  const perfetto::Track& GetTracingTrack() const override;
   const base::UnguessableToken& GetReportingSource() override;
 
   ui::AXTreeID GetAXTreeID() override;
@@ -2115,9 +2115,11 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void GetFileSystemAccessManager(
       mojo::PendingReceiver<blink::mojom::FileSystemAccessManager> receiver);
 
+<<<<<<< ours
+=======
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
+>>>>>>> theirs
   void GetHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
-#endif
 
 #if !BUILDFLAG(IS_COBALT)
   void BindSerialService(
@@ -2217,8 +2219,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void BindDigitalIdentityRequestReceiver(
       mojo::PendingReceiver<blink::mojom::DigitalIdentityRequest> receiver);
 
-  void BindFederatedAuthRequestReceiver(
-      mojo::PendingReceiver<blink::mojom::FederatedAuthRequest> receiver);
   void BindFederatedRequestServiceReceiver(
       mojo::PendingReceiver<blink::mojom::FederatedRequestService> receiver);
 
@@ -5649,7 +5649,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
   base::OnceClosure on_process_before_unload_completed_for_testing_;
 
   // Tracing track used to emit async event related to lifecycle.
-  const base::trace_event::TrackRegistration<perfetto::NamedTrack>
+  const base::trace_event::TrackRegistration<perfetto::StateTrack>
       tracing_track_;
 
   base::MemoryConsumerRegistration memory_consumer_registration_;

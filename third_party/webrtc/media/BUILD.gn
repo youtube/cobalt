@@ -16,10 +16,7 @@ if (is_cobalt) {
 group("media") {
   deps = []
   if (!build_with_mozilla) {
-    deps += [
-      ":rtc_media",
-      ":rtc_media_base",
-    ]
+    deps += [ ":rtc_media" ]
   }
 }
 
@@ -48,90 +45,6 @@ rtc_library("rtc_sdp_video_format_utils") {
     "//third_party/abseil-cpp/absl/algorithm:container",
   ]
 }
-
-rtc_library("rtc_media_base") {
-  visibility = [ "*" ]
-  defines = []
-  libs = []
-  sources = [
-    "base/adapted_video_track_source.h",  # Used downstream
-    "base/video_adapter.h",  # Used once downstream
-    "base/video_broadcaster.h",  # Used downstream
-    "base/video_common.h",  # Used downstream
-  ]
-  deps = [
-    ":codec",
-    ":media_channel",
-    ":media_channel_impl",
-    ":rid_description",
-    ":rtc_media_config",
-    ":rtp_utils",
-    ":stream_params",
-    ":video_source_base",
-    "../api:audio_options_api",
-    "../api:call_api",
-    "../api:field_trials_view",
-    "../api:frame_transformer_interface",
-    "../api:media_stream_interface",
-    "../api:rtc_error",
-    "../api:rtp_parameters",
-    "../api:rtp_sender_interface",
-    "../api:scoped_refptr",
-    "../api:sequence_checker",
-    "../api:transport_api",
-    "../api:video_track_source_constraints",
-    "../api/audio:audio_frame_processor",
-    "../api/audio_codecs:audio_codecs_api",
-    "../api/crypto:frame_decryptor_interface",
-    "../api/crypto:frame_encryptor_interface",
-    "../api/crypto:options",
-    "../api/task_queue",
-    "../api/task_queue:pending_task_safety_flag",
-    "../api/transport:datagram_transport_interface",
-    "../api/transport:stun_types",
-    "../api/transport/rtp:rtp_source",
-    "../api/units:time_delta",
-    "../api/video:adapted_video_track_source",
-    "../api/video:recordable_encoded_frame",
-    "../api/video:resolution",
-    "../api/video:video_adapter",
-    "../api/video:video_bitrate_allocation",
-    "../api/video:video_bitrate_allocator_factory",
-    "../api/video:video_broadcaster",
-    "../api/video:video_common",
-    "../api/video:video_frame",
-    "../api/video:video_rtp_headers",
-    "../api/video_codecs:scalability_mode",
-    "../api/video_codecs:video_codecs_api",
-    "../call:call_interfaces",
-    "../common_video",
-    "../modules/async_audio_processing",
-    "../modules/audio_device",
-    "../modules/rtp_rtcp:rtp_rtcp_format",
-    "../rtc_base:async_packet_socket",
-    "../rtc_base:buffer",
-    "../rtc_base:byte_order",
-    "../rtc_base:checks",
-    "../rtc_base:copy_on_write_buffer",
-    "../rtc_base:dscp",
-    "../rtc_base:logging",
-    "../rtc_base:macromagic",
-    "../rtc_base:network_route",
-    "../rtc_base:sanitizer",
-    "../rtc_base:socket",
-    "../rtc_base:stringutils",
-    "../rtc_base:timeutils",
-    "../rtc_base:unique_id_generator",
-    "../rtc_base/network:sent_packet",
-    "../rtc_base/synchronization:mutex",
-    "../rtc_base/system:file_wrapper",
-    "../rtc_base/system:no_unique_address",
-    "../rtc_base/system:rtc_export",
-    "../video/config:encoder_config",
-    "//third_party/abseil-cpp/absl/base:core_headers",
-  ]
-}
-
 rtc_source_set("audio_source") {
   sources = [ "base/audio_source.h" ]
 }
@@ -908,7 +821,6 @@ if (rtc_include_tests) {
         ":rid_description",
         ":rtc_audio_video",
         ":rtc_internal_video_codecs",
-        ":rtc_media_base",
         ":rtc_media_config",
         ":rtc_media_tests_utils",
         ":rtc_sdp_video_format_utils",

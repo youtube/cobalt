@@ -4,9 +4,11 @@
 
 package org.chromium.chrome.browser.pdf;
 
+import android.view.View;
 import android.view.ViewGroup;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * Manages and tracks the View of existing PdfFragments. The Views are often placed to a wrong
@@ -24,4 +26,11 @@ public interface PdfFragmentViewTracker {
      * @param tag Tag used as ID to match the container with the Pdf Fragment view.
      */
     void maybeRelocateViews(ViewGroup container, String tag);
+
+    /**
+     * Removes the view with a given tag from the list.
+     *
+     * @param tag Tag used as ID to match the container with the Pdf Fragment view.
+     */
+    @Nullable View removeViewWithTag(String tag);
 }

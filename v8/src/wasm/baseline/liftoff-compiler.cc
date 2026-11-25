@@ -829,7 +829,7 @@ class LiftoffCompiler {
     }
   }
 
-  bool did_bailout() const { return bailout_reason_ != kSuccess; }
+  bool did_bailout() const { return bailout_reason_ != kNoReason; }
   LiftoffBailoutReason bailout_reason() const { return bailout_reason_; }
 
   void GetCode(CodeDesc* desc) {
@@ -862,7 +862,7 @@ class LiftoffCompiler {
 
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
                    const char* detail) {
-    DCHECK_NE(kSuccess, reason);
+    DCHECK_NE(kNoReason, reason);
     if (did_bailout()) return;
     bailout_reason_ = reason;
     TRACE("unsupported: %s\n", detail);
@@ -6139,6 +6139,16 @@ class LiftoffCompiler {
     CODE_COMMENT("-- landing pad --");
     __ bind(handler.get());
     __ ExceptionHandler();
+    if (V8_UNLIKELY(for_debugging_)) {
+      // Any pending OSR target was computed for the call's return continuation
+      // and is stale on the exception path; clear it so we keep executing the
+      // catch body in this code object.
+      // We might miss breakpoint updates by staying in the old code.
+      // TODO(thibaudm): Get the exception handler address in the new code and
+      // jump to it. Maybe by using a second OSR slot on top of kOSRTargetSlot,
+      // specifically for exceptional returns.
+      __ ResetOSRTarget();
+    }
     __ PushException();
     handlers_.push_back({std::move(handler), handler_offset});
     Control* current_try =
@@ -11142,7 +11152,7 @@ class LiftoffCompiler {
   DebugSideTableBuilder* const debug_sidetable_builder_;
   base::OwnedVector<ValueType> stack_value_types_for_debugging_;
   const ForDebugging for_debugging_;
-  LiftoffBailoutReason bailout_reason_ = kSuccess;
+  LiftoffBailoutReason bailout_reason_ = kNoReason;
   const int func_index_;
   // For both OOL code lists, the OutOfLineCode objects themselves are placed
   // in the zone directly, to prevent them from moving, so that pointers to
@@ -11308,12 +11318,16 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   })();
   static_assert(kCheckedHistograms == 1);
 
-  // Register the bailout reason (can also be {kSuccess}).
+  // Register the bailout reason (can also be {kNoReason}).
   compiler_options.counter_updates->AddSample(
       &Counters::liftoff_bailout_reasons,
       static_cast<int>(compiler->bailout_reason()));
 
-  if (compiler->did_bailout()) return WasmCompilationResult{};
+  if (compiler->did_bailout()) {
+    WasmCompilationResult result;
+    result.bailout_reason = compiler->bailout_reason();
+    return result;
+  }
 
   WasmCompilationResult result;
   compiler->GetCode(&result.code_desc);

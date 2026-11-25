@@ -70,6 +70,7 @@
 #include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
 #include "third_party/blink/renderer/core/css/css_paint_value.h"
 #include "third_party/blink/renderer/core/css/css_palette_mix_value.h"
+#include "third_party/blink/renderer/core/css/css_param_value_pair.h"
 #include "third_party/blink/renderer/core/css/css_path_value.h"
 #include "third_party/blink/renderer/core/css/css_pending_substitution_value.h"
 #include "third_party/blink/renderer/core/css/css_pending_system_font_value.h"
@@ -361,6 +362,8 @@ bool CSSValue::operator==(const CSSValue& other) const {
         return CompareCSSValues<cssvalue::CSSFlipRevertValue>(*this, other);
       case kLightDarkValuePairClass:
         return CompareCSSValues<CSSLightDarkValuePair>(*this, other);
+      case kParamValuePairClass:
+        return CompareCSSValues<CSSParamValuePair>(*this, other);
       case kScrollClass:
         return CompareCSSValues<cssvalue::CSSScrollValue>(*this, other);
       case kTriggerAttachmentClass:
@@ -543,6 +546,8 @@ String CSSValue::CssText() const {
       return To<cssvalue::CSSFlipRevertValue>(this)->CustomCSSText();
     case kLightDarkValuePairClass:
       return To<CSSLightDarkValuePair>(this)->CustomCSSText();
+    case kParamValuePairClass:
+      return To<CSSParamValuePair>(this)->CustomCSSText();
     case kScrollClass:
       return To<cssvalue::CSSScrollValue>(this)->CustomCSSText();
     case kViewClass:
@@ -615,6 +620,7 @@ unsigned CSSValue::Hash() const {
     case kURIClass:
     case kURLPatternClass:
     case kLightDarkValuePairClass:
+    case kParamValuePairClass:
     case kScrollClass:
     case kViewClass:
     case kRatioClass:
@@ -951,6 +957,9 @@ void CSSValue::Trace(Visitor* visitor) const {
     case kLightDarkValuePairClass:
       To<CSSLightDarkValuePair>(this)->TraceAfterDispatch(visitor);
       return;
+    case kParamValuePairClass:
+      To<CSSParamValuePair>(this)->TraceAfterDispatch(visitor);
+      return;
     case kScrollClass:
       To<cssvalue::CSSScrollValue>(this)->TraceAfterDispatch(visitor);
       return;
@@ -1019,6 +1028,8 @@ String CSSValue::ClassTypeToString() const {
       return "ValuePairClass";
     case kLightDarkValuePairClass:
       return "LightDarkValuePairClass";
+    case kParamValuePairClass:
+      return "ParamValuePairClass";
     case kScrollClass:
       return "ScrollClass";
     case kViewClass:
@@ -1187,6 +1198,7 @@ bool CSSValue::HasRandomFunctions() const {
       return To<cssvalue::CSSRepeatValue>(this)->HasRandomFunctions();
     case kValuePairClass:
     case kLightDarkValuePairClass:
+    case kParamValuePairClass:
       return To<CSSValuePair>(this)->HasRandomFunctions();
     case kGridIntegerRepeatClass:
       return To<cssvalue::CSSGridIntegerRepeatValue>(this)

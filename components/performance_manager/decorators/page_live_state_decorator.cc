@@ -703,6 +703,10 @@ void PageLiveStateDecorator::OnTitleUpdated(const PageNode* page_node) {
 void PageLiveStateDecorator::OnFaviconUpdated(
     const PageNode* page_node,
     blink::mojom::FaviconUpdateReason reason) {
+  if (base::FeatureList::IsEnabled(features::kIgnoreMediaQueryFaviconUpdates) &&
+      reason == blink::mojom::FaviconUpdateReason::kMediaQueryChange) {
+    return;
+  }
   if (page_node->IsVisible()) {
     return;
   }

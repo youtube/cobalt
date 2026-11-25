@@ -8,24 +8,30 @@
 #import <Foundation/Foundation.h>
 
 // Possible "access points" from where the account menu can be triggered.
+// Enums for UMA Signin.IOSAccountMenu.Opened.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(IOSAccountMenuAccessPoint)
 enum class AccountMenuAccessPoint {
   // The most common one: The account particle disc on the NTP.
-  kNewTabPage,
+  kNewTabPage = 0,
   // The "Use another account" button in Chrome settings.
-  kSettings,
+  kSettings = 1,
   // A button on a Gaia web page, called something like "Use another account" or
   // "Manage accounts".
-  kWeb,
+  kWeb = 2,
   // The account button in the app bar.
-  kAppBar,
+  kAppBar = 3,
   // The account menu triggered from the Page Action Menu.
-  kPageActionMenu,
+  kPageActionMenu = 4,
   // Presented from the Gemini entry flow when the signed-in account
   // is ineligible due to Gemini policy restriction.
-  kGeminiEntryFlow,
+  kGeminiEntryFlow = 5,
   // The account menu triggered from the overflow menu.
-  kOverflowMenu,
+  kOverflowMenu = 6,
+  kMaxValue = kOverflowMenu,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:IOSAccountMenuAccessPoint)
 
 // The accessibility identifier of the view controller's view.
 extern NSString* const kAccountMenuTableViewId;

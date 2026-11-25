@@ -11,9 +11,13 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+<<<<<<< ours
+#include "base/containers/span.h"
+=======
 #include "base/containers/circular_deque.h"
 #include "base/feature_list.h"
 #include "base/features.h"
+>>>>>>> theirs
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"

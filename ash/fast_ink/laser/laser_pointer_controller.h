@@ -12,6 +12,7 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
+#include "base/timer/timer.h"
 #include "ui/aura/window_observer.h"
 #include "ui/views/widget/unique_widget_ptr.h"
 
@@ -63,10 +64,18 @@ class ASH_EXPORT LaserPointerController : public FastInkPointerController,
   void UpdatePointerView(ui::TouchEvent* event) override;
   void UpdatePointerView(ui::MouseEvent* event) override;
   void DestroyPointerView() override;
+  void ResetPointerView() override;
   bool CanStartNewGesture(ui::LocatedEvent* event) override;
   bool ShouldProcessEvent(ui::LocatedEvent* event) override;
 
   void NotifyStateChanged(bool enabled);
+
+  // Called when the fade out animation is complete.
+  void OnFadeOutComplete();
+
+  // Helper method to fade out the laser pointer view or stop the destroy timer.
+  void HandlePointerReleaseEvent(LaserPointerView* laser_pointer_view,
+                                 bool is_released);
 
   // Returns the content view of the |laser_pointer_view_widget_| as a
   // LaserPointerView*.
@@ -76,6 +85,8 @@ class ASH_EXPORT LaserPointerController : public FastInkPointerController,
   // pointer is enabled and activated (pressed or dragged).
   views::UniqueWidgetPtr laser_pointer_view_widget_;
   base::ObserverList<LaserPointerObserver> observers_;
+
+  base::OneShotTimer keep_alive_timer_;
 
   std::unique_ptr<ScopedLockedHiddenCursor> scoped_locked_hidden_cursor_;
 

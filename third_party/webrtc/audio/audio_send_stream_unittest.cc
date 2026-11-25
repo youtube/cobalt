@@ -643,7 +643,6 @@ TEST(AudioSendStreamTest, DoesNotPassHigherBitrateThanMaxBitrate) {
         DataRate::BitsPerSec(helper.config().max_bitrate_bps + 5000);
     update.packet_loss_ratio = 0;
     update.round_trip_time = TimeDelta::Millis(50);
-    update.bwe_period = TimeDelta::Millis(6000);
     send_stream->OnBitrateUpdated(update);
   }
 }
@@ -756,23 +755,6 @@ TEST(AudioSendStreamTest, SSBweWithOverheadMaxRespected) {
   }
 }
 
-TEST(AudioSendStreamTest, ProbingIntervalOnBitrateUpdated) {
-  for (bool use_null_audio_processing : {false, true}) {
-    ConfigHelper helper(false, true, use_null_audio_processing);
-    auto send_stream = helper.CreateAudioSendStream();
-
-    EXPECT_CALL(*helper.channel_send(),
-                OnBitrateAllocation(Field(&BitrateAllocationUpdate::bwe_period,
-                                          Eq(TimeDelta::Millis(5000)))));
-    BitrateAllocationUpdate update;
-    update.target_bitrate =
-        DataRate::BitsPerSec(helper.config().max_bitrate_bps + 5000);
-    update.packet_loss_ratio = 0;
-    update.round_trip_time = TimeDelta::Millis(50);
-    update.bwe_period = TimeDelta::Millis(5000);
-    send_stream->OnBitrateUpdated(update);
-  }
-}
 
 // Test that AudioSendStream doesn't recreate the encoder unnecessarily.
 TEST(AudioSendStreamTest, DontRecreateEncoder) {
@@ -887,7 +869,11 @@ TEST(AudioSendStreamTest, OnTransportOverheadChanged) {
     EXPECT_CALL(*helper.channel_send(), RegisterPacketOverhead);
 
     const size_t transport_overhead_per_packet_bytes = 333;
-    send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes);
+    BitrateAllocationUpdate update;
+    update.packet_overhead =
+        DataSize::Bytes(transport_overhead_per_packet_bytes);
+    EXPECT_CALL(*helper.channel_send(), OnBitrateAllocation);
+    send_stream->OnBitrateUpdated(update);
 
     EXPECT_EQ(transport_overhead_per_packet_bytes,
               send_stream->TestOnlyGetPerPacketOverheadBytes());
@@ -905,15 +891,21 @@ TEST(AudioSendStreamTest, DoesntCallEncoderWhenOverheadUnchanged) {
     // CallEncoder will be called on overhead change.
     EXPECT_CALL(*helper.channel_send(), CallEncoder);
     const size_t transport_overhead_per_packet_bytes = 333;
-    send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes);
+    BitrateAllocationUpdate update;
+    update.packet_overhead =
+        DataSize::Bytes(transport_overhead_per_packet_bytes);
+    EXPECT_CALL(*helper.channel_send(), OnBitrateAllocation).Times(3);
+    send_stream->OnBitrateUpdated(update);
 
     // Set the same overhead again, CallEncoder should not be called again.
     EXPECT_CALL(*helper.channel_send(), CallEncoder).Times(0);
-    send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes);
+    send_stream->OnBitrateUpdated(update);
 
     // New overhead, call CallEncoder again
     EXPECT_CALL(*helper.channel_send(), CallEncoder);
-    send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes + 1);
+    update.packet_overhead =
+        DataSize::Bytes(transport_overhead_per_packet_bytes + 1);
+    send_stream->OnBitrateUpdated(update);
   }
 }
 
@@ -959,12 +951,12 @@ TEST(AudioSendStreamTest, OnAudioAndTransportOverheadChanged) {
     auto new_config = helper.config();
 
     const size_t transport_overhead_per_packet_bytes = 333;
-    send_stream->SetTransportOverhead(transport_overhead_per_packet_bytes);
-
     BitrateAllocationUpdate update;
     update.target_bitrate =
         DataRate::BitsPerSec(helper.config().max_bitrate_bps) +
         kMaxOverheadRate;
+    update.packet_overhead =
+        DataSize::Bytes(transport_overhead_per_packet_bytes);
     EXPECT_CALL(*helper.channel_send(), OnBitrateAllocation);
     send_stream->OnBitrateUpdated(update);
 

@@ -13,11 +13,19 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
 #include "components/omnibox/browser/omnibox.mojom-shared.h"
+#include "components/pref_registry/pref_registry_syncable.h"
+#include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url_service.h"
 #include "content/public/browser/web_contents.h"
 #include "net/http/http_no_vary_search_data.h"
+#include "net/http/structured_headers.h"
 #include "services/network/public/mojom/no_vary_search.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+
+namespace prefs {
+const char kSearchPreloadNoVarySearchHintCache[] =
+    "omnibox.search_preload.no_vary_search_hint_cache";
+}
 
 namespace {
 
@@ -40,6 +48,12 @@ SearchPreloadService* SearchPreloadService::GetForProfile(Profile* profile) {
   return SearchPreloadServiceFactory::GetForProfile(profile);
 }
 
+// static
+void SearchPreloadService::RegisterProfilePrefs(
+    user_prefs::PrefRegistrySyncable* registry) {
+  registry->RegisterStringPref(prefs::kSearchPreloadNoVarySearchHintCache, "");
+}
+
 SearchPreloadService::SearchPreloadService(Profile* profile)
     : profile_(profile) {
   CHECK(features::IsDsePreload2Enabled());
@@ -49,8 +63,21 @@ SearchPreloadService::SearchPreloadService(Profile* profile)
   CHECK(template_url_service);
   observer_.Observe(template_url_service);
 
-  std::string initial_nvs_hint =
-      features::kDsePreload2InitialNoVarySearchHint.Get();
+  const TemplateURL* default_search_provider =
+      template_url_service->GetDefaultSearchProvider();
+  if (default_search_provider) {
+    default_search_provider_guid_ = default_search_provider->sync_guid();
+  }
+
+  // Load the initial No-Vary-Search hint. The persisted No-Vary-Search hint
+  // from the previous session (stored in Prefs) is prioritized to prevent
+  // cache misses on startup. If not available, the default hint configured via
+  // the feature parameter is used as a fallback.
+  std::string initial_nvs_hint = profile_->GetPrefs()->GetString(
+      prefs::kSearchPreloadNoVarySearchHintCache);
+  if (initial_nvs_hint.empty()) {
+    initial_nvs_hint = features::kDsePreload2InitialNoVarySearchHint.Get();
+  }
   if (!initial_nvs_hint.empty()) {
     auto parsed =
         net::HttpNoVarySearchData::ParseFromHeaderValue(initial_nvs_hint);
@@ -72,6 +99,29 @@ void SearchPreloadService::Shutdown() {
 
 void SearchPreloadService::OnTemplateURLServiceChanged() {
   ClearPreloads();
+  ClearNoVarySearchDataCache();
+}
+
+void SearchPreloadService::ClearNoVarySearchDataCache() {
+  auto* template_url_service =
+      TemplateURLServiceFactory::GetForProfile(profile_);
+  if (!template_url_service) {
+    return;
+  }
+
+  const TemplateURL* default_search_provider =
+      template_url_service->GetDefaultSearchProvider();
+  std::optional<std::string> new_guid;
+  if (default_search_provider) {
+    new_guid = default_search_provider->sync_guid();
+  }
+
+  if (new_guid != default_search_provider_guid_) {
+    default_search_provider_guid_ = new_guid;
+
+    no_vary_search_data_cache_.reset();
+    SaveNoVarySearchDataCacheToPrefs();
+  }
 }
 
 void SearchPreloadService::ClearPreloads() {
@@ -79,6 +129,21 @@ void SearchPreloadService::ClearPreloads() {
     pipeline_manager_.value()->ClearPreloads();
   }
   pipeline_manager_.reset();
+}
+
+void SearchPreloadService::SaveNoVarySearchDataCacheToPrefs() {
+  if (no_vary_search_data_cache_.has_value()) {
+    std::optional<std::string> serialized =
+        no_vary_search_data_cache_->SerializeToString();
+    // Serialization should always succeed here because
+    // `no_vary_search_data_cache_` was populated from successfully parsed
+    // headers.
+    CHECK(serialized.has_value());
+    profile_->GetPrefs()->SetString(prefs::kSearchPreloadNoVarySearchHintCache,
+                                    serialized.value());
+  } else {
+    profile_->GetPrefs()->ClearPref(prefs::kSearchPreloadNoVarySearchHintCache);
+  }
 }
 
 void SearchPreloadService::OnPrefetchHeadReceived(
@@ -124,9 +189,9 @@ void SearchPreloadService::OnPrefetchHeadReceived(
         "Omnibox.DsePreload.Prefetch.NoVarySearchDataCacheUpdate", update);
   }
 
-  // TODO(crbug.com/422074579): Persist it to profile.
   if (no_vary_search_data_cache_ != no_vary_search_header) {
     no_vary_search_data_cache_ = std::move(no_vary_search_header);
+    SaveNoVarySearchDataCacheToPrefs();
   }
 }
 

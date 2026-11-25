@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/callback_helpers.h"
@@ -74,6 +75,7 @@
 #include "net/ssl/client_cert_store.h"
 #include "sandbox/policy/features.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
+#include "sandbox/policy/switches.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/device/public/cpp/geolocation/location_provider.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -1465,6 +1467,11 @@ bool ContentBrowserClient::ShouldSandboxAudioService() {
 
 bool ContentBrowserClient::ShouldSandboxNetworkService() {
   return sandbox::policy::features::IsNetworkSandboxEnabled();
+}
+
+bool ContentBrowserClient::ShouldSandboxWebNNCompilerService() {
+  return !base::CommandLine::ForCurrentProcess()->HasSwitch(
+      sandbox::policy::switches::kDisableWebNNCompilerSandbox);
 }
 
 bool ContentBrowserClient::ShouldRunOutOfProcessSystemDnsResolution() {

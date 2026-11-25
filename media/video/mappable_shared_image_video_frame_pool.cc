@@ -630,9 +630,6 @@ void SetPrefersExternalSampler(viz::SharedImageFormat& format) {
   }
 }
 
-BASE_FEATURE(kUseDefaultColorSpaceInMappablePool,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 gfx::ColorSpace GetOutputColorSpace(
     const gfx::ColorSpace& source_cs,
     GpuVideoAcceleratorFactories::OutputFormat output_format) {
@@ -867,8 +864,7 @@ void MappableSharedImageVideoFramePool::PoolImpl::StartCopy() {
     // etc.) and passed here to be copied to a hardware VideoFrame. This will
     // ensure the same color space defaults are used here and in other places
     // such as WebGL Canvas copies, VideoResourceUpdater etc.
-    if (!output_color_space.IsValid() &&
-        base::FeatureList::IsEnabled(kUseDefaultColorSpaceInMappablePool)) {
+    if (!output_color_space.IsValid()) {
       if (output_format_ == GpuVideoAcceleratorFactories::OutputFormat::XR30 ||
           output_format_ == GpuVideoAcceleratorFactories::OutputFormat::XB30) {
         output_color_space = gfx::ColorSpace::CreateSRGB();
@@ -1149,13 +1145,12 @@ scoped_refptr<VideoFrame> MappableSharedImageVideoFramePool::PoolImpl::
   // via the raster interface for import into canvas and/or 2-copy import into
   // WebGL as well as potentially being read via the GLES interface for 1-copy
   // import into WebGL.
-  sii->UpdateSharedImage(frame_resource->sync_token,
-                         frame_resource->shared_image->mailbox());
-
   // Insert a sync_token, this is needed to make sure that the textures the
   // mailboxes refer to will be used only after all the previous commands posted
   // in the SharedImageInterface have been processed.
-  gpu::SyncToken sync_token = sii->GenUnverifiedSyncToken();
+  gpu::SyncToken sync_token =
+      frame_resource->shared_image->BackingWasExternallyUpdated(
+          frame_resource->sync_token);
 
   VideoPixelFormat frame_format = VideoFormat(output_format_);
 

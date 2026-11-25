@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/containers/queue.h"
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
@@ -208,7 +209,7 @@ class ServiceWorkerSingleScriptUpdateCheckerTest : public testing::Test {
     head->headers->GetMimeType(&head->mime_type);
     head->parsed_headers = network::mojom::ParsedHeaders::New();
     network::URLLoaderCompletionStatus status(error);
-    status.decoded_body_length = body.size();
+    status.decoded_body_length = base::ByteSize(body.size());
     loader_factory->AddResponse(url, std::move(head), body, status);
     return loader_factory;
   }

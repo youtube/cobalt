@@ -4,13 +4,16 @@
 
 """A common module for media performance tests."""
 
+import glob
+import json
 import logging
 import multiprocessing
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
-import json
 import urllib.request
 
 from contextlib import AbstractContextManager
@@ -120,19 +123,19 @@ SENDER_STATUS_CMD = {
 
 SENDER_TERMINATE_DRIVER_CMD = {
     'mac': (
-        'killall chromedriver && killall "Google Chrome for Testing"'
+        'killall chromedriver 2>/dev/null || true; '
+        'killall "Google Chrome for Testing" 2>/dev/null || true'
     ),
     'win': (
-        'powershell -Command "Stop-Process -Name chromedriver,chrome '
+        'powershell -Command "Stop-Process -Name chromedriver,chrome -Force '
         '-ErrorAction SilentlyContinue; '
-        'taskkill /F /IM chromedriver.exe /IM chrome.exe /T '
-        '/FI \'STATUS eq RUNNING\' /FI \'SESSION ne 0\'"'
+        'taskkill /F /IM chromedriver.exe /IM chrome.exe /T 2>$null; exit 0"'
     ),
     'linux': (
-        'pkill -f chromedriver || true && pkill -f chrome || true'
+        'pkill -f chromedriver || true; pkill -f chrome || true'
     ),
     'cros': (
-        'pkill -f chromedriver || true && pkill -f chrome || true'
+        'pkill -f chromedriver || true; pkill -f chrome || true'
     ),
 }
 
@@ -220,7 +223,8 @@ def terminate_old_chromedriver(args):
     """Tries to terminate any existing chromedriver processes."""
     logging.info("Attempting to terminate old chromedriver processes...")
     send_ssh_command(args.sender, args.username,
-                     SENDER_TERMINATE_DRIVER_CMD[args.sender_os])
+                     SENDER_TERMINATE_DRIVER_CMD[args.sender_os],
+                     blocking=True)
 
     for _ in range(5):
         result = send_ssh_command(args.sender,
@@ -596,15 +600,25 @@ def install_and_setup_chrome(args, chrome_version):
             # Download and Unzip using a single robust PowerShell command
             logging.info("Downloading and unzipping Chrome/Chromedriver...")
             setup_cmd = (
-                "powershell -Command \"Set-Variable -Name "
-                "ErrorActionPreference -Value Stop; Set-Variable -Name "
-                "ProgressPreference -Value SilentlyContinue; "
+                f"powershell -Command \"Set-Variable -Name "
+                f"ErrorActionPreference -Value Stop; Set-Variable -Name "
+                f"ProgressPreference -Value SilentlyContinue; "
+                f"Stop-Process -Name chromedriver,chrome -Force "
+                f"-ErrorAction SilentlyContinue; "
+                f"Remove-Item -Path '{remote_tmp_dir}/chrome*',"
+                f"'{remote_tmp_dir}/chromedriver*' -Recurse -Force "
+                f"-ErrorAction SilentlyContinue; "
                 f"curl.exe -L '{chrome_url}' -o '{chrome_zip_path}'; "
                 f"curl.exe -L '{driver_url}' -o '{driver_zip_path}'; "
+                f"if (Get-Command tar.exe -ErrorAction SilentlyContinue) {{ "
+                f"Set-Location '{remote_tmp_dir}'; "
+                f"tar.exe -xf '{chrome_zip_name}'; "
+                f"tar.exe -xf '{driver_zip_name}' "
+                f"}} else {{ "
                 f"Expand-Archive -Path '{chrome_zip_path}' "
                 f"-DestinationPath '{remote_tmp_dir}' -Force; "
                 f"Expand-Archive -Path '{driver_zip_path}' "
-                f"-DestinationPath '{remote_tmp_dir}' -Force\""
+                f"-DestinationPath '{remote_tmp_dir}' -Force }}\""
             )
             result = send_ssh_command(args.sender, args.username, setup_cmd,
                                       blocking=True)
@@ -659,34 +673,27 @@ def install_and_setup_chrome(args, chrome_version):
 
 
 def dump_remote_logs(args, chrome_version=None, codec_name=None):
-    """Tries to dump the remote Chromedriver console logs to the local log."""
+    """Tries to dump the remote Chromedriver console logs to the local log.
+
+    Note: `chrome_version` and `codec_name` are kept for backwards compatibility
+    with callers; all console log files matching wildcard patterns in the temp
+    directory are dumped regardless of version or codec parameters.
+    """
+    _ = (chrome_version, codec_name)
     logging.error("Dumping remote console logs:")
-    codec_suffix = f"_{codec_name}" if codec_name else ""
-    log_file_name = f"chromedriver_console{codec_suffix}.log"
 
     if args.sender_os == 'win':
-        # On Windows, logs are written under:
-        # C:/cft_temp/<version>/chromedriver-win64/
-        if chrome_version:
-            log_cmd = (
-                'powershell -Command '
-                f'"Get-Content {WIN_REMOTE_TMP_DIR}/{chrome_version}/'
-                f'chromedriver-win64/{log_file_name}"'
-            )
-        else:
-            log_cmd = (
-                'powershell -Command '
-                f'"Get-Content {WIN_REMOTE_TMP_DIR}/*/'
-                f'chromedriver-win64/{log_file_name}"'
-            )
+        log_path = (
+            f"{WIN_REMOTE_TMP_DIR}/chromedriver-win*/"
+            "chromedriver_console*.log"
+        )
+        log_cmd = (
+            'powershell -Command "Get-Content -Path '
+            f'{log_path} -ErrorAction SilentlyContinue"'
+        )
     else:
         tmp_dir = '/usr/local/tmp' if args.sender_os == 'cros' else '/tmp'
-        if chrome_version:
-            log_cmd = (
-                f'cat {tmp_dir}/{chrome_version}/{log_file_name}'
-            )
-        else:
-            log_cmd = f'cat {tmp_dir}/*/{log_file_name}'
+        log_cmd = f'cat {tmp_dir}/chromedriver_console*.log 2>/dev/null || true'
 
     log_result = send_ssh_command(args.sender,
                                   args.username,
@@ -700,7 +707,7 @@ def dump_remote_logs(args, chrome_version=None, codec_name=None):
 def wait_for_chromedriver(args, chrome_version=None, codec_name=None):
     """Waits for the new chromedriver to be ready by checking its status URL."""
     logging.info("Starting Chromedriver status check...")
-    for i in range(10):
+    for i in range(30):
         try:
             result = send_ssh_command(args.sender,
                                       args.username,
@@ -1088,36 +1095,235 @@ def finalize_results(chrome_version=None):
             logging.error("Failed to upload metrics to ResultSink: %s", e)
 
 
-def cleanup_binaries(args, chrome_version):
-    """Cleans up version-specific directories on remote/local machine."""
-    if not chrome_version:
-        return
+def cleanup_binaries(args, chrome_version=None):
+    """Cleans up Chrome/Chromedriver directories on remote/local machine."""
+    _ = chrome_version
 
-    import shutil
+    logging.info("Cleaning up Chrome/Chromedriver directories...")
 
-    logging.info("Cleaning up version-specific binaries for version: %s",
-                 chrome_version)
+    try:
+        terminate_old_chromedriver(args)
+    except Exception as e:
+        logging.warning("Error terminating processes in cleanup: %s", e)
+
     if args.sender in ['localhost', '127.0.0.1', None]:
         # Local cleanup
-        import tempfile
         tmp_dir = tempfile.gettempdir()
-        version_dir = f"{tmp_dir}/{chrome_version}"
-        if os.path.exists(version_dir):
-            shutil.rmtree(version_dir, ignore_errors=True)
-            logging.info("Cleaned up local directory: %s", version_dir)
+        for pattern in ['chrome*', 'chromedriver*']:
+            for path in glob.glob(os.path.join(tmp_dir, pattern)):
+                logging.info("Removing local path: %s", path)
+                try:
+                    if os.path.isdir(path):
+                        shutil.rmtree(path, ignore_errors=True)
+                    else:
+                        os.remove(path)
+                except OSError:
+                    pass
+        logging.info("Cleaned up local Chrome/Chromedriver directories.")
         return
 
     cleanup_command = {
-        'mac': f"rm -rf /tmp/{chrome_version}",
-        'linux': f"rm -rf /tmp/{chrome_version}",
-        'cros': f"rm -rf /usr/local/tmp/{chrome_version}",
+        'mac': "rm -rf /tmp/chrome* /tmp/chromedriver*",
+        'linux': "rm -rf /tmp/chrome* /tmp/chromedriver*",
+        'cros': "rm -rf /usr/local/tmp/chrome* /usr/local/tmp/chromedriver*",
         'win': (
             'powershell -Command "Remove-Item -Path '
-            f'{WIN_REMOTE_TMP_DIR}/{chrome_version} '
+            f'{WIN_REMOTE_TMP_DIR}/chrome*,'
+            f'{WIN_REMOTE_TMP_DIR}/chromedriver* '
             '-Recurse -Force -ErrorAction SilentlyContinue"'
         ),
     }
 
     send_ssh_command(args.sender, args.username,
-                     cleanup_command[args.sender_os])
-    logging.info("Cleaned up remote version-specific directory.")
+                     cleanup_command[args.sender_os],
+                     blocking=True)
+    logging.info("Cleaned up remote Chrome/Chromedriver directories.")
+
+
+def start_glances_monitoring(args, csv_remote_path):
+    """Starts glances or ChromeOS power monitoring in the background."""
+    if args.sender_os == 'cros':
+        # ChromeOS: run a background loop writing battery power_now to a file
+        # We save the PID to /tmp/cros_power.pid so we can kill it later.
+        cros_cmd = (
+            "sh -c 'echo $$ > /tmp/cros_power.pid; "
+            "while true; do "
+            "if [ -f /sys/class/power_supply/battery/power_now ]; then "
+            "cat /sys/class/power_supply/battery/power_now; "
+            "elif [ -f /sys/class/power_supply/sbat0/power_now ]; then "
+            "cat /sys/class/power_supply/sbat0/power_now; "
+            "else echo 0; fi >> /tmp/cros_power.txt; "
+            "sleep 1; done'"
+        )
+        logging.info("Starting ChromeOS power monitoring in background...")
+        return send_ssh_command(
+            args.sender, args.username, cros_cmd, blocking=False)
+
+    # Linux, macOS, Windows: run glances
+    python_cmd = 'python' if args.sender_os == 'win' else 'python3'
+    glances_cmd = (
+        f"{python_cmd} -m glances -t 1 --export csv "
+        f"--export-csv-file {csv_remote_path} --quiet"
+    )
+    logging.info("Starting Glances monitoring on sender...")
+    return send_ssh_command(
+        args.sender, args.username, glances_cmd, blocking=False)
+
+
+def stop_glances_monitoring(
+    args, glances_proc, csv_remote_path, csv_local_path):
+    """Stops the monitoring process, pulls the output file, and cleans up."""
+    import shutil
+    logging.info("Stopping Glances/Power monitoring...")
+
+    if args.sender_os == 'cros':
+        # 1. Kill the ChromeOS background loop using the saved PID
+        kill_cmd = (
+            "if [ -f /tmp/cros_power.pid ]; then "
+            "kill -9 $(cat /tmp/cros_power.pid) 2>/dev/null || true; "
+            "rm -f /tmp/cros_power.pid; "
+            "fi"
+        )
+        send_ssh_command(args.sender, args.username, kill_cmd, blocking=True)
+
+        # 2. SCP the power log file back
+        remote_log = "/tmp/cros_power.txt"
+        if args.sender in ['localhost', '127.0.0.1', None]:
+            if os.path.exists(remote_log):
+                shutil.copy(remote_log, csv_local_path)
+        else:
+            key_path = os.path.expanduser('~/.ssh/id_ed25519')
+            subprocess.run([
+                'scp', '-i', key_path,
+                '-o', 'StrictHostKeyChecking=no',
+                f'{args.username}@{args.sender}:{remote_log}',
+                csv_local_path
+            ], check=False, timeout=30)
+
+        # 3. Clean up remote file
+        cleanup_cmd = f"rm -f {remote_log}"
+        send_ssh_command(
+            args.sender, args.username, cleanup_cmd, blocking=True)
+        return
+
+    # Non-ChromeOS (Glances):
+    # 1. Terminate the background Popen process
+    if glances_proc:
+        try:
+            glances_proc.terminate()
+            glances_proc.wait(timeout=5)
+        except Exception:
+            pass
+
+    # Also send a kill command over SSH just in case
+    if args.sender_os == 'win':
+        kill_cmd = (
+            'powershell -Command "Get-WmiObject Win32_Process | '
+            'Where-Object { $_.CommandLine -like \'*glances*\' } | '
+            'ForEach-Object { Stop-Process $_.ProcessId -Force }"'
+        )
+    else:
+        kill_cmd = "pkill -f glances"
+    send_ssh_command(args.sender, args.username, kill_cmd, blocking=True)
+
+    # 2. SCP the CSV file back to the host
+    if args.sender in ['localhost', '127.0.0.1', None]:
+        if os.path.exists(csv_remote_path):
+            shutil.copy(csv_remote_path, csv_local_path)
+    else:
+        key_path = os.path.expanduser('~/.ssh/id_ed25519')
+        subprocess.run([
+            'scp', '-i', key_path,
+            '-o', 'StrictHostKeyChecking=no',
+            f'{args.username}@{args.sender}:{csv_remote_path}',
+            csv_local_path
+        ], check=False, timeout=30)
+
+    # 3. Clean up remote file
+    cleanup_cmd = f"rm -f {csv_remote_path}"
+    send_ssh_command(args.sender, args.username, cleanup_cmd, blocking=True)
+
+
+def parse_glances_csv_and_record(video_file, csv_local_path, sender_os):
+    """Parses the glances/power log and records metrics.
+
+    Args:
+        video_file: The name of the video file.
+        csv_local_path: The local path to the CSV/log file.
+        sender_os: The OS of the sender device.
+    """
+    import csv
+    if not os.path.exists(csv_local_path):
+        logging.warning(
+            "Monitoring log file not found at %s. Skipping metric parsing.",
+            csv_local_path)
+        return
+
+    try:
+        if sender_os == 'cros':
+            # ChromeOS power log is a simple text file with one value per line
+            power_draws = []
+            with open(csv_local_path, mode='r', encoding='utf-8') as f:
+                for line in f:
+                    val = line.strip()
+                    if val:
+                        power_draws.append(float(val))
+
+            if power_draws:
+                avg_raw = sum(power_draws) / len(power_draws)
+                # Auto-scale: if the raw value is very large, it is in
+                # microwatts
+                if avg_raw > 10000:
+                    avg_power = avg_raw / 1000000.0
+                elif avg_raw > 10:
+                    avg_power = avg_raw / 1000.0
+                else:
+                    avg_power = avg_raw
+
+                measures.average(
+                    video_file, 'video_perf',
+                    'power_consumption_watts').record(avg_power)
+                logging.info("ChromeOS Average Power Draw: %.2f W", avg_power)
+            return
+
+        # Non-ChromeOS (Glances CSV)
+        cpu_usages = []
+        power_draws = []
+
+        import re
+        def parse_float(val):
+            """Parses a float value from a string, ignoring formatting."""
+            if not val:
+                return None
+            match = re.search(r'[-+]?\d+(?:\.\d+)?', val)
+            return float(match.group(0)) if match else None
+
+        with open(csv_local_path, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Glances CPU key
+                cpu_val = parse_float(row.get('cpu.total'))
+                if cpu_val is not None:
+                    cpu_usages.append(cpu_val)
+
+                # Check for battery/power keys
+                power_val = parse_float(row.get('sensors.Battery.value'))
+                if power_val is not None:
+                    power_draws.append(power_val)
+
+        if cpu_usages:
+            avg_cpu = sum(cpu_usages) / len(cpu_usages)
+            measures.average(
+                video_file, 'video_perf', 'cpu_utilization').record(avg_cpu)
+            logging.info("Average CPU utilization: %.2f%%", avg_cpu)
+
+        if power_draws:
+            avg_power = sum(power_draws) / len(power_draws)
+            measures.average(
+                video_file, 'video_perf',
+                'power_consumption_watts').record(avg_power)
+            logging.info("Average Power Draw: %.2f W", avg_power)
+
+    except Exception as e:
+        logging.error("Failed to parse monitoring log: %s", e)
+

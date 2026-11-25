@@ -53,9 +53,9 @@ interface InternalContextualActionMenu {
   updateFlyoutPosition_: () => void;
   scheduleCloseTimer_: () => void;
   metricsSource_: string;
-  closeMenuOnSelect: boolean;
   addTabContext_: (tabInfo: TabInfo) => void;
   deleteTabContext_: (uuid: string) => void;
+  readonly closeMenuOnSelect: boolean;
 }
 
 function asInternal(element: ContextualActionMenuElement):
@@ -74,6 +74,7 @@ suite('ContextualActionMenu', () => {
       composeboxShowContextMenuTabPreviews: true,
       ShowContextMenuHeaders: true,
       contextManagementInComposeboxEnabled: false,
+      keepMenuOpenOnTabSelectForRealbox: false,
     });
 
     const pluralStringProxy = new TestPluralStringProxy();
@@ -85,6 +86,7 @@ suite('ContextualActionMenu', () => {
       disabledTabIds: new Map(),
       tabSuggestions: [],
       smartTabSharingVisible: false,
+      contextManagementInComposeboxEnabled: false,
     });
     document.body.appendChild(actionMenu);
     await microtasksFinished();
@@ -668,12 +670,10 @@ suite('ContextualActionMenu', () => {
   test(
       'Browser tab suggestions disabled when they are thread restored',
       async () => {
-        loadTimeData.overrideValues({
-          contextManagementInComposeboxEnabled: true,
-        });
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.contextManagementInComposeboxEnabled = true;
 
         const restoredTab = createTabSuggestion({
           tabId: 1,
@@ -762,12 +762,10 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Toggling smart tab sharing fires event', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
     actionMenu.smartTabSharingVisible = true;
+    actionMenu.contextManagementInComposeboxEnabled = true;
     actionMenu.tabSuggestions = [
       {
         tabId: 1,
@@ -805,12 +803,10 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Clicking smart tab sharing row updates UI', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
     actionMenu.smartTabSharingVisible = true;
+    actionMenu.contextManagementInComposeboxEnabled = true;
     actionMenu.tabSuggestions = [
       {
         tabId: 1,
@@ -866,11 +862,9 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Share tabs flyout height fits content', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     actionMenu.tabSuggestions = [
       createTabSuggestion({
         tabId: 1,
@@ -914,12 +908,9 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Share tabs flyout repositions on scroll', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
-
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     actionMenu.tabSuggestions = [
       createTabSuggestion({tabId: 1, title: 'Tab 1'}),
       createTabSuggestion({tabId: 2, title: 'Tab 2'}),
@@ -984,12 +975,9 @@ suite('ContextualActionMenu', () => {
   // TODO(crbug.com/512920161): Deflake and reenable this test.
   // <if expr="not is_linux and not is_macosx and not is_win and not is_chromeos">
   test('Share tabs flyout keyboard navigation', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
-
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     actionMenu.tabSuggestions = [
       createTabSuggestion({
         tabId: 1,
@@ -1044,13 +1032,10 @@ suite('ContextualActionMenu', () => {
   test(
       'Share tabs flyout keyboard navigation focuses first non-disabled item',
       async () => {
-        loadTimeData.overrideValues({
-          contextManagementInComposeboxEnabled: true,
-        });
-
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.contextManagementInComposeboxEnabled = true;
         const tab1 = createTabSuggestion({
           tabId: 1,
           title: 'Tab 1',
@@ -1104,9 +1089,9 @@ suite('ContextualActionMenu', () => {
     assertFalse(!!$$(actionMenu, '#shareTabsTrigger'));
 
     // There is no tab counter if no tabs exist.
-    loadTimeData.overrideValues({contextManagementInComposeboxEnabled: true});
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     actionMenu.tabSuggestions = [
       createTabSuggestion({
         tabId: 1,
@@ -1141,12 +1126,10 @@ suite('ContextualActionMenu', () => {
   test(
       'Tabs counter visibility with restored tabs and no suggestions',
       async () => {
-        loadTimeData.overrideValues({
-          contextManagementInComposeboxEnabled: true,
-        });
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.contextManagementInComposeboxEnabled = true;
         const restoredTab = createTabSuggestion({
           tabId: 1,
           title: 'Restored Tab',
@@ -1172,12 +1155,9 @@ suite('ContextualActionMenu', () => {
 
 
   test('Share tabs flyout cycling keyboard navigation', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
-
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     const tab1 = createTabSuggestion({
       tabId: 1,
       title: 'Tab 1',
@@ -1240,12 +1220,12 @@ suite('ContextualActionMenu', () => {
 
   test('Share tabs flyout cycling skips disabled tabs', async () => {
     loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
       composeboxFileMaxCount: 2,
     });
 
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     const tab1 = createTabSuggestion({
       tabId: 1,
       title: 'Tab 1',
@@ -1324,12 +1304,9 @@ suite('ContextualActionMenu', () => {
   });
 
   test('focuses Share Tabs when opening the + menu via keydown', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
-
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
 
     // Initially, there is no tab data.
     actionMenu.tabSuggestions = [];
@@ -1371,14 +1348,11 @@ suite('ContextualActionMenu', () => {
   test(
       'navigates up and down between Share Tabs and other menu items',
       async () => {
-        loadTimeData.overrideValues({
-          contextManagementInComposeboxEnabled: true,
-        });
-
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
         actionMenu.smartTabSharingVisible = true;
+        actionMenu.contextManagementInComposeboxEnabled = true;
 
         actionMenu.smartTabSharingActive = true;
         actionMenu.tabSuggestions = [];
@@ -1409,12 +1383,9 @@ suite('ContextualActionMenu', () => {
       });
 
   test('Share tabs flyout dynamic repositioning', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
-
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     actionMenu.tabSuggestions = [
       createTabSuggestion({
         tabId: 1,
@@ -1493,11 +1464,9 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Favicon group rendered in action menu', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     const tabInfo = createTabSuggestion({
       tabId: 1,
       title: 'Tab 1',
@@ -1703,11 +1672,9 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Recent tab suffix disabled state', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     const tabInfo = createTabSuggestion({
       tabId: 1,
       title: 'Recent Tab',
@@ -1734,11 +1701,9 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Share tabs trigger disabled when tab upload disabled', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-    });
     actionMenu.remove();
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    actionMenu.contextManagementInComposeboxEnabled = true;
     const tabInfo: TabInfo = {
       tabId: 1,
       title: 'Recent Tab',
@@ -1770,51 +1735,90 @@ suite('ContextualActionMenu', () => {
     assertFalse(flyout.hidden);
   });
 
-  test('Menu closes after tab selection in Realbox', async () => {
-    loadTimeData.overrideValues({
-      contextManagementInComposeboxEnabled: true,
-      composeboxContextMenuEnableMultiTabSelection: true,
-    });
-    actionMenu.remove();
-    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
-    Object.assign(actionMenu, {
-      metricsSource_: 'NewTabPage',
-    });
+  test(
+      'Menu closes after tab selection in Realbox if' +
+          ' `keepMenuOpenOnTabSelectForRealbox` flag is false',
+      async () => {
+        loadTimeData.overrideValues({
+          keepMenuOpenOnTabSelectForRealbox: false,
+        });
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+        Object.assign(actionMenu, {
+          metricsSource_: 'NewTabPage',
+          contextManagementInComposeboxEnabled: true,
+        });
 
-    const tabInfo = createTabSuggestion({
-      tabId: 1,
-      title: 'Tab 1',
-    });
-    actionMenu.tabSuggestions = [tabInfo];
-    actionMenu.inputState = new MockInputState({
-      allowedInputTypes: [InputType.kBrowserTab],
-    });
-    document.body.appendChild(actionMenu);
-    await microtasksFinished();
+        const tabInfo = createTabSuggestion({
+          tabId: 1,
+          title: 'Tab 1',
+        });
+        actionMenu.tabSuggestions = [tabInfo];
+        actionMenu.inputState = new MockInputState({
+          allowedInputTypes: [InputType.kBrowserTab],
+        });
+        document.body.appendChild(actionMenu);
+        await microtasksFinished();
 
-    actionMenu.showAt(actionMenu);
-    Object.assign(actionMenu, {shareTabsFlyoutOpen_: true});
-    await microtasksFinished();
-    assertTrue(actionMenu.$.menu.open);
+        actionMenu.showAt(actionMenu);
+        Object.assign(actionMenu, {shareTabsFlyoutOpen_: true});
+        await microtasksFinished();
+        assertTrue(actionMenu.$.menu.open);
 
-    const tabButton = actionMenu.$.menu.querySelector<HTMLButtonElement>(
-        '.share-tabs-flyout button.dropdown-item')!;
-    tabButton.click();
-    await microtasksFinished();
+        const tabButton = actionMenu.$.menu.querySelector<HTMLButtonElement>(
+            '.share-tabs-flyout button.dropdown-item')!;
+        tabButton.click();
+        await microtasksFinished();
 
-    assertFalse(actionMenu.$.menu.open);
-  });
+        assertFalse(actionMenu.$.menu.open);
+      });
+
+  test(
+      'Menu stays open after tab selection in Realbox by default', async () => {
+        loadTimeData.overrideValues({
+          contextManagementInComposeboxEnabled: false,
+        });
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+        Object.assign(actionMenu, {
+          metricsSource_: 'NewTabPage',
+        });
+
+        const tabInfo = createTabSuggestion({
+          tabId: 1,
+          title: 'Tab 1',
+        });
+        actionMenu.tabSuggestions = [tabInfo];
+        actionMenu.inputState = new MockInputState({
+          allowedInputTypes: [InputType.kBrowserTab],
+        });
+        document.body.appendChild(actionMenu);
+        await microtasksFinished();
+
+        actionMenu.showAt(actionMenu);
+        await microtasksFinished();
+        assertTrue(actionMenu.$.menu.open);
+
+        const tabButton = actionMenu.$.menu.querySelector<HTMLButtonElement>(
+            '.suggestion-container button.dropdown-item')!;
+        tabButton.click();
+        await microtasksFinished();
+
+        assertTrue(actionMenu.$.menu.open);
+      });
 
   test(
       'Menu stays open after tab selection in Side Panel with multi-tab selection',
       async () => {
         loadTimeData.overrideValues({
-          contextManagementInComposeboxEnabled: true,
           composeboxContextMenuEnableMultiTabSelection: true,
         });
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.contextManagementInComposeboxEnabled = true;
         Object.assign(actionMenu, {
           metricsSource_: 'contextual-tasks',
         });
@@ -1844,16 +1848,16 @@ suite('ContextualActionMenu', () => {
       });
 
   test(
-      'Menu closes when a selected tab is clicked' +
-          ' (deselected) in NTP/Omnibox mode',
+      'Menu closes when a selected tab is deselected if' +
+          ' `keepMenuOpenOnTabSelectForRealbox` is false',
       async () => {
         const tabInfo = createTabSuggestion({
           tabId: 1,
           title: 'Tab 1',
         });
         loadTimeData.overrideValues({
-          contextManagementInComposeboxEnabled: true,
           composeboxContextMenuEnableMultiTabSelection: true,
+          keepMenuOpenOnTabSelectForRealbox: false,
         });
         actionMenu.remove();
         actionMenu =
@@ -1885,6 +1889,44 @@ suite('ContextualActionMenu', () => {
       });
 
   test(
+      'Menu stays open when a selected tab is deselected by default',
+      async () => {
+        const tabInfo = createTabSuggestion({
+          tabId: 1,
+          title: 'Tab 1',
+        });
+        loadTimeData.overrideValues({
+          contextManagementInComposeboxEnabled: false,
+          composeboxContextMenuEnableMultiTabSelection: true,
+        });
+        actionMenu.remove();
+        actionMenu =
+            document.createElement('cr-composebox-contextual-action-menu');
+        Object.assign(actionMenu, {
+          metricsSource_: 'NewTabPage',
+          disabledTabIds: new Map([[1, 'some-token']]),
+        });
+
+        actionMenu.tabSuggestions = [tabInfo];
+        actionMenu.inputState = new MockInputState({
+          allowedInputTypes: [InputType.kBrowserTab],
+        });
+        document.body.appendChild(actionMenu);
+        await microtasksFinished();
+
+        actionMenu.showAt(actionMenu);
+        await microtasksFinished();
+        assertTrue(actionMenu.$.menu.open);
+
+        const tabButton = actionMenu.$.menu.querySelector<HTMLButtonElement>(
+            '.suggestion-container button.dropdown-item')!;
+        tabButton.click();
+        await microtasksFinished();
+
+        assertTrue(actionMenu.$.menu.open);
+      });
+
+  test(
       'Recent tab suffix follows the correct tab after reordering',
       async () => {
         const tab1 = createTabSuggestion({
@@ -1899,12 +1941,12 @@ suite('ContextualActionMenu', () => {
         });
 
         loadTimeData.overrideValues({
-          contextManagementInComposeboxEnabled: true,
           composeboxContextMenuEnableMultiTabSelection: true,
         });
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.contextManagementInComposeboxEnabled = true;
 
         actionMenu.inputState = new MockInputState({
           allowedInputTypes: [InputType.kBrowserTab],
@@ -1967,12 +2009,10 @@ suite('ContextualActionMenu', () => {
   test(
       'Dynamic suffix shows Current Tab only in Side Panel Contextual Tasks',
       async () => {
-        loadTimeData.overrideValues({
-          contextManagementInComposeboxEnabled: true,
-        });
         actionMenu.remove();
         actionMenu =
             document.createElement('cr-composebox-contextual-action-menu');
+        actionMenu.contextManagementInComposeboxEnabled = true;
 
         const tabInfo = createTabSuggestion({
           tabId: 1,
@@ -2014,14 +2054,11 @@ suite('ContextualActionMenu', () => {
 
   suite('SmartTabSharingTogglePositioning', () => {
     setup(async () => {
-      loadTimeData.overrideValues({
-        contextManagementInComposeboxEnabled: true,
-      });
-
       actionMenu.remove();
       actionMenu =
           document.createElement('cr-composebox-contextual-action-menu');
       actionMenu.smartTabSharingVisible = true;
+      actionMenu.contextManagementInComposeboxEnabled = true;
       actionMenu.tabSuggestions = [
         createTabSuggestion({
           tabId: 1,
@@ -2376,6 +2413,45 @@ suite('ContextualActionMenu', () => {
         });
 
     test(
+        'Anchors to the right if space above is enough for menu but not for menu + buffer',
+        async () => {
+          Object.defineProperty(actionMenu.$.menu.getDialog(), 'scrollHeight', {
+            value: 380,
+            configurable: true,
+          });
+          Object.defineProperty(window, 'innerHeight', {
+            value: 500,
+            configurable: true,
+          });
+          Object.defineProperty(window, 'innerWidth', {
+            value: 1000,
+            configurable: true,
+          });
+
+          anchor.getBoundingClientRect = () => {
+            return {
+              bottom: 440,
+              top: 390,
+              left: 100,
+              right: 200,
+              width: 100,
+              height: 50,
+              x: 100,
+              y: 390,
+            } as DOMRect;
+          };
+
+          actionMenu.showAt(anchor);
+          await microtasksFinished();
+
+          assertEquals(2, showAtCalls.length);
+          assertEquals(
+              AnchorAlignment.AFTER_END, showAtCalls[1].anchorAlignmentX);
+          assertEquals(
+              AnchorAlignment.AFTER_START, showAtCalls[1].anchorAlignmentY);
+        });
+
+    test(
         'Anchors to the right of the icon even when favicon coins are present',
         async () => {
           Object.defineProperty(actionMenu.$.menu.getDialog(), 'scrollHeight', {
@@ -2586,6 +2662,20 @@ suite('ContextualActionMenu', () => {
             } as DOMRect;
           };
 
+          const voiceButton = document.createElement('button');
+          voiceButton.id = 'voiceSearchButton';
+          voiceButton.getBoundingClientRect = () => ({
+            bottom: 410,
+            top: 370,
+            left: 150,
+            right: 200,
+            width: 50,
+            height: 40,
+            x: 150,
+            y: 370,
+          } as DOMRect);
+          document.body.appendChild(voiceButton);
+
           await microtasksFinished();
           actionMenu.showAt(anchor);
           await microtasksFinished();
@@ -2609,6 +2699,7 @@ suite('ContextualActionMenu', () => {
           // button (370px) to prevent overlap.
           const dialogBottom = dialog.getBoundingClientRect().bottom;
           assertTrue(dialogBottom <= 370);
+          voiceButton.remove();
         });
 
     test(
@@ -2653,16 +2744,147 @@ suite('ContextualActionMenu', () => {
           assertEquals(AnchorAlignment.AFTER_START, showAtCalls[showAtCalls.length - 1].anchorAlignmentY);
           assertEquals('', actionMenu.$.menu.style.getPropertyValue('--contextual-menu-max-height'));
         });
+
+    test(
+        'Reposition to right when suggestions load and it no longer fits vertically',
+        async () => {
+          // Mock window innerHeight and document clientHeight.
+          Object.defineProperty(window, 'innerHeight', {
+            value: 600,
+            configurable: true,
+          });
+          Object.defineProperty(document.scrollingElement!, 'clientHeight', {
+            value: 600,
+            configurable: true,
+          });
+
+          // Empty suggestions initially.
+          actionMenu.tabSuggestions = [];
+          // Mock small scrollHeight for empty menu.
+          Object.defineProperty(actionMenu.$.menu.getDialog(), 'scrollHeight', {
+            value: 100,
+            configurable: true,
+          });
+
+          actionMenu.inputState = new MockInputState({
+            allowedInputTypes: [InputType.kBrowserTab],
+          });
+
+          // Anchor position: spaceBelow = 600 - 330 = 270. spaceAbove = 300.
+          anchor.getBoundingClientRect = () => ({
+            bottom: 330,
+            top: 300,
+            left: 100,
+            right: 130,
+            width: 30,
+            height: 30,
+            x: 100,
+            y: 300,
+          } as DOMRect);
+
+          await microtasksFinished();
+          // Act: Show the menu.
+          actionMenu.showAt(anchor);
+          await microtasksFinished();
+
+          // Assert: It should be positioned below (since 100 + 16 < 270).
+          assertEquals(2, showAtCalls.length);
+          assertEquals(
+              AnchorAlignment.AFTER_END, showAtCalls[1].anchorAlignmentY);
+          assertEquals(
+              AnchorAlignment.AFTER_START, showAtCalls[1].anchorAlignmentX);
+
+          // Simulate suggestions loading.
+          // Mock large scrollHeight and offsetHeight for populated menu.
+          Object.defineProperty(actionMenu.$.menu.getDialog(), 'scrollHeight', {
+            value: 400,
+            configurable: true,
+          });
+          Object.defineProperty(actionMenu.$.menu.getDialog(), 'offsetHeight', {
+            value: 400,
+            configurable: true,
+          });
+
+          // Set suggestions to trigger update.
+          const tab = createTabSuggestion({tabId: 1, title: 'Tab 1'});
+          actionMenu.tabSuggestions = [tab];
+          await actionMenu.updateComplete;
+          await microtasksFinished();
+
+          // Assert: It should have called showAt again.
+          assertEquals(4, showAtCalls.length);
+          // It should now anchor right because 400 + 16 > 270 (below) and 400 +
+          // 16 > 300 (above).
+          assertEquals(
+              AnchorAlignment.AFTER_END, showAtCalls[3].anchorAlignmentX);
+          assertEquals(
+              AnchorAlignment.AFTER_START, showAtCalls[3].anchorAlignmentY);
+
+          // Verify actual position (shifted up to fit in viewport).
+          const dialog = actionMenu.$.menu.getDialog();
+          assertEquals('184px', dialog.style.top);
+
+          // Restore mocks.
+          Reflect.deleteProperty(document.scrollingElement!, 'clientHeight');
+        });
+
+    test('Positioning is correct when document is scrolled', async () => {
+      const spacer = document.createElement('div');
+      spacer.style.height = '2000px';
+      document.body.appendChild(spacer);
+
+      window.scrollTo(0, 100);
+      assertEquals(100, window.scrollY);
+
+      Object.defineProperty(window, 'innerHeight', {
+        value: 600,
+        configurable: true,
+      });
+      Object.defineProperty(document.scrollingElement!, 'clientHeight', {
+        value: 600,
+        configurable: true,
+      });
+
+      Object.defineProperty(actionMenu.$.menu.getDialog(), 'scrollHeight', {
+        value: 100,
+        configurable: true,
+      });
+      Object.defineProperty(actionMenu.$.menu.getDialog(), 'offsetHeight', {
+        value: 100,
+        configurable: true,
+      });
+
+      anchor.getBoundingClientRect = () => ({
+        bottom: 330,
+        top: 300,
+        left: 100,
+        right: 200,
+        width: 100,
+        height: 30,
+        x: 100,
+        y: 300,
+      } as DOMRect);
+
+      actionMenu.showAt(anchor);
+      await microtasksFinished();
+
+      const dialog = actionMenu.$.menu.getDialog();
+      const dialogRect = dialog.getBoundingClientRect();
+
+      window.scrollTo(0, 0);
+      spacer.remove();
+      Reflect.deleteProperty(document.scrollingElement!, 'clientHeight');
+
+      assertEquals(330, dialogRect.top);
+    });
   });
 
   suite('ShareTabsFlyoutBehaviors', () => {
     setup(async () => {
-      loadTimeData.overrideValues({
-        contextManagementInComposeboxEnabled: true,
-      });
       actionMenu.remove();
       actionMenu =
           document.createElement('cr-composebox-contextual-action-menu');
+      actionMenu.contextManagementInComposeboxEnabled = true;
       actionMenu.tabSuggestions = [
         {
           tabId: 1,
@@ -2741,7 +2963,9 @@ suite('ContextualActionMenu', () => {
     test(
         'pointerLeave is ignored for 1 second after 1st tab added',
         async () => {
-          asInternal(actionMenu).closeMenuOnSelect = false;
+          loadTimeData.overrideValues({
+            keepMenuOpenOnTabSelectForRealbox: true,
+          });
           actionMenu.showAt(actionMenu);
           await microtasksFinished();
 
@@ -2771,8 +2995,9 @@ suite('ContextualActionMenu', () => {
         'deleteTabContext, addTabContext close menu if ntp flag is off', () => {
           // Set to NTP source and flag off
           asInternal(actionMenu).metricsSource_ = 'NewTabPage';
-          asInternal(actionMenu).closeMenuOnSelect =
-              true;  // this means ntp flag is off
+          loadTimeData.overrideValues({
+            keepMenuOpenOnTabSelectForRealbox: false,
+          });
 
           actionMenu.showAt(actionMenu);
           assertTrue(actionMenu.$.menu.open);
@@ -2815,12 +3040,10 @@ suite('ContextualActionMenu', () => {
     }
 
     setup(async () => {
-      loadTimeData.overrideValues({
-        contextManagementInComposeboxEnabled: true,
-      });
       actionMenu.remove();
       actionMenu =
           document.createElement('cr-composebox-contextual-action-menu');
+      actionMenu.contextManagementInComposeboxEnabled = true;
       // Provide enough suggestions so the unconstrained content height is tall.
       actionMenu.tabSuggestions = Array(50).fill({
         tabId: 1,

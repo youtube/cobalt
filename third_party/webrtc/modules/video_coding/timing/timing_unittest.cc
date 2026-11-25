@@ -354,9 +354,10 @@ TEST(VCMTimingTest, OnDecodableTemporalUnitUpdatesMinimumDelay) {
   SimulatedClock clock(Timestamp::Millis(0));
   VCMTiming timing(&clock, field_trials, kRenderDelay);
 
-  timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/0, DataSize::Bytes(789),
-                                 clock.CurrentTime(),
-                                 /*was_retransmitted=*/false);
+  timing.OnDecodableTemporalUnit({.rtp_timestamp = 0,
+                                  .size = DataSize::Bytes(789),
+                                  .time = clock.CurrentTime(),
+                                  .was_retransmitted = false});
 
   EXPECT_GT(timing.GetTimings().minimum_delay, TimeDelta::Zero());
 }
@@ -367,9 +368,10 @@ TEST(VCMTimingTest,
   SimulatedClock clock(Timestamp::Millis(0));
   VCMTiming timing(&clock, field_trials, kRenderDelay);
 
-  timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/0, DataSize::Bytes(789),
-                                 clock.CurrentTime(),
-                                 /*was_retransmitted=*/true);
+  timing.OnDecodableTemporalUnit({.rtp_timestamp = 0,
+                                  .size = DataSize::Bytes(789),
+                                  .time = clock.CurrentTime(),
+                                  .was_retransmitted = true});
 
   EXPECT_EQ(timing.GetTimings().minimum_delay, TimeDelta::Zero());
 }
@@ -380,9 +382,10 @@ TEST(VCMTimingTest, UsesDefaultVideoJitterTimingWhenNotProvided) {
   VCMTiming timing(&clock, field_trials, kRenderDelay,
                    /*video_jitter_timing=*/nullptr);
 
-  timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/0, DataSize::Bytes(789),
-                                 clock.CurrentTime(),
-                                 /*was_retransmitted=*/false);
+  timing.OnDecodableTemporalUnit({.rtp_timestamp = 0,
+                                  .size = DataSize::Bytes(789),
+                                  .time = clock.CurrentTime(),
+                                  .was_retransmitted = false});
 
   EXPECT_GT(timing.GetTimings().minimum_delay, TimeDelta::Zero());
 }
@@ -398,9 +401,10 @@ TEST(VCMTimingTest, UsesInjectedVideoJitterTiming) {
 
   EXPECT_CALL(*mock_ptr, OnDecodableTemporalUnit(_))
       .WillOnce(Return(TimeDelta::Millis(123)));
-  timing.OnDecodableTemporalUnit(/*rtp_timestamp=*/0, DataSize::Bytes(789),
-                                 clock.CurrentTime(),
-                                 /*was_retransmitted=*/false);
+  timing.OnDecodableTemporalUnit({.rtp_timestamp = 0,
+                                  .size = DataSize::Bytes(789),
+                                  .time = clock.CurrentTime(),
+                                  .was_retransmitted = false});
   EXPECT_EQ(timing.GetTimings().minimum_delay, TimeDelta::Millis(123));
 }
 
@@ -596,7 +600,7 @@ TEST(VCMTimingTest, DelegatesToVideoJitterTiming) {
                    std::move(mock_jitter_timing));
 
   EXPECT_CALL(*mock_ptr, OnNetworkUpdate(FieldsAre(TimeDelta::Millis(101))));
-  timing.UpdateRtt(TimeDelta::Millis(101));
+  timing.OnNetworkUpdate({.rtt = TimeDelta::Millis(101)});
 
   EXPECT_CALL(*mock_ptr, Reset());
   timing.Reset();

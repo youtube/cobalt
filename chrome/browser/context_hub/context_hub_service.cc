@@ -77,10 +77,10 @@ void ContextHubService::SaveTextSelection(
                                   std::move(callback));
 }
 
-void ContextHubService::DeleteEntry(
-    int64_t id,
+void ContextHubService::DeleteEntries(
+    base::span<const int64_t> ids,
     MemoryBank::OperationCompleteCallback callback) {
-  memory_bank_->DeleteEntry(id, std::move(callback));
+  memory_bank_->DeleteEntries(ids, std::move(callback));
 }
 
 void ContextHubService::GetAllEntries(

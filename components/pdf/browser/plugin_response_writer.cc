@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -146,9 +147,9 @@ void PluginResponseWriter::OnWrite(base::OnceClosure done_callback,
 
   if (result == MOJO_RESULT_OK) {
     network::URLLoaderCompletionStatus status(net::OK);
-    status.encoded_data_length = body_.size();
-    status.encoded_body_length = body_.size();
-    status.decoded_body_length = body_.size();
+    status.encoded_data_length = base::ByteSize(body_.size());
+    status.encoded_body_length = base::ByteSize(body_.size());
+    status.decoded_body_length = base::ByteSize(body_.size());
     client_->OnComplete(status);
   } else {
     client_->OnComplete(network::URLLoaderCompletionStatus(net::ERR_FAILED));

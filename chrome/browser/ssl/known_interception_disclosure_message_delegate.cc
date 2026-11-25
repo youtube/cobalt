@@ -57,7 +57,7 @@ void KnownInterceptionDisclosureMessageDelegate::MaybeShow() {
   message_->SetPrimaryButtonText(
       l10n_util::GetStringUTF16(IDS_KNOWN_INTERCEPTION_INFOBAR_BUTTON_TEXT));
   message_->SetIconResourceId(
-      ResourceMapper::MapToJavaDrawableId(IDR_ANDROID_INFOBAR_WARNING));
+      ResourceMapper::MapToJavaDrawableId(IDR_ANDROID_PERMISSION_WARNING));
   message_->EnableLargeIcon(true);
 
   message_->SetSecondaryIconResourceId(

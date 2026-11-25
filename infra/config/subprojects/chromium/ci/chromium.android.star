@@ -4268,6 +4268,13 @@ ci.builder(
             "linux-jammy",
             "x86-64",
         ],
+        per_test_modifications = {
+            "chrome_public_test_apk": targets.mixin(
+                args = [
+                    "--skia-gold-consider-unsupported",
+                ],
+            ),
+        },
     ),
     tree_closing = True,
     console_view_entry = consoles.console_view_entry(

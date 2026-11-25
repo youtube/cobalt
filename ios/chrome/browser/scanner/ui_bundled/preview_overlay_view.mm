@@ -67,7 +67,7 @@ const CGFloat kViewportBorderShadowRadius = 10.0;
   [_viewportBorderContainer setShadowOpacity:kViewportBorderShadowOpacity];
   [_viewportBorderContainer setShouldRasterize:YES];
   [_viewportBorderContainer
-      setRasterizationScale:[[UIScreen mainScreen] scale]];
+      setRasterizationScale:self.traitCollection.displayScale];
 
   _viewportBorder = [[CAShapeLayer alloc] init];
   [_viewportBorder setStrokeColor:[[UIColor whiteColor] CGColor]];

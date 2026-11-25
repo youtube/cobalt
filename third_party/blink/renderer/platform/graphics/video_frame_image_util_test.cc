@@ -15,7 +15,7 @@
 #include "media/base/video_frame.h"
 #include "media/renderers/video_frame_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
@@ -43,7 +43,7 @@ class ScopedFakeGpuContext {
     test_context_provider_ = viz::TestContextProvider::CreateRaster();
 
     if (disable_imagebitmap) {
-      // Disable CanvasResourceProvider using GPU.
+      // Disable CanvasNon2DResourceProvider using GPU.
       auto& feature_info = test_context_provider_->GetWritableGpuFeatureInfo();
       feature_info.enabled_gpu_driver_bug_workarounds.push_back(
           DISABLE_IMAGEBITMAP_FROM_VIDEO_USING_GPU);
@@ -118,12 +118,12 @@ class VideoFrameImageUtilTest
     auto info =
         CreateSnapshotProviderInfoForVideoFrame(*frame, dest_rect.size());
     if (ShouldCreateAcceleratedImages(raster_context_provider())) {
-      auto snapshot_provider = CanvasNon2DResourceProviderSharedImage::Create(
+      auto snapshot_provider = CanvasNon2DResourceProvider::Create(
           info.size, info.format, info.alpha_type, info.color_space,
           info.hdr_metadata, SharedGpuContext::ContextProviderWrapper(),
           gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);
       if (!snapshot_provider) {
-        DLOG(ERROR) << "Failed to create CanvasResourceProvider.";
+        DLOG(ERROR) << "Failed to create CanvasNon2DResourceProvider.";
         return nullptr;
       }
       return CreateAcceleratedImageFromVideoFrame(

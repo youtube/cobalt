@@ -248,7 +248,7 @@ void ContentPasswordManagerDriver::GeneratedPasswordAccepted(
   // operation with generated URL, don't forward anything to password manager.
   // TODO(crbug.com/40191770): Test that PasswordManager doesn't receive url
   // and full_url from renderer.
-  if (!HasValidURL()) {
+  if (!HasValidURL(/*may_kill_renderer=*/true)) {
     return;
   }
 
@@ -505,7 +505,7 @@ void ContentPasswordManagerDriver::PasswordFormsParsed(
 
   // In case we can't obtain a valid URL or a frame isn't allowed to perform an
   // operation with generated URL, don't forward anything to password manager.
-  if (!HasValidURL()) {
+  if (!HasValidURL(/*may_kill_renderer=*/true)) {
     return;
   }
 
@@ -534,7 +534,7 @@ void ContentPasswordManagerDriver::PasswordFormsRendered(
 
   // In case we can't obtain a valid URL or a frame isn't allowed to perform an
   // operation with generated URL, don't forward anything to password manager.
-  if (!HasValidURL()) {
+  if (!HasValidURL(/*may_kill_renderer=*/true)) {
     return;
   }
 
@@ -555,7 +555,7 @@ void ContentPasswordManagerDriver::PasswordFormSubmitted(
 
   // In case we can't obtain a valid URL or a frame isn't allowed to perform an
   // operation with generated URL, don't forward anything to password manager.
-  if (!HasValidURL()) {
+  if (!HasValidURL(/*may_kill_renderer=*/true)) {
     return;
   }
 
@@ -575,7 +575,7 @@ void ContentPasswordManagerDriver::InformAboutUserInput(
   // operation with generated URL, don't forward anything to password manager.
   // TODO(crbug.com/40191770): Test that PasswordManager doesn't receive url
   // and full_url from renderer.
-  if (!HasValidURL()) {
+  if (!HasValidURL(/*may_kill_renderer=*/true)) {
     return;
   }
 
@@ -618,7 +618,7 @@ void ContentPasswordManagerDriver::PasswordFormCleared(
 
   // In case we can't obtain a valid URL or a frame isn't allowed to perform an
   // operation with generated URL, don't forward anything to password manager.
-  if (!HasValidURL()) {
+  if (!HasValidURL(/*may_kill_renderer=*/true)) {
     return;
   }
 
@@ -741,7 +741,7 @@ void ContentPasswordManagerDriver::OnChangePasswordFormFilled(
 
   // In case we can't obtain a valid URL or a frame isn't allowed to perform an
   // operation with generated URL, don't forward anything to password manager.
-  if (!HasValidURL()) {
+  if (!HasValidURL(/*may_kill_renderer=*/true)) {
     return;
   }
   std::move(form_data_callback)

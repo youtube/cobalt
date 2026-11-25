@@ -4,7 +4,6 @@
 
 #include "chrome/browser/ui/views/autofill/autofill_field_promo_view_impl.h"
 
-#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_view_utils.h"

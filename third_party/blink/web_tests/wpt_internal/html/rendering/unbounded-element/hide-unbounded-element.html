@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://crbug.com/524030528">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+
+<style>
+  #target {
+    width: 100px;
+    height: 100px;
+  }
+</style>
+
+<div id="target"></div>
+
+<script>
+promise_test(async t => {
+  const element = document.getElementById('target');
+  assert_true('hideUnboundedElement' in element,
+      'The hideUnboundedElement IDL attribute should be exposed on HTMLElement.');
+
+  await promise_rejects_dom(t, 'InvalidStateError', element.hideUnboundedElement(),
+      'hideUnboundedElement() should reject if the element is not an active unbounded element.');
+}, 'Verify hideUnboundedElement() behavior when the element is not active.');
+
+promise_test(async t => {
+  const element = document.getElementById('target');
+  element.setAttribute('unbounded', '');
+  t.add_cleanup(() => element.removeAttribute('unbounded'));
+  assert_false(element.matches(':unbounded'), 'Initially, the element should not match :unbounded.');
+
+  await test_driver.bless("show unbounded");
+  await element.showUnboundedElement();
+  assert_true(element.matches(':unbounded'), 'The element should match :unbounded after showUnboundedElement() is called.');
+
+  await element.hideUnboundedElement();
+  assert_false(element.matches(':unbounded'), 'The element should no longer match :unbounded after hideUnboundedElement() is called.');
+}, 'Verify hideUnboundedElement() successfully closes an active unbounded element.');
+</script>

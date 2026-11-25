@@ -53,12 +53,27 @@ class DISPLAY_EXPORT VSyncProviderMac {
   // Whether the task runner of VSyncProviderMac belongs to the current thread.
   bool BelongsToCurrentThread();
 
-  std::vector<int64_t> GetSupportedDisplayLinkIds();
-
-  bool IsConnectedToBrowser() { return !needs_begin_frame_callback_.is_null(); }
+  // Returns true if the provider is connected to the browser (i.e.,
+  // `needs_begin_frame_repeating_cb_` is valid) and is running on the Viz
+  // thread. Used only to gate recording the ExternalDisplayLink creation
+  // histogram.
+  bool IsConnectedToBrowserOnVizThread();
 
  private:
   friend class base::NoDestructor<VSyncProviderMac>;
+
+  struct DisplayState {
+    DisplayState();
+    ~DisplayState();
+    DisplayState(DisplayState&& other);
+    DisplayState& operator=(DisplayState&& other);
+
+    std::list<VSyncCallbackMac::Callback> callbacks;
+
+    // The time when a NeedsBeginFrames(true) request was sent to the browser.
+    // This is used to record the latency between VSync requested and received.
+    base::TimeTicks begin_frame_request_time;
+  };
 
   VSyncProviderMac();
   virtual ~VSyncProviderMac();
@@ -66,14 +81,20 @@ class DISPLAY_EXPORT VSyncProviderMac {
   void AddSupportedDisplayLinkId(CGDirectDisplayID display_id);
   void RemoveSupportedDisplayLinkId(CGDirectDisplayID display_id);
 
-  // Protects `callback_lists_` and `needs_begin_frame_callback_` when updated
-  // on the Viz sequence and read concurrently from other threads (e.g.,
-  // CrGpuMain or CompositorGpuThread). Lock acquisition is bypassed when
-  // accessing these members directly on the Viz sequence.
+  // Records the time elapsed between sending the NeedsBeginFrames request via
+  // IPC and receiving the first VSync signal for the specified display.
+  void RecordTimeFromNeedsBeginFramesToVSync(
+      base::TimeTicks begin_frame_request_time);
+
+  // Must only be accessed on the Viz thread.
+  NeedsBeginFrameCB needs_begin_frame_repeating_cb_;
+
+  // Protects `display_states_` when it is updated on the Viz thread and read
+  // concurrently from other threads (such as `CrGpuMain` or
+  // `CompositorGpuThread`). Lock acquisition is bypassed when accessing
+  // `display_states_` directly on the Viz thread.
   base::Lock id_lock_;
-  NeedsBeginFrameCB needs_begin_frame_callback_;
-  std::map<CGDirectDisplayID, std::list<VSyncCallbackMac::Callback>>
-      callback_lists_;
+  std::map<CGDirectDisplayID, DisplayState> display_states_;
 
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 

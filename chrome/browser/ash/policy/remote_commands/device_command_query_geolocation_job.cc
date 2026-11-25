@@ -7,13 +7,14 @@
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/notifier_catalogs.h"
 #include "ash/public/cpp/notification_utils.h"
+#include "base/check.h"
+#include "base/check_deref.h"
 #include "base/json/json_writer.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/values.h"
 #include "chrome/browser/ash/policy/core/device_cloud_policy_manager_ash.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/notifications/system_notification_helper.h"
 #include "chromeos/ash/components/geolocation/system_location_provider.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
@@ -52,24 +53,29 @@ constexpr char kLocationSavedNotificationId[] =
 class LocationSavedNotificationDelegate
     : public message_center::NotificationDelegate {
  public:
-  LocationSavedNotificationDelegate() = default;
+  // `local_state` must be non-null and must outlive `this`.
+  explicit LocationSavedNotificationDelegate(PrefService* local_state)
+      : local_state_(CHECK_DEREF(local_state)) {}
 
   void Close(bool by_user) override {
     if (by_user) {
-      g_browser_process->local_state()->ClearPref(
+      local_state_->ClearPref(
           ash::prefs::kDeviceCommandQueryGeolocationReported);
     }
   }
 
  private:
   ~LocationSavedNotificationDelegate() override = default;
+
+  const raw_ref<PrefService> local_state_;
 };
 
 }  // namespace
 
 DeviceCommandQueryGeolocationJob::DeviceCommandQueryGeolocationJob(
+    PrefService* local_state,
     const DeviceCloudPolicyManagerAsh* policy_manager)
-    : policy_manager_(policy_manager) {}
+    : local_state_(CHECK_DEREF(local_state)), policy_manager_(policy_manager) {}
 
 DeviceCommandQueryGeolocationJob::~DeviceCommandQueryGeolocationJob() = default;
 
@@ -81,9 +87,10 @@ void DeviceCommandQueryGeolocationJob::RegisterPrefs(
 }
 
 // static
-void DeviceCommandQueryGeolocationJob::
-    ShowLocationReportedNotificationIfNeeded() {
-  if (!g_browser_process->local_state()->GetBoolean(
+void DeviceCommandQueryGeolocationJob::ShowLocationReportedNotificationIfNeeded(
+    PrefService* local_state) {
+  CHECK(local_state);
+  if (!local_state->GetBoolean(
           ash::prefs::kDeviceCommandQueryGeolocationReported)) {
     return;
   }
@@ -103,7 +110,7 @@ void DeviceCommandQueryGeolocationJob::
       l10n_util::GetStringUTF16(IDS_POLICY_DEVICE_LOCATED_MESSAGE),
       /*display_source=*/std::u16string(), /*origin_url=*/GURL(), notifier_id,
       notification_data,
-      base::MakeRefCounted<LocationSavedNotificationDelegate>(),
+      base::MakeRefCounted<LocationSavedNotificationDelegate>(local_state),
       features::IsRoundedIconsEnabled() ? vector_icons::kDomainIcon
                                         : vector_icons::kBusinessOldIcon,
       message_center::SystemNotificationWarningLevel::NORMAL);
@@ -212,8 +219,8 @@ void DeviceCommandQueryGeolocationJob::OnLocationResponse(
              base::NumberToString(
                  position.timestamp.InMillisecondsSinceUnixEpoch()));
 
-    g_browser_process->local_state()->SetBoolean(
-        ash::prefs::kDeviceCommandQueryGeolocationReported, true);
+    local_state_->SetBoolean(ash::prefs::kDeviceCommandQueryGeolocationReported,
+                             true);
   } else {
     if (!position.error_message.empty()) {
       dict.Set(kErrorMessage, position.error_message);

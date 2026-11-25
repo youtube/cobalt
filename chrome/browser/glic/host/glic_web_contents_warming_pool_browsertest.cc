@@ -4,6 +4,8 @@
 
 #include "chrome/browser/glic/host/glic_web_contents_warming_pool.h"
 
+#include <utility>
+
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -134,7 +136,7 @@ class GlicWarmingBlockedByAdminBrowserTest : public GlicWarmingPoolBrowserTest {
         policy::key::kGeminiSettings, policy::POLICY_LEVEL_MANDATORY,
         policy::POLICY_SCOPE_USER, policy::POLICY_SOURCE_ENTERPRISE_DEFAULT,
         base::Value(
-            static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled)),
+            std::to_underlying(glic::prefs::SettingsPolicyState::kDisabled)),
         nullptr);
     policy_provider_.UpdateChromePolicy(policies);
   }

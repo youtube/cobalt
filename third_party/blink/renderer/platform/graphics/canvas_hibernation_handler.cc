@@ -19,7 +19,7 @@
 #include "skia/ext/codec_utils.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/platform/bindings/buildflags.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/memory_managed_paint_recorder.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_util.h"
@@ -250,8 +250,8 @@ void CanvasHibernationHandler::Encode(
       sk_sp<SkData> encoded_uncompressed =
           skia::FastEncodePngAsSkData(nullptr, params->image.get());
 
-      TRACE_EVENT_BEGIN2("blink", "ZstdCompression", "original_size", 0, "size",
-                         0);
+      TRACE_EVENT_BEGIN("blink", "ZstdCompression", "original_size", 0, "size",
+                        0);
       size_t uncompressed_size = encoded_uncompressed->size();
       size_t buffer_size = ZSTD_compressBound(encoded_uncompressed->size());
       std::vector<char> compressed_buffer(buffer_size);
@@ -270,8 +270,8 @@ void CanvasHibernationHandler::Encode(
       // much smaller.
       encoded_uncompressed = nullptr;
       encoded = SkData::MakeWithCopy(compressed_buffer.data(), compressed_size);
-      TRACE_EVENT_END2("blink", "ZstdCompression", "original_size",
-                       uncompressed_size, "size", compressed_size);
+      TRACE_EVENT_END("blink", "original_size", uncompressed_size, "size",
+                      compressed_size);
       break;
 #else
       NOTREACHED();
@@ -411,8 +411,7 @@ void CanvasHibernationHandler::Hibernate(
   TRACE_EVENT0("blink", __PRETTY_FUNCTION__);
   DCHECK(!IsHibernating());
 
-  Canvas2DResourceProviderSharedImage* provider =
-      delegate_->GetSharedImageProvider();
+  Canvas2DResourceProvider* provider = delegate_->GetSharedImageProvider();
   if (!provider) {
     if (delegate_->HasResourceProvider()) {
       ReportHibernationEvent(
@@ -448,7 +447,7 @@ void CanvasHibernationHandler::Hibernate(
   // No HibernationEvent reported on success. This is on purppose to avoid
   // non-complementary stats. Each HibernationScheduled event is paired with
   // exactly one failure or exit event.
-  provider->Flush();
+  delegate_->FlushCanvas(FlushReason::kOther);
   scoped_refptr<StaticBitmapImage> snapshot = provider->Snapshot();
   if (!snapshot) {
     ReportHibernationEvent(

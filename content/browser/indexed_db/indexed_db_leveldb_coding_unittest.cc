@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/test/insecure_random_generator.h"
@@ -1131,6 +1132,24 @@ TEST(IndexedDBLevelDBCodingTest, ComparisonTest) {
       EXPECT_GT(Compare(keys[j], keys[i], false), 0);
     }
   }
+}
+
+TEST(IndexedDBLevelDBCodingTest, CompareWithCorruptIndexDataKey) {
+  std::string index_data_key_with_positive_sequence_number =
+      IndexDataKey::Encode(1, 1, 30, MaxIDBKey(), MaxIDBKey(),
+                           std::numeric_limits<int64_t>::max());
+
+  // `IndexDataKey` must use a positive sequence number.  Simulate disk
+  // corruption with an encoded negative sequence number.
+  std::string index_data_key_with_negative_sequence_number;
+  ASSERT_TRUE(base::Base64Decode(
+      "AwMD/////wD+ioqKioqKirUBAAAAAAAAioqKioqKioqKioqKioqKioqKioqKioqKioo=",
+      &index_data_key_with_negative_sequence_number));
+
+  EXPECT_EQ(Compare(index_data_key_with_positive_sequence_number,
+                    index_data_key_with_negative_sequence_number,
+                    /*only_compare_index_keys=*/false),
+            -1);
 }
 
 TEST(IndexedDBLevelDBCodingTest, IndexDataKeyEncodeDecode) {

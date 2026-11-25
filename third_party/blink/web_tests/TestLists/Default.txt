@@ -73,7 +73,7 @@ dom/domparsing/domparser-assign-variable.html
 dom/domparsing/xhtml-serialize.html
 dom/node/normalize-with-cdata.html
 dom/parent_node/append.html
-dom/text/normalize-crash-in-spell-checker.html
+external/wpt/dom/crashtests/normalize-crash.html
 dom/text/previous-element-sibling.html
 editing/caret/caret-height.html
 editing/caret/caret-height-multi-line.html
@@ -147,6 +147,7 @@ external/wpt/css/css-timing/cubic-bezier-timing-functions-output.html
 external/wpt/css/css-timing/frames-timing-functions-output.html
 external/wpt/css/css-timing/frames-timing-functions-syntax.html
 external/wpt/css/css-timing/step-timing-functions-output.html
+external/wpt/css/css-transforms/crashtests/transform-origin-crash.html
 external/wpt/css/css-transitions/crashtests/transition-transform-translate-calculated-length-crash.html
 external/wpt/css/css-typed-om/CSSMatrixComponent-DOMMatrix-mutable.html
 external/wpt/css/css-typed-om/declared-styleMap-accepts-inherit.html
@@ -229,12 +230,14 @@ external/wpt/html/semantics/grouping-content/the-ol-element/ol.start-reflection-
 external/wpt/html/semantics/interactive-elements/the-details-element/toggleEvent.html
 external/wpt/html/semantics/interactive-elements/the-dialog-element/dialog-enabled.html
 external/wpt/html/semantics/links/links-created-by-a-and-area-elements/htmlanchorelement_getter.html
+external/wpt/html/semantics/obsolete/crashtests/marquee-inside-template-tag-crash.html
 external/wpt/html/semantics/scripting-1/the-script-element/scripting-enabled.html
 external/wpt/html/semantics/scripting-1/the-script-element/script-noembed-noframes-iframe.xhtml
 external/wpt/html/semantics/selectors/pseudo-classes/dir01.html
 external/wpt/html/semantics/selectors/pseudo-classes/required-optional.html
 external/wpt/html/semantics/tabular-data/the-table-element/caption-methods.html
 external/wpt/html/semantics/tabular-data/the-table-element/table-insertRow.html
+external/wpt/html/semantics/text-level-semantics/crashtests/q-empty-crash.html
 external/wpt/html/semantics/text-level-semantics/the-a-element/a.text-setter-01.html
 external/wpt/html/semantics/text-level-semantics/the-time-element/001.html
 external/wpt/html/syntax/parsing/Document.getElementsByTagName-foreign-01.html
@@ -754,11 +757,9 @@ html/details_summary/details-element-render-inline-crash.html
 html/details_summary/details-summary-document-child.html
 external/wpt/html/semantics/interactive-elements/the-dialog-element/inert-label-focus.html
 html/grouping_content/figure-element.html
-html/marquee/marquee-inside-template-tag-crash.html
 html/sections/article-element.html
 html/sections/body-offset-properties.html
 html/tabular_data/tbody_insertrow_default_argument.html
-html/text_level_semantics/q-empty-crash.html
 http/tests/canvas/philip/tests/security.pattern.canvas.fillStyle.html
 http/tests/dom/create-contextual-fragment-from-svg-document-range.html
 http/tests/dom/location-stringify.html
@@ -905,7 +906,6 @@ transforms/focus-on-transformed-node.html
 transforms/no_transform_hit_testing.html
 transforms/topmost-becomes-bottomost-for-scrolling.html
 transforms/transformed-caret.html
-transforms/transform-origin-crash.html
 transitions/background-webkit-mask-crash.html
 traversal/hixie-node-iterator/001.xml
 traversal/hixie-node-iterator/006.xml

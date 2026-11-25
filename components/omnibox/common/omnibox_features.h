@@ -91,6 +91,7 @@ BASE_DECLARE_FEATURE(kHideAimEntrypointForUrlSuggestions);
 BASE_DECLARE_FEATURE(kOmniboxMultimodalInput);
 BASE_DECLARE_FEATURE(kAndroidDesktopAimGate);
 BASE_DECLARE_FEATURE(kAim3pEntrypoint);
+extern const base::FeatureParam<bool> kAim3pEntrypointDebug;
 
 // Navigation experiments.
 BASE_DECLARE_FEATURE(kDefaultTypedNavigationsToHttps);
@@ -136,6 +137,7 @@ BASE_DECLARE_FEATURE(kOmniboxMobileParityUpdateV2);
 BASE_DECLARE_FEATURE(kOmniboxXGeoPermissionGranularity);
 BASE_DECLARE_FEATURE(kOmniboxItemDecoration);
 BASE_DECLARE_FEATURE(kExactMatchFavicons);
+BASE_DECLARE_FEATURE(kOmniboxAimImageDownscaling);
 
 // Omnibox suggestions tuning
 BASE_DECLARE_FEATURE(kNumNtpZpsRecentSearches);
@@ -181,6 +183,10 @@ extern const base::FeatureParam<bool> kComposeboxDriveIdentityFallback;
 // Whether to enable Google Drive context menu option's disclaimer flow in the
 // composebox.
 BASE_DECLARE_FEATURE(kComposeboxDriveContextMenuOptionDisclaimer);
+extern const base::FeatureParam<int> kComposeboxDriveConsentFlowId;
+extern const base::FeatureParam<int> kComposeboxDriveConsentProductId;
+extern const base::FeatureParam<std::string>
+    kComposeboxDriveConsentEntrypointId;
 
 // Whether to force the Google Drive disclaimer to be accepted.
 BASE_DECLARE_FEATURE(kForceDriveDisclaimerAccepted);
@@ -217,6 +223,7 @@ BASE_DECLARE_FEATURE(kSuppressIntermediateACUpdatesOnLowEndDevices);
 // Delay focusTab to prioritize navigation (https://crbug.com/374852568).
 BASE_DECLARE_FEATURE(kPostDelayedTaskFocusTab);
 BASE_DECLARE_FEATURE(kResetSuggestionsScroll);
+BASE_DECLARE_FEATURE(kOmniboxListMenuContextMenu);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // If enabled, X-Geo headers are sent for all search navigations on all

@@ -138,7 +138,7 @@ class ActorTask : public base::SupportsUserData {
     kFailed = 8,
     kMaxValue = kFailed,
   };
-  // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:ActorTaskState)
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:ActorTaskState, //tools/metrics/histograms/metadata/actor/enums.xml:ActorTaskState)
 
   // LINT.IfChange(StoppedReason)
   // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.actor
@@ -153,7 +153,8 @@ class ActorTask : public base::SupportsUserData {
     kUserStartedNewChat = 6,
     kUserLoadedPreviousChat = 7,
     kUserNavigatedAway = 8,
-    kMaxValue = kUserNavigatedAway,
+    kTimeout = 9,
+    kMaxValue = kTimeout,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/histograms.xml:StoppedReason,
   // //tools/metrics/histograms/metadata/actor/enums.xml:StoppedReasonEnum)

@@ -21,13 +21,16 @@ import org.webrtc.CryptoOptions;
 @RunWith(AndroidJUnit4.class)
 @Config(manifest = Config.NONE)
 public class CryptoOptionsTest {
-  // Validates the builder builds by default all false options.
+  // Validates the builder defaults mirror the native CryptoOptions struct in
+  // api/crypto/crypto_options.h.
   @Test
-  public void testBuilderDefaultsAreFalse() {
+  public void testBuilderDefaultsMatchNative() {
     CryptoOptions cryptoOptions = CryptoOptions.builder().createCryptoOptions();
-    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getPreferGcmCryptoSuites()).isFalse();
     assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_32CryptoCipher()).isFalse();
-    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_80CryptoCipher()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isTrue();
     assertThat(cryptoOptions.getSFrame().getRequireFrameEncryption()).isFalse();
   }
 
@@ -35,10 +38,24 @@ public class CryptoOptionsTest {
   @Test
   public void testBuilderCorrectlyInitializingGcmCrypto() {
     CryptoOptions cryptoOptions =
-        CryptoOptions.builder().setEnableGcmCryptoSuites(true).createCryptoOptions();
-    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isTrue();
+        CryptoOptions.builder().setEnableGcmCryptoSuites(false).createCryptoOptions();
+    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getPreferGcmCryptoSuites()).isFalse();
     assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_32CryptoCipher()).isFalse();
-    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_80CryptoCipher()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isTrue();
+    assertThat(cryptoOptions.getSFrame().getRequireFrameEncryption()).isFalse();
+  }
+
+  @Test
+  public void testBuilderCorrectlyInitializingPreferGcmCryptoSuites() {
+    CryptoOptions cryptoOptions =
+        CryptoOptions.builder().setPreferGcmCryptoSuites(true).createCryptoOptions();
+    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getPreferGcmCryptoSuites()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_32CryptoCipher()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_80CryptoCipher()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isTrue();
     assertThat(cryptoOptions.getSFrame().getRequireFrameEncryption()).isFalse();
   }
 
@@ -46,19 +63,35 @@ public class CryptoOptionsTest {
   public void testBuilderCorrectlyInitializingAes128Sha1_32CryptoCipher() {
     CryptoOptions cryptoOptions =
         CryptoOptions.builder().setEnableAes128Sha1_32CryptoCipher(true).createCryptoOptions();
-    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getPreferGcmCryptoSuites()).isFalse();
     assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_32CryptoCipher()).isTrue();
-    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_80CryptoCipher()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isTrue();
+    assertThat(cryptoOptions.getSFrame().getRequireFrameEncryption()).isFalse();
+  }
+
+  @Test
+  public void testBuilderCorrectlyInitializingAes128Sha1_80CryptoCipher() {
+    CryptoOptions cryptoOptions =
+        CryptoOptions.builder().setEnableAes128Sha1_80CryptoCipher(false).createCryptoOptions();
+    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getPreferGcmCryptoSuites()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_32CryptoCipher()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_80CryptoCipher()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isTrue();
     assertThat(cryptoOptions.getSFrame().getRequireFrameEncryption()).isFalse();
   }
 
   @Test
   public void testBuilderCorrectlyInitializingEncryptedRtpHeaderExtensions() {
     CryptoOptions cryptoOptions =
-        CryptoOptions.builder().setEnableEncryptedRtpHeaderExtensions(true).createCryptoOptions();
-    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isFalse();
+        CryptoOptions.builder().setEnableEncryptedRtpHeaderExtensions(false).createCryptoOptions();
+    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getPreferGcmCryptoSuites()).isFalse();
     assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_32CryptoCipher()).isFalse();
-    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_80CryptoCipher()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isFalse();
     assertThat(cryptoOptions.getSFrame().getRequireFrameEncryption()).isFalse();
   }
 
@@ -66,9 +99,11 @@ public class CryptoOptionsTest {
   public void testBuilderCorrectlyInitializingRequireFrameEncryption() {
     CryptoOptions cryptoOptions =
         CryptoOptions.builder().setRequireFrameEncryption(true).createCryptoOptions();
-    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableGcmCryptoSuites()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getPreferGcmCryptoSuites()).isFalse();
     assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_32CryptoCipher()).isFalse();
-    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isFalse();
+    assertThat(cryptoOptions.getSrtp().getEnableAes128Sha1_80CryptoCipher()).isTrue();
+    assertThat(cryptoOptions.getSrtp().getEnableEncryptedRtpHeaderExtensions()).isTrue();
     assertThat(cryptoOptions.getSFrame().getRequireFrameEncryption()).isTrue();
   }
 }

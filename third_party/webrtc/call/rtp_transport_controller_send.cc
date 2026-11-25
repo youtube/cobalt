@@ -65,7 +65,6 @@
 namespace webrtc {
 namespace {
 const int64_t kRetransmitWindowSizeMs = 500;
-const size_t kMaxOverheadBytes = 500;
 
 constexpr TimeDelta kPacerQueueUpdateInterval = TimeDelta::Millis(25);
 
@@ -122,7 +121,6 @@ RtpTransportControllerSend::RtpTransportControllerSend(
           "WebRTC-AddPacingToCongestionWindowPushback")),
       reset_bwe_on_adapter_id_change_(
           env_.field_trials().IsEnabled("WebRTC-Bwe-ResetOnAdapterIdChange")),
-      transport_overhead_bytes_per_packet_(0),
       network_available_(false),
       congestion_window_size_(DataSize::PlusInfinity()),
       is_congested_(false),
@@ -304,6 +302,9 @@ void RtpTransportControllerSend::RegisterTargetTransferRateObserver(
   RTC_DCHECK(observer_ == nullptr);
   observer_ = observer;
   observer_->OnStartRateUpdate(*initial_config_.constraints.starting_rate);
+  if (!transport_overhead_per_packet_.IsZero()) {
+    observer_->OnTransportOverheadChanged(transport_overhead_per_packet_);
+  }
   MaybeCreateControllers();
 }
 
@@ -336,7 +337,15 @@ void RtpTransportControllerSend::OnNetworkRouteChanged(
     return;
   }
 
-  transport_overhead_bytes_per_packet_ = network_route.packet_overhead;
+  DataSize packet_overhead = DataSize::Bytes(network_route.packet_overhead);
+  if (transport_overhead_per_packet_ != packet_overhead) {
+    transport_overhead_per_packet_ = packet_overhead;
+    pacer_.SetTransportOverhead(transport_overhead_per_packet_);
+    if (observer_) {
+      observer_->OnTransportOverheadChanged(transport_overhead_per_packet_);
+    }
+  }
+
   // Check whether the network route has changed on each transport.
   auto result = network_routes_.insert(
       // Explicit conversion of transport_name to std::string here is necessary
@@ -546,25 +555,6 @@ void RtpTransportControllerSend::SetClientBitratePreferences(
   }
 }
 
-void RtpTransportControllerSend::OnTransportOverheadChanged(
-    size_t transport_overhead_bytes_per_packet) {
-  RTC_DCHECK_RUN_ON(worker_thread_);
-  if (transport_overhead_bytes_per_packet >= kMaxOverheadBytes) {
-    RTC_LOG(LS_ERROR) << "Transport overhead exceeds " << kMaxOverheadBytes;
-    return;
-  }
-
-  pacer_.SetTransportOverhead(
-      DataSize::Bytes(transport_overhead_bytes_per_packet));
-
-  // TODO(holmer): Call AudioRtpSenders when they have been moved to
-  // RtpTransportControllerSend.
-  for (auto& rtp_video_sender : video_rtp_senders_) {
-    rtp_video_sender->OnTransportOverheadChanged(
-        transport_overhead_bytes_per_packet);
-  }
-}
-
 void RtpTransportControllerSend::AccountForAudioPacketsInPacedSender(
     bool account_for_audio) {
   pacer_.SetAccountForAudioPackets(account_for_audio);
@@ -622,8 +612,9 @@ void RtpTransportControllerSend::NotifyBweOfPacedSentPacket(
     return;
   }
   Timestamp creation_time = env_.clock().CurrentTime();
-  transport_feedback_adapter_.AddPacket(
-      packet, pacing_info, transport_overhead_bytes_per_packet_, creation_time);
+  transport_feedback_adapter_.AddPacket(packet, pacing_info,
+                                        transport_overhead_per_packet_.bytes(),
+                                        creation_time);
 }
 
 void RtpTransportControllerSend::SetPreferredRtcpCcAckType(
@@ -678,7 +669,7 @@ RtpTransportControllerSend::ReceivedTransportCcFeedbackCount() const {
 
 DataSize RtpTransportControllerSend::GetTransportOverhead() const {
   RTC_DCHECK_RUN_ON(worker_thread_);
-  return DataSize::Bytes(transport_overhead_bytes_per_packet_);
+  return transport_overhead_per_packet_;
 }
 
 void RtpTransportControllerSend::OnTransportFeedback(

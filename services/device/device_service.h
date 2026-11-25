@@ -73,10 +73,6 @@ class SharedURLLoaderFactory;
 
 namespace device {
 
-#if !BUILDFLAG(IS_ANDROID)
-class HidManagerImpl;
-#endif
-
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
 class PressureManagerImpl;
 #endif
@@ -87,6 +83,7 @@ class SerialPortManagerImpl;
 
 class DeviceService;
 class GeolocationSystemPermissionManager;
+class HidManagerImpl;
 class PowerMonitorMessageBroadcaster;
 class PublicIpAddressLocationNotifier;
 class SensorProviderImpl;
@@ -201,10 +198,8 @@ class DeviceService : public mojom::DeviceService {
       mojo::PendingReceiver<mojom::VibrationManager> receiver,
       mojo::PendingRemote<mojom::VibrationManagerListener> listener) override;
 
-#if !BUILDFLAG(IS_ANDROID)
   void BindHidManager(
       mojo::PendingReceiver<mojom::HidManager> receiver) override;
-#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
   void BindMtpManager(
@@ -259,6 +254,7 @@ class DeviceService : public mojom::DeviceService {
   const std::string geolocation_api_key_;
   WakeLockContextCallback wake_lock_context_callback_;
   WakeLockProvider wake_lock_provider_;
+  std::unique_ptr<HidManagerImpl> hid_manager_;
 
 #if BUILDFLAG(IS_ANDROID)
   // Binds |java_interface_provider_| to an interface registry that exposes
@@ -272,8 +268,6 @@ class DeviceService : public mojom::DeviceService {
   bool java_interface_provider_initialized_ = false;
 
   base::android::ScopedJavaGlobalRef<jobject> java_nfc_delegate_;
-#else
-  std::unique_ptr<HidManagerImpl> hid_manager_;
 #endif
 
 #if BUILDFLAG(ENABLE_COMPUTE_PRESSURE)

@@ -156,8 +156,6 @@ SendAudioStream::SendAudioStream(
 
   sender_->SendTask([&] {
     send_stream_ = sender_->call_->CreateAudioSendStream(send_config);
-    sender->call_->OnAudioTransportOverheadChanged(
-        sender_->transport_->packet_overhead().bytes());
   });
 }
 

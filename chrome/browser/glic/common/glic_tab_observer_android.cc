@@ -80,6 +80,9 @@ void GlicTabObserverAndroid::OnTabChanged(TabAndroid* tab) {
 }
 
 void GlicTabObserverAndroid::StartObservingTab(TabAndroid* tab) {
+  if (!tab) {
+    return;
+  }
   if (!observed_tabs_.IsObservingSource(tab)) {
     observed_tabs_.AddObservation(tab);
   }
@@ -104,6 +107,9 @@ void GlicTabObserverAndroid::StartObservingTab(TabAndroid* tab) {
 }
 
 void GlicTabObserverAndroid::StopObservingTab(TabAndroid* tab) {
+  if (!tab) {
+    return;
+  }
   tab_observers_.erase(tab);
   if (observed_tabs_.IsObservingSource(tab)) {
     observed_tabs_.RemoveObservation(tab);

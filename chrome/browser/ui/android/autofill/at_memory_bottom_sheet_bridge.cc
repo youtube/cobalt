@@ -32,7 +32,8 @@ namespace {
 // - `labels[0]` (joined with spaces) -> `sublabel`
 // - `icon` -> `iconId` (mapped via ResourceMapper)
 // - `type` -> `suggestionType`
-// TODO(crbug.com/502801668): Add support for `payload` and `children`.
+// - `children` -> `children`
+// TODO(crbug.com/502801668): Add support for `payload`.
 base::android::ScopedJavaLocalRef<jobject> CreateJavaSuggestion(
     JNIEnv* env,
     const Suggestion& suggestion) {
@@ -48,9 +49,14 @@ base::android::ScopedJavaLocalRef<jobject> CreateJavaSuggestion(
         ResourceMapper::MapToJavaDrawableId(GetIconResourceID(suggestion.icon));
   }
 
+  std::vector<base::android::ScopedJavaLocalRef<jobject>> children =
+      base::ToVector(suggestion.children, [env](const Suggestion& child) {
+        return CreateJavaSuggestion(env, child);
+      });
+
   return Java_AtMemoryBottomSheetBridge_createAutofillSuggestion(
       env, suggestion.main_text.value, sub_label, android_icon_id,
-      std::to_underlying(suggestion.type));
+      std::to_underlying(suggestion.type), children);
 }
 
 }  // namespace
@@ -137,6 +143,14 @@ void AtMemoryBottomSheetBridge::OnSuggestionSelected(JNIEnv* env,
                                                      int position) {
   if (delegate_) {
     delegate_->OnSuggestionSelected(position);
+  }
+}
+
+void AtMemoryBottomSheetBridge::OnChildSuggestionSelected(JNIEnv* env,
+                                                          int parent_position,
+                                                          int child_position) {
+  if (delegate_) {
+    delegate_->OnChildSuggestionSelected(parent_position, child_position);
   }
 }
 

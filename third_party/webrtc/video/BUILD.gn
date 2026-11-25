@@ -186,10 +186,6 @@ rtc_library("video") {
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
   ]
-
-  if (!build_with_mozilla) {
-    deps += [ "../media:rtc_media_base" ]
-  }
 }
 
 rtc_library("null_video_decoder") {
@@ -467,6 +463,7 @@ rtc_library("video_stream_encoder_impl") {
     "../call/adaptation:resource_adaptation",
     "../common_video",
     "../media:media_channel",
+    "../media:media_channel_impl",
     "../modules:module_api_public",
     "../modules/video_coding",
     "../modules/video_coding:codec_globals_headers",

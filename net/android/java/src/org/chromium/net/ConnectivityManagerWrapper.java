@@ -58,11 +58,6 @@ public class ConnectivityManagerWrapper {
         return sDeriveConnectionTypeFromCapabilities.get();
     }
 
-    @VisibleForTesting
-    public static void setDeriveConnectionTypeFromCapabilitiesForTesting(boolean enabled) {
-        sDeriveConnectionTypeFromCapabilities.set(enabled);
-    }
-
     @SuppressWarnings("NullAway.Init") // Due to test-only constructor.
     private final ConnectivityManager mConnectivityManager;
 
@@ -623,5 +618,9 @@ public class ConnectivityManagerWrapper {
             // getNetworkHandle() returns a long.
             return Integer.parseInt(network.toString());
         }
+    }
+
+    public static void setDeriveConnectionTypeFromCapabilitiesForTesting(boolean enabled) {
+        sDeriveConnectionTypeFromCapabilities.set(enabled);
     }
 }

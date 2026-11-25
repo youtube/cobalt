@@ -1580,7 +1580,8 @@ base::TimeDelta QuicSessionPool::GetTimeDelayForWaitingJob(
 
   int64_t srtt = 1.5 * GetServerNetworkStatsSmoothedRttInMicroseconds(
                            session_key.server_id(),
-                           session_key.network_anonymization_key());
+                           session_key.network_anonymization_key(),
+                           session_key.proxy_chain());
   // Picked 300ms based on mean time from
   // Net.QuicSession.HostResolution.HandshakeConfirmedTime histogram.
   const int kDefaultRTT = 300 * quic::kNumMicrosPerMilli;
@@ -2120,8 +2121,9 @@ QuicSessionPool::CreateSessionHelper(
   connection->SetMaxPacketLength(max_packet_length);
 
   quic::QuicConfig config = config_;
-  ConfigureInitialRttEstimate(
-      server_id, key.session_key().network_anonymization_key(), &config);
+  ConfigureInitialRttEstimate(server_id,
+                              key.session_key().network_anonymization_key(),
+                              key.session_key().proxy_chain(), &config);
 
   if (params_.enable_debugging_sni_in_transport_param &&
       IsGoogleHost(server_id.host())) {
@@ -2256,9 +2258,10 @@ void QuicSessionPool::MarkAllActiveSessionsGoingAway(
 void QuicSessionPool::ConfigureInitialRttEstimate(
     const quic::QuicServerId& server_id,
     const NetworkAnonymizationKey& network_anonymization_key,
+    const ProxyChain& proxy_chain,
     quic::QuicConfig* config) {
-  const base::TimeDelta* srtt =
-      GetServerNetworkStatsSmoothedRtt(server_id, network_anonymization_key);
+  const base::TimeDelta* srtt = GetServerNetworkStatsSmoothedRtt(
+      server_id, network_anonymization_key, proxy_chain);
   // Sometimes *srtt is negative. See https://crbug.com/1225616.
   // TODO(ricea): When the root cause of the negative value is fixed, change the
   // non-negative assertion to a DCHECK.
@@ -2291,15 +2294,22 @@ void QuicSessionPool::ConfigureInitialRttEstimate(
 
 int64_t QuicSessionPool::GetServerNetworkStatsSmoothedRttInMicroseconds(
     const quic::QuicServerId& server_id,
-    const NetworkAnonymizationKey& network_anonymization_key) const {
-  const base::TimeDelta* srtt =
-      GetServerNetworkStatsSmoothedRtt(server_id, network_anonymization_key);
+    const NetworkAnonymizationKey& network_anonymization_key,
+    const ProxyChain& proxy_chain) const {
+  const base::TimeDelta* srtt = GetServerNetworkStatsSmoothedRtt(
+      server_id, network_anonymization_key, proxy_chain);
   return srtt == nullptr ? 0 : srtt->InMicroseconds();
 }
 
 const base::TimeDelta* QuicSessionPool::GetServerNetworkStatsSmoothedRtt(
     const quic::QuicServerId& server_id,
-    const NetworkAnonymizationKey& network_anonymization_key) const {
+    const NetworkAnonymizationKey& network_anonymization_key,
+    const ProxyChain& proxy_chain) const {
+  // ServerNetworkStats are not partitioned by proxy chain, so only use them
+  // for direct connections to avoid mixing measurements from different paths.
+  if (!proxy_chain.is_direct()) {
+    return nullptr;
+  }
   url::SchemeHostPort server("https", server_id.host(), server_id.port());
   const ServerNetworkStats* stats =
       http_server_properties_->GetServerNetworkStats(server,
@@ -2442,21 +2452,31 @@ void QuicSessionPool::ProcessGoingAwaySession(
     return;
   }
 
+  // ServerNetworkStats are not partitioned by proxy chain, so only record
+  // them for direct connections to avoid mixing measurements from different
+  // paths.
+  const bool record_network_stats =
+      session->quic_session_key().proxy_chain().is_direct();
+
   if (session->OneRttKeysAvailable()) {
     http_server_properties_->ConfirmAlternativeService(
         alternative_service,
         session->quic_session_key().network_anonymization_key());
-    ServerNetworkStats network_stats;
-    network_stats.srtt = base::Microseconds(stats.srtt_us);
-    network_stats.bandwidth_estimate = stats.estimated_bandwidth;
-    http_server_properties_->SetServerNetworkStats(
-        server, session->quic_session_key().network_anonymization_key(),
-        network_stats);
+    if (record_network_stats) {
+      ServerNetworkStats network_stats;
+      network_stats.srtt = base::Microseconds(stats.srtt_us);
+      network_stats.bandwidth_estimate = stats.estimated_bandwidth;
+      http_server_properties_->SetServerNetworkStats(
+          server, session->quic_session_key().network_anonymization_key(),
+          network_stats);
+    }
     return;
   }
 
-  http_server_properties_->ClearServerNetworkStats(
-      server, session->quic_session_key().network_anonymization_key());
+  if (record_network_stats) {
+    http_server_properties_->ClearServerNetworkStats(
+        server, session->quic_session_key().network_anonymization_key());
+  }
 
   UMA_HISTOGRAM_COUNTS_1M("Net.QuicHandshakeNotConfirmedNumPacketsReceived",
                           stats.packets_received);

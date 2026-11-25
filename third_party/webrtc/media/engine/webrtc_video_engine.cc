@@ -1267,7 +1267,6 @@ void WebRtcVideoSendChannel::ApplyEncoderSwitch(
     std::optional<SdpVideoFormat> format,
     bool allow_default_fallback) {
   RTC_DCHECK_RUN_ON(worker_thread_);
-  RTC_DCHECK(format.has_value() || allow_default_fallback);
 
   ChangedSenderParameters params;
   if (!format) {
@@ -1758,7 +1757,6 @@ void WebRtcVideoSendChannel::OnNetworkRouteChanged(
         RtpTransportControllerSendInterface* transport =
             call_->GetTransportControllerSend();
         transport->OnNetworkRouteChanged(name, route);
-        transport->OnTransportOverheadChanged(route.packet_overhead);
       }));
 }
 

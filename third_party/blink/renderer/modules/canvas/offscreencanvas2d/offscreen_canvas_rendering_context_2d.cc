@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "base/check.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/rand_util.h"
 #include "base/trace_event/trace_event.h"
@@ -27,8 +28,9 @@
 #include "third_party/blink/renderer/core/workers/worker_settings.h"
 #include "third_party/blink/renderer/modules/canvas/htmlcanvas/canvas_context_creation_attributes_helpers.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_bitmap_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/canvas_utils.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_canvas.h"
@@ -137,11 +139,7 @@ void OffscreenCanvasRenderingContext2D::FinalizeFrame(FlushReason reason) {
     return;
   }
 
-  if (shared_image_provider_) {
-    shared_image_provider_->Flush(reason);
-  } else {
-    bitmap_provider_->Flush(reason);
-  }
+  FlushCanvas(reason);
   Host()->NotifyCachesOfSwitchingFrame();
 }
 
@@ -253,17 +251,16 @@ bool OffscreenCanvasRenderingContext2D::InitializeResourceProvider() {
       shared_image_usage_flags |= gpu::SHARED_IMAGE_USAGE_SCANOUT;
     }
 
-    shared_image_provider_ =
-        Canvas2DResourceProviderSharedImage::CreateWithClear(
-            host->Size(), format, alpha_type, color_space, hdr_metadata,
-            SharedGpuContext::ContextProviderWrapper(),
-            use_gpu_raster ? RasterMode::kGPU : RasterMode::kCPU,
-            shared_image_usage_flags, host);
+    shared_image_provider_ = Canvas2DResourceProvider::CreateWithClear(
+        host->Size(), format, alpha_type, color_space, hdr_metadata,
+        SharedGpuContext::ContextProviderWrapper(),
+        use_gpu_raster ? RasterMode::kGPU : RasterMode::kCPU,
+        shared_image_usage_flags, host);
   } else if (host->HasPlaceholderCanvas()) {
     // using the software compositor
     host->GetOrCreateResourceDispatcher();
-    shared_image_provider_ = Canvas2DResourceProviderSharedImage::
-        CreateWithClearForSoftwareCompositor(
+    shared_image_provider_ =
+        Canvas2DResourceProvider::CreateWithClearForSoftwareCompositor(
             host->Size(), format, alpha_type, color_space, hdr_metadata,
             SharedGpuContext::SharedImageInterfaceProvider(), host);
   }
@@ -324,8 +321,9 @@ OffscreenCanvasRenderingContext2D::ProduceCanvasResource(FlushReason reason) {
     return nullptr;
   }
 
+  FlushCanvas(reason);
   scoped_refptr<CanvasResource> frame =
-      shared_image_provider_->ProduceCanvasResource(reason);
+      shared_image_provider_->ProduceCanvasResource();
   if (!frame)
     return nullptr;
 
@@ -394,21 +392,14 @@ scoped_refptr<StaticBitmapImage> OffscreenCanvasRenderingContext2D::GetImage() {
 scoped_refptr<StaticBitmapImage>
 OffscreenCanvasRenderingContext2D::PaintRenderingResultsToSnapshot(
     SourceDrawingBuffer source_buffer) {
+  if (!IsResourceProviderValid()) {
+    return nullptr;
+  }
+  FlushCanvas(FlushReason::kOther);
   if (shared_image_provider_) {
-    if (!shared_image_provider_->IsValid()) {
-      return nullptr;
-    }
-    shared_image_provider_->Flush();
     return shared_image_provider_->Snapshot();
   }
-  if (bitmap_provider_) {
-    if (!bitmap_provider_->IsValid()) {
-      return nullptr;
-    }
-    bitmap_provider_->Flush();
-    return bitmap_provider_->Snapshot();
-  }
-  return nullptr;
+  return bitmap_provider_->Snapshot();
 }
 
 V8RenderingContext* OffscreenCanvasRenderingContext2D::AsV8RenderingContext() {
@@ -465,10 +456,35 @@ void OffscreenCanvasRenderingContext2D::WillDraw(
 
   if (layer_count_ == 0) [[likely]] {
     // TODO(crbug.com/1246486): Make auto-flushing layer friendly.
-    if (shared_image_provider_) {
-      shared_image_provider_->FlushIfRecordingLimitExceeded();
-    } else if (bitmap_provider_) {
-      bitmap_provider_->FlushIfRecordingLimitExceeded();
+    FlushIfRecordingLimitExceeded();
+  }
+}
+
+void OffscreenCanvasRenderingContext2D::FlushIfRecordingLimitExceeded() {
+  if (shared_image_provider_) {
+    if (shared_image_provider_->IsPrinting() &&
+        shared_image_provider_->clear_frame()) {
+      return;
+    }
+    const MemoryManagedPaintRecorder* recorder = Recorder();
+    CHECK(recorder);
+    if (recorder->ReleasableOpBytesUsed() >
+            shared_image_provider_->max_recorded_op_bytes() ||
+        recorder->ReleasableImageBytesUsed() >
+            shared_image_provider_->max_pinned_image_bytes()) [[unlikely]] {
+      FlushCanvas(FlushReason::kOther);
+    }
+  } else if (bitmap_provider_) {
+    if (bitmap_provider_->IsPrinting() && bitmap_provider_->clear_frame()) {
+      return;
+    }
+    const MemoryManagedPaintRecorder* recorder = Recorder();
+    CHECK(recorder);
+    if (recorder->ReleasableOpBytesUsed() >
+            bitmap_provider_->max_recorded_op_bytes() ||
+        recorder->ReleasableImageBytesUsed() >
+            bitmap_provider_->max_pinned_image_bytes()) [[unlikely]] {
+      FlushCanvas(FlushReason::kOther);
     }
   }
 }
@@ -509,28 +525,18 @@ bool OffscreenCanvasRenderingContext2D::WritePixels(
     size_t row_bytes,
     int x,
     int y) {
+  if (!IsResourceProviderValid()) {
+    return false;
+  }
+  FlushCanvas(FlushReason::kOther);
+  if (!IsResourceProviderValid()) {
+    return false;
+  }
   if (shared_image_provider_) {
-    if (!shared_image_provider_->IsValid()) {
-      return false;
-    }
-    shared_image_provider_->Flush();
-    if (!shared_image_provider_->IsValid()) {
-      return false;
-    }
     return shared_image_provider_->WritePixels(orig_info, pixels, row_bytes, x,
                                                y);
   }
-  if (bitmap_provider_) {
-    if (!bitmap_provider_->IsValid()) {
-      return false;
-    }
-    bitmap_provider_->Flush();
-    if (!bitmap_provider_->IsValid()) {
-      return false;
-    }
-    return bitmap_provider_->WritePixels(orig_info, pixels, row_bytes, x, y);
-  }
-  return false;
+  return bitmap_provider_->WritePixels(orig_info, pixels, row_bytes, x, y);
 }
 
 bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
@@ -572,6 +578,16 @@ std::optional<cc::PaintRecord> OffscreenCanvasRenderingContext2D::FlushCanvas(
     return bitmap_provider_->Flush(reason);
   }
   return std::nullopt;
+}
+
+bool OffscreenCanvasRenderingContext2D::IsResourceProviderValid() const {
+  if (shared_image_provider_) {
+    return shared_image_provider_->IsValid();
+  }
+  if (bitmap_provider_) {
+    return bitmap_provider_->IsValid();
+  }
+  return false;
 }
 
 OffscreenCanvas* OffscreenCanvasRenderingContext2D::HostAsOffscreenCanvas()

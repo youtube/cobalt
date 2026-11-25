@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/byte_size.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -199,10 +200,14 @@ void CrxDownloaderTest::AddResponse(const GURL& url,
     auto head = network::mojom::URLResponseHead::New();
     head->content_length = data.size();
     network::URLLoaderCompletionStatus status(net_error);
+<<<<<<< ours
+    status.decoded_body_length = base::ByteSize(data.size());
+=======
     status.decoded_body_length = data.size();
 #if BUILDFLAG(IS_STARBOARD)
     config_->test_url_loader_factory()->AddResponse(url, std::move(head), data, status);
 #else
+>>>>>>> theirs
     test_url_loader_factory_.AddResponse(url, std::move(head), data, status);
 #endif
     return;

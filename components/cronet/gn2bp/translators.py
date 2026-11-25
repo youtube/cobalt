@@ -90,19 +90,23 @@ def create_rust_cxx_modules(blueprint, gn, target, is_test_target, context):
         target.type, is_test_target, context)[0].name
     modules = []
     for (i, src) in enumerate(sorted(target.common.sources)):
-        header_genrule = soong_ast.Module(
+        header_genrule = soong_ast.create_module(
             "cc_genrule",
             f"{soong_ast.label_to_module_name(target.name, context)}_header_{i}",
-            target.name, context)
+            target.name,
+            context,
+            is_test=is_test_target)
         header_genrule.tools = {cxx_bridge_module_name}
         header_genrule.cmd = f"$(location {cxx_bridge_module_name}) $(in) --header > $(out)"
         header_genrule.srcs = {gn_utils.label_to_path(src)}
         header_genrule.out = {f"{gn_utils.label_to_path(src)}.h"}
 
-        cc_genrule = soong_ast.Module(
+        cc_genrule = soong_ast.create_module(
             "cc_genrule",
             f"{soong_ast.label_to_module_name(target.name, context)}_{i}",
-            target.name, context)
+            target.name,
+            context,
+            is_test=is_test_target)
         cc_genrule.tools = {cxx_bridge_module_name}
         cc_genrule.cmd = f"$(location {cxx_bridge_module_name}) $(in) > $(out)"
         cc_genrule.srcs = {gn_utils.label_to_path(src)}
@@ -222,13 +226,20 @@ def create_proto_modules(blueprint, gn, target, is_test_target, context):
     # source files in 'srcs' and headers in 'generated_headers' -- and it's not
     # valid to generate .h files from a source dependency and vice versa.
     source_module_name = target_module_name
-    source_module = soong_ast.Module('cc_genrule', source_module_name,
-                                     target.name, context)
+    source_module = soong_ast.create_module('cc_genrule',
+                                            source_module_name,
+                                            target.name,
+                                            context,
+                                            is_test=is_test_target)
     blueprint.add_module(source_module)
     source_module.srcs.update(sources)
 
-    header_module = soong_ast.Module('cc_genrule', source_module_name + '_h',
-                                     target.name, context)
+    header_module = soong_ast.create_module('cc_genrule',
+                                            source_module_name + '_h',
+                                            target.name,
+                                            context,
+                                            is_test=is_test_target,
+                                            role='h')
     blueprint.add_module(header_module)
     header_module.srcs = set(source_module.srcs)
 
@@ -298,7 +309,7 @@ def create_proto_modules(blueprint, gn, target, is_test_target, context):
     return (header_module, source_module)
 
 
-def create_gcc_preprocess_modules(blueprint, target, context):
+def create_gcc_preprocess_modules(blueprint, target, is_test_target, context):
     # gcc_preprocess.py internally execute host gcc which is not allowed in genrule.
     # So, this function create multiple modules and realize equivalent processing
     assert (len(target.common.sources) == 1)
@@ -310,17 +321,23 @@ def create_gcc_preprocess_modules(blueprint, target, context):
 
     # Rename .template to .cc since cc_preprocess_no_configuration does
     # not accept .template file as srcs
-    rename_module = soong_ast.Module('genrule', bp_module_name + '_rename',
-                                     target.name, context)
+    rename_module = soong_ast.create_module('genrule',
+                                            bp_module_name + '_rename',
+                                            target.name,
+                                            context,
+                                            is_test=is_test_target)
     rename_module.srcs.add(gn_utils.label_to_path(source))
     rename_module.out.add(stem + '.cc')
     rename_module.cmd = 'cp $(in) $(out)'
     blueprint.add_module(rename_module)
 
     # Preprocess template file and generates java file
-    preprocess_module = soong_ast.Module('cc_preprocess_no_configuration',
-                                         bp_module_name + '_preprocess',
-                                         target.name, context)
+    preprocess_module = soong_ast.create_module(
+        'cc_preprocess_no_configuration',
+        bp_module_name + '_preprocess',
+        target.name,
+        context,
+        is_test=is_test_target)
     # -E: stop after preprocessing.
     # -P: disable line markers, i.e. '#line 309'
     preprocess_module.cflags.extend(['-E', '-P', '-DANDROID'])
@@ -333,7 +350,11 @@ def create_gcc_preprocess_modules(blueprint, target, context):
     blueprint.add_module(preprocess_module)
 
     # Generates srcjar using soong_zip
-    module = soong_ast.Module('genrule', bp_module_name, target.name, context)
+    module = soong_ast.create_module('genrule',
+                                     bp_module_name,
+                                     target.name,
+                                     context,
+                                     is_test=is_test_target)
     module.srcs.add(':' + preprocess_module.name)
     module.out.add(stem + '.srcjar')
     module.cmd = [
@@ -408,14 +429,18 @@ def create_action_module_internal(gn,
                                   context,
                                   arch=None):
     if target.script == '//build/android/gyp/gcc_preprocess.py':
-        return create_gcc_preprocess_modules(blueprint, target, context)
+        return create_gcc_preprocess_modules(blueprint, target, is_test_target,
+                                             context)
     sanitizer = action_sanitizers.get_action_sanitizer(gn, target, gn_type,
                                                        arch, is_test_target,
                                                        context)
     sanitizer.sanitize()
 
-    module = soong_ast.Module(gn_type, sanitizer.get_name(), target.name,
-                              context)
+    module = soong_ast.create_module(gn_type,
+                                     sanitizer.get_name(),
+                                     target.name,
+                                     context,
+                                     is_test=is_test_target)
     module.cmd = sanitizer.get_cmd()
     module.out = sanitizer.get_outputs()
     if sanitizer.is_header_generated():
@@ -493,14 +518,13 @@ def merge_modules(modules, genrule_type):
     return merged_module
 
 
-def create_java_module(bp_module_name, target, blueprint, context):
-
+def create_java_module(bp_module_name, target, blueprint, is_test_target,
+                       context):
     def add_java_library_properties(module):
         module.min_sdk_version = cronet_utils.MIN_SDK_VERSION_FOR_AOSP
         module.apex_available.add(common.tethering_apex)
         module.defaults.add(context.java_framework_defaults_module)
         module.build_file_path = target.build_file_path
-
     # As hinted in `parse_gn_desc()`, Java GN targets are... complicated.
     #
     # Here the main source of complexity is the need to support the
@@ -532,9 +556,13 @@ def create_java_module(bp_module_name, target, blueprint, context):
 
     sources = target.common.sources
     source_is_jar = any(source.endswith('.jar') for source in sources)
-    unfiltered_module = soong_ast.Module(
+    unfiltered_module = soong_ast.create_module(
         "java_import" if source_is_jar else "java_library",
-        f"{bp_module_name}__unfiltered", target.name, context)
+        f"{bp_module_name}__unfiltered",
+        target.name,
+        context,
+        is_test=is_test_target,
+        role='unfiltered')
     add_java_library_properties(unfiltered_module)
     if source_is_jar:
         assert all(source.endswith('.jar') for source in sources), target.name
@@ -551,9 +579,12 @@ def create_java_module(bp_module_name, target, blueprint, context):
     # should not depend on *any* filtered module, even indirectly, so we need to
     # keep the dependency chains separate throughout the entire build tree no
     # matter what.)
-    filtered_module = soong_ast.Module("java_genrule",
-                                       f"{bp_module_name}__filtered",
-                                       target.name, context)
+    filtered_module = soong_ast.create_module("java_genrule",
+                                              f"{bp_module_name}__filtered",
+                                              target.name,
+                                              context,
+                                              is_test=is_test_target,
+                                              role='filtered')
     filtered_module.srcs = [f":{unfiltered_module.name}"]
 
     jar_excluded_patterns = target.java_jar_excluded_patterns
@@ -603,8 +634,11 @@ def create_java_module(bp_module_name, target, blueprint, context):
     filtered_module.visibility = {"//external/cronet:__subpackages__"}
     blueprint.add_module(filtered_module)
 
-    top_module = soong_ast.Module("java_library", bp_module_name, target.name,
-                                  context)
+    top_module = soong_ast.create_module("java_library",
+                                         bp_module_name,
+                                         target.name,
+                                         context,
+                                         is_test=is_test_target)
     top_module.java_unfiltered_module = unfiltered_module
     add_java_library_properties(top_module)
     top_module.static_libs.add(filtered_module.name)
@@ -662,9 +696,12 @@ def get_bindgen_flags(args: List[str]) -> List[str]:
 
 
 def _create_extract_rust_files_target(bindgen_module, blueprint, context):
-    module = soong_ast.Module(
-        "cc_genrule", bindgen_module.name + "__extract_rust_files",
-        f"Extract rust files from {bindgen_module.name}", context)
+    module = soong_ast.create_module(
+        "cc_genrule",
+        bindgen_module.name + "__extract_rust_files",
+        f"Extract rust files from {bindgen_module.name}",
+        context,
+        is_test=bindgen_module._is_test)
     module.srcs = [f":{bindgen_module.name}"]
     module.cmd = [
         f'for f in $(locations :{bindgen_module.name}); do',
@@ -682,9 +719,13 @@ def _create_extract_rust_files_target(bindgen_module, blueprint, context):
 
 def create_bindgen_module(
         blueprint: soong_ast.Blueprint, target, module_name: str,
+        is_test_target: bool,
         context: translation_context.TranslationContext) -> soong_ast.Module:
-    module = soong_ast.Module("rust_bindgen", "lib" + module_name, target.name,
-                              context)
+    module = soong_ast.create_module("rust_bindgen",
+                                     "lib" + module_name,
+                                     target.name,
+                                     context,
+                                     is_test=is_test_target)
     if len(target.common.sources) > 1:
         raise ValueError(
             f"Expected a single source file for bindgen but found {target.common.sources}."
@@ -734,10 +775,12 @@ def create_generated_headers_export_module(
   has no way of directly depending on generated headers.
   '''
     cc_genrule_module_name = cc_genrule_module.name
-    module = soong_ast.Module(
+    module = soong_ast.create_module(
         "cc_library_headers",
         f"{cc_genrule_module_name}_export_generated_headers",
-        cc_genrule_module.gn_target, context)
+        cc_genrule_module.gn_target,
+        context,
+        is_test=cc_genrule_module._is_test)
     module.export_generated_headers = module.generated_headers = [
         cc_genrule_module_name
     ]
@@ -814,10 +857,12 @@ def create_jni_zero_proxy_only_module(jni_zero_generator_module, context):
     proxy_path, _ = get_jni_zero_generator_proxy_and_placeholder_paths(
         jni_zero_generator_module)
 
-    proxy_only_module = soong_ast.Module(
+    proxy_only_module = soong_ast.create_module(
         jni_zero_generator_module.type,
         f"{jni_zero_generator_module.name}_proxy_only",
-        jni_zero_generator_module.gn_target, context)
+        jni_zero_generator_module.gn_target,
+        context,
+        is_test=jni_zero_generator_module._is_test)
     proxy_only_module.cmd = "cp $(in) $(genDir)"
     proxy_only_module.srcs = [f":{jni_zero_generator_module.name}"]
     proxy_only_module.out = [os.path.basename(proxy_path)]
@@ -954,11 +999,15 @@ def _extract_version_script(ldflags):
     return new_ldflags, version_script
 
 
-def _create_linker_script_filegroup(linker_script_path, context):
+def _create_linker_script_filegroup(linker_script_path, is_test_target,
+                                    context):
     filegroup_name = linker_script_path.replace('/', '_').replace('.', '_')
-    filegroup_module = soong_ast.Module(
-        "filegroup", f"{context.module_prefix}{filegroup_name}_filegroup",
-        f"Created to reference {linker_script_path}", context)
+    filegroup_module = soong_ast.create_module(
+        "filegroup",
+        f"{context.module_prefix}{filegroup_name}_filegroup",
+        f"Created to reference {linker_script_path}",
+        context,
+        is_test=is_test_target)
     filegroup_module.srcs = [linker_script_path]
     # TODO(aymanm): Change the default for build_file_path to be top-level.
     filegroup_module.build_file_path = ""
@@ -1011,28 +1060,26 @@ def _is_allowed_ldflag(flag):
     ])
 
 
-def configure_cc_module(module, cflags, defines, ldflags, libs, main_module,
+def configure_cc_module(cc_properties, cflags, defines, ldflags, libs,
                         blueprint, context):
-    module.cflags = _get_cflags(cflags, defines)
-    ldflags, version_script = _extract_version_script(ldflags)
-    module.ldflags = [flag for flag in ldflags if _is_allowed_ldflag(flag)]
-    if version_script:
-        # Unfortunately, Soong does not allow accessing linker scripts from parent
-        # path. So create a filegroup at the top-level Android.bp and reference it instead.
-        filegroup_module = _create_linker_script_filegroup(
-            version_script, context)
-        blueprint.add_module(filegroup_module)
-        version_script_deps = f':{filegroup_module.name}'
-        assert main_module.version_script is None or main_module.version_script == version_script_deps, f'Found different version scripts across different architectures!, target name: {main_module.name}, first version_script: {main_module.version_script}, second version_script: {version_script_deps}'
-        main_module.version_script = version_script_deps
+    cc_properties.cflags = _get_cflags(cflags, defines)
+    ldflags, _ = _extract_version_script(ldflags)
+    cc_properties.ldflags = [
+        flag for flag in ldflags if _is_allowed_ldflag(flag)
+    ]
+
+    main_module = cc_properties if isinstance(
+        cc_properties, soong_ast.Module) else cc_properties._parent
+    is_test = main_module._is_test
+
     for lib in libs:
         if lib.endswith('.lds'):
             linker_script = gn_utils.label_to_path(lib)
             filegroup_module = _create_linker_script_filegroup(
-                linker_script, context)
+                linker_script, is_test, context)
             blueprint.add_module(filegroup_module)
             linker_script_deps = f':{filegroup_module.name}'
-            module.linker_scripts.add(linker_script_deps)
+            cc_properties.linker_scripts.add(linker_script_deps)
         else:
             # Generally library names should be mangled as 'libXXX', unless they
             # are HAL libraries (e.g., android.hardware.health@2.0) or AIDL c++ / NDK
@@ -1040,45 +1087,39 @@ def configure_cc_module(module, cflags, defines, ldflags, libs, main_module,
             android_lib = lib if '@' in lib or "-cpp" in lib or "-ndk" in lib \
                 else 'lib' + lib
             if lib in shared_library_allowlist:
-                module.shared_libs.add(android_lib)
+                cc_properties.shared_libs.add(android_lib)
     # TODO: implement proper cflag parsing.
     for flag in cflags:
         if '-fexceptions' in flag:
-            module.cppflags.append('-fexceptions')
-    cpp_std = _get_cpp_std(cflags)
-    if cpp_std:
-        assert main_module.cpp_std is None or main_module.cpp_std == cpp_std, f"Found different CPP version across different architectures!, target name: {main_module.name}, first cpp version: {main_module.cpp_std}, current cpp version: {cpp_std}"
-        # The -std= compiler option has a dedicated property in Android.bp, called cpp_std. That property
-        # can only be set at module top level; it cannot be set per-target. However in GN
-        # cflags are arch-specific, so we will find -std= when running on the
-        # arch-specific module. Hence we need to go back to the main module and set it there.
-        main_module.cpp_std = cpp_std
+            cc_properties.cppflags.append('-fexceptions')
 
 
 def _create_rust_build_script_output_copy_genrule(module_name,
                                                   path_to_directory, files,
-                                                  context):
-    module = soong_ast.Module(
-        "genrule", module_name,
+                                                  is_test_target, context):
+    module = soong_ast.create_module(
+        "genrule",
+        module_name,
         "Copies generated Rust build script files somewhere the dependent code can find them",
-        context)
+        context,
+        is_test=is_test_target)
     module.srcs = [f"{path_to_directory}/{file_name}" for file_name in files]
     module.cmd = "cp $(in) $(genDir)"
     module.out = files
     return module
 
 
-def set_module_include_dirs(module, cflags, include_dirs, context):
+def set_module_include_dirs(cc_properties, cflags, include_dirs, context):
     for flag in cflags:
         if '-isystem' in flag:
-            module.include_dirs.add(
+            cc_properties.include_dirs.add(
                 f"external/cronet/{context.import_channel}/{flag[len('-isystem../../'):]}"
             )
 
     depends_on_binder_ndk = any("libbinder_ndk_cpp" in include_dir
                                 for include_dir in include_dirs)
     if depends_on_binder_ndk:
-        module.shared_libs.add("libbinder_ndk")
+        cc_properties.shared_libs.add("libbinder_ndk")
         include_dirs = [
             include_dir for include_dir in include_dirs
             if "libbinder_ndk_cpp" not in include_dir
@@ -1091,25 +1132,29 @@ def set_module_include_dirs(module, cflags, include_dirs, context):
     # Note: include_dirs is used instead of local_include_dirs as an Android.bp
     # can't access other directories outside of its current directory. This
     # is worked around by using include_dirs.
-    module.include_dirs.update([
+    cc_properties.include_dirs.update([
         f"external/cronet/{context.import_channel}/{gn_utils.label_to_path(d)}"
         for d in include_dirs if not d.startswith('//out')
     ])
     # Remove prohibited include directories
-    module.include_dirs = [
-        d for d in module.include_dirs
+    cc_properties.include_dirs = [
+        d for d in cc_properties.include_dirs
         if d not in context.include_dirs_denylist
     ]
 
     # If we end up including Cronet's root, then also include the Android-side
     # unversioned include override directory, with higher precedence.
-    if f"external/cronet/{context.import_channel}/" in module.include_dirs:
-        module.include_dirs.insert(0, "external/cronet/include/")
+    if f"external/cronet/{context.import_channel}/" in cc_properties.include_dirs:
+        cc_properties.include_dirs.insert(0, "external/cronet/include/")
 
 
-def create_aidl_module(bp_module_name, target, blueprint, context):
-    module = soong_ast.Module("aidl_interface", bp_module_name, target.name,
-                              context)
+def create_aidl_module(bp_module_name, target, blueprint, is_test_target,
+                       context):
+    module = soong_ast.create_module("aidl_interface",
+                                     bp_module_name,
+                                     target.name,
+                                     context,
+                                     is_test=is_test_target)
     module.unstable = True
     module.include_dirs = [
         f"external/cronet/{context.import_channel}/{path}"
@@ -1123,8 +1168,11 @@ def create_aidl_module(bp_module_name, target, blueprint, context):
     # Filegroup exists here because Soong's genrule for AIDL contains a bug where there's
     # a discrepancy between the expected generated file path and the actual path.
     # See crbug.com/418726870 for more information.
-    filegroup_module = soong_ast.Module("filegroup", filegroup_module_name,
-                                        target.name, context)
+    filegroup_module = soong_ast.create_module("filegroup",
+                                               filegroup_module_name,
+                                               target.name,
+                                               context,
+                                               is_test=is_test_target)
     filegroup_module.srcs = [
         gn_utils.label_to_path(src) for src in sorted(target.common.sources)
     ]
@@ -1234,7 +1282,7 @@ def normalize_rust_flags(
     return args_mapping
 
 
-def _set_rust_flags(module: soong_ast.Module.Target, rust_flags: List[str],
+def _set_rust_flags(module: soong_ast.Target, rust_flags: List[str],
                     arch_name: str) -> None:
     rust_flags_dict = normalize_rust_flags(rust_flags)
     if "--edition" in rust_flags_dict:
@@ -1273,6 +1321,534 @@ def _set_rust_flags(module: soong_ast.Module.Target, rust_flags: List[str],
                 pre_filter_flag.startswith(restricted_flag)
                 for restricted_flag in flags_to_remove):
             module.flags.append(pre_filter_flag)
+
+
+
+
+def _create_initial_modules(blueprint, gn, target, bp_module_name,
+                            parent_gn_type, is_test_target, context):
+    gn_target_name = target.name
+    if target.type == 'executable':
+        if target.testonly:
+            module_type = 'cc_test'
+        else:
+            # Can be used for both host and device targets.
+            module_type = 'cc_binary'
+        modules = (soong_ast.create_module(module_type,
+                                           bp_module_name,
+                                           gn_target_name,
+                                           context,
+                                           is_test=is_test_target), )
+    elif target.type == 'rust_executable':
+        modules = (soong_ast.create_module("rust_binary",
+                                           bp_module_name,
+                                           gn_target_name,
+                                           context,
+                                           is_test=is_test_target), )
+    elif target.type == "rust_library":
+        # Here we have to choose between rust_library_rlib and rust_ffi_static.
+        #
+        # Ideally we should pick rust_library_rlib if there are rust_library
+        # dependents, or rust_ffi_static if there are cc_library dependents.
+        # This is a bit tricky, however, because it's theoretically possible for
+        # *both* Rust and C++ code to directly depend on the library.
+        #
+        # In practice, there is currently no real difference between
+        # rust_library_rlib and rust_ffi_static as far as the actual build process
+        # is concerned - they are practically interchangeable. So, to keep things
+        # simple, we just arbitrarily pick one - here rust_ffi_static on
+        # suggestion of AOSP Rust people. See http://b/383552450.
+        #
+        # This decision may need to be revisited if the AOSP build system starts
+        # treating rust_library_rlib and rust_ffi_static differently.
+        modules = (soong_ast.create_module("rust_ffi_static",
+                                           bp_module_name,
+                                           gn_target_name,
+                                           context,
+                                           is_test=is_test_target), )
+    elif target.type == "rust_proc_macro":
+        modules = (soong_ast.create_module("rust_proc_macro",
+                                           bp_module_name,
+                                           gn_target_name,
+                                           context,
+                                           is_test=is_test_target), )
+    elif target.type in ['static_library', 'source_set']:
+        modules = (soong_ast.create_module('cc_library_static',
+                                           bp_module_name,
+                                           gn_target_name,
+                                           context,
+                                           is_test=is_test_target), )
+    elif target.type == 'shared_library':
+        modules = (soong_ast.create_module('cc_library_shared',
+                                           bp_module_name,
+                                           gn_target_name,
+                                           context,
+                                           is_test=is_test_target), )
+    elif target.type == 'proto_library':
+        modules = create_proto_modules(blueprint, gn, target, is_test_target,
+                                       context)
+        if modules is None:
+            return ()
+    elif target.type == "rust_bindgen":
+        modules = (create_bindgen_module(blueprint, target, bp_module_name,
+                                         is_test_target, context), )
+    elif target.type == 'action':
+        module = create_action_module(
+            blueprint, gn, target, 'java_genrule' if parent_gn_type
+            == "java_library" else 'cc_genrule', is_test_target, context)
+        module.jni_zero_target_type = soong_ast.get_jni_zero_target_type(
+            target)
+        modules = (module, )
+    elif target.type == 'action_foreach':
+        if target.script == "//third_party/rust/cxx/chromium_integration/run_cxxbridge.py":
+            modules = create_rust_cxx_modules(blueprint, gn, target,
+                                              is_test_target, context)
+        else:
+            modules = create_action_foreach_modules(blueprint, gn, target,
+                                                    is_test_target, context)
+    elif target.type == 'copy':
+        # Copy targets are not supported: currently, we stop traversing the
+        # dependency tree when we encounter one.
+        return ()
+    elif target.type == 'java_library':
+        modules = (create_java_module(bp_module_name, target, blueprint,
+                                      is_test_target, context), )
+    elif target.type == 'aidl_interface':
+        modules = create_aidl_module(bp_module_name, target, blueprint,
+                                     is_test_target, context)
+    else:
+        # Note we don't have to handle `group` targets because parse_gn_desc() never
+        # returns any; it just recurses through them and bubbles their dependencies
+        # upwards.
+        raise Exception('Unknown target %s (%s)' % (target.name, target.type))
+    return modules
+
+
+def _extract_cc_global_properties(target):
+    cpp_std = None
+    version_script = None
+
+    # Check common
+    if target.common.cflags:
+        cpp_std = _get_cpp_std(target.common.cflags)
+    if target.common.ldflags:
+        _, version_script = _extract_version_script(target.common.ldflags)
+
+    # Check archs
+    for arch in target.get_archs().values():
+        arch_cpp_std = _get_cpp_std(arch.cflags)
+        if arch_cpp_std:
+            # The -std= compiler option has a dedicated property in Android.bp, called cpp_std. That property
+            # can only be set at module top level; it cannot be set per-target. However in GN
+            # cflags are arch-specific, so we will find -std= when running on the
+            # arch-specific module. Hence we need to go back to the main module and set it there.
+            assert cpp_std is None or cpp_std == arch_cpp_std, f"Found different CPP version across different architectures!, target name: {target.name}, first cpp version: {cpp_std}, current cpp version: {arch_cpp_std}"
+            cpp_std = arch_cpp_std
+
+        if arch.ldflags:
+            _, arch_version_script = _extract_version_script(arch.ldflags)
+            if arch_version_script:
+                assert version_script is None or version_script == arch_version_script, f"Found different version scripts across different architectures!, target name: {target.name}, first version_script: {version_script}, second version_script: {arch_version_script}"
+                version_script = arch_version_script
+
+    return cpp_std, version_script
+
+
+def _configure_cc_properties(module, target, blueprint, context):
+    if isinstance(module, soong_ast.CcModule):
+        module.rtti = target.rtti
+
+    if target.type in gn_utils.LINKER_UNIT_TYPES:
+        cpp_std, version_script = _extract_cc_global_properties(target)
+        if cpp_std:
+            module.cpp_std = cpp_std
+        if version_script:
+            # Unfortunately, Soong does not allow accessing linker scripts from parent
+            # path. So create a filegroup at the top-level Android.bp and reference it instead.
+            filegroup_module = _create_linker_script_filegroup(
+                version_script, module._is_test, context)
+            blueprint.add_module(filegroup_module)
+            module.version_script = f':{filegroup_module.name}'
+
+        configure_cc_module(module, target.common.cflags,
+                            target.common.defines, target.common.ldflags,
+                            target.common.libs, blueprint, context)
+        set_module_include_dirs(module, target.common.cflags,
+                                target.common.include_dirs, context)
+        # TODO: set_module_xxx is confusing, apply similar function to module and target in better way.
+        for arch_name, arch in target.get_archs().items():
+            # TODO(aymanm): Make libs arch-specific.
+            configure_cc_module(module.target[arch_name], arch.cflags,
+                                arch.defines, arch.ldflags, arch.libs,
+                                blueprint, context)
+            # -Xclang -target-feature -Xclang +mte are used to enable MTE (Memory Tagging Extensions).
+            # Flags which does not start with '-' could not be in the cflags so enabling MTE by
+            # -march and -mcpu Feature Modifiers. MTE is only available on arm64. This is needed for
+            # building //base/allocator/partition_allocator:partition_alloc for arm64.
+            if '+mte' in arch.cflags and arch_name == 'android_arm64':
+                module.target[arch_name].cflags.add('-march=armv8-a+memtag')
+            set_module_include_dirs(module.target[arch_name], arch.cflags,
+                                    arch.include_dirs, context)
+        if module.type == 'cc_library_static':
+            module.export_generated_headers = module.generated_headers
+
+        if module.type == 'cc_library_shared':
+            output_name = target.output_name
+            if output_name is None:
+                module.stem = 'lib' + target.get_target_name().removesuffix(
+                    gn_utils.TESTING_SUFFIX)
+            else:
+                module.stem = 'lib' + output_name
+
+
+def _configure_rust_properties(module, target):
+    if module.type in ["rust_proc_macro", "rust_binary", "rust_ffi_static"]:
+        module.crate_name = target.crate_name
+        module.crate_root = gn_utils.label_to_path(target.crate_root)
+        if target.common.inputs:
+            module.srcs.update(
+                gn_utils.label_to_path(inp) for inp in target.common.inputs)
+        if target.rust_package_version:
+            module.cargo_env_compat = True
+            module.cargo_pkg_version = target.rust_package_version
+        module.min_sdk_version = cronet_utils.MIN_SDK_VERSION_FOR_AOSP
+        module.apex_available.add(common.tethering_apex)
+        for arch_name, arch in target.get_archs().items():
+            _set_rust_flags(module.target[arch_name], arch.rust_flags,
+                            arch_name)
+
+    if module.type in ("rust_proc_macro", "rust_binary", "rust_ffi_static",
+                       "rust_bindgen"):
+        # We may end up (in)directly depending on cc modules, e.g. through the
+        # rust bindgen "generated headers" library we may generate. Our cc modules
+        # set this. We need to be consistent, otherwise Soong will complain about
+        # the incompatible dependency.
+        module.target['host'].compile_multilib = '64'
+
+    if module.type in ("rust_bindgen", "rust_ffi_static", "cc_genrule",
+                       "cc_library_static", "cc_binary", "rust_binary"):
+        # If we don't add this, then some types of AOSP builds fail due to an
+        # issue with proc_macro2 - see https://crbug.com/392704960.
+        # Note: technically we only need this on modules that ultimately depend
+        # on proc_macro2, but there doesn't seem to be any downside to just set
+        # it everywhere, so for simplicity we do just that.
+        module.host_cross_supported = False
+
+
+def _configure_common_properties(module, target, context):
+    if not module.type == "rust_proc_macro":
+        # rust_proc_macro modules does not support the fields of `host_supported`
+        # or `device_supported`. In a different world, we would have classes for
+        # each different module that specifies what it can support to avoid
+        # those kind of conditions.
+        #
+        # See go/android.bp for additional information.
+        module.host_supported = target.host_supported()
+        module.device_supported = target.device_supported()
+
+    module.gn_type = target.type
+    module.build_file_path = target.build_file_path
+    # Chromium does not use visibility at all, in order to avoid visibility issues
+    # in AOSP. Make every module visible to any module in external/cronet.
+    module.visibility.add("//external/cronet:__subpackages__")
+
+    if module.is_genrule():
+        module.apex_available.add(common.tethering_apex)
+
+    if (module.is_compiled() and not module.type.startswith("java")
+            and not module.type.startswith("rust")):
+        # Don't try to inject library/source dependencies into genrules or
+        # filegroups because they are not compiled in the traditional sense.
+        module.defaults.add(context.cc_defaults_module)
+
+
+def _resolve_dependencies(blueprint, gn, module, target, is_test_target,
+                          context):
+    # dep_name is an unmangled GN target name (e.g. //foo:bar(toolchain)).
+    all_deps = [(dep_name, 'common') for dep_name in target.proto_deps]
+    all_deps += [(dep_name, 'common') for dep_name in target.common.deps]
+    for arch_name, arch in target.arch.items():
+        all_deps += [(dep_name, arch_name) for dep_name in arch.deps]
+
+    # Sort deps before iteration to make result deterministic.
+    for (dep_name, arch_name) in sorted(all_deps):
+        module_target = module.target[
+            arch_name] if arch_name != 'common' else module
+        # |translation_config.builtin_deps| override GN deps with Android-specific ones. See the
+        # config in the top of this file.
+        if dep_name in translation_config.builtin_deps:
+            translation_config.builtin_deps[dep_name](
+                module.java_unfiltered_module
+                if module.is_java_top_level_module() else module, arch_name,
+                context)
+            continue
+
+        for dep_module in create_modules_from_target(blueprint, gn, dep_name,
+                                                     target.type,
+                                                     is_test_target, context):
+            if dep_name in translation_config.replace_deps:
+                translation_config.replace_deps[dep_name](
+                    module.java_unfiltered_module
+                    if module.is_java_top_level_module() else module,
+                    arch_name, context)
+                continue
+
+            if dep_module is None:
+                continue
+
+            # TODO: Proper dependency check for genrule.
+            # Currently, only propagating genrule dependencies.
+            # Also, currently, all the dependencies are propagated upwards.
+            # in gn, public_deps should be propagated but deps should not.
+            # Not sure this information is available in the desc.json.
+            # Following rule works for adding android_runtime_jni_headers to base:base.
+            # If this doesn't work for other target, hardcoding for specific target
+            # might be better.
+            if module.is_genrule() and dep_module.is_genrule():
+                if module_target.gn_type != "proto_library":
+                    # proto_library are treated differently because each proto action
+                    # is split into two different targets, a cpp target and a header target.
+                    # the cpp target is used as the entry point to the proto action, hence
+                    # it should not be propagated as a genrule header because it generates
+                    # cpp files only.
+                    module_target.genrule_headers.add(dep_module.name)
+                module_target.genrule_headers.update(
+                    dep_module.genrule_headers)
+
+            # For filegroups, and genrule, recurse but don't apply the
+            # deps.
+            if not module.is_compiled() or module.is_genrule():
+                continue
+
+            # Drop compiled modules that doesn't provide any benefit. This is mostly
+            # applicable to source_sets when converted to cc_static_library, sometimes
+            # the source set only has header files which are dropped so the module becomes empty.
+            # is_compiled is there to prevent dropping of genrules.
+            if dep_module.is_compiled() and not dep_module.has_input_files():
+                continue
+
+            module_is_cc = module.type in [
+                'cc_library_shared', 'cc_binary', 'cc_library_static'
+            ]
+
+            if dep_module.type == 'cc_library_shared':
+                module_target.shared_libs.add(dep_module.name)
+            elif dep_module.type == 'cc_library_static' or (
+                    dep_module.type == "rust_ffi_static" and module_is_cc):
+                if module.type in [
+                        'cc_library_shared', 'cc_binary', 'rust_binary',
+                        'cc_library_static'
+                ]:
+                    if module.type != 'cc_library_static':
+                        module_target.whole_static_libs.add(dep_module.name)
+                    else:
+                        if hasattr(dep_module, 'generated_headers'):
+                            module_target.generated_headers.update(
+                                dep_module.generated_headers)
+                    module_target.shared_libs.update(
+                        getattr(dep_module, 'shared_libs', set()))
+                    module_target.header_libs.update(
+                        getattr(dep_module, 'header_libs', set()))
+                elif module.type in ('rust_ffi_static', 'rust_bindgen'):
+                    module_target.shared_libs.update(dep_module.shared_libs)
+                    # Add the cc_library_static as a static_lib to ensure that
+                    # they propagate their exported headers correctly.
+                    module_target.static_libs.add(dep_module.name)
+                elif module.type == 'rust_proc_macro' and dep_module.type == 'cc_library_static':
+                    # rust_proc_macro cannot depend on cc_library_static. Having said
+                    # that, we still need these dependencies to further bubble them up
+                    # to rust_proc_macro targets dependencies, so simply ignore them.
+                    # See https:/crbug.com/417429009.
+                    pass
+                else:
+                    raise Exception(
+                        f"Cannot add {dep_module.name} ({dep_module.type}) to {module.name} ({module.type})"
+                    )
+            elif dep_module.type == "rust_bindgen":
+                if module.type.startswith("rust"):
+                    # Soong does not support using `rust_bindgen` modules directly as an input because
+                    # it produces more than a single output (b/467420029). Create an intermediate
+                    # genrule that copies that rust file and use it instead.
+                    intermediate_target = _create_extract_rust_files_target(
+                        dep_module, blueprint, context).name
+                    module.srcs.add(":" + intermediate_target)
+                    if module.crate_root and module.crate_root.startswith(
+                            "out/"):
+                        # Sometimes the crate_root is an output of another module which is indicated
+                        # by a path starting with "out/". The only case where this happens at the moment
+                        # is when a rust_library is created for the rust_bindgen output.
+                        module.crate_root = f":{intermediate_target}"
+                else:
+                    module.srcs.add(":" + dep_module.name)
+                if module_target.type == "cc_library_static":
+                    # This is a bindgen _static_fns GN target. We need to translate that
+                    # to the Soong rust_bindgen "static inline library" concept.
+
+                    # AOSP Rust team wants every bindgen static inline library module to
+                    # have a "lib" prefix. Due to the way Chromium //build/rust bindgen
+                    # generator rules work, we know the _static_fns target is only
+                    # referenced by its corresponding bindgen target and nothing else;
+                    # therefore, we can safely assume we are only going to enter this
+                    # path once, so there is no need to protect against the prefix being
+                    # added multiple times - nor is there a need to go back and fix
+                    # previous references.
+                    module.name = "lib" + module.name
+                    # rust_bindgen generates a .c / .cc file which has include
+                    # defined from the root of the android tree.
+                    module_target.include_dirs.append(".")
+                    # The rust_bindgen has to know the name of the cc library which is going to
+                    # consume it. We don't know that until we add the `rust_bindgen` as a dep.
+                    dep_module.static_inline_library = module.name
+            elif dep_module.type == "rust_ffi_static":
+                if module.type in [
+                        "rust_binary", "rust_proc_macro", "rust_ffi_static"
+                ]:
+                    module_target.rustlibs.add(dep_module.name)
+            elif dep_module.type == "rust_proc_macro":
+                module_target.proc_macros.add(dep_module.name)
+            elif dep_module.type == "aidl_interface":
+                # See https://cs.android.com/android/platform/superproject/main/+/main:system/tools/aidl/build/aidl_interface_backends.go
+                # for how those modules "-lang-source" is generated.
+                if module.type.startswith("cc_"):
+                    module.srcs.add(f":{dep_module.name}-ndk-source")
+                    module.generated_headers.add(
+                        f"{dep_module.name}-ndk-source")
+                    module.export_generated_headers.add(
+                        f"{dep_module.name}-ndk-source")
+                elif module.type.startswith("java_"):
+                    module.srcs.add(f":{dep_module.name}-java-source")
+                elif module.type.startswith("rust_"):
+                    module.srcs.add(f":{dep_module.name}-rust-source")
+            elif dep_module.type == 'cc_genrule':
+                if dep_module.genrule_headers:
+                    if module.type == "rust_ffi_static":
+                        # Don't bubble up generated_headers on Rust modules, as that doesn't make sense
+                        # (Rust cannot use C++ headers directly) and is not supported anyway. See also
+                        # https://crbug.com/405987939.
+                        # TODO: https://crbug.com/406267472 - how we end up in this situation in the
+                        # first place is not entirely clear. We may have to revisit how generated
+                        # headers interact with cxx/bindgen targets.
+                        pass
+                    elif module.type == "rust_bindgen":
+                        # rust_bindgen modules don't support the `generated_headers` attribute;
+                        # see http://crbug.com/394615281. We work around this limitation by
+                        # inserting a module whose sole purpose is to export the generated
+                        # headers, and then depending on that. See also
+                        # http://crbug.com/394069879.
+                        module_target.header_libs.add(
+                            create_generated_headers_export_module(
+                                blueprint, dep_module, context).name)
+                    else:
+                        module_target.generated_headers.update(
+                            dep_module.genrule_headers)
+                module_target.srcs.update(dep_module.genrule_srcs)
+                module_target.shared_libs.update(
+                    dep_module.genrule_shared_libs)
+                module_target.header_libs.update(
+                    dep_module.genrule_header_libs)
+            elif dep_module.is_java_top_level_module():
+                # A module depending on a module with system_current sdk version should also compile against
+                # the system sdk. This is because a module's SDK API surface should be >= its deps SDK API surface.
+                # And system_current has a larger API surface than current or module_current.
+                if dep_module.sdk_version == 'system_current':
+                    module_target.sdk_version = module_target.java_unfiltered_module.sdk_version = 'system_current'
+
+                module_target.static_libs.add(dep_module.name)
+
+                # `create_java_module()` implements Chromium's Java jar filtering
+                # feature. Here we deal with another subtlety around that feature,
+                # which is how jar filtering affects the inputs of the various build
+                # steps.
+                #
+                # When Chromium runs javac, it runs it against the raw output of
+                # javac from the dependencies. In other words, the javac classpath is
+                # made of *unfiltered* jars. However, it is the *filtered* jars that
+                # eventually get shipped in the final build outputs. javac running
+                # against unfiltered jars is important - some targets rely on this
+                # (e.g. //base:log_java pulling BuildConfig from
+                # //build/android:build_java), so we need to preserve this behavior.
+                #
+                # Reproducing this in Soong is somewhat of a headache. The difficulty
+                # is, in Soong `static_libs` dependencies on `java_library` modules
+                # automatically bubble up the dependency tree. If we just list
+                # `__unfiltered` modules in `static_libs`, the unfiltered jars will
+                # propagate all the way to the final build outputs, which is not what
+                # we want.
+                #
+                # To solve this problem, we generate two dependency trees: a filtered
+                # tree that links top-level Java modules together, and an unfiltered
+                # tree that links unfiltered Java modules together. When one depends
+                # on the top-level modules one gets the filtered jars; when one
+                # depends on the unfiltered module one gets the unfiltered jars. (This
+                # is the reason why we have to have a separate top-level module and
+                # can't just merge it with the filtered module: the dependency tree of
+                # filtered modules indirectly includes unfiltered jars, which we don't
+                # want to pull in top-level modules.)
+                #
+                # A keen eye will notice we still have a problem, because the
+                # unfiltered dependencies of unfiltered modules will bubble up through
+                # filtered modules and then to top-level targets. This would result in
+                # top-level targets producing unfiltered jars, which is not what we
+                # want.
+                #
+                # To solve this problem, we don't use `static_libs` on unfiltered
+                # modules. Instead, we use `libs`. Indeed, Soong does *not* bubble up
+                # `libs` dependencies, thus preventing unfiltered jars from bubbling
+                # up and appearing in final build outputs.
+                #
+                # TODO: as if this wasn't complicated enough, in GN a `java_library`
+                # can use a flag, `prevent_excluded_classes_from_classpath`, that
+                # flips the above behavior and makes dependent compile targets pull
+                # the *filtered* jars in the javac classpath instead of the unfiltered
+                # ones. This flag is notably used in `generate_jni()` autogenerated
+                # java_library targets to prevent the jni_zero placeholder classes
+                # from bubbling up and potentially conflicting with their real
+                # counterparts up the build tree. We currently do not support this
+                # flag, i.e. we behave as if it is false. Surprisingly the resulting
+                # build rules work anyway - presumably by sheer luck (classpath
+                # ordering maybe?). In the future we may have to support it. This
+                # should be easy - just depend on the filtered target instead of the
+                # unfiltered target when the flag is true on the dependency.
+                #
+                # For even more more background, see https://crbug.com/397396295.
+                module_target.add_java_dependency(dep_module)
+            elif dep_module.type in ['genrule', 'java_genrule']:
+                if dep_module.jni_zero_target_type == soong_ast.JniZeroTargetType.GENERATOR:
+                    # TODO: we are special-casing jni_zero here. Ideally this should be
+                    # handled more generically, by making gn2bp understand the general
+                    # concept of a target depending on only a subset of the outputs of
+                    # an action.
+                    _, placeholder_path = get_jni_zero_generator_proxy_and_placeholder_paths(
+                        dep_module)
+                    if placeholder_path in target.common.inputs:
+                        # The target depends on both jni_zero generator outputs (proxy and
+                        # placeholder). We can simply pull both of them at the same time
+                        # by depending on the jni_zero generator module directly. In
+                        # practice this branch is taken when a standalone jni_zero library
+                        # is being built separately from the JNI user code, such as the
+                        # java_library generated by jni_zero's generate_jni() GN rule. One
+                        # example is //base:command_line_jni_java.
+                        module_target.srcs.add(":" + dep_module.name)
+                    else:
+                        # The target only depends on the generated proxy classes but not
+                        # the placeholder classes. Typically this happens when the
+                        # proxy classes are being compiled alongside the JNI user code: in
+                        # this case there is no need for the placeholder classes since the
+                        # user code provides all the necessary definitions. One example is
+                        # //components/cronet/android:cronet_impl_native_java. In this
+                        # situation it is imperative that we do *not* pull the
+                        # placeholder classes, as they would conflict with user code. See
+                        # https://crbug.com/397396295 for more background.
+                        proxy_only_module = create_jni_zero_proxy_only_module(
+                            dep_module, context)
+                        blueprint.add_module(proxy_only_module)
+                        module_target.srcs.add(f":{proxy_only_module.name}")
+                else:
+                    module_target.srcs.add(":" + dep_module.name)
+            else:
+                raise Exception(
+                    'Unsupported arch-specific dependency %s of target %s with type %s'
+                    % (dep_module.name, target.name, dep_module.type))
 
 
 def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
@@ -1341,85 +1917,14 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
         module = _create_rust_build_script_output_copy_genrule(
             bp_module_name,
             f"{target.rust_source_dir}/gn2bp_rust_build_script_outputs/arm64",
-            generated_files, context)
+            generated_files, is_test_target, context)
         blueprint.add_module(module)
         return (module, )
 
-    if target.type == 'executable':
-        if target.testonly:
-            module_type = 'cc_test'
-        else:
-            # Can be used for both host and device targets.
-            module_type = 'cc_binary'
-        modules = (soong_ast.Module(module_type, bp_module_name,
-                                    gn_target_name, context), )
-    elif target.type == 'rust_executable':
-        modules = (soong_ast.Module("rust_binary", bp_module_name,
-                                    gn_target_name, context), )
-    elif target.type == "rust_library":
-        # Here we have to choose between rust_library_rlib and rust_ffi_static.
-        #
-        # Ideally we should pick rust_library_rlib if there are rust_library
-        # dependents, or rust_ffi_static if there are cc_library dependents.
-        # This is a bit tricky, however, because it's theoretically possible for
-        # *both* Rust and C++ code to directly depend on the library.
-        #
-        # In practice, there is currently no real difference between
-        # rust_library_rlib and rust_ffi_static as far as the actual build process
-        # is concerned - they are practically interchangeable. So, to keep things
-        # simple, we just arbitrarily pick one - here rust_ffi_static on
-        # suggestion of AOSP Rust people. See http://b/383552450.
-        #
-        # This decision may need to be revisited if the AOSP build system starts
-        # treating rust_library_rlib and rust_ffi_static differently.
-        modules = (soong_ast.Module("rust_ffi_static", bp_module_name,
-                                    gn_target_name, context), )
-    elif target.type == "rust_proc_macro":
-        modules = (soong_ast.Module("rust_proc_macro", bp_module_name,
-                                    gn_target_name, context), )
-    elif target.type in ['static_library', 'source_set']:
-        modules = (soong_ast.Module('cc_library_static', bp_module_name,
-                                    gn_target_name, context), )
-    elif target.type == 'shared_library':
-        modules = (soong_ast.Module('cc_library_shared', bp_module_name,
-                                    gn_target_name, context), )
-    elif target.type == 'proto_library':
-        modules = create_proto_modules(blueprint, gn, target, is_test_target,
-                                       context)
-        if modules is None:
-            return ()
-    elif target.type == "rust_bindgen":
-        modules = (create_bindgen_module(blueprint, target, bp_module_name,
-                                         context), )
-    elif target.type == 'action':
-        module = create_action_module(
-            blueprint, gn, target, 'java_genrule' if parent_gn_type
-            == "java_library" else 'cc_genrule', is_test_target, context)
-        module.jni_zero_target_type = soong_ast.get_jni_zero_target_type(
-            target)
-        modules = (module, )
-    elif target.type == 'action_foreach':
-        if target.script == "//third_party/rust/cxx/chromium_integration/run_cxxbridge.py":
-            modules = create_rust_cxx_modules(blueprint, gn, target,
-                                              is_test_target, context)
-        else:
-            modules = create_action_foreach_modules(blueprint, gn, target,
-                                                    is_test_target, context)
-    elif target.type == 'copy':
-        # Copy targets are not supported: currently, we stop traversing the
-        # dependency tree when we encounter one.
+    modules = _create_initial_modules(blueprint, gn, target, bp_module_name,
+                                      parent_gn_type, is_test_target, context)
+    if not modules:
         return ()
-    elif target.type == 'java_library':
-        modules = (create_java_module(bp_module_name, target, blueprint,
-                                      context), )
-    elif target.type == 'aidl_interface':
-        modules = create_aidl_module(bp_module_name, target, blueprint,
-                                     context)
-    else:
-        # Note we don't have to handle `group` targets because parse_gn_desc() never
-        # returns any; it just recurses through them and bubbles their dependencies
-        # upwards.
-        raise Exception('Unknown target %s (%s)' % (target.name, target.type))
 
     for module in modules:
         blueprint.add_module(module)
@@ -1436,407 +1941,16 @@ def create_modules_from_target(blueprint, gn, gn_target_name, parent_gn_type,
                 gn_utils.label_to_path(src) for src in arch.sources
                 if common.is_supported_source_file(src))
 
-        module.rtti = target.rtti
-
-        if target.type in gn_utils.LINKER_UNIT_TYPES:
-            configure_cc_module(module, target.common.cflags,
-                                target.common.defines, target.common.ldflags,
-                                target.common.libs, module, blueprint, context)
-            set_module_include_dirs(module, target.common.cflags,
-                                    target.common.include_dirs, context)
-            # TODO: set_module_xxx is confusing, apply similar function to module and target in better way.
-            for arch_name, arch in target.get_archs().items():
-                # TODO(aymanm): Make libs arch-specific.
-                configure_cc_module(module.target[arch_name], arch.cflags,
-                                    arch.defines, arch.ldflags, arch.libs,
-                                    module, blueprint, context)
-                # -Xclang -target-feature -Xclang +mte are used to enable MTE (Memory Tagging Extensions).
-                # Flags which does not start with '-' could not be in the cflags so enabling MTE by
-                # -march and -mcpu Feature Modifiers. MTE is only available on arm64. This is needed for
-                # building //base/allocator/partition_allocator:partition_alloc for arm64.
-                if '+mte' in arch.cflags and arch_name == 'android_arm64':
-                    module.target[arch_name].cflags.add(
-                        '-march=armv8-a+memtag')
-                set_module_include_dirs(module.target[arch_name], arch.cflags,
-                                        arch.include_dirs, context)
-
-        if not module.type == "rust_proc_macro":
-            # rust_proc_macro modules does not support the fields of `host_supported`
-            # or `device_supported`. In a different world, we would have classes for
-            # each different module that specifies what it can support to avoid
-            # those kind of conditions.
-            #
-            # See go/android.bp for additional information.
-            module.host_supported = target.host_supported()
-            module.device_supported = target.device_supported()
-
-        module.gn_type = target.type
-        module.build_file_path = target.build_file_path
-        # Chromium does not use visibility at all, in order to avoid visibility issues
-        # in AOSP. Make every module visible to any module in external/cronet.
-        module.visibility.add("//external/cronet:__subpackages__")
-
-        if module.type in [
-                "rust_proc_macro", "rust_binary", "rust_ffi_static"
-        ]:
-            module.crate_name = target.crate_name
-            module.crate_root = gn_utils.label_to_path(target.crate_root)
-            if target.common.inputs:
-                module.srcs.update(
-                    gn_utils.label_to_path(inp)
-                    for inp in target.common.inputs)
-            if target.rust_package_version:
-                module.cargo_env_compat = True
-                module.cargo_pkg_version = target.rust_package_version
-            module.min_sdk_version = cronet_utils.MIN_SDK_VERSION_FOR_AOSP
-            module.apex_available.add(common.tethering_apex)
-            for arch_name, arch in target.get_archs().items():
-                _set_rust_flags(module.target[arch_name], arch.rust_flags,
-                                arch_name)
-
-        if module.type in ("rust_proc_macro", "rust_binary", "rust_ffi_static",
-                           "rust_bindgen"):
-            # We may end up (in)directly depending on cc modules, e.g. through the
-            # rust bindgen "generated headers" library we may generate. Our cc modules
-            # set this. We need to be consistent, otherwise Soong will complain about
-            # the incompatible dependency.
-            module.target['host'].compile_multilib = '64'
-
-        if module.type in ("rust_bindgen", "rust_ffi_static", "cc_genrule",
-                           "cc_library_static", "cc_binary", "rust_binary"):
-            # If we don't add this, then some types of AOSP builds fail due to an
-            # issue with proc_macro2 - see https://crbug.com/392704960.
-            # Note: technically we only need this on modules that ultimately depend
-            # on proc_macro2, but there doesn't seem to be any downside to just set
-            # it everywhere, so for simplicity we do just that.
-            module.host_cross_supported = False
-
-        if module.is_genrule():
-            module.apex_available.add(common.tethering_apex)
-
-        if (module.is_compiled() and not module.type.startswith("java")
-                and not module.type.startswith("rust")):
-            # Don't try to inject library/source dependencies into genrules or
-            # filegroups because they are not compiled in the traditional sense.
-            module.defaults.add(context.cc_defaults_module)
-
-        if module.type == 'cc_library_static':
-            module.export_generated_headers = module.generated_headers
-
-        if module.type == 'cc_library_shared':
-            output_name = target.output_name
-            if output_name is None:
-                module.stem = 'lib' + target.get_target_name().removesuffix(
-                    gn_utils.TESTING_SUFFIX)
-            else:
-                module.stem = 'lib' + output_name
-
-        # dep_name is an unmangled GN target name (e.g. //foo:bar(toolchain)).
-        all_deps = [(dep_name, 'common') for dep_name in target.proto_deps]
-        all_deps += [(dep_name, 'common') for dep_name in target.common.deps]
-        for arch_name, arch in target.arch.items():
-            all_deps += [(dep_name, arch_name) for dep_name in arch.deps]
+        _configure_cc_properties(module, target, blueprint, context)
+        _configure_rust_properties(module, target)
+        _configure_common_properties(module, target, context)
 
         if gn_target_name in translation_config.replace_deps:
             # Do not recurse into translation_config.replace_deps target's dependencies.
             return (module, )
 
-        # Sort deps before iteration to make result deterministic.
-        for (dep_name, arch_name) in sorted(all_deps):
-            module_target = module.target[
-                arch_name] if arch_name != 'common' else module
-            # |translation_config.builtin_deps| override GN deps with Android-specific ones. See the
-            # config in the top of this file.
-            if dep_name in translation_config.builtin_deps:
-                translation_config.builtin_deps[dep_name](
-                    module.java_unfiltered_module
-                    if module.is_java_top_level_module() else module,
-                    arch_name, context)
-                continue
-
-            for dep_module in create_modules_from_target(
-                    blueprint, gn, dep_name, target.type, is_test_target,
-                    context):
-                if dep_name in translation_config.replace_deps:
-                    translation_config.replace_deps[dep_name](
-                        module.java_unfiltered_module
-                        if module.is_java_top_level_module() else module,
-                        arch_name, context)
-                    continue
-
-                if dep_module is None:
-                    continue
-
-                # TODO: Proper dependency check for genrule.
-                # Currently, only propagating genrule dependencies.
-                # Also, currently, all the dependencies are propagated upwards.
-                # in gn, public_deps should be propagated but deps should not.
-                # Not sure this information is available in the desc.json.
-                # Following rule works for adding android_runtime_jni_headers to base:base.
-                # If this doesn't work for other target, hardcoding for specific target
-                # might be better.
-                if module.is_genrule() and dep_module.is_genrule():
-                    if module_target.gn_type != "proto_library":
-                        # proto_library are treated differently because each proto action
-                        # is split into two different targets, a cpp target and a header target.
-                        # the cpp target is used as the entry point to the proto action, hence
-                        # it should not be propagated as a genrule header because it generates
-                        # cpp files only.
-                        module_target.genrule_headers.add(dep_module.name)
-                    module_target.genrule_headers.update(
-                        dep_module.genrule_headers)
-
-                # For filegroups, and genrule, recurse but don't apply the
-                # deps.
-                if not module.is_compiled() or module.is_genrule():
-                    continue
-
-                # Drop compiled modules that doesn't provide any benefit. This is mostly
-                # applicable to source_sets when converted to cc_static_library, sometimes
-                # the source set only has header files which are dropped so the module becomes empty.
-                # is_compiled is there to prevent dropping of genrules.
-                if dep_module.is_compiled(
-                ) and not dep_module.has_input_files():
-                    continue
-
-                module_is_cc = module.type in [
-                    'cc_library_shared', 'cc_binary', 'cc_library_static'
-                ]
-
-                if dep_module.type == 'cc_library_shared':
-                    module_target.shared_libs.add(dep_module.name)
-                elif dep_module.type == 'cc_library_static' or (
-                        dep_module.type == "rust_ffi_static" and module_is_cc):
-                    if module.type in [
-                            'cc_library_shared', 'cc_binary', 'rust_binary',
-                            'cc_library_static'
-                    ]:
-                        if module.type != 'cc_library_static':
-                            module_target.whole_static_libs.add(
-                                dep_module.name)
-                        else:
-                            module_target.generated_headers.update(
-                                dep_module.generated_headers)
-                        module_target.shared_libs.update(
-                            dep_module.shared_libs)
-                        module_target.header_libs.update(
-                            dep_module.header_libs)
-                    elif module.type in ('rust_ffi_static', 'rust_bindgen'):
-                        module_target.shared_libs.update(
-                            dep_module.shared_libs)
-                        # Add the cc_library_static as a static_lib to ensure that
-                        # they propagate their exported headers correctly.
-                        module_target.static_libs.add(dep_module.name)
-                    elif module.type == 'rust_proc_macro' and dep_module.type == 'cc_library_static':
-                        # rust_proc_macro cannot depend on cc_library_static. Having said
-                        # that, we still need these dependencies to further bubble them up
-                        # to rust_proc_macro targets dependencies, so simply ignore them.
-                        # See https:/crbug.com/417429009.
-                        pass
-                    else:
-                        raise Exception(
-                            f"Cannot add {dep_module.name} ({dep_module.type}) to {module.name} ({module.type})"
-                        )
-                elif dep_module.type == "rust_bindgen":
-                    if module.type.startswith("rust"):
-                        # Soong does not support using `rust_bindgen` modules directly as an input because
-                        # it produces more than a single output (b/467420029). Create an intermediate
-                        # genrule that copies that rust file and use it instead.
-                        intermediate_target = _create_extract_rust_files_target(
-                            dep_module, blueprint, context).name
-                        module.srcs.add(":" + intermediate_target)
-                        if module.crate_root and module.crate_root.startswith(
-                                "out/"):
-                            # Sometimes the crate_root is an output of another module which is indicated
-                            # by a path starting with "out/". The only case where this happens at the moment
-                            # is when a rust_library is created for the rust_bindgen output.
-                            module.crate_root = f":{intermediate_target}"
-                    else:
-                        module.srcs.add(":" + dep_module.name)
-                    if module_target.type == "cc_library_static":
-                        # This is a bindgen _static_fns GN target. We need to translate that
-                        # to the Soong rust_bindgen "static inline library" concept.
-
-                        # AOSP Rust team wants every bindgen static inline library module to
-                        # have a "lib" prefix. Due to the way Chromium //build/rust bindgen
-                        # generator rules work, we know the _static_fns target is only
-                        # referenced by its corresponding bindgen target and nothing else;
-                        # therefore, we can safely assume we are only going to enter this
-                        # path once, so there is no need to protect against the prefix being
-                        # added multiple times - nor is there a need to go back and fix
-                        # previous references.
-                        module.name = "lib" + module.name
-                        # rust_bindgen generates a .c / .cc file which has include
-                        # defined from the root of the android tree.
-                        module_target.include_dirs.append(".")
-                        # The rust_bindgen has to know the name of the cc library which is going to
-                        # consume it. We don't know that until we add the `rust_bindgen` as a dep.
-                        dep_module.static_inline_library = module.name
-                elif dep_module.type == "rust_ffi_static":
-                    if module.type in [
-                            "rust_binary", "rust_proc_macro", "rust_ffi_static"
-                    ]:
-                        module_target.rustlibs.add(dep_module.name)
-                elif dep_module.type == "rust_proc_macro":
-                    module_target.proc_macros.add(dep_module.name)
-                elif dep_module.type == "aidl_interface":
-                    # See https://cs.android.com/android/platform/superproject/main/+/main:system/tools/aidl/build/aidl_interface_backends.go
-                    # for how those modules "-lang-source" is generated.
-                    if module.type.startswith("cc_"):
-                        module.srcs.add(f":{dep_module.name}-ndk-source")
-                        module.generated_headers.add(
-                            f"{dep_module.name}-ndk-source")
-                        module.export_generated_headers.add(
-                            f"{dep_module.name}-ndk-source")
-                    elif module.type.startswith("java_"):
-                        module.srcs.add(f":{dep_module.name}-java-source")
-                    elif module.type.startswith("rust_"):
-                        module.srcs.add(f":{dep_module.name}-rust-source")
-                elif dep_module.type == 'cc_genrule':
-                    if dep_module.genrule_headers:
-                        if module.type == "rust_ffi_static":
-                            # Don't bubble up generated_headers on Rust modules, as that doesn't make sense
-                            # (Rust cannot use C++ headers directly) and is not supported anyway. See also
-                            # https://crbug.com/405987939.
-                            # TODO: https://crbug.com/406267472 - how we end up in this situation in the
-                            # first place is not entirely clear. We may have to revisit how generated
-                            # headers interact with cxx/bindgen targets.
-                            pass
-                        elif module.type == "rust_bindgen":
-                            # rust_bindgen modules don't support the `generated_headers` attribute;
-                            # see http://crbug.com/394615281. We work around this limitation by
-                            # inserting a module whose sole purpose is to export the generated
-                            # headers, and then depending on that. See also
-                            # http://crbug.com/394069879.
-                            module_target.header_libs.add(
-                                create_generated_headers_export_module(
-                                    blueprint, dep_module, context).name)
-                        else:
-                            module_target.generated_headers.update(
-                                dep_module.genrule_headers)
-                    module_target.srcs.update(dep_module.genrule_srcs)
-                    module_target.shared_libs.update(
-                        dep_module.genrule_shared_libs)
-                    module_target.header_libs.update(
-                        dep_module.genrule_header_libs)
-                elif dep_module.is_java_top_level_module():
-                    # A module depending on a module with system_current sdk version should also compile against
-                    # the system sdk. This is because a module's SDK API surface should be >= its deps SDK API surface.
-                    # And system_current has a larger API surface than current or module_current.
-                    if dep_module.sdk_version == 'system_current':
-                        module_target.sdk_version = module_target.java_unfiltered_module.sdk_version = 'system_current'
-
-                    module_target.static_libs.add(dep_module.name)
-
-                    # `create_java_module()` implements Chromium's Java jar filtering
-                    # feature. Here we deal with another subtlety around that feature,
-                    # which is how jar filtering affects the inputs of the various build
-                    # steps.
-                    #
-                    # When Chromium runs javac, it runs it against the raw output of
-                    # javac from the dependencies. In other words, the javac classpath is
-                    # made of *unfiltered* jars. However, it is the *filtered* jars that
-                    # eventually get shipped in the final build outputs. javac running
-                    # against unfiltered jars is important - some targets rely on this
-                    # (e.g. //base:log_java pulling BuildConfig from
-                    # //build/android:build_java), so we need to preserve this behavior.
-                    #
-                    # Reproducing this in Soong is somewhat of a headache. The difficulty
-                    # is, in Soong `static_libs` dependencies on `java_library` modules
-                    # automatically bubble up the dependency tree. If we just list
-                    # `__unfiltered` modules in `static_libs`, the unfiltered jars will
-                    # propagate all the way to the final build outputs, which is not what
-                    # we want.
-                    #
-                    # To solve this problem, we generate two dependency trees: a filtered
-                    # tree that links top-level Java modules together, and an unfiltered
-                    # tree that links unfiltered Java modules together. When one depends
-                    # on the top-level modules one gets the filtered jars; when one
-                    # depends on the unfiltered module one gets the unfiltered jars. (This
-                    # is the reason why we have to have a separate top-level module and
-                    # can't just merge it with the filtered module: the dependency tree of
-                    # filtered modules indirectly includes unfiltered jars, which we don't
-                    # want to pull in top-level modules.)
-                    #
-                    # A keen eye will notice we still have a problem, because the
-                    # unfiltered dependencies of unfiltered modules will bubble up through
-                    # filtered modules and then to top-level targets. This would result in
-                    # top-level targets producing unfiltered jars, which is not what we
-                    # want.
-                    #
-                    # To solve this problem, we don't use `static_libs` on unfiltered
-                    # modules. Instead, we use `libs`. Indeed, Soong does *not* bubble up
-                    # `libs` dependencies, thus preventing unfiltered jars from bubbling
-                    # up and appearing in final build outputs.
-                    #
-                    # TODO: as if this wasn't complicated enough, in GN a `java_library`
-                    # can use a flag, `prevent_excluded_classes_from_classpath`, that
-                    # flips the above behavior and makes dependent compile targets pull
-                    # the *filtered* jars in the javac classpath instead of the unfiltered
-                    # ones. This flag is notably used in `generate_jni()` autogenerated
-                    # java_library targets to prevent the jni_zero placeholder classes
-                    # from bubbling up and potentially conflicting with their real
-                    # counterparts up the build tree. We currently do not support this
-                    # flag, i.e. we behave as if it is false. Surprisingly the resulting
-                    # build rules work anyway - presumably by sheer luck (classpath
-                    # ordering maybe?). In the future we may have to support it. This
-                    # should be easy - just depend on the filtered target instead of the
-                    # unfiltered target when the flag is true on the dependency.
-                    #
-                    # For even more more background, see https://crbug.com/397396295.
-                    module_target.java_unfiltered_module.libs.add(
-                        dep_module.java_unfiltered_module.name)
-                    # As mentioned above, `libs` does not bubble up, so we have to
-                    # recurse and collect all the transitive dependencies ourselves. This
-                    # is not necessary when using `static_libs` as Soong does that for us
-                    # at build time.
-                    #
-                    # (You may wonder: "wait, doesn't Chromium already enforce that a Java
-                    # target list all the classes it refers to in its direct dependencies?
-                    # Why do we need to pull indirect dependencies then?" Well the problem
-                    # is javac needs to see some of the indirect dependencies in some
-                    # cases - see https://crbug.com/400952169#comment4 - which means the
-                    # direct dependencies may not be enough.)
-                    module_target.java_unfiltered_module.libs.update(
-                        dep_module.java_unfiltered_module.libs)
-                elif dep_module.type in ['genrule', 'java_genrule']:
-                    if dep_module.jni_zero_target_type == soong_ast.JniZeroTargetType.GENERATOR:
-                        # TODO: we are special-casing jni_zero here. Ideally this should be
-                        # handled more generically, by making gn2bp understand the general
-                        # concept of a target depending on only a subset of the outputs of
-                        # an action.
-                        _, placeholder_path = get_jni_zero_generator_proxy_and_placeholder_paths(
-                            dep_module)
-                        if placeholder_path in target.common.inputs:
-                            # The target depends on both jni_zero generator outputs (proxy and
-                            # placeholder). We can simply pull both of them at the same time
-                            # by depending on the jni_zero generator module directly. In
-                            # practice this branch is taken when a standalone jni_zero library
-                            # is being built separately from the JNI user code, such as the
-                            # java_library generated by jni_zero's generate_jni() GN rule. One
-                            # example is //base:command_line_jni_java.
-                            module_target.srcs.add(":" + dep_module.name)
-                        else:
-                            # The target only depends on the generated proxy classes but not
-                            # the placeholder classes. Typically this happens when the
-                            # proxy classes are being compiled alongside the JNI user code: in
-                            # this case there is no need for the placeholder classes since the
-                            # user code provides all the necessary definitions. One example is
-                            # //components/cronet/android:cronet_impl_native_java. In this
-                            # situation it is imperative that we do *not* pull the
-                            # placeholder classes, as they would conflict with user code. See
-                            # https://crbug.com/397396295 for more background.
-                            proxy_only_module = create_jni_zero_proxy_only_module(
-                                dep_module, context)
-                            blueprint.add_module(proxy_only_module)
-                            module_target.srcs.add(
-                                f":{proxy_only_module.name}")
-                    else:
-                        module_target.srcs.add(":" + dep_module.name)
-                else:
-                    raise Exception(
-                        'Unsupported arch-specific dependency %s of target %s with type %s'
-                        % (dep_module.name, target.name, dep_module.type))
+        _resolve_dependencies(blueprint, gn, module, target, is_test_target,
+                              context)
 
         if module.is_java_top_level_module():
             # The Java top-level module is not the one doing the actual compiling; the

@@ -10,8 +10,59 @@
 //     basic-interface.test-mojom
 //
 
-private enum MojoStrings {
-    static let mojoPrefix = "golden."
+private static let mojoPrefix = "golden."
+
+///
+/// Interfaces
+///
+extension ILType {
+    // Primary
+    fileprivate static let jsPrimary: ILType = .object(
+        ofGroup: "golden.Primary",
+        withProperties: ["$interfaceName"])
+    fileprivate static let jsPrimaryRemote: ILType = .object(
+        ofGroup: "golden.PrimaryRemote",
+        withProperties: ["$"],
+        withMethods: [
+            "method",
+            "methodWithoutResponse",
+        ])
+    fileprivate static let jsPrimaryRemoteWrapper: ILType = .object(
+        ofGroup: "golden.PrimaryRemoteWrapper",
+        withMethods: ["close", "isBound"])
+}
+extension ObjectGroup {
+    fileprivate static let primary = ObjectGroup(
+        name: "golden.Primary",
+        instanceType: .jsPrimary,
+        properties: ["$interfaceName": .string],
+        methods: [:]
+    )
+
+    fileprivate static let primaryRemote = ObjectGroup(
+        name: "golden.PrimaryRemote",
+        instanceType: .jsPrimaryRemote,
+        properties: ["$": .jsPrimaryRemoteWrapper],
+        methods: [
+            "method": [
+                .plain(.boolean),
+            ] => .jsPromise,
+            "methodWithoutResponse": [
+                .plain(.string),
+                .plain(.boolean),
+            ] => .undefined,
+        ]
+    )
+
+    fileprivate static let primaryRemoteWrapper = ObjectGroup(
+        name: "golden.PrimaryRemoteWrapper",
+        instanceType: .jsPrimaryRemoteWrapper,
+        properties: [:],
+        methods: [
+            "close": [] => .undefined,
+            "isBound": [] => .boolean
+        ]
+    )
 }
 
 ///
@@ -20,7 +71,7 @@ private enum MojoStrings {
 // TODO(crbug.com/500386713) Consider using mojoBuiltins or another list instead of regex
 private func isTargetObject(type: ILType) -> Bool {
     guard type.Is(.object()), let group = type.group else { return false }
-    return group.starts(with: MojoStrings.mojoPrefix)
+    return group.starts(with: mojoPrefix)
 }
 
 /// Mojo variant of the builtin `MethodCallGenerator` that operates only on
@@ -33,14 +84,13 @@ private let MojoMethodCallGenerator = CodeGenerator("MojoMethodCallGenerator") {
     var targetVar = b.findVariable {
         let type = b.type(of: $0)
         return isTargetObject(type: type) && !type.methods.isEmpty
-            && type.group != MojoStrings.primary
+            && type.group != "golden.Primary"
     }
 
     // If we can't find a Mojo object in scope, create the Primary remote
     guard let obj = targetVar else {
-        let primaryStatic = b.createNamedVariable(
-            forBuiltin: MojoStrings.primary)
-        b.callMethod("getRemote", on: primaryStatic, withArgs: [], guard: false)
+        let getRemoteFunc = b.createNamedVariable(forBuiltin: "getOrCreatePrimaryRemote")
+        b.callFunction(getRemoteFunc, withArgs: [])
         return
     }
 
@@ -67,6 +117,12 @@ private let MojoPropertyRetrievalGenerator = CodeGenerator(
 }
 
 private let mojoBuiltins: [String: ILType] = [
+    /// Profiles declare this method, a wrapper method around `getRemote` that follows
+    /// the Singleton pattern, in `codePrefix`. This method ensures: (1) `getRemote`
+    /// is only called once, and (2) the remote is saved to a global variable so it
+    /// can be closed at the end of the program.
+    "getOrCreatePrimaryRemote": .function([] => jsPrimaryRemote),
+    "golden.Primary": .jsPrimary,
 ]
 
 private let keepGenerators = [
@@ -88,8 +144,16 @@ let mojoPrimaryProfile = Profile(
     ],
     maxExecsBeforeRespawn: 1000,
     timeout: Timeout.interval(11000, 11000),
-    codePrefix: "",
-    codeSuffix: "",
+    codePrefix: """
+        let globalRemote = null;
+        function getOrCreatePrimaryRemote() {
+            if (!globalRemote) {
+                globalRemote = golden.Primary.getRemote();
+            }
+            return globalRemote;
+        }
+        """,
+    codeSuffix: "if (globalRemote) {globalRemote.$.close()}",
     ecmaVersion: v8Profile.ecmaVersion,
     startupTests: [
         ("fuzzilli('FUZZILLI_PRINT', 'test')", .shouldSucceed),
@@ -111,6 +175,9 @@ let mojoPrimaryProfile = Profile(
     disabledMutators: v8Profile.disabledMutators,
     additionalBuiltins: mojoBuiltins.merging(commonMojoBuiltins) { (existing, _) in existing },
     additionalObjectGroups: [
+        .primary,
+        .primaryRemote,
+        .primaryRemoteWrapper,
     ] + commonMojoObjectGroups,
     additionalEnumerations: [
     ] + commonMojoEnumerations,

@@ -919,8 +919,10 @@ public class TabListFaviconProvider {
                     new LazyTabFaviconResolver(
                             (context) -> {
                                 Bitmap chromeBitmap =
-                                        BitmapFactory.decodeResource(
-                                                context.getResources(), R.drawable.chromelogo16);
+                                        getResizedBitmapFromDrawable(
+                                                AppCompatResources.getDrawable(
+                                                        context, R.drawable.ic_incognito_24dp),
+                                                defaultFaviconSize);
                                 return createChromeOwnedResourceTabFavicon(
                                         context,
                                         chromeBitmap,

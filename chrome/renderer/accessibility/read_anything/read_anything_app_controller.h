@@ -522,7 +522,7 @@ class ReadAnythingAppController
   // accurate for voices that don't support word boundaries.
   void RecordEstimatedWordsHeard();
 
-  void RecordScreen2xDistillationStatus();
+  void RecordScreen2xDistillationStatus(bool just_hidden);
   void RecordDistillationStatus(
       read_anything::mojom::DistillationStatus status);
 
@@ -636,8 +636,18 @@ class ReadAnythingAppController
   // change. Used for logging.
   int distillations_completed_;
 
+  // The number of times distillation is attempted after a page
+  // change. distillation_attempts_ may be greater than
+  // distillations_completed_, especially on ad-heavy pages where distillation
+  // is re-triggered multiple times before completion. Used for logging.
+  int distillation_attempts_;
+
   // The distilled title result of DOM distiller distillation.
   std::string dom_distiller_title_;
+
+  // Tracks whether the distillation status for the current active tree
+  // navigation has already been recorded.
+  bool has_logged_distillation_status_ = false;
 
   // The distilled content result of DOM distiller distillation.
   std::string dom_distiller_content_html_;

@@ -115,14 +115,12 @@ public final class TabBottomSheetUtils {
 
     /**
      * Returns whether the Activity associated with the given WindowAndroid is in an inactive state
-     * (PAUSED, STOPPED, or DESTROYED). Also returns true if the WindowAndroid is null.
+     * (STOPPED or DESTROYED). Also returns true if the WindowAndroid is null.
      */
     @Contract("null -> true")
     public static boolean isActivityInactive(@Nullable WindowAndroid windowAndroid) {
         if (windowAndroid == null) return true;
         @ActivityState int activityState = windowAndroid.getActivityState();
-        return activityState == ActivityState.PAUSED
-                || activityState == ActivityState.STOPPED
-                || activityState == ActivityState.DESTROYED;
+        return activityState == ActivityState.STOPPED || activityState == ActivityState.DESTROYED;
     }
 }

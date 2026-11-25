@@ -78,7 +78,6 @@ import org.chromium.chrome.browser.media.MediaViewerUtils;
 import org.chromium.chrome.browser.metrics.LaunchMetrics;
 import org.chromium.chrome.browser.metrics.PackageMetrics;
 import org.chromium.chrome.browser.metrics.StorageSystem;
-import org.chromium.chrome.browser.metrics.UmaSessionStats;
 import org.chromium.chrome.browser.metrics.UmaUtils;
 import org.chromium.chrome.browser.night_mode.GlobalNightModeStateProviderHolder;
 import org.chromium.chrome.browser.night_mode.NightModeStateProvider;
@@ -133,7 +132,6 @@ import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.AppDetailsDelegate;
 import org.chromium.content_public.browser.ChildProcessLauncherHelper;
 import org.chromium.content_public.browser.DeviceUtils;
-import org.chromium.content_public.browser.JavalessRenderersFeatureList;
 import org.chromium.content_public.browser.SpeechRecognition;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.net.RegistrationPolicyApplicationStatus;
@@ -490,9 +488,6 @@ public class ProcessInitializationHandler {
         AppHooks.get().registerPolicyProviders(CombinedPolicyProvider.get());
         SpeechRecognition.initialize();
         TrampolineActivityTracker.getInstance().onNativeInitialized();
-
-        JavalessRenderersFeatureList.setRegisterSyntheticFieldTrialCallback(
-                UmaSessionStats::registerSyntheticFieldTrial);
 
         if (GlicEnabling.isEnabledByFlags()) {
             ActorForegroundServiceManager.initialize();

@@ -30,6 +30,7 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #include "components/policy/core/common/remote_commands/remote_command_job.h"
 #include "components/policy/proto/device_management_backend.pb.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 
 namespace policy {
 
@@ -48,20 +49,30 @@ DeviceCommandsFactoryAsh::~DeviceCommandsFactoryAsh() = default;
 std::unique_ptr<RemoteCommandJob> DeviceCommandsFactoryAsh::BuildJobForType(
     RemoteCommand::Type type,
     RemoteCommandsService* service) {
+  // TODO(crbug.com/404133022): Inject global objects into this class.
+  PrefService* local_state = g_browser_process->local_state();
+  auto shared_url_loader_factory =
+      g_browser_process->shared_url_loader_factory();
+  BrowserPolicyConnectorAsh* browser_policy_connector_ash =
+      g_browser_process->platform_part()->browser_policy_connector_ash();
+
   switch (type) {
     case RemoteCommand::DEVICE_REBOOT:
       return std::make_unique<DeviceCommandRebootJob>();
     case RemoteCommand::DEVICE_SCREENSHOT:
       return std::make_unique<DeviceCommandScreenshotJob>(
-          CreateScreenshotDelegate());
+          CreateScreenshotDelegate(shared_url_loader_factory,
+                                   browser_policy_connector_ash));
     case RemoteCommand::DEVICE_SET_VOLUME:
       return std::make_unique<DeviceCommandSetVolumeJob>();
     case RemoteCommand::DEVICE_START_CRD_SESSION:
-      return std::make_unique<DeviceCommandStartCrdSessionJob>(*crd_delegate_);
+      return std::make_unique<DeviceCommandStartCrdSessionJob>(local_state,
+                                                               *crd_delegate_);
     case RemoteCommand::DEVICE_FETCH_STATUS:
-      return std::make_unique<DeviceCommandFetchStatusJob>();
+      return std::make_unique<DeviceCommandFetchStatusJob>(
+          browser_policy_connector_ash);
     case RemoteCommand::DEVICE_WIPE_USERS:
-      return std::make_unique<DeviceCommandWipeUsersJob>(service);
+      return std::make_unique<DeviceCommandWipeUsersJob>(local_state, service);
     case RemoteCommand::DEVICE_REFRESH_ENTERPRISE_MACHINE_CERTIFICATE:
       return std::make_unique<DeviceCommandRefreshMachineCertificateJob>(
           machine_certificate_uploader_);
@@ -76,14 +87,14 @@ std::unique_ptr<RemoteCommandJob> DeviceCommandsFactoryAsh::BuildJobForType(
     case RemoteCommand::DEVICE_RESET_EUICC:
       return std::make_unique<DeviceCommandResetEuiccJob>();
     case RemoteCommand::FETCH_CRD_AVAILABILITY_INFO:
-      return std::make_unique<DeviceCommandFetchCrdAvailabilityInfoJob>();
+      return std::make_unique<DeviceCommandFetchCrdAvailabilityInfoJob>(
+          local_state);
     case RemoteCommand::FETCH_SUPPORT_PACKET:
       return std::make_unique<DeviceCommandFetchSupportPacketJob>();
     case RemoteCommand::QUERY_GEOLOCATION:
       return std::make_unique<DeviceCommandQueryGeolocationJob>(
-          g_browser_process->platform_part()
-              ->browser_policy_connector_ash()
-              ->GetDeviceCloudPolicyManager());
+          local_state,
+          browser_policy_connector_ash->GetDeviceCloudPolicyManager());
 
     case RemoteCommand::COMMAND_ECHO_TEST:
     case RemoteCommand::USER_ARC_COMMAND:
@@ -102,11 +113,14 @@ void DeviceCommandsFactoryAsh::set_commands_for_testing(
 }
 
 std::unique_ptr<DeviceCommandScreenshotJob::Delegate>
-DeviceCommandsFactoryAsh::CreateScreenshotDelegate() {
+DeviceCommandsFactoryAsh::CreateScreenshotDelegate(
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory,
+    BrowserPolicyConnectorAsh* browser_policy_connector_ash) {
   if (device_commands_test_) {
     return std::make_unique<FakeScreenshotDelegate>();
   }
-  return std::make_unique<ScreenshotDelegate>();
+  return std::make_unique<ScreenshotDelegate>(
+      std::move(shared_url_loader_factory), browser_policy_connector_ash);
 }
 
 }  // namespace policy

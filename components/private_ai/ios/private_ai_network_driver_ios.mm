@@ -89,9 +89,7 @@ void PrivateAiNetworkDriverIOS::CreateNetworkContext(
     network::mojom::NetworkContextParamsPtr params) {
   DCHECK_CURRENTLY_ON(web::WebThread::UI);
 
-  if (!receiver.is_valid()) {
-    return;
-  }
+  CHECK(receiver.is_valid());
 
   web::GetIOThreadTaskRunner({})->PostTask(
       FROM_HERE, base::BindOnce(&CreateIsolatedNetworkContextOnIOThread,

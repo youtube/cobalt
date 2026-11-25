@@ -143,10 +143,10 @@ void DebugDumpReplayer::OnStreamEvent(const audioproc::Stream& msg) {
 
   RTC_CHECK_EQ(input_config_.num_channels(),
                static_cast<size_t>(msg.input_channel_size()));
-  RTC_CHECK_EQ(input_config_.num_frames() * sizeof(float),
-               msg.input_channel(0).size());
 
   for (int i = 0; i < msg.input_channel_size(); ++i) {
+    RTC_CHECK_EQ(input_config_.num_frames() * sizeof(float),
+                 msg.input_channel(i).size());
     memcpy(input_->channels()[i], msg.input_channel(i).data(),
            msg.input_channel(i).size());
   }
@@ -164,10 +164,10 @@ void DebugDumpReplayer::OnReverseStreamEvent(
   RTC_CHECK_GT(msg.channel_size(), 0);
   RTC_CHECK_EQ(reverse_config_.num_channels(),
                static_cast<size_t>(msg.channel_size()));
-  RTC_CHECK_EQ(reverse_config_.num_frames() * sizeof(float),
-               msg.channel(0).size());
 
   for (int i = 0; i < msg.channel_size(); ++i) {
+    RTC_CHECK_EQ(reverse_config_.num_frames() * sizeof(float),
+                 msg.channel(i).size());
     memcpy(reverse_->channels()[i], msg.channel(i).data(),
            msg.channel(i).size());
   }

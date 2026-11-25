@@ -206,6 +206,8 @@ BASE_FEATURE(kAndroidDesktopAimGate, DISABLED);
 
 // Enables the AIM entrypoint for third party search engines.
 BASE_FEATURE(kAim3pEntrypoint, DISABLED);
+const base::FeatureParam<bool> kAim3pEntrypointDebug{
+    &kAim3pEntrypoint, "Aim3pEntrypointDebug", false};
 
 // When enabled, AI mode will remove verbatim suggestions from the suggestions
 // list.
@@ -324,6 +326,10 @@ BASE_FEATURE(kOmniboxAsyncViewInflation, DISABLED);
 // Enable asynchronous Fusebox view inflation.
 BASE_FEATURE(kOmniboxFuseboxAsyncInflation, DISABLED);
 
+// When enabled, AIM image attachments will be downscaled on load before
+// reaching the C++ side.
+BASE_FEATURE(kOmniboxAimImageDownscaling, DISABLED);
+
 // Use FusedLocationProvider on Android to fetch device location.
 BASE_FEATURE(kUseFusedLocationProvider, ENABLED);
 
@@ -404,6 +410,18 @@ const base::FeatureParam<bool> kComposeboxDriveIdentityFallback{
 // Whether to enable Google Drive context menu option's disclaimer flow in the
 // composebox.
 BASE_FEATURE(kComposeboxDriveContextMenuOptionDisclaimer, DISABLED);
+
+// For Workspace AIM, the Flow ID is the ConsentKit frontend identifier
+// (e.g. CHOICEFLOW_PCONTEXT_WORKSPACE_AIM) and the Product ID is the
+// Footprints ConsentVariant ID (e.g.
+// CHOICEFLOW_VARIANT_PCONTEXT_WORKSPACE_AIM_DEFAULT)
+const base::FeatureParam<int> kComposeboxDriveConsentFlowId{
+    &kComposeboxDriveContextMenuOptionDisclaimer, "flow_id", 76};
+
+const base::FeatureParam<int> kComposeboxDriveConsentProductId{
+    &kComposeboxDriveContextMenuOptionDisclaimer, "product_id", 89978449};
+const base::FeatureParam<std::string> kComposeboxDriveConsentEntrypointId{
+    &kComposeboxDriveContextMenuOptionDisclaimer, "entrypoint_id", "aim-drive"};
 
 // Whether to force the Google Drive disclaimer to be accepted. This flag is
 // only used for testing purposes since dasher accounts are not allowed to
@@ -488,6 +506,9 @@ BASE_FEATURE(kServeJavaCachedZeroSuggest, ENABLED);
 // of the Omnibox suggestion list to the top during any re-layout.
 BASE_FEATURE(kResetSuggestionsScroll, DISABLED);
 
+// If enabled, the UrlBar context menu will use ListMenu instead of MenuItem.
+BASE_FEATURE(kOmniboxListMenuContextMenu, DISABLED);
+
 namespace android {
 static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
   static const base::Feature* const kFeaturesExposedToJava[] = {
@@ -512,9 +533,11 @@ static int64_t JNI_OmniboxFeatureMap_GetNativeMap(JNIEnv* env) {
       &kServeJavaCachedZeroSuggest,
       &kAIMSuppressVerbatimMatch,
       &kResetSuggestionsScroll,
+      &kOmniboxListMenuContextMenu,
       &kOmniboxItemDecoration,
       &kExactMatchFavicons,
-      &kStarterPackExpansion};
+      &kStarterPackExpansion,
+      &kOmniboxAimImageDownscaling};
   static base::NoDestructor<base::android::FeatureMap> kFeatureMap(
       kFeaturesExposedToJava);
   return reinterpret_cast<int64_t>(kFeatureMap.get());

@@ -20,6 +20,7 @@ class PeerConnectionParameters;
 class SelectDesktopDisplayRequest;
 class VideoControl;
 class VideoLayout;
+class TerminalControl;
 
 class HostStub {
  public:
@@ -60,6 +61,9 @@ class HostStub {
 
   // Changes the current video layout.
   virtual void SetVideoLayout(const VideoLayout& video_layout) = 0;
+
+  // Delivers a terminal control message from the client to the host.
+  virtual void ControlTerminal(const TerminalControl& terminal_control) = 0;
 
  protected:
   virtual ~HostStub() = default;

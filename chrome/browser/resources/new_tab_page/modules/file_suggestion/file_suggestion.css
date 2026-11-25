@@ -58,7 +58,7 @@ a:focus-visible {
   padding-top: var(--ntp-module-first-element-top-padding);
 }
 
-.file:last-of-type {
+.file:last-of-type:not(:has(+ #seeMoreButtonContainer)) {
   border-radius: 0 0 var(--ntp-module-item-border-radius)
       var(--ntp-module-item-border-radius);
   padding-bottom: var(--ntp-module-first-element-top-padding);
@@ -105,4 +105,31 @@ a:focus-visible {
   color: var(--color-new-tab-page-secondary-foreground);
   font-size: var(--ntp-module-secondary-text-size);
   line-height: var(--ntp-module-secondary-line-height);
+}
+
+#seeMoreButtonContainer {
+  padding: 4px 0 8px 0;
+}
+
+#seeMoreButtonContainer a {
+  color: var(--color-new-tab-page-link);
+  display: block;
+  font-size: 13px;
+  font-weight: var(--ntp-module-see-more-font-weight);
+  line-height: 20px;
+  padding: 4px 16px 4px 16px;
+  position: relative;
+  text-decoration: none;
+}
+
+#seeMoreButtonContainer:hover #hoverContainer {
+  background: var(--color-new-tab-page-module-item-background-hovered);
+  display: block;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+#seeMoreButtonContainer #hoverContainer {
+  display: none;
 }

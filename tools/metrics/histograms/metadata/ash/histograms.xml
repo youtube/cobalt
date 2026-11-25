@@ -4697,7 +4697,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Login.Lock.SessionStateChange" enum="SessionLockEvent"
-    expires_after="2026-10-25">
+    expires_after="2026-12-27">
   <owner>mslus@google.com</owner>
   <owner>cros-lurs@google.com</owner>
   <summary>Records all session lock and unlock events.</summary>

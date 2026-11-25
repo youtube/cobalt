@@ -20,7 +20,7 @@ namespace send_tab_to_self {
 testing::Matcher<PageContext::FormField> MatchesFormField(
     testing::Matcher<std::u16string> id_attribute,
     testing::Matcher<std::u16string> name_attribute,
-    testing::Matcher<std::string> form_control_type,
+    testing::Matcher<autofill::FormControlType> form_control_type,
     testing::Matcher<std::u16string> value,
     testing::Matcher<PageContext::FormFieldAutofillSignature>
         autofill_signature,

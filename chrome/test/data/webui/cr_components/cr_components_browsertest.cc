@@ -319,6 +319,10 @@ IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest,
           "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, RecordingWave) {
+  RunTest("cr_components/composebox/recording_wave_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, LensSearch) {
   RunTest("cr_components/composebox/composebox_lens_search_test.js",
           "mocha.run()");
@@ -357,8 +361,16 @@ IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, ComposeboxDragAndDrop) {
           "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, ComposeboxErrorScrim) {
+  RunTest("cr_components/composebox/error_scrim_test.js", "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, ComposeboxFileCarousel) {
   RunTest("cr_components/composebox/file_carousel_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, ComposeboxFileThumbnail) {
+  RunTest("cr_components/composebox/file_thumbnail_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(CrComponentsComposeboxTest, ComposeboxInput) {

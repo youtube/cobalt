@@ -94,6 +94,11 @@ class MEDIA_EXPORT HlsDataSourceStream {
   // owning it.
   StreamId stream_id() const { return stream_id_; }
 
+  // Gets the URI from which the data was ultimately read, after any redirects.
+  // Before the data has been read and this URL can be determined, it returns
+  // nullopt, rather than guessing the URI based on the pre-redirect URI.
+  const std::optional<GURL>& uri() const { return uri_; }
+
   // This is the byte position in the MultiBufferDataSource where new data
   // will be read from. This only ever goes up, because these streams are not
   // rewindable.
@@ -112,6 +117,10 @@ class MEDIA_EXPORT HlsDataSourceStream {
   void SetSecurityInfoForTesting(hls::SecurityMetadata inf) {
     security_info_ = inf;
   }
+
+  // Sets the URI for this data source - it must come from the post-redirect URI
+  // of the datasource.
+  void SetPostRedirectUri(GURL uri) { uri_ = std::move(uri); }
 
   // Merge another security metadata into the current one. This combines the
   // origin sets and merges the security flags.
@@ -207,6 +216,10 @@ class MEDIA_EXPORT HlsDataSourceStream {
 
   // The segment to read from.
   HlsDataSourceProvider::UrlDataSegment segment_;
+
+  // The post-read URL after redirects. This is effectively unknown until any
+  // reading has started, hence the optional nature.
+  std::optional<GURL> uri_ = std::nullopt;
 
   // Does this stream require initialization.
   bool requires_init_ = true;

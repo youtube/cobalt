@@ -15,9 +15,9 @@ namespace blink {
 // `frame_token`. This may be used to emit events relating to a specific frame.
 // It can be used to create new perfetto tracks nested under the frame track:
 //
-// auto track = perfetto::NamedTrack("Name", id,
+// auto track = perfetto::StateTrack("Name", id,
 //     GetLocalFrameTracingTrack(frame_token, true));
-perfetto::NamedTrack BLINK_COMMON_EXPORT GetLocalFrameTracingTrack(
+perfetto::StateTrack BLINK_COMMON_EXPORT GetLocalFrameTracingTrack(
     const LocalFrameToken& frame_token,
     bool is_main_frame,
     perfetto::Track parent_process = perfetto::ProcessTrack::Current());

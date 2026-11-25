@@ -29,12 +29,14 @@ using ModelExecutionError =
 private_ai::proto::FeatureName ToPrivateAiFeatureName(
     ModelBasedCapabilityKey feature) {
   switch (feature) {
-    case ModelBasedCapabilityKey::kZeroStateSuggestions:
-      return private_ai::proto::FeatureName::
-          FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION;
     case ModelBasedCapabilityKey::kContextualCueing:
       return private_ai::proto::FeatureName::
           FEATURE_NAME_CHROME_CONTEXTUAL_CUEING;
+    case ModelBasedCapabilityKey::kFormsClassifications:
+      return private_ai::proto::FeatureName::FEATURE_NAME_CHROME_FORMS_AI;
+    case ModelBasedCapabilityKey::kZeroStateSuggestions:
+      return private_ai::proto::FeatureName::
+          FEATURE_NAME_CHROME_ZERO_STATE_SUGGESTION;
     default:
       NOTREACHED() << feature;
   }

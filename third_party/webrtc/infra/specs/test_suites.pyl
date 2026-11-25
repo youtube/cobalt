@@ -175,7 +175,7 @@
         'mixins': ['shards-2'],
       },
       'modules_unittests': {
-        'mixins': ['shards-6', 'cores-12'],
+        'mixins': ['shards-6'],
       },
       'resource_adaptation_tests': {},
       'rtc_media_unittests': {},
@@ -193,7 +193,7 @@
         'mixins': ['xcodebuild_sim_runner']
       },
       'svc_tests': {
-        'mixins': ['shards-8', 'cores-12'],
+        'mixins': ['shards-8'],
       },
       'system_wrappers_unittests': {},
       'test_support_unittests': {},

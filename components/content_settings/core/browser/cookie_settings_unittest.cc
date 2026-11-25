@@ -763,18 +763,7 @@ TEST_F(CookieSettingsTest, ThirdPartyExceptionSessionOnly) {
   EXPECT_FALSE(cookie_settings_->IsCookieSessionOnly(kBlockedSite));
 }
 
-class CookieSettingsTestUserBypass : public CookieSettingsTest {
- public:
-  CookieSettingsTestUserBypass() {
-    // Verify that cookie settings works correct with temporary user bypass
-    // exceptions.
-    feature_list_.InitAndEnableFeatureWithParameters(
-        content_settings::features::kUserBypassUI, {{"expiration", "90d"}});
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
+class CookieSettingsTestUserBypass : public CookieSettingsTest {};
 
 // UserBypass is a desktop and android-only feature
 #if !BUILDFLAG(IS_IOS)
@@ -899,9 +888,6 @@ TEST_F(CookieSettingsTestUserBypass,
   EXPECT_TRUE(cookie_settings_incognito_->IsThirdPartyAccessAllowed(
       first_party_url, &info));
 
-  base::TimeDelta expiration =
-      content_settings::features::kUserBypassUIExceptionExpiration.Get();
-  ASSERT_FALSE(expiration.is_zero());
   EXPECT_TRUE(info.metadata.expiration().is_null());
 
   SettingInfo exception_info;

@@ -66,6 +66,7 @@ void AXWidgetObjWrapper::OnWidgetDestroying(Widget* widget) {
 }
 
 void AXWidgetObjWrapper::OnWidgetDestroyed(Widget* widget) {
+  widget_observation_.Reset();
   // Normally this does not run because of OnWidgetDestroying should have
   // removed |this| from cache. However, some code could trigger a destroying
   // widget to be created after OnWidgetDestroying. This guards against such

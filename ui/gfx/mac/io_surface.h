@@ -8,6 +8,8 @@
 #include <IOSurface/IOSurfaceRef.h>
 #include <mach/mach.h>
 
+#include <optional>
+
 #include "base/apple/scoped_cftyperef.h"
 #include "base/component_export.h"
 #include "base/memory/unsafe_shared_memory_region.h"
@@ -112,10 +114,28 @@ COMPONENT_EXPORT(GFX)
 ScopedIOSurface IOSurfaceMachPortToIOSurface(
     ScopedRefCountedIOSurfaceMachPort io_surface_mach_port);
 
-// Return true if IOSurface Pixel Format is supported by WebGPU and
+// Return true if IOSurface pixel format is supported by WebGPU and
 // can be imported in WebGPU.
 COMPONENT_EXPORT(GFX)
-bool IOSurfaceIsWebGPUCompatible(IOSurfaceRef io_surface);
+bool IOSurfacePixelFormatIsWebGPUCompatible(uint32_t pixel_format);
+
+// Return true if IOSurface pixel format can be accessed by the CPU.
+COMPONENT_EXPORT(GFX)
+bool IOSurfacePixelFormatSupportsCpuAccess(uint32_t pixel_format);
+
+// Return the expected CVPixelFormatType for an IOSurface with the specified
+// viz::SharedImageFormat. If `override_rgba_to_bgra` is true then map RGBA and
+// RGBX to BGRA.
+COMPONENT_EXPORT(GFX)
+std::optional<uint32_t> SharedImageFormatToIOSurfacePixelFormat(
+    viz::SharedImageFormat format,
+    bool override_rgba_to_bgra);
+
+// Return the viz::SharedImageFormat for an IOSurface with the specified
+// CVPixelFormatType.
+COMPONENT_EXPORT(GFX)
+std::optional<viz::SharedImageFormat> IOSurfacePixelFormatToSharedImageFormat(
+    uint32_t pixel_format);
 
 }  // namespace gfx
 

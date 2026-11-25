@@ -1097,7 +1097,6 @@ rtc_library("rtc_stats_traversal") {
     "../api:rtc_stats_api",
     "../api:scoped_refptr",
     "../rtc_base:checks",
-    "../stats:rtc_stats",
   ]
 }
 
@@ -1959,7 +1958,6 @@ rtc_library("video_rtp_track_source") {
     "../api/video:recordable_encoded_frame",
     "../api/video:video_broadcaster",
     "../api/video:video_frame",
-    "../media:rtc_media_base",
     "../rtc_base:checks",
     "../rtc_base:macromagic",
     "../rtc_base/synchronization:mutex",
@@ -4490,7 +4488,6 @@ if (rtc_include_tests && !build_with_chromium) {
       "../call:payload_type_picker",
       "../media:codec",
       "../media:media_channel",
-      "../media:rtc_media_base",
       "../media:rtc_media_tests_utils",
       "../media:rtc_simulcast_encoder_adapter",
       "../media:stream_params",

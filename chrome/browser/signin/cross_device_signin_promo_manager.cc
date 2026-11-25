@@ -17,6 +17,7 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/signin/signin_ui_util.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
@@ -300,12 +301,12 @@ void OnCrossDeviceSigninPromoDismissed(
       data->shown_count, kMaxShownCount + 1);
 }
 
-void OpenSigninToPhoneQrCodeBubble(Browser* browser,
+void OpenSigninToPhoneQrCodeBubble(BrowserWindowInterface* browser_window,
                                    CrossDeviceSigninPromoEntryPoint entry_point,
                                    base::OnceClosure closing_callback) {
   CHECK(base::FeatureList::IsEnabled(switches::kCrossDeviceSigninFromDesktop));
   base::UmaHistogramEnumeration(
       "Signin.CrossDeviceSigninPromo.OpenedQrCodeBubble", entry_point);
-  // TODO(crbug.com/527889253): Implement the actual logic.
-  std::move(closing_callback).Run();
+  signin_ui_util::ShowCrossDeviceSigninQrBubble(browser_window,
+                                                std::move(closing_callback));
 }

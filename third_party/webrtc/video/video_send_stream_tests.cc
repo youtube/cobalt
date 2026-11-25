@@ -1781,8 +1781,11 @@ TEST_F(VideoSendStreamTest, ChangingTransportOverhead) {
     void PerformTest() override {
       SendTask(task_queue_, [this]() {
         transport_overhead_ = 100;
-        call_->GetTransportControllerSend()->OnTransportOverheadChanged(
-            transport_overhead_);
+        NetworkRoute route;
+        route.connected = true;
+        route.packet_overhead = transport_overhead_;
+        call_->GetTransportControllerSend()->OnNetworkRouteChanged("transport",
+                                                                   route);
       });
 
       EXPECT_TRUE(Wait());
@@ -1794,8 +1797,11 @@ TEST_F(VideoSendStreamTest, ChangingTransportOverhead) {
 
       SendTask(task_queue_, [this]() {
         transport_overhead_ = 500;
-        call_->GetTransportControllerSend()->OnTransportOverheadChanged(
-            transport_overhead_);
+        NetworkRoute route;
+        route.connected = true;
+        route.packet_overhead = transport_overhead_;
+        call_->GetTransportControllerSend()->OnNetworkRouteChanged("transport",
+                                                                   route);
       });
 
       EXPECT_TRUE(Wait());
@@ -3688,7 +3694,11 @@ TEST_F(VideoSendStreamTest, RemoveOverheadFromBandwidth) {
       SendTask(task_queue_, [this, &bitrate_config]() {
         call_->GetTransportControllerSend()->SetSdpBitrateParameters(
             bitrate_config);
-        call_->GetTransportControllerSend()->OnTransportOverheadChanged(40);
+        NetworkRoute route;
+        route.connected = true;
+        route.packet_overhead = 40;
+        call_->GetTransportControllerSend()->OnNetworkRouteChanged("transport",
+                                                                   route);
       });
 
       // At a bitrate of 60kbps with a packet size of 1200B video and an

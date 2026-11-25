@@ -4,6 +4,7 @@
 
 #include "content/browser/blob_storage/blob_internals_url_loader.h"
 
+#include "base/byte_size.h"
 #include "base/containers/span.h"
 #include "content/browser/blob_storage/blob_internals_url_loader.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -59,8 +60,8 @@ void StartBlobInternalsURLLoader(
   client->OnReceiveResponse(std::move(resource_response),
                             std::move(consumer_handle), std::nullopt);
   network::URLLoaderCompletionStatus status(net::OK);
-  status.encoded_data_length = output.size();
-  status.encoded_body_length = output.size();
+  status.encoded_data_length = base::ByteSize(output.size());
+  status.encoded_body_length = base::ByteSize(output.size());
   client->OnComplete(status);
 }
 

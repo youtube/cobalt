@@ -158,12 +158,7 @@ class PageInfoCookiesContentViewBaseTestClass : public TestWithBrowserView {
 };
 
 class PageInfoCookiesContentViewTest
-    : public PageInfoCookiesContentViewBaseTestClass {
-  std::vector<base::test::FeatureRefAndParams> EnabledFeatures() override {
-    return {
-        {content_settings::features::kUserBypassUI, {{"expiration", "30d"}}}};
-  }
-};
+    : public PageInfoCookiesContentViewBaseTestClass {};
 
 TEST_F(PageInfoCookiesContentViewTest, ThirdPartyCookiesAllowedByDefault) {
   PageInfoCookiesContentView::CookiesInfo cookie_info =

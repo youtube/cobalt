@@ -83,6 +83,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
+#include "src/objects/string.h"
 #include "src/objects/type-hints.h"
 #include "src/roots/roots.h"
 #include "src/utils/utils.h"
@@ -3397,22 +3398,18 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceTypeOf(ValueNode* value) {
 }
 
 ReduceResult MaglevGraphBuilder::VisitTestTypeOf() {
-  // TODO(v8:7700): Add a branch version of TestTypeOf that does not need to
-  // materialise the boolean value.
-  TypeOfLiteralFlag literal =
+  const auto literal_flag =
       interpreter::TestTypeOfFlags::Decode(GetFlag8Operand(0));
-  if (literal == TypeOfLiteralFlag::kOther) {
+  if (literal_flag == TypeOfLiteralFlag::kOther) {
     SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
     return ReduceResult::Done();
   }
-  ValueNode* value = GetAccumulator();
-  auto GetResult = [&](TypeOfLiteralFlag expected, RootIndex _) {
-    return GetRootConstant(literal == expected ? RootIndex::kTrueValue
-                                               : RootIndex::kFalseValue);
-  };
-  PROCESS_AND_RETURN_IF_DONE(TryReduceTypeOf(value, GetResult), SetAccumulator);
 
-  return SetAccumulator(AddNewNode<TestTypeOf>({value}, literal));
+  ValueNode* value = GetAccumulator();
+  PROCESS_AND_RETURN_IF_DONE(reducer_.TryFoldTestTypeOf(value, literal_flag),
+                             SetAccumulator);
+
+  return SetAccumulator(AddNewNode<TestTypeOf>({value}, literal_flag));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildScriptContextStore(
@@ -13391,6 +13388,30 @@ ReduceResult MaglevGraphBuilder::VisitCreateArrayFromIterable() {
   ValueNode* iterable = GetAccumulator();
   return SetAccumulator(BuildCallBuiltinWithTaggedInputs<
                         Builtin::kIterableToListWithSymbolLookup>({iterable}));
+}
+
+ReduceResult MaglevGraphBuilder::VisitArrayDestructure() {
+  ValueNode* receiver = GetAccumulator();
+  uint32_t count = iterator_.GetRegisterCountOperand(1);
+  ValueNode* count_node = GetSmiConstant(count);
+  interpreter::RegisterList outputs = iterator_.GetRegisterListOperand(0);
+  ValueNode* result;
+  {
+    LazyDeoptFrameScope lazy_deopt_scope(
+        this, Builtin::kArrayDestructureLazyDeoptContinuation, {},
+        base::VectorOf<ValueNode*>(
+            {GetSmiConstant(outputs.first_register().index()), count_node}));
+    GET_VALUE_OR_ABORT(
+        result, BuildCallBuiltinWithTaggedInputs<Builtin::kArrayDestructure>(
+                    {receiver, count_node}));
+  }
+  for (uint32_t i = 0; i < count; ++i) {
+    ValueNode* element = AddNewNodeNoInputConversion<LoadTaggedField>(
+        {result}, FixedArray::OffsetOfElementAt(i), NodeType::kUnknown, false,
+        PropertyKey::None());
+    StoreRegister(outputs[i], element);
+  }
+  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {

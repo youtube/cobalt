@@ -16,6 +16,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
 #include "components/device_event_log/device_event_log.h"
+#include "services/device/hid/hid_connection.h"
 
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && defined(USE_UDEV)
 #include "services/device/hid/hid_service_linux.h"

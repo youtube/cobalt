@@ -70,6 +70,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/drop_data.h"
 #include "content/public/common/result_codes.h"
 #include "content/public/common/url_constants.h"
@@ -712,6 +713,13 @@ void WebUIToolbarWebView::DidFinishNavigation(
   auto shutting_down = bwi == nullptr;
   if (shutting_down) {
     LOG(WARNING) << "browser is shutting down, aborting Init()";
+    return;
+  }
+
+  // Devtools navigates to about:blank when doing a "reload" in performance
+  // tracing.
+  if (base::FeatureList::IsEnabled(features::kDebugTopChromeWebUI) &&
+      navigation_handle->GetURL().IsAboutBlank()) {
     return;
   }
   auto* ui = GetWebUIToolbarUI();

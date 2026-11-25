@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 
+#include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -217,10 +218,8 @@ void SignedExchangeLoader::OnComplete(
     const network::URLLoaderCompletionStatus& status) {
   DCHECK(!outer_response_length_info_);
   outer_response_length_info_ = OuterResponseLengthInfo();
-  outer_response_length_info_->encoded_data_length =
-      base::ByteSize(base::checked_cast<uint64_t>(status.encoded_data_length));
-  outer_response_length_info_->decoded_body_length =
-      base::ByteSize(base::checked_cast<uint64_t>(status.decoded_body_length));
+  outer_response_length_info_->encoded_data_length = status.encoded_data_length;
+  outer_response_length_info_->decoded_body_length = status.decoded_body_length;
   NotifyClientOnCompleteIfReady();
 }
 
@@ -365,15 +364,12 @@ void SignedExchangeLoader::NotifyClientOnCompleteIfReady() {
   network::URLLoaderCompletionStatus status;
   status.error_code = *decoded_body_read_result_;
   status.completion_time = base::TimeTicks::Now();
-  status.encoded_data_length =
-      outer_response_length_info_->encoded_data_length.InBytes();
-  base::ByteSize encoded_body_length =
-      outer_response_length_info_->decoded_body_length;
+  status.encoded_data_length = outer_response_length_info_->encoded_data_length;
+  status.encoded_body_length = outer_response_length_info_->decoded_body_length;
   // ByteSize::operator-= will CHECK if the result becomes negative.
-  encoded_body_length -= signed_exchange_handler_->GetExchangeHeaderLength();
-  status.encoded_body_length = encoded_body_length.InBytes();
-  status.decoded_body_length =
-      body_data_pipe_adapter_->TransferredBytes().InBytes();
+  status.encoded_body_length -=
+      signed_exchange_handler_->GetExchangeHeaderLength();
+  status.decoded_body_length = body_data_pipe_adapter_->TransferredBytes();
 
   if (ssl_info_) {
     DCHECK((url_loader_options_ &

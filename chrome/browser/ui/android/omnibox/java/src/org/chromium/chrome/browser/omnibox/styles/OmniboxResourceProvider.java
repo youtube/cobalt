@@ -495,6 +495,14 @@ public class OmniboxResourceProvider {
                 : context.getColor(R.color.toolbar_text_box_bg_color);
     }
 
+    /** Returns the background color for the toolbar pill when the omnibox is in standby. */
+    public static @ColorInt int getTabletToolbarTextBoxStandbyBackgroundColor(
+            Context context, @BrandedColorScheme int brandedColorScheme) {
+        Context wrappedContext =
+                maybeWrapContextForIncognitoColorScheme(context, brandedColorScheme);
+        return SemanticColorUtils.getColorSurface(wrappedContext);
+    }
+
     /**
      * Resolves the attribute based on the current theme.
      *

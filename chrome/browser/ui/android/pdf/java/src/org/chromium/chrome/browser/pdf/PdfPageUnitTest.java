@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.pdf;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 
@@ -244,6 +246,80 @@ public class PdfPageUnitTest {
     @Test
     public void testCreatePdfPage_WithPdfLink_Blob() throws Exception {
         testCreatePdfPage_WithPdfLink(mPdfPageBlobUrl);
+    }
+
+    // Test the current NativePage for a local pdf is reused for various pdf URLs.
+    @Test
+    @EnableFeatures(ChromeFeatureList.PDF_REUSE_FRAGMENT)
+    public void testShouldReusePage_LocalPdf() throws Exception {
+        String encodedUrl = PdfUtils.encodePdfPageUrl(CONTENT_URL);
+        String currentUrl = encodedUrl;
+        String nextUrl = "content://media/external/downloads/1000000088";
+        String nextUrlExternal = PDF_LINK;
+        PdfPage pdfPage =
+                new PdfPage(
+                        mMockNativePageHost,
+                        mMockProfile,
+                        false,
+                        mActivity,
+                        encodedUrl,
+                        mPdfInfo,
+                        DEFAULT_TAB_TITLE,
+                        TAB_ID,
+                        mPdfFragmentViewTracker);
+        assertTrue(
+                "Entering a local pdf URL should reuse the page",
+                pdfPage.shouldReusePage(currentUrl, nextUrl, /* preferReuse= */ true));
+        assertTrue(
+                "Navigating to a local pdf should reuse the page",
+                pdfPage.shouldReusePage(currentUrl, nextUrl, /* preferReuse= */ false));
+        assertFalse(
+                "Reloading a local pdf URL on activity restart should create a new the page",
+                pdfPage.shouldReusePage(currentUrl, currentUrl, /* preferReuse= */ false));
+
+        assertTrue(
+                "Entering an external pdf URL should reuse the page",
+                pdfPage.shouldReusePage(currentUrl, nextUrlExternal, /* preferReuse= */ true));
+        assertTrue(
+                "Navigating to an external pdf should reuse the page",
+                pdfPage.shouldReusePage(currentUrl, nextUrlExternal, /* preferReuse= */ false));
+    }
+
+    // Test the current NativePage for an external pdf is reused for various pdf URLs.
+    @Test
+    @EnableFeatures(ChromeFeatureList.PDF_REUSE_FRAGMENT)
+    public void testShouldReusePage_ExternalPdf() throws Exception {
+        String encodedUrl = PdfUtils.encodePdfPageUrl(PDF_LINK);
+        String currentUrl = encodedUrl;
+        String nextUrlLocal = "content://media/external/downloads/1000000088";
+        String nextUrlExternal = "https://abc.xyz/report.pdf";
+        PdfPage pdfPage =
+                new PdfPage(
+                        mMockNativePageHost,
+                        mMockProfile,
+                        false,
+                        mActivity,
+                        encodedUrl,
+                        mPdfInfo,
+                        DEFAULT_TAB_TITLE,
+                        TAB_ID,
+                        mPdfFragmentViewTracker);
+        assertTrue(
+                "Entering a local pdf URL should reuse the page",
+                pdfPage.shouldReusePage(currentUrl, nextUrlLocal, /* preferReuse= */ true));
+        assertTrue(
+                "Navigating to a local pdf should reuse the page",
+                pdfPage.shouldReusePage(currentUrl, nextUrlLocal, /* preferReuse= */ false));
+        assertFalse(
+                "Reloading the current pdf URL on activity restart should create a new the page",
+                pdfPage.shouldReusePage(currentUrl, PDF_LINK, /* preferReuse= */ false));
+
+        assertTrue(
+                "Entering an external pdf URL should reuse the page",
+                pdfPage.shouldReusePage(currentUrl, nextUrlExternal, /* preferReuse= */ true));
+        assertTrue(
+                "Navigating to an external pdf should reuse the page",
+                pdfPage.shouldReusePage(currentUrl, nextUrlExternal, /* preferReuse= */ false));
     }
 
     private void testCreatePdfPage_WithPdfLink(String pdfPageUrl) throws Exception {

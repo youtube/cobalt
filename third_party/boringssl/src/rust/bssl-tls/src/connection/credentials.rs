@@ -185,7 +185,7 @@ where
 }
 
 /// # Authenticating with the peer
-impl<M> TlsConnectionInHandshake<'_, Client, M>
+impl<R, M> TlsConnectionInHandshake<'_, R, M>
 where
     M: HasTlsConnectionMethod,
 {
@@ -341,6 +341,24 @@ impl<R, M> TlsConnectionInHandshake<'_, R, M> {
             bssl_sys::SSL_set_session(self.ptr.as_ptr(), session.0.as_ptr());
         }
         self
+    }
+}
+
+/// # Raw Public Key
+impl<R, M> TlsConnectionInHandshake<'_, R, M> {
+    /// Set acceptable peer certificate types
+    pub fn set_accepted_peer_cert_types(
+        &mut self,
+        types: &[CertificateType],
+    ) -> Result<&mut Self, Error> {
+        let (types, types_len) = slice_into_ffi_raw_parts(types);
+        check_lib_error!(unsafe {
+            // Safety:
+            // - `self.ptr()` is a valid handle.
+            // - `CertificateType` is a `u8` with acceptable values by construction.
+            bssl_sys::SSL_set1_accepted_peer_cert_types(self.ptr(), types as *const _, types_len)
+        });
+        Ok(self)
     }
 }
 

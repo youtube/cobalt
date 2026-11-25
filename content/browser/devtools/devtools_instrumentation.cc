@@ -4,6 +4,7 @@
 
 #include "content/browser/devtools/devtools_instrumentation.h"
 
+#include "base/byte_size.h"
 #include "base/containers/adapters.h"
 #include "base/feature_list.h"
 #include "base/notreached.h"
@@ -2682,7 +2683,7 @@ void OnServiceWorkerMainScriptFetchingFailed(
           worker_token,
           status.completion_time.ToInternalValue() /
               static_cast<double>(base::Time::kMicrosecondsPerSecond),
-          status.encoded_data_length);
+          status.encoded_data_length.InBytes());
     }
   } else if (agent_host) {
     for (auto* network_handler :

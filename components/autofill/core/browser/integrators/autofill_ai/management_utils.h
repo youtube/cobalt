@@ -23,7 +23,10 @@ std::string GetEntityTypeSectionTitleStringForI18n(EntityType entity_type);
 
 // Returns the i18n string representation of "Add <entity type>". For example,
 // for a passport for "en-US", this function should return "Add passport".
-std::string GetAddEntityTypeStringForI18n(EntityType entity_type);
+// If `is_wallet_branded` is true (and supported on the platform), returns the
+// branded save/add dialog title, e.g. "Save passport in Google Wallet".
+std::string GetAddEntityTypeStringForI18n(EntityType entity_type,
+                                          bool is_wallet_branded = false);
 
 // Returns the i18n string representation of "Edit <entity type>". For example,
 // for a passport for "en-US", this function should return "Edit passport".

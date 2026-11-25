@@ -191,12 +191,6 @@ IN_PROC_BROWSER_TEST_F(SessionRestoreInteractiveTest, MAYBE_FocusOnLaunch) {
 // Regression test for https://crbug.com/40655640.
 IN_PROC_BROWSER_TEST_F(SessionRestoreInteractiveTest,
                        MAYBE_RestoreMinimizedWindow) {
-#if BUILDFLAG(IS_WIN)
-  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
-    GTEST_SKIP() << "Skipping test on Windows with InitialWebUI enabled. "
-                    "See crbug.com/477426026";
-  }
-#endif
   // Minimize the window.
   views::test::PropertyWaiter minimize_waiter(
       base::BindRepeating(&ui::BaseWindow::IsMinimized,

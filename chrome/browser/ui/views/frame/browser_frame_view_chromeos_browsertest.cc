@@ -401,8 +401,7 @@ class WebAppFrameViewChromeOSTest
     : public TopChromeMdParamTest<ChromeOSBrowserUITest> {
  public:
   WebAppFrameViewChromeOSTest() {
-    scoped_feature_list_.InitAndDisableFeature(
-        ::features::kWebAppInstallDialog);
+    scoped_feature_list_.InitAndEnableFeature(::features::kWebAppInstallDialog);
   }
   WebAppFrameViewChromeOSTest(const WebAppFrameViewChromeOSTest&) = delete;
   WebAppFrameViewChromeOSTest& operator=(const WebAppFrameViewChromeOSTest&) =

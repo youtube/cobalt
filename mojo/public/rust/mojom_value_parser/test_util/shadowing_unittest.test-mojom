@@ -1,0 +1,14 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module shadowing_unittest.mojom;
+
+// In parsing_attribute.rs, we have some special casing for variables with the
+// name `context` or `value` to ensure they are not shadowed by variables in the
+// parser's logic; this mojom file tests that this logic is being handled
+// correctly.
+struct StructWithContextAndValueFields {
+  int32 context;
+  int32 value;
+};

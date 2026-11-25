@@ -180,7 +180,7 @@ class SupervisedUserExtensionsMetricsRecorder
   SupervisedUserExtensionsMetricsRecorder& operator=(
       const SupervisedUserExtensionsMetricsRecorder&) = delete;
 
-  // ExtensionInstallPrompt::Observer:
+  // ExtensionInstallPromptClient::Observer:
   void OnDialogOpened() override;
   void OnDialogAccepted() override;
   void OnDialogCanceled() override;

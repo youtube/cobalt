@@ -952,6 +952,9 @@ AudioInputStream::OpenOutcome WASAPIAudioInputStream::Open() {
       return OpenOutcome::kFailedSystemPermissions;
     case AUDCLNT_E_DEVICE_IN_USE:
       return OpenOutcome::kFailedInUse;
+    case AUDCLNT_E_DEVICE_INVALIDATED:
+    case HRESULT_FROM_WIN32(ERROR_DEVICE_REMOVED):
+      return OpenOutcome::kFailedDeviceRemoved;
     default:
       return OpenOutcome::kFailed;
   }

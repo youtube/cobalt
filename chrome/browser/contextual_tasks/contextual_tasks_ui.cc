@@ -934,7 +934,15 @@ void ContextualTasksUI::RemoveObserver(
 }
 
 bool ContextualTasksUI::IsShownInTab() {
-  return tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
+  tabs::TabInterface* tab =
+      tabs::TabInterface::MaybeGetFromContents(web_ui()->GetWebContents());
+  bool is_in_tab = (tab != nullptr);
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, verify this WebUI is the primary contents of the tab.
+  is_in_tab = tab && web_ui()->GetWebContents() == tab->GetContents();
+#endif
+
+  return is_in_tab;
 }
 
 BrowserWindowInterface* ContextualTasksUI::GetBrowser() {

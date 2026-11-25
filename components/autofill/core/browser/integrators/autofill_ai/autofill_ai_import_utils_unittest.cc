@@ -420,14 +420,40 @@ TEST_F(AutofillAiImportUtilsTest, EnterprisePolicyBlocked) {
               IsEmpty());
 }
 
-// Tests that read-only entity is not offered for import.
+// Tests that read-only entity is not offered for import even if its import
+// constraints are satisfied.
 TEST_F(AutofillAiImportUtilsTest, DoNotImportReadOnlyEntities) {
-  base::test::ScopedFeatureList feature_list{
-      features::kAutofillAiWalletFlightReservation};
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kAutofillAiWithDataSchema,
+                            features::kAutofillAiOrder},
+      /*disabled_features=*/{});
+
+  // Verify that the hardcoded fields we use in this test still match the actual
+  // import constraints of Order in the schema, in case they change in the
+  // future.
+  EntityType order_type = EntityType(EntityTypeName::kOrder);
+  ASSERT_FALSE(order_type.import_constraints().empty());
+  EXPECT_THAT(order_type.import_constraints()[0],
+              UnorderedElementsAre(AttributeType(kOrderId),
+                                   AttributeType(kOrderMerchantName),
+                                   AttributeType(kOrderDate)));
 
   std::vector<std::unique_ptr<AutofillField>> fields;
-  fields.push_back(CreateInput(FormControlType::kInputText,
-                               FLIGHT_RESERVATION_FLIGHT_NUMBER, "LH123"));
+  fields.push_back(
+      CreateInput(FormControlType::kInputText, ORDER_ID, "order_123"));
+  fields.push_back(
+      CreateInput(FormControlType::kInputText, ORDER_MERCHANT_NAME, "Amazon"));
+
+  // Order Date requires a format string to be parsed correctly, otherwise it
+  // is discarded and the import constraints are not met.
+  std::unique_ptr<AutofillField> date_field =
+      CreateInput(FormControlType::kInputText, ORDER_DATE, "2026-06-29");
+  date_field->set_format_string_unless_overruled(
+      AutofillFormatString(u"YYYY-MM-DD", FormatString_Type_DATE),
+      AutofillFormatStringSource::kServer);
+  fields.push_back(std::move(date_field));
+
   EXPECT_THAT(GetPossibleEntitiesFromSubmittedForm(fields, autofill_client()),
               IsEmpty());
 }

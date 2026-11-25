@@ -244,7 +244,7 @@ DynamicRangeLimit StyleBuilderConverter::ConvertDynamicRangeLimit(
     float standard_mix_sum = 0.f;
     float constrained_high_mix_sum = 0.f;
     float fraction_sum = 0.f;
-    for (size_t i = 0; i < mix_value->Limits().size(); ++i) {
+    for (wtf_size_t i = 0; i < mix_value->Limits().size(); ++i) {
       const DynamicRangeLimit limit =
           ConvertDynamicRangeLimit(state, *mix_value->Limits()[i]);
       const float fraction =
@@ -2240,14 +2240,13 @@ float StyleBuilderConverter::ConvertNumberOrPercentage(
   return primitive_value.ConvertTo<float>(state.CssToLengthConversionData());
 }
 
-float StyleBuilderConverter::ConvertPathLength(StyleResolverState& state,
-                                               const CSSValue& value) {
+Length StyleBuilderConverter::ConvertPathLength(StyleResolverState& state,
+                                                const CSSValue& value) {
   if (auto* identifier_value = DynamicTo<CSSIdentifierValue>(value)) {
     DCHECK_EQ(identifier_value->GetValueID(), CSSValueID::kNone);
-    return -1.0;
+    return Length::None();
   }
-  return To<CSSPrimitiveValue>(value).ConvertTo<float>(
-      state.CssToLengthConversionData());
+  return ConvertLength(state, value);
 }
 
 int StyleBuilderConverter::ConvertInteger(StyleResolverState& state,
@@ -2764,23 +2763,24 @@ ShapeValue* StyleBuilderConverter::ConvertShapeValue(StyleResolverState& state,
   }
 
   const BasicShape* shape = nullptr;
-  ShapeBox css_box = ShapeBox::kMissing;
+  std::optional<ShapeBox> shape_box;
   const auto& value_list = To<CSSValueList>(value);
   for (unsigned i = 0; i < value_list.length(); ++i) {
     const CSSValue& item_value = value_list.Item(i);
     if (item_value.IsBasicShapeValue()) {
       shape = BasicShapeForValue(state, item_value);
     } else {
-      css_box = To<CSSIdentifierValue>(item_value).ConvertTo<ShapeBox>();
+      shape_box = To<CSSIdentifierValue>(item_value).ConvertTo<ShapeBox>();
     }
   }
 
   if (shape) {
-    return MakeGarbageCollected<ShapeValue>(*shape, css_box);
+    return MakeGarbageCollected<ShapeValue>(
+        *shape, shape_box.value_or(ShapeBox::kMarginBox));
   }
 
-  DCHECK_NE(css_box, ShapeBox::kMissing);
-  return MakeGarbageCollected<ShapeValue>(css_box);
+  CHECK(shape_box.has_value());
+  return MakeGarbageCollected<ShapeValue>(*shape_box);
 }
 
 Length StyleBuilderConverter::ConvertSpacing(StyleResolverState& state,

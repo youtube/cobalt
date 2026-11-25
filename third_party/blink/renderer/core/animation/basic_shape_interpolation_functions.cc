@@ -53,7 +53,7 @@ class BasicShapeNonInterpolableValue : public NonInterpolableValue {
   bool IsCompatibleWith(const BasicShapeNonInterpolableValue& other) const {
     if (GetGeometryBox() != other.GetGeometryBox() ||
         GetCoordBox() != other.GetCoordBox() ||
-        !ShapeOutsideBoxesMatch(GetShapeBox(), other.GetShapeBox()) ||
+        GetShapeBox() != other.GetShapeBox() ||
         GetShapeType() != other.GetShapeType()) {
       return false;
     }
@@ -188,26 +188,21 @@ InterpolableValue* ConvertCSSCoordinate(const CSSValue* coordinate,
       Length::Percent(50), property, 1, /*interpolate_size=*/std::nullopt);
 }
 
-InterpolableValue* ConvertCoordinate(
-    const BasicShapeCenterCoordinate& coordinate,
-    const CSSProperty& property,
-    double zoom) {
+InterpolableValue* ConvertCoordinate(const Length& coordinate,
+                                     const CSSProperty& property,
+                                     double zoom) {
   return InterpolableLength::MaybeConvertLength(
-      coordinate.ComputedLength(), property, zoom,
-      /*interpolate_size=*/std::nullopt);
+      coordinate, property, zoom, /*interpolate_size=*/std::nullopt);
 }
 
 InterpolableValue* CreateNeutralInterpolableCoordinate() {
   return InterpolableLength::CreateNeutral();
 }
 
-BasicShapeCenterCoordinate CreateCoordinate(
-    const InterpolableValue& interpolable_value,
-    const CSSToLengthConversionData& conversion_data) {
-  return BasicShapeCenterCoordinate(
-      BasicShapeCenterCoordinate::kTopLeft,
-      To<InterpolableLength>(interpolable_value)
-          .CreateLength(conversion_data, Length::ValueRange::kAll));
+Length CreateCoordinate(const InterpolableValue& interpolable_value,
+                        const CSSToLengthConversionData& conversion_data) {
+  return To<InterpolableLength>(interpolable_value)
+      .CreateLength(conversion_data, Length::ValueRange::kAll);
 }
 
 InterpolableValue* ConvertCSSRadius(const CSSValue* radius) {
@@ -379,9 +374,9 @@ InterpolationValue ConvertBasicShape(const BasicShapeCircle& circle,
   auto* list =
       MakeGarbageCollected<InterpolableList>(kCircleComponentIndexCount);
   list->Set(kCircleCenterXIndex,
-            ConvertCoordinate(circle.CenterX(), property, zoom));
+            ConvertCoordinate(circle.Center().X(), property, zoom));
   list->Set(kCircleCenterYIndex,
-            ConvertCoordinate(circle.CenterY(), property, zoom));
+            ConvertCoordinate(circle.Center().Y(), property, zoom));
   list->Set(
       kCircleHasExplicitCenterIndex,
       MakeGarbageCollected<InterpolableNumber>(circle.HasExplicitCenter()));
@@ -412,10 +407,9 @@ BasicShape* CreateBasicShape(const InterpolableValue& interpolable_value,
                              const CSSToLengthConversionData& conversion_data) {
   BasicShapeCircle* circle = MakeGarbageCollected<BasicShapeCircle>();
   const auto& list = To<InterpolableList>(interpolable_value);
-  circle->SetCenterX(
-      CreateCoordinate(*list.Get(kCircleCenterXIndex), conversion_data));
-  circle->SetCenterY(
-      CreateCoordinate(*list.Get(kCircleCenterYIndex), conversion_data));
+  circle->SetCenter(LengthPoint(
+      CreateCoordinate(*list.Get(kCircleCenterXIndex), conversion_data),
+      CreateCoordinate(*list.Get(kCircleCenterYIndex), conversion_data)));
   circle->SetRadius(
       CreateRadius(*list.Get(kCircleRadiusIndex), conversion_data));
   circle->SetHasExplicitCenter(
@@ -470,9 +464,9 @@ InterpolationValue ConvertBasicShape(const BasicShapeEllipse& ellipse,
   auto* list =
       MakeGarbageCollected<InterpolableList>(kEllipseComponentIndexCount);
   list->Set(kEllipseCenterXIndex,
-            ConvertCoordinate(ellipse.CenterX(), property, zoom));
+            ConvertCoordinate(ellipse.Center().X(), property, zoom));
   list->Set(kEllipseCenterYIndex,
-            ConvertCoordinate(ellipse.CenterY(), property, zoom));
+            ConvertCoordinate(ellipse.Center().Y(), property, zoom));
   list->Set(kEllipseHasExplicitCenter, MakeGarbageCollected<InterpolableNumber>(
                                            ellipse.HasExplicitCenter()));
 
@@ -507,10 +501,9 @@ BasicShape* CreateBasicShape(const InterpolableValue& interpolable_value,
                              const CSSToLengthConversionData& conversion_data) {
   BasicShapeEllipse* ellipse = MakeGarbageCollected<BasicShapeEllipse>();
   const auto& list = To<InterpolableList>(interpolable_value);
-  ellipse->SetCenterX(
-      CreateCoordinate(*list.Get(kEllipseCenterXIndex), conversion_data));
-  ellipse->SetCenterY(
-      CreateCoordinate(*list.Get(kEllipseCenterYIndex), conversion_data));
+  ellipse->SetCenter(LengthPoint(
+      CreateCoordinate(*list.Get(kEllipseCenterXIndex), conversion_data),
+      CreateCoordinate(*list.Get(kEllipseCenterYIndex), conversion_data)));
   ellipse->SetRadiusX(
       CreateRadius(*list.Get(kEllipseRadiusXIndex), conversion_data));
   ellipse->SetRadiusY(
@@ -927,7 +920,7 @@ CoordBox basic_shape_interpolation_functions::GetCoordBox(
 ShapeBox basic_shape_interpolation_functions::GetShapeBox(
     const NonInterpolableValue& value) {
   return To<BasicShapeNonInterpolableValue>(value).GetShapeBox().value_or(
-      ShapeBox::kMissing);
+      ShapeBox::kMarginBox);
 }
 
 }  // namespace blink

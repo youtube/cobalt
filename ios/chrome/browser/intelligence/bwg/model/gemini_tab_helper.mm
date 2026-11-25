@@ -91,11 +91,27 @@ GeminiPageContextComputationStateFromPageContextWrapperError(
   switch (error) {
     case PageContextWrapperError::kForceDetachError:
       return ios::provider::GeminiPageContextComputationState::kProtected;
+    case PageContextWrapperError::kPageUnsafeError:
+      return ios::provider::GeminiPageContextComputationState::kBlocked;
     case PageContextWrapperError::kPageNotExtractableError:
       return ios::provider::GeminiPageContextComputationState::kError;
     default:
       return ios::provider::GeminiPageContextComputationState::kError;
   }
+}
+
+// Converts an array of ZeroStateSuggestion to an array of NSString.
+NSArray<NSString*>* ConvertZeroStateSuggestionsToStrings(
+    NSArray<ZeroStateSuggestion*>* suggestions) {
+  if (!suggestions) {
+    return nil;
+  }
+  NSMutableArray<NSString*>* string_suggestions =
+      [NSMutableArray arrayWithCapacity:suggestions.count];
+  for (ZeroStateSuggestion* suggestion in suggestions) {
+    [string_suggestions addObject:suggestion.text];
+  }
+  return string_suggestions;
 }
 
 }  // namespace
@@ -108,7 +124,8 @@ GeminiTabHelper::GeminiTabHelper(web::WebState* web_state)
       OptimizationGuideServiceFactory::GetForProfile(profile);
   web_state_observation_.Observe(web_state);
 
-  if (IsZeroStateSuggestionsEnabled()) {
+  if (IsZeroStateSuggestionsEnabled() ||
+      IsZeroStateSuggestionsCentralizationEnabled()) {
     zero_state_suggestions_service_ =
         std::make_unique<ai::ZeroStateSuggestionsService>(web_state);
   }
@@ -185,13 +202,25 @@ void GeminiTabHelper::CancelPageContextGeneration() {
 
 void GeminiTabHelper::ExecuteZeroStateSuggestions(
     base::OnceCallback<void(NSArray<NSString*>*)> callback) {
-  CHECK(IsZeroStateSuggestionsEnabled());
-  if (gemini_contextual_eligibility_ == ContextualEligibility::kIneligible) {
+  CHECK(IsZeroStateSuggestionsEnabled() ||
+        IsZeroStateSuggestionsCentralizationEnabled());
+  if (gemini_contextual_eligibility_ == ContextualEligibility::kIneligible ||
+      !zero_state_suggestions_service_) {
     std::move(callback).Run(nil);
     return;
   }
+
+  base::OnceCallback<void(NSArray<ZeroStateSuggestion*>*)> conversion_callback =
+      base::BindOnce(
+          [](base::OnceCallback<void(NSArray<NSString*>*)> result_callback,
+             NSArray<ZeroStateSuggestion*>* suggestions) {
+            std::move(result_callback)
+                .Run(ConvertZeroStateSuggestionsToStrings(suggestions));
+          },
+          std::move(callback));
+
   zero_state_suggestions_service_->FetchZeroStateSuggestions(
-      std::move(callback));
+      std::move(conversion_callback));
 }
 
 bool GeminiTabHelper::ShouldPreventContextualPanelEntryPoint() {
@@ -444,7 +473,7 @@ void GeminiTabHelper::DidStartNavigation(
   // Reset gemini eligibility. The eligibility is decided by the optimization
   // guide with GLIC_ZERO_STATE_SUGGESTIONS.
   gemini_contextual_eligibility_ = ContextualEligibility::kIneligible;
-  if (IsZeroStateSuggestionsEnabled()) {
+  if (zero_state_suggestions_service_) {
     zero_state_suggestions_service_->ClearCachedSuggestions();
   }
 

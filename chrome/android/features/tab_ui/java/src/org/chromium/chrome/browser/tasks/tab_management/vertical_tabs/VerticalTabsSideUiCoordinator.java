@@ -109,8 +109,8 @@ public class VerticalTabsSideUiCoordinator implements SideUiContainer {
     }
 
     @Override
-    public void onContainerResized(@Px int containerWidth) {
-        mIsVerticalTabsActiveSupplier.set(containerWidth > 0);
+    public void onUiUpdateCompleted(@Px int oldWidth, @Px int newWidth) {
+        mIsVerticalTabsActiveSupplier.set(newWidth > 0);
     }
 
     public void destroy() {

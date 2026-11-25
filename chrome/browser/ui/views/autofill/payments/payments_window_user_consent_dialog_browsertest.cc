@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/functional/callback_helpers.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "chrome/browser/ui/autofill/payments/payments_view_factory.h"
@@ -11,7 +10,6 @@
 #include "chrome/browser/ui/views/autofill/payments/payments_window_user_consent_dialog_view.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/autofill/core/browser/metrics/payments/payments_window_metrics.h"
-#include "components/autofill/core/browser/ui/payments/payments_window_user_consent_dialog_controller.h"
 #include "components/autofill/core/browser/ui/payments/payments_window_user_consent_dialog_controller_impl.h"
 #include "content/public/test/browser_test.h"
 #include "ui/views/window/dialog_client_view.h"

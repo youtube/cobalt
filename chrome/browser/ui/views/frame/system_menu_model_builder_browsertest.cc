@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <utility>
+
 #include "base/test/scoped_feature_list.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -77,18 +79,18 @@ IN_PROC_BROWSER_TEST_F(SystemMenuModelBuilderGlicTest, ToggleGlicPinning) {
 
   profile_prefs->SetInteger(
       ::prefs::kGeminiSettings,
-      static_cast<int>(glic::prefs::SettingsPolicyState::kDisabled));
+      std::to_underlying(glic::prefs::SettingsPolicyState::kDisabled));
   EXPECT_FALSE(ContainsCommand(menu, IDC_GLIC_TOGGLE_PIN, std::nullopt));
 
   profile_prefs->SetInteger(
       ::prefs::kGeminiSettings,
-      static_cast<int>(glic::prefs::SettingsPolicyState::kEnabled));
+      std::to_underlying(glic::prefs::SettingsPolicyState::kEnabled));
   profile_prefs->SetBoolean(glic::prefs::kGlicPinnedToTabstrip, false);
   EXPECT_TRUE(ContainsCommand(menu, IDC_GLIC_TOGGLE_PIN, IDS_GLIC_PIN));
 
   profile_prefs->SetInteger(
       ::prefs::kGeminiSettings,
-      static_cast<int>(glic::prefs::SettingsPolicyState::kEnabled));
+      std::to_underlying(glic::prefs::SettingsPolicyState::kEnabled));
   profile_prefs->SetBoolean(glic::prefs::kGlicPinnedToTabstrip, true);
   EXPECT_TRUE(ContainsCommand(menu, IDC_GLIC_TOGGLE_PIN, IDS_GLIC_UNPIN));
 }

@@ -16,12 +16,14 @@ namespace platform_experience {
 // Outcome status of executing a delegated task.
 enum class DelegatedTaskStatus {
   kSuccess = 0,
-  kFailure = 1,
-  kRunnerBusy = 2,
-  kPehNotFound = 3,
-  kProcessLaunchFailure = 4,
-  kRunnerDestroyedBeforeTaskCompletion = 5,
-  kMaxValue = kRunnerDestroyedBeforeTaskCompletion,
+  kPehNotFound = 1,
+  kProcessLaunchFailure = 2,
+  kRunnerDestroyedBeforeTaskCompletion = 3,
+  kInvalidExitCode = 4,
+  kWatchProcessHandleFailure = 5,
+  kTaskTimeout = 6,
+  kInvalidTaskType = 7,
+  kMaxValue = kInvalidTaskType,
 };
 
 enum class DelegatedTaskType {

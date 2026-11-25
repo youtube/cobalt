@@ -504,6 +504,17 @@ if (rtc_include_tests) {
     ]
   }
 
+  rtc_library("encoded_frame_unittest") {
+    testonly = true
+    sources = [ "encoded_frame_unittest.cc" ]
+    deps = [
+      ":encoded_frame",
+      ":video_frame",
+      "../../modules/rtp_rtcp:rtp_video_header",
+      "../../test:test_support",
+    ]
+  }
+
   rtc_library("video_adapter_unittest") {
     testonly = true
     sources = [ "video_adapter_unittest.cc" ]

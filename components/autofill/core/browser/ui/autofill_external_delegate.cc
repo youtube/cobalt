@@ -523,6 +523,7 @@ void AutofillExternalDelegate::AttemptToDisplayAutofillSuggestions(
 #endif
 
   AutofillClient::PopupOpenArgs open_args(
+      trigger_field->global_id().frame_token,
       should_use_caret_bounds ? gfx::RectF(caret_bounds_)
                               : trigger_field->bounds(),
       trigger_field->text_direction(), std::move(suggestions), trigger_source_,
@@ -580,7 +581,7 @@ void AutofillExternalDelegate::OnAutofillAvailabilityEvent(
 }
 
 std::variant<AutofillDriver*, password_manager::PasswordManagerDriver*>
-AutofillExternalDelegate::GetDriver() {
+AutofillExternalDelegate::GetDriver_DoNotUse() {
   return &manager_->driver();
 }
 
@@ -795,7 +796,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
   if (form_structure && autofill_field) {
     manager_->client().GetFormInteractionsUkmLogger().LogSuggestionAccepted(
         manager_->driver().GetPageUkmSourceId(), CHECK_DEREF(form_structure),
-        CHECK_DEREF(autofill_field), suggestion.type, metadata.row);
+        CHECK_DEREF(autofill_field), suggestion.type, metadata.row());
   }
 
   switch (suggestion.type) {
@@ -845,7 +846,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       AutofillMetrics::LogAutocompleteEvent(
           AutofillMetrics::AutocompleteEvent::AUTOCOMPLETE_SUGGESTION_SELECTED);
       autofill_metrics::LogSuggestionAcceptedIndex(
-          metadata.row, FillingProduct::kAutocomplete,
+          metadata.row(), FillingProduct::kAutocomplete,
           manager_->client().IsOffTheRecord());
       manager_->FillOrPreviewField(
           mojom::ActionPersistence::kFill, mojom::FieldActionType::kReplaceAll,
@@ -1101,7 +1102,8 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     // This suggestion type represents a notice about the usage of personal
     // context in autofill. The user can acknowledge it to dismiss it.
     case SuggestionType::kPersonalContextNotice: {
-      manager_->client().MarkPersonalContextInAutofillNoticeAsAcknowledged();
+      manager_->client()
+          .MarkPersonalContextAmbientAutofillNoticeAsAcknowledged();
       return true;
     }
     case SuggestionType::kAccountStoragePasswordEntry:
@@ -1367,7 +1369,7 @@ void AutofillExternalDelegate::DidAcceptAddressSuggestion(
       "Autofill.Suggestion.AcceptanceFieldValueLength.Address",
       trigger_field->value().size());
   autofill_metrics::LogSuggestionAcceptedIndex(
-      metadata.row, FillingProduct::kAddress,
+      metadata.row(), FillingProduct::kAddress,
       manager_->client().IsOffTheRecord());
   switch (suggestion.type) {
     case SuggestionType::kAddressEntry: {
@@ -1436,7 +1438,7 @@ void AutofillExternalDelegate::DidAcceptPaymentsSuggestion(
   switch (suggestion.type) {
     case SuggestionType::kCreditCardEntry:
       autofill_metrics::LogSuggestionAcceptedIndex(
-          metadata.row, FillingProduct::kCreditCard,
+          metadata.row(), FillingProduct::kCreditCard,
           manager_->client().IsOffTheRecord());
       AutofillForm(suggestion.type, suggestion.payload, metadata,
                    /*is_preview=*/false, GetTriggerSource());

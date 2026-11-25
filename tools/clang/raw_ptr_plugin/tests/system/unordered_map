@@ -1,0 +1,25 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef TOOLS_CLANG_RAW_PTR_PLUGIN_TESTS_SYSTEM_UNORDERED_MAP_
+#define TOOLS_CLANG_RAW_PTR_PLUGIN_TESTS_SYSTEM_UNORDERED_MAP_
+
+namespace std {
+
+template<typename Key, typename Value>
+struct unordered_map {
+  unordered_map();
+  unordered_map(const unordered_map&);
+  unordered_map(unordered_map&&);
+  ~unordered_map();
+  unordered_map& operator=(const unordered_map&);
+  unordered_map& operator=(unordered_map&&);
+  unsigned int size() { return 0; }
+  void insert() {}
+  void erase() {}
+};
+
+}  // namespace std
+
+#endif  // TOOLS_CLANG_RAW_PTR_PLUGIN_TESTS_SYSTEM_UNORDERED_MAP_

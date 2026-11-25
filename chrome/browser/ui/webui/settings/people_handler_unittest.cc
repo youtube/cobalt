@@ -41,7 +41,6 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/test_chrome_web_ui_controller_factory.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -132,6 +131,10 @@ class MockSigninUiDelegate : public signin_ui_util::SigninUiDelegate {
                bool,
                signin_metrics::AccessPoint,
                signin_metrics::PromoAction),
+              (override));
+  MOCK_METHOD(void,
+              ShowCrossDeviceSigninQrBubble,
+              (BrowserWindowInterface*, base::OnceClosure),
               (override));
 };
 #endif
@@ -1775,159 +1778,6 @@ TEST_F(
 }
 
 #endif
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-class PeopleHandlerSignoutTest : public BrowserWithTestWindowTest {
- public:
-  PeopleHandlerSignoutTest() = default;
-  ~PeopleHandlerSignoutTest() override = default;
-
-  signin::IdentityTestEnvironment* identity_test_env() {
-    return identity_test_env_profile_adaptor_->identity_test_env();
-  }
-
-  signin::IdentityManager* identity_manager() {
-    return identity_test_env()->identity_manager();
-  }
-
-  PeopleHandler* handler() { return handler_.get(); }
-
-  void CreatePeopleHandler() {
-    handler_ = std::make_unique<TestingPeopleHandler>(&web_ui_, profile());
-  }
-
-  void SimulateSignout(const base::ListValue& args) {
-    handler()->HandleSignout(args);
-  }
-
-  content::WebUI* web_ui() { return handler()->web_ui(); }
-
-  content::WebContents* web_contents() {
-    return browser()->tab_strip_model()->GetActiveWebContents();
-  }
-
- protected:
-  // testing::Test:
-  void SetUp() override {
-    BrowserWithTestWindowTest::SetUp();
-
-    identity_test_env_profile_adaptor_ =
-        std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile());
-
-    // Create the first tab so that web_contents() exists.
-    AddTab(browser(), GURL(chrome::kChromeUINewTabURL));
-    web_ui_.set_web_contents(web_contents());
-  }
-
-  SigninClient* GetSigninSlient(Profile* profile) {
-    return ChromeSigninClientFactory::GetForProfile(profile);
-  }
-
- private:
-  TestingProfile::TestingFactories GetTestingFactories() override {
-    return IdentityTestEnvironmentProfileAdaptor::
-        GetIdentityTestEnvironmentFactories();
-  }
-
-  void TearDown() override {
-    handler_->set_web_ui(nullptr);
-    handler_->DisallowJavascript();
-    identity_test_env_profile_adaptor_.reset();
-    BrowserWithTestWindowTest::TearDown();
-  }
-
-  std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
-      identity_test_env_profile_adaptor_;
-  content::TestWebUI web_ui_;
-  std::unique_ptr<TestingPeopleHandler> handler_;
-};
-
-#if DCHECK_IS_ON()
-
-TEST_F(PeopleHandlerSignoutTest, SignoutNotAllowedSyncOff) {
-  auto account_1 = identity_test_env()->MakePrimaryAccountAvailable(
-      "a@gmail.com", ConsentLevel::kSignin);
-  EXPECT_TRUE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSignin));
-  GetSigninSlient(profile())->set_is_clear_primary_account_allowed_for_testing(
-      SigninClient::SignoutDecision::CLEAR_PRIMARY_ACCOUNT_DISALLOWED);
-
-  CreatePeopleHandler();
-
-  base::ListValue args;
-  args.Append(/*value=*/false);
-  EXPECT_DEATH(SimulateSignout(args), ".*");
-}
-#endif  // DCHECK_IS_ON()
-
-TEST_F(PeopleHandlerSignoutTest, SignoutNotAllowedSyncOn) {
-  auto account_1 = identity_test_env()->MakePrimaryAccountAvailable(
-      "a@gmail.com", ConsentLevel::kSync);
-  auto account_2 = identity_test_env()->MakeAccountAvailable("b@gmail.com");
-  EXPECT_TRUE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSync));
-  EXPECT_EQ(2U, identity_manager()->GetAccountsWithRefreshTokens().size());
-  GetSigninSlient(profile())->set_is_clear_primary_account_allowed_for_testing(
-      SigninClient::SignoutDecision::CLEAR_PRIMARY_ACCOUNT_DISALLOWED);
-
-  CreatePeopleHandler();
-
-  base::ListValue args;
-  args.Append(/*value=*/false);
-  SimulateSignout(args);
-
-  EXPECT_FALSE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSync));
-  EXPECT_TRUE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSignin));
-  EXPECT_EQ(2U, identity_manager()->GetAccountsWithRefreshTokens().size());
-
-  // Signout not triggered on dice platforms.
-  EXPECT_EQ(web_contents()->GetVisibleURL().spec(), chrome::kChromeUINewTabURL);
-  EXPECT_NE(web_contents()->GetVisibleURL(),
-            GaiaUrls::GetInstance()->service_logout_url());
-}
-
-TEST_F(PeopleHandlerSignoutTest, SignoutWithSyncOn) {
-  auto account_1 = identity_test_env()->MakePrimaryAccountAvailable(
-      "a@gmail.com", ConsentLevel::kSync);
-  auto account_2 = identity_test_env()->MakeAccountAvailable("b@gmail.com");
-  EXPECT_TRUE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSignin));
-  EXPECT_EQ(2U, identity_manager()->GetAccountsWithRefreshTokens().size());
-
-  CreatePeopleHandler();
-
-  EXPECT_NE(web_ui(), nullptr);
-  EXPECT_NE(nullptr, web_ui()->GetWebContents());
-
-  EXPECT_TRUE(GlobalBrowserCollection::GetInstance()->FindBrowserWithTab(
-      web_ui()->GetWebContents()));
-
-  base::ListValue args;
-  args.Append(/*value=*/false);
-  SimulateSignout(args);
-
-  EXPECT_EQ(web_contents()->GetVisibleURL(),
-            GaiaUrls::GetInstance()->LogOutURLWithContinueURL(GURL()));
-  EXPECT_FALSE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSync));
-}
-
-TEST_F(PeopleHandlerSignoutTest, Signout) {
-  auto account_1 = identity_test_env()->MakePrimaryAccountAvailable(
-      "a@gmail.com", ConsentLevel::kSignin);
-  auto account_2 = identity_test_env()->MakeAccountAvailable("b@gmail.com");
-  EXPECT_TRUE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSignin));
-  EXPECT_EQ(2U, identity_manager()->GetAccountsWithRefreshTokens().size());
-
-  CreatePeopleHandler();
-  EXPECT_FALSE(
-      browser()->GetFeatures().signin_view_controller()->ShowsModalDialog());
-
-  base::ListValue args;
-  args.Append(/*value=*/false);
-  SimulateSignout(args);
-  // The signout confirmation dialog is shown.
-  EXPECT_TRUE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSignin));
-  EXPECT_TRUE(
-      browser()->GetFeatures().signin_view_controller()->ShowsModalDialog());
-}
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_CHROMEOS)
 class PeopleHandlerWithCookiesSyncTest : public PeopleHandlerTest {

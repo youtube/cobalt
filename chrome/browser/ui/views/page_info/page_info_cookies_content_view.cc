@@ -271,10 +271,7 @@ void PageInfoCookiesContentView::SetThirdPartyCookiesTitleAndDescription(
       title_text = l10n_util::GetStringUTF16(
           IDS_PAGE_INFO_COOKIES_SITE_NOT_WORKING_TITLE);
       description =
-          base::FeatureList::IsEnabled(
-              content_settings::features::kUserBypassUxSimplification)
-              ? IDS_PAGE_INFO_COOKIES_SITE_NOT_WORKING_DESCRIPTION_PERMANENT
-              : IDS_PAGE_INFO_TRACKING_PROTECTION_SITE_NOT_WORKING_DESCRIPTION_TEMPORARY;
+          IDS_PAGE_INFO_COOKIES_SITE_NOT_WORKING_DESCRIPTION_PERMANENT;
       break;
     case CookieControlsState::kAllowed3pc:
       if (expiration.is_null() ||

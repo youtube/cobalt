@@ -75,6 +75,7 @@ import org.chromium.chrome.browser.compositor.layouts.LayoutRenderHost;
 import org.chromium.chrome.browser.compositor.layouts.LayoutUpdateHost;
 import org.chromium.chrome.browser.compositor.layouts.components.TintedCompositorButton;
 import org.chromium.chrome.browser.compositor.layouts.eventfilter.AreaMotionEventFilter;
+import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelper.LeadingButtonDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager.TabModelStartupInfo;
 import org.chromium.chrome.browser.compositor.overlays.strip.TabLoadTracker.TabLoadTrackerCallback;
 import org.chromium.chrome.browser.compositor.scene_layer.TabStripSceneLayer;
@@ -185,6 +186,7 @@ public class StripLayoutHelperManagerTest {
     @Mock private GlicKeyedService mGlicKeyedService;
     @Mock private TabBookmarker mTabBookmarker;
     @Mock private TabObscuringHandler mTabObscuringHandler;
+    @Mock private LeadingButtonDelegate mLeadingButtonDelegate;
     @Mock private ActivityResultTracker mActivityResultTracker;
     @Mock private ActorKeyedService mActorKeyedService;
     @Mock private PrefService mPrefService;
@@ -303,6 +305,7 @@ public class StripLayoutHelperManagerTest {
                         mSnackbarManager,
                         mActivityResultTracker,
                         (preventClose, invocationSource) -> {},
+                        mLeadingButtonDelegate,
                         mSideUiStateProviderSupplier,
                         mTabObscuringHandler);
         ShadowLooper.idleMainLooper();

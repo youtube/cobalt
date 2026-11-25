@@ -821,7 +821,7 @@ int SSL_request_handshake_hints(SSL *ssl, const uint8_t *client_hello,
                                 size_t client_hello_len,
                                 const uint8_t *capabilities,
                                 size_t capabilities_len) {
-  if (SSL_is_dtls(ssl)) {
+  if (SSL_is_dtls(ssl) || ssl->s3->hs == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
     return 0;
   }
@@ -937,12 +937,12 @@ static const CBS_ASN1_TAG kIgnoreTicketTag = CBS_ASN1_CONTEXT_SPECIFIC | 10;
 
 int SSL_serialize_handshake_hints(const SSL *ssl, CBB *out) {
   const SSL_HANDSHAKE *hs = ssl->s3->hs.get();
-  const SSL_HANDSHAKE_HINTS *const hints = hs->pending_hints.get();
-  if (!ssl->server || hints == nullptr) {
+  if (!ssl->server || hs == nullptr || hs->pending_hints == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
     return 0;
   }
 
+  const SSL_HANDSHAKE_HINTS *const hints = hs->pending_hints.get();
   CBB seq, child;
   if (!CBB_add_asn1(out, &seq, CBS_ASN1_SEQUENCE)) {
     return 0;
@@ -1064,7 +1064,7 @@ static bool get_optional_implicit_null(CBS *cbs, bool *out_present,
 }
 
 int SSL_set_handshake_hints(SSL *ssl, const uint8_t *hints, size_t hints_len) {
-  if (SSL_is_dtls(ssl)) {
+  if (SSL_is_dtls(ssl) || ssl->s3->hs == nullptr) {
     OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
     return 0;
   }

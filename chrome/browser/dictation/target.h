@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "content/public/browser/global_routing_id.h"
+#include "content/public/browser/weak_document_ptr.h"
 
 namespace content {
 class RenderFrameHost;
@@ -16,15 +16,16 @@ class RenderWidgetHost;
 
 namespace dictation {
 
+struct TargetId {
+  content::WeakDocumentPtr document;
+};
+
 // Represents a dictation target into which transcriptions will be written.
 class Target {
  public:
   Target();
-  explicit Target(content::RenderFrameHost* rfh,
-                  const std::string& selected_text);
+  explicit Target(const TargetId& target_id);
   virtual ~Target();
-
-  virtual const std::string& GetSelectedText() const;
 
   // Returns the RenderFrameHost associated with this target, or nullptr if it
   // no longer exists.
@@ -39,8 +40,7 @@ class Target {
  private:
   content::RenderWidgetHost* GetRenderWidgetHost() const;
 
-  const std::string selected_text_;
-  content::GlobalRenderFrameHostId rfh_id_;
+  TargetId target_id_;
 };
 
 }  // namespace dictation

@@ -14,6 +14,7 @@ import org.jni_zero.JNINamespace;
 import org.chromium.base.UserDataHost;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.content.browser.framehost.PageImpl;
 import org.chromium.net.NetError;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.url.GURL;
@@ -241,7 +242,7 @@ public class NavigationHandle {
                 /* isExternalProtocol= */ false,
                 /* isPdf= */ false,
                 /* mimeType= */ "",
-                Page.createForTesting(),
+                new PageImpl(/* nativePage= */ 0, /* isPrerendering= */ false),
                 /* isSameOrigin= */ true,
                 /* ignoredDuplicateNavigationCount= */ 0);
     }
