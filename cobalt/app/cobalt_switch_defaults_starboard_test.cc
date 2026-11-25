@@ -82,7 +82,7 @@ TEST(CobaltSwitchDefaultsTest, MergeEnabledBlinkFeatures) {
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  EXPECT_EQ(std::string("UseFoo,PreciseMemoryInfo"),
+  EXPECT_EQ(std::string("UseFoo,PreciseMemoryInfo,UseLowQualityInterpolation"),
             GetSwitchValue(cmd_line_pxr, ::switches::kEnableBlinkFeatures));
 }
 
