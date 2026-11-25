@@ -59,10 +59,6 @@
 #include "url/gurl.h"
 #include "url/third_party/mozilla/url_parse.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "base/features.h"
-#endif  // BUILDFLAG(IS_COBALT)
-
 namespace net {
 
 namespace {
@@ -2573,60 +2569,4 @@ TEST_F(SQLitePersistentCookieStoreTest, EarlyInitEnabledCheckDiskFalse) {
   EXPECT_TRUE(store_->IsBackendInitializedForTesting());
   EXPECT_TRUE(base::PathExists(cookie_file));
 }
-
-#if BUILDFLAG(IS_COBALT)
-TEST_F(SQLitePersistentCookieStoreTest, CobaltSkipCookieUpdateAccess) {
-  base::test::ScopedFeatureList feature_list(
-      base::features::kCobaltSkipCookieUpdateAccess);
-  InitializeStore(/*crypt=*/false, /*restore_old_session_cookies=*/false);
-
-  base::Time t = base::Time::Now();
-  auto cookie1 = CanonicalCookie::CreateUnsafeCookieForTesting(
-      "A", "B", "foo.bar", "/", t, t + base::Days(1), t, t,
-      /*secure=*/false, /*httponly=*/false, CookieSameSite::NO_RESTRICTION,
-      COOKIE_PRIORITY_DEFAULT, CookieSourceType::kOther);
-  store_->AddCookie(*cookie1);
-  Flush();
-
-  base::HistogramTester histogram_tester;
-  // Calling Flush() when the queue is empty should not record a 0-op sample in
-  // Cobalt.Storage.Cookie.PendingOperationsAtCommit.
-  Flush();
-  histogram_tester.ExpectTotalCount(
-      "Cobalt.Storage.Cookie.PendingOperationsAtCommit", 0);
-
-  // UpdateCookieAccessTime calls should be ignored without queueing SQLite
-  // operations or triggering background commits.
-  cookie1->SetLastAccessDate(t + base::Minutes(5));
-  store_->UpdateCookieAccessTime(*cookie1);
-  cookie1->SetLastAccessDate(t + base::Minutes(10));
-  store_->UpdateCookieAccessTime(*cookie1);
-  EXPECT_EQ(0u, store_->GetQueueLengthForTesting());
-
-  Flush();
-  EXPECT_EQ(0u, store_->GetQueueLengthForTesting());
-  histogram_tester.ExpectTotalCount("Cobalt.Storage.Cookie.CommitDuration", 0);
-  histogram_tester.ExpectTotalCount(
-      "Cobalt.Storage.Cookie.PendingOperationsAtCommit", 0);
-
-  // Cookie mutations (DeleteCookie + AddCookie) still batch and commit in a
-  // single SQLite transaction.
-  store_->DeleteCookie(*cookie1);
-  auto cookie2 = CanonicalCookie::CreateUnsafeCookieForTesting(
-      "C", "D", "foo.bar", "/", t, t + base::Days(1), t, t,
-      /*secure=*/false, /*httponly=*/false, CookieSameSite::NO_RESTRICTION,
-      COOKIE_PRIORITY_DEFAULT, CookieSourceType::kOther);
-  store_->AddCookie(*cookie2);
-  EXPECT_EQ(2u, store_->GetQueueLengthForTesting());
-
-  Flush();
-  EXPECT_EQ(0u, store_->GetQueueLengthForTesting());
-  histogram_tester.ExpectTotalCount("Cobalt.Storage.Cookie.CommitDuration", 1);
-  histogram_tester.ExpectUniqueSample(
-      "Cobalt.Storage.Cookie.PendingOperationsAtCommit", 2, 1);
-
-  DestroyStore();
-}
-#endif  // BUILDFLAG(IS_COBALT)
-
 }  // namespace net

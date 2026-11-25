@@ -66,15 +66,6 @@ std::string GetModulePath(void *moduleOrSymbol)
 
 void *OpenPosixLibrary(const std::string &fullPath, int extraFlags, std::string *errorOut)
 {
-#if defined(STARBOARD) && !defined(ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN)
-    // Hermetic Starboard (modular and Evergreen) builds can't load shared
-    // libraries.
-    if (errorOut)
-    {
-        *errorOut = "dlopen(" + fullPath + ") is not supported on Starboard";
-    }
-    return nullptr;
-#else
     void *module = dlopen(fullPath.c_str(), RTLD_NOW | extraFlags);
     if (module)
     {
@@ -120,7 +111,6 @@ void *OpenPosixLibrary(const std::string &fullPath, int extraFlags, std::string 
         }
     }
     return module;
-#endif  // defined(STARBOARD) && !defined(ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN)
 }
 }  // namespace
 
@@ -235,18 +225,12 @@ void *OpenSystemLibraryWithExtensionAndGetError(const char *libraryName,
 
 void *GetLibrarySymbol(void *libraryHandle, const char *symbolName)
 {
-#if defined(STARBOARD) && !defined(ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN)
-    // No library can be open in hermetic Starboard builds (see
-    // OpenPosixLibrary()).
-    return nullptr;
-#else
     if (!libraryHandle)
     {
         return nullptr;
     }
 
     return dlsym(libraryHandle, symbolName);
-#endif  // defined(STARBOARD) && !defined(ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN)
 }
 
 std::string GetLibraryPath(void *libraryHandle)

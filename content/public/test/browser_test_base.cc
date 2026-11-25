@@ -169,13 +169,7 @@ int g_browser_process_pid;
 base::OnceCallback<void(int)> ShutdownHandler;
 
 void SignalHandler(int signal) {
-#if BUILDFLAG(IS_COBALT)
-  if (ShutdownHandler) {
-    std::move(ShutdownHandler).Run(signal);
-  }
-#else
   std::move(ShutdownHandler).Run(signal);
-#endif
 
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kDisableInProcessStackTraces) &&
@@ -1060,14 +1054,6 @@ void BrowserTestBase::ProxyRunTestOnMainThreadLoop() {
       ->startup_tracing_controller()
       ->ShutdownAndWaitForStopIfNeeded();
 #endif
-
-#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_POSIX)
-  ShutdownHandler.Reset();
-  signal(SIGSEGV, SIG_DFL);
-  if (handle_sigterm_) {
-    signal(SIGTERM, SIG_DFL);
-  }
-#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_POSIX)
 }
 
 void BrowserTestBase::SetAllowNetworkAccessToHostResolutions() {

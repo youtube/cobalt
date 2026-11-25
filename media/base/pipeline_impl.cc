@@ -386,27 +386,6 @@ void PipelineImpl::RendererWrapper::Start(
   DCHECK(!pending_callbacks_);
   SerialRunner::Queue fns;
 
-#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-  // The URL player's duration comes from the platform player, which the
-  // renderer creates, so report the metadata after the renderer initializes.
-  if (demuxer_->GetDemuxerType() == DemuxerType::kUrlPlayerDemuxer) {
-    DCHECK_EQ(start_type, StartType::kNormal);
-    fns.Push(base::BindOnce(&RendererWrapper::InitializeDemuxer,
-                            weak_factory_.GetWeakPtr()));
-    fns.Push(base::BindOnce(&RendererWrapper::CreateRenderer,
-                            weak_factory_.GetWeakPtr()));
-    fns.Push(base::BindOnce(&RendererWrapper::InitializeRenderer,
-                            weak_factory_.GetWeakPtr()));
-    fns.Push(base::BindOnce(&RendererWrapper::ReportMetadata,
-                            weak_factory_.GetWeakPtr(), StartType::kNormal));
-    pending_callbacks_ = SerialRunner::Run(
-        std::move(fns),
-        base::BindOnce(&RendererWrapper::CompleteSeek,
-                       weak_factory_.GetWeakPtr(), base::TimeDelta()));
-    return;
-  }
-#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
-
   // Initialize demuxer.
   fns.Push(base::BindOnce(&RendererWrapper::InitializeDemuxer,
                           weak_factory_.GetWeakPtr()));
@@ -1692,7 +1671,6 @@ void PipelineImpl::SetCdm(CdmContext* cdm_context,
           cdm_context,
           base::BindPostTaskToCurrentDefault(std::move(cdm_attached_cb))));
 }
-
 
 void PipelineImpl::AsyncCreateRenderer(
     std::optional<RendererType> renderer_type,

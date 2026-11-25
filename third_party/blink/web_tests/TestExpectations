@@ -9437,6 +9437,7 @@ crbug.com/515670908 [ Release Win11-arm64 ] inspector-protocol/layout-fonts/lang
 crbug.com/515194597 [ Release Win11-arm64 ] virtual/text-antialias/font-fallback.html [ Failure Pass ]
 crbug.com/513985436 [ Release Win11-arm64 ] virtual/text-antialias/selection/khmer-selection.html [ Failure Pass ]
 
+
 # TODO(crbug.com/493947412): Failing on all platforms (Linux/Mac/Win). Re-enable once extension WPT infra is implemented.
 crbug.com/493947412 external/wpt/web-extensions/browser.runtime.extension.html [ Failure ]
 
@@ -9498,16 +9499,3 @@ crbug.com/526066305 [ Linux ] external/wpt/webdriver/tests/classic/element_click
 crbug.com/524467548 [ Linux ] external/wpt/webdriver/tests/classic/get_current_url/file.py [ Failure Pass ]
 crbug.com/526696413 [ Linux ] external/wpt/webdriver/tests/classic/get_element_property/get.py [ Failure Pass Timeout ]
 crbug.com/523483431 [ Linux ] external/wpt/webdriver/tests/classic/new_session/invalid_capabilities.py [ Failure Pass Timeout ]
-
-# Cobalt bug: b/461834934.
-wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
-
-# Cobalt bug: b/405993906.
-wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
-
-# Cobalt bug: b/405997906.
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
-wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]

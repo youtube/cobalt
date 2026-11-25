@@ -6,12 +6,9 @@ import("//build/config/android/config.gni")
 import("//build/config/c++/c++.gni")
 import("//build/config/unwind.gni")
 
-source_set("libc++abi") {
+target(libcxxabi_target_type, "libc++abi") {
   if (export_libcxxabi_from_executables) {
     visibility = [ "//build/config:executable_deps" ]
-    if (is_cobalt_hermetic_build) {
-      visibility += [ "//buildtools/third_party/libc++" ]
-    }
   } else {
     visibility = [ "//buildtools/third_party/libc++" ]
   }
@@ -65,7 +62,7 @@ source_set("libc++abi") {
   # TODO(crbug.com/469458284): Remove this once libc++abi is rolled again.
   defines += [ "_LIBCPP_CONSTINIT=constinit" ]
 
-  if ((is_linux || is_android) && !is_cobalt_hermetic_build) {
+  if (is_linux || is_android) {
     defines += [ "_LIBCXXABI_USE_FUTEX" ]
   }
 

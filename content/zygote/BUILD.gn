@@ -4,7 +4,7 @@
 
 import("//content/public/common/zygote/features.gni")
 
-if ((is_linux || is_chromeos) && use_zygote) {
+if (is_linux || is_chromeos) {
   source_set("zygote") {
     sources = [
       "zygote_linux.cc",

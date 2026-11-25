@@ -73,14 +73,6 @@ bool StructTraits<media::mojom::VideoDecoderConfigDataView,
   output->set_hdr_metadata(hdr_metadata);
   output->set_spatial_format(spatial_format);
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type;
-  if (!input.ReadMimeType(&mime_type))
-    return false;
-
-  output->set_mime_type(mime_type);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   return true;
 }
 

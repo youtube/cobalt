@@ -34,7 +34,6 @@
 #include "content/browser/code_cache/generated_code_cache.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "net/base/cache_type.h"
@@ -182,12 +181,7 @@ void GeneratedCodeCacheContext::InitializeOnThread(const base::FilePath& path,
         GeneratedCodeCache::CodeCacheType::kJavaScript);
 
     generated_wasm_code_cache_ = std::make_unique<GeneratedCodeCache>(
-        generated_wasm_code_cache_path,
-#if BUILDFLAG(IS_COBALT)
-        kGeneratedWasmCodeCacheBytes,
-#else
-        max_bytes,
-#endif
+        generated_wasm_code_cache_path, max_bytes,
         GeneratedCodeCache::CodeCacheType::kWebAssembly);
 
 #if !BUILDFLAG(IS_FUCHSIA)

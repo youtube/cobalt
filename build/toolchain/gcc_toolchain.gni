@@ -209,12 +209,6 @@ template("single_gcc_toolchain") {
       toolchain_use_clang_coverage = use_clang_coverage
     }
 
-    if (defined(toolchain_args.is_clang)) {
-      toolchain_is_clang = toolchain_args.is_clang
-    } else {
-      toolchain_is_clang = is_clang
-    }
-
     coverage_wrapper = ""
 
     # For a coverage build, we use the wrapper script globally so that it can
@@ -328,7 +322,7 @@ template("single_gcc_toolchain") {
 
     # -fmodule-name is not supported by gcc.
     module_name_flag = ""
-    if (toolchain_is_clang) {
+    if (is_clang) {
       module_name_flag = " -fmodule-name=\"{{cc_module_name}}_Private\""
     }
 

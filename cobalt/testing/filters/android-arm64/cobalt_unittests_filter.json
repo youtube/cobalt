@@ -1,6 +1,0 @@
-{
-  "failing_tests": [
-    "CobaltMetricsServiceClientBaseTest.StabilityMetricsDeduplicationEnabledSkipsFileMetricsProvider",
-    "HistogramFetcherTest.FetchHistograms_CalculatesDeltaCorrectly"
-  ]
-}

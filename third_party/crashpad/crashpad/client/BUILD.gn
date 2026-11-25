@@ -95,10 +95,6 @@ crashpad_static_library("client") {
 
   deps = [ ":common" ]
 
-  if (is_starboard) {
-    deps += [ "//starboard/elf_loader:evergreen_info" ]
-  }
-
   if (crashpad_is_win) {
     libs = [ "rpcrt4.lib" ]
     cflags = [ "/wd4201" ]  # nonstandard extension used : nameless struct/union

@@ -16,10 +16,6 @@
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "media/base/media_content_type.h"
-#include "media/media_buildflags.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/decoder_buffer_allocator.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom.h"
 #include "third_party/blink/public/platform/web_fullscreen_video_status.h"
 #include "third_party/blink/public/web/web_local_frame.h"
@@ -53,12 +49,6 @@ RendererWebMediaPlayerDelegate::RendererWebMediaPlayerDelegate(
 
   idle_cleanup_timer_.SetTaskRunner(
       render_frame->GetTaskRunner(blink::TaskType::kInternalMedia));
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (auto* allocator = ::media::DecoderBufferAllocator::Get()) {
-    allocator->SetSuspended(IsPageHidden());
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 RendererWebMediaPlayerDelegate::~RendererWebMediaPlayerDelegate() {}
@@ -215,12 +205,6 @@ void RendererWebMediaPlayerDelegate::OnPageVisibilityChanged(
   if (is_shown_.has_value() && *is_shown_ == is_shown)
     return;
   is_shown_ = is_shown;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (auto* allocator = ::media::DecoderBufferAllocator::Get()) {
-    allocator->SetSuspended(!is_shown);
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (is_shown) {
     RecordAction(base::UserMetricsAction("Media.Shown"));

@@ -58,18 +58,6 @@ config("icu_config") {
     defines += [ "U_STATIC_IMPLEMENTATION" ]
   }
 
-  if (is_cobalt_hermetic_build) {
-    # We provide our own tzset() implementation that itself calls ICU.
-    # To prevent re-entrant calls into tzset(), we must disable ICU's
-    # internal call to tzset(). Defining U_HAVE_TZSET achieves this by
-    # making ICU's uprv_tzset() a no-op.
-    defines += [
-      "U_HAVE_TZSET",
-      "U_HAVE_TIMEZONE",
-      "U_TIMEZONE=timezone",
-    ]
-  }
-
   include_dirs = [
     "source/common",
     "source/i18n",
@@ -450,9 +438,7 @@ if (is_android && enable_java_templates) {
   }
 }
 
-if (is_cobalt) {
-  data_dir = "cobalt"
-} else if (is_android) {
+if (is_android) {
   data_dir = "android"
 } else if (is_ios && !use_blink) {
   data_dir = "ios"
@@ -475,35 +461,6 @@ if (current_cpu == "mips" || current_cpu == "mips64" ||
 }
 data_bundle = "${data_bundle_prefix}.dat"
 
-if (is_cobalt) {
-  icudata_source_file =
-      "$root_build_dir/gen/third_party/icu/cobalt/$data_bundle"
-  icudata_gen_deps = [ ":generate_cobalt_icudata($default_toolchain)" ]
-
-  if (current_toolchain == default_toolchain) {
-    action("generate_cobalt_icudata") {
-      script = "scripts/generate_cobalt_icudata.py"
-      inputs = [
-        "filters/cobalt.json",
-        "scripts/make_data_cobalt.sh",
-      ]
-      outputs = [ icudata_source_file ]
-      args = [
-        "--filter-file",
-        rebase_path("filters/cobalt.json", root_build_dir),
-        "--out-file",
-        rebase_path(icudata_source_file, root_build_dir),
-        "--build-dir",
-        rebase_path("$root_build_dir/gen/third_party/icu/host_build",
-                    root_build_dir),
-      ]
-    }
-  }
-} else {
-  icudata_source_file = "$data_dir/$data_bundle"
-  icudata_gen_deps = []
-}
-
 # Some code paths end up not using these, marking them to avoid build
 # breaks.
 # See README.fuchsia for details.
@@ -511,25 +468,21 @@ not_needed([
              "data_bundle",
              "data_bundle_prefix",
              "data_dir",
-             "icudata_gen_deps",
-             "icudata_source_file",
            ])
 
 if (icu_copy_icudata_to_root_build_dir) {
   copy("copy_icudata") {
-    sources = [ icudata_source_file ]
+    sources = [ "$data_dir/$data_bundle" ]
     outputs = [ "$root_out_dir/$data_bundle" ]
     data = [ "$root_out_dir/$data_bundle" ]
-    deps = icudata_gen_deps
   }
 }
 
 if (icu_use_data_file) {
   if (is_ios) {
     bundle_data("icudata") {
-      sources = [ icudata_source_file ]
+      sources = [ "$data_dir/$data_bundle" ]
       outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
-      public_deps = icudata_gen_deps
     }
   } else {
     group("icudata") {
@@ -549,11 +502,10 @@ if (icu_use_data_file) {
   }
   inline_data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.cc"
   action("make_data_assembly") {
-    deps = icudata_gen_deps
     if (current_cpu == "wasm") {
       # See scripts/make_data_cpp.py for details on building ICU for wasm.
       script = "scripts/make_data_cpp.py"
-      inputs = [ icudata_source_file ]
+      inputs = [ "$data_dir/$data_bundle" ]
       outputs = [ data_assembly ]
       args = [
         rebase_path(inputs[0], root_build_dir),
@@ -561,7 +513,7 @@ if (icu_use_data_file) {
       ]
     } else {
       script = "scripts/make_data_assembly.py"
-      inputs = [ icudata_source_file ]
+      inputs = [ "$data_dir/$data_bundle" ]
       outputs = [ data_assembly ]
       args = [
         rebase_path(inputs[0], root_build_dir),

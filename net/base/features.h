@@ -940,12 +940,6 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCacheCertVerification);
 // already be expired.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCacheCertVerificationTtlSecs);
 
-#if BUILDFLAG(IS_COBALT)
-// Enables web font MIME caching and ShouldPassThrough pre-entry filtering in
-// Cobalt's HTTP cache.
-NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
-#endif  // BUILDFLAG(IS_COBALT)
-
 }  // namespace net::features
 
 #endif  // NET_BASE_FEATURES_H_

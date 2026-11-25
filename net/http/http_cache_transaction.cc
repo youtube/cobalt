@@ -18,13 +18,11 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "base/auto_reset.h"
 #include "base/byte_size.h"
 #include "base/check.h"
 #include "base/check_op.h"
-#include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/containers/span.h"
@@ -38,7 +36,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/no_destructor.h"
 #include "base/pickle.h"
 #include "base/strings/string_util.h"  // For EqualsCaseInsensitiveASCII.
 #include "base/task/single_thread_task_runner.h"
@@ -48,7 +45,6 @@
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/trace_id_helper.h"
 #include "base/values.h"
-#include "build/build_config.h"
 #include "net/base/auth.h"
 #include "net/base/features.h"
 #include "net/base/load_flags.h"
@@ -127,46 +123,6 @@ const scoped_refptr<base::SingleThreadTaskRunner>& TaskRunner(
   }
   return base::SingleThreadTaskRunner::GetCurrentDefault();
 }
-
-#if BUILDFLAG(IS_COBALT)
-// Identifies telemetry, ping, and MSE media chunk URLs that are never cached
-// by Cobalt so ShouldPassThrough() and UpdateAndReportCacheability() can
-// exclude them from SimpleCache.
-bool IsCobaltExcludedUrl(const GURL& url) {
-  std::string_view path = url.path();
-  static constexpr std::string_view kExcludedPaths[] = {
-      "/api/stats/ads", "/pagead/", "/ptracking", "eligibility_check"};
-  for (std::string_view excluded : kExcludedPaths) {
-    if (path.find(excluded) != std::string::npos) {
-      return true;
-    }
-  }
-  if (!base::FeatureList::IsEnabled(
-          features::kCobaltHttpCacheFontAndPassThrough)) {
-    return false;
-  }
-  static constexpr std::string_view kPassThroughExcludedPaths[] = {
-      "/api/stats/", "/generate_204", "/csi_204", "/log_event",
-      "/videoplayback"};
-  for (std::string_view excluded : kPassThroughExcludedPaths) {
-    if (path.find(excluded) != std::string::npos) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Identifies image, audio, and video requests via Sec-Fetch-Dest so
-// ShouldPassThrough() can bypass disk entry creation before response headers
-// arrive (avoiding create-then-doom flash I/O churn).
-bool IsCobaltNonCachedFetchDest(const HttpRequestHeaders& extra_headers) {
-  std::optional<std::string> dest = extra_headers.GetHeader("Sec-Fetch-Dest");
-  if (!dest.has_value()) {
-    return false;
-  }
-  return *dest == "image" || *dest == "audio" || *dest == "video";
-}
-#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
@@ -2957,17 +2913,7 @@ bool HttpCache::Transaction::ShouldPassThrough() {
   }
 
   if (method_ == "GET" || method_ == "HEAD") {
-#if BUILDFLAG(IS_COBALT)
-    // Bypass the disk cache upfront for requests UpdateAndReportCacheability()
-    // would later reject, avoiding create-then-doom entry churn.
-    return request_ &&
-           base::FeatureList::IsEnabled(
-               features::kCobaltHttpCacheFontAndPassThrough) &&
-           (IsCobaltExcludedUrl(request_->url) ||
-            IsCobaltNonCachedFetchDest(request_->extra_headers));
-#else
     return false;
-#endif
   }
 
   if (method_ == "POST" && request_->upload_data_stream &&
@@ -4433,56 +4379,6 @@ bool HttpCache::Transaction::UpdateAndReportCacheability(
       !headers.HasHeaderValue("cache-control", "public")) {
     return true;
   }
-
-#if BUILDFLAG(IS_COBALT)
-  std::string mime_type;
-  if (!headers.GetMimeType(&mime_type)) {
-    return true;  // Reject unknown MIME types.
-  }
-
-  // Maintain a consolidated list of accepted asset MIME types (exact or suffix).
-  static constexpr std::string_view accepted_asset_types[] = {
-      "text/html",
-      "javascript",
-      "ecmascript",
-      "text/css",
-      "application/wasm",
-  };
-
-  bool is_accepted_mime_type = false;
-  for (std::string_view type : accepted_asset_types) {
-    if (mime_type == type ||
-        base::EndsWith(mime_type, type, base::CompareCase::SENSITIVE)) {
-      is_accepted_mime_type = true;
-      break;
-    }
-  }
-
-  if (!is_accepted_mime_type && mime_type.find("font") != std::string::npos) {
-    is_accepted_mime_type = base::FeatureList::IsEnabled(
-        features::kCobaltHttpCacheFontAndPassThrough);
-  }
-
-  if (!is_accepted_mime_type) {
-    return true;  // Do not write to cache / doom existing entry
-  }
-
-  // Exclude Ad Impression Pings, Telemetry reporting, and MSE chunk endpoints.
-  if (IsCobaltExcludedUrl(request_->url)) {
-    return true;
-  }
-
-  // Exclude HTTP error status codes (< 200 or >= 400) and Captive Portals.
-  if (headers.response_code() < 200 || headers.response_code() >= 400) {
-    return true;
-  }
-
-  // Exclude micro-resources (< 512B) where socket read beats eMMC IO overhead.
-  const auto len = headers.GetContentLength();
-  if (len && len->InBytes() >= 0 && len->InBytes() < 512) {
-    return true;
-  }
-#endif
 
   return false;
 }
