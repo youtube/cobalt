@@ -63,6 +63,15 @@ NS_ASSUME_NONNULL_BEGIN
                                                ticket:(NSInteger)ticket;
 
 /**
+ *  @brief Reports that no session update request can be generated for the
+ *      given ticket, so that the request does not stay pending.
+ *  @param ticket The opaque ID of the failed request.
+ *  @param errorMessage Describes the failure.
+ */
+- (void)failSessionUpdateRequestWithTicket:(NSInteger)ticket
+                              errorMessage:(const char*)errorMessage;
+
+/**
  *  @brief Process the @c AVContentKeyRequest. Return whether the web app
  *      should be notified that encrypted media was encountered -- if the
  *      key request was generated in response to a prefetch, then an
