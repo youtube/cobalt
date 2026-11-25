@@ -125,4 +125,13 @@ TEST(LayerTreeSettings, CobaltAnimationTileLookaheadSettings) {
 }
 #endif
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+TEST(LayerTreeSettings, CobaltEnablesOcclusionForTilePrioritization) {
+  cc::LayerTreeSettings settings = GenerateLayerTreeSettings(
+      /*is_threaded=*/true, /*is_for_embedded_frame=*/false,
+      /*is_for_scalable_page=*/false, gfx::Size(1920, 1080), 1.f);
+  EXPECT_TRUE(settings.use_occlusion_for_tile_prioritization);
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+
 }  // namespace blink
