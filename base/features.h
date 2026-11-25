@@ -166,6 +166,16 @@ BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
 BASE_EXPORT BASE_DECLARE_FEATURE(
     kCobaltAndroidDisplayCriticalInProcessRenderer);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+// When enabled, reduces the default helper thread stack size to 256KB on
+// 32-bit Starboard builds (excluding ASan/TSan) to save virtual memory
+// (b/552601001), while keeping explicit 1MB carve-outs for high-risk threads
+// (in-process GPU main, in-process renderer main, and Blink NonMainThread).
+// Disabled by default for controlled Finch/Mendel A/B experimentation
+// (--enable-features=CobaltReduceStarboardThreadStackSize).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltReduceStarboardThreadStackSize);
+#endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);
