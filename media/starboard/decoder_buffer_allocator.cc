@@ -77,18 +77,9 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   if (base::FeatureList::IsEnabled(
           media::kCobaltDecoderBufferDecommitOnMemoryPressure)) {
     // The allocator is owned by MediaClient and lives for the lifetime of the
-<<<<<<< HEAD
     // process, and the observer is destroyed first in the destructor, so its
     // raw pointer back to this allocator stays valid.
     memory_pressure_listener_ = std::make_unique<MemoryPressureObserver>(this);
-=======
-    // process, and the listener is destroyed first in the destructor, so
-    // base::Unretained() is safe.
-    memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-        FROM_HERE,
-        base::BindRepeating(&DecoderBufferAllocator::OnMemoryPressure,
-                            base::Unretained(this)));
->>>>>>> 0edf55afc04 (media: Defer foreground idle block decommit (#13603))
     LOG(INFO) << "DecoderBufferAllocator decommits idle blocks on memory "
                  "pressure.";
   }
