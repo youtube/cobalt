@@ -102,13 +102,20 @@ def _build_host_tools(icu_src: pathlib.Path, build_dir: pathlib.Path,
       '-w',
       '-DU_STATIC_IMPLEMENTATION',
       '-DU_ATTRIBUTE_DEPRECATED=',
-      '-DU_COMMON_IMPLEMENTATION',
-      '-DU_I18N_IMPLEMENTATION',
-      '-DU_TOOLUTIL_IMPLEMENTATION',
       f"-I{icu_src / 'common'}",
       f"-I{icu_src / 'i18n'}",
       f"-I{icu_src / 'tools' / 'toolutil'}",
   ]
+  # Only the ICU libraries are built as ICU implementation code. The CLI tools
+  # are ICU clients (as in ICU's own build). Since ICU 77, defining the
+  # *_IMPLEMENTATION macros moves header-only helpers such as
+  # icu::toUCharPtr() into icu::internal, which breaks tool sources that
+  # qualify them with icu::.
+  lib_flags = (
+      '-DU_COMMON_IMPLEMENTATION',
+      '-DU_I18N_IMPLEMENTATION',
+      '-DU_TOOLUTIL_IMPLEMENTATION',
+  )
 
   lib_sources = []
   for sub in ('stubdata', 'common', 'i18n', 'tools/toolutil'):
@@ -116,7 +123,7 @@ def _build_host_tools(icu_src: pathlib.Path, build_dir: pathlib.Path,
     lib_sources.extend(sorted(sub_dir.glob('*.c')))
     lib_sources.extend(sorted(sub_dir.glob('*.cpp')))
 
-  def compile_source(src_path: pathlib.Path, extra_includes=()):
+  def compile_source(src_path: pathlib.Path, extra_flags=lib_flags):
     rel = '_'.join(src_path.relative_to(icu_src).parts)
     obj_path = obj_dir / f'{rel}.o'
     if _is_non_empty_file(obj_path):
@@ -125,7 +132,7 @@ def _build_host_tools(icu_src: pathlib.Path, build_dir: pathlib.Path,
     lang_flags = (['-std=c++17']
                   if is_cpp else ['-std=gnu11', '-Dchar16_t=uint16_t'])
     tmp_obj_path = obj_path.with_name(f'{obj_path.name}.tmp.{os.getpid()}')
-    cmd = ([cxx if is_cpp else cc] + common_flags + list(extra_includes) +
+    cmd = ([cxx if is_cpp else cc] + common_flags + list(extra_flags) +
            lang_flags +
            ['-c', str(src_path), '-o', str(tmp_obj_path)])
     res = subprocess.run(cmd, capture_output=True, text=True, check=False)
@@ -150,7 +157,7 @@ def _build_host_tools(icu_src: pathlib.Path, build_dir: pathlib.Path,
         if s.name != 'derb.cpp'
     ]
     tool_objs = [
-        compile_source(s, extra_includes=(f'-I{tool_dir}',)) for s in tool_srcs
+        compile_source(s, extra_flags=(f'-I{tool_dir}',)) for s in tool_srcs
     ]
     out_bin = bin_dir / tool
     tmp_bin = out_bin.with_name(f'{out_bin.name}.tmp.{os.getpid()}')
