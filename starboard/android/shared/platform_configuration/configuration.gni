@@ -14,7 +14,6 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-final_executable_type = "shared_library"
 starboard_level_final_executable_type = "shared_library"
 starboard_level_gtest_target_type = "shared_library"
 

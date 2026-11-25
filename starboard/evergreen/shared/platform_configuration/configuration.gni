@@ -16,3 +16,6 @@ import("//starboard/build/config/modular/configuration.gni")
 
 # Evergreen relies on the underlying platform for the player.
 sb_filter_based_player = false
+
+# Evergreen relies on the underlying platform for the fonts.
+cobalt_font_package = "empty"
