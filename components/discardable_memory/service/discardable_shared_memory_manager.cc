@@ -820,6 +820,18 @@ void DiscardableSharedMemoryManager::HandleMemoryPressureOnSequence(
     case base::MEMORY_PRESSURE_LEVEL_NONE:
       break;
     case base::MEMORY_PRESSURE_LEVEL_MODERATE:
+#if BUILDFLAG(IS_COBALT)
+      if (base::FeatureList::IsEnabled(
+              base::features::kCobaltDiscardableModeratePressureLimit)) {
+        const double clamped_fraction = std::clamp(
+            base::features::kCobaltDiscardableModeratePressureLimitFraction
+                .Get(),
+            0.0, 1.0);
+        ReduceMemoryUsageUntilWithinBytes(
+            static_cast<size_t>(max_bytes_ * clamped_fraction));
+        break;
+      }
+#endif  // BUILDFLAG(IS_COBALT)
       // Purge memory until usage is within half of |max_bytes_|.
       ReduceMemoryUsageUntilWithinBytes(max_bytes_ / 2);
       break;
