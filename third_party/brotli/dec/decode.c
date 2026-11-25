@@ -1293,13 +1293,8 @@ DecodeCommandBlockSwitch(BrotliDecoderState* s) {
   return DecodeCommandBlockSwitchInternal(0, s);
 }
 
-<<<<<<< HEAD
 static BROTLI_NOINLINE BrotliDecoderErrorCode
 SafeDecodeCommandBlockSwitch(BrotliDecoderState* s) {
-=======
-static BROTLI_NOINLINE BrotliDecoderErrorCode SafeDecodeCommandBlockSwitch(
-    BrotliDecoderState* s) {
->>>>>>> f110dc6ef4d (UPSTREAM: Detect and report invalid stream earlier. (#13940))
   return DecodeCommandBlockSwitchInternal(1, s);
 }
 
@@ -2056,16 +2051,9 @@ CommandInner:
         // Safe cast, since block_length < steps
         num_steps = (int)s->block_length[0];
       }
-<<<<<<< HEAD
       if (s->ringbuffer_size >= pos &&
           (s->ringbuffer_size - pos) <= num_steps) {
         num_steps = s->ringbuffer_size - pos - 1;
-=======
-      if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
-        BROTLI_SAFE_WITH_STATUS(DecodeLiteralBlockSwitch(s));
-        PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
-        if (!s->trivial_literal_context) goto CommandInner;
->>>>>>> f110dc6ef4d (UPSTREAM: Detect and report invalid stream earlier. (#13940))
       }
       if (num_steps < 0) {
         num_steps = 0;
@@ -2129,12 +2117,7 @@ CommandInner:
         goto saveStateAndReturn;
       }
       if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
-<<<<<<< HEAD
         goto NextLiteralBlock;
-=======
-        BROTLI_SAFE_WITH_STATUS(DecodeLiteralBlockSwitch(s));
-        if (s->trivial_literal_context) goto CommandInner;
->>>>>>> f110dc6ef4d (UPSTREAM: Detect and report invalid stream earlier. (#13940))
       }
       context = BROTLI_CONTEXT(p1, p2, s->context_lookup);
       BROTLI_LOG_UINT(context);
