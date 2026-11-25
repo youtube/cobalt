@@ -660,12 +660,8 @@ jobs:
         uses: ./.github/actions/on_device_tests
         with:
           nightly: ${{ inputs.nightly }}
-<<<<<<< HEAD
-          test_targets_json: ${{ steps.parse-device-targets.outputs.test_targets_json }}
-=======
           test_type: unit_test
           test_targets_json: ${{ steps.parse-device-targets.outputs.test_target_configs_json }}
->>>>>>> 5c14f357323 (ci: Consolidate internal tests into unified test_targets.json and ODT pipeline (#12980))
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -1002,11 +998,7 @@ jobs:
             results/**/${{ steps.extract-target-name.outputs.test_target }}*yts.log
             results/**/${{ steps.extract-target-name.outputs.test_target }}*device_logcat.txt
           datadog_api_key: ${{ secrets.datadog_api_key }}
-<<<<<<< HEAD
-          num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
-=======
-          num_gtest_shards: ${{ matrix.test_info.shards || ((matrix.test_info.test_type == 'gtest' || matrix.test_info.test_type == 'junit') && needs.initialize.outputs.num_gtest_shards || 1) }}
->>>>>>> 5c14f357323 (ci: Consolidate internal tests into unified test_targets.json and ODT pipeline (#12980))
+          num_gtest_shards: ${{ (matrix.test_info.test_type == 'gtest' || matrix.test_info.test_type == 'junit') && needs.initialize.outputs.num_gtest_shards || 1 }}
       - name: ${{ matrix.test_info.target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
         continue-on-error: true

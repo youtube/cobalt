@@ -270,16 +270,11 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         test_attempts = target_data.get('test_attempts', '')
       else:
         test_target = target_data
-<<<<<<< HEAD
         test_attempts = ''
       if test_attempts:
         test_args.extend([f'test_attempts={test_attempts}'])
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
-=======
-        target_test_attempts = ''
-      target_test_args = _with_target_test_attempts(base_test_args,
-                                                    target_test_attempts)
       target_name = test_target.split(':')[-1]
 
       if args.filter_json_dir:
@@ -288,7 +283,6 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
           print(f'Skipping {target_name} due to test filter.')
           continue
 
->>>>>>> 5c14f357323 (ci: Consolidate internal tests into unified test_targets.json and ODT pipeline (#12980))
       test_cmd_args = []
       files = []
       yt_binary_name = os.path.splitext(os.path.basename(args.artifact_name))[0]
