@@ -47,6 +47,12 @@
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#include "cc/trees/property_tree.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace cc {
 namespace {
 // This must be > 1 as we multiply or divide by this to find a new raster
@@ -97,6 +103,53 @@ gfx::Rect SafeIntersectRects(const gfx::Rect& one, const gfx::Rect& two) {
   return gfx::Rect(rx, ry, static_cast<int>(rr - rx),
                    static_cast<int>(rb - ry));
 }
+
+#if BUILDFLAG(IS_COBALT)
+// Returns true iff `layer` is currently being moved on screen by an active
+// compositor 2D translation animation. Uses the O(1) cached
+// `screen_space_transform_is_animating` bit to skip static layers, and walks
+// `TransformTree` to reject non-animated layout shifts (e.g. cold launch or
+// Browse-to-Watch DOM teardown) as well as scale/rotation animations (e.g.
+// card focus zoom) that would otherwise cause `ComputeSkewport()` to
+// extrapolate all edges outward.
+bool HasActive2dTranslationAnimation(const PictureLayerImpl* layer) {
+  if (!layer->draw_properties().screen_space_transform_is_animating) {
+    return false;
+  }
+  const gfx::Transform& screen_transform = layer->ScreenSpaceTransform();
+  if (!screen_transform.IsScaleOrTranslation() ||
+      !screen_transform.Is2dTransform()) {
+    return false;
+  }
+  const PropertyTrees* property_trees =
+      layer->layer_tree_impl()->property_trees();
+  if (!property_trees) {
+    return false;
+  }
+  const TransformTree& transform_tree = property_trees->transform_tree();
+  bool found_animating_node = false;
+  for (int node_id = layer->transform_tree_index();
+       node_id > kRootPropertyNodeId;) {
+    const TransformNode* node = transform_tree.Node(node_id);
+    if (!node) {
+      break;
+    }
+    if (node->is_currently_animating) {
+      // Ignore scale/rotate animations (e.g. card focus zoom) and only allow
+      // skewport lookahead for pure 2D translation shelf/grid transitions.
+      if (!node->local.IsIdentityOr2dTranslation()) {
+        return false;
+      }
+      found_animating_node = true;
+    }
+    if (node->parent_id == kInvalidPropertyNodeId) {
+      break;
+    }
+    node_id = node->parent_id;
+  }
+  return found_animating_node;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
 
@@ -665,6 +718,17 @@ bool PictureLayerImpl::UpdateTiles() {
 
   // Pass |occlusion_in_content_space| for |occlusion_in_layer_space| since
   // they are the same space in picture layer, as contents scale is always 1.
+#if BUILDFLAG(IS_COBALT)
+  // Delegate velocity tracking and layer-space lookahead extrapolation to
+  // upstream `PictureLayerTilingSet::ComputeSkewport()`, gated on an active 2D
+  // translation animation with no visible video layer.
+  const bool allow_skewport_lookahead =
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltAnimationTileLookahead) &&
+      !layer_tree_impl()->has_visible_video_layer() &&
+      HasActive2dTranslationAnimation(this);
+  tilings_->set_skewport_lookahead_allowed(allow_skewport_lookahead);
+#endif  // BUILDFLAG(IS_COBALT)
   bool updated = tilings_->UpdateTilePriorities(
       viewport_rect_for_tile_priority_in_content_space_,
       ideal_contents_scale_key(), current_frame_time_in_seconds,
@@ -699,10 +763,34 @@ void PictureLayerImpl::UpdateViewportRectForTilePriorityInContentSpace() {
       // maximum tiling scale, since this should allow sufficient room for
       // skewport calculations.
       gfx::Rect padded_bounds(bounds());
+#if BUILDFLAG(IS_COBALT)
+      // For offscreen layers (`visible_layer_rect().IsEmpty()`), pad `bounds()`
+      // out to `tiling_interest_area_padding` (e.g. 500 px at 1080p) rather
+      // than `skewport_extrapolation_limit` (432 px).
+      // `PictureLayerTilingSet::ComputeSkewport()` requires two consecutive
+      // non-empty frames in `visible_rect_history_` to compute velocity. The
+      // 432..500 px pre-seed band records the first history sample just before
+      // an incoming offscreen shelf layer crosses into the 432 px lookahead
+      // reach—allocating zero tiles under ALLOW_ABSOLUTE_MINIMUM while avoiding
+      // a 1-VSync lookahead delay once it enters 432 px.
+      int padding_screen_pixels =
+          layer_tree_impl()
+              ->settings()
+              .skewport_extrapolation_limit_in_screen_pixels;
+      if (visible_layer_rect().IsEmpty() &&
+          base::FeatureList::IsEnabled(
+              base::features::kCobaltAnimationTileLookahead)) {
+        padding_screen_pixels = std::max(
+            padding_screen_pixels,
+            layer_tree_impl()->settings().tiling_interest_area_padding);
+      }
+      int padding_amount = padding_screen_pixels * MaximumTilingContentsScale();
+#else
       int padding_amount = layer_tree_impl()
                                ->settings()
                                .skewport_extrapolation_limit_in_screen_pixels *
                            MaximumTilingContentsScale();
+#endif  // BUILDFLAG(IS_COBALT)
       padded_bounds.Inset(-padding_amount);
       visible_rect_in_content_space =
           SafeIntersectRects(visible_rect_in_content_space, padded_bounds);
