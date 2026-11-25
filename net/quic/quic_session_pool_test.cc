@@ -15813,7 +15813,6 @@ TEST_P(QuicSessionPoolTest, SendPingOnExistingSession) {
   socket_data.ExpectAllWriteDataConsumed();
 }
 
-<<<<<<< HEAD
 TEST_P(QuicSessionPoolTest, DebuggingSniDefaultHost) {
   quic_params_->enable_debugging_sni_in_transport_param = true;
 
@@ -16063,28 +16062,17 @@ TEST_P(QuicSessionPoolTest, CanUseExistingSessionForWebSocket_NoSessionExists) {
 // has not advertised SETTINGS_ENABLE_CONNECT_PROTOCOL (Extended CONNECT).
 TEST_P(QuicSessionPoolTest,
        CanUseExistingSessionForWebSocket_NoExtendedConnect) {
-=======
-#if BUILDFLAG(IS_COBALT)
-TEST_P(QuicSessionPoolTest, CobaltBlackholeMarksSessionAndAliasesBroken) {
-  base::test::ScopedFeatureList scoped_feature_list(
-      features::kCobaltEnableQuic);
-  quic_params_->supported_versions = {version_};
->>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
   Initialize();
   ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
   crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
 
-<<<<<<< HEAD
   // Set up a normal QUIC session (server does NOT send
   // SETTINGS_ENABLE_CONNECT_PROTOCOL).
-=======
->>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
   MockQuicData socket_data(version_);
   socket_data.AddReadPauseForever();
   socket_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket());
   socket_data.AddSocketDataToFactory(socket_factory_.get());
 
-<<<<<<< HEAD
   RequestBuilder builder(this);
   EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
@@ -16147,21 +16135,11 @@ TEST_P(QuicSessionPoolTest,
   // process the SETTINGS frame.
   socket_data.AddReadPauseForever();
   socket_data.AddSocketDataToFactory(socket_factory_.get());
-=======
-  url::SchemeHostPort server2(url::kHttpsScheme, kServer2HostName,
-                              kDefaultServerPort);
-  host_resolver_->set_synchronous_mode(true);
-  host_resolver_->rules()->AddIPLiteralRule(kDefaultServerHostName,
-                                            "192.168.0.1", "");
-  host_resolver_->rules()->AddIPLiteralRule(server2.host(),
-                                            "192.168.0.1", "");
->>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
 
   RequestBuilder builder(this);
   EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
   std::unique_ptr<HttpStream> stream = CreateStream(&builder.request);
-<<<<<<< HEAD
   EXPECT_TRUE(stream.get());
   EXPECT_TRUE(HasActiveSession(kDefaultDestination));
 
@@ -16188,7 +16166,32 @@ TEST_P(QuicSessionPoolTest,
   socket_data.ExpectAllReadDataConsumed();
   socket_data.ExpectAllWriteDataConsumed();
 }
-=======
+
+#if BUILDFLAG(IS_COBALT)
+TEST_P(QuicSessionPoolTest, CobaltBlackholeMarksSessionAndAliasesBroken) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      features::kCobaltEnableQuic);
+  quic_params_->supported_versions = {version_};
+  Initialize();
+  ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
+  crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
+
+  MockQuicData socket_data(version_);
+  socket_data.AddReadPauseForever();
+  socket_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket());
+  socket_data.AddSocketDataToFactory(socket_factory_.get());
+
+  url::SchemeHostPort server2(url::kHttpsScheme, kServer2HostName,
+                              kDefaultServerPort);
+  host_resolver_->set_synchronous_mode(true);
+  host_resolver_->rules()->AddIPLiteralRule(kDefaultServerHostName,
+                                            "192.168.0.1", "");
+  host_resolver_->rules()->AddIPLiteralRule(server2.host(), "192.168.0.1", "");
+
+  RequestBuilder builder(this);
+  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
+  EXPECT_THAT(callback_.WaitForResult(), IsOk());
+  std::unique_ptr<HttpStream> stream = CreateStream(&builder.request);
   ASSERT_TRUE(stream);
 
   RequestBuilder builder2(this);
@@ -16216,6 +16219,5 @@ TEST_P(QuicSessionPoolTest,
       alias_alt, NetworkAnonymizationKey()));
 }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
 
 }  // namespace net::test

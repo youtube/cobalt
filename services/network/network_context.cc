@@ -3214,12 +3214,8 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
       &session_params, quic_context->params());
 
 #if BUILDFLAG(IS_COBALT)
-<<<<<<< HEAD
   // TODO: b/550183348 - disabled as part of the 140.7298 roll.
   session_params.use_quic_for_unknown_origins = false;
-#endif
-=======
-  session_params.use_quic_for_unknown_origins = true;
   if (session_params.enable_quic &&
       base::FeatureList::IsEnabled(net::features::kCobaltEnableQuic)) {
     net::QuicParams* quic_params = quic_context->params();
@@ -3244,7 +3240,6 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
     }
   }
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
 
   session_params.key_auth_cache_server_entries_by_network_anonymization_key =
       params_->split_auth_cache_by_network_anonymization_key;

@@ -7,11 +7,7 @@
 #include <string>
 #include <utility>
 
-<<<<<<< HEAD
-=======
-#include "base/containers/contains.h"
 #include "base/feature_list.h"
->>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -1435,18 +1431,12 @@ HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal(
           features::kCobaltQuicMarkBrokenOnBlackhole.Get() &&
           http_server_properties.IsAlternativeServiceBroken(
               alt_svc, request_info.network_anonymization_key)) {
-        return AlternativeServiceInfo();
+        return AdvertisedAlternativeService();
       }
       quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
-<<<<<<< HEAD
       return {AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
-          AlternativeService(NextProto::kProtoQUIC, origin.host(), origin.port()),
-          base::Time::Max(), versions),
-          AdvertisedAltSvcState::kQuicNotBroken};
-=======
-      return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
-          alt_svc, base::Time::Max(), versions);
->>>>>>> a2c554d449d (net: Add CobaltEnableQuic for the QUIC launch candidate (#14078))
+                  alt_svc, base::Time::Max(), versions),
+              AdvertisedAltSvcState::kQuicNotBroken};
     }
 #endif  // BUILDFLAG(IS_COBALT)
     return AdvertisedAlternativeService();
