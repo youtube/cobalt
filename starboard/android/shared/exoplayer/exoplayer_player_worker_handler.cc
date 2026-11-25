@@ -209,14 +209,9 @@ void ExoPlayerPlayerWorkerHandler::Stop() {
 
 void ExoPlayerPlayerWorkerHandler::Update() {
   SB_DCHECK(BelongsToCurrentThread());
-<<<<<<< ours
-  SB_DCHECK(bridge_->is_valid());
-  SB_DCHECK(get_player_state_cb_);
-=======
   // Only scheduled once Init() has succeeded.
   SB_DCHECK(bridge_);
   SB_CHECK(get_player_state_cb_);
->>>>>>> theirs
 
   if (get_player_state_cb_() == kSbPlayerStatePresenting) {
     ExoPlayerBridge::MediaInfo info = bridge_->GetMediaInfo();
