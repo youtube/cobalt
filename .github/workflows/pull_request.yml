@@ -11,10 +11,6 @@ on: # zizmor: ignore[dangerous-triggers]
   issue_comment:
     types: [created]
 
-concurrency:
-  group: ${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 
@@ -22,6 +18,9 @@ jobs:
   ci-shepherd-anchor:
     name: Initialize CI Shepherd Anchor
     if: github.event_name == 'pull_request_target'
+    concurrency:
+      group: ${{ github.workflow }}-ci-shepherd-anchor @ ${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -84,18 +83,23 @@ jobs:
         (github.event_name == 'pull_request_target' && (github.event.action == 'opened' || github.event.action == 'reopened')) ||
         (github.event_name == 'issue_comment' && github.event.issue.pull_request && startsWith(github.event.comment.body, '/generate-commit-message'))
       )
+    concurrency:
+      group: ${{ github.workflow }}-generate-commit-message @ ${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
+      cancel-in-progress: true
 
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-      issues: write
-      pull-requests: write
+
+    outputs:
+      response: ${{ steps.gemini.outputs.response }}
 
     steps:
       - name: 'Checkout prompt'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          persist-credentials: false
           fetch-depth: 1
           filter: blob:none
           sparse-checkout: |
@@ -176,7 +180,20 @@ jobs:
             echo "${DELIMITER}"
           } >> "${GITHUB_OUTPUT}"
 
-      # --- Step 3: Post Comment ---
+  post_commit_message:
+    name: Post Commit Message
+    needs: [generate_commit_message]
+    if: >
+      always() && !cancelled() &&
+      needs.generate_commit_message.result == 'success' && (
+        (github.event_name == 'pull_request_target' && (github.event.action == 'opened' || github.event.action == 'reopened')) ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request && startsWith(github.event.comment.body, '/generate-commit-message'))
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
       - name: 'Post Commit Message as Comment'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
@@ -186,7 +203,7 @@ jobs:
             ---
 
             ```
-            ${{ steps.gemini.outputs.response }}
+            ${{ needs.generate_commit_message.outputs.response }}
             ```
 
             ---
@@ -201,7 +218,7 @@ jobs:
           script: |
             const body = process.env.COMMENT_BODY;
             const issueNumber = Number(process.env.PR_NUMBER || process.env.ISSUE_NUMBER || context.issue.number);
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
