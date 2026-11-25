@@ -61,9 +61,11 @@ test("cobalt_renderer_unittests") {
   ]
   deps = [
     ":renderer",
-    "//base/test:run_all_unittests",
     "//base/test:test_support",
+    "//cobalt/media/service/mojom",
     "//media",
+    "//mojo/core/test:run_all_unittests",
+    "//mojo/public/cpp/bindings",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/blink/renderer/modules/exported:test_support",

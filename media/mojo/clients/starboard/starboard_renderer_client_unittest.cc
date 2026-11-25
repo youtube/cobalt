@@ -60,6 +60,8 @@ struct FakeMojomRendererCallRecord {
   bool initialize_with_bypass_bridge_called = false;
   uint32_t last_bypass_bridge_id = 0;
   std::optional<size_t> last_stream_count;
+  std::optional<uint64_t> last_sb_window_handle;
+  std::vector<uint64_t> sb_window_handles;
 };
 
 class FakeMojomRenderer : public mojom::Renderer {
@@ -103,7 +105,12 @@ class FakeStarboardRendererExtension
   ~FakeStarboardRendererExtension() override = default;
 
   MOCK_METHOD1(GetCurrentVideoFrame, void(GetCurrentVideoFrameCallback cb));
-  void OnSbWindowHandleReady(uint64_t sb_window_handle) override {}
+  void OnSbWindowHandleReady(uint64_t sb_window_handle) override {
+    if (record_) {
+      record_->last_sb_window_handle = sb_window_handle;
+      record_->sb_window_handles.push_back(sb_window_handle);
+    }
+  }
   void InitializeWithBypassBridge(
       uint32_t bypass_bridge_id,
       InitializeWithBypassBridgeCallback cb) override {
@@ -205,7 +212,8 @@ class StarboardRendererClientTest : public ::testing::Test {
         std::move(starboard_renderer_extensions_remote),
         std::move(client_extension_receiver),
         /*get_sb_window_handle_callback=*/
-        base::BindRepeating([]() -> uint64_t { return 0; }),
+        base::BindRepeating(
+            [](SbWindowHandleReadyCallback cb) { std::move(cb).Run(0); }),
         with_gpu_factories ? mock_gpu_factories_.get() : nullptr
 #if BUILDFLAG(IS_ANDROID)
         ,
@@ -386,7 +394,8 @@ TEST_F(StarboardRendererClientTest, InitializeWithBypassBridge_Failure) {
       &mock_video_renderer_sink_,
       std::move(starboard_renderer_extensions_remote),
       std::move(client_extension_receiver),
-      base::BindRepeating([]() -> uint64_t { return 0; }),
+      base::BindRepeating(
+          [](SbWindowHandleReadyCallback cb) { std::move(cb).Run(0); }),
       mock_gpu_factories_.get(),
 #if BUILDFLAG(IS_ANDROID)
       /*request_overlay_info_cb=*/base::DoNothing(),
@@ -471,6 +480,138 @@ TEST_F(StarboardRendererClientTest, UrlPlayerInitCbWaitsForMetadata) {
   EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
+
+// When the app resumes from background conceal and a new native SbWindow is
+// still being created asynchronously, StarboardRendererClient waits for the
+// new window handle callback before forwarding it to StarboardRenderer.
+TEST_F(StarboardRendererClientTest, GetSbWindowHandleWaitsForAsyncCallback) {
+  mojo::PendingRemote<mojom::Renderer> renderer_remote;
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_),
+      renderer_remote.InitWithNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<mojom::StarboardRendererExtension>
+      starboard_renderer_extensions_remote;
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<FakeStarboardRendererExtension>(
+          &fake_mojom_renderer_record_),
+      starboard_renderer_extensions_remote.InitWithNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
+      client_extension_remote;
+  auto client_extension_receiver =
+      client_extension_remote.InitWithNewPipeAndPassReceiver();
+  auto mojo_renderer = std::make_unique<MojoRenderer>(
+      task_environment_.GetMainThreadTaskRunner(),
+      /*video_overlay_factory=*/nullptr,
+      /*video_renderer_sink=*/nullptr, std::move(renderer_remote));
+  auto overlay_factory = std::make_unique<VideoOverlayFactory>();
+
+  SbWindowHandleReadyCallback pending_window_cb;
+  auto client = std::make_unique<StarboardRendererClient>(
+      task_environment_.GetMainThreadTaskRunner(), media_log_.Clone(),
+      std::move(mojo_renderer), std::move(overlay_factory),
+      &mock_video_renderer_sink_,
+      std::move(starboard_renderer_extensions_remote),
+      std::move(client_extension_receiver),
+      base::BindRepeating(
+          [](SbWindowHandleReadyCallback* out_cb,
+             SbWindowHandleReadyCallback cb) { *out_cb = std::move(cb); },
+          base::Unretained(&pending_window_cb)),
+      /*gpu_factories=*/nullptr,
+#if BUILDFLAG(IS_ANDROID)
+      /*request_overlay_info_cb=*/base::DoNothing(),
+#endif  // BUILDFLAG(IS_ANDROID)
+      /*bypass_mojo_for_media=*/false);
+
+  client->Initialize(media_resource_.get(), &renderer_client_,
+                     base::DoNothing());
+  task_environment_.RunUntilIdle();
+
+  client->GetSbWindowHandle();
+  task_environment_.RunUntilIdle();
+  ASSERT_FALSE(pending_window_cb.is_null());
+  EXPECT_FALSE(fake_mojom_renderer_record_.last_sb_window_handle.has_value());
+
+  constexpr uint64_t kNewWindowHandle = 0x2222;
+  std::move(pending_window_cb).Run(kNewWindowHandle);
+  task_environment_.RunUntilIdle();
+  EXPECT_EQ(fake_mojom_renderer_record_.last_sb_window_handle,
+            std::make_optional(kNewWindowHandle));
+}
+
+// When rapid conceal/reveal transitions issue two overlapping GetSbWindowHandle
+// requests over separate Mojo pipes and the newer reply arrives before the
+// stale reply, StarboardRendererClient closes the superseded request with 0,
+// forwards the newer handle, and drops the late stale reply so
+// StarboardRenderer never receives a destroyed window handle last.
+TEST_F(StarboardRendererClientTest,
+       GetSbWindowHandleDiscardsOutOfOrderStaleReply) {
+  mojo::PendingRemote<mojom::Renderer> renderer_remote;
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_),
+      renderer_remote.InitWithNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<mojom::StarboardRendererExtension>
+      starboard_renderer_extensions_remote;
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<FakeStarboardRendererExtension>(
+          &fake_mojom_renderer_record_),
+      starboard_renderer_extensions_remote.InitWithNewPipeAndPassReceiver());
+
+  mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
+      client_extension_remote;
+  auto client_extension_receiver =
+      client_extension_remote.InitWithNewPipeAndPassReceiver();
+  auto mojo_renderer = std::make_unique<MojoRenderer>(
+      task_environment_.GetMainThreadTaskRunner(),
+      /*video_overlay_factory=*/nullptr,
+      /*video_renderer_sink=*/nullptr, std::move(renderer_remote));
+  auto overlay_factory = std::make_unique<VideoOverlayFactory>();
+
+  std::vector<SbWindowHandleReadyCallback> pending_cbs;
+  auto client = std::make_unique<StarboardRendererClient>(
+      task_environment_.GetMainThreadTaskRunner(), media_log_.Clone(),
+      std::move(mojo_renderer), std::move(overlay_factory),
+      &mock_video_renderer_sink_,
+      std::move(starboard_renderer_extensions_remote),
+      std::move(client_extension_receiver),
+      base::BindRepeating(
+          [](std::vector<SbWindowHandleReadyCallback>* out_cbs,
+             SbWindowHandleReadyCallback cb) {
+            out_cbs->push_back(std::move(cb));
+          },
+          base::Unretained(&pending_cbs)),
+      /*gpu_factories=*/nullptr,
+#if BUILDFLAG(IS_ANDROID)
+      /*request_overlay_info_cb=*/base::DoNothing(),
+#endif  // BUILDFLAG(IS_ANDROID)
+      /*bypass_mojo_for_media=*/false);
+
+  client->Initialize(media_resource_.get(), &renderer_client_,
+                     base::DoNothing());
+  task_environment_.RunUntilIdle();
+
+  // Issue two overlapping window-handle requests.
+  client->GetSbWindowHandle();
+  client->GetSbWindowHandle();
+  task_environment_.RunUntilIdle();
+  ASSERT_EQ(pending_cbs.size(), 2u);
+  EXPECT_EQ(fake_mojom_renderer_record_.sb_window_handles,
+            std::vector<uint64_t>({0u}));
+
+  // Resolve the newer request first, then deliver the stale earlier reply.
+  constexpr uint64_t kStaleWindowHandle = 0x1111;
+  constexpr uint64_t kNewWindowHandle = 0x2222;
+  std::move(pending_cbs[1]).Run(kNewWindowHandle);
+  std::move(pending_cbs[0]).Run(kStaleWindowHandle);
+  task_environment_.RunUntilIdle();
+
+  EXPECT_EQ(fake_mojom_renderer_record_.sb_window_handles,
+            std::vector<uint64_t>({0u, kNewWindowHandle}));
+  EXPECT_EQ(fake_mojom_renderer_record_.last_sb_window_handle,
+            std::make_optional(kNewWindowHandle));
+}
 
 }  // namespace
 
