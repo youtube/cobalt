@@ -39,6 +39,10 @@
 #include "ui/gl/gl_share_group.h"
 #include "ui/gl/gpu_preference.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "gpu/command_buffer/common/constants.h"
+#endif
+
 namespace base {
 class WaitableEvent;
 }
@@ -129,7 +133,11 @@ class GPU_IPC_SERVICE_EXPORT GpuChannel : public IPC::Listener,
   CommandBufferStub* LookupCommandBuffer(int32_t route_id);
 
   bool HasActiveStatefulContext() const;
+#if BUILDFLAG(IS_COBALT)
+  void MarkAllContextsLost(error::ContextLostReason reason = error::kUnknown);
+#else
   void MarkAllContextsLost();
+#endif
 
   // Called to add a listener for a particular message routing ID.
   // Returns true if succeeded.

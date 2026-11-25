@@ -11,10 +11,15 @@
 #include "base/memory/memory_pressure_listener.h"
 #include "base/memory/raw_ptr.h"
 #include "base/threading/thread.h"
+#include "build/build_config.h"
 #include "components/viz/service/viz_service_export.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "gpu/command_buffer/common/constants.h"
+#endif
 
 namespace gl {
 class GLDisplay;
@@ -82,7 +87,12 @@ class VIZ_SERVICE_EXPORT CompositorGpuThread
   // This method is usually called only for low end devices on android.
   void OnBackgroundCleanup();
 
+#if BUILDFLAG(IS_COBALT)
+  void LoseContext(
+      gpu::error::ContextLostReason reason = gpu::error::kUnknown);
+#else
   void LoseContext();
+#endif
 
  private:
   CompositorGpuThread(

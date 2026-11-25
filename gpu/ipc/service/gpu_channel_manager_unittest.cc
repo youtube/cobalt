@@ -24,6 +24,10 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "gpu/command_buffer/common/constants.h"
+#endif
+
 namespace gpu {
 
 class GpuChannelManagerTest : public GpuChannelTestCommon {
@@ -263,5 +267,90 @@ TEST_F(GpuChannelManagerTest, GetPeakMemoryUsageCalculatedPerSequence) {
   EXPECT_EQ(initial_memory, GetManagersPeakMemoryUsage(sequence_num_1));
   EXPECT_EQ(localized_peak_memory, GetManagersPeakMemoryUsage(sequence_num_2));
 }
+
+#if BUILDFLAG(IS_COBALT)
+// User journey: When Cobalt conceals a page that has active raster/GLES2 and
+// WebGL2 contexts, background GPU cleanup releases all channels, shared raster
+// state, and the offscreen surface while reporting every lost context as
+// `error::kInnocent` and without cascading into `LoseAllContexts()` or
+// `MaybeExitOnContextLost()`, so Chromium does not block the page's domain from
+// restoring WebGL when the user returns.
+TEST_F(GpuChannelManagerTest,
+       OnBackgroundCleanupMarksContextsLostAsInnocentWithoutCascading) {
+  ASSERT_TRUE(channel_manager());
+
+  constexpr int32_t kClientId = 1;
+  GpuChannel* channel = CreateChannel(kClientId, true);
+  ASSERT_TRUE(channel);
+
+  const int32_t kGlesRouteId =
+      static_cast<int32_t>(GpuChannelReservedRoutes::kMaxValue) + 1;
+  const int32_t kWebGLRouteId = kGlesRouteId + 1;
+  const GURL kActiveUrl("https://example.com/");
+
+  auto create_stub = [&](ContextType type, int32_t route_id) {
+    auto init_params = mojom::CreateCommandBufferParams::New();
+    init_params->share_group_id = MSG_ROUTING_NONE;
+    init_params->stream_id = 0;
+    init_params->stream_priority = SchedulingPriority::kNormal;
+    init_params->attribs = ContextCreationAttribs();
+    init_params->attribs.context_type = type;
+    init_params->active_url = kActiveUrl;
+
+    ContextResult result = ContextResult::kFatalFailure;
+    Capabilities capabilities;
+    GLCapabilities gl_capabilities;
+    CreateCommandBuffer(*channel, std::move(init_params), route_id,
+                        GetSharedMemoryRegion(), &result, &capabilities,
+                        &gl_capabilities);
+    ASSERT_EQ(result, ContextResult::kSuccess);
+  };
+
+  create_stub(CONTEXT_TYPE_OPENGLES2, kGlesRouteId);
+  create_stub(CONTEXT_TYPE_WEBGL2, kWebGLRouteId);
+
+  ContextResult result = ContextResult::kFatalFailure;
+  auto shared_state = channel_manager()->GetSharedContextState(&result);
+  ASSERT_EQ(result, ContextResult::kSuccess);
+  ASSERT_TRUE(shared_state);
+
+  channel_manager()->OnBackgroundCleanup();
+  // Drain asynchronously posted SharedContextState context-lost callbacks.
+  task_environment().RunUntilIdle();
+
+  EXPECT_EQ(channel_manager()->LookupChannel(kClientId), nullptr);
+  EXPECT_EQ(channel_manager()->default_offscreen_surface(), nullptr);
+  EXPECT_EQ(channel_manager()->GetSharedContextState(&result), nullptr);
+  EXPECT_EQ(result, ContextResult::kTransientFailure);
+
+  EXPECT_THAT(lost_context_reasons(),
+              ::testing::ElementsAre(error::kInnocent, error::kInnocent));
+  EXPECT_EQ(lose_all_contexts_count(), 0);
+  EXPECT_FALSE(is_exiting());
+}
+
+// User journey: Genuine GPU faults (real hardware resets or non-innocent
+// context losses) must still trigger normal recovery in `OnContextLost()` even
+// though synthetic `error::kInnocent` losses from background cleanup are
+// ignored.
+TEST_F(GpuChannelManagerTest,
+       OnContextLostStillTriggersRecoveryForRealOrGuiltyLoss) {
+  ASSERT_TRUE(channel_manager());
+
+  // Synthetic innocent loss (intentional background cleanup) does not cascade.
+  channel_manager()->OnContextLost(/*context_lost_count=*/-1,
+                                   /*synthetic_loss=*/true, error::kInnocent);
+  EXPECT_EQ(lose_all_contexts_count(), 0);
+  EXPECT_FALSE(is_exiting());
+
+  // Real (non-synthetic) losses within 5 seconds must still trigger recovery
+  // regardless of whether the passthrough or validating decoder is active.
+  channel_manager()->OnContextLost(/*context_lost_count=*/-1,
+                                   /*synthetic_loss=*/false, error::kInnocent);
+  channel_manager()->OnContextLost(/*context_lost_count=*/-1,
+                                   /*synthetic_loss=*/false, error::kInnocent);
+  EXPECT_TRUE(is_exiting());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace gpu

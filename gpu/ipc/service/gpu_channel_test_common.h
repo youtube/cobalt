@@ -12,11 +12,16 @@
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/context_result.h"
 #include "gpu/ipc/common/gpu_channel.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gl/gl_display.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "gpu/command_buffer/common/constants.h"
+#endif
 
 namespace base {
 namespace trace_event {
@@ -60,6 +65,12 @@ class GpuChannelTestCommon : public testing::Test {
                            GLCapabilities* out_gl_capabilities);
 
   base::UnsafeSharedMemoryRegion GetSharedMemoryRegion();
+
+#if BUILDFLAG(IS_COBALT)
+  const std::vector<error::ContextLostReason>& lost_context_reasons() const;
+  int lose_all_contexts_count() const;
+  bool is_exiting() const;
+#endif
 
  private:
   base::test::TaskEnvironment task_environment_;

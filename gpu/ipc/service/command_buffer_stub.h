@@ -189,7 +189,11 @@ class GPU_IPC_SERVICE_EXPORT CommandBufferStub
   void AddDestructionObserver(DestructionObserver* observer);
   void RemoveDestructionObserver(DestructionObserver* observer);
 
+#if BUILDFLAG(IS_COBALT)
+  void MarkContextLost(error::ContextLostReason reason = error::kUnknown);
+#else
   void MarkContextLost();
+#endif
 
   scoped_refptr<gl::GLShareGroup> share_group() { return share_group_; }
 

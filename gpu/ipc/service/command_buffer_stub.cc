@@ -733,6 +733,19 @@ void CommandBufferStub::UpdateActiveUrl() {
     ContextUrl::SetActiveUrl(active_url_);
 }
 
+#if BUILDFLAG(IS_COBALT)
+void CommandBufferStub::MarkContextLost(error::ContextLostReason reason) {
+  if (!command_buffer_ ||
+      command_buffer_->GetState().error == error::kLostContext) {
+    return;
+  }
+
+  command_buffer_->SetContextLostReason(reason);
+  if (decoder_context_)
+    decoder_context_->MarkContextLost(reason);
+  command_buffer_->SetParseError(error::kLostContext);
+}
+#else
 void CommandBufferStub::MarkContextLost() {
   if (!command_buffer_ ||
       command_buffer_->GetState().error == error::kLostContext) {
@@ -744,6 +757,7 @@ void CommandBufferStub::MarkContextLost() {
     decoder_context_->MarkContextLost(error::kUnknown);
   command_buffer_->SetParseError(error::kLostContext);
 }
+#endif
 
 // static
 CommandBufferStub::MemoryTrackerFactory

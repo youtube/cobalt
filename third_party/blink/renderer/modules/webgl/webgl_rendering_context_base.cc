@@ -1879,6 +1879,12 @@ bool WebGLRenderingContextBase::UsingSwapChain() const {
 void WebGLRenderingContextBase::PageVisibilityChanged() {
   if (GetDrawingBuffer())
     GetDrawingBuffer()->SetIsInHiddenPage(!Host()->IsPageVisible());
+#if BUILDFLAG(IS_COBALT)
+  if (Host()->IsPageVisible() && isContextLost() && restore_allowed_ &&
+      auto_recovery_method_ == kAuto && !restore_timer_.IsActive()) {
+    restore_timer_.StartOneShot(base::TimeDelta(), FROM_HERE);
+  }
+#endif
 }
 
 CanvasResourceProvider*
@@ -8702,6 +8708,15 @@ void WebGLRenderingContextBase::MaybeRestoreContext(TimerBase*) {
   // the retry loop for real context lost events.
   if (!restore_allowed_)
     return;
+
+#if BUILDFLAG(IS_COBALT)
+  // Defer automatic context restoration while concealed so we do not block on
+  // EstablishGpuChannelSync() while the EGL display is torn down.
+  // PageVisibilityChanged() restarts restoration when the page becomes visible.
+  if (auto_recovery_method_ == kAuto && !Host()->IsPageVisible()) {
+    return;
+  }
+#endif
 
   if (canvas()) {
     LocalFrame* frame = canvas()->GetDocument().GetFrame();

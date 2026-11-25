@@ -836,9 +836,16 @@ void GpuChannelManager::OnBackgroundCleanup() {
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  // 1. Mark all GPU channel contexts lost and destroy all GPU channels.
+  // 1. Mark all GPU channel contexts lost as innocent (so intentional
+  // background teardown does not trigger 3D API domain blocking) and destroy
+  // all GPU channels. Also release discardable texture caches and reset the
+  // share group directly since OnContextLost() skips cascading for synthetic
+  // innocent losses.
+  discardable_manager_.OnContextLost();
+  passthrough_discardable_manager_.OnContextLost();
+  share_group_ = base::MakeRefCounted<gl::GLShareGroup>();
   for (auto& kv : gpu_channels_) {
-    kv.second->MarkAllContextsLost();
+    kv.second->MarkAllContextsLost(error::kInnocent);
   }
   DestroyAllChannels();
 
@@ -850,7 +857,7 @@ void GpuChannelManager::OnBackgroundCleanup() {
   // so no active EGLContexts remain before shutting down the EGLDisplay.
   if (shared_context_state_) {
     shared_context_state_->ReleaseCurrent(nullptr);
-    shared_context_state_->MarkContextLost();
+    shared_context_state_->MarkContextLost(error::kInnocent);
     shared_context_state_.reset();
   }
 
@@ -1114,6 +1121,16 @@ void GpuChannelManager::OnContextLost(
     int context_lost_count,
     bool synthetic_loss,
     error::ContextLostReason context_lost_reason) {
+#if BUILDFLAG(IS_COBALT)
+  // Intentional background cleanup marks contexts lost with kInnocent and
+  // tears down channels and SharedContextState synchronously. Do not cascade
+  // into LoseAllContexts() (which would re-mark stubs with kUnknown and post a
+  // stale DestroyAllChannels()) or MaybeExitOnContextLost().
+  if (synthetic_loss && context_lost_reason == error::kInnocent) {
+    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+    return;
+  }
+#endif
   if (context_lost_count < 0)
     context_lost_count = context_lost_count_ + 1;
   // Because of the DrDC, we may receive context loss from the GPU main and

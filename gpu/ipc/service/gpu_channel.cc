@@ -860,10 +860,17 @@ bool GpuChannel::HasActiveStatefulContext() const {
   return false;
 }
 
+#if BUILDFLAG(IS_COBALT)
+void GpuChannel::MarkAllContextsLost(error::ContextLostReason reason) {
+  for (auto& kv : stubs_)
+    kv.second->MarkContextLost(reason);
+}
+#else
 void GpuChannel::MarkAllContextsLost() {
   for (auto& kv : stubs_)
     kv.second->MarkContextLost();
 }
+#endif
 
 bool GpuChannel::AddRoute(int32_t route_id, SequenceId sequence_id) {
   if (scheduler_)

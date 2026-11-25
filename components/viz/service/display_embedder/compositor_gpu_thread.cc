@@ -317,7 +317,11 @@ void CompositorGpuThread::OnBackgroundedOnCompositorGpuThread() {
 }
 
 void CompositorGpuThread::OnBackgroundCleanup() {
+#if BUILDFLAG(IS_COBALT)
+  LoseContext(gpu::error::kInnocent);
+#else
   LoseContext();
+#endif
 }
 
 void CompositorGpuThread::OnForegrounded() {
@@ -325,6 +329,22 @@ void CompositorGpuThread::OnForegrounded() {
     watchdog_thread_->OnForegrounded();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void CompositorGpuThread::LoseContext(gpu::error::ContextLostReason reason) {
+  if (!task_runner()->BelongsToCurrentThread()) {
+    task_runner()->PostTask(FROM_HERE,
+                            base::BindOnce(&CompositorGpuThread::LoseContext,
+                                           weak_ptr_factory_.GetWeakPtr(),
+                                           reason));
+    return;
+  }
+
+  if (shared_context_state_) {
+    shared_context_state_->MarkContextLost(reason);
+    shared_context_state_.reset();
+  }
+}
+#else
 void CompositorGpuThread::LoseContext() {
   if (!task_runner()->BelongsToCurrentThread()) {
     task_runner()->PostTask(FROM_HERE,
@@ -338,5 +358,6 @@ void CompositorGpuThread::LoseContext() {
     shared_context_state_.reset();
   }
 }
+#endif
 
 }  // namespace viz

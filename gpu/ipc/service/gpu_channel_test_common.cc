@@ -50,14 +50,25 @@ class TestGpuChannelManagerDelegate : public GpuChannelManagerDelegate {
   ~TestGpuChannelManagerDelegate() override = default;
 
   // GpuChannelManagerDelegate implementation:
+#if BUILDFLAG(IS_COBALT)
+  void LoseAllContexts() override { ++lose_all_contexts_count_; }
+#else
   void LoseAllContexts() override {}
+#endif
   void DidCreateContextSuccessfully() override {}
   void DidCreateOffscreenContext(const GURL& active_url) override {}
   void DidDestroyChannel(int client_id) override {}
   void DidDestroyAllChannels() override {}
   void DidDestroyOffscreenContext(const GURL& active_url) override {}
+#if BUILDFLAG(IS_COBALT)
+  void DidLoseContext(error::ContextLostReason reason,
+                      const GURL& active_url) override {
+    lost_context_reasons_.push_back(reason);
+  }
+#else
   void DidLoseContext(error::ContextLostReason reason,
                       const GURL& active_url) override {}
+#endif
   void StoreBlobToDisk(const gpu::GpuDiskCacheHandle& handle,
                        const std::string& key,
                        const std::string& shader) override {}
@@ -72,8 +83,19 @@ class TestGpuChannelManagerDelegate : public GpuChannelManagerDelegate {
 
   Scheduler* GetGpuScheduler() override { return scheduler_; }
 
+#if BUILDFLAG(IS_COBALT)
+  const std::vector<error::ContextLostReason>& lost_context_reasons() const {
+    return lost_context_reasons_;
+  }
+  int lose_all_contexts_count() const { return lose_all_contexts_count_; }
+#endif
+
  private:
   bool is_exiting_ = false;
+#if BUILDFLAG(IS_COBALT)
+  int lose_all_contexts_count_ = 0;
+  std::vector<error::ContextLostReason> lost_context_reasons_;
+#endif
   const raw_ptr<Scheduler> scheduler_;
 };
 
@@ -168,5 +190,20 @@ base::UnsafeSharedMemoryRegion GpuChannelTestCommon::GetSharedMemoryRegion() {
   return base::UnsafeSharedMemoryRegion::Create(
       sizeof(CommandBufferSharedState));
 }
+
+#if BUILDFLAG(IS_COBALT)
+const std::vector<error::ContextLostReason>&
+GpuChannelTestCommon::lost_context_reasons() const {
+  return channel_manager_delegate_->lost_context_reasons();
+}
+
+int GpuChannelTestCommon::lose_all_contexts_count() const {
+  return channel_manager_delegate_->lose_all_contexts_count();
+}
+
+bool GpuChannelTestCommon::is_exiting() const {
+  return channel_manager_delegate_->IsExiting();
+}
+#endif
 
 }  // namespace gpu
