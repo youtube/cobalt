@@ -8,6 +8,7 @@
 
 #include "base/check.h"
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/scoped_refptr.h"
@@ -64,6 +65,14 @@ NonMainThreadImpl::NonMainThreadImpl(const ThreadCreationParams& params)
   // from the reduction, matching the carve-outs in RenderProcessHostImpl and
   // GpuProcessHost.
   options.stack_size = 1024 * 1024;
+#elif BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_STARBOARD) &&        \
+    defined(ARCH_CPU_32_BITS) && !defined(ADDRESS_SANITIZER) && \
+    !defined(THREAD_SANITIZER)
+  // Same 1MB carve-out when the 32-bit Starboard stack reduction is enabled.
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltReduceStarboardThreadStackSize)) {
+    options.stack_size = 1024 * 1024;
+  }
 #endif
 
   base::MessagePumpType message_pump_type = base::MessagePumpType::DEFAULT;
