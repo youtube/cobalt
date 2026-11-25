@@ -43,6 +43,14 @@ static volatile int lock[1];
 volatile int *const __atexit_lockptr = lock;
 #endif // STARBOARD
 
+#ifdef STARBOARD
+static void dummy()
+{
+}
+
+weak_alias(dummy, __stdio_exit);
+#endif  // STARBOARD
+
 void __funcs_on_exit()
 {
 	void (*func)(void *), *arg;
@@ -54,6 +62,10 @@ void __funcs_on_exit()
 		func(arg);
 		LOCK(lock);
 	}
+#ifdef STARBOARD
+	slot = 0;
+	UNLOCK(lock);
+#endif  // STARBOARD
 }
 
 #if !defined(ADDRESS_SANITIZER)
@@ -65,6 +77,7 @@ void __cxa_finalize(void *dso)
 {
 #ifdef STARBOARD
   __funcs_on_exit();
+  __stdio_exit();
 #endif  // STARBOARD
 }
 #endif  // !defined(ADDRESS_SANITIZER)
