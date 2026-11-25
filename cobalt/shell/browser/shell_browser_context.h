@@ -31,6 +31,7 @@ class BackgroundSyncController;
 class ContentIndexProvider;
 class ClientHintsControllerDelegate;
 class DownloadManagerDelegate;
+class H5vccSchemeURLLoaderFactory;
 class OriginTrialsControllerDelegate;
 class PermissionControllerDelegate;
 class ReduceAcceptLanguageControllerDelegate;
@@ -52,6 +53,8 @@ class ShellBrowserContext : public BrowserContext {
       ClientHintsControllerDelegate* delegate) {
     client_hints_controller_delegate_ = delegate;
   }
+
+  H5vccSchemeURLLoaderFactory* GetH5vccSchemeURLLoaderFactory();
 
   // BrowserContext implementation.
   base::FilePath GetPath() override;
@@ -93,6 +96,7 @@ class ShellBrowserContext : public BrowserContext {
   bool ignore_certificate_errors_ = false;
   base::FilePath path_;
   std::unique_ptr<SimpleFactoryKey> key_;
+  std::unique_ptr<H5vccSchemeURLLoaderFactory> h5vcc_scheme_url_loader_factory_;
   raw_ptr<ClientHintsControllerDelegate> client_hints_controller_delegate_ =
       nullptr;
 };

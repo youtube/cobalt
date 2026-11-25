@@ -18,10 +18,14 @@
 #include <optional>
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
+#include "mojo/public/cpp/bindings/unique_receiver_set.h"
+#include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
 
 namespace content {
@@ -55,6 +59,10 @@ enum class SplashScreenFetchedState {
 //
 // The loader resolves the requested resource based on the URL's path component
 // (e.g., "h5vcc-embedded://my_resource.html" -> "my_resource.html").
+//
+// Owned by ShellBrowserContext on the browser UI thread. All cloned factory
+// receivers and active URLLoader instances are owned by this factory and torn
+// down when it is destroyed so none can outlive |browser_context_|.
 class H5vccSchemeURLLoaderFactory final
     : public network::mojom::URLLoaderFactory {
  public:
@@ -101,12 +109,12 @@ class H5vccSchemeURLLoaderFactory final
  private:
   GeneratedResourceMap resource_map_;
   static const GeneratedResourceMap* resource_map_test_;
-  std::string splash_domain_;
-  uint64_t splash_content_size_limit_;
   static std::optional<std::string> global_splash_domain_test_;
   static std::optional<int> global_splash_content_size_test_;
   static std::optional<bool> global_cached_splash_file_enabled_test_;
-  BrowserContext* browser_context_;
+  raw_ptr<BrowserContext> browser_context_;
+  mojo::ReceiverSet<network::mojom::URLLoaderFactory> receivers_;
+  mojo::UniqueReceiverSet<network::mojom::URLLoader> loaders_;
 };
 
 }  // namespace content

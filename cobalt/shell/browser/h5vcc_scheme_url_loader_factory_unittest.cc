@@ -27,6 +27,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "mojo/public/cpp/system/data_pipe_utils.h"
 #include "net/http/http_status_code.h"
@@ -207,6 +208,85 @@ TEST_F(H5vccSchemeURLLoaderFactoryTest, LoadNonExistingResource) {
   ASSERT_TRUE(client->completion_status());
   EXPECT_EQ(net::OK, client->completion_status()->error_code);
   EXPECT_EQ(client->GetResponseBody(), "Resource not found");
+}
+
+// When the browser shuts down and ShellBrowserContext destroys its
+// H5vccSchemeURLLoaderFactory, all cloned URLLoaderFactory pipes and active
+// URLLoader pipes must disconnect immediately so neither can outlive the
+// BrowserContext.
+TEST_F(H5vccSchemeURLLoaderFactoryTest,
+       DestroyingFactoryDisconnectsClonedFactoryAndActiveLoaders) {
+  mojo::Remote<network::mojom::URLLoaderFactory> cloned_factory;
+  factory_->Clone(cloned_factory.BindNewPipeAndPassReceiver());
+
+  bool factory_disconnected = false;
+  base::RunLoop factory_disconnect_loop;
+  cloned_factory.set_disconnect_handler(base::BindOnce(
+      [](bool* disconnected, base::OnceClosure quit) {
+        *disconnected = true;
+        std::move(quit).Run();
+      },
+      &factory_disconnected, factory_disconnect_loop.QuitClosure()));
+
+  network::ResourceRequest request;
+  request.url = GURL("h5vcc-embedded://test.html");
+
+  mojo::Remote<network::mojom::URLLoader> loader;
+  bool loader_disconnected = false;
+  base::RunLoop loader_disconnect_loop;
+  auto client = std::make_unique<TestURLLoaderClient>();
+  cloned_factory->CreateLoaderAndStart(
+      loader.BindNewPipeAndPassReceiver(), 0, 0, request,
+      client->CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+  loader.set_disconnect_handler(base::BindOnce(
+      [](bool* disconnected, base::OnceClosure quit) {
+        *disconnected = true;
+        std::move(quit).Run();
+      },
+      &loader_disconnected, loader_disconnect_loop.QuitClosure()));
+
+  client->WaitForCompletion();
+  EXPECT_TRUE(cloned_factory.is_connected());
+  EXPECT_TRUE(loader.is_connected());
+
+  factory_.reset();
+  factory_disconnect_loop.Run();
+  loader_disconnect_loop.Run();
+
+  EXPECT_TRUE(factory_disconnected);
+  EXPECT_TRUE(loader_disconnected);
+}
+
+// When a navigation or subresource loader holds a cloned URLLoaderFactory pipe
+// and tests later update SetResourceMapForTesting(), subsequent loads through
+// the shared factory must observe the updated resource map.
+TEST_F(H5vccSchemeURLLoaderFactoryTest,
+       ClonedFactoryUsesUpdatedTestResourceMap) {
+  mojo::Remote<network::mojom::URLLoaderFactory> cloned_factory;
+  factory_->Clone(cloned_factory.BindNewPipeAndPassReceiver());
+
+  constexpr char kUpdatedContent[] = "<html><body>Updated</body></html>";
+  GeneratedResourceMap updated_map;
+  updated_map["updated.html"] = {
+      reinterpret_cast<const unsigned char*>(kUpdatedContent),
+      sizeof(kUpdatedContent) - 1};
+  H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(&updated_map);
+
+  network::ResourceRequest request;
+  request.url = GURL("h5vcc-embedded://updated.html");
+
+  mojo::PendingRemote<network::mojom::URLLoader> loader;
+  auto client = std::make_unique<TestURLLoaderClient>();
+  cloned_factory->CreateLoaderAndStart(
+      loader.InitWithNewPipeAndPassReceiver(), 0, 0, request,
+      client->CreateRemote(),
+      net::MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS));
+
+  client->WaitForCompletion();
+  ASSERT_TRUE(client->response_head());
+  EXPECT_EQ(net::HTTP_OK, client->response_head()->headers->response_code());
+  EXPECT_EQ(kUpdatedContent, client->GetResponseBody());
 }
 
 }  // namespace content
