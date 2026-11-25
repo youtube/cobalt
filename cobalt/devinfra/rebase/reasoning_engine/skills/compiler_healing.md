@@ -293,3 +293,44 @@ When a missing-symbol/build error is resolved by adding a new `#include`, the in
 2. Within that block, insert in strict ASCII alphabetical order by full path string (e.g., `base/task/thread_pool.h` sorts before `base/threading/...` before `base/timer/elapsed_timer.h` — note `k` < `r` < `i` positioning must be checked character-by-character, not just by top-level directory).
 3. After insertion, re-read the 3 lines immediately above and below to confirm ordering is preserved end-to-end, not just locally correct relative to the anchor point used for insertion.
 4. If uncertain, prefer running `git cl format` / clang-format include-sorting locally over manual placement.
+
+### Starboard-Only Code Paths Losing Transitive Includes
+
+Upstream regularly trims headers (include-what-you-use cleanups), so a type that used to arrive transitively disappears. Upstream fixes its own files in the same CL, but Cobalt-only code paths are not compiled upstream and break: Starboard stubs (`*_starboard_stub.cc`), `#if BUILDFLAG(IS_STARBOARD)` blocks, and `#if defined(IN_MEMORY_UPDATES)` blocks. These errors show up only in Evergreen/RDK builds (`cobalt_loader`), not in `cobalt_apk`.
+
+1. **Symptoms**: `implicit instantiation of undefined template 'base::OnceCallback<...>'`, `no member named 'DoNothing' in namespace 'base'`, `incomplete type` for a type the file never included directly.
+2. **Fix**: include the header that defines the type (`base/functional/callback.h` for `OnceCallback`/`RepeatingCallback`, `base/functional/callback_helpers.h` for `DoNothing`/`NullCallback`) in the file that uses it. Check what the matching upstream file includes for the same type (for example the stub's real counterpart, `sandbox_linux.cc` for `sandbox_linux_starboard_stub.cc`).
+3. **Placement**: if only Cobalt-guarded code uses the type, put the `#include` inside a matching `#if ... #endif` guard **at file scope right after the top-level `#include` block** (before any `namespace` declarations), so the upstream include list stays untouched without risking namespace hijacking (Principle 7). Never insert an `#include` inside a mid-file `#if` block that sits inside a `namespace` or function body (such as a mid-file `#if defined(IN_MEMORY_UPDATES)` block).
+
+**Real Example (M145.7577, matches the human fix)**:
+```cpp
+// [GOOD] sandbox/policy/linux/sandbox_linux_starboard_stub.cc: the stub defines
+// functions taking PreSandboxHook (a base::OnceCallback) by value, which needs
+// the complete type. Upstream sandbox_linux.cc includes it for the same reason.
+#include "base/functional/callback.h"
+
+// [BAD] components/update_client/persisted_data.cc: added unconditionally to the
+//       upstream include list even though only IS_STARBOARD uses base::DoNothing
+//       (or worse, placed inside a mid-file #if block inside `namespace update_client`).
+#include "base/functional/callback_helpers.h"
+
+// [GOOD] components/update_client/persisted_data.cc: guarded at file scope right
+//        after the top-level #include block, before `namespace update_client`.
+#include "components/update_client/update_client_errors.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/functional/callback_helpers.h"
+
+namespace {
+void FlushPrefs(PrefService* pref_service) {
+  if (pref_service) {
+    pref_service->CommitPendingWrite(base::DoNothing());
+  }
+}
+}  // namespace
+#endif
+
+namespace update_client {
+...
+}  // namespace update_client
+```

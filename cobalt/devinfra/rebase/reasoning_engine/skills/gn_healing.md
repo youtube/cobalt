@@ -225,3 +225,6 @@ if (is_cobalt) {
 
 ### Cobalt `$android_toolchain` Substitutions in Android GN Files
 Never replace Cobalt's `$android_toolchain` with upstream's `$default_toolchain` in Android GN deps (for example `third_party/jni_zero/BUILD.gn`), and use `$android_toolchain` for new upstream deps in the same list. `cobalt_apk` compiles either way, but Cobalt modular builds break. The full rule and example are in the merge conflict skill, where the side is chosen.
+
+### Desktop-Linux Code in Hermetic (Evergreen/RDK) Builds (`is_cobalt_hermetic_build`)
+Evergreen and RDK builds (`is_linux = true`, `is_cobalt_hermetic_build = true`) must not build desktop-Linux subsystems (fontconfig font fallback, X11, GTK, D-Bus UI). When upstream adds or reorganizes `is_linux` sources/deps without `!is_cobalt_hermetic_build`, `gn gen` usually passes and the problem surfaces in Phase 4 (`fccompat.c` compile failure or `libcobalt.so` duplicate symbol); if it surfaces during GN healing, add `!is_cobalt_hermetic_build` to the `is_linux` condition in `BUILD.gn`. Full rule and the `ui/gfx/BUILD.gn` example are in `cobalt_rebase_patterns.md` → "Desktop-Linux Code in Hermetic (Evergreen/RDK) Builds (`is_cobalt_hermetic_build`)".
