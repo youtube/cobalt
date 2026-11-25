@@ -188,6 +188,26 @@ NPLB (No Platform Left Behind) verifies the Starboard implementation.
 
    To run a subset of tests, add `--gtest_filter=<pattern>`.
 
+   Examples:
+
+   This will run only `SbTimeZoneGetNameTest.IsIANAFormat`
+   ```
+   ./elf_loader_sandbox --evergreen_content=. --evergreen_library=libnplb.so \
+   --gtest_filter=SbTimeZoneGetNameTest.IsIANAFormat
+   ```
+
+   This will run all the tests except `IsIANAFormat` (minus sign for exclusion)
+   ```
+   ./elf_loader_sandbox --evergreen_content=. --evergreen_library=libnplb.so \
+   --gtest_filter=-SbTimeZoneGetNameTest.IsIANAFormat
+   ```
+
+   Exclude multiple tests by separating them with a colon as
+   ```
+   ./elf_loader_sandbox --evergreen_content=. --evergreen_library=libnplb.so \
+   --gtest_filter=-SbTimeZoneGetNameTest.IsIANAFormat:SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.WriteSingleBatch
+   ```
+
 ## FAQ
 
 ### How do I flash the AH212?
