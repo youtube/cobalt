@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -66,6 +67,7 @@ class StarboardBridge {
   std::string GetFriendlyName(JNIEnv* env);
   double GetScreenDiagonal(JNIEnv* env);
   bool GetWasLowMemoryKilled(JNIEnv* env);
+  std::optional<int> GetUsedGraphicsMemoryKb(JNIEnv* env);
 
   void CloseApp(JNIEnv* env);
   void RequestStop(JNIEnv* env, jint error_level);
