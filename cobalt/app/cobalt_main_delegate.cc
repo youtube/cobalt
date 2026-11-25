@@ -67,6 +67,10 @@
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 
+#if !BUILDFLAG(IS_ANDROID)
+#include "starboard/configuration_constants.h"
+#endif
+
 #if BUILDFLAG(IS_STARBOARD)
 #include "base/debug/dump_without_crashing.h"
 #include "starboard/extension/crash_handler.h"
@@ -116,7 +120,8 @@ CobaltMainDelegate::~CobaltMainDelegate() {
 // static
 void CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
     base::CommandLine* command_line,
-    bool is_visible) {
+    bool is_visible,
+    std::optional<CobaltContentBrowserClient::CacheQuotas> resolved_quotas) {
   // Preload launches compile the startup shaders off the user's path.
   if (is_visible ||
       command_line->HasSwitch(switches::kDisablePreloadGpuShaderDiskCache)) {
@@ -125,11 +130,20 @@ void CobaltMainDelegate::ApplyPreloadGpuShaderDiskCache(
   command_line->RemoveSwitch(switches::kDisableGpuShaderDiskCache);
   // GrShaderCache only.
   command_line->AppendSwitch(switches::kGpuShaderDiskCacheGrOnly);
-  if (!command_line->HasSwitch(switches::kGpuDiskCacheSizeKB)) {
-    command_line->AppendSwitchASCII(
-        switches::kGpuDiskCacheSizeKB,
-        base::NumberToString(kPreloadGrShaderDiskCacheSizeKB));
-  }
+  // Chromium's gpu::GetDefaultGpuDiskCacheSize() reads --gpu-disk-cache-size-kb
+  // directly from the process command line rather than querying
+  // ContentBrowserClient. Rewrite the switch with the resolved quota (for
+  // example, resetting an absent, over-budget, or invalid value to 2048 KB so
+  // Chromium does not fall back to its 6 MiB default).
+  const CobaltContentBrowserClient::CacheQuotas quotas =
+      resolved_quotas.has_value()
+          ? *resolved_quotas
+          : CobaltContentBrowserClient::ResolveCacheQuotas(
+                kSbMaxSystemPathCacheDirectorySize, is_visible, *command_line);
+  const uint32_t gpu_kb = quotas.gpu_shader_cache_bytes / 1024;
+  command_line->RemoveSwitch(switches::kGpuDiskCacheSizeKB);
+  command_line->AppendSwitchASCII(switches::kGpuDiskCacheSizeKB,
+                                  base::NumberToString(gpu_kb));
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
@@ -198,12 +212,26 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     base::CommandLine::ForCurrentProcess()->RemoveSwitch(
         switches::kDisableGpuShaderDiskCache);
   }
-#endif  // BUILDFLAG(IS_ANDROID)
-
+#else
+  // PostEarlyInitialization() also runs in child processes (where
+  // browser_client_ is null). In the browser process, resolve quotas once
+  // (logging any warnings/errors) and cache the pre-mutation result before
+  // Starboard's ApplyPreloadGpuShaderDiskCache() rewrites
+  // --gpu-disk-cache-size-kb so later browser-side quota readers and startup
+  // UMAs observe the same allocation result.
+  std::optional<CobaltContentBrowserClient::CacheQuotas> startup_quotas;
+  if (browser_client_) {
+    startup_quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kSbMaxSystemPathCacheDirectorySize, is_visible_,
+        *base::CommandLine::ForCurrentProcess(),
+        /*log_warnings_and_errors=*/true);
+    browser_client_->SetStartupCacheQuotas(*startup_quotas);
+  }
 #if BUILDFLAG(IS_STARBOARD)
   ApplyPreloadGpuShaderDiskCache(base::CommandLine::ForCurrentProcess(),
-                                 is_visible_);
+                                 is_visible_, startup_quotas);
 #endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_ANDROID)
 
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();

@@ -84,9 +84,13 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   static constexpr int kPreloadGrShaderDiskCacheSizeKB = 2048;
 
   // Enables the GrShaderCache for preload launches unless
-  // --disable-preload-gpu-shader-disk-cache is set.
-  static void ApplyPreloadGpuShaderDiskCache(base::CommandLine* command_line,
-                                             bool is_visible);
+  // --disable-preload-gpu-shader-disk-cache is set. If `resolved_quotas` is
+  // provided, uses its GPU shader cache quota instead of re-resolving quotas.
+  static void ApplyPreloadGpuShaderDiskCache(
+      base::CommandLine* command_line,
+      bool is_visible,
+      std::optional<CobaltContentBrowserClient::CacheQuotas> resolved_quotas =
+          std::nullopt);
 #endif  // BUILDFLAG(IS_STARBOARD)
 
   ~CobaltMainDelegate() override;

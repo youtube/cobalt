@@ -88,6 +88,7 @@
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "gpu/config/gpu_switches.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/ssl/ssl_cipher_suite_names.h"
 #include "services/network/public/cpp/features.h"
@@ -131,8 +132,6 @@
 #include "cobalt/browser/proxy_server_support.h"
 #endif
 
-#include "starboard/configuration_constants.h"
-
 namespace cobalt {
 
 namespace {
@@ -147,17 +146,22 @@ constexpr base::FilePath::CharType kNetworkPersistentStateFilename[] =
 constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 
-// Budgets for non-HTTP-cache consumers of kSbSystemPathCacheDirectory. The
-// HTTP cache is sized to the remainder (see ComputeDefaultHttpCacheSize).
-// V8 JS code cache (see GetGeneratedCodeCacheSettings) and Wasm code cache
-// (see GeneratedCodeCacheContext::InitializeOnThread).
-constexpr uint32_t kGeneratedCodeCacheBytes = 5242880;  // 5 MiB
-constexpr int kMinCodeCacheQuotaBytes = 1048576;        // 1 MiB
-constexpr int kMaxCodeCacheQuotaBytes = 1073741824;     // 1024 MiB
+constexpr int kMiB = 1024 * 1024;
+
+// Default DIR_CACHE quota budgets on non-Android platforms (summing to 24 MiB:
+// 9 MiB HTTP + 5 MiB JS + 1 MiB Wasm + 6 MiB CacheStorage + 2 MiB GPU + 1 MiB
+// headroom). See ResolveCacheQuotas().
+constexpr uint32_t kDefaultHttpCacheBytes = 9u * kMiB;
+constexpr int kMinHttpCacheQuotaBytes = 1 * kMiB;
+constexpr int kMaxHttpCacheQuotaBytes = 1024 * kMiB;
+constexpr uint32_t kGeneratedCodeCacheBytes = 5u * kMiB;
+constexpr int kMinCodeCacheQuotaBytes = 1 * kMiB;
+constexpr int kMaxCodeCacheQuotaBytes = 1024 * kMiB;
+constexpr uint32_t kPreloadGrShaderDiskCacheBytes = 2u * kMiB;
 // Directory headroom for index files, persistent metrics, and metadata
 // (matching Cobalt 25's 1 << 20 reserve).
-constexpr uint32_t kCacheDirectoryHeadroomBytes = 1048576;  // 1 MiB
-constexpr uint32_t kMinHttpCacheBytes = 1048576;            // 1 MiB
+constexpr uint32_t kCacheDirectoryHeadroomBytes = 1u * kMiB;
+constexpr uint32_t kMinPlatformCacheBudgetBytes = 24u * kMiB;
 
 uint32_t GetConfiguredGeneratedCodeCacheBytes() {
   if (base::FeatureList::IsEnabled(features::kCobaltCodeCacheOptimization)) {
@@ -166,6 +170,126 @@ uint32_t GetConfiguredGeneratedCodeCacheBytes() {
                    kMinCodeCacheQuotaBytes, kMaxCodeCacheQuotaBytes));
   }
   return kGeneratedCodeCacheBytes;
+}
+
+bool IsPreloadGpuShaderDiskCacheEnabled(const base::CommandLine& command_line) {
+#if BUILDFLAG(IS_STARBOARD)
+  // On Starboard, preload launches enable GrShaderCache in DIR_CACHE (2 MiB
+  // default) unless --disable-preload-gpu-shader-disk-cache is passed. Count
+  // this reservation on all Starboard launches so visible runs do not
+  // oversubscribe DIR_CACHE while cached shaders from a prior preload remain
+  // on disk.
+  return !command_line.HasSwitch(::switches::kDisablePreloadGpuShaderDiskCache);
+#else
+  // Non-Starboard non-Android platforms (such as tvOS) do not use Starboard's
+  // preload GrShaderCache path, so no GPU shader cache quota is reserved.
+  return false;
+#endif
+}
+
+uint32_t GetConfiguredHttpCacheBytes(const base::CommandLine& command_line,
+                                     bool log_warnings_and_errors) {
+  uint32_t http_bytes = kDefaultHttpCacheBytes;
+  if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
+    http_bytes = static_cast<uint32_t>(
+        std::clamp(features::kCobaltMaxHttpCacheSizeBytes.Get(),
+                   kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes));
+  }
+  if (command_line.HasSwitch(switches::kMaxHttpCacheSize)) {
+    const std::string size_str =
+        command_line.GetSwitchValueASCII(switches::kMaxHttpCacheSize);
+    int parsed_size = 0;
+    if (base::StringToInt(size_str, &parsed_size) && parsed_size > 0) {
+      http_bytes = static_cast<uint32_t>(parsed_size);
+    } else if (log_warnings_and_errors) {
+      LOG(WARNING) << "Ignoring invalid --" << switches::kMaxHttpCacheSize
+                   << "=" << size_str;
+    }
+  }
+  return http_bytes;
+}
+
+uint32_t GetConfiguredGpuShaderCacheBytes(bool gpu_preload_enabled,
+                                          bool is_visible,
+                                          const base::CommandLine& command_line,
+                                          bool log_warnings_and_errors) {
+  uint32_t gpu_bytes =
+      gpu_preload_enabled ? kPreloadGrShaderDiskCacheBytes : 0u;
+  if (gpu_preload_enabled && !is_visible &&
+      command_line.HasSwitch(::switches::kGpuDiskCacheSizeKB)) {
+    const std::string size_kb_str =
+        command_line.GetSwitchValueASCII(::switches::kGpuDiskCacheSizeKB);
+    size_t parsed_kb = 0;
+    if (base::StringToSizeT(size_kb_str, &parsed_kb) && parsed_kb > 0) {
+      if (parsed_kb <= (UINT32_MAX / 1024)) {
+        gpu_bytes = static_cast<uint32_t>(parsed_kb * 1024);
+      } else {
+        gpu_bytes = UINT32_MAX;
+      }
+    } else if (log_warnings_and_errors) {
+      LOG(WARNING) << "Ignoring invalid --" << ::switches::kGpuDiskCacheSizeKB
+                   << "=" << size_kb_str;
+    }
+  }
+  return gpu_bytes;
+}
+
+void ReconcileCacheQuotas(uint64_t effective_budget,
+                          uint32_t default_gpu_bytes,
+                          bool log_warnings_and_errors,
+                          CobaltContentBrowserClient::CacheQuotas* quotas) {
+  using Outcome = CobaltContentBrowserClient::CacheQuotaAllocationOutcome;
+
+  constexpr uint64_t kFixedBytes =
+      static_cast<uint64_t>(content::kGeneratedWasmCodeCacheBytes) +
+      CobaltContentBrowserClient::kCacheStorageQuotaBytes +
+      kCacheDirectoryHeadroomBytes;
+
+  uint64_t http_bytes = quotas->http_cache_bytes;
+  uint64_t js_bytes = quotas->js_code_cache_bytes;
+  uint64_t gpu_bytes = quotas->gpu_shader_cache_bytes;
+  uint64_t sum = http_bytes + js_bytes + gpu_bytes + kFixedBytes;
+  Outcome outcome = Outcome::kExactMatch;
+
+  if (sum > effective_budget) {
+    outcome = Outcome::kOverBudgetResetToDefaults;
+    if (log_warnings_and_errors) {
+      LOG(ERROR) << "Configured DIR_CACHE quotas sum to " << sum
+                 << " bytes (HTTP=" << http_bytes << ", JS=" << js_bytes
+                 << ", GPU=" << gpu_bytes << ", fixed=" << kFixedBytes
+                 << "), exceeding budget of " << effective_budget
+                 << " bytes; resetting configurable quotas to defaults.";
+    }
+    http_bytes = kDefaultHttpCacheBytes;
+    js_bytes = kGeneratedCodeCacheBytes;
+    gpu_bytes = default_gpu_bytes;
+    sum = http_bytes + js_bytes + gpu_bytes + kFixedBytes;
+  } else if (sum < effective_budget) {
+    outcome = Outcome::kUnderBudgetAddedToHttp;
+    if (log_warnings_and_errors) {
+      LOG(WARNING) << "Configured DIR_CACHE quotas sum to " << sum
+                   << " bytes, which is less than budget of "
+                   << effective_budget << " bytes; adding excess "
+                   << (effective_budget - sum) << " bytes to HTTP cache.";
+    }
+  }
+
+  // Kept outside the `else if` above because resetting to defaults after an
+  // over-budget configuration can still leave `sum < effective_budget` (for
+  // example on > 24 MiB platforms or when GPU preload is disabled).
+  uint64_t excess_bytes = 0;
+  if (sum < effective_budget) {
+    excess_bytes = effective_budget - sum;
+    http_bytes += excess_bytes;
+  }
+
+  quotas->http_cache_bytes = base::saturated_cast<uint32_t>(http_bytes);
+  quotas->js_code_cache_bytes = base::saturated_cast<uint32_t>(js_bytes);
+  quotas->gpu_shader_cache_bytes = base::saturated_cast<uint32_t>(gpu_bytes);
+  quotas->excess_bytes = base::saturated_cast<uint32_t>(excess_bytes);
+  if (quotas->outcome != Outcome::kUnsupportedPlatformBudget) {
+    quotas->outcome = outcome;
+  }
 }
 
 #if !BUILDFLAG(IS_ANDROIDTV)
@@ -380,8 +504,8 @@ std::optional<storage::QuotaSettings> CalculateCobaltCacheQuotaSettings(
   }
 
   // CacheStorage gets a fixed slice of the Starboard cache directory budget.
-  // The HTTP cache is sized around this reservation (see
-  // ComputeDefaultHttpCacheSize).
+  // Quotas are validated additively against the platform budget in
+  // ResolveCacheQuotas().
   // Cobalt only needs to cache data from a single origin (youtube.com), so
   // allocate the full 6 MiB CacheStorage budget to the per-origin quota.
   // However, QuotaTemporaryStorageEvictor triggers whole-bucket eviction when
@@ -410,7 +534,7 @@ std::optional<storage::QuotaSettings> CalculateCobaltCacheQuotaSettings(
   // `should_remain_available`. Chromium's default (10% of the volume, capped
   // at 2 GiB) is 2.4 MiB on a 24 MiB cache partition, more than the
   // kCacheDirectoryHeadroomBytes left free by the cache directory budget (see
-  // ComputeDefaultHttpCacheSize). With the default, a full but within-budget
+  // ResolveCacheQuotas()). With the default, a full but within-budget
   // cache directory would evict YouTube's only bucket, deleting CacheStorage
   // and unregistering the Service Worker.
   settings.should_remain_available = 0;
@@ -683,6 +807,7 @@ void CobaltContentBrowserClient::CreateThrottlesForNavigation(
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
+#if BUILDFLAG(IS_ANDROID)
   // Default compiled javascript quota in Cobalt 25 was 3 MB:
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
   // Increased to 5 MB for Cobalt 27+, and configurable (default 10 MB) when
@@ -690,6 +815,13 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   // not cross SimpleCache's 90% eviction watermark (Wasm is capped separately
   // at 1 MB in GeneratedCodeCacheContext::InitializeOnThread).
   const size_t size = GetConfiguredGeneratedCodeCacheBytes();
+#else
+  // On non-Android platforms, the JS code cache quota (5 MiB default, or
+  // configured via kCobaltCodeCacheOptimization) is validated additively
+  // against kSbMaxSystemPathCacheDirectorySize alongside the other DIR_CACHE
+  // consumers and resets to 5 MiB if the combined sum exceeds the budget.
+  const size_t size = GetResolvedCacheQuotas().js_code_cache_bytes;
+#endif
   base::FilePath cache_path;
   CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
@@ -697,34 +829,70 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
 }
 
 // static
-uint32_t CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
-    uint32_t total_dir_budget_bytes) {
-  const uint32_t non_http_reserve_bytes =
-      GetConfiguredGeneratedCodeCacheBytes() +
-      content::kGeneratedWasmCodeCacheBytes + kCacheStorageQuotaBytes +
-      kCacheDirectoryHeadroomBytes;
-  if (total_dir_budget_bytes <= non_http_reserve_bytes + kMinHttpCacheBytes) {
-    // For small platform budgets, ensure we do not return 0 or negative.
-    return std::min(total_dir_budget_bytes, kMinHttpCacheBytes);
+CobaltContentBrowserClient::CacheQuotas
+CobaltContentBrowserClient::ResolveCacheQuotas(
+    uint32_t total_dir_budget_bytes,
+    bool is_visible,
+    const base::CommandLine& command_line,
+    bool log_warnings_and_errors) {
+  CacheQuotas quotas;
+  quotas.platform_budget_bytes = total_dir_budget_bytes;
+
+  uint64_t effective_budget = total_dir_budget_bytes;
+  if (total_dir_budget_bytes < kMinPlatformCacheBudgetBytes) {
+    quotas.outcome = CacheQuotaAllocationOutcome::kUnsupportedPlatformBudget;
+    if (log_warnings_and_errors) {
+      LOG(ERROR) << "Unsupported kSbMaxSystemPathCacheDirectorySize ("
+                 << total_dir_budget_bytes << " bytes < "
+                 << kMinPlatformCacheBudgetBytes
+                 << " bytes); assuming 24 MiB is available.";
+    }
+    effective_budget = kMinPlatformCacheBudgetBytes;
   }
 
-  return total_dir_budget_bytes - non_http_reserve_bytes;
+  const bool gpu_preload_enabled =
+      IsPreloadGpuShaderDiskCacheEnabled(command_line);
+  const uint32_t default_gpu_bytes =
+      gpu_preload_enabled ? kPreloadGrShaderDiskCacheBytes : 0u;
+
+  quotas.http_cache_bytes =
+      GetConfiguredHttpCacheBytes(command_line, log_warnings_and_errors);
+  quotas.js_code_cache_bytes = GetConfiguredGeneratedCodeCacheBytes();
+  quotas.gpu_shader_cache_bytes = GetConfiguredGpuShaderCacheBytes(
+      gpu_preload_enabled, is_visible, command_line, log_warnings_and_errors);
+
+  ReconcileCacheQuotas(effective_budget, default_gpu_bytes,
+                       log_warnings_and_errors, &quotas);
+  return quotas;
+}
+
+void CobaltContentBrowserClient::SetStartupCacheQuotas(
+    const CacheQuotas& quotas) {
+  startup_cache_quotas_ = quotas;
+}
+
+CobaltContentBrowserClient::CacheQuotas
+CobaltContentBrowserClient::GetResolvedCacheQuotas() const {
+  if (startup_cache_quotas_.has_value()) {
+    return *startup_cache_quotas_;
+  }
+  return ResolveCacheQuotas(kSbMaxSystemPathCacheDirectorySize, is_visible_,
+                            *base::CommandLine::ForCurrentProcess(),
+                            /*log_warnings_and_errors=*/false);
 }
 
 // static
 void CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
     bool in_memory,
     [[maybe_unused]] uint32_t total_dir_budget_bytes,
-    network::mojom::NetworkContextParams* network_context_params) {
-  if (!in_memory) {
-    constexpr int kMinHttpCacheQuotaBytes = 1048576;     // 1 MiB
-    constexpr int kMaxHttpCacheQuotaBytes = 1073741824;  // 1024 MiB
-
+    network::mojom::NetworkContextParams* network_context_params,
+    bool is_visible) {
 #if BUILDFLAG(IS_ANDROID)
+  if (!in_memory) {
     // Baseline default on Android is 25 MiB (26214400 bytes).
     // When kCobaltHttpCacheQuota is enabled, Finch configures it (default:
     // 12582912 bytes / 12 MiB).
-    constexpr int kDefaultAndroidHttpCacheSizeBytes = 26214400;
+    constexpr int kDefaultAndroidHttpCacheSizeBytes = 25 * kMiB;
     int http_cache_bytes = kDefaultAndroidHttpCacheSizeBytes;
     if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
       http_cache_bytes =
@@ -732,20 +900,6 @@ void CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
                      kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes);
     }
     network_context_params->http_cache_max_size = http_cache_bytes;
-#else
-    uint32_t http_cache_bytes =
-        ComputeDefaultHttpCacheSize(total_dir_budget_bytes);
-    if (base::FeatureList::IsEnabled(features::kCobaltHttpCacheQuota)) {
-      const uint32_t configured_bytes = static_cast<uint32_t>(
-          std::clamp(features::kCobaltMaxHttpCacheSizeBytes.Get(),
-                     kMinHttpCacheQuotaBytes, kMaxHttpCacheQuotaBytes));
-      http_cache_bytes = http_cache_bytes > 0
-                             ? std::min(http_cache_bytes, configured_bytes)
-                             : configured_bytes;
-    }
-    network_context_params->http_cache_max_size =
-        base::checked_cast<int>(http_cache_bytes);
-#endif
   }
 
   // Developer command-line override (only applies if explicitly passed).
@@ -759,6 +913,15 @@ void CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
       network_context_params->http_cache_max_size = parsed_size;
     }
   }
+#else
+  if (!in_memory) {
+    const CacheQuotas quotas =
+        ResolveCacheQuotas(total_dir_budget_bytes, is_visible,
+                           *base::CommandLine::ForCurrentProcess());
+    network_context_params->http_cache_max_size =
+        base::saturated_cast<int>(quotas.http_cache_bytes);
+  }
+#endif
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -879,8 +1042,15 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     }
   }
 
-  ConfigureHttpCacheMaxSize(in_memory, kSbMaxSystemPathCacheDirectorySize,
-                            network_context_params);
+  if (startup_cache_quotas_.has_value()) {
+    if (!in_memory) {
+      network_context_params->http_cache_max_size =
+          base::saturated_cast<int>(startup_cache_quotas_->http_cache_bytes);
+    }
+  } else {
+    ConfigureHttpCacheMaxSize(in_memory, kSbMaxSystemPathCacheDirectorySize,
+                              network_context_params, is_visible_);
+  }
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   cobalt::browser::ConfigureProxyFromCommandLineIfNeeded(

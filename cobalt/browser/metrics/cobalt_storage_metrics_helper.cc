@@ -15,7 +15,9 @@
 #include "cobalt/browser/metrics/cobalt_storage_metrics_helper.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "base/base_paths.h"
 #include "base/files/file_util.h"
@@ -72,6 +74,11 @@ constexpr int kMaxStorageSizeKB = 100000;
 // bucket bounds (preserving PMA prior-session merge and launch-count parity).
 constexpr int kMaxUserDataSizeKB2 = 1000000;
 constexpr int kStorageSizeBuckets = 100;
+#if !BUILDFLAG(IS_ANDROID)
+// Cache quota histograms cover up to 1 GiB (1024 MiB = 1048576 KB).
+constexpr int kMinQuotaSizeKB = 1;
+constexpr int kMaxQuotaSizeKB = 1048576;
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // getrusage() reports block I/O in 512-byte units.
 constexpr int64_t kRusageBlockSizeBytes = 512;
@@ -155,7 +162,8 @@ void RunPeriodicWriteRateSample() {
       kPeriodicWriteRateSampleInterval);
 }
 
-void RunPostStartupStorageMetricsTask() {
+void RunPostStartupStorageMetricsTask(
+    std::optional<CobaltContentBrowserClient::CacheQuotas> cache_quotas) {
   // 1. Sample the block I/O counters FIRST, before any directory walk, so that
   // StartupReadKB is never polluted by stat()/readdir() metadata reads.
   ProcessIoCounters io_counters;
@@ -174,6 +182,12 @@ void RunPostStartupStorageMetricsTask() {
 
   RecordStartupStorageAndIoMetricsForPaths(
       user_data_dir, cache_dir, has_io_counters ? &io_counters : nullptr);
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (cache_quotas.has_value()) {
+    RecordCacheQuotaMetrics(*cache_quotas);
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // 3. Schedule periodic steady-state write-rate sampling.
   if (has_io_counters) {
@@ -333,9 +347,45 @@ bool RecordSteadyStateWriteRateForInterval(int64_t baseline_write_bytes,
 }
 
 void ScheduleCobaltStorageMetricsRecording() {
+  std::optional<CobaltContentBrowserClient::CacheQuotas> cache_quotas;
+#if !BUILDFLAG(IS_ANDROID)
+  if (auto* client = CobaltContentBrowserClient::Get()) {
+    cache_quotas = client->GetResolvedCacheQuotas();
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
   StorageIoWriteRateTracker::GetInstance()->task_runner()->PostDelayedTask(
-      FROM_HERE, base::BindOnce(&RunPostStartupStorageMetricsTask),
+      FROM_HERE,
+      base::BindOnce(&RunPostStartupStorageMetricsTask,
+                     std::move(cache_quotas)),
       kPostStartupStorageMetricsDelay);
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+void RecordCacheQuotaMetrics(
+    const CobaltContentBrowserClient::CacheQuotas& quotas) {
+  base::UmaHistogramEnumeration("Cobalt.Storage.CacheQuota.AllocationOutcome",
+                                quotas.outcome);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Storage.CacheQuota.PlatformBudgetKB",
+      base::saturated_cast<int>(quotas.platform_budget_bytes / 1024),
+      kMinQuotaSizeKB, kMaxQuotaSizeKB, kStorageSizeBuckets);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Storage.CacheQuota.ExcessKB",
+      base::saturated_cast<int>(quotas.excess_bytes / 1024), kMinQuotaSizeKB,
+      kMaxQuotaSizeKB, kStorageSizeBuckets);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Storage.CacheQuota.EffectiveKB.Http",
+      base::saturated_cast<int>(quotas.http_cache_bytes / 1024),
+      kMinQuotaSizeKB, kMaxQuotaSizeKB, kStorageSizeBuckets);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Storage.CacheQuota.EffectiveKB.JsCode",
+      base::saturated_cast<int>(quotas.js_code_cache_bytes / 1024),
+      kMinQuotaSizeKB, kMaxQuotaSizeKB, kStorageSizeBuckets);
+  base::UmaHistogramCustomCounts(
+      "Cobalt.Storage.CacheQuota.EffectiveKB.GpuShader",
+      base::saturated_cast<int>(quotas.gpu_shader_cache_bytes / 1024),
+      kMinQuotaSizeKB, kMaxQuotaSizeKB, kStorageSizeBuckets);
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace cobalt

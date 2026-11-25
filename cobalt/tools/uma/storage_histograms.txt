@@ -38,6 +38,12 @@ Memory.Experimental.Browser2.Small.LevelDatabase
 Memory.Experimental.Browser2.Small.Sqlite
 
 # --- P0.2 Cache Quotas, Init Sizes & Hit Behavior ---
+Cobalt.Storage.CacheQuota.AllocationOutcome
+Cobalt.Storage.CacheQuota.PlatformBudgetKB
+Cobalt.Storage.CacheQuota.ExcessKB
+Cobalt.Storage.CacheQuota.EffectiveKB.Http
+Cobalt.Storage.CacheQuota.EffectiveKB.JsCode
+Cobalt.Storage.CacheQuota.EffectiveKB.GpuShader
 SimpleCache.Http.CacheSizeOnInit
 SimpleCache.Http.MaxCacheSizeOnInit
 SimpleCache.Code.CacheSizeOnInit

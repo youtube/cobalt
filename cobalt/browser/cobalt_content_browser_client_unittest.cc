@@ -15,7 +15,9 @@
 #include "cobalt/browser/cobalt_content_browser_client.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <string>
 #include <variant>
@@ -58,6 +60,7 @@
 #include "content/public/browser/site_instance.h"
 #include "content/test/test_web_contents.h"
 #include "gpu/config/gpu_finch_features.h"
+#include "gpu/config/gpu_switches.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -178,36 +181,136 @@ TEST_F(CobaltContentBrowserClientTest,
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
-TEST_F(CobaltContentBrowserClientTest, ComputeDefaultHttpCacheSize) {
-  // 1. Nominal Starboard budget (24 MiB -> 11 MiB HTTP cache):
-  EXPECT_EQ(
-      CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(24 * 1024 * 1024),
-      11u * 1024 * 1024);
+#if !BUILDFLAG(IS_ANDROID)
+TEST_F(CobaltContentBrowserClientTest, ResolveCacheQuotas) {
+  using Outcome = CobaltContentBrowserClient::CacheQuotaAllocationOutcome;
+  constexpr uint32_t kBudget24MiB = 24u * 1024 * 1024;
+  constexpr uint32_t kBudget32MiB = 32u * 1024 * 1024;
+#if BUILDFLAG(IS_STARBOARD)
+  constexpr uint32_t kDefaultGpuBytes = 2u * 1024 * 1024;
+  constexpr uint32_t kDefaultHttpOn24MiB = 9u * 1024 * 1024;
+  constexpr Outcome kDefaultOutcomeOn24MiB = Outcome::kExactMatch;
+#else
+  constexpr uint32_t kDefaultGpuBytes = 0u;
+  constexpr uint32_t kDefaultHttpOn24MiB = 11u * 1024 * 1024;
+  constexpr Outcome kDefaultOutcomeOn24MiB = Outcome::kUnderBudgetAddedToHttp;
+#endif
 
-  // 2. Current platform constant equals budget minus the 13 MiB reserve:
-  EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
-                kSbMaxSystemPathCacheDirectorySize),
-            kSbMaxSystemPathCacheDirectorySize - 13u * 1024 * 1024);
-
-  // 3. Zero / unconfigured budget remains 0 regardless of feature flags:
-  EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+  // 1. Default 24 MiB budget: 9 MiB HTTP + 5 MiB JS + 1 MiB Wasm + 6 MiB
+  // CacheStorage + 2 MiB GPU + 1 MiB headroom = 24 MiB on Starboard.
   {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
-    EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(0), 0u);
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kBudget24MiB, /*is_visible=*/false, command_line);
+    EXPECT_EQ(quotas.http_cache_bytes, kDefaultHttpOn24MiB);
+    EXPECT_EQ(quotas.js_code_cache_bytes, 5u * 1024 * 1024);
+    EXPECT_EQ(quotas.gpu_shader_cache_bytes, kDefaultGpuBytes);
+    EXPECT_EQ(quotas.outcome, kDefaultOutcomeOn24MiB);
   }
 
-  // 4. When kCobaltCodeCacheOptimization raises JS code cache from 5 MiB to
-  // 10 MiB, Starboard's dynamic non-HTTP reserve grows from 13 MiB to 18 MiB
-  // (leaving 6 MiB on a 24 MiB budget so DIR_CACHE never exceeds 24 MiB):
+  // 2. Unsupported budget (< 24 MiB, including 0): treated as 24 MiB.
+  for (uint32_t small_budget : {0u, 16u * 1024 * 1024}) {
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        small_budget, /*is_visible=*/false, command_line);
+    EXPECT_EQ(quotas.platform_budget_bytes, small_budget);
+    EXPECT_EQ(quotas.http_cache_bytes, kDefaultHttpOn24MiB);
+    EXPECT_EQ(quotas.js_code_cache_bytes, 5u * 1024 * 1024);
+    EXPECT_EQ(quotas.gpu_shader_cache_bytes, kDefaultGpuBytes);
+    EXPECT_EQ(quotas.outcome, Outcome::kUnsupportedPlatformBudget);
+  }
+
+  // 3. Budget > 24 MiB (32 MiB): excess goes to HTTP cache.
   {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
-    EXPECT_EQ(CobaltContentBrowserClient::ComputeDefaultHttpCacheSize(
-                  24 * 1024 * 1024),
-              6u * 1024 * 1024);
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kBudget32MiB, /*is_visible=*/false, command_line);
+    EXPECT_EQ(quotas.http_cache_bytes,
+              kDefaultHttpOn24MiB + (kBudget32MiB - kBudget24MiB));
+    EXPECT_EQ(quotas.excess_bytes, kBudget32MiB - kBudget24MiB +
+                                       (2u * 1024 * 1024 - kDefaultGpuBytes));
+    EXPECT_EQ(quotas.outcome, Outcome::kUnderBudgetAddedToHttp);
+  }
+
+#if BUILDFLAG(IS_STARBOARD)
+  // 4. --disable-preload-gpu-shader-disk-cache omits GPU (2 MiB -> HTTP).
+  {
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    command_line.AppendSwitch(::switches::kDisablePreloadGpuShaderDiskCache);
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kBudget24MiB, /*is_visible=*/false, command_line);
+    EXPECT_EQ(quotas.gpu_shader_cache_bytes, 0u);
+    EXPECT_EQ(quotas.http_cache_bytes, 11u * 1024 * 1024);
+    EXPECT_EQ(quotas.excess_bytes, 2u * 1024 * 1024);
+    EXPECT_EQ(quotas.outcome, Outcome::kUnderBudgetAddedToHttp);
+  }
+
+  // 5. Explicit --gpu-disk-cache-size-kb on preload is validated: 1024 KB fits
+  // (excess 1 MiB -> HTTP), 8192 KB overflows (resets all to defaults).
+  {
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "1024");
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kBudget24MiB, /*is_visible=*/false, command_line);
+    EXPECT_EQ(quotas.gpu_shader_cache_bytes, 1024u * 1024);
+    EXPECT_EQ(quotas.http_cache_bytes, 10u * 1024 * 1024);
+    EXPECT_EQ(quotas.excess_bytes, 1024u * 1024);
+    EXPECT_EQ(quotas.outcome, Outcome::kUnderBudgetAddedToHttp);
+  }
+  {
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "8192");
+    command_line.AppendSwitchASCII(switches::kMaxHttpCacheSize, "4194304");
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kBudget24MiB, /*is_visible=*/false, command_line);
+    EXPECT_EQ(quotas.gpu_shader_cache_bytes, 2u * 1024 * 1024);
+    EXPECT_EQ(quotas.http_cache_bytes, 9u * 1024 * 1024);
+    EXPECT_EQ(quotas.js_code_cache_bytes, 5u * 1024 * 1024);
+    EXPECT_EQ(quotas.outcome, Outcome::kOverBudgetResetToDefaults);
+  }
+
+  // 6. Visible launches ignore --gpu-disk-cache-size-kb and count 2 MiB.
+  {
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "8192");
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kBudget24MiB, /*is_visible=*/true, command_line);
+    EXPECT_EQ(quotas.gpu_shader_cache_bytes, 2u * 1024 * 1024);
+    EXPECT_EQ(quotas.http_cache_bytes, 9u * 1024 * 1024);
+    EXPECT_EQ(quotas.outcome, Outcome::kExactMatch);
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+
+  // 7. Invalid / zero CLI switches log warning and fall back to
+  // configured/default.
+  {
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    command_line.AppendSwitchASCII(switches::kMaxHttpCacheSize, "0");
+    command_line.AppendSwitchASCII(::switches::kGpuDiskCacheSizeKB, "bad");
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kBudget24MiB, /*is_visible=*/false, command_line);
+    EXPECT_EQ(quotas.http_cache_bytes, kDefaultHttpOn24MiB);
+    EXPECT_EQ(quotas.gpu_shader_cache_bytes, kDefaultGpuBytes);
+    EXPECT_EQ(quotas.outcome, kDefaultOutcomeOn24MiB);
+  }
+
+  // 8. Over-budget on > 24 MiB (32 MiB) resets configurable quotas to defaults
+  // and still adds the remaining excess to HTTP cache.
+  {
+    base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
+    command_line.AppendSwitchASCII(switches::kMaxHttpCacheSize, "33554432");
+    const auto quotas = CobaltContentBrowserClient::ResolveCacheQuotas(
+        kBudget32MiB, /*is_visible=*/false, command_line);
+    EXPECT_EQ(quotas.http_cache_bytes,
+              kDefaultHttpOn24MiB + (kBudget32MiB - kBudget24MiB));
+    EXPECT_EQ(quotas.js_code_cache_bytes, 5u * 1024 * 1024);
+    EXPECT_EQ(quotas.gpu_shader_cache_bytes, kDefaultGpuBytes);
+    EXPECT_EQ(quotas.excess_bytes, kBudget32MiB - kBudget24MiB +
+                                       (2u * 1024 * 1024 - kDefaultGpuBytes));
+    EXPECT_EQ(quotas.outcome, Outcome::kOverBudgetResetToDefaults);
   }
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 TEST_F(CobaltContentBrowserClientTest, GetGeneratedCodeCacheSettings) {
   base::ScopedPathOverride cache_override(base::DIR_CACHE);
@@ -228,6 +331,7 @@ TEST_F(CobaltContentBrowserClientTest, GetGeneratedCodeCacheSettings) {
     EXPECT_EQ(settings.path(), cache_dir);
   }
 
+#if BUILDFLAG(IS_ANDROID)
   // 2. Feature enabled (default parameter): 10485760 bytes (10 MiB).
   {
     base::test::ScopedFeatureList feature_list;
@@ -267,6 +371,63 @@ TEST_F(CobaltContentBrowserClientTest, GetGeneratedCodeCacheSettings) {
         client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
     EXPECT_EQ(settings.size_in_bytes(), 1073741824u);
   }
+#else
+  // 2. Enabling kCobaltCodeCacheOptimization (10 MiB) alone overflows budgets
+  // below 29 MiB on Starboard (27 MiB on non-Starboard, where no preload GPU
+  // shader cache is reserved) and resets JS to 5 MiB; larger budgets keep
+  // 10 MiB.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+#if BUILDFLAG(IS_STARBOARD)
+    constexpr uint32_t kNeededForDefault10MiBJs = 29u * 1024 * 1024;
+#else
+    constexpr uint32_t kNeededForDefault10MiBJs = 27u * 1024 * 1024;
+#endif
+    const int64_t expected_bytes =
+        kSbMaxSystemPathCacheDirectorySize >= kNeededForDefault10MiBJs
+            ? 10u * 1024 * 1024
+            : 5u * 1024 * 1024;
+    EXPECT_EQ(settings.size_in_bytes(), expected_bytes);
+  }
+
+  // 3. Combined with kCobaltHttpCacheQuota lowering HTTP to 4 MiB fits in
+  // 24 MiB, so JS stays 10 MiB.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeaturesAndParameters(
+        {{features::kCobaltCodeCacheOptimization, {}},
+         {features::kCobaltHttpCacheQuota,
+          {{"cobalt_http_cache_size_bytes", "4194304"}}}},
+        {});
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 10485760u);
+  }
+
+  // 4. Lower clamping (0 -> 1 MiB fits in 24 MiB) and overflow clamping
+  // (2147483647 -> 1024 MiB exceeds 24 MiB -> resets to 5 MiB).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCodeCacheOptimization,
+        {{features::kCobaltGeneratedCodeCacheSizeBytes.name, "0"}});
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 1048576u);
+  }
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltCodeCacheOptimization,
+        {{features::kCobaltGeneratedCodeCacheSizeBytes.name, "2147483647"}});
+    content::GeneratedCodeCacheSettings settings =
+        client.GetGeneratedCodeCacheSettings(/*context=*/nullptr);
+    EXPECT_EQ(settings.size_in_bytes(), 5242880u);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 class CobaltWebPrefsTest : public content::ShellTestBase {};
@@ -320,17 +481,23 @@ TEST_F(CobaltWebPrefsTest, OverrideWebPreferencesV8CacheOptions) {
 TEST_F(CobaltContentBrowserClientTest,
        ConfigureHttpCacheMaxSizeStarboardQuota) {
   constexpr uint32_t kBudget24MiB = 24u * 1024 * 1024;
-  constexpr int kExpectedDefault11MiB = 11 * 1024 * 1024;  // 11534336
-  constexpr int kExpectedCombined6MiB = 6 * 1024 * 1024;   // 6291456
+  constexpr uint32_t kBudget32MiB = 32u * 1024 * 1024;
+#if BUILDFLAG(IS_STARBOARD)
+  constexpr int kExpectedDefaultHttp = 9 * 1024 * 1024;      // 9437184
+  constexpr int kExpectedHttpWith10MiBJs = 4 * 1024 * 1024;  // 4194304
+#else
+  constexpr int kExpectedDefaultHttp = 11 * 1024 * 1024;     // 11534336
+  constexpr int kExpectedHttpWith10MiBJs = 6 * 1024 * 1024;  // 6291456
+#endif
 
-  // 1. Budgeted Starboard platform (24 MiB -> 11 MiB default):
+  // 1. Default 24 MiB platform: 9 MiB HTTP on Starboard (11 MiB without GPU).
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndDisableFeature(features::kCobaltHttpCacheQuota);
     auto params = network::mojom::NetworkContextParams::New();
     CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
         /*in_memory=*/false, kBudget24MiB, params.get());
-    EXPECT_EQ(params->http_cache_max_size, kExpectedDefault11MiB);
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefaultHttp);
   }
   {
     base::test::ScopedFeatureList feature_list;
@@ -338,11 +505,11 @@ TEST_F(CobaltContentBrowserClientTest,
     auto params = network::mojom::NetworkContextParams::New();
     CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
         /*in_memory=*/false, kBudget24MiB, params.get());
-    EXPECT_EQ(params->http_cache_max_size, kExpectedDefault11MiB);
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefaultHttp);
   }
-  // Combined kCobaltCodeCacheOptimization (10 MiB JS code cache -> 18 MiB
-  // non-HTTP reserve) + kCobaltHttpCacheQuota (12 MiB cap) caps HTTP cache at
-  // min(6 MiB, 12 MiB) = 6 MiB so DIR_CACHE stays within 24 MiB:
+
+  // 2. Combined kCobaltCodeCacheOptimization (10 MiB JS) + default HTTP (9 MiB)
+  // overflows 24 MiB -> resets to defaults (9 MiB HTTP).
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitWithFeatures({features::kCobaltCodeCacheOptimization,
@@ -351,58 +518,62 @@ TEST_F(CobaltContentBrowserClientTest,
     auto params = network::mojom::NetworkContextParams::New();
     CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
         /*in_memory=*/false, kBudget24MiB, params.get());
-    EXPECT_EQ(params->http_cache_max_size, kExpectedCombined6MiB);
-  }
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeatureWithParameters(
-        features::kCobaltHttpCacheQuota,
-        {{"cobalt_http_cache_size_bytes", "8388608"}});
-    auto params = network::mojom::NetworkContextParams::New();
-    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
-        /*in_memory=*/false, kBudget24MiB, params.get());
-    EXPECT_EQ(params->http_cache_max_size, 8388608);
-  }
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeatureWithParameters(
-        features::kCobaltHttpCacheQuota,
-        {{"cobalt_http_cache_size_bytes", "0"}});
-    auto params = network::mojom::NetworkContextParams::New();
-    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
-        /*in_memory=*/false, kBudget24MiB, params.get());
-    EXPECT_EQ(params->http_cache_max_size, 1048576);
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefaultHttp);
   }
 
-  // 2. Unbudgeted / auto-sized Starboard platform (budget == 0):
+  // 3. Combined kCobaltCodeCacheOptimization (10 MiB JS) +
+  // kCobaltHttpCacheQuota configured to 4 MiB fits in 24 MiB -> 4 MiB HTTP (6
+  // MiB without GPU).
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeaturesAndParameters(
+        {{features::kCobaltCodeCacheOptimization, {}},
+         {features::kCobaltHttpCacheQuota,
+          {{"cobalt_http_cache_size_bytes", "4194304"}}}},
+        {});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, kExpectedHttpWith10MiBJs);
+  }
+
+  // 4. Configuring HTTP smaller (8 MiB or clamped 1 MiB) adds excess to HTTP.
+  for (const char* param_val : {"8388608", "0"}) {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltHttpCacheQuota,
+        {{"cobalt_http_cache_size_bytes", param_val}});
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, kBudget24MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefaultHttp);
+  }
+
+  // 5. Unsupported budget (0) assumes 24 MiB is available.
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndDisableFeature(features::kCobaltHttpCacheQuota);
     auto params = network::mojom::NetworkContextParams::New();
     CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
         /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
-    EXPECT_EQ(params->http_cache_max_size, 0);
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefaultHttp);
   }
-  {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
-    auto params = network::mojom::NetworkContextParams::New();
-    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
-        /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
-    EXPECT_EQ(params->http_cache_max_size, 12582912);
-  }
+
+  // 6. Larger budget (32 MiB) adds excess 8 MiB to HTTP.
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndEnableFeatureWithParameters(
         features::kCobaltHttpCacheQuota,
-        {{"cobalt_http_cache_size_bytes", "2147483647"}});
+        {{"cobalt_http_cache_size_bytes", "10485760"}});
     auto params = network::mojom::NetworkContextParams::New();
     CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
-        /*in_memory=*/false, /*total_dir_budget_bytes=*/0, params.get());
-    EXPECT_EQ(params->http_cache_max_size, 1073741824);
+        /*in_memory=*/false, kBudget32MiB, params.get());
+    EXPECT_EQ(params->http_cache_max_size,
+              kExpectedDefaultHttp + 8 * 1024 * 1024);
   }
 
-  // 3. In-memory profile and explicit --max-http-cache-size CLI override:
+  // 7. In-memory profile stays 0; oversized --max-http-cache-size resets to
+  // default; within-budget --max-http-cache-size on 32 MiB + excess fits.
   {
     base::test::ScopedFeatureList feature_list;
     feature_list.InitAndEnableFeature(features::kCobaltHttpCacheQuota);
@@ -420,10 +591,70 @@ TEST_F(CobaltContentBrowserClientTest,
     auto params = network::mojom::NetworkContextParams::New();
     CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
         /*in_memory=*/false, kBudget24MiB, params.get());
-    EXPECT_EQ(params->http_cache_max_size, 16777216);
+    EXPECT_EQ(params->http_cache_max_size, kExpectedDefaultHttp);
+  }
+
+  // 8. Very large platform budgets (> INT_MAX) saturate rather than crashing.
+  {
+    auto params = network::mojom::NetworkContextParams::New();
+    CobaltContentBrowserClient::ConfigureHttpCacheMaxSize(
+        /*in_memory=*/false, std::numeric_limits<uint32_t>::max(),
+        params.get());
+    EXPECT_EQ(params->http_cache_max_size, std::numeric_limits<int>::max());
   }
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+// Test fixture providing a BrowserContext for ConfigureNetworkContextParams().
+class CobaltStartupCacheQuotasTest : public content::ShellTestBase {};
+
+// Verifies the preload launch journey where an over-budget
+// --gpu-disk-cache-size-kb switch is resolved and cached before
+// ApplyPreloadGpuShaderDiskCache() rewrites the process command line,
+// ensuring NetworkContext, JS code cache, and startup UMAs still observe
+// the pre-mutation reset quotas.
+TEST_F(CobaltStartupCacheQuotasTest,
+       StartupCacheQuotasSurvivePreloadSwitchRewrite) {
+  base::ScopedPathOverride cache_override(base::DIR_CACHE);
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(features::kCobaltCodeCacheOptimization);
+
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+      ::switches::kGpuDiskCacheSizeKB, "8192");
+  scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+      switches::kMaxHttpCacheSize, "4194304");
+
+  CobaltContentBrowserClient client(/*startup_timestamp=*/std::nullopt,
+                                    /*deep_link=*/"",
+                                    /*is_visible=*/false);
+  client.SetStartupCacheQuotas(CobaltContentBrowserClient::ResolveCacheQuotas(
+      24u * 1024 * 1024, /*is_visible=*/false,
+      *scoped_command_line.GetProcessCommandLine()));
+
+  // Simulate ApplyPreloadGpuShaderDiskCache() rewriting the switch to 2048 KB.
+  // Without cached startup quotas, re-resolving would fit in 24 MiB (4 MiB
+  // HTTP + 10 MiB JS + 2 MiB GPU + 8 MiB fixed).
+  scoped_command_line.GetProcessCommandLine()->RemoveSwitch(
+      ::switches::kGpuDiskCacheSizeKB);
+  scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
+      ::switches::kGpuDiskCacheSizeKB, "2048");
+
+  EXPECT_EQ(client.GetResolvedCacheQuotas().outcome,
+            CobaltContentBrowserClient::CacheQuotaAllocationOutcome::
+                kOverBudgetResetToDefaults);
+  EXPECT_EQ(
+      client.GetGeneratedCodeCacheSettings(/*context=*/nullptr).size_in_bytes(),
+      5u * 1024 * 1024);
+
+  auto params = network::mojom::NetworkContextParams::New();
+  client.ConfigureNetworkContextParams(
+      browser_context(), /*in_memory=*/false, base::FilePath(), params.get(),
+      /*cert_verifier_creation_params=*/nullptr);
+  EXPECT_EQ(params->http_cache_max_size, 9 * 1024 * 1024);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_ANDROID)
 TEST_F(CobaltContentBrowserClientTest, ConfigureHttpCacheMaxSizeAndroidQuota) {
@@ -689,9 +920,9 @@ class MockQuotaDeviceInfoHelper : public storage::QuotaDeviceInfoHelper {
 };
 
 // Per-origin CacheStorage quota is capped at 6 MiB (matching the reserve
-// deducted from the HTTP cache budget in ComputeDefaultHttpCacheSize), and
-// pool_size is 2x the per-origin quota (12 MiB) so single-origin usage never
-// exceeds QuotaTemporaryStorageEvictor's kUsageRatioToStartEviction (0.7).
+// accounted for in ResolveCacheQuotas()), and pool_size is 2x the per-origin
+// quota (12 MiB) so single-origin usage never exceeds
+// QuotaTemporaryStorageEvictor's kUsageRatioToStartEviction (0.7).
 constexpr int64_t kExpectedCacheStorageQuota =
     CobaltContentBrowserClient::kCacheStorageQuotaBytes;
 constexpr int64_t kExpectedCacheStoragePoolSize =
