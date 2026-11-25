@@ -244,7 +244,7 @@ int fcntl_ptr(int fildes, int cmd, void* arg) {
   return retval;
 }
 
-SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...) {
+int __abi_wrap_fcntl(int fildes, int cmd, ...) {
   int platform_cmd = convert_musl_cmd_to_platform_cmd(cmd);
   if (platform_cmd == -1) {
     errno = EINVAL;

@@ -92,7 +92,7 @@ const CobaltExtensionInstallationManagerApi kMockInstallationManagerApi = {
 
 }  // namespace
 
-extern "C" SB_EXPORT const void* SbSystemGetExtension(const char* name) {
+extern "C" const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionInstallationManagerName) == 0) {
     return &kMockInstallationManagerApi;
   }

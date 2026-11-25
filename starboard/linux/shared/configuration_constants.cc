@@ -56,4 +56,4 @@ const uint32_t kSbMaxThreads = 90;
 // The maximum size the cache directory is allowed to use in bytes.
 const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 
-SB_EXPORT extern const bool kSbCanMapExecutableMemory = true;
+extern const bool kSbCanMapExecutableMemory = true;

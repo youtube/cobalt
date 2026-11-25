@@ -89,10 +89,10 @@ int musl_protocol_to_platform_protocol(int protocol) {
 
 }  // namespace
 
-SB_EXPORT int __abi_wrap_socketpair(int domain,
-                                    int type,
-                                    int protocol,
-                                    int socket_vector[2]) {
+int __abi_wrap_socketpair(int domain,
+                          int type,
+                          int protocol,
+                          int socket_vector[2]) {
   // errno reporting is handled by the conversion helper functions.
   int platform_domain = musl_domain_to_platform_domain(domain);
   if (platform_domain == -1) {

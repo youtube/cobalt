@@ -43,7 +43,7 @@ int musl_flags_to_platform_flags(int musl_flags) {
 
 }  // namespace
 
-SB_EXPORT int __abi_wrap_eventfd(unsigned int initval, int flags) {
+int __abi_wrap_eventfd(unsigned int initval, int flags) {
   int platform_flags = musl_flags_to_platform_flags(flags);
   if (platform_flags == -1) {
     errno = EINVAL;

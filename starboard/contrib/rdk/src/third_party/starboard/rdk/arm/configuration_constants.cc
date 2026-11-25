@@ -113,5 +113,5 @@ const uint32_t kSbUserMaxSignedIn = 1;
 const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 
 #if SB_API_VERSION >= 16
-SB_EXPORT extern const bool kSbCanMapExecutableMemory = true;
+extern const bool kSbCanMapExecutableMemory = true;
 #endif

@@ -44,7 +44,7 @@ int musl_flag_to_platform_flag(int flag) {
 
 }  // namespace
 
-SB_EXPORT int __abi_wrap_pipe2(int fildes[2], int flag) {
+int __abi_wrap_pipe2(int fildes[2], int flag) {
   int platform_flag = musl_flag_to_platform_flag(flag);
   if (platform_flag == -1) {
     return -1;

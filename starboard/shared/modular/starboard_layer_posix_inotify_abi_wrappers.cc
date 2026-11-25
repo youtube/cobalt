@@ -134,7 +134,7 @@ bool is_valid_musl_mask(uint32_t mask) {
 
 extern "C" {
 
-SB_EXPORT int __abi_wrap_inotify_init1(int flags) {
+int __abi_wrap_inotify_init1(int flags) {
   int platform_flags = musl_flags_to_platform_flags(flags);
   if (platform_flags == -1) {
     errno = EINVAL;
@@ -144,9 +144,7 @@ SB_EXPORT int __abi_wrap_inotify_init1(int flags) {
   return inotify_init1(platform_flags);
 }
 
-SB_EXPORT int __abi_wrap_inotify_add_watch(int fd,
-                                           const char* pathname,
-                                           uint32_t mask) {
+int __abi_wrap_inotify_add_watch(int fd, const char* pathname, uint32_t mask) {
   if (!is_valid_musl_mask(mask)) {
     SB_LOG(WARNING) << "Invalid musl inotify mask: " << mask;
     errno = EINVAL;
@@ -155,7 +153,7 @@ SB_EXPORT int __abi_wrap_inotify_add_watch(int fd,
   return inotify_add_watch(fd, pathname, musl_mask_to_platform_mask(mask));
 }
 
-SB_EXPORT int __abi_wrap_inotify_rm_watch(int fd, int wd) {
+int __abi_wrap_inotify_rm_watch(int fd, int wd) {
   return inotify_rm_watch(fd, wd);
 }
 

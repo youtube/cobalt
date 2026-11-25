@@ -264,33 +264,29 @@ int platform_hints_to_musl_hints(const struct addrinfo* hints,
 
 }  // namespace
 
-SB_EXPORT int __abi_wrap_accept(int sockfd,
-                                musl_sockaddr* addr,
-                                socklen_t* addrlen_ptr) {
+int __abi_wrap_accept(int sockfd, musl_sockaddr* addr, socklen_t* addrlen_ptr) {
   return accept(sockfd, reinterpret_cast<struct sockaddr*>(addr), addrlen_ptr);
 }
 
-SB_EXPORT int __abi_wrap_bind(int sockfd,
-                              const musl_sockaddr* addr,
-                              socklen_t addrlen) {
+int __abi_wrap_bind(int sockfd, const musl_sockaddr* addr, socklen_t addrlen) {
   return bind(sockfd, reinterpret_cast<const struct sockaddr*>(addr), addrlen);
 }
 
-SB_EXPORT int __abi_wrap_connect(int sockfd,
-                                 const musl_sockaddr* addr,
-                                 socklen_t addrlen) {
+int __abi_wrap_connect(int sockfd,
+                       const musl_sockaddr* addr,
+                       socklen_t addrlen) {
   return connect(sockfd, reinterpret_cast<const struct sockaddr*>(addr),
                  addrlen);
 }
 
-SB_EXPORT const char* __abi_wrap_gai_strerror(int ecode) {
+const char* __abi_wrap_gai_strerror(int ecode) {
   return gai_strerror(musl_errcodes_to_platform_errcodes(ecode));
 }
 
-SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
-                                     const char* service,
-                                     const struct musl_addrinfo* hints,
-                                     struct musl_addrinfo** res) {
+int __abi_wrap_getaddrinfo(const char* node,
+                           const char* service,
+                           const struct musl_addrinfo* hints,
+                           struct musl_addrinfo** res) {
   if (res == nullptr) {
     return -1;
   }
@@ -408,7 +404,7 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
   return platform_errcodes_to_musl_errcodes(result);
 }
 
-SB_EXPORT void __abi_wrap_freeaddrinfo(struct musl_addrinfo* ai) {
+void __abi_wrap_freeaddrinfo(struct musl_addrinfo* ai) {
   struct musl_addrinfo* ptr = ai;
   while (ai != nullptr) {
     if (ai->ai_addr != nullptr) {
@@ -423,12 +419,12 @@ SB_EXPORT void __abi_wrap_freeaddrinfo(struct musl_addrinfo* ai) {
   }
 }
 
-SB_EXPORT int __abi_wrap_getifaddrs(struct ifaddrs** ifap) {
+int __abi_wrap_getifaddrs(struct ifaddrs** ifap) {
   int result = getifaddrs(ifap);
   return result;
 }
 
-SB_EXPORT unsigned int __abi_wrap_if_nametoindex(const char* ifname) {
+unsigned int __abi_wrap_if_nametoindex(const char* ifname) {
   if (ifname == nullptr) {
     // No errors defined by the POSIX spec.
     return 0;
@@ -448,7 +444,7 @@ SB_EXPORT unsigned int __abi_wrap_if_nametoindex(const char* ifname) {
   return if_nametoindex(ifname);
 }
 
-SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
+char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
   if (ifname == nullptr) {
     // It feels like this should also set errno, but the spec doesn't require
     // it.
@@ -477,15 +473,15 @@ SB_EXPORT char* __abi_wrap_if_indextoname(unsigned int ifindex, char* ifname) {
   return ifname;
 }
 
-SB_EXPORT int __abi_wrap_setsockopt(int socket,
-                                    int level,
-                                    int option_name,
-                                    const void* option_value,
-                                    socklen_t option_len) {
+int __abi_wrap_setsockopt(int socket,
+                          int level,
+                          int option_name,
+                          const void* option_value,
+                          socklen_t option_len) {
   return setsockopt(socket, level, option_name, option_value, option_len);
 }
 
-SB_EXPORT int __abi_wrap_shutdown(int socket, int how) {
+int __abi_wrap_shutdown(int socket, int how) {
   return shutdown(socket, musl_shuts_to_platform_shuts(how));
 }
 

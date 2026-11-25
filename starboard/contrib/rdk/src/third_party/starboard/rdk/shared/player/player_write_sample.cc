@@ -33,8 +33,7 @@
 
 #include "third_party/starboard/rdk/shared/player/player_internal.h"
 
-SB_EXPORT void SbPlayerWriteSamples(
-                          SbPlayer player,
+void SbPlayerWriteSamples(SbPlayer player,
                           SbMediaType sample_type,
                           const SbPlayerSampleInfo* sample_infos,
                           int number_of_sample_infos) {
