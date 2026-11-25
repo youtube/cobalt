@@ -163,6 +163,13 @@ class DisplayEGL : public DisplayGL
     };
     angle::HashMap<uint64_t, CurrentNativeContext> mCurrentNativeContexts;
 
+    // Implements the resetDefaultFramebufferDrawBuffersAfterSurfaceless workaround.
+    void resetDefaultFramebufferDrawBuffersIfNeeded(gl::Context *context, EGLContext nativeContext);
+
+    // Native contexts whose default framebuffer draw/read buffers have already been reset to
+    // GL_BACK by resetDefaultFramebufferDrawBuffersIfNeeded().
+    angle::HashSet<EGLContext> mNativeContextsWithDefaultDrawBuffersReset;
+
     void generateCaps(egl::Caps *outCaps) const override;
 
     std::map<EGLint, EGLint> mConfigIds;

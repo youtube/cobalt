@@ -14,7 +14,9 @@
 #include "libANGLE/Display.h"
 #include "libANGLE/Surface.h"
 #include "libANGLE/renderer/gl/ContextGL.h"
+#include "libANGLE/renderer/gl/FunctionsGL.h"
 #include "libANGLE/renderer/gl/RendererGL.h"
+#include "libANGLE/renderer/gl/StateManagerGL.h"
 #include "libANGLE/renderer/gl/egl/ContextEGL.h"
 #include "libANGLE/renderer/gl/egl/DeviceEGL.h"
 #include "libANGLE/renderer/gl/egl/DmaBufImageSiblingEGL.h"
@@ -401,6 +403,7 @@ void DisplayEGL::terminate()
     mVirtualizationGroups.clear();
 
     mCurrentNativeContexts.clear();
+    mNativeContextsWithDefaultDrawBuffersReset.clear();
 
     egl::Error result = mEGL->terminate();
     if (result.isError())
@@ -799,7 +802,48 @@ egl::Error DisplayEGL::makeCurrent(egl::Display *display,
         currentContext.context = newContext;
     }
 
+    if (context && newSurface != EGL_NO_SURFACE)
+    {
+        resetDefaultFramebufferDrawBuffersIfNeeded(context, newContext);
+    }
+
     return DisplayGL::makeCurrent(display, drawSurface, readSurface, context);
+}
+
+void DisplayEGL::resetDefaultFramebufferDrawBuffersIfNeeded(gl::Context *context,
+                                                            EGLContext nativeContext)
+{
+    // Per EGL_KHR_surfaceless_context, when a context is first made current without a surface,
+    // the default framebuffer's draw and read buffers are initialized to GL_NONE, and attaching a
+    // surface later does not change them. ANGLE makes its native contexts current without a
+    // surface when surfaceless contexts are supported, and FramebufferGL::syncState() never syncs
+    // the default framebuffer, so drivers that follow the spec (NVIDIA on Android) drop all draws
+    // to the window surface. Reset the buffers to GL_BACK once per native context, the first time
+    // it is made current with a surface. http://anglebug.com/42263498
+    ContextGL *contextGL = GetImplAs<ContextGL>(context);
+    if (!contextGL->getFeaturesGL().resetDefaultFramebufferDrawBuffersAfterSurfaceless.enabled)
+    {
+        return;
+    }
+    if (!mNativeContextsWithDefaultDrawBuffersReset.insert(nativeContext).second)
+    {
+        return;
+    }
+
+    const FunctionsGL *functions = contextGL->getFunctions();
+    if (functions->drawBuffers == nullptr || functions->readBuffer == nullptr)
+    {
+        return;
+    }
+
+    // Go through the state manager so that its cached framebuffer bindings stay in sync with the
+    // native context. ANGLE rebinds the frontend's framebuffer before the next draw.
+    StateManagerGL *stateManager = contextGL->getStateManager();
+    stateManager->bindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    const GLenum back = GL_BACK;
+    functions->drawBuffers(1, &back);
+    functions->readBuffer(GL_BACK);
 }
 
 gl::Version DisplayEGL::getMaxSupportedESVersion() const
@@ -820,6 +864,7 @@ void DisplayEGL::destroyNativeContext(EGLContext context)
         }
     }
 
+    mNativeContextsWithDefaultDrawBuffersReset.erase(context);
     mEGL->destroyContext(context);
 }
 
