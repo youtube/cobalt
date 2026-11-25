@@ -127,6 +127,26 @@ bool SanitizeInitData(media::EmeInitDataType init_data_type,
   NOTREACHED();
 }
 
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+// Accepts a raw 16-byte key ID sent as "cenc" init data, without PSSH
+// validation, for key systems whose name ends with ".sbdl". Returns false to
+// fall back to SanitizeInitData().
+bool AcceptRawKeyIdInitData(const std::string& key_system,
+                            media::EmeInitDataType init_data_type,
+                            const unsigned char* init_data,
+                            size_t init_data_length,
+                            std::vector<uint8_t>* sanitized_init_data) {
+  constexpr size_t kRawKeyIdSize = 16;
+  if (init_data_type != media::EmeInitDataType::CENC ||
+      init_data_length != kRawKeyIdSize ||
+      !base::EndsWith(key_system, ".sbdl")) {
+    return false;
+  }
+  sanitized_init_data->assign(init_data, init_data + init_data_length);
+  return true;
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool SanitizeSessionId(const WebString& session_id,
                        std::string* sanitized_session_id) {
   // The user agent should thoroughly validate the sessionId value before
@@ -339,7 +359,14 @@ void WebContentDecryptionModuleSessionImpl::InitializeNewSession(
   //      TypeError.
   std::vector<uint8_t> sanitized_init_data;
   std::string message;
-  if (!SanitizeInitData(eme_init_data_type, init_data, init_data_length,
+  bool accepted = false;
+#if BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  accepted =
+      AcceptRawKeyIdInitData(adapter_->GetKeySystem(), eme_init_data_type,
+                             init_data, init_data_length, &sanitized_init_data);
+#endif  // BUILDFLAG(IS_IOS_TVOS) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (!accepted &&
+      !SanitizeInitData(eme_init_data_type, init_data, init_data_length,
                         &sanitized_init_data, &message)) {
     result.CompleteWithError(kWebContentDecryptionModuleExceptionTypeError, 0,
                              WebString::FromUTF8(message));
