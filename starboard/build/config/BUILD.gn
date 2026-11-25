@@ -84,29 +84,6 @@ config("starboard_implementation") {
 
 config("cpp20_supported_config") {
   if (current_toolchain == default_toolchain) {
-    if (sb_is_modular || is_android) {
-      configs = [ ":modular_cpp20_config" ]
-    } else if (is_linux) {
-      configs = [ ":linux_non_modular_cpp20_config" ]
-    } else if (is_apple) {
-      configs = [ ":apple_cpp20_config" ]
-    } else {
-      assert(
-          false,
-          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
-    }
+    cflags_cc = [ "-std=c++20" ]
   }
-}
-
-config("apple_cpp20_config") {
-  cflags_cc = [ "-std=gnu++20" ]
-  cflags_objcc = [ "-std=gnu++20" ]
-}
-
-config("linux_non_modular_cpp20_config") {
-  cflags_cc = [ "-std=gnu++20" ]
-}
-
-config("modular_cpp20_config") {
-  cflags_cc = [ "-std=c++20" ]
 }
