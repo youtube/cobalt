@@ -206,8 +206,10 @@ class MediaCapabilitiesCache {
   // cannot ask it to always use max supported width and height, which would
   // lead 8k60 being used and exceed system resource limit. See b/173575800.
   // When IsAv18kCappedAt30() returns true, the device needs extra check of
-  // video fps to prevent 8k60 is used unexpectedly.
-  bool IsAv18kCappedAt30();
+  // video fps to prevent 8k60 is used unexpectedly. When |refresh_cache| is
+  // true, locks |mutex_| and refreshes dirty capabilities before reading the
+  // cached value.
+  bool IsAv18kCappedAt30(bool refresh_cache);
 
   bool GetAudioConfiguration(int index,
                              SbMediaAudioConfiguration* configuration);

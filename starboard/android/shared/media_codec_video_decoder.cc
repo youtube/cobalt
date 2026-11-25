@@ -331,9 +331,15 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       skip_flush_on_decoder_teardown_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipFlushOnDecoderTeardown)),
+      decoder_improvements_flags_(GetAndroidVideoDecoderImprovementsFlags(
+          pipeline_config.experimental_features)),
       needs_fps_to_initialize_codec_(
           video_codec_ == kSbMediaVideoCodecAv1 &&
-          MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30()),
+          MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30(
+              IsAndroidVideoDecoderImprovementEnabled(
+                  decoder_improvements_flags_,
+                  android_video_decoder_improvements::
+                      kRefreshCacheInAv18kCheck))),
       skip_video_frames_over_60_fps_(
           pipeline_config.experimental_features.GetBool(
               kMediaSkipVideoFramesOver60Fps)),
@@ -348,8 +354,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableCodecThreadImprovements)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
-      decoder_improvements_flags_(GetAndroidVideoDecoderImprovementsFlags(
-          pipeline_config.experimental_features)),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),

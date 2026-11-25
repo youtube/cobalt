@@ -66,6 +66,10 @@ namespace android_video_decoder_improvements {
 // video surface ownership.
 inline constexpr uint32_t kGuardSurfaceResetAndCleanupByOwnership = 1u << 0;
 
+// Locks `mutex_` and refreshes dirty capabilities in
+// `MediaCapabilitiesCache::IsAv18kCappedAt30()`.
+inline constexpr uint32_t kRefreshCacheInAv18kCheck = 1u << 2;
+
 }  // namespace android_video_decoder_improvements
 
 inline uint32_t GetAndroidVideoDecoderImprovementsFlags(
@@ -234,6 +238,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
   const bool skip_flush_on_decoder_teardown_;
+  const uint32_t decoder_improvements_flags_;
 
   // Codec initialization will be delayed until the decoder receives enough
   // inputs to estimate video fps when |needs_fps_to_initialize_codec_| is true.
@@ -247,7 +252,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_trivial_optimizations_;
   const bool enable_codec_thread_improvements_;
   const bool enable_ndk_video_;
-  const uint32_t decoder_improvements_flags_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline

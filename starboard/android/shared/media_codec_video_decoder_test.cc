@@ -752,40 +752,67 @@ TEST_F(MediaCodecVideoDecoderTest,
 TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
   using android_video_decoder_improvements::
       kGuardSurfaceResetAndCleanupByOwnership;
-  constexpr uint32_t kOtherImprovementBit = 1u << 1;
+  using android_video_decoder_improvements::kRefreshCacheInAv18kCheck;
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(ExperimentalFeatures()),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(ExperimentalFeatures()),
+      kRefreshCacheInAv18kCheck));
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(0)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(0)),
+      kRefreshCacheInAv18kCheck));
 
-  // Negative values act as disabled/placebo even though bit 0 is set in two's
-  // complement representation.
+  // Negative values act as disabled/placebo even though bits 0 and 2 are set in
+  // two's complement representation.
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(-1)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(-1)),
+      kRefreshCacheInAv18kCheck));
 
   EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
-          MakeVideoDecoderImprovementsFeatures(kOtherImprovementBit)),
+          MakeVideoDecoderImprovementsFeatures(kRefreshCacheInAv18kCheck)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(kRefreshCacheInAv18kCheck)),
+      kRefreshCacheInAv18kCheck));
 
   EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(
               kGuardSurfaceResetAndCleanupByOwnership)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceResetAndCleanupByOwnership)),
+      kRefreshCacheInAv18kCheck));
 
   EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
       GetAndroidVideoDecoderImprovementsFlags(
           MakeVideoDecoderImprovementsFeatures(
-              kGuardSurfaceResetAndCleanupByOwnership | kOtherImprovementBit)),
+              kGuardSurfaceResetAndCleanupByOwnership |
+              kRefreshCacheInAv18kCheck)),
       kGuardSurfaceResetAndCleanupByOwnership));
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceResetAndCleanupByOwnership |
+              kRefreshCacheInAv18kCheck)),
+      kRefreshCacheInAv18kCheck));
 }
 
 }  // namespace
