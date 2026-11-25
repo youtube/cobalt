@@ -954,7 +954,7 @@ jobs:
       - on-device-test
       - on-host-test
       - internal-test
-    if: always() && needs.build.result == 'success' && needs.initialize.outputs.expected_tests_json != '[]'
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.initialize.outputs.expected_tests_json != '[]' }}
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_info.target }}
@@ -1026,14 +1026,14 @@ jobs:
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: ${{ matrix.test_info.shards || ((matrix.test_info.test_type == 'gtest' || matrix.test_info.test_type == 'junit') && needs.initialize.outputs.num_gtest_shards || 1) }}
       - name: ${{ matrix.test_info.target }} Device Logs
-        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device'
+        if: ${{ !cancelled() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true' && matrix.test_info.runs_on == 'device' }}
         continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
           symbolize: 'false'
       - name: ${{ matrix.test_info.target }} Test Logs
-        if: always() && steps.filter.outputs.skipped != 'true'
+        if: ${{ !cancelled() && steps.filter.outputs.skipped != 'true' }}
         uses: ./.github/actions/print_logs
         with:
           log_glob: |
@@ -1045,7 +1045,7 @@ jobs:
           results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           symbolize: 'false'
       - name: Generate Retry Filter
-        if: always() && steps.filter.outputs.skipped != 'true'
+        if: ${{ !cancelled() && steps.filter.outputs.skipped != 'true' }}
         uses: ./.github/actions/generate_retry_filter
         with:
           target_name: ${{ steps.extract-target-name.outputs.test_target }}
@@ -1054,7 +1054,7 @@ jobs:
 
   browser-test-results:
     needs: [initialize, build, browser-test-on-host]
-    if: always() && needs.initialize.outputs.run_browser_tests == 'true' && (needs.browser-test-on-host.result != 'skipped' && needs.browser-test-on-host.result != '')
+    if: ${{ !cancelled() && needs.initialize.outputs.run_browser_tests == 'true' && (needs.browser-test-on-host.result == 'success' || needs.browser-test-on-host.result == 'failure') }}
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -1095,14 +1095,14 @@ jobs:
           datadog_api_key: ${{ secrets.datadog_api_key }}
           num_gtest_shards: 1
       - name: ${{ matrix.test_target }} Device Logs
-        if: always() && needs.initialize.outputs.test_on_device == 'true'
+        if: ${{ !cancelled() && needs.initialize.outputs.test_on_device == 'true' }}
         continue-on-error: true
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
           symbolize: 'false'
       - name: ${{ matrix.test_target }} Test Logs
-        if: always()
+        if: ${{ !cancelled() }}
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
@@ -1122,7 +1122,7 @@ jobs:
       - browser-test-on-host
       - chromedriver-smoketest
       - linux-e2e-test
-    if: always() && needs.initialize.result == 'success'
+    if: ${{ !cancelled() && needs.initialize.result == 'success' }}
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
