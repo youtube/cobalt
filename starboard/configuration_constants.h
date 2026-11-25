@@ -63,7 +63,8 @@ SB_EXPORT extern const size_t kSbMemoryPageSize;
 // like mutexes, so we want to keep this manageable.
 SB_EXPORT extern const uint32_t kSbMaxThreads;
 
-// The maximum size the cache directory is allowed to use in bytes.
+// The maximum size the cache directory is allowed to use in bytes. This must be
+// at least 24 MiB (24 * 1024 * 1024 bytes), which is verified by NPLB.
 SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
 
 // Whether this platform can map executable memory. This is required for

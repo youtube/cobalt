@@ -108,6 +108,7 @@ test("nplb") {
     starboard_platform_sources = [
       "align_test.cc",
       "char_is_signed_test.cc",
+      "configuration_constants_test.cc",
       "configuration_test.cc",
       "egl_test.cc",
       "extern_c_test.cc",
