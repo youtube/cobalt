@@ -39,6 +39,7 @@
 #include "ui/aura/env.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
+#include "ui/aura/window_occlusion_tracker.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/aura/window_tree_host_platform.h"
 #include "ui/base/clipboard/clipboard.h"
@@ -124,9 +125,19 @@ class ShellView : public views::BoxLayoutView {
   explicit ShellView(Shell* shell) : shell_(shell) { InitShellWindow(); }
   ShellView(const ShellView&) = delete;
   ShellView& operator=(const ShellView&) = delete;
-  ~ShellView() override = default;
+  ~ShellView() override { ClearSplashWebContents(); }
 
   Shell* ReleaseShell() { return shell_.release(); }
+
+  bool HasMainWebContents(const WebContents* web_contents) const {
+    return web_view_ && web_view_->web_contents() == web_contents;
+  }
+
+  void FocusMainWebContents() {
+    if (web_view_) {
+      FocusWebContents(web_view_->web_contents());
+    }
+  }
 
   void SetWebContents(WebContents* web_contents, const gfx::Size& size) {
     // If there was a previous WebView in this Shell it should be removed and
@@ -144,16 +155,7 @@ class ShellView : public views::BoxLayoutView {
                       .SetPreferredSize(size))
         .BuildChildren();
 
-    bool should_focus = true;
-#if BUILDFLAG(IS_STARBOARD)
-    if (CheckAndHandleRevealState(web_contents)) {
-      should_focus = false;
-    }
-#endif
-
-    if (should_focus) {
-      web_contents->GetPrimaryMainFrame()->GetRenderWidgetHost()->Focus();
-    }
+    FocusMainWebContents();
     web_view_->SizeToPreferredSize();
 
     // Resize the widget, keeping the same origin.
@@ -162,7 +164,74 @@ class ShellView : public views::BoxLayoutView {
     GetWidget()->SetBounds(bounds);
   }
 
+  void ShowSplashWebContents(WebContents* splash_contents,
+                             const gfx::Size& size) {
+    if (!splash_contents) {
+      return;
+    }
+    // Remove any existing splash overlay before re-creating it so repeated
+    // calls (such as reveal while the splash screen is still active) never
+    // register a duplicate ScopedExclude for the same aura::Window.
+    ClearSplashWebContents();
+
+    // Stack the splash WebView above the attached main WebView and exclude the
+    // splash window from Aura occlusion tracking before attaching it.
+    // WebContentsViewAura tracks Aura occlusion and WebContentsImpl maps
+    // Visibility::OCCLUDED to PageVisibilityState::kHidden, so an unexcluded
+    // fullscreen splash window causes the main page to observe
+    // document.visibilityState == "hidden" during startup and misclassify a
+    // foreground launch as preloaded. NativeViewHostAura's clipping window uses
+    // LAYER_NOT_DRAWN, so excluding the splash WebContents's native view covers
+    // its entire subtree without blocking widget-level conceal from hiding both
+    // WebContents.
+    if (aura::Window* splash_window = splash_contents->GetNativeView()) {
+      splash_occlusion_exclude_ =
+          std::make_unique<aura::WindowOcclusionTracker::ScopedExclude>(
+              splash_window);
+    }
+
+    views::Builder<views::View>(contents_view_)
+        .AddChild(views::Builder<views::WebView>()
+                      .CopyAddressTo(&splash_web_view_)
+                      .SetBrowserContext(splash_contents->GetBrowserContext())
+                      .SetWebContents(splash_contents)
+                      .SetPreferredSize(size))
+        .BuildChildren();
+
+    FocusWebContents(splash_contents);
+
+    splash_web_view_->SizeToPreferredSize();
+    GetWidget()->LayoutRootViewIfNecessary();
+  }
+
+  void ClearSplashWebContents() {
+    // Detach the splash WebView while its window is still excluded so Aura
+    // does not run an extra occlusion pass during teardown.
+    if (splash_web_view_) {
+      contents_view_->RemoveChildViewT(
+          splash_web_view_.ExtractAsDangling().get());
+    }
+    splash_occlusion_exclude_.reset();
+  }
+
  private:
+  void FocusWebContents(WebContents* web_contents) {
+    if (!web_contents) {
+      return;
+    }
+    bool should_focus = true;
+#if BUILDFLAG(IS_STARBOARD)
+    if (CheckAndHandleRevealState(web_contents)) {
+      should_focus = false;
+    }
+#endif
+    if (should_focus) {
+      if (auto* rwh =
+              web_contents->GetPrimaryMainFrame()->GetRenderWidgetHost()) {
+        rwh->Focus();
+      }
+    }
+  }
   // Initialize the contents view contained in shell window
   void InitShellWindow() {
     auto builder =
@@ -225,9 +294,13 @@ class ShellView : public views::BoxLayoutView {
   // Window title
   std::u16string title_;
 
-  // Contents view contains the web contents view
+  // Contents view contains the main web view and, while active, an overlaid
+  // splash web view.
   raw_ptr<views::View> contents_view_ = nullptr;
   raw_ptr<views::WebView> web_view_ = nullptr;
+  raw_ptr<views::WebView> splash_web_view_ = nullptr;
+  std::unique_ptr<aura::WindowOcclusionTracker::ScopedExclude>
+      splash_occlusion_exclude_;
 };
 
 BEGIN_METADATA(ShellView)
@@ -457,10 +530,10 @@ void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  if (shell_data.window_widget) {
+  if (shell_data.window_widget && shell->splash_screen_web_contents()) {
     ShellViewForWidget(shell_data.window_widget)
-        ->SetWebContents(shell->splash_screen_web_contents(),
-                         shell_data.content_size);
+        ->ShowSplashWebContents(shell->splash_screen_web_contents(),
+                                shell_data.content_size);
     shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
     shell_data.window_widget->Show();
   }
@@ -469,8 +542,8 @@ void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
 void ShellPlatformDelegate::SetContentsOnReveal(Shell* shell) {
   // If the splash screen was still up when the application was concealed,
-  // show it again. Shell::SwitchToMainWebContents() replaces it once the main
-  // page has loaded.
+  // keep it stacked above the main WebContents until
+  // Shell::SwitchToMainWebContents() dismisses it.
   if (shell->splash_screen_web_contents()) {
     LoadSplashScreenContents(shell);
   } else {
@@ -480,6 +553,21 @@ void ShellPlatformDelegate::SetContentsOnReveal(Shell* shell) {
 #endif
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  if (shell_data.window_widget) {
+    auto* shell_view = ShellViewForWidget(shell_data.window_widget);
+    if (shell_view) {
+      shell_view->ClearSplashWebContents();
+      if (shell_view->HasMainWebContents(shell->web_contents())) {
+        if (IsVisible()) {
+          shell_view->FocusMainWebContents();
+        }
+        return;
+      }
+    }
+  }
   SetContents(shell);
 }
 
