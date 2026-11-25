@@ -78,6 +78,13 @@ void SplashScreenWebContentsObserver::DidFirstVisuallyNonEmptyPaint() {
   Shell::MaybeHideSystemSplashScreen();
 }
 
+void SplashScreenWebContentsObserver::PrimaryMainFrameWasResized(
+    bool width_changed) {
+  if (on_resized_) {
+    on_resized_.Run();
+  }
+}
+
 void SplashScreenWebContentsObserver::MediaStartedPlaying(
     const MediaPlayerInfo& video_type,
     const MediaPlayerId& id) {
