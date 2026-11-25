@@ -54,6 +54,7 @@
 #if BUILDFLAG(IS_COBALT)
 #include "base/test/scoped_feature_list.h"
 #include "third_party/blink/public/common/features.h"
+#include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/html/html_body_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
@@ -164,6 +165,9 @@ class MockWebMediaPlayer : public EmptyWebMediaPlayer {
                                  CorsMode cors_mode,
                                  bool is_cache_disabled));
   MOCK_CONST_METHOD0(DidLazyLoad, bool());
+#if BUILDFLAG(IS_COBALT)
+  MOCK_METHOD1(OnHasNativeControlsChanged, void(bool));
+#endif  // BUILDFLAG(IS_COBALT)
 
   MOCK_METHOD0(GetSrcAfterRedirects, GURL());
 };
@@ -403,6 +407,10 @@ class HTMLMediaElementTest : public testing::TestWithParam<MediaTestParam> {
     EXPECT_CALL(*mock_media_player, GetNetworkState)
         .WillRepeatedly(Return(WebMediaPlayer::kNetworkStateIdle));
     EXPECT_CALL(*mock_media_player, SetLatencyHint(_)).Times(AnyNumber());
+#if BUILDFLAG(IS_COBALT)
+    EXPECT_CALL(*mock_media_player, OnHasNativeControlsChanged(_))
+        .Times(AnyNumber());
+#endif  // BUILDFLAG(IS_COBALT)
 
     chrome_client_ = MakeGarbageCollected<FullscreenMockChromeClient>();
     dummy_page_holder_ = std::make_unique<DummyPageHolder>(
@@ -571,6 +579,7 @@ class HTMLMediaElementTest : public testing::TestWithParam<MediaTestParam> {
 
 #if BUILDFLAG(IS_COBALT)
   void ProgressEventTimerFired() { Media()->ProgressEventTimerFired(); }
+  void NoneSupported() { Media()->NoneSupported(String()); }
 #endif  // BUILDFLAG(IS_COBALT)
 
  protected:
@@ -3385,7 +3394,7 @@ TEST_P(HTMLMediaElementTest, MediaShouldBeOpaque_NetworkState) {
 TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(
-      features::kCobaltSkipHiddenMediaControlsWork);
+      features::kCobaltSkipHiddenMediaControlsCreation);
 
   Media()->GetDocument().body()->AppendChild(Media());
   UpdateLifecyclePhases();
@@ -3396,8 +3405,9 @@ TEST_P(HTMLMediaElementTest, CobaltCreatesMediaControlsWhenFeatureDisabled) {
 
 TEST_P(HTMLMediaElementTest, CobaltSkipsHiddenMediaControlsWhenFeatureEnabled) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      features::kCobaltSkipHiddenMediaControlsWork);
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kCobaltSkipHiddenMediaControlsCreation},
+      /*disabled_features=*/{features::kCobaltSkipMediaProgressLayoutUpdate});
 
   Media()->GetDocument().body()->AppendChild(Media());
   UpdateLifecyclePhases();
@@ -3409,6 +3419,171 @@ TEST_P(HTMLMediaElementTest, CobaltSkipsHiddenMediaControlsWhenFeatureEnabled) {
   // Cobalt never shows native controls.
   Media()->SetBooleanAttribute(html_names::kControlsAttr, true);
   UpdateLifecyclePhases();
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(HTMLMediaElementTest,
+       CobaltProgressFlagDoesNotSkipHiddenMediaControlsCreation) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kCobaltSkipMediaProgressLayoutUpdate},
+      /*disabled_features=*/{features::kCobaltSkipHiddenMediaControlsCreation});
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  UpdateLifecyclePhases();
+
+  EXPECT_FALSE(ControlsVisible());
+  EXPECT_NE(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(HTMLMediaElementTest,
+       CobaltNotifiesWebMediaPlayerWhenHiddenMediaControlsSkipped) {
+  if (GetParam() != MediaTestParam::kVideo) {
+    return;
+  }
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsCreation);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  test::RunPendingTasks();
+  ASSERT_EQ(Media()->GetMediaControls(), nullptr);
+
+  testing::Mock::VerifyAndClearExpectations(MockMediaPlayer());
+  EXPECT_CALL(*MockMediaPlayer(), OnHasNativeControlsChanged(false)).Times(1);
+
+  Media()->SetBooleanAttribute(html_names::kControlsAttr, true);
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(HTMLMediaElementTest,
+       CobaltPausesOnMediaEngineErrorWhenHiddenMediaControlsSkipped) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsCreation);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  Media()->Play();
+  test::RunPendingTasks();
+  SetReadyState(HTMLMediaElement::kHaveFutureData);
+  ASSERT_FALSE(Media()->paused());
+  ASSERT_EQ(Media()->GetMediaControls(), nullptr);
+
+  SetError(MakeGarbageCollected<MediaError>(MediaError::kMediaErrDecode, ""));
+  // Synchronous check before error event dispatch must remain unpaused to match
+  // MediaControlsImpl::OnError() timing (see GcMarkingNoAllocHasActivity).
+  EXPECT_FALSE(Media()->paused());
+
+  test::RunPendingTasks();
+  EXPECT_TRUE(Media()->paused());
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(HTMLMediaElementTest,
+       CobaltPausesOnNoneSupportedWhenHiddenMediaControlsSkipped) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsCreation);
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  Media()->Play();
+  test::RunPendingTasks();
+  ASSERT_FALSE(Media()->paused());
+  ASSERT_EQ(Media()->GetMediaControls(), nullptr);
+
+  NoneSupported();
+  EXPECT_FALSE(Media()->paused());
+
+  test::RunPendingTasks();
+  EXPECT_TRUE(Media()->paused());
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(
+    HTMLMediaElementTest,
+    CobaltPausesInUpdateControlsVisibilityWhenErrorPresentAndControlsSkipped) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsCreation);
+
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  Media()->Play();
+  test::RunPendingTasks();
+  SetReadyState(HTMLMediaElement::kHaveFutureData);
+  ASSERT_FALSE(Media()->paused());
+  ASSERT_EQ(Media()->GetMediaControls(), nullptr);
+
+  SetError(MakeGarbageCollected<MediaError>(MediaError::kMediaErrDecode, ""));
+  // Inserting into the document triggers UpdateControlsVisibility(). Even when
+  // hidden MediaControlsImpl creation is skipped, error-pausing semantics must
+  // still apply immediately when an error is already present.
+  Media()->GetDocument().body()->AppendChild(Media());
+  EXPECT_TRUE(Media()->paused());
+  EXPECT_EQ(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(
+    HTMLMediaElementTest,
+    CobaltPausesInUpdateControlsVisibilityWhenControlsAlreadyExistAndErrorPresent) {
+  // Initialize controls while the feature is disabled.
+  {
+    base::test::ScopedFeatureList disable_feature;
+    disable_feature.InitAndDisableFeature(
+        features::kCobaltSkipHiddenMediaControlsCreation);
+    Media()->GetDocument().body()->AppendChild(Media());
+    UpdateLifecyclePhases();
+    ASSERT_NE(Media()->GetMediaControls(), nullptr);
+  }
+
+  // Now enable the feature with pre-existing controls.
+  base::test::ScopedFeatureList enable_feature;
+  enable_feature.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsCreation);
+
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  Media()->Play();
+  test::RunPendingTasks();
+  SetReadyState(HTMLMediaElement::kHaveFutureData);
+  ASSERT_FALSE(Media()->paused());
+  ASSERT_NE(Media()->GetMediaControls(), nullptr);
+
+  SetError(MakeGarbageCollected<MediaError>(MediaError::kMediaErrDecode, ""));
+  EXPECT_FALSE(Media()->paused());
+
+  // Setting and clearing controls attribute triggers UpdateControlsVisibility().
+  Media()->SetBooleanAttribute(html_names::kControlsAttr, true);
+  Media()->SetBooleanAttribute(html_names::kControlsAttr, false);
+  EXPECT_TRUE(Media()->paused());
+  EXPECT_NE(Media()->GetMediaControls(), nullptr);
+}
+
+TEST_P(HTMLMediaElementTest,
+       CobaltPausesOnErrorInsideShadowRootWhenHiddenMediaControlsSkipped) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kCobaltSkipHiddenMediaControlsCreation);
+
+  Element* host = Media()->GetDocument().CreateRawElement(html_names::kDivTag);
+  Media()->GetDocument().body()->AppendChild(host);
+  ShadowRoot& shadow_root =
+      host->AttachShadowRootForTesting(ShadowRootMode::kOpen);
+  shadow_root.AppendChild(Media());
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  Media()->Play();
+  test::RunPendingTasks();
+  SetReadyState(HTMLMediaElement::kHaveFutureData);
+  ASSERT_FALSE(Media()->paused());
+  ASSERT_EQ(Media()->GetMediaControls(), nullptr);
+
+  SetError(MakeGarbageCollected<MediaError>(MediaError::kMediaErrDecode, ""));
+  EXPECT_FALSE(Media()->paused());
+
+  test::RunPendingTasks();
+  EXPECT_TRUE(Media()->paused());
   EXPECT_EQ(Media()->GetMediaControls(), nullptr);
 }
 #endif  // BUILDFLAG(IS_COBALT)
@@ -3447,8 +3622,9 @@ TEST_P(HTMLMediaElementTest,
   }
 
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kCobaltSkipHiddenMediaControlsWork);
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kCobaltSkipMediaProgressLayoutUpdate},
+      /*disabled_features=*/{features::kCobaltSkipHiddenMediaControlsCreation});
 
   Media()->GetDocument().body()->AppendChild(Media());
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
@@ -3476,7 +3652,7 @@ TEST_P(HTMLMediaElementTest,
 
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitAndDisableFeature(
-      features::kCobaltSkipHiddenMediaControlsWork);
+      features::kCobaltSkipMediaProgressLayoutUpdate);
 
   Media()->GetDocument().body()->AppendChild(Media());
   Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
@@ -3487,6 +3663,33 @@ TEST_P(HTMLMediaElementTest,
 
   // On Cobalt, HTMLMediaElement::ShouldShowControls() unconditionally returns
   // false because native Blink media controls are not supported.
+  ASSERT_FALSE(ControlsVisible());
+  ASSERT_NE(Media()->GetLayoutObject(), nullptr);
+  ASSERT_FALSE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
+  EXPECT_CALL(*MockMediaPlayer(), DidLoadingProgress()).WillOnce(Return(true));
+
+  ProgressEventTimerFired();
+  EXPECT_TRUE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
+}
+
+TEST_P(HTMLMediaElementTest,
+       ProgressEventTimerPerformsLayoutUpdateWhenOnlyControlsCreationSkipped) {
+  if (GetParam() != MediaTestParam::kVideo) {
+    return;
+  }
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      /*enabled_features=*/{features::kCobaltSkipHiddenMediaControlsCreation},
+      /*disabled_features=*/{features::kCobaltSkipMediaProgressLayoutUpdate});
+
+  Media()->GetDocument().body()->AppendChild(Media());
+  Media()->SetSrc(SrcSchemeToURL(TestURLScheme::kHttp));
+  test::RunPendingTasks();
+  SetReadyState(HTMLMediaElement::kHaveEnoughData);
+  SetNetworkState(WebMediaPlayer::kNetworkStateLoading);
+  UpdateLifecyclePhases();
+
   ASSERT_FALSE(ControlsVisible());
   ASSERT_NE(Media()->GetLayoutObject(), nullptr);
   ASSERT_FALSE(Media()->GetLayoutObject()->ShouldDoFullPaintInvalidation());
