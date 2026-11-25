@@ -176,11 +176,24 @@ class SourceBuffer final : public EventTarget,
   // bytes instead of copying them.
   base::ScopedClosureRunner RetainAppendedArrayBuffer(DOMArrayBuffer* buffer);
 
+  // Prepares ownership for a borrowed append after `PrepareAppend()` succeeds
+  // when `CobaltMseMemoryOptimization` is enabled: transfers & detaches
+  // full-buffer media segments (>= 32 KiB) so V8 external memory drops
+  // immediately, and copies small buffers / sub-views into compact owned
+  // storage so neither init segments nor shared backing stores are pinned.
+  base::ScopedClosureRunner PrepareBorrowedAppendBuffer(
+      base::span<const unsigned char>* data,
+      DOMArrayBuffer* full_array_buffer);
+
   // `release_runner` keeps the appended bytes alive for as long as the stream
-  // parser needs them. A null runner means the parser must copy them.
+  // parser needs them. A null runner means the parser must copy them unless
+  // `defer_borrow_ownership` defers ownership preparation until after
+  // `PrepareAppend()` succeeds.
   void AppendBufferInternal(base::span<const unsigned char>,
                             base::ScopedClosureRunner release_runner,
-                            ExceptionState&);
+                            ExceptionState&,
+                            DOMArrayBuffer* full_array_buffer = nullptr,
+                            bool defer_borrow_ownership = false);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   void AppendBufferInternal(base::span<const unsigned char>, ExceptionState&);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -224,6 +237,8 @@ class SourceBuffer final : public EventTarget,
   void AppendBufferInternal_Locked(
       base::span<const unsigned char>,
       base::ScopedClosureRunner release_runner,
+      DOMArrayBuffer* full_array_buffer,
+      bool defer_borrow_ownership,
       ExceptionState*,
       MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -293,6 +308,7 @@ class SourceBuffer final : public EventTarget,
   const bool append_first_segment_synchronously_;
   bool first_segment_appended_ = false;
   bool first_segment_appended_logged_ = false;
+  size_t successful_append_count_ = 0;
   base::TimeTicks first_segment_append_start_time_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

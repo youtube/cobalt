@@ -19,6 +19,7 @@
 #include <algorithm>
 
 #include "base/feature_list.h"
+#include "base/features.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
@@ -43,6 +44,9 @@ constexpr base::TimeDelta kDefaultPeriodicDecommitInterval = base::Seconds(5);
 using DefaultReuseAllocatorStrategy =
     BidirectionalFitDecoderBufferAllocatorStrategy<
         starboard::EmbeddedMetadataReuseAllocatorBase>;
+using SplitReuseAllocatorStrategy =
+    SplitBidirectionalFitDecoderBufferAllocatorStrategy<
+        starboard::EmbeddedMetadataReuseAllocatorBase>;
 
 const char* ToString(bool value) {
   return value ? "enabled" : "disabled";
@@ -52,8 +56,14 @@ const char* ToString(bool value) {
 
 DecoderBufferAllocator::DecoderBufferAllocator()
     : DecoderBufferAllocator(
-          GetSbMediaInterface()->IsBufferPoolAllocateOnDemand(),
-          GetSbMediaInterface()->GetInitialBufferCapacity(),
+          base::FeatureList::IsEnabled(
+              base::features::kCobaltMseMemoryOptimization)
+              ? true
+              : GetSbMediaInterface()->IsBufferPoolAllocateOnDemand(),
+          base::FeatureList::IsEnabled(
+              base::features::kCobaltMseMemoryOptimization)
+              ? 0
+              : GetSbMediaInterface()->GetInitialBufferCapacity(),
           GetSbMediaInterface()->GetBufferAllocationUnit()) {}
 
 DecoderBufferAllocator::DecoderBufferAllocator(
@@ -67,6 +77,11 @@ DecoderBufferAllocator::DecoderBufferAllocator(
           media::kCobaltDisableDecoderBufferAllocator)) {
     LOG(INFO) << "DecoderBufferAllocator is disabled via feature flag.";
     return;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltMseMemoryOptimization)) {
+    decommit_on_suspend_enabled_.store(true, std::memory_order_release);
   }
 
   DCHECK_GE(initial_capacity_, 0);
@@ -423,6 +438,20 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     }
     LOG(WARNING) << "Failed to create the requested DecoderBufferAllocator "
                     "strategy. Falling back to default.";
+  }
+
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltMseMemoryOptimization)) {
+    strategy_ = std::make_unique<SplitReuseAllocatorStrategy>(initial_capacity_,
+                                                              allocation_unit_);
+    if (is_suspended_) {
+      strategy_->SetSuspended(true);
+    }
+    LOG(INFO) << "DecoderBufferAllocator is using SplitReuseAllocatorStrategy. "
+                 "initial_capacity: "
+              << initial_capacity_
+              << ", allocation_increment: " << allocation_unit_;
+    return;
   }
 
   if (base::FeatureList::IsEnabled(

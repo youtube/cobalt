@@ -260,6 +260,8 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
                        ::switches::kAvoidCCReuseResource);
   enable_feature_if_set(flags::kEnableCobaltMmapFontCache,
                         kCobaltMmapFontCacheFeature);
+  enable_feature_if_set(flags::kEnableCobaltMseMemoryOptimization,
+                        base::features::kCobaltMseMemoryOptimization.name);
   enable_feature_if_set(flags::kAreaBasedVideoBufferBudget,
                         kAreaBasedVideoBufferBudgetFeature);
   append_switch_if_set(

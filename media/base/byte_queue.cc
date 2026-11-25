@@ -15,6 +15,13 @@
 #include "base/check_op.h"
 #include "base/numerics/checked_math.h"
 #include "base/process/memory.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace media {
 
@@ -104,11 +111,41 @@ void ByteQueue::Pop(int count) {
   offset_ += count;
   used_ -= count;
 
+#if BUILDFLAG(IS_COBALT)
+  if (used_ == 0 && base::FeatureList::IsEnabled(
+                        base::features::kCobaltMseMemoryOptimization)) {
+    offset_ = 0;
+    MaybeShrinkIdleBuffer();
+    return;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   // Move the offset back to 0 if we have reached the end of the buffer.
   if (offset_ == size_) {
     DCHECK_EQ(used_, 0);
     offset_ = 0;
   }
+}
+
+void ByteQueue::MaybeShrinkIdleBuffer() {
+#if BUILDFLAG(IS_COBALT)
+  if (!base::FeatureList::IsEnabled(
+          base::features::kCobaltMseMemoryOptimization)) {
+    return;
+  }
+  constexpr size_t kMaxIdleQueueSize = 64 * 1024;
+  if (used_ != 0 || size_ <= kMaxIdleQueueSize) {
+    return;
+  }
+  uint8_t* new_buffer = nullptr;
+  if (base::UncheckedMalloc(kDefaultQueueSize,
+                            reinterpret_cast<void**>(&new_buffer)) &&
+      new_buffer) {
+    buffer_.reset(new_buffer);
+    size_ = kDefaultQueueSize;
+    offset_ = 0;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 uint8_t* ByteQueue::Front() const {

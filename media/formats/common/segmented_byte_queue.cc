@@ -18,8 +18,12 @@
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
+#include "base/features.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 
 namespace media {
 
@@ -77,6 +81,13 @@ void BorrowedSegmentedByteQueue::Pop(size_t count) {
   }
 
   segments_.erase(segments_.begin(), segments_.begin() + fully_consumed);
+#if BUILDFLAG(IS_COBALT)
+  if (total_bytes_ == 0u && base::FeatureList::IsEnabled(
+                                base::features::kCobaltMseMemoryOptimization)) {
+    scratch_.reset();
+    segments_.shrink_to_fit();
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 size_t BorrowedSegmentedByteQueue::size() const {
@@ -183,6 +194,7 @@ OwnedSegmentedByteQueue::~OwnedSegmentedByteQueue() = default;
 
 void OwnedSegmentedByteQueue::Reset() {
   queue_.Reset();
+  queue_.MaybeShrinkIdleBuffer();
 }
 
 bool OwnedSegmentedByteQueue::Push(base::span<const uint8_t> data,

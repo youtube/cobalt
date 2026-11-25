@@ -50,6 +50,26 @@ BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMemoryPressureCooldown);
 BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(int,
                                        kCobaltMemoryPressureCooldownSeconds);
 
+// When enabled, activates the unified MSE and playback memory optimization
+// stack: proactive behind-playhead GOP eviction with a retention floor in
+// SourceBufferStream, on-demand isolated audio/video DecoderBufferAllocator
+// pools with live empty-slab release, eager ArrayBuffer transfer/detach and
+// 128 KiB/256 KiB fetch/Mojo chunk caps, idle parser ByteQueue/MP4 scratch
+// shrinking, and foreground ParkableString disk parking with unlocked
+// discardable memory purging. Disabled by default for controlled Finch/Mendel
+// experimentation (must be paired with the web player fixed video readahead
+// bonus; see b/584920427).
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMseMemoryOptimization);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kCobaltMseMemoryOptimizationBackHorizonMs);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kCobaltMseMemoryOptimizationVideoRetentionFloorMb);
+BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kCobaltMseMemoryOptimizationAudioRetentionFloorKb);
+
 // When enabled, gates the CC image decode cache items limit and size limit (in
 // MB) via Finch feature and parameters.
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltCCImageCacheLimitItems);
