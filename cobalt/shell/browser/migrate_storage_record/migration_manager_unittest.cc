@@ -16,16 +16,23 @@
 
 #include <numeric>
 #include <optional>
+#include <string>
 
 #include "base/base_paths.h"
 #include "base/command_line.h"
+#include "base/environment.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_command_line.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "components/services/storage/public/mojom/local_storage_control.mojom.h"
@@ -37,6 +44,8 @@
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_inclusion_status.h"
 #include "services/network/test/test_cookie_manager.h"
+#include "starboard/common/storage.h"
+#include "starboard/storage.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -194,10 +203,35 @@ class MigrationManagerTest : public testing::Test {
  protected:
   void SetUp() override {
     MigrationManager::ResetMigrationStatusForTesting();
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    user_data_dir_ = temp_dir_.GetPath().AppendASCII("user_data");
+    home_dir_ = temp_dir_.GetPath().AppendASCII("home");
+    ASSERT_TRUE(base::CreateDirectory(user_data_dir_));
+    ASSERT_TRUE(base::CreateDirectory(home_dir_));
+
+    env_ = base::Environment::Create();
+    previous_home_ = env_->GetVar("HOME");
+    env_->SetVar("HOME", home_dir_.value());
+
     base::FilePath cache_dir;
     base::PathService::Get(base::DIR_CACHE, &cache_dir);
-    base::DeleteFile(cache_dir.Append("migration_completed.txt"));
+    base::DeleteFile(cache_dir.AppendASCII("migration_completed.txt"));
   }
+
+  void TearDown() override {
+    SbStorageDeleteRecord(nullptr);
+    if (env_) {
+      if (previous_home_.has_value()) {
+        env_->SetVar("HOME", *previous_home_);
+      } else {
+        env_->UnSetVar("HOME");
+      }
+    }
+    MigrationManager::ResetMigrationStatusForTesting();
+  }
+
+  const base::FilePath& user_data_dir() const { return user_data_dir_; }
+  const base::FilePath& home_dir() const { return home_dir_; }
 
   Task GroupTasks(std::vector<Task> tasks) {
     return MigrationManager::GroupTasks(std::move(tasks));
@@ -236,6 +270,11 @@ class MigrationManagerTest : public testing::Test {
       base::test::TaskEnvironment::MainThreadType::IO,
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   base::ScopedPathOverride cache_dir_override_{base::DIR_CACHE};
+  base::ScopedTempDir temp_dir_;
+  base::FilePath user_data_dir_;
+  base::FilePath home_dir_;
+  std::unique_ptr<base::Environment> env_;
+  std::optional<std::string> previous_home_;
 };
 
 // --- General State and Utility Tests ---
@@ -530,6 +569,193 @@ TEST_F(MigrationManagerTest, LocalStorageTaskFailureTest) {
   run_loop.Run();
 
   EXPECT_EQ(InjectionResult::kError, state->local_storage_result.load());
+}
+
+namespace {
+
+size_t CountStarboardStorageFiles(const base::FilePath& dir) {
+  size_t count = 0;
+  base::FileEnumerator enumerator(dir, /*recursive=*/false,
+                                  base::FileEnumerator::FILES,
+                                  FILE_PATH_LITERAL(".starboard*.storage"));
+  while (!enumerator.Next().empty()) {
+    ++count;
+  }
+  return count;
+}
+
+}  // namespace
+
+TEST_F(MigrationManagerTest,
+       OptimizationSkipsMissingRecordAndPersistsSentinelInUserData) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kCobaltStorageMigrationOptimization);
+
+  MockStoragePartition partition;
+  partition.set_path(user_data_dir());
+  base::HistogramTester histograms;
+
+  base::RunLoop run_loop;
+  MigrationManager::RunMigration(&partition, run_loop.QuitClosure());
+  run_loop.Run();
+  task_environment().RunUntilIdle();
+
+  histograms.ExpectUniqueSample("Cobalt.StorageMigration.Outcome",
+                                MigrationOutcome::kSkipped, 1);
+  histograms.ExpectUniqueSample("Cobalt.StorageMigration.ReadResult",
+                                StorageReadResult::kRecordInvalid, 1);
+  histograms.ExpectUniqueSample("Cobalt.StorageMigration.SentinelWriteResult",
+                                SentinelWriteResult::kSuccess, 1);
+  EXPECT_EQ(CountStarboardStorageFiles(home_dir()), 0u);
+
+  const base::FilePath user_data_sentinel =
+      user_data_dir().AppendASCII("migration_completed.txt");
+  const base::FilePath cache_sentinel =
+      base::PathService::CheckedGet(base::DIR_CACHE)
+          .AppendASCII("migration_completed.txt");
+  EXPECT_TRUE(base::PathExists(user_data_sentinel));
+  EXPECT_FALSE(base::PathExists(cache_sentinel));
+
+  // Clearing DIR_CACHE does not re-trigger migration on subsequent launches.
+  ASSERT_TRUE(base::DeletePathRecursively(
+      base::PathService::CheckedGet(base::DIR_CACHE)));
+  ASSERT_TRUE(
+      base::CreateDirectory(base::PathService::CheckedGet(base::DIR_CACHE)));
+
+  base::HistogramTester second_launch;
+  base::RunLoop second_loop;
+  MigrationManager::RunMigration(&partition, second_loop.QuitClosure());
+  second_loop.Run();
+  second_launch.ExpectUniqueSample("Cobalt.StorageMigration.Outcome",
+                                   MigrationOutcome::kFastPath, 1);
+}
+
+TEST_F(MigrationManagerTest,
+       OptimizationBackfillsLegacyCacheSentinelOnceAndSurvivesCacheClear) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kCobaltStorageMigrationOptimization);
+
+  const base::FilePath legacy_sentinel =
+      base::PathService::CheckedGet(base::DIR_CACHE)
+          .AppendASCII("migration_completed.txt");
+  const base::FilePath user_data_sentinel =
+      user_data_dir().AppendASCII("migration_completed.txt");
+  ASSERT_TRUE(base::WriteFile(legacy_sentinel, "0-0-0"));
+
+  MockStoragePartition partition;
+  partition.set_path(user_data_dir());
+  {
+    base::HistogramTester histograms;
+    base::RunLoop run_loop;
+    MigrationManager::RunMigration(&partition, run_loop.QuitClosure());
+    run_loop.Run();
+    task_environment().RunUntilIdle();
+
+    histograms.ExpectUniqueSample("Cobalt.StorageMigration.Outcome",
+                                  MigrationOutcome::kFastPath, 1);
+    histograms.ExpectUniqueSample("Cobalt.StorageMigration.SentinelWriteResult",
+                                  SentinelWriteResult::kSuccess, 1);
+    EXPECT_TRUE(base::PathExists(user_data_sentinel));
+  }
+
+  // Launch 2 (even before DIR_CACHE is cleared): UserData sentinel
+  // short-circuits without re-running backfill.
+  {
+    base::HistogramTester histograms;
+    base::RunLoop run_loop;
+    MigrationManager::RunMigration(&partition, run_loop.QuitClosure());
+    run_loop.Run();
+    task_environment().RunUntilIdle();
+
+    histograms.ExpectUniqueSample("Cobalt.StorageMigration.Outcome",
+                                  MigrationOutcome::kFastPath, 1);
+    histograms.ExpectTotalCount("Cobalt.StorageMigration.SentinelWriteResult",
+                                0);
+  }
+
+  // Launch 3 after DIR_CACHE wipe: stays on FastPath.
+  ASSERT_TRUE(base::DeleteFile(legacy_sentinel));
+  {
+    base::HistogramTester histograms;
+    base::RunLoop run_loop;
+    MigrationManager::RunMigration(&partition, run_loop.QuitClosure());
+    run_loop.Run();
+    histograms.ExpectUniqueSample("Cobalt.StorageMigration.Outcome",
+                                  MigrationOutcome::kFastPath, 1);
+  }
+}
+
+TEST_F(MigrationManagerTest,
+       OptimizationFlagsTruncatedHeaderAndMigratesDefaultFallbackRecord) {
+#if BUILDFLAG(IS_IOS)
+  GTEST_SKIP() << "SbStorageWriteRecord is stubbed on tvOS.";
+#endif
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kCobaltStorageMigrationOptimization);
+
+  MockStoragePartition partition;
+  partition.set_path(user_data_dir());
+  const base::FilePath user_data_sentinel =
+      user_data_dir().AppendASCII("migration_completed.txt");
+
+  // 1. Truncated 2-byte default record still reports kSizeTooSmall / kFailed.
+  {
+    starboard::StorageRecord default_record;
+    ASSERT_TRUE(default_record.Write("SA", 2));
+    default_record.Close();
+
+    base::HistogramTester histograms;
+    base::RunLoop run_loop;
+    MigrationManager::RunMigration(&partition, run_loop.QuitClosure());
+    run_loop.Run();
+    task_environment().RunUntilIdle();
+
+    histograms.ExpectUniqueSample("Cobalt.StorageMigration.ReadResult",
+                                  StorageReadResult::kSizeTooSmall, 1);
+    histograms.ExpectUniqueSample("Cobalt.StorageMigration.Outcome",
+                                  MigrationOutcome::kFailed, 1);
+    EXPECT_EQ(CountStarboardStorageFiles(home_dir()), 0u);
+  }
+
+  // 2. Valid SAV1 payload in the fallback default record migrates cookies +
+  // localStorage even when no partitioned record exists.
+  ASSERT_TRUE(base::DeleteFile(user_data_sentinel));
+  {
+    cobalt::storage::Storage storage;
+    auto* cookie = storage.add_cookies();
+    cookie->set_name("SID");
+    cookie->set_value("token");
+    cookie->set_domain(".youtube.com");
+    cookie->set_path("/tv");
+    cookie->set_creation_time_us(100);
+    cookie->set_expiration_time_us(200);
+    cookie->set_last_access_time_us(150);
+    cookie->set_secure(true);
+    cookie->set_http_only(true);
+    auto* ls = storage.add_local_storages();
+    ls->set_serialized_origin("https://www.youtube.com");
+    auto* entry = ls->add_local_storage_entries();
+    entry->set_key("auth");
+    entry->set_value("ok");
+
+    std::string payload = "SAV1" + storage.SerializeAsString();
+    starboard::StorageRecord default_record;
+    ASSERT_TRUE(default_record.Write(payload.data(), payload.size()));
+    default_record.Close();
+
+    base::HistogramTester histograms;
+    base::RunLoop run_loop;
+    MigrationManager::RunMigration(&partition, run_loop.QuitClosure());
+    run_loop.Run();
+    task_environment().RunUntilIdle();
+
+    histograms.ExpectUniqueSample("Cobalt.StorageMigration.Outcome",
+                                  MigrationOutcome::kSuccess, 1);
+    EXPECT_EQ(1, partition.cookie_manager().set_canonical_cookie_call_count());
+    EXPECT_EQ(1, partition.local_storage_control().put_call_count());
+    EXPECT_EQ(CountStarboardStorageFiles(home_dir()), 0u);
+    EXPECT_TRUE(base::PathExists(user_data_sentinel));
+  }
 }
 
 }  // namespace migrate_storage_record

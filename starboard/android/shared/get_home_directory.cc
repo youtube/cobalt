@@ -27,7 +27,11 @@
 namespace starboard {
 
 bool GetHomeDirectory(char* out_path, int path_size) {
-  int len = ::starboard::strlcpy(out_path, g_app_files_dir, path_size);
+  const char* home_dir = g_app_files_dir ? g_app_files_dir : getenv("HOME");
+  if (!home_dir || home_dir[0] == '\0') {
+    return false;
+  }
+  int len = ::starboard::strlcpy(out_path, home_dir, path_size);
   return len < path_size;
 }
 

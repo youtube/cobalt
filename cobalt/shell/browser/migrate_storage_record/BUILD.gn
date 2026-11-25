@@ -43,6 +43,7 @@ source_set("unittest") {
     "//mojo/public/cpp/bindings",
     "//net",
     "//services/network:test_support",
+    "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/blink/public/mojom:mojom_platform",
