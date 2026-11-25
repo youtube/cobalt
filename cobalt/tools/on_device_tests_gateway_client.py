@@ -69,6 +69,12 @@ _GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk',)
 _MAX_SHARDS = 10
 
 
+def _is_android_gtest_target(args: argparse.Namespace,
+                             target_name: str) -> bool:
+  """Returns True when target_name is a non-JUnit Android GTest suite."""
+  return args.device_family == 'android' and 'junit' not in target_name.lower()
+
+
 class OnDeviceTestsGatewayClient:
   """On-device tests Gateway Client class."""
 
@@ -178,9 +184,9 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
 
-    if 'cobalt_browsertests' in target_name:
+    if _is_android_gtest_target(args, target_name):
       res.append(f'host_deps={args.gcs_archive_path}/'
-                 'cobalt_browsertests_host_deps.tar.gz')
+                 'android_test_host_deps.tar.gz')
     return res
 
   elif args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
@@ -266,12 +272,16 @@ def _has_shard_retry_filter(filter_json_dir: Optional[str], target_name: str,
           not gtest_filter.startswith('-') and gtest_filter != '*')
 
 
-def _shard_cmd_args(test_type: str, shard_index: int,
-                    num_shards: int) -> List[str]:
+def _shard_cmd_args(test_type: str,
+                    shard_index: int,
+                    num_shards: int,
+                    *,
+                    use_host_runner: bool = False) -> List[str]:
   """Builds test runner sharding flags for a shard."""
-  if test_type != 'browser_test':
+  if test_type != 'browser_test' and not use_host_runner:
     raise ValueError(
-        f'Sharding is only supported for browser_test targets, got {test_type}')
+        'Sharding is only supported for browser_test or Android host runner '
+        f'targets, got {test_type}')
   return [
       f'--test-launcher-shard-index={shard_index}',
       f'--test-launcher-total-shards={num_shards}',
@@ -309,12 +319,13 @@ def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
                                                     target_test_attempts)
       effective_test_attempts = target_test_attempts or args.test_attempts
       target_name = test_target.split(':')[-1]
+      use_host_runner = _is_android_gtest_target(args, target_name)
       if 'cobalt_browsertests' in target_name:
         test_type = 'browser_test'
-      if num_shards > 1 and test_type != 'browser_test':
+      if num_shards > 1 and test_type != 'browser_test' and not use_host_runner:
         raise ValueError(
-            f'Sharding is only supported for browser_test targets, got '
-            f'{test_type} for {test_target}')
+            'Sharding is only supported for browser_test or Android host '
+            f'runner targets, got {test_type} for {test_target}')
       dir_on_device = _DIR_ON_DEV_MAP.get(args.device_family, '')
       files = _unit_test_files(args, target_name)
 
@@ -333,7 +344,7 @@ def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
             f'--gtest_filter={gtest_filter}',
             '--single-process-tests',
             '--num-retries=0',
-        ]
+        ] + (['--disable-test-server'] if use_host_runner else [])
         command_line_args = ' '.join(cmd_args)
         params = _unit_test_params(
             args,
@@ -376,9 +387,14 @@ def process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
               f'--gtest_filter={gtest_filter}',
               '--single-process-tests',
               '--num-retries=0',
-          ]
+          ] + (['--disable-test-server'] if use_host_runner else [])
           if not use_shard_retry_filter:
-            cmd_args.extend(_shard_cmd_args(test_type, shard_index, num_shards))
+            cmd_args.extend(
+                _shard_cmd_args(
+                    test_type,
+                    shard_index,
+                    num_shards,
+                    use_host_runner=use_host_runner))
           command_line_args = ' '.join(cmd_args)
 
           shard_gcs_result_path = (f'{base_result_path}/shard_{shard_index}'
