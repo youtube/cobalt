@@ -35,6 +35,7 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
 #include "base/features.h"
 #endif  // BUILDFLAG(IS_COBALT)
 

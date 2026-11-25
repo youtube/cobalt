@@ -21,6 +21,7 @@
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/types/pass_key.h"
+#include "build/build_config.h"
 #include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "third_party/leveldatabase/env_chromium.h"
@@ -70,6 +71,10 @@ class DomStorageDatabaseLevelDB
   DbStatus RewriteDB();
 
   bool ShouldFailAllCommitsForTesting();
+#if BUILDFLAG(IS_COBALT)
+  // Returns true when this database backs persistent (on-disk) Local Storage.
+  bool IsPersistentLocalStorage() const;
+#endif  // BUILDFLAG(IS_COBALT)
   void SetDestructionCallbackForTesting(base::OnceClosure callback);
   void MakeAllCommitsFailForTesting();
 
@@ -127,6 +132,11 @@ class DomStorageDatabaseLevelDB
   // If true, all calls to `DomStorageBatchOperationLevelDB::Commit()` fail with
   // an IOError. This should only be set in tests to simulate disk failures.
   bool fail_all_commits_for_testing_ = false;
+
+#if BUILDFLAG(IS_COBALT)
+  // True when this database backs persistent (on-disk) Local Storage.
+  bool is_local_storage_ = false;
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Callback to run on destruction in tests.
   base::OnceClosure destruction_callback_;

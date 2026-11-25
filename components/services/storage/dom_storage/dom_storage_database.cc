@@ -21,7 +21,6 @@
 #include "base/task/thread_pool.h"
 #include "base/trace_event/memory_allocator_dump.h"
 #include "base/trace_event/process_memory_dump.h"
-<<<<<<< HEAD
 #include "base/types/expected_macros.h"
 #include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/features.h"
@@ -33,24 +32,11 @@
 #include "components/services/storage/dom_storage/sqlite/sqlite_database_utils.h"
 #include "components/services/storage/public/cpp/constants.h"
 #include "sql/database.h"
-=======
-#include "components/services/storage/filesystem_proxy_factory.h"
-#include "third_party/leveldatabase/leveldb_chrome.h"
-#include "third_party/leveldatabase/src/include/leveldb/write_batch.h"
-
-#if BUILDFLAG(IS_COBALT)
-#include "base/feature_list.h"
-#include "base/features.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/timer/elapsed_timer.h"
-#endif  // BUILDFLAG(IS_COBALT)
->>>>>>> 6a33e55a6a2 (Storage: Optimize Local Storage LevelDB log reuse and skip empty commits (#13557))
 
 namespace storage {
 
 namespace {
 
-<<<<<<< HEAD
 // Records the on-disk size of the database at `db_path` to the
 // `DatabaseOnDiskSizeKB` histogram for `storage_type` (`.OnDiskExperimental`
 // suffix for `kOnDiskExperimental`, unsuffixed for `kOnDisk`). LevelDB stores
@@ -78,98 +64,6 @@ void RecordDatabaseOnDiskSizeKB(StorageType storage_type,
                             ? ".OnDiskExperimental"
                             : ""}),
       base::ByteSize(base::checked_cast<uint64_t>(size_bytes)));
-=======
-// IOError message returned whenever a call is made on a DomStorageDatabase
-// which has been invalidated (e.g. by a failed |RewriteDB()| operation).
-const char kInvalidDatabaseMessage[] = "DomStorageDatabase no longer valid.";
-
-class DomStorageDatabaseEnv : public leveldb_env::ChromiumEnv {
- public:
-  DomStorageDatabaseEnv() : ChromiumEnv(CreateFilesystemProxy()) {}
-
-  DomStorageDatabaseEnv(const DomStorageDatabaseEnv&) = delete;
-  DomStorageDatabaseEnv& operator=(const DomStorageDatabaseEnv&) = delete;
-};
-
-std::string MakeFullPersistentDBName(const base::FilePath& directory,
-                                     const std::string& db_name) {
-  // ChromiumEnv treats DB name strings as UTF-8 file paths.
-  return directory.Append(base::FilePath::FromUTF8Unsafe(db_name))
-      .AsUTF8Unsafe();
-}
-
-// Used for disk DBs.
-#if BUILDFLAG(IS_COBALT)
-leveldb_env::Options MakeOptions(bool is_local_storage = false) {
-#else
-leveldb_env::Options MakeOptions() {
-#endif
-  leveldb_env::Options options;
-  options.create_if_missing = true;
-  options.max_open_files = 0;  // use minimum
-  // Default write_buffer_size is 4 MB but that might leave a 3.999
-  // memory allocation in RAM from a log file recovery.
-  options.write_buffer_size = 64 * 1024;
-#if BUILDFLAG(IS_COBALT)
-  if (is_local_storage &&
-      base::FeatureList::IsEnabled(
-          base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits)) {
-    // On low-end TV devices, leveldb_env::Options defaults `reuse_logs` to
-    // false (forcing a synchronous .log -> .ldb compaction, MANIFEST rewrite,
-    // and CURRENT rename on every DB::Open). Reusing the WAL on open avoids
-    // cold-start compaction churn while keeping every 1s commit synchronous
-    // (`sync = true`).
-    options.reuse_logs = true;
-  }
-#endif
-
-  // We disable caching because all reads are one-offs such as in
-  // `LocalStorageImpl::OnDatabaseOpened()`, or they are bulk scans (as in
-  // `ForEachWithPrefix`). In the case of bulk scans, they're either for
-  // deletion (where caching doesn't make sense) or a mass-read, which we cache
-  // in memory.
-  options.block_cache = leveldb_chrome::GetSharedInMemoryBlockCache();
-
-  static base::NoDestructor<DomStorageDatabaseEnv> env;
-  options.env = env.get();
-  return options;
-}
-
-#if BUILDFLAG(IS_COBALT)
-leveldb::WriteOptions CreateSyncWriteOptions() {
-  leveldb::WriteOptions options;
-  options.sync = true;
-  return options;
-}
-#endif
-
-std::unique_ptr<leveldb::DB> TryOpenDB(
-    const leveldb_env::Options& options,
-    const std::string& name,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-    DomStorageDatabase::StatusCallback callback) {
-  std::unique_ptr<leveldb::DB> db;
-  leveldb::Status status = leveldb_env::OpenDB(options, name, &db);
-  callback_task_runner->PostTask(FROM_HERE,
-                                 base::BindOnce(std::move(callback), status));
-  return db;
-}
-
-leveldb::Slice MakeSlice(base::span<const uint8_t> data) {
-  if (data.empty())
-    return leveldb::Slice();
-  return leveldb::Slice(reinterpret_cast<const char*>(data.data()),
-                        data.size());
-}
-
-DomStorageDatabase::KeyValuePair MakeKeyValuePair(const leveldb::Slice& key,
-                                                  const leveldb::Slice& value) {
-  base::span key_span(key);
-  base::span value_span(value);
-  return DomStorageDatabase::KeyValuePair(
-      DomStorageDatabase::Key(key_span.begin(), key_span.end()),
-      DomStorageDatabase::Value(value_span.begin(), value_span.end()));
->>>>>>> 6a33e55a6a2 (Storage: Optimize Local Storage LevelDB log reuse and skip empty commits (#13557))
 }
 
 // Records all open-time telemetry for a database open attempt:
@@ -228,7 +122,6 @@ bool DomStorageDatabase::KeyValuePair::operator==(
   return std::tie(key, value) == std::tie(rhs.key, rhs.value);
 }
 
-<<<<<<< HEAD
 DomStorageDatabase::MapLocator::MapLocator(blink::StorageKey storage_key)
     : storage_key_(storage_key) {}
 
@@ -240,35 +133,6 @@ DomStorageDatabase::MapLocator::MapLocator(std::string session_id,
                                            blink::StorageKey storage_key)
     : storage_key_(storage_key) {
   session_ids_.push_back(std::move(session_id));
-=======
-DomStorageDatabase::DomStorageDatabase(
-    PassKey,
-    const base::FilePath& directory,
-    const std::string& name,
-    const std::optional<base::trace_event::MemoryAllocatorDumpGuid>&
-        memory_dump_id,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-    StatusCallback callback)
-    : name_(MakeFullPersistentDBName(directory, name)),
-#if BUILDFLAG(IS_COBALT)
-      // `DomStorageDatabase` backs both persistent `Local Storage`
-      // (`name == "leveldb"`, see `kLocalStorageLeveldbName` in
-      // `local_storage_impl.cc`) and persistent `Session Storage`
-      // (`name == "Session Storage"`, see `kSessionStorageDirectory` in
-      // `session_storage_impl.cc`). Only `Local Storage` should enable
-      // `reuse_logs = true` and `LocalStorage.CommitDuration` telemetry.
-      options_(MakeOptions(name == "leveldb")),
-#else
-      options_(MakeOptions()),
-#endif
-      memory_dump_id_(memory_dump_id)
-#if BUILDFLAG(IS_COBALT)
-      ,
-      is_local_storage_(name == "leveldb")
-#endif  // BUILDFLAG(IS_COBALT)
-{
-  Init(std::move(callback_task_runner), std::move(callback));
->>>>>>> 6a33e55a6a2 (Storage: Optimize Local Storage LevelDB log reuse and skip empty commits (#13557))
 }
 
 DomStorageDatabase::MapLocator::MapLocator(std::string session_id,
@@ -657,7 +521,6 @@ DomStorageDatabaseFactory::CreatePassKeyForTesting() {
   return base::PassKey<DomStorageDatabaseFactory>();
 }
 
-<<<<<<< HEAD
 scoped_refptr<base::SequencedTaskRunner> GetTaskRunnerForDb(
     const base::FilePath& database_path) {
   if (database_path.empty()) {
@@ -667,37 +530,6 @@ scoped_refptr<base::SequencedTaskRunner> GetTaskRunnerForDb(
         {base::WithBaseSyncPrimitives(),
          base::TaskShutdownBehavior::BLOCK_SHUTDOWN});
   }
-=======
-DomStorageDatabase::Status DomStorageDatabase::Commit(
-    leveldb::WriteBatch* batch) const {
-  if (!db_)
-    return Status::IOError(kInvalidDatabaseMessage);
-  if (fail_commits_for_testing_)
-    return Status::IOError("Simulated I/O Error");
-#if BUILDFLAG(IS_COBALT)
-  static const size_t kEmptyWriteBatchSize =
-      leveldb::WriteBatch().ApproximateSize();
-  if (is_local_storage_ &&
-      base::FeatureList::IsEnabled(
-          base::features::kCobaltLocalStorageReuseLogsAndSkipEmptyCommits) &&
-      batch->ApproximateSize() <= kEmptyWriteBatchSize) {
-    return Status::OK();
-  }
-  base::ElapsedTimer commit_timer;
-  Status status = db_->Write(CreateSyncWriteOptions(), batch);
-  // Only record commit latency for persistent on-disk LocalStorage LevelDB
-  // databases (excluding both in-memory DBs and on-disk SessionStorage DBs).
-  if (!env_ && is_local_storage_) {
-    base::UmaHistogramTimes("Cobalt.Storage.LocalStorage.CommitDuration",
-                            commit_timer.Elapsed());
-  }
-  ++total_commit_count_for_testing_;
-  return status;
-#else
-  return db_->Write(leveldb::WriteOptions(), batch);
-#endif
-}
->>>>>>> 6a33e55a6a2 (Storage: Optimize Local Storage LevelDB log reuse and skip empty commits (#13557))
 
   //  This will always return the same task runner for a given `database_path`.
   return base::ThreadPool::CreateSequencedTaskRunnerForResource(
