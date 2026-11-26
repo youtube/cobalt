@@ -18,6 +18,8 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <initializer_list>
+#include <ios>
 #include <tuple>
 #include <utility>
 
@@ -76,11 +78,17 @@ class PosixSocketResolveTest
     auto param = GetParam();
     return std::get<1>(param).second;
   }
+
+ protected:
+  void CheckFlags(int flags, const char* host, const char* service);
 };
 
 // A random host name to use to test DNS resolution.
 const char kTestHostName[] = "dns.google";
 const char kTestService[] = "443";
+// Numeric addresses of `kTestHostName`.
+const char kTestHostIpv4Address[] = "8.8.8.8";
+const char kTestHostIpv6Address[] = "2001:4860:4860::8888";
 const char kLocalhost[] = "localhost";
 
 TEST_P(PosixSocketResolveTest, SunnyDayHints) {
@@ -181,76 +189,95 @@ TEST_P(PosixSocketResolveTest, SunnyDayFiltered) {
   freeaddrinfo(ai);
 }
 
-TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
+// Resolves `host` and `service` with `flags` and the test parameters, and
+// checks the results.
+void PosixSocketResolveTest::CheckFlags(int flags,
+                                        const char* host,
+                                        const char* service) {
+  SCOPED_TRACE(testing::Message() << "flags = 0x" << std::hex << flags);
   struct addrinfo hints = {0};
-  int flags_to_test[] = {
-  // Non-modular builds use native libc getaddrinfo.
-#if defined(SB_MODULAR_BUILD)
-      // And bionic does not support these flags.
-      AI_V4MAPPED, AI_V4MAPPED | AI_ALL, AI_NUMERICHOST, AI_NUMERICSERV,
-#endif
-      AI_PASSIVE,  AI_CANONNAME,         AI_ADDRCONFIG,
-  };
-  for (auto flag : flags_to_test) {
-    hints.ai_family = GetAddressFamily();
-    hints.ai_socktype = GetSocketType();
-    hints.ai_protocol = GetProtocol();
-    hints.ai_flags = flag;
-    struct addrinfo* ai = nullptr;
+  hints.ai_family = GetAddressFamily();
+  hints.ai_socktype = GetSocketType();
+  hints.ai_protocol = GetProtocol();
+  hints.ai_flags = flags;
+  struct addrinfo* ai = nullptr;
 
-    int result =
-        getaddrinfo((flag & AI_PASSIVE) ? nullptr : kTestHostName,
-                    (flag & AI_PASSIVE) ? kTestService : nullptr, &hints, &ai);
-    if (GetAddressFamily() == AF_UNSPEC) {
-      ASSERT_EQ(result, 0);
-      ASSERT_NE(nullptr, ai);
-    } else {
-      // Requests with a specified address family are allowed to return that
-      // there are no matches, unless it's AF_INET6 with AI_V4MAPPED.
-      if (result == 0 ||
-          (GetAddressFamily() == AF_INET6 && flag == AI_V4MAPPED)) {
-        ASSERT_EQ(result, 0);
-        ASSERT_NE(nullptr, ai);
-      } else {
+  int result = getaddrinfo(host, service, &hints, &ai);
+  // Requests for any address family must succeed. Requests with a specified
+  // address family are allowed to return that there are no matches, unless
+  // AI_V4MAPPED asks for IPv4 addresses to be returned as IPv4-mapped IPv6
+  // addresses.
+  const bool must_succeed =
+      GetAddressFamily() == AF_UNSPEC ||
+      (GetAddressFamily() == AF_INET6 && (flags & AI_V4MAPPED));
+  if (!must_succeed && result != 0) {
 #if defined(EAI_ADDRFAMILY)
-        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
-                    result == EAI_FAMILY || result == EAI_ADDRFAMILY)
-            << " result = " << result;
+    EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                result == EAI_FAMILY || result == EAI_ADDRFAMILY)
+        << " result = " << result;
 #else
 #if defined(WSANO_DATA)
-        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
-                    result == WSANO_DATA || result == EAI_FAMILY)
-            << " result = " << result;
+    EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                result == WSANO_DATA || result == EAI_FAMILY)
+        << " result = " << result;
 #else
-        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
-                    result == EAI_FAMILY)
-            << " result = " << result;
+    EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                result == EAI_FAMILY)
+        << " result = " << result;
 #endif
 #endif
-        ASSERT_EQ(nullptr, ai);
-      }
-    }
+    // POSIX doesn't define `ai` when getaddrinfo() fails, nor freeaddrinfo()
+    // of a null pointer.
+    return;
+  }
+  ASSERT_EQ(result, 0);
+  ASSERT_NE(nullptr, ai);
 
-    for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
-      // Not all platforms report these flags with the results.
-      if (hints.ai_flags & ~(AI_PASSIVE | AI_CANONNAME | AI_ADDRCONFIG)) {
-        EXPECT_EQ(hints.ai_flags, i->ai_flags);
-      }
-      if (GetAddressFamily() != AF_UNSPEC) {
-        EXPECT_EQ(i->ai_addr->sa_family, GetAddressFamily());
-      } else {
-        EXPECT_TRUE(i->ai_addr->sa_family == AF_INET ||
-                    i->ai_addr->sa_family == AF_INET6);
-      }
-      if (GetSocketType() != 0) {
-        EXPECT_EQ(i->ai_socktype, GetSocketType());
-      }
-      if (GetProtocol() != 0) {
-        EXPECT_EQ(i->ai_protocol, GetProtocol());
-      }
+  // POSIX doesn't define the `ai_flags` of the results.
+  for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
+    if (GetAddressFamily() != AF_UNSPEC) {
+      EXPECT_EQ(i->ai_addr->sa_family, GetAddressFamily());
+    } else {
+      EXPECT_TRUE(i->ai_addr->sa_family == AF_INET ||
+                  i->ai_addr->sa_family == AF_INET6);
     }
+    if (GetSocketType() != 0) {
+      EXPECT_EQ(i->ai_socktype, GetSocketType());
+    }
+    if (GetProtocol() != 0) {
+      EXPECT_EQ(i->ai_protocol, GetProtocol());
+    }
+  }
 
-    freeaddrinfo(ai);
+  freeaddrinfo(ai);
+}
+
+TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
+  // AI_NUMERICHOST requires a numeric address.
+  const char* numeric_host = GetAddressFamily() == AF_INET6
+                                 ? kTestHostIpv6Address
+                                 : kTestHostIpv4Address;
+  const struct {
+    int flags;
+    const char* host;
+    const char* service;
+  } kCases[] = {
+      {AI_PASSIVE, nullptr, kTestService},
+      {AI_CANONNAME, kTestHostName, nullptr},
+      {AI_NUMERICHOST, numeric_host, nullptr},
+      {AI_NUMERICSERV, kTestHostName, kTestService},
+      {AI_ADDRCONFIG, kTestHostName, nullptr},
+  };
+  for (const auto& c : kCases) {
+    CheckFlags(c.flags, c.host, c.service);
+  }
+}
+
+// Bionic's getaddrinfo() rejects AI_V4MAPPED and AI_ALL with EAI_BADFLAGS, so
+// platforms that resolve with it filter this test out.
+TEST_P(PosixSocketResolveTest, SunnyDayFlagsV4Mapped) {
+  for (int flags : {AI_V4MAPPED, AI_V4MAPPED | AI_ALL}) {
+    CheckFlags(flags, kTestHostName, nullptr);
   }
 }
 

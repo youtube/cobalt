@@ -6,7 +6,11 @@
     "*SbPlayerWriteSampleTest.WriteSingleBatch/*sintel_329_ec3*",
     "MultiplePlayerTest.SunnyDay",
     "PosixAuxvGetauxvalRequiredTests/PosixAuxvGetauxvalRequiredTest.RequiredValuesAreValid/1",
+    "PosixSocketHints/PosixSocketResolveTest.SunnyDayFlagsV4Mapped/*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
     "SbTimeZoneGetNameTest.IsIANAFormat"
-  ]
+  ],
+  "_reasons": {
+    "PosixSocketHints/PosixSocketResolveTest.SunnyDayFlagsV4Mapped/*": "Bionic's getaddrinfo() rejects AI_V4MAPPED and AI_ALL."
+  }
 }
