@@ -1,4 +1,4 @@
-name: linux_24.lts.1+
+name: linux
 
 on:
   pull_request:

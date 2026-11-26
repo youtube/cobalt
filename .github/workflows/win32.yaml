@@ -1,4 +1,4 @@
-name: win32_24.lts.1+
+name: win32
 
 on:
   workflow_dispatch:
