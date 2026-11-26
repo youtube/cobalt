@@ -27,8 +27,10 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "cc/base/features.h"
 #include "cc/base/unique_notifier.h"
 #include "cc/paint/draw_image.h"
 #include "cc/raster/gpu_raster_buffer_provider.h"
@@ -616,6 +618,80 @@ INSTANTIATE_TEST_SUITE_P(
                       RASTER_BUFFER_PROVIDER_TYPE_ONE_COPY,
                       RASTER_BUFFER_PROVIDER_TYPE_GPU,
                       RASTER_BUFFER_PROVIDER_TYPE_BITMAP));
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+class ShallowFlushCountingRasterInterface : public viz::TestRasterInterface {
+ public:
+  void ShallowFlushCHROMIUM() override {
+    ++shallow_flush_count_;
+    viz::TestRasterInterface::ShallowFlushCHROMIUM();
+  }
+
+  size_t shallow_flush_count() const { return shallow_flush_count_; }
+
+ private:
+  size_t shallow_flush_count_ = 0;
+};
+
+TEST(GpuRasterBufferProviderTest, CobaltEagerRasterFlush) {
+  for (bool enable_eager_flush : {true, false}) {
+    base::test::ScopedFeatureList feature_list;
+    if (enable_eager_flush) {
+      feature_list.InitAndEnableFeature(features::kCobaltEagerRasterFlush);
+    } else {
+      feature_list.InitAndDisableFeature(features::kCobaltEagerRasterFlush);
+    }
+
+    auto context_provider = viz::TestContextProvider::Create();
+    context_provider->BindToCurrentSequence();
+
+    auto counting_raster =
+        std::make_unique<ShallowFlushCountingRasterInterface>();
+    counting_raster->set_gpu_rasterization(true);
+    auto* counting_raster_ptr = counting_raster.get();
+    auto worker_context_provider = base::MakeRefCounted<viz::TestContextProvider>(
+        std::make_unique<viz::TestContextSupport>(), std::move(counting_raster),
+        /*support_locking=*/true);
+    ASSERT_EQ(worker_context_provider->BindToCurrentSequence(),
+              gpu::ContextResult::kSuccess);
+
+    auto resource_provider = std::make_unique<viz::ClientResourceProvider>();
+    auto pool = std::make_unique<ResourcePool>(
+        resource_provider.get(), context_provider.get(),
+        base::SingleThreadTaskRunner::GetCurrentDefault(), base::TimeDelta(),
+        true);
+    auto pending_raster_queries =
+        std::make_unique<RasterQueryQueue>(worker_context_provider.get());
+    auto provider = std::make_unique<GpuRasterBufferProvider>(
+        worker_context_provider->SharedImageInterface(), context_provider.get(),
+        worker_context_provider.get(), /*is_overlay_candidate=*/false,
+        gfx::Size(), pending_raster_queries.get(), 1);
+
+    const gfx::Size size(16, 16);
+    ResourcePool::InUsePoolResource resource = pool->AcquireResource(
+        size, viz::SinglePlaneFormat::kRGBA_8888, gfx::ColorSpace());
+    std::unique_ptr<RasterBuffer> buffer = provider->AcquireBufferForRaster(
+        resource, /*resource_content_id=*/0, /*previous_content_id=*/0,
+        /*depends_on_at_raster_decodes=*/false,
+        /*depends_on_hardware_accelerated_jpeg_candidates=*/false,
+        /*depends_on_hardware_accelerated_webp_candidates=*/false);
+    ASSERT_TRUE(buffer);
+
+    auto raster_source = FakeRasterSource::CreateFilled(size);
+    RasterSource::PlaybackSettings settings;
+    buffer->Playback(raster_source.get(), gfx::Rect(size), gfx::Rect(size),
+                     /*new_content_id=*/1, gfx::AxisTransform2d(), settings,
+                     GURL("about:blank"));
+    buffer.reset();
+
+    EXPECT_EQ(counting_raster_ptr->shallow_flush_count(),
+              enable_eager_flush ? 1u : 0u);
+
+    pool->ReleaseResource(std::move(resource));
+    provider->Shutdown();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 }  // namespace cc

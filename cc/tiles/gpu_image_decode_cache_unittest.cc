@@ -244,6 +244,14 @@ class FakeGPUImageDecodeTestGLES2Interface : public viz::TestGLES2Interface,
   }
 
   // viz::TestGLES2Interface:
+  void ShallowFlushCHROMIUM() override {
+    ++shallow_flush_count_;
+    viz::TestGLES2Interface::ShallowFlushCHROMIUM();
+  }
+
+  size_t shallow_flush_count() const { return shallow_flush_count_; }
+  void reset_shallow_flush_count() { shallow_flush_count_ = 0; }
+
   const GLubyte* GetString(GLenum name) override {
     switch (name) {
       case GL_EXTENSIONS:
@@ -292,6 +300,7 @@ class FakeGPUImageDecodeTestGLES2Interface : public viz::TestGLES2Interface,
   bool advertise_accelerated_decoding_ = false;
   size_t mapped_entry_size_ = 0;
   std::unique_ptr<uint8_t, base::AlignedFreeDeleter> mapped_entry_;
+  size_t shallow_flush_count_ = 0;
 };
 
 class MockRasterImplementation : public gpu::raster::RasterImplementationGLES {
@@ -5568,6 +5577,44 @@ TEST_P(GpuImageDecodeCacheTest, GainmapImageFailsDecode) {
   FlushRunLoop();
 #endif
 }
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+TEST_P(GpuImageDecodeCacheTest, CobaltEagerRasterFlushOnImageUpload) {
+  if (!use_transfer_cache_) {
+    return;
+  }
+
+  for (bool enable_eager_flush : {true, false}) {
+    base::test::ScopedFeatureList feature_list;
+    if (enable_eager_flush) {
+      feature_list.InitAndEnableFeature(features::kCobaltEagerRasterFlush);
+    } else {
+      feature_list.InitAndDisableFeature(features::kCobaltEagerRasterFlush);
+    }
+
+    auto cache = CreateCache();
+    const auto client_id = cache->GenerateClientId();
+
+    PaintImage image = CreatePaintImageInternal(gfx::Size(100, 100));
+    DrawImage draw_image = CreateDrawImageInternal(image);
+    ImageDecodeCache::TaskResult result = cache->GetTaskForImageAndRef(
+        client_id, draw_image, ImageDecodeCache::TracingInfo());
+    ASSERT_TRUE(result.task);
+    TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
+
+    auto* fake_gl = static_cast<FakeGPUImageDecodeTestGLES2Interface*>(
+        context_provider()->UnboundTestContextGL());
+    fake_gl->reset_shallow_flush_count();
+
+    TestTileTaskRunner::ProcessTask(result.task.get());
+    EXPECT_EQ(fake_gl->shallow_flush_count(), enable_eager_flush ? 1u : 0u);
+
+    cache->UnrefImage(draw_image);
+    cache->ClearCache();
+    FlushRunLoop();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 }  // namespace cc

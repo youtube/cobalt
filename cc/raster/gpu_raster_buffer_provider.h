@@ -13,6 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/rand_util.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/raster/raster_buffer.h"
 #include "cc/raster/raster_buffer_provider.h"
 #include "cc/raster/raster_query_queue.h"
@@ -145,6 +146,9 @@ class CC_EXPORT GpuRasterBufferProvider : public RasterBufferProvider {
   base::MetricsSubSampler metrics_subsampler_;
   const bool is_using_raw_draw_;
   bool is_using_dmsaa_ = false;
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  const bool eager_raster_flush_;
+#endif
 };
 
 }  // namespace cc

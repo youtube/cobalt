@@ -20,6 +20,13 @@ std::atomic<bool> s_is_eligible_for_throttle_main_frame_to_60hz = false;
 BASE_FEATURE(kCobaltMainFrameBeforeActivation,
              "CobaltMainFrameBeforeActivation",
              base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCobaltEagerRasterFlush,
+             "CobaltEagerRasterFlush",
+#if !BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 #endif  // BUILDFLAG(IS_COBALT)
 
 // When enabled, this forces composited textures for SurfaceLayerImpls to be
