@@ -32,8 +32,6 @@
     "URLRequestSameSiteCookiesTest.*",
     "URLRequestTest.*",
     "URLRequestTestHTTP.*",
-    "URLRequestTestReferrerPolicy.*",
-    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv1",
-    "VersionIncludeStreamDependencySequence/QuicChromiumClientSessionTest.ReportsReceivedEcn/RFCv2"
+    "URLRequestTestReferrerPolicy.*"
   ]
 }

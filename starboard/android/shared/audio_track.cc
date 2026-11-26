@@ -19,6 +19,7 @@
 #include <atomic>
 #include <memory>
 #include <optional>
+#include <ostream>
 
 #include "starboard/android/shared/aaudio_loader.h"
 #include "starboard/android/shared/audio_track_bridge.h"
@@ -91,6 +92,12 @@ std::unique_ptr<AudioTrack> AudioTrack::Create(
                                   sampling_frequency_hz,
                                   preferred_buffer_size_in_bytes,
                                   tunnel_mode_audio_session_id, is_web_audio);
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const AudioTrack::AudioTimestamp& timestamp) {
+  return os << "{frame_position=" << timestamp.frame_position
+            << ", updated_at_us=" << timestamp.updated_at_us << "}";
 }
 
 }  // namespace starboard

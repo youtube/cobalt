@@ -19,6 +19,7 @@
 #include <atomic>
 #include <mutex>
 #include <string>
+#include <utility>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
@@ -67,7 +68,12 @@ constexpr int kResultNeedsAllocation = -6;
 
 ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaAudioStreamInfo& audio_stream_info,
-    const SbMediaVideoStreamInfo& video_stream_info)
+    const SbMediaVideoStreamInfo& video_stream_info,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider,
+    ErrorCB error_cb,
+    PrerolledCB prerolled_cb,
+    EndedCB ended_cb)
     :  // Max audio buffer duration 10 seconds, minus memory pressure 500ms.
       max_audio_buffer_duration_us_(10 * 1000 * 1000 - 500 * 1000),
       max_video_buffer_duration_us_([&]() {
@@ -92,7 +98,15 @@ ExoPlayerBridge::ExoPlayerBridge(
       audio_sample_offset_(audio_stream_info.codec == kSbMediaAudioCodecAac
                                ? kADTSHeaderSize
                                : 0),
-      video_sample_offset_(0) {
+      video_sample_offset_(0),
+      error_cb_(std::move(error_cb)),
+      prerolled_cb_(std::move(prerolled_cb)),
+      ended_cb_(std::move(ended_cb)),
+      decode_target_graphics_context_provider_(
+          decode_target_graphics_context_provider) {
+  SB_CHECK(error_cb_);
+  SB_CHECK(prerolled_cb_);
+  SB_CHECK(ended_cb_);
   ON_INSTANCE_CREATED(ExoPlayerBridge);
 
   JNIEnv* env = AttachCurrentThread();
@@ -153,6 +167,7 @@ ExoPlayerBridge::ExoPlayerBridge(
     return;
   }
 
+  tunneled_playback_enabled_ = should_enable_tunneled_playback;
   j_exoplayer_bridge_.Reset(j_exoplayer_bridge);
 }
 
@@ -165,28 +180,25 @@ ExoPlayerBridge::~ExoPlayerBridge() {
     Java_ExoPlayerBridge_release(AttachCurrentThread(), j_exoplayer_bridge_);
   }
 
-  if (owns_surface_) {
-    ResetVideoSurface();
-    ReleaseVideoSurface();
+  if (!owns_surface_) {
+    // No surface was acquired, e.g. for audio-only playbacks.
+    return;
   }
-}
 
-bool ExoPlayerBridge::Init(ErrorCB error_cb,
-                           PrerolledCB prerolled_cb,
-                           EndedCB ended_cb) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  SB_CHECK(error_cb);
-  SB_CHECK(prerolled_cb);
-  SB_CHECK(ended_cb);
-  SB_CHECK(!error_cb_);
-  SB_CHECK(!prerolled_cb_);
-  SB_CHECK(!ended_cb_);
+  ReleaseVideoSurface();
 
-  error_cb_ = std::move(error_cb);
-  prerolled_cb_ = std::move(prerolled_cb);
-  ended_cb_ = std::move(ended_cb);
+  if (!is_valid()) {
+    // Nothing was rendered to the surface.
+    return;
+  }
 
-  return true;
+  // A non-tunneled playback without a provider, which is not expected in
+  // production, leaves the surface as is.
+  if (tunneled_playback_enabled_) {
+    ResetVideoSurface();
+  } else if (decode_target_graphics_context_provider_) {
+    CleanUpVideoSurface(decode_target_graphics_context_provider_);
+  }
 }
 
 void ExoPlayerBridge::Seek(int64_t timestamp) {

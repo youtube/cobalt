@@ -16,6 +16,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "net/quic/platform/impl/quic_chromium_clock.h"
+#include "net/socket/diff_serv_code_point.h"
 
 #ifdef UNSAFE_BUFFERS_BUILD
 #pragma allow_unsafe_buffers
@@ -48,7 +49,12 @@ QuicChromiumPacketReader::QuicChromiumPacketReader(
       yield_after_packets_(yield_after_packets),
       yield_after_duration_(yield_after_duration),
       yield_after_(quic::QuicTime::Infinite()),
+#if BUILDFLAG(IS_COBALT)
+      // Lazily allocated on single-packet fallback in StartReading().
+      read_buffer_(nullptr),
+#else
       read_buffer_(base::MakeRefCounted<IOBufferWithSize>(kReadBufferSize)),
+#endif
       net_log_(net_log) {}
 
 QuicChromiumPacketReader::~QuicChromiumPacketReader() = default;
@@ -72,12 +78,18 @@ if (read_pending_)
                        weak_factory_.GetWeakPtr()));
     if (rv == ERR_NOT_IMPLEMENTED) {
       // The platform reports that ReadMultiplePackets is not implemented.
+      if (read_results_.buffer) {
+        read_results_.ReleaseBuffer();
+      }
       read_pending_ = false;
       return rv;
     }
 
     UMA_HISTOGRAM_BOOLEAN("Net.QuicSession.AsyncRead", rv == ERR_IO_PENDING);
     if (rv == ERR_IO_PENDING) {
+      if (read_results_.buffer) {
+        read_results_.ReleaseBuffer();
+      }
       num_packets_read_ = 0;
       return rv;
     }
@@ -102,9 +114,11 @@ if (read_pending_)
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
-#if BUILDFLAG(IS_COBALT)
   quic::QuicChromiumClock::ScopedApproximateNow approximate_now_scope;
-#endif
+  // Move the batch out of |read_results_| before invoking the visitor so any
+  // reentrant read or CloseSocket() cannot clobber it and the backing buffer is
+  // always recycled on exit, even if OnPacket() destroys |this|.
+  Socket::ReadPacketResults read_results = std::move(read_results_);
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -136,22 +150,30 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
       ToQuicSocketAddress(peer_address);
 
   auto self = weak_factory_.GetWeakPtr();
-  struct Socket::ReadPacketResult* read_packet = read_results_.packets;
-  for (int p = 0; p < read_results_.result; ++p, ++read_packet) {
+  struct Socket::ReadPacketResult* read_packet = read_results.packets;
+  for (int p = 0; p < read_results.result; ++p, ++read_packet) {
     if (read_packet->result <= 0) {
       continue;
     }
-#if BUILDFLAG(IS_COBALT)
-    quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
-                                    clock_->ApproximateNow());
-#else
-    quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
-                                    clock_->Now());
-#endif
+    DscpAndEcn tos = TosToDscpAndEcn(read_packet->tos);
+    quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
+    quic::QuicReceivedPacket packet(
+        read_packet->buffer, read_packet->result, clock_->ApproximateNow(),
+        /*owns_buffer=*/false, /*ttl=*/0, /*ttl_valid=*/true,
+        /*packet_headers=*/nullptr, /*headers_length=*/0,
+        /*owns_header_buffer=*/false, ecn);
     if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
           self)) {
       return false;
     }
+  }
+
+  // Retain the scratch buffer across back-to-back iterations of the burst-drain
+  // loop so StartReadingMultiplePackets() skips pool acquire/release until the
+  // burst drains (ERR_IO_PENDING) or the socket closes.
+  if (!read_pending_ && !read_results_.buffer) {
+    read_results.result = 0;
+    read_results_ = std::move(read_results);
   }
 
   return true;
@@ -174,13 +196,17 @@ void QuicChromiumPacketReader::StartReading() {
       // If there was no error, or a callback was scheduled, there is no need
       // to attempt single packet reading.
       return;
+    }
+    if (rv == ERR_NOT_IMPLEMENTED || rv == ERR_MSG_TOO_BIG) {
+      // Remember that the platform reported that ReadMultiplePackets is not
+      // implemented or is returning datagrams that are too large.
+      try_reading_multiple_packets_ = false;
+      read_results_.clear();
     } else {
-      if (rv == ERR_NOT_IMPLEMENTED || rv == ERR_MSG_TOO_BIG) {
-        // Remember that the platform reported that ReadMultiplePackets is not
-        // implemented or is returning datagrams that are too large.
-        try_reading_multiple_packets_ = false;
-        read_results_.clear();
-      }
+      // Other errors (such as ERR_CONNECTION_REFUSED) were already delivered to
+      // visitor_->OnReadError(), which may have closed the socket. Do not fall
+      // through into single-packet Read() or lazily allocate read_buffer_.
+      return;
     }
   }
 #endif
@@ -193,6 +219,11 @@ void QuicChromiumPacketReader::StartReading() {
       yield_after_ = clock_->Now() + yield_after_duration_;
 
     CHECK(socket_);
+#if BUILDFLAG(IS_COBALT)
+    if (!read_buffer_) {
+      read_buffer_ = base::MakeRefCounted<IOBufferWithSize>(kReadBufferSize);
+    }
+#endif
     read_pending_ = true;
     int rv =
         socket_->Read(read_buffer_.get(), read_buffer_->size(),
@@ -223,6 +254,13 @@ void QuicChromiumPacketReader::StartReading() {
 
 void QuicChromiumPacketReader::CloseSocket() {
   socket_->Close();
+#if BUILDFLAG(IS_COBALT)
+  // Cancel any queued yielded read completions before releasing buffers so a
+  // post-close task never dereferences cleared buffers or reads a closed fd.
+  weak_factory_.InvalidateWeakPtrs();
+  read_results_.ReleaseBuffer();
+  read_buffer_.reset();
+#endif
 }
 
 static_assert(static_cast<EcnCodePoint>(quic::ECN_NOT_ECT) == ECN_NOT_ECT &&
@@ -253,19 +291,22 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
     return visitor_->OnReadError(result, socket_.get());
   }
 
-#if BUILDFLAG(IS_COBALT)
-  quic::QuicReceivedPacket packet(read_buffer_->data(), result,
-                                  clock_->ApproximateNow());
-#else
   DscpAndEcn tos = socket_->GetLastTos();
   quic::QuicEcnCodepoint ecn = static_cast<quic::QuicEcnCodepoint>(tos.ecn);
-  quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now(),
+#if BUILDFLAG(IS_COBALT)
+  // Keep the backing buffer alive across OnPacket() in case the visitor closes
+  // the socket (which resets read_buffer_) or destroys |this|.
+  scoped_refptr<IOBufferWithSize> read_buffer = read_buffer_;
+  quic::QuicTime receipt_time = clock_->ApproximateNow();
+#else
+  quic::QuicTime receipt_time = clock_->Now();
+#endif
+  quic::QuicReceivedPacket packet(read_buffer_->data(), result, receipt_time,
                                   /*owns_buffer=*/false, /*ttl=*/0,
                                   /*ttl_valid=*/true,
                                   /*packet_headers=*/nullptr,
                                   /*headers_length=*/0,
                                   /*owns_header_buffer=*/false, ecn);
-#endif
   IPEndPoint local_address;
   IPEndPoint peer_address;
   socket_->GetLocalAddress(&local_address);

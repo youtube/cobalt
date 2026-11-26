@@ -17,14 +17,23 @@
 
 #include <memory>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker_impl.h"
 #include "base/thread_annotations.h"
+#include "build/build_config.h"
 #include "build/buildflag.h"
 
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "cobalt/shell/browser/shell_browser_main_parts.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <optional>
+
+#include "base/time/time.h"
+#include "starboard/extension/graphics.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 class PrefService;
 
@@ -42,6 +51,7 @@ class FilePath;
 
 namespace cobalt {
 
+class CobaltContentBrowserClient;
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
 class GlobalFeatures;
@@ -61,12 +71,23 @@ void DeleteOrphanedUserDataCacheDirectories(const base::FilePath& user_data_dir,
 // zero disk writes.
 void DeleteUnusedChromiumStoragePaths(const base::FilePath& user_data_dir);
 
+#if BUILDFLAG(IS_STARBOARD)
+// The platform's minimum frame interval is the shortest time allowed between
+// two frames. Returns the interval to throttle frames to, rounded to a whole
+// number of |refresh_interval|s, or nullopt if no throttling is needed.
+std::optional<base::TimeDelta> GetThrottledFrameInterval(
+    const CobaltExtensionGraphicsApi* graphics_extension,
+    base::TimeDelta refresh_interval);
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  explicit CobaltBrowserMainParts(const std::string& deep_link,
-                                  bool is_visible);
+  explicit CobaltBrowserMainParts(
+      const std::string& deep_link,
+      bool is_visible,
+      CobaltContentBrowserClient* browser_client = nullptr);
 
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
@@ -77,6 +98,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   int PreEarlyInitialization() override;
   int PreCreateThreads() override;
   int PreMainMessageLoopRun() override;
+  void PostMainMessageLoopRun() override;
   void PostDestroyThreads() override;
 
 // TODO(cobalt, b/383301493): we should consider moving any ATV-specific
@@ -104,6 +126,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   void InitializeMessageLoopContext() override;
 
  private:
+  const raw_ptr<CobaltContentBrowserClient> browser_client_;
   base::SequenceCheckerImpl sequence_checker_;
 
   bool migration_finished_ GUARDED_BY_CONTEXT(sequence_checker_) = false;

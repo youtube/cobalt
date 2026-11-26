@@ -70,9 +70,7 @@ class AudioTrackBridge : public AudioTrack {
   void SetPlaybackRate(double playback_rate) override;
   void SetVolume(double volume) override;
 
-  // |updated_at| contains the timestamp when the audio timestamp is updated on
-  // return.  It can be nullptr.
-  int64_t GetAudioTimestamp(int64_t* updated_at) override;
+  AudioTimestamp GetAudioTimestamp() override;
   AudioDeviceChange GetAndResetAudioDeviceChange() override;
   int GetUnderrunCount() override;
   int GetStartThresholdInFrames() override;

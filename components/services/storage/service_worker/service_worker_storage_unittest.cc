@@ -27,6 +27,11 @@
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace storage::service_worker_storage_unittest {
 
 struct ReadResponseHeadResult {
@@ -1045,5 +1050,225 @@ TEST_F(ServiceWorkerStorageTest, GetStorageUsageForOrigin) {
             ServiceWorkerDatabase::Status::kOk);
   EXPECT_TRUE(usage.is_zero());
 }
+
+#if BUILDFLAG(IS_COBALT)
+TEST_F(ServiceWorkerStorageTest,
+       CobaltLazyInitSkipsEmptyDiskOpenAndAllowsRegistration) {
+  base::test::ScopedFeatureList feature_list(
+      kCobaltReclaimEmptyServiceWorkerDatabase);
+  ASSERT_TRUE(InitUserDataDirectory());
+  storage_ = ServiceWorkerStorage::Create(user_data_directory_path_,
+                                          storage_shared_buffer_);
+
+  base::HistogramTester histograms;
+  LazyInitialize();
+  EXPECT_EQ(GetAllRegistrations(), ServiceWorkerDatabase::Status::kOk);
+
+  const base::FilePath db_path =
+      user_data_directory_path_.AppendASCII("Service Worker")
+          .AppendASCII("Database");
+  EXPECT_FALSE(base::PathExists(db_path.AppendASCII("CURRENT")));
+  histograms.ExpectTotalCount(
+      "ServiceWorker.Storage.ReadInitialDataFromDB.Time", 1);
+  histograms.ExpectTotalCount("ServiceWorker.Database.OpenResult", 0);
+
+  // Registering a Service Worker lazily creates LevelDB on demand.
+  const GURL kScope("https://www.example.com/scope/");
+  const blink::StorageKey kKey =
+      blink::StorageKey::CreateFirstParty(url::Origin::Create(kScope));
+  const GURL kScript("https://www.example.com/sw.js");
+  std::vector<ResourceRecord> resources;
+  resources.push_back(CreateResourceRecord(1, kScript, 5));
+  mojom::ServiceWorkerRegistrationDataPtr data =
+      CreateRegistrationData(/*registration_id=*/1, /*version_id=*/1, kScope,
+                             kKey, kScript, resources);
+  ASSERT_EQ(StoreRegistrationData(std::move(data), std::move(resources)),
+            ServiceWorkerDatabase::Status::kOk);
+  WriteBasicResponse(1);
+  EXPECT_TRUE(base::PathExists(db_path.AppendASCII("CURRENT")));
+
+  // Simulate restart: existing registration is loaded and persisted.
+  storage_.reset();
+  disk_cache::FlushCacheThreadForTesting();
+  task_environment_.RunUntilIdle();
+
+  base::HistogramTester restart_histograms;
+  storage_ = ServiceWorkerStorage::Create(user_data_directory_path_,
+                                          storage_shared_buffer_);
+  LazyInitialize();
+  EXPECT_EQ(FindRegistrationForScope(kScope, kKey),
+            ServiceWorkerDatabase::Status::kOk);
+  restart_histograms.ExpectTotalCount(
+      "ServiceWorker.Storage.ReadInitialDataFromDB.Time", 1);
+}
+
+TEST_F(ServiceWorkerStorageTest,
+       CobaltLazyInitDestroysZeroRegistrationLeftoverDatabase) {
+  ASSERT_TRUE(InitUserDataDirectory());
+  storage_ = ServiceWorkerStorage::Create(user_data_directory_path_,
+                                          storage_shared_buffer_);
+  LazyInitialize();
+
+  const GURL kScope("https://www.example.com/scope/");
+  const blink::StorageKey kKey =
+      blink::StorageKey::CreateFirstParty(url::Origin::Create(kScope));
+  const GURL kScript("https://www.example.com/sw.js");
+  std::vector<ResourceRecord> resources;
+  resources.push_back(CreateResourceRecord(1, kScript, 5));
+  mojom::ServiceWorkerRegistrationDataPtr data =
+      CreateRegistrationData(/*registration_id=*/1, /*version_id=*/1, kScope,
+                             kKey, kScript, resources);
+  ASSERT_EQ(StoreRegistrationData(std::move(data), std::move(resources)),
+            ServiceWorkerDatabase::Status::kOk);
+  WriteBasicResponse(1);
+
+  std::vector<int64_t> newly_purgeable;
+  {
+    base::RunLoop loop;
+    storage()->DeleteRegistration(
+        /*registration_id=*/1, kKey,
+        base::BindLambdaForTesting(
+            [&](ServiceWorkerDatabase::Status status,
+                ServiceWorkerStorage::StorageKeyState, int64_t, uint64_t,
+                const std::vector<int64_t>& purgeable_ids) {
+              EXPECT_EQ(status, ServiceWorkerDatabase::Status::kOk);
+              newly_purgeable = purgeable_ids;
+              loop.Quit();
+            }));
+    loop.Run();
+  }
+  storage()->PurgeResources(newly_purgeable);
+  disk_cache::FlushCacheThreadForTesting();
+  task_environment_.RunUntilIdle();
+  disk_cache::FlushCacheThreadForTesting();
+  task_environment_.RunUntilIdle();
+  const base::FilePath db_path =
+      user_data_directory_path_.AppendASCII("Service Worker")
+          .AppendASCII("Database");
+  storage_.reset();
+  disk_cache::FlushCacheThreadForTesting();
+  task_environment_.RunUntilIdle();
+  ASSERT_TRUE(base::PathExists(db_path.AppendASCII("CURRENT")));
+
+  // Restart with kCobaltReclaimEmptyServiceWorkerDatabase enabled: the empty
+  // leftover database is destroyed once so subsequent launches skip LevelDB.
+  base::test::ScopedFeatureList feature_list(
+      kCobaltReclaimEmptyServiceWorkerDatabase);
+  storage_ = ServiceWorkerStorage::Create(user_data_directory_path_,
+                                          storage_shared_buffer_);
+  LazyInitialize();
+  EXPECT_EQ(GetAllRegistrations(), ServiceWorkerDatabase::Status::kOk);
+  EXPECT_FALSE(base::PathExists(db_path.AppendASCII("CURRENT")));
+
+  // Next cold start takes upstream LazyOpen(false)'s fast path (0 LevelDB opens
+  // while still recording ReadInitialDataFromDB.Time).
+  storage_.reset();
+  disk_cache::FlushCacheThreadForTesting();
+  task_environment_.RunUntilIdle();
+  base::HistogramTester post_cleanup_histograms;
+  storage_ = ServiceWorkerStorage::Create(user_data_directory_path_,
+                                          storage_shared_buffer_);
+  LazyInitialize();
+  EXPECT_EQ(GetAllRegistrations(), ServiceWorkerDatabase::Status::kOk);
+  post_cleanup_histograms.ExpectTotalCount("ServiceWorker.Database.OpenResult",
+                                           0);
+  post_cleanup_histograms.ExpectTotalCount(
+      "ServiceWorker.Storage.ReadInitialDataFromDB.Time", 1);
+
+  // Subsequent registration still works cleanly after cleanup.
+  std::vector<ResourceRecord> resources2;
+  resources2.push_back(CreateResourceRecord(2, kScript, 5));
+  mojom::ServiceWorkerRegistrationDataPtr data2 =
+      CreateRegistrationData(/*registration_id=*/2, /*version_id=*/2, kScope,
+                             kKey, kScript, resources2);
+  EXPECT_EQ(StoreRegistrationData(std::move(data2), std::move(resources2)),
+            ServiceWorkerDatabase::Status::kOk);
+  EXPECT_TRUE(base::PathExists(db_path.AppendASCII("CURRENT")));
+}
+
+TEST_F(ServiceWorkerStorageTest,
+       CobaltLazyInitFallsBackCleanlyWhenDestroyDatabaseFails) {
+  ASSERT_TRUE(InitUserDataDirectory());
+  storage_ = ServiceWorkerStorage::Create(user_data_directory_path_,
+                                          storage_shared_buffer_);
+  LazyInitialize();
+
+  const GURL kScope("https://www.example.com/scope/");
+  const blink::StorageKey kKey =
+      blink::StorageKey::CreateFirstParty(url::Origin::Create(kScope));
+  const GURL kScript("https://www.example.com/sw.js");
+  std::vector<ResourceRecord> resources;
+  resources.push_back(CreateResourceRecord(1, kScript, 5));
+  mojom::ServiceWorkerRegistrationDataPtr data =
+      CreateRegistrationData(/*registration_id=*/1, /*version_id=*/1, kScope,
+                             kKey, kScript, resources);
+  ASSERT_EQ(StoreRegistrationData(std::move(data), std::move(resources)),
+            ServiceWorkerDatabase::Status::kOk);
+  WriteBasicResponse(1);
+
+  std::vector<int64_t> newly_purgeable;
+  {
+    base::RunLoop loop;
+    storage()->DeleteRegistration(
+        /*registration_id=*/1, kKey,
+        base::BindLambdaForTesting(
+            [&](ServiceWorkerDatabase::Status status,
+                ServiceWorkerStorage::StorageKeyState, int64_t, uint64_t,
+                const std::vector<int64_t>& purgeable_ids) {
+              EXPECT_EQ(status, ServiceWorkerDatabase::Status::kOk);
+              newly_purgeable = purgeable_ids;
+              loop.Quit();
+            }));
+    loop.Run();
+  }
+  storage()->PurgeResources(newly_purgeable);
+  disk_cache::FlushCacheThreadForTesting();
+  task_environment_.RunUntilIdle();
+  disk_cache::FlushCacheThreadForTesting();
+  task_environment_.RunUntilIdle();
+
+  const base::FilePath db_path =
+      user_data_directory_path_.AppendASCII("Service Worker")
+          .AppendASCII("Database");
+  storage_.reset();
+  disk_cache::FlushCacheThreadForTesting();
+  task_environment_.RunUntilIdle();
+
+  // Place a non-empty directory matching `MANIFEST-*` inside `db_path` so
+  // `leveldb::DestroyDB()` (`unlink()`) fails with `EISDIR` even as root, while
+  // `OpenDB()` continues reading the active manifest from `CURRENT`.
+  const base::FilePath undeletable_entry =
+      db_path.AppendASCII("MANIFEST-999999");
+  ASSERT_TRUE(base::CreateDirectory(undeletable_entry));
+  ASSERT_TRUE(base::WriteFile(undeletable_entry.AppendASCII("pin"), "x"));
+
+  base::test::ScopedFeatureList feature_list(
+      kCobaltReclaimEmptyServiceWorkerDatabase);
+  storage_ = ServiceWorkerStorage::Create(user_data_directory_path_,
+                                          storage_shared_buffer_);
+  LazyInitialize();
+  EXPECT_EQ(GetAllRegistrations(), ServiceWorkerDatabase::Status::kOk);
+
+  // `database_` must be re-created (not left disabled) and preserve the stored
+  // next registration ID instead of resetting it to 0 on failed destroy.
+  int64_t next_reg_id = -1;
+  {
+    base::RunLoop loop;
+    storage()->GetNewRegistrationId(base::BindLambdaForTesting([&](int64_t id) {
+      next_reg_id = id;
+      loop.Quit();
+    }));
+    loop.Run();
+  }
+  EXPECT_GE(next_reg_id, 2);
+
+  std::vector<ResourceRecord> resources2;
+  resources2.push_back(CreateResourceRecord(next_reg_id, kScript, 5));
+  mojom::ServiceWorkerRegistrationDataPtr data2 = CreateRegistrationData(
+      next_reg_id, /*version_id=*/2, kScope, kKey, kScript, resources2);
+  EXPECT_EQ(StoreRegistrationData(std::move(data2), std::move(resources2)),
+            ServiceWorkerDatabase::Status::kOk);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace storage::service_worker_storage_unittest

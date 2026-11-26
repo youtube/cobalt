@@ -27,6 +27,7 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 #include "media/base/starboard/url_player_media_resource.h"
+#include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
 namespace media {
@@ -42,6 +43,10 @@ class MEDIA_EXPORT UrlPlayerDemuxerStream : public DemuxerStream {
   explicit UrlPlayerDemuxerStream(Type type);
   ~UrlPlayerDemuxerStream() override;
 
+  void set_natural_size(const gfx::Size& natural_size) {
+    natural_size_ = natural_size;
+  }
+
   // DemuxerStream implementation.
   void Read(uint32_t count, ReadCB read_cb) override;
   AudioDecoderConfig audio_decoder_config() override;
@@ -51,6 +56,7 @@ class MEDIA_EXPORT UrlPlayerDemuxerStream : public DemuxerStream {
 
  private:
   const Type type_;
+  gfx::Size natural_size_{1, 1};
 };
 
 // Demuxer placeholder for URL player. Carries the media URL and exposes
@@ -90,6 +96,8 @@ class MEDIA_EXPORT UrlPlayerDemuxer : public Demuxer,
 
   // UrlPlayerMediaResource implementation.
   GURL GetMediaUrl() const override;
+  void OnPlatformMetadata(base::TimeDelta duration,
+                          const gfx::Size& natural_size) override;
   void OnPlatformDurationChange(base::TimeDelta duration) override;
   void OnPlatformBufferedRangesChange(base::TimeDelta start,
                                       base::TimeDelta length) override;

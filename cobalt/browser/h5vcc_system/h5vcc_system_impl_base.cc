@@ -18,6 +18,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
@@ -122,10 +123,16 @@ void H5vccSystemImpl::NotifyMainReady() {
   if (!render_frame_host().IsInPrimaryMainFrame()) {
     return;
   }
+  // `Shell::OnMainReady()` records per-window `SplashScreenMetrics`, whereas
+  // `OnBrowserStartupComplete()` releases the process-wide
+  // `ContentBrowserClient::PostAfterStartupTask()` / `BEST_EFFORT` queues.
   content::Shell* shell = content::Shell::FromWebContents(
       content::WebContents::FromRenderFrameHost(&render_frame_host()));
   if (shell) {
     shell->OnMainReady();
+    if (auto* browser_client = content::ShellContentBrowserClient::Get()) {
+      browser_client->OnBrowserStartupComplete();
+    }
   }
 }
 

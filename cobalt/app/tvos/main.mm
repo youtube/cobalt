@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#import <AVFoundation/AVFoundation.h>
 #import <UIKit/UIKit.h>
 
 #include <algorithm>
@@ -48,11 +49,121 @@ static const char** g_argv = nullptr;
 @interface CobaltAppSceneDelegate : UIResponder <UIWindowSceneDelegate>
 @end
 
-@implementation CobaltAppSceneDelegate
+static bool RouteHasHDMIOutput(AVAudioSessionRouteDescription* route) {
+  for (AVAudioSessionPortDescription* output in route.outputs) {
+    if ([output.portType isEqualToString:AVAudioSessionPortHDMI]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+@implementation CobaltAppSceneDelegate {
+  // Observer for AVAudioSessionRouteChangeNotification, used to detect HDMI
+  // being unplugged/plugged. tvOS has no dedicated HDMI connection API, and
+  // unplugging HDMI only makes the scene inactive (not background), so without
+  // this the page would only receive blur/focus.
+  id _audioRouteObserver;
+  // Whether the page has been frozen via SetPageFrozen(true).
+  BOOL _pageFrozen;
+}
+
+- (void)dealloc {
+  if (_audioRouteObserver) {
+    [[NSNotificationCenter defaultCenter] removeObserver:_audioRouteObserver];
+  }
+}
+
+// Hides and freezes the page, triggering `document.onfreeze` in JavaScript.
+- (void)freezePage {
+  if (_pageFrozen) {
+    return;
+  }
+  content::WebContents* web_contents = [self getWebContents];
+  // A visible page is never frozen, so it must be hidden first.
+  web_contents->UpdateWebContentsVisibility(content::Visibility::HIDDEN);
+  web_contents->SetPageFrozen(true);
+  _pageFrozen = YES;
+}
+
+// Unfreezes and shows the page, triggering `document.onresume` in JavaScript.
+- (void)resumePage {
+  content::WebContents* web_contents = [self getWebContents];
+  // A visible page is automatically unfrozen and it should not call
+  // `SetPageFrozen`.
+  if (_pageFrozen &&
+      web_contents->GetVisibility() != content::Visibility::VISIBLE) {
+    web_contents->SetPageFrozen(false);
+  }
+  _pageFrozen = NO;
+  // Explicitly update visibility when the scene becomes visible, even though
+  // WebContents is initially created with `Visibility::VISIBLE`.
+  // See `WebContentsImpl::UpdateWebContentsVisibility`.
+  web_contents->UpdateWebContentsVisibility(content::Visibility::VISIBLE);
+}
+
+- (void)onAudioRouteChanged:(NSNotification*)notification {
+  // Only handle HDMI changes while in foreground (active or inactive; HDMI
+  // being plugged back in is reported while the scene is still inactive). In
+  // background the page is already frozen by sceneDidEnterBackground and
+  // sceneWillEnterForeground resumes it. HDMI also drops when the device goes
+  // to sleep, and notifications queued while suspended can be delivered late.
+  // A nil (deallocated) or unattached scene is ignored as well.
+  UIWindowScene* scene = [self getWindowScene];
+  const UISceneActivationState state =
+      scene ? scene.activationState : UISceneActivationStateUnattached;
+  if (state != UISceneActivationStateForegroundActive &&
+      state != UISceneActivationStateForegroundInactive) {
+    return;
+  }
+
+  const auto reason = static_cast<AVAudioSessionRouteChangeReason>(
+      [notification.userInfo[AVAudioSessionRouteChangeReasonKey]
+          unsignedIntegerValue]);
+  AVAudioSessionRouteDescription* previous_route =
+      notification.userInfo[AVAudioSessionRouteChangePreviousRouteKey];
+  AVAudioSessionRouteDescription* current_route =
+      [AVAudioSession sharedInstance].currentRoute;
+  const bool had_hdmi = RouteHasHDMIOutput(previous_route);
+  const bool has_hdmi = RouteHasHDMIOutput(current_route);
+  LOG(INFO) << "Audio route changed: reason=" << reason
+            << ", had_hdmi=" << had_hdmi << ", has_hdmi=" << has_hdmi;
+
+  // Only react to the HDMI device itself disappearing. Other route changes
+  // (e.g. switching output to an AirPlay speaker) also remove HDMI from the
+  // route, but with a different reason, and must not freeze the page.
+  if (reason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable &&
+      had_hdmi && !has_hdmi) {
+    LOG(INFO) << "HDMI unplugged; freezing the page.";
+    // Blur before freezing so the page sees blur -> hidden -> freeze, the
+    // same order as going to background. The route change arrives before
+    // sceneWillResignActive, whose own Blur() is then a no-op.
+    content::WebContents* web_contents = [self getWebContents];
+    web_contents->GetRenderViewHost()->GetWidget()->Blur();
+    [self freezePage];
+  } else if (!had_hdmi && has_hdmi && _pageFrozen) {
+    // The reason is not checked here: HDMI reappearing has been observed with
+    // both NewDeviceAvailable and Unknown. Since route changes are only handled
+    // in foreground, where only an HDMI unplug freezes the page, `_pageFrozen`
+    // means the page was frozen by an HDMI unplug. Checking it also ignores
+    // HDMI reappearing when the page was not frozen, e.g. a late notification
+    // after sceneWillEnterForeground already resumed it.
+    LOG(INFO) << "HDMI plugged; resuming the page.";
+    [self resumePage];
+  }
+}
 
 - (content::WebContents*)getWebContents {
   CHECK_EQ(1u, content::Shell::windows().size());
   return content::Shell::windows()[0]->web_contents();
+}
+
+// Returns the scene attached to the Shell's window in willConnectToSession, or
+// nil if there is none. `windowScene` is weak, so it becomes nil once the scene
+// is deallocated.
+- (UIWindowScene*)getWindowScene {
+  CHECK_EQ(1u, content::Shell::windows().size());
+  return content::Shell::windows()[0]->window().Get().windowScene;
 }
 
 - (void)handleDeepLink:(NSSet<UIOpenURLContext*>*)URLContexts {
@@ -91,6 +202,17 @@ static const char** g_argv = nullptr;
   window.rootViewController = controller;
   [window makeKeyAndVisible];
 
+  // The notification is posted on a secondary thread, so deliver it on the
+  // main queue where WebContents can be accessed.
+  __weak CobaltAppSceneDelegate* weakSelf = self;
+  _audioRouteObserver = [[NSNotificationCenter defaultCenter]
+      addObserverForName:AVAudioSessionRouteChangeNotification
+                  object:nil
+                   queue:[NSOperationQueue mainQueue]
+              usingBlock:^(NSNotification* notification) {
+                [weakSelf onAudioRouteChanged:notification];
+              }];
+
   // Handle deep link when the app is launched (cold start). The URL is
   // delivered via connectionOptions.
   [self handleDeepLink:connectionOptions.URLContexts];
@@ -104,18 +226,7 @@ static const char** g_argv = nullptr;
 }
 
 - (void)sceneWillEnterForeground:(UIScene*)scene {
-  content::WebContents* web_contents = [self getWebContents];
-  // A visible page is automatically unfrozen and it should not call
-  // `SetPageFrozen`.
-  if (web_contents->GetVisibility() != content::Visibility::VISIBLE) {
-    // Unfreeze the page when entering foreground, triggering
-    // `document.onresume` event in JavaScript.
-    web_contents->SetPageFrozen(false);
-  }
-  // Explicitly update visibility when the scene becomes visible, even though
-  // WebContents is initially created with `Visibility::VISIBLE`.
-  // See `WebContentsImpl::UpdateWebContentsVisibility`.
-  web_contents->UpdateWebContentsVisibility(content::Visibility::VISIBLE);
+  [self resumePage];
 }
 
 - (void)sceneDidBecomeActive:(UIScene*)scene {
@@ -142,11 +253,7 @@ static const char** g_argv = nullptr;
 }
 
 - (void)sceneDidEnterBackground:(UIScene*)scene {
-  content::WebContents* web_contents = [self getWebContents];
-  web_contents->UpdateWebContentsVisibility(content::Visibility::HIDDEN);
-  // Freeze the page when entering background, triggering `document.onfreeze`
-  // event in JavaScript.
-  web_contents->SetPageFrozen(true);
+  [self freezePage];
 }
 @end
 

@@ -16,6 +16,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
 #include "cc/raster/raster_source.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
@@ -111,6 +112,9 @@ void PictureLayerTilingSet::CopyTilingsAndPropertiesFromPendingTwin(
                                             layer_invalidation);
     all_tiles_done_ &= this_tiling->all_tiles_done();
   }
+#if BUILDFLAG(IS_COBALT)
+  set_skewport_lookahead_allowed(pending_twin_set->skewport_lookahead_allowed_);
+#endif  // BUILDFLAG(IS_COBALT)
 
   if (tiling_sort_required) {
     std::sort(tilings_.begin(), tilings_.end(),
@@ -340,6 +344,9 @@ void PictureLayerTilingSet::ReleaseAllResources() {
 void PictureLayerTilingSet::RemoveAllTilings() {
   tilings_.clear();
   all_tiles_done_ = true;
+#if BUILDFLAG(IS_COBALT)
+  set_skewport_lookahead_allowed(false);
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 void PictureLayerTilingSet::Remove(PictureLayerTiling* tiling) {
@@ -354,7 +361,30 @@ void PictureLayerTilingSet::RemoveAllTiles() {
   for (const auto& tiling : tilings_)
     tiling->Reset();
   all_tiles_done_ = true;
+#if BUILDFLAG(IS_COBALT)
+  set_skewport_lookahead_allowed(false);
+#endif  // BUILDFLAG(IS_COBALT)
 }
+
+#if BUILDFLAG(IS_COBALT)
+void PictureLayerTilingSet::set_skewport_lookahead_allowed(bool allowed) {
+  if (!skewport_lookahead_allowed_ && allowed) {
+    // Flush stale idle timestamps from the 2-entry `visible_rect_history_`
+    // when an animation begins so `ComputeSkewport()` measures the active
+    // frame-to-frame delta on the second animated VSync rather than waiting
+    // two VSyncs to age out a multi-second-old resting timestamp.
+    visible_rect_history_.clear();
+  }
+  if (skewport_lookahead_allowed_ != allowed) {
+    skewport_lookahead_allowed_ = allowed;
+    // Force `TilingsNeedUpdate()` even on stationary frames (where neither
+    // timestamp nor `visible_rect` changed) so tilings immediately demote and
+    // drop unvisited skewport lookahead tiles when an animation settles or a
+    // video layer becomes visible.
+    state_since_last_tile_priority_update_.tiling_needs_update = true;
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 float PictureLayerTilingSet::GetMaximumContentsScale() const {
   if (tilings_.empty())
@@ -538,6 +568,9 @@ bool PictureLayerTilingSet::UpdateTilePriorities(
   for (const auto& tiling : tilings_) {
     tiling->set_can_require_tiles_for_activation(
         can_require_tiles_for_activation);
+#if BUILDFLAG(IS_COBALT)
+    tiling->set_skewport_lookahead_allowed(skewport_lookahead_allowed_);
+#endif  // BUILDFLAG(IS_COBALT)
     tiling->ComputeTilePriorityRects(
         visible_rect_in_layer_space_, skewport_rect_in_layer_space_,
         soon_border_rect_in_layer_space_, eventually_rect_in_layer_space_,

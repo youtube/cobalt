@@ -25,9 +25,6 @@ if (!is_cobalt) {
     if (enable_test_targets) {
       deps += [
         ":starboard_unittest",
-        "//starboard/examples/glclear:starboard_glclear_example",
-        "//starboard/examples/hello_world:starboard_hello_world_example",
-        "//starboard/examples/window:starboard_window_example",
         "//starboard/nplb",
       ]
     }
@@ -127,12 +124,8 @@ if (is_cobalt_hermetic_build) {
       deps += [ "//starboard/shared/modular:cobalt_layer_posix_abi_wrappers" ]
     }
 
-    # TODO: b/295702296 Fix libunwind for modular builds.
     if (sb_is_evergreen) {
-      public_deps += [
-        "//starboard/elf_loader:sabi_string",
-        "//third_party/llvm-project/libunwind:unwind",
-      ]
+      public_deps += [ "//starboard/elf_loader:sabi_string" ]
     }
   }
 } else {

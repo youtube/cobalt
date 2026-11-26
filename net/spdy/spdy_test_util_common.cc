@@ -361,6 +361,10 @@ HttpNetworkSessionParams SpdySessionDependencies::CreateSessionParams(
       session_deps->enable_user_alternate_protocol_ports;
   params.enable_http2 = session_deps->enable_http2;
   params.enable_quic = session_deps->enable_quic;
+#if BUILDFLAG(IS_COBALT)
+  params.use_quic_for_unknown_origins =
+      session_deps->use_quic_for_unknown_origins;
+#endif
   params.spdy_session_max_recv_window_size =
       session_deps->session_max_recv_window_size;
   params.spdy_session_max_queued_capped_frames =

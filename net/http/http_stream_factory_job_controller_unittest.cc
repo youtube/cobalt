@@ -25,6 +25,7 @@
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/threading/platform_thread.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
@@ -5712,6 +5713,65 @@ TEST_P(HttpStreamFactoryJobControllerPreconnectTest, LimitEarlyPreconnects) {
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(HttpStreamFactoryPeer::IsJobControllerDeleted(factory_));
 }
+
+#if BUILDFLAG(IS_COBALT)
+// Cobalt races QUIC for origins without a cached Alt-Svc entry (synthetic
+// alternative service). When CobaltEnableQuic's black-hole marking is
+// enabled, a broken mark for that origin must be honoured; otherwise the
+// legacy behaviour is preserved.
+TEST_F(HttpStreamFactoryJobControllerTest,
+       UnknownOriginQuicRespectsBrokenMark) {
+  session_deps_.use_quic_for_unknown_origins = true;
+  HttpRequestInfo request_info;
+  request_info.method = "GET";
+  request_info.url = GURL("https://www.google.com");
+
+  Initialize(request_info);
+  JobControllerPeer::InitializeProxyInfo(job_controller_);
+
+  // No Alt-Svc entry: the synthetic QUIC alternative is offered.
+  AlternativeServiceInfo alt_svc_info =
+      JobControllerPeer::GetAlternativeServiceInfoFor(
+          job_controller_, request_info, &request_delegate_,
+          HttpStreamRequest::HTTP_STREAM);
+  EXPECT_EQ(NextProto::kProtoQUIC, alt_svc_info.protocol());
+
+  url::SchemeHostPort server(request_info.url);
+  session_->http_server_properties()
+      ->MarkAlternativeServiceBrokenUntilDefaultNetworkChanges(
+          AlternativeService(NextProto::kProtoQUIC, server.host(), 443),
+          NetworkAnonymizationKey());
+
+  // Feature disabled: legacy synthetic QUIC entry is still offered.
+  alt_svc_info = JobControllerPeer::GetAlternativeServiceInfoFor(
+      job_controller_, request_info, &request_delegate_,
+      HttpStreamRequest::HTTP_STREAM);
+  EXPECT_EQ(NextProto::kProtoQUIC, alt_svc_info.protocol());
+
+  // Feature enabled (mark_broken_on_blackhole default true): broken mark is
+  // honoured, so the request goes to the main (TCP) job.
+  {
+    base::test::ScopedFeatureList scoped_feature_list(
+        features::kCobaltEnableQuic);
+    alt_svc_info = JobControllerPeer::GetAlternativeServiceInfoFor(
+        job_controller_, request_info, &request_delegate_,
+        HttpStreamRequest::HTTP_STREAM);
+    EXPECT_EQ(NextProto::kProtoUnknown, alt_svc_info.protocol());
+  }
+
+  // Feature enabled with mark_broken_on_blackhole=false: legacy behaviour.
+  {
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeatureWithParameters(
+        features::kCobaltEnableQuic,
+        {{"CobaltEnableQuic_mark_broken_on_blackhole", "false"}});
+    alt_svc_info = JobControllerPeer::GetAlternativeServiceInfoFor(
+        job_controller_, request_info, &request_delegate_,
+        HttpStreamRequest::HTTP_STREAM);
+    EXPECT_EQ(NextProto::kProtoQUIC, alt_svc_info.protocol());
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Test that GetAlternativeServiceInfoFor will include a list of advertised
 // versions, which contains a version that is supported. Returns an empty list

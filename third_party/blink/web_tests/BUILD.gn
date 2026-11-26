@@ -206,6 +206,9 @@ group("expectations") {
   }
 
   if (is_cobalt) {
-    data += [ "wpt_internal/cobalt/" ]
+    data += [
+      "CobaltTestExpectations",
+      "wpt_internal/cobalt/",
+    ]
   }
 }

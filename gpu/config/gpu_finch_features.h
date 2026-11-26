@@ -30,6 +30,7 @@ GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltInProcessDirectRaster);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltDecodedImagesMetrics);
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                                        kCobaltDecodedImagesMetricsInterval);
+GPU_EXPORT BASE_DECLARE_FEATURE(kCobaltKeepWebGLContextsOnBackground);
 
 #if BUILDFLAG(IS_ANDROID)
 GPU_CONFIG_EXPORT BASE_DECLARE_FEATURE(kCobaltRemoveUiPlaneDuringFullscreenVideo);

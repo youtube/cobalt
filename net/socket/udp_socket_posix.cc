@@ -78,6 +78,13 @@
 #include "base/mac/mac_util.h"
 #endif  // BUILDFLAG(IS_MAC)
 
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+#include <algorithm>
+
+#include "base/feature_list.h"
+#include "net/base/features.h"
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+
 namespace net {
 
 namespace {
@@ -91,8 +98,17 @@ constexpr size_t kMaxMmsgMessages = 128;
 #endif
 
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
-// Read in larger batches to minimize recvmmsg overhead.
-inline constexpr int kNumPacketsPerReadMmsgCall = 64;
+// Upper bound for stack-allocated mmsghdr/iovec arrays and default batch size
+// when CobaltQuicReadBatch is disabled.
+inline constexpr int kMaxPacketsPerReadMmsgCall = 64;
+
+int GetMaxPacketsPerReadMmsgCall() {
+  if (!base::FeatureList::IsEnabled(features::kCobaltQuicReadBatch)) {
+    return kMaxPacketsPerReadMmsgCall;
+  }
+  return std::clamp(features::kCobaltQuicReadBatchPackets.Get(), 1,
+                    kMaxPacketsPerReadMmsgCall);
+}
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 
 int GetSocketFDHash(int fd) {
@@ -356,6 +372,10 @@ void UDPSocketPosix::Close() {
   read_callback_.Reset();
   read_multiple_callback_.Reset();
   recv_from_address_ = nullptr;
+#if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
+  results_ = nullptr;
+  max_packets_per_read_ = 0;
+#endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
   write_buf_.reset();
   write_buf_len_ = 0;
   write_callback_.Reset();
@@ -501,31 +521,25 @@ int UDPSocketPosix::ReadMultiplePackets(Socket::ReadPacketResults* results,
   // Disallow other reads to be pending.
   DCHECK(read_callback_.is_null());
 
-  if ((!results->buffer || results->buffer->size() == 0) ||
-      results->packet_buffer_size != packet_buffer_size ||
-      results->packets == nullptr) {
+  if (max_packets_per_read_ == 0) {
+    max_packets_per_read_ = GetMaxPacketsPerReadMmsgCall();
+  }
 
-    int packets_array_size = kNumPacketsPerReadMmsgCall * sizeof(Socket::ReadPacketResult);
-    int all_packet_buffers_size = kNumPacketsPerReadMmsgCall * packet_buffer_size;
-    int total_size = packets_array_size + all_packet_buffers_size;
-
-    results->buffer = base::MakeRefCounted<IOBufferWithSize>(total_size);
-    results->packet_buffer_size = packet_buffer_size;
-
-    results->packets = reinterpret_cast<Socket::ReadPacketResult*>(results->buffer->data());
-    memset(results->packets, 0, packets_array_size);
-
-    char* packet_data_start = results->buffer->data() + packets_array_size;
-
-    for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
-      results->packets[i].buffer = packet_data_start + (i * packet_buffer_size);
-    }
+  if (!results->AcquireBuffer(max_packets_per_read_, packet_buffer_size)) {
+    return ERR_INVALID_ARGUMENT;
   }
 
   int nread = InternalReadMultiplePackets(results);
   if (callback.is_null() || nread != ERR_IO_PENDING) {
+    if (nread <= 0) {
+      results->ReleaseBuffer();
+    }
     return nread;
   }
+
+  // Release the receive buffer back to the shared pool while waiting for
+  // readiness so idle sockets hold no packet-batch memory.
+  results->ReleaseBuffer();
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_, true, base::MessagePumpForIO::WATCH_READ,
@@ -1007,12 +1021,27 @@ void UDPSocketPosix::DidCompleteMultipleRead() {
 
 #if BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
 void UDPSocketPosix::DidCompleteMultiplePacketRead() {
+  DCHECK_GT(max_packets_per_read_, 0);
+  if (!results_->AcquireBuffer(max_packets_per_read_, read_buf_len_)) {
+    results_ = nullptr;
+    read_buf_len_ = 0;
+    bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+    DCHECK(ok);
+    DoReadCallback(ERR_INVALID_ARGUMENT);
+    return;
+  }
   int result = InternalReadMultiplePackets(results_);
   if (result != ERR_IO_PENDING) {
+    if (result <= 0) {
+      results_->ReleaseBuffer();
+    }
     results_ = nullptr;
+    read_buf_len_ = 0;
     bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
     DoReadCallback(result);
+  } else {
+    results_->ReleaseBuffer();
   }
 }
 #endif  // BUILDFLAG(ENABLE_MULTI_PACKETS_PER_CALL_QUIC_OPTIMIZATIONS)
@@ -1287,39 +1316,53 @@ int UDPSocketPosix::InternalReadMultiplePackets(
     return net::ERR_UNEXPECTED;
   }
 
-  if (kNumPacketsPerReadMmsgCall == 0) {
+  const int num_packets = max_packets_per_read_;
+  if (num_packets <= 0) {
     results->result = 0;
     return 0;
   }
-  struct mmsghdr msgs[kNumPacketsPerReadMmsgCall];
-  struct iovec iovs[kNumPacketsPerReadMmsgCall];
+  DCHECK_LE(num_packets, kMaxPacketsPerReadMmsgCall);
+  // Size each control buffer to hold IP_TOS / IPV6_TCLASS ancillary data
+  // without relying on CMSG_SPACE() being a constant expression across libcs.
+  constexpr size_t kReadMmsgControlBufferSize = 64;
+  static_assert(kReadMmsgControlBufferSize % alignof(struct cmsghdr) == 0,
+                "Control buffer size must preserve cmsghdr alignment");
+  DCHECK_GE(kReadMmsgControlBufferSize,
+            static_cast<size_t>(CMSG_SPACE(sizeof(int))));
+
+  struct mmsghdr msgs[kMaxPacketsPerReadMmsgCall];
+  struct iovec iovs[kMaxPacketsPerReadMmsgCall];
+  alignas(struct cmsghdr) char control_buffers[kMaxPacketsPerReadMmsgCall]
+                                              [kReadMmsgControlBufferSize];
 
   // Initialize the message headers and I/O vectors.
-  for (int i = 0; i < kNumPacketsPerReadMmsgCall; ++i) {
+  for (int i = 0; i < num_packets; ++i) {
     iovs[i].iov_base = results->packets[i].buffer;
     iovs[i].iov_len = results->packet_buffer_size;
-  
+
     msgs[i].msg_hdr.msg_iov = &iovs[i];
     msgs[i].msg_hdr.msg_iovlen = 1;
     msgs[i].msg_hdr.msg_name = nullptr;
     msgs[i].msg_hdr.msg_namelen = 0;
-    msgs[i].msg_hdr.msg_control = nullptr;
-    msgs[i].msg_hdr.msg_controllen = 0;
+    msgs[i].msg_hdr.msg_control = control_buffers[i];
+    msgs[i].msg_hdr.msg_controllen = sizeof(control_buffers[i]);
     msgs[i].msg_hdr.msg_flags = 0;
+    msgs[i].msg_len = 0;
   }
- 
-  int rv = recvmmsg(socket_, msgs, kNumPacketsPerReadMmsgCall,
-                    MSG_DONTWAIT, nullptr);
+
+  int rv = recvmmsg(socket_, msgs, num_packets, MSG_DONTWAIT, nullptr);
   const int recvmmsg_errno = errno;
 
   if (rv > 0) {
     results->result = rv;
+    last_tos_ = 0;
     for (int i = 0; i < rv; ++i) {
       auto& out_packet = results->packets[i];
       struct mmsghdr* mmsg = &msgs[i];
       struct msghdr* msg_hdr = &mmsg->msg_hdr;
 
       out_packet.result = 0;
+      out_packet.tos = 0;
       if (mmsg->msg_len == 0) {
         continue;
       }
@@ -1328,6 +1371,26 @@ int UDPSocketPosix::InternalReadMultiplePackets(
         continue;
       }
       out_packet.result = mmsg->msg_len;
+      if (msg_hdr->msg_controllen > 0) {
+        for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(msg_hdr); cmsg != nullptr;
+             // SAFETY: Size and null pointer checks are done in system header
+             // files.
+             cmsg = UNSAFE_BUFFERS(CMSG_NXTHDR(msg_hdr, cmsg))) {
+          if (((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TOS) ||
+               (cmsg->cmsg_level == IPPROTO_IPV6 &&
+                cmsg->cmsg_type == IPV6_TCLASS)) &&
+              static_cast<size_t>(cmsg->cmsg_len) >=
+                  static_cast<size_t>(CMSG_LEN(sizeof(uint8_t)))) {
+            auto cmsg_data_as_span =
+                // SAFETY: `CMSG_DATA` points to `control_buffers[i]` and
+                // `cmsg_len` is verified to include at least one byte.
+                UNSAFE_BUFFERS(base::span(CMSG_DATA(cmsg), sizeof(uint8_t)));
+            base::byte_span_from_ref(out_packet.tos)
+                .copy_from(cmsg_data_as_span);
+          }
+        }
+      }
+      last_tos_ = out_packet.tos;
     }
     return results->result;
   }

@@ -1067,6 +1067,50 @@ class TestAutorollIntegration(unittest.TestCase):
     self.assert_working_tree_clean()
     self.assertEqual(len(self.get_branch_commit_titles('27.lts')), 2)
 
+  def test_conflict_outside_sparse_cone_missing_from_worktree(self):
+    """Conflicted files missing from a sparse worktree are still committed."""
+    conflict_path = os.path.join('dir', 'conflict.txt')
+    self.commit_file(conflict_path, 'line 1\nline 2\n',
+                     'Add base conflict file')
+    base_sha = self.get_head_sha()
+
+    self.git('checkout', '-b', 'staging', base_sha)
+    self.commit_file(conflict_path, 'line 1\nstaging edit\n', 'Staging edit')
+
+    self.git('checkout', 'main')
+    conflict_sha = self.commit_file(conflict_path, 'line 1\nmain edit\n',
+                                    'Main edit (#101)')
+
+    self.git('checkout', 'staging')
+    self.git('sparse-checkout', 'set', '.github')
+    self.git('checkout', '-b', 'autoroll-main-to-staging-conflict-101')
+
+    # Simulate the CI failure mode: the conflicted file is not present in the
+    # sparse working tree when it is staged.
+    original_resolve = lib.resolve_conflicts
+
+    def resolve_and_remove(unmerged_files):
+      if os.path.exists(conflict_path):
+        os.remove(conflict_path)
+      return original_resolve(unmerged_files)
+
+    metadata = lib.get_cherry_pick_metadata(conflict_sha, 'Main edit (#101)',
+                                            '101')
+    with patch.object(lib, 'resolve_conflicts', side_effect=resolve_and_remove):
+      result, unmerged = lib.apply_and_commit('cherry-pick', conflict_sha,
+                                              metadata, True)
+
+    self.assertEqual(result, lib.CommitStatus.CONFLICTED)
+    self.assertEqual(unmerged, [conflict_path])
+    commit_titles = self.get_branch_commit_titles(
+        'staging', 'autoroll-main-to-staging-conflict-101')
+    self.assertEqual(len(commit_titles), 1)
+    self.assertTrue(commit_titles[0].startswith('CONFLICTED'))
+    committed = self.git('show', f'HEAD:{conflict_path}').stdout
+    self.assertIn('<<<<<<<', committed)
+    self.assertIn('staging edit', committed)
+    self.assertIn('main edit', committed)
+
 
 if __name__ == '__main__':
   unittest.main()

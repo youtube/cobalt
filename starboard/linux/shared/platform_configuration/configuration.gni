@@ -14,8 +14,6 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-sb_enable_benchmark = true
-
 sb_widevine_platform = "linux"
 
 platform_tests_path =
