@@ -248,6 +248,14 @@ BASE_FEATURE(kCobaltReduceStarboardThreadStackSize,
              "CobaltReduceStarboardThreadStackSize",
              FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_STARBOARD)
+
+BASE_FEATURE(kCobaltPrioritizeUserInputQueue,
+             "CobaltPrioritizeUserInputQueue",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT);
+#else
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled

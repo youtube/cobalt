@@ -258,7 +258,11 @@ void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
     return;
   }
 
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+  scoped_refptr<base::SingleThreadTaskRunner> task_runner =
+      user_input_task_runner_
+          ? user_input_task_runner_
+          : base::SingleThreadTaskRunner::GetCurrentDefault();
+  task_runner->PostTask(
       FROM_HERE, base::BindOnce(&DeliverEventHandler, std::move(ui_event)));
 }
 
@@ -287,6 +291,12 @@ void PlatformEventSourceStarboard::DispatchFocusEvent(bool is_focused) {
 
 PlatformEventSourceStarboard::PlatformEventSourceStarboard() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
+
+void PlatformEventSourceStarboard::SetUserInputTaskRunner(
+    scoped_refptr<base::SingleThreadTaskRunner> runner) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  user_input_task_runner_ = std::move(runner);
 }
 
 uint32_t PlatformEventSourceStarboard::DeliverEvent(

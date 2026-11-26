@@ -20,6 +20,7 @@
 
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
+#include "base/test/test_simple_task_runner.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
@@ -1113,6 +1114,38 @@ INSTANTIATE_TEST_SUITE_P(
     [](const ::testing::TestParamInfo<MouseButtonKeyTestCase>& info) {
       return info.param.name;
     });
+
+TEST_F(PlatformEventSourceStarboardTest, RoutesEventsToUserInputTaskRunner) {
+  auto user_input_runner = base::MakeRefCounted<base::TestSimpleTaskRunner>();
+  event_source_.SetUserInputTaskRunner(user_input_runner);
+
+  SbInputData input_data = {};
+  input_data.type = kSbInputEventTypePress;
+  input_data.device_type = kSbInputDeviceTypeRemote;
+  input_data.key = kSbKeyDown;
+
+  SbEvent sb_event = {};
+  sb_event.type = kSbEventTypeInput;
+  sb_event.data = &input_data;
+  sb_event.timestamp = 1000;
+
+  event_source_.HandleEvent(&sb_event);
+
+  // Event must be queued on the dedicated user-input runner, not default.
+  base::RunLoop().RunUntilIdle();
+  EXPECT_FALSE(observer_.last_event_type().has_value());
+  ASSERT_EQ(user_input_runner->NumPendingTasks(), 1u);
+
+  user_input_runner->RunPendingTasks();
+  EXPECT_EQ(observer_.last_event_type(), ui::EventType::kKeyPressed);
+  EXPECT_EQ(observer_.last_key_code(), ui::VKEY_DOWN);
+
+  // Clearing the custom runner restores fallback to the default task runner.
+  event_source_.SetUserInputTaskRunner(nullptr);
+  SendInputEvent(input_data);
+  EXPECT_EQ(observer_.last_event_type(), ui::EventType::kKeyPressed);
+  EXPECT_EQ(observer_.last_key_code(), ui::VKEY_DOWN);
+}
 
 }  // namespace
 }  // namespace ui

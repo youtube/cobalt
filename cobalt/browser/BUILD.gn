@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/ui.gni")
 import("//cobalt/build/configs/cobalt.gni")
 import("//testing/test.gni")
 
@@ -167,6 +168,10 @@ source_set("browser") {
       "//media:media_buildflags",
       "//ui/ozone/platform/starboard",
     ]
+  }
+
+  if (use_ozone) {
+    deps += [ "//ui/ozone" ]
   }
 
   if (enable_native_on_screen_keyboard) {

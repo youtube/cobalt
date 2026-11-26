@@ -120,9 +120,10 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   void PostCreateThreads() override;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || (BUILDFLAG(IS_OZONE) && BUILDFLAG(IS_STARBOARD))
   void PostCreateMainMessageLoop() override;
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || (BUILDFLAG(IS_OZONE) &&
+        // BUILDFLAG(IS_STARBOARD))
 
  private:
   // Initializes, but doesn't start, UMA.

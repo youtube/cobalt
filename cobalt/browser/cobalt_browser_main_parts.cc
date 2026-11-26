@@ -136,6 +136,12 @@
 #include "components/os_crypt/sync/os_crypt.h"
 #endif
 
+#if BUILDFLAG(IS_OZONE) && BUILDFLAG(IS_STARBOARD)
+#include "base/functional/callback_helpers.h"
+#include "content/public/browser/browser_task_traits.h"
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 namespace cobalt {
 
 namespace {
@@ -981,8 +987,9 @@ void CobaltBrowserMainParts::PostCreateThreads() {
 }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) || (BUILDFLAG(IS_OZONE) && BUILDFLAG(IS_STARBOARD))
 void CobaltBrowserMainParts::PostCreateMainMessageLoop() {
+#if BUILDFLAG(IS_LINUX)
   // Set up crypt config. This needs to be done before anything starts the
   // network service, as the raw encryption key needs to be shared with the
   // network service for encrypted cookie storage.
@@ -997,8 +1004,21 @@ void CobaltBrowserMainParts::PostCreateMainMessageLoop() {
   config->should_use_preference = false;
   base::PathService::Get(content::SHELL_DIR_USER_DATA, &config->user_data_path);
   OSCrypt::SetConfig(std::move(config));
+#endif  // BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_OZONE) && BUILDFLAG(IS_STARBOARD)
+  if (ui::OzonePlatform::IsInitialized() &&
+      base::FeatureList::IsEnabled(
+          base::features::kCobaltPrioritizeUserInputQueue)) {
+    ui::OzonePlatform::GetInstance()->PostCreateMainMessageLoop(
+        base::DoNothing(),
+        content::GetUIThreadTaskRunner({content::BrowserTaskType::kUserInput}));
+  }
+#endif  // BUILDFLAG(IS_OZONE) && BUILDFLAG(IS_STARBOARD)
+
   ShellBrowserMainParts::PostCreateMainMessageLoop();
 }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) || (BUILDFLAG(IS_OZONE) &&
+        // BUILDFLAG(IS_STARBOARD))
 
 }  // namespace cobalt
