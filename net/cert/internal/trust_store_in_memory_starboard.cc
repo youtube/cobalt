@@ -97,9 +97,9 @@ scoped_refptr<ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCert(
   char cert_file_name[256];
   SbStringFormatF(cert_file_name, 256, "%08lx.%d", hash, 0);
 
-  if (trusted_cert_names_on_disk_.find(cert_file_name) ==
-      trusted_cert_names_on_disk_.end()) {
-    // The requested certificate is not found.
+  auto it = trusted_cert_names_on_disk_.find(cert_file_name);
+  if (it == trusted_cert_names_on_disk_.end()) {
+    // The requested certificate is not found, or has already been loaded.
     return nullptr;
   }
 
@@ -115,6 +115,9 @@ scoped_refptr<ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCert(
     NOTREACHED() << "ssl/certs/" << cert_path << " failed to open.";
     return nullptr;
   }
+  // Each certificate file is loaded at most once. Only forget the file once it
+  // has been opened, so that a transient failure can be retried.
+  trusted_cert_names_on_disk_.erase(it);
   int cert_size = SbFileReadAll(sb_cert_file, cert_buffer, kCertBufferSize);
   SbFileClose(sb_cert_file);
   PEMTokenizer pem_tokenizer(base::StringPiece(cert_buffer, cert_size),
@@ -139,23 +142,23 @@ TrustStoreInMemoryStarboard::TrustStoreInMemoryStarboard()
 
 TrustStoreInMemoryStarboard::~TrustStoreInMemoryStarboard() = default;
 
+void TrustStoreInMemoryStarboard::MaybeLoadCertLocked(
+    const base::StringPiece& cert_name) const {
+  load_mutex_.DCheckAcquired();
+  auto parsed_cert = TryLoadCert(cert_name);
+  if (parsed_cert.get()) {
+    underlying_trust_store_.AddTrustAnchor(parsed_cert);
+  }
+}
+
 void TrustStoreInMemoryStarboard::SyncGetIssuersOf(
     const ParsedCertificate* cert,
     ParsedCertificateList* issuers) {
   DCHECK(issuers);
   DCHECK(issuers->empty());
   starboard::ScopedLock scoped_lock(load_mutex_);
-  // Look up the request certificate first in the trust store in memory.
+  MaybeLoadCertLocked(cert->normalized_issuer().AsStringPiece());
   underlying_trust_store_.SyncGetIssuersOf(cert, issuers);
-  if (issuers->empty()) {
-    // If the requested certificate is not found, compute certificate hash name
-    // and see if the certificate is stored on disk.
-    auto parsed_cert = TryLoadCert(cert->normalized_issuer().AsStringPiece());
-    if (parsed_cert.get()) {
-      issuers->push_back(parsed_cert);
-      underlying_trust_store_.AddTrustAnchor(parsed_cert);
-    }
-  }
 }
 
 void TrustStoreInMemoryStarboard::GetTrust(
@@ -163,18 +166,8 @@ void TrustStoreInMemoryStarboard::GetTrust(
     CertificateTrust* trust) const {
   DCHECK(trust);
   starboard::ScopedLock scoped_lock(load_mutex_);
-  // Loop up the request certificate first in the trust store in memory.
+  MaybeLoadCertLocked(cert->normalized_subject().AsStringPiece());
   underlying_trust_store_.GetTrust(cert, trust);
-  if (trust->HasUnspecifiedTrust()) {
-    // If the requested certificate is not found, compute certificate hash name
-    // and see if the certificate is stored on disk.
-    auto parsed_cert = TryLoadCert(cert->normalized_subject().AsStringPiece());
-    if (parsed_cert.get()) {
-      *trust = CertificateTrust::ForTrustAnchor();
-      const_cast<TrustStoreInMemoryStarboard*>(this)
-          ->underlying_trust_store_.AddTrustAnchor(parsed_cert);
-    }
-  }
 }
 
 }  // namespace net
