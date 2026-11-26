@@ -3327,11 +3327,33 @@ void GpuImageDecodeCache::RunPendingContextThreadOperations() {
   }
   images_pending_unlock_.clear();
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          features::kCobaltBatchTransferCacheUnlocks)) {
+    if (!ids_pending_unlock_.empty()) {
+      std::vector<std::pair<uint32_t, uint32_t>> entries;
+      entries.reserve(ids_pending_unlock_.size());
+      for (auto id : ids_pending_unlock_) {
+        entries.emplace_back(
+            static_cast<uint32_t>(TransferCacheEntryType::kImage), id);
+      }
+      context_->ContextSupport()->UnlockTransferCacheEntries(entries);
+      ids_pending_unlock_.clear();
+    }
+  } else {
+    for (auto id : ids_pending_unlock_) {
+      context_->ContextSupport()->UnlockTransferCacheEntries({std::make_pair(
+          static_cast<uint32_t>(TransferCacheEntryType::kImage), id)});
+    }
+    ids_pending_unlock_.clear();
+  }
+#else
   for (auto id : ids_pending_unlock_) {
     context_->ContextSupport()->UnlockTransferCacheEntries({std::make_pair(
         static_cast<uint32_t>(TransferCacheEntryType::kImage), id)});
   }
   ids_pending_unlock_.clear();
+#endif
 
   FlushYUVImages(&yuv_images_pending_deletion_);
   for (auto& image : images_pending_deletion_) {

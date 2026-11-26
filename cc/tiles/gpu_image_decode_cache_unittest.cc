@@ -208,11 +208,19 @@ class FakeGPUImageDecodeTestGLES2Interface : public viz::TestGLES2Interface,
   }
   void UnlockTransferCacheEntries(
       const std::vector<std::pair<uint32_t, uint32_t>>& entries) override {
+    ++unlock_call_count_;
+    last_unlock_batch_size_ = entries.size();
     std::vector<std::pair<TransferCacheEntryType, uint32_t>> keys;
     keys.reserve(entries.size());
     for (const auto& e : entries)
       keys.emplace_back(MakeEntryKey(e.first, e.second));
     transfer_cache_helper_->UnlockEntriesDirect(keys);
+  }
+  size_t unlock_call_count() const { return unlock_call_count_; }
+  size_t last_unlock_batch_size() const { return last_unlock_batch_size_; }
+  void reset_unlock_stats() {
+    unlock_call_count_ = 0;
+    last_unlock_batch_size_ = 0;
   }
   void DeleteTransferCacheEntry(uint32_t type, uint32_t id) override {
     transfer_cache_helper_->DeleteEntryDirect(MakeEntryKey(type, id));
@@ -291,6 +299,8 @@ class FakeGPUImageDecodeTestGLES2Interface : public viz::TestGLES2Interface,
   raw_ptr<TransferCacheTestHelper> transfer_cache_helper_;
   bool advertise_accelerated_decoding_ = false;
   size_t mapped_entry_size_ = 0;
+  size_t unlock_call_count_ = 0;
+  size_t last_unlock_batch_size_ = 0;
   std::unique_ptr<uint8_t, base::AlignedFreeDeleter> mapped_entry_;
 };
 
@@ -5568,6 +5578,72 @@ TEST_P(GpuImageDecodeCacheTest, GainmapImageFailsDecode) {
   FlushRunLoop();
 #endif
 }
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+TEST_P(GpuImageDecodeCacheTest, CobaltBatchTransferCacheUnlocks) {
+  if (!use_transfer_cache_) {
+    return;
+  }
+
+  for (bool enable_batching : {true, false}) {
+    base::test::ScopedFeatureList feature_list;
+    if (enable_batching) {
+      feature_list.InitAndEnableFeature(
+          features::kCobaltBatchTransferCacheUnlocks);
+    } else {
+      feature_list.InitAndDisableFeature(
+          features::kCobaltBatchTransferCacheUnlocks);
+    }
+
+    auto cache = CreateCache();
+    const auto client_id = cache->GenerateClientId();
+
+    std::vector<DrawImage> draw_images;
+    for (int i = 0; i < 2; ++i) {
+      PaintImage image = CreatePaintImageInternal(gfx::Size(100 + i, 100 + i));
+      DrawImage draw_image = CreateDrawImageInternal(image);
+      ImageDecodeCache::TaskResult result = cache->GetTaskForImageAndRef(
+          client_id, draw_image, ImageDecodeCache::TracingInfo());
+      ASSERT_TRUE(result.task);
+      TestTileTaskRunner::ProcessTask(result.task->dependencies()[0].get());
+      TestTileTaskRunner::ProcessTask(result.task.get());
+      draw_images.push_back(draw_image);
+    }
+
+    {
+      viz::RasterContextProvider::ScopedRasterContextLock context_lock(
+          context_provider());
+      std::vector<DecodedDrawImage> decoded_images;
+      for (const auto& draw_image : draw_images) {
+        decoded_images.push_back(cache->GetDecodedImageForDraw(draw_image));
+      }
+      // Finish all draws before unreffing the task refs so both transfer-cache
+      // IDs accumulate in ids_pending_unlock_ prior to the next flush.
+      for (size_t i = 0; i < draw_images.size(); ++i) {
+        cache->DrawWithImageFinished(draw_images[i], decoded_images[i]);
+      }
+      for (const auto& draw_image : draw_images) {
+        cache->UnrefImage(draw_image);
+      }
+    }
+
+    auto* mock_support = static_cast<FakeGPUImageDecodeTestGLES2Interface*>(
+        context_provider()->ContextSupport());
+    mock_support->reset_unlock_stats();
+
+    // Trigger RunPendingContextThreadOperations() via ClearCache().
+    cache->ClearCache();
+    if (enable_batching) {
+      EXPECT_EQ(mock_support->unlock_call_count(), 1u);
+      EXPECT_EQ(mock_support->last_unlock_batch_size(), 2u);
+    } else {
+      EXPECT_EQ(mock_support->unlock_call_count(), 2u);
+      EXPECT_EQ(mock_support->last_unlock_batch_size(), 1u);
+    }
+    FlushRunLoop();
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 }  // namespace cc
