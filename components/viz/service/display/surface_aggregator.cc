@@ -22,6 +22,7 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/typed_macros.h"
+#include "build/build_config.h"
 #include "cc/base/math_util.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/quads/aggregated_render_pass.h"
@@ -313,6 +314,7 @@ bool ChangeInMergeState(ResolvedPassData& resolved_pass) {
 void UpdateNeedsRedraw(
     ResolvedPassData& resolved_pass,
     AggregatedRenderPass* dest_pass,
+    const gfx::Transform& pass_to_dest_root_target_transform,
     const std::optional<gfx::Rect> dest_root_target_clip_rect) {
   // |dest_root_target_clip_rect| is the bounding box on the root surface where
   // this render pass can be rendered into. It includes all ancestors' render
@@ -320,6 +322,47 @@ void UpdateNeedsRedraw(
   // rects.
   DCHECK(dest_root_target_clip_rect.has_value());
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  const bool can_skip_render_pass = base::FeatureList::IsEnabled(
+      features::kAllowUndamagedNonrootRenderPassToSkip);
+  if (can_skip_render_pass) {
+    gfx::Rect pass_local_clip = resolved_pass.render_pass().output_rect;
+    gfx::Transform inverse_transform;
+    // Invert the exact transform from resolved_pass space to root target space
+    // (pass_to_dest_root_target_transform = dest_pass->transform_to_root_target * target_transform).
+    // This accurately handles both separate contributing render passes and passes
+    // merged into dest_pass (such as the root render pass).
+    bool can_invert =
+        pass_to_dest_root_target_transform.GetInverse(&inverse_transform);
+    if (can_invert) {
+      gfx::Rect projected_clip = cc::MathUtil::ProjectEnclosingClippedRect(
+          inverse_transform, dest_root_target_clip_rect.value());
+      pass_local_clip.Intersect(projected_clip);
+    }
+
+    auto& current_parent_clip_rect =
+        resolved_pass.current_persistent_data().parent_clip_rect;
+    current_parent_clip_rect.Union(pass_local_clip);
+
+    auto& previous_parent_clip_rect =
+        resolved_pass.previous_persistent_data().parent_clip_rect;
+
+    bool parent_clip_rect_expands =
+        !can_invert ||
+        !previous_parent_clip_rect.Contains(current_parent_clip_rect);
+
+    bool change_in_merged_pass = ChangeInMergeState(resolved_pass);
+
+    if (parent_clip_rect_expands ||
+        resolved_pass.aggregation().in_copy_request_pass ||
+        change_in_merged_pass) {
+      dest_pass->has_damage_from_contributing_content = true;
+    }
+    return;
+  }
+#endif
+
+  // Original upstream root-target-space check (used when feature is disabled or non-Cobalt):
   // Save the parent_clip_rect from the current frame.
   auto& current_parent_clip_rect =
       resolved_pass.current_persistent_data().parent_clip_rect;
@@ -1359,7 +1402,9 @@ void SurfaceAggregator::CopyQuadsToPass(
       dest_root_target_clip_rect, resolved_pass.render_pass().output_rect,
       pass_to_dest_root_target_transform);
 
-  UpdateNeedsRedraw(resolved_pass, dest_pass, new_dest_root_target_clip_rect);
+  UpdateNeedsRedraw(resolved_pass, dest_pass,
+                    pass_to_dest_root_target_transform,
+                    new_dest_root_target_clip_rect);
 
   size_t quad_index = 0;
   auto& resolved_draw_quads = resolved_pass.draw_quads();
@@ -1603,6 +1648,8 @@ void SurfaceAggregator::SetRenderPassDamageRect(
   // pass.
 
   if (!RenderPassNeedsFullDamage(resolved_pass)) {
+    const bool can_skip_render_pass = base::FeatureList::IsEnabled(
+        features::kAllowUndamagedNonrootRenderPassToSkip);
     gfx::Transform inverse_transform;
     if (copy_pass->transform_to_root_target.GetInverse(&inverse_transform)) {
       gfx::Rect damage_rect_in_render_pass_space =
@@ -1611,10 +1658,23 @@ void SurfaceAggregator::SetRenderPassDamageRect(
       copy_pass->damage_rect.Intersect(damage_rect_in_render_pass_space);
 
       if (metrics_subsampler_.ShouldSample(0.001)) {
-        gfx::Rect root_clip_in_render_pass_space =
+        gfx::Rect root_clip_in_render_pass_space;
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+        if (can_skip_render_pass) {
+          root_clip_in_render_pass_space =
+              resolved_pass.previous_persistent_data().parent_clip_rect;
+        } else {
+          root_clip_in_render_pass_space =
+              cc::MathUtil::ProjectEnclosingClippedRect(
+                  inverse_transform,
+                  resolved_pass.previous_persistent_data().parent_clip_rect);
+        }
+#else
+        root_clip_in_render_pass_space =
             cc::MathUtil::ProjectEnclosingClippedRect(
                 inverse_transform,
                 resolved_pass.previous_persistent_data().parent_clip_rect);
+#endif
 
         // The 'root_clip_in_render_pass_space' will now be a subrect of the
         // 'output rect'.
@@ -1641,8 +1701,6 @@ void SurfaceAggregator::SetRenderPassDamageRect(
     // For unembeded render passes, their damages were not added to the
     // root render pass. Add back the original damage from cc so it can be
     // skipped later when there is no internal damage.
-    static const bool can_skip_render_pass = base::FeatureList::IsEnabled(
-        features::kAllowUndamagedNonrootRenderPassToSkip);
     if (resolved_pass.IsUnembedded() && can_skip_render_pass) {
       copy_pass->damage_rect.Union(resolved_pass.aggregation().added_damage);
     }

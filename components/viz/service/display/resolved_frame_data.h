@@ -142,7 +142,9 @@ struct PersistentPassData {
   // The intersection of all render pass output rects, RenderPassDrawQuad rect,
   // SurfaceDrawQuad rect, and clip rects from its ancestor render passes and
   // surface. This is the max size this render pass can be rendered into the
-  // root surface. |parent_clip_rect| is in the dest root target space.
+  // root surface. |parent_clip_rect| is in the dest root target space (or
+  // pass-local space for Cobalt non-Android when
+  // features::kAllowUndamagedNonrootRenderPassToSkip is enabled).
   gfx::Rect parent_clip_rect;
 
   // Whether the render passes is merged with its parent render pass. The render
