@@ -1082,6 +1082,26 @@ class QUICHE_EXPORT QuicConnection
     const bool handshake_packet_sent_;
   };
 
+#if BUILDFLAG(IS_COBALT)
+  // While in scope on an IETF QUIC connection, suppresses sending standalone
+  // ACK-only packets (e.g. while processing a batch of packets from recvmmsg)
+  // while still allowing outgoing data or control packets to opportunistically
+  // bundle pending ACKs. When the outermost deferrer goes out of scope, sends
+  // any due ACKs or updates the ACK alarm once for the batch. |connection| may
+  // be nullptr; if non-null, it must outlive the ScopedAckDeferrer.
+  class QUICHE_EXPORT ScopedAckDeferrer {
+   public:
+    explicit ScopedAckDeferrer(QuicConnection* connection);
+    ScopedAckDeferrer(const ScopedAckDeferrer&) = delete;
+    ScopedAckDeferrer& operator=(const ScopedAckDeferrer&) = delete;
+    ~ScopedAckDeferrer();
+
+   private:
+    QuicConnection* connection_;
+    bool active_;
+  };
+#endif  // BUILDFLAG(IS_COBALT)
+
   class QUICHE_EXPORT ScopedEncryptionLevelContext {
    public:
     ScopedEncryptionLevelContext(QuicConnection* connection,
@@ -2603,12 +2623,23 @@ class QUICHE_EXPORT QuicConnection
 
   const bool quic_test_peer_addr_change_after_normalize_ : 1 =
       GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize);
+<<<<<<< ours
   const bool quic_fix_timeouts_ : 1 = GetQuicReloadableFlag(quic_fix_timeouts);
   bool quic_close_on_idle_timeout_ : 1 =
       GetQuicReloadableFlag(quic_close_on_idle_timeout);
   // True if spin bit is enabled for this connection.
   bool spin_bit_enabled_ : 1 = ShouldEnableSpinBit();
   bool fix_mtu_discovery_ : 1 = GetQuicReloadableFlag(quic_fix_mtu_discovery);
+=======
+
+  const bool quic_fix_timeouts_ = GetQuicReloadableFlag(quic_fix_timeouts);
+
+#if BUILDFLAG(IS_COBALT)
+  // Set by the client-only DAOP connection option.
+  bool allow_deferring_ack_only_packets_ : 1 = false;
+  bool defer_ack_only_packets_ : 1 = false;
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> theirs
 };
 
 }  // namespace quic

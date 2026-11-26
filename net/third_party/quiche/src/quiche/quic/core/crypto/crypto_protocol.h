@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <string>
 
+#include "build/build_config.h"
 #include "quiche/quic/core/quic_tag.h"
 
 // Version and Crypto tags are written to the wire with a big-endian
@@ -324,6 +325,9 @@ DEFINE_STATIC_QUIC_TAG(NCMR);  // Do not attempt connection
 // Allows disabling defer_send_in_response_to_packets in QuicConnection.
 DEFINE_STATIC_QUIC_TAG(DFER);  // Do not defer sending.
 DEFINE_STATIC_QUIC_TAG(CDFR);  // Defer sending on client.
+#if BUILDFLAG(IS_COBALT)
+DEFINE_STATIC_QUIC_TAG(DAOP);  // Defer sending ACK-only packets on client.
+#endif                         // BUILDFLAG(IS_COBALT)
 
 // Pacing options.
 DEFINE_STATIC_QUIC_TAG(NPCO);  // No pacing offload.

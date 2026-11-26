@@ -603,6 +603,7 @@ bool QuicConnectionPeer::CanReceiveAckFrequencyFrames(
   return connection->can_receive_ack_frequency_immediate_ack_;
 }
 
+<<<<<<< ours
 // static
 uint8_t QuicConnectionPeer::GetNumPtosForRetransmittableOnWireTimeout(
     const QuicConnection* connection) {
@@ -645,6 +646,16 @@ QuicConnection::ReceivedPacketInfo&
 QuicConnectionPeer::GetLastReceivedPacketInfo(QuicConnection* connection) {
   return connection->last_received_packet_info_;
 }
+=======
+#if BUILDFLAG(IS_COBALT)
+// static
+void QuicConnectionPeer::SetAllowDeferringAckOnlyPackets(
+    QuicConnection* connection,
+    bool allow) {
+  connection->allow_deferring_ack_only_packets_ = allow;
+}
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> theirs
 
 }  // namespace test
 }  // namespace quic
