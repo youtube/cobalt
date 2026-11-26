@@ -80,7 +80,10 @@ TEST(AndroidTvFlagMapTest, GetNumeric) {
 TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
   const base::CommandLine cmd_line = ExpandWith("");
 
-  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  // QUIC's off default lives in NetworkContext (CobaltEnableQuic), not on the
+  // command line.
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableQuic));
   // Low-end device mode is emitted from Java, since it is read before the
   // native initialization hook runs.
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableLowEndDeviceMode));
@@ -100,19 +103,23 @@ TEST(AndroidTvFlagMapTest, NoSwitchesAppliesExperimentDefaults) {
   EXPECT_FALSE(cmd_line.HasSwitch(switches::kUseStarboardLifecycle));
 }
 
-TEST(AndroidTvFlagMapTest, EnableQuic) {
+TEST(AndroidTvFlagMapTest, DeprecatedEnableQuicIsIgnored) {
+  // QUIC is enabled only through the CobaltEnableQuic feature: the EnableQUIC
+  // key no longer maps to --enable-quic, and nothing appends --disable-quic.
   const base::CommandLine cmd_line = ExpandWith("EnableQUIC");
 
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableQuic));
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
 }
 
-TEST(AndroidTvFlagMapTest, ExplicitEnableQuicSwitchSuppressesDisableQuic) {
-  base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
-  cmd_line.AppendSwitch(::switches::kEnableQuic);
-  ExpandAndroidTvFlags(MapFrom(""), &cmd_line);
+// Verifies that setting the EnableCobaltQuicDeferAckOnlyPackets Kimono switch
+// on Android TV enables the CobaltQuicDeferAckOnlyPackets Finch feature.
+TEST(AndroidTvFlagMapTest, EnableCobaltQuicDeferAckOnlyPackets) {
+  const base::CommandLine cmd_line =
+      ExpandWith("EnableCobaltQuicDeferAckOnlyPackets");
 
-  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
-  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kEnableQuic));
+  EXPECT_EQ("CobaltQuicDeferAckOnlyPackets",
+            cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
 }
 
 TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
@@ -129,6 +136,7 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
       "EnableCobaltContentLengthAwareMojoPipeSizing,"
       "EnableCobaltDynamicMojoPipeSizing,"
       "EnableCobaltMmapFontCache,"
+      "EnableCobaltQuicDeferAckOnlyPackets,"
       "EnableModerateMemoryPressure,"
       "EnableScalingClippedImages,"
       "EvictMemoryCacheOnCriticalMemoryPressure,"
@@ -143,7 +151,8 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
       "V8DisableSparkplug,"
       "V8SetBytecodeOldTime=10");
 
-  EXPECT_TRUE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
+  EXPECT_FALSE(cmd_line.HasSwitch(::switches::kEnableQuic));
   EXPECT_TRUE(cmd_line.HasSwitch(
       ::switches::kDisableGpuMemoryBufferCompositorResources));
   EXPECT_EQ("256",
@@ -165,6 +174,7 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
   EXPECT_EQ(
       "CobaltDynamicMojoPipeSizing:subresource_size/1024/media_size/2048,"
       "CobaltContentLengthAwareMojoPipeSizing,"
+      "CobaltQuicDeferAckOnlyPackets,"
       "SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5,"
       "CobaltMmapFontCache,"
       "AreaBasedVideoBufferBudget,"

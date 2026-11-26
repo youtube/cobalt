@@ -31,6 +31,7 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/starboard/sbmedia_histograms.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/test_helpers.h"
 #include "media/base/video_decoder_config.h"
@@ -303,25 +304,6 @@ TEST_F(SbPlayerBridgeSideDataTest,
   EXPECT_CALL(mock_sbplayer_interface_, Destroy(_)).Times(0);
   bridge_->Suspend();
 }
-
-constexpr char kSbPlayerCreateHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreate";
-constexpr char kSbPlayerCreateSubsequentHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreate.Subsequent";
-constexpr char kSbPlayerCreateToInitializedHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized";
-constexpr char kSbPlayerCreateToInitializedSubsequentHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerCreateToInitialized.Subsequent";
-constexpr char kSbPlayerDestroyHistogramPrefix[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy";
-constexpr char kSbPlayerDestroyBeforePrerollingHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.BeforePrerolling";
-constexpr char kSbPlayerDestroyPrerollingHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Prerolling";
-constexpr char kSbPlayerDestroyPresentingHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.Presenting";
-constexpr char kSbPlayerDestroyEndOfStreamHistogram[] =
-    "Cobalt.Media.LatencyTiming.SbPlayerDestroy.EndOfStream";
 
 // Returns the number of samples recorded in histogram |name|.
 size_t GetTotalCount(const base::HistogramTester& histogram_tester,

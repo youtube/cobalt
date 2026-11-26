@@ -128,13 +128,6 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_USE_EVERGREEN" ]
   }
 
-  # TODO(b/400818107): Consider deprecating sb_is_modular.
-  # In general, you should instead be using is_cobalt_hermetic_build or
-  # is_starboard.
-  if (sb_is_modular) {
-    defines += [ "ENABLE_BUILDFLAG_MODULAR_BUILD" ]
-  }
-
   # cobalt_is_release_build and BUILDFLAG(COBALT_IS_RELEASE_BUILD) should be
   # used for gold Cobalt builds. If you want the behavior in both QA and gold
   # (a more common case), you should instead use is_official_build.

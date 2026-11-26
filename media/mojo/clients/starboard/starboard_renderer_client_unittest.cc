@@ -40,6 +40,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect_conversions.h"
+#include "ui/gfx/geometry/size.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
 #include "media/starboard/url_player_demuxer.h"
@@ -450,7 +451,7 @@ TEST_F(StarboardRendererClientTest,
 }
 
 #if BUILDFLAG(IS_IOS_TVOS)
-TEST_F(StarboardRendererClientTest, UrlPlayerInitCbWaitsForDuration) {
+TEST_F(StarboardRendererClientTest, UrlPlayerInitCbWaitsForMetadata) {
   InitializeStarboardRendererClient();
 
   EXPECT_CALL(renderer_init_cb_, Run(_)).Times(0);
@@ -460,11 +461,12 @@ TEST_F(StarboardRendererClientTest, UrlPlayerInitCbWaitsForDuration) {
       StarboardRenderingMode::kPunchOut);
   task_environment_.RunUntilIdle();
   // The Initialize() reply and the rendering mode have arrived, but the
-  // duration hasn't.
+  // metadata hasn't.
   EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
 
   EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
-  starboard_renderer_client_->OnDurationChange(base::Seconds(10));
+  starboard_renderer_client_->OnUrlPlayerMetadata(base::Seconds(10),
+                                                  gfx::Size(1920, 1080));
   task_environment_.RunUntilIdle();
   EXPECT_TRUE(::testing::Mock::VerifyAndClearExpectations(&renderer_init_cb_));
 }

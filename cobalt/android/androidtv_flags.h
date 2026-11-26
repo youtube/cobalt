@@ -84,14 +84,20 @@ inline constexpr char kEnableCobaltDynamicMojoPipeSizing[] =
 inline constexpr char kEnableCobaltMmapFontCache[] =
     "EnableCobaltMmapFontCache";
 
+// Enables batching standalone QUIC ACK-only packets across receive batches via
+// ScopedAckDeferrer (DAOP).
+// See b/586557818.
+inline constexpr char kEnableCobaltQuicDeferAckOnlyPackets[] =
+    "EnableCobaltQuicDeferAckOnlyPackets";
+
 // Enables moderate memory pressure handling on Android.
 // See b/521848285.
 inline constexpr char kEnableModerateMemoryPressure[] =
     "EnableModerateMemoryPressure";
 
-// Enables QUIC for network requests; otherwise --disable-quic is passed,
-// unless --enable-quic is already on the command line.
-// See b/467778593.
+// Deprecated: ignored, with a warning. QUIC is enabled only through the
+// CobaltEnableQuic feature (net/base/features.h).
+// See b/467778593, b/586557818.
 inline constexpr char kEnableQuic[] = "EnableQUIC";
 
 // Allows scaling clipped images in GpuImageDecodeCache.

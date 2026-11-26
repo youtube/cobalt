@@ -16,6 +16,7 @@
 
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
 #include "crypto/ec_private_key.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/host_mapping_rules.h"
@@ -205,6 +206,9 @@ struct SpdySessionDependencies {
   bool enable_ping = false;
   bool enable_user_alternate_protocol_ports = false;
   bool enable_quic = false;
+#if BUILDFLAG(IS_COBALT)
+  bool use_quic_for_unknown_origins = false;
+#endif
   bool enable_server_push_cancellation = false;
   size_t session_max_recv_window_size = kDefaultInitialWindowSize;
   int session_max_queued_capped_frames = kSpdySessionMaxQueuedCappedFrames;

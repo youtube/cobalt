@@ -63,14 +63,14 @@ AudioDecoderConfig UrlPlayerDemuxerStream::audio_decoder_config() {
 
 // Returns a placeholder video config to satisfy Mojo IPC stream
 // initialization. The URL player handles video decoding natively;
-// this config is not used for actual decoding.
+// this config is not used for actual decoding. Its size is the one the
+// platform player reported, or 1x1 until then.
 VideoDecoderConfig UrlPlayerDemuxerStream::video_decoder_config() {
-  static const gfx::Size kPlaceholderSize(1, 1);
   return VideoDecoderConfig(
       VideoCodec::kH264, VideoCodecProfile::H264PROFILE_BASELINE,
       VideoDecoderConfig::AlphaMode::kIsOpaque, VideoColorSpace(),
-      kNoTransformation, kPlaceholderSize, gfx::Rect(kPlaceholderSize),
-      kPlaceholderSize, /*extra_data=*/{}, EncryptionScheme::kUnencrypted);
+      kNoTransformation, natural_size_, gfx::Rect(natural_size_), natural_size_,
+      /*extra_data=*/{}, EncryptionScheme::kUnencrypted);
 }
 
 DemuxerStream::Type UrlPlayerDemuxerStream::type() const {
@@ -164,6 +164,16 @@ void UrlPlayerDemuxer::OnTracksChanged(
 }
 
 void UrlPlayerDemuxer::SetPlaybackRate(double rate) {}
+
+void UrlPlayerDemuxer::OnPlatformMetadata(base::TimeDelta duration,
+                                          const gfx::Size& natural_size) {
+  if (host_) {
+    host_->SetDuration(duration);
+  }
+  if (!natural_size.IsEmpty()) {
+    video_stream_.set_natural_size(natural_size);
+  }
+}
 
 void UrlPlayerDemuxer::OnPlatformDurationChange(base::TimeDelta duration) {
   if (host_) {

@@ -36,6 +36,8 @@
 #include "ui/native_theme/overlay_scrollbar_constants_aura.h"
 
 #if BUILDFLAG(IS_COBALT)
+#include <cmath>
+
 #include "base/numerics/safe_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
 #endif  // BUILDFLAG(IS_COBALT)
@@ -158,6 +160,49 @@ size_t GetDefaultMemoryMB() {
 
 }  // namespace
 
+#if BUILDFLAG(IS_COBALT)
+size_t GetCobaltDefaultGpuMemoryLimitMB(const gfx::Size& screen_size,
+                                        float device_scale_factor,
+                                        int physical_memory_mb) {
+  // 64 MB was chosen for a 1080p UI (b/424591313). Larger UIs need
+  // proportionally more tile memory (b/585308137), so step the budget up by
+  // UI resolution: 64 MB up to 1080p, 128 MB up to 1440p, 256 MB above that
+  // (matching the budget used for 4K UI Android TV devices).
+  constexpr size_t kMemoryMB1080p = 64;
+  constexpr size_t kMemoryMB1440p = 128;
+  constexpr size_t kMemoryMB4K = 256;
+  constexpr double kPixels1080p = 1920.0 * 1080.0;
+  constexpr double kPixels1440p = 2560.0 * 1440.0;
+  // Never spend more than 1/8 of the physical memory on tiles: 128 MB on a
+  // 1 GB device, 256 MB on a 2 GB device.
+  constexpr int kPhysicalMemoryDivisor = 8;
+
+  // Fall back to the 1080p budget if the screen size or scale is unknown or
+  // invalid (e.g. a NaN scale factor would otherwise fail every comparison
+  // below and get the 4K budget).
+  if (screen_size.IsEmpty() || !std::isfinite(device_scale_factor) ||
+      device_scale_factor <= 0.0f) {
+    return kMemoryMB1080p;
+  }
+
+  const double pixels =
+      static_cast<double>(screen_size.width()) * device_scale_factor *
+      static_cast<double>(screen_size.height()) * device_scale_factor;
+  size_t limit_mb = kMemoryMB4K;
+  if (pixels <= kPixels1080p) {
+    limit_mb = kMemoryMB1080p;
+  } else if (pixels <= kPixels1440p) {
+    limit_mb = kMemoryMB1440p;
+  }
+
+  if (physical_memory_mb > 0) {
+    limit_mb = std::min(limit_mb, static_cast<size_t>(physical_memory_mb /
+                                                      kPhysicalMemoryDivisor));
+  }
+  return std::max(limit_mb, kMemoryMB1080p);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 // static
 cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
     const cc::ManagedMemoryPolicy& default_policy,
@@ -192,11 +237,16 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
     force_gpu_mem_mb = base::features::kCobaltForceGpuMemAvailableMb.Get();
 #if defined(ARCH_CPU_32_BITS)
   } else {
-    // Default to a 64MB GPU memory limit on 32-bit devices (e.g. arm), where
-    // the address space is constrained. 64-bit devices are excluded to avoid
-    // capping high-end devices that require higher memory budgets for 4K UI
-    // rendering.
-    force_gpu_mem_mb = 64;
+    // On 32-bit devices (e.g. arm), where the address space is constrained,
+    // cap the GPU tile memory by default. The cap steps up with the UI
+    // resolution and is bounded by device memory: 64 MB up to 1080p, 128 MB up
+    // to 1440p, 256 MB above.
+    // 64-bit devices are excluded to avoid capping high-end devices that
+    // require higher memory budgets for 4K UI rendering. The
+    // CobaltForceGpuMemAvailable Finch feature above overrides this default.
+    force_gpu_mem_mb = base::checked_cast<int>(GetCobaltDefaultGpuMemoryLimitMB(
+        initial_screen_size, initial_device_scale_factor,
+        base::SysInfo::AmountOfActualPhysicalMemoryMB()));
 #endif  // defined(ARCH_CPU_32_BITS)
   }
   if (force_gpu_mem_mb > 0) {

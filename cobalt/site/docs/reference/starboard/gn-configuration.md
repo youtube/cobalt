@@ -6,7 +6,6 @@ Book: /youtube/cobalt/_book.yaml
 | Variables |
 | :--- |
 | **`cobalt_platform_dependencies`**<br><br> List of platform-specific targets that get compiled into cobalt.<br><br>The default value is `[]`. |
-| **`final_executable_type`**<br><br> The target type for executable targets. Allows changing the target type on platforms where the native code may require an additional packaging step (ex. Android).<br><br>The default value is `"shared_library"`. |
 | **`gl_type`**<br><br> The source of EGL and GLES headers and libraries. Valid values (case and everything sensitive!):<ul><li><code>system_gles2</code> - Use the system implementation of EGL + GLES2. The headers and libraries must be on the system include and link paths.<li><code>angle</code> - Use ANGLE's EGL + GLES2 implementation. This requires a valid ANGLE implementation for the platform.<br><br>The default value is `"system_gles2"`. |
 | **`has_platform_targets`**<br><br> Whether the platform has platform-specific targets to depend on.<br><br>The default value is `false`. |
 | **`platform_tests_path`**<br><br> Set to the starboard_platform_tests target if the platform implements them.<br><br>The default value is `""`. |
