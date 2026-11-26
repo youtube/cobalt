@@ -141,8 +141,17 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   void OnFrameAvailable() override;
 
  private:
-  // Attempt to initialize the codec.
+  // Attempt to initialize the codec: estimates the fps if needed, prepares the
+  // output surface and creates the media decoder.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
+  // Sets up the surface the codec renders to: the Android video surface in
+  // punch-out mode, or a new decode target in decode-to-texture mode.
+  Result<jni_zero::ScopedJavaLocalRef<jobject>> PrepareOutputSurface();
+  // Creates the media decoder for |video_stream_info| rendering to
+  // |j_output_surface|.
+  Result<void> CreateMediaDecoder(
+      const VideoStreamInfo& video_stream_info,
+      const jni_zero::JavaRef<jobject>& j_output_surface);
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
