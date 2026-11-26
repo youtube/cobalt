@@ -13,6 +13,7 @@
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/system/sys_info_internal.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -50,6 +51,17 @@ uint64_t SysInfo::AmountOfPhysicalMemory() {
 
   return AmountOfPhysicalMemoryImpl();
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+int SysInfo::AmountOfActualPhysicalMemoryMB() {
+  if (g_amount_of_physical_memory_mb_for_testing) {
+    return base::saturated_cast<int>(
+        g_amount_of_physical_memory_mb_for_testing.value());
+  }
+  return base::saturated_cast<int>(AmountOfPhysicalMemoryImpl() / 1024 / 1024);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // static
 uint64_t SysInfo::AmountOfAvailablePhysicalMemory() {

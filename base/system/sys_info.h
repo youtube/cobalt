@@ -93,6 +93,15 @@ class BASE_EXPORT SysInfo {
     return static_cast<int>(AmountOfPhysicalMemory() / 1024 / 1024);
   }
 
+#if BUILDFLAG(IS_COBALT)
+  // Return the number of megabytes of physical memory on the current machine,
+  // ignoring the simulated 512MB cap that AmountOfPhysicalMemory() applies when
+  // low-end device mode is enabled via command line flag. Cobalt enables
+  // low-end device mode by default on Starboard, so use this when a budget has
+  // to scale with the real amount of device memory.
+  static int AmountOfActualPhysicalMemoryMB();
+#endif  // BUILDFLAG(IS_COBALT)
+
   // Return the number of megabytes of available virtual memory, or zero if it
   // is unlimited.
   static int AmountOfVirtualMemoryMB() {
