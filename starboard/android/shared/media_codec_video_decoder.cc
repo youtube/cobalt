@@ -177,6 +177,33 @@ bool IsFrameSizeExceedingCapabilities(const Size& frame_size,
          frame_size.height > max_video_size.height;
 }
 
+// Guesstimates the video fps from the timestamps of the first (up to three)
+// |input_buffers|.
+int GuesstimateVideoFps(
+    const std::vector<scoped_refptr<InputBuffer>>& input_buffers) {
+  SB_DCHECK_GT(input_buffers.size(), 0u);
+
+  if (input_buffers.size() == 1) {
+    return 30;
+  }
+  int64_t first_timestamp = input_buffers[0]->timestamp();
+  int64_t second_timestamp = input_buffers[1]->timestamp();
+  if (input_buffers.size() > 2) {
+    second_timestamp =
+        std::min(second_timestamp, input_buffers[2]->timestamp());
+  }
+  int64_t frame_duration = second_timestamp - first_timestamp;
+  if (frame_duration <= 0) {
+    return 30;
+  }
+  // To avoid problems caused by deviation of fps calculation, we use the
+  // nearest multiple of 5 to check codec capability. So, the fps like 61, 62
+  // will be capped to 60, and 24 will be increased to 25.
+  const double kFpsMinDifference = 5;
+  return std::round(1'000'000LL / frame_duration / kFpsMinDifference) *
+         kFpsMinDifference;
+}
+
 }  // namespace
 
 // TODO: Merge this with VideoFrameTracker, maybe?
@@ -809,35 +836,19 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   SB_CHECK(BelongsToCurrentThread());
 
   if (needs_fps_to_initialize_codec_) {
-    SB_DCHECK_GT(pending_input_buffers_.size(), 0u);
-
-    // Guesstimate the video fps.
-    if (pending_input_buffers_.size() == 1) {
-      video_fps_ = 30;
-    } else {
-      int64_t first_timestamp = pending_input_buffers_[0]->timestamp();
-      int64_t second_timestamp = pending_input_buffers_[1]->timestamp();
-      if (pending_input_buffers_.size() > 2) {
-        second_timestamp =
-            std::min(second_timestamp, pending_input_buffers_[2]->timestamp());
-      }
-      int64_t frame_duration = second_timestamp - first_timestamp;
-      if (frame_duration > 0) {
-        // To avoid problems caused by deviation of fps calculation, we use the
-        // nearest multiple of 5 to check codec capability. So, the fps like 61,
-        // 62 will be capped to 60, and 24 will be increased to 25.
-        const double kFpsMinDifference = 5;
-        video_fps_ =
-            std::round(1'000'000LL / (second_timestamp - first_timestamp) /
-                       kFpsMinDifference) *
-            kFpsMinDifference;
-      } else {
-        video_fps_ = 30;
-      }
-    }
+    video_fps_ = GuesstimateVideoFps(pending_input_buffers_);
     SB_DCHECK_GT(video_fps_, 0);
   }
 
+  auto j_output_surface = PrepareOutputSurface();
+  if (!j_output_surface) {
+    return Unexpected(std::move(j_output_surface).error());
+  }
+  return CreateMediaDecoder(video_stream_info, *j_output_surface);
+}
+
+Result<jni_zero::ScopedJavaLocalRef<jobject>>
+MediaCodecVideoDecoder::PrepareOutputSurface() {
   // Setup the output surface object.  If we are in punch-out mode, target
   // the passed in Android video surface.  If we are in decode-to-texture
   // mode, create a surface from a new texture target and use that as the
@@ -894,7 +905,12 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   if (!j_output_surface) {
     return Failure("Video surface does not exist.");
   }
+  return j_output_surface;
+}
 
+Result<void> MediaCodecVideoDecoder::CreateMediaDecoder(
+    const VideoStreamInfo& video_stream_info,
+    const jni_zero::JavaRef<jobject>& j_output_surface) {
   if (needs_fps_to_initialize_codec_) {
     SB_DCHECK_GT(video_fps_, 0);
   } else {
