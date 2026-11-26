@@ -2021,6 +2021,12 @@ void GpuImageDecodeCache::UploadImageInTask(const DrawImage& draw_image) {
     DecodeImageAndGenerateDarkModeFilterIfNecessary(draw_image, image_data,
                                                     TaskType::kInRaster);
   UploadImageIfNecessary(draw_image, image_data);
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  if (use_transfer_cache_ &&
+      base::FeatureList::IsEnabled(features::kCobaltEagerRasterFlush)) {
+    context_->RasterInterface()->ShallowFlushCHROMIUM();
+  }
+#endif
 }
 
 void GpuImageDecodeCache::OnImageDecodeTaskCompleted(

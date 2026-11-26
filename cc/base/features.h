@@ -20,6 +20,12 @@ namespace features {
 // (equivalent to --enable-main-frame-before-activation), pipelining main-thread
 // frame production with pending tree rasterization and activation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
+
+// When enabled, OOP-R worker threads hand each completed tile raster and each
+// standalone image upload to the GPU service immediately (ShallowFlushCHROMIUM)
+// instead of leaving them as deferred ordering barriers until the compositor's
+// next CompositorFrame submission flushes the whole batch.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltEagerRasterFlush);
 #endif  // BUILDFLAG(IS_COBALT)
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kAlignSurfaceLayerImplToPixelGrid);

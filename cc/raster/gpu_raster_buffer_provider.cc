@@ -107,6 +107,19 @@ void GpuRasterBufferProvider::RasterBufferImpl::Playback(
   PlaybackOnWorkerThread(raster_source, raster_full_rect, raster_dirty_rect,
                          new_content_id, transform, playback_settings, url);
 
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+  if (client_->eager_raster_flush_) {
+    // Hand this tile's raster (and any uploads / transfer-cache ops recorded
+    // before it) to the GPU service now. Otherwise the commands sit behind a
+    // deferred OrderingBarrier until ClientResourceProvider::PrepareSendToParent
+    // -> VerifySyncTokensCHROMIUM flushes the whole shelf at frame submission,
+    // and the display draw that waits on these sync tokens must then wait for
+    // every tile to execute. Shallow flush only: no glFlush is added;
+    // RasterDecoderImpl::DoEndRasterCHROMIUM already submits per tile.
+    client_->worker_context_provider_->RasterInterface()->ShallowFlushCHROMIUM();
+  }
+#endif
+
   backing_->returned_sync_token = gpu::SyncToken();
 }
 
@@ -132,7 +145,13 @@ GpuRasterBufferProvider::GpuRasterBufferProvider(
       raster_metric_probability_(raster_metric_probability),
       is_using_raw_draw_(features::IsUsingRawDraw()),
       is_using_dmsaa_(
-          base::FeatureList::IsEnabled(features::kUseDMSAAForTiles)) {
+          base::FeatureList::IsEnabled(features::kUseDMSAAForTiles))
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+      ,
+      eager_raster_flush_(
+          base::FeatureList::IsEnabled(features::kCobaltEagerRasterFlush))
+#endif
+  {
   DCHECK(pending_raster_queries);
   DCHECK(compositor_context_provider);
   CHECK(worker_context_provider);
