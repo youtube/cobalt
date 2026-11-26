@@ -17,6 +17,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
+#include "base/task/single_thread_task_runner.h"
 #include "starboard/event.h"
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
@@ -41,6 +42,9 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
   void HandleFocusEvent(const SbEvent* event);
   void DispatchFocusEvent(bool is_focused);
 
+  void SetUserInputTaskRunner(
+      scoped_refptr<base::SingleThreadTaskRunner> runner);
+
   ~PlatformEventSourceStarboard() override;
 
   uint32_t DeliverEvent(std::unique_ptr<ui::Event> ui_event);
@@ -54,6 +58,9 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
 
  private:
   int current_pressed_mouse_buttons_ GUARDED_BY_CONTEXT(sequence_checker_) = 0;
+
+  scoped_refptr<base::SingleThreadTaskRunner> user_input_task_runner_
+      GUARDED_BY_CONTEXT(sequence_checker_);
 
   base::ObserverList<PlatformEventObserverStarboard>::Unchecked sb_observers_
       GUARDED_BY_CONTEXT(sequence_checker_);

@@ -176,6 +176,11 @@ BASE_EXPORT BASE_DECLARE_FEATURE(
 // (--enable-features=CobaltReduceStarboardThreadStackSize).
 BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltReduceStarboardThreadStackSize);
 #endif  // BUILDFLAG(IS_STARBOARD)
+
+// When enabled, routes Ozone Starboard user remote/key/mouse input tasks through
+// Chromium's dedicated BrowserTaskType::kUserInput queue (BrowserTaskPriority::kHighestPriority)
+// instead of the default normal-priority task queue.
+BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltPrioritizeUserInputQueue);
 #endif  // BUILDFLAG(IS_COBALT)
 
 BASE_EXPORT BASE_DECLARE_FEATURE(kFeatureParamWithCache);

@@ -24,6 +24,7 @@
 #include "ui/gl/gl_switches.h"
 #include "ui/ozone/common/bitmap_cursor_factory.h"
 #include "ui/ozone/common/stub_overlay_manager.h"
+#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #include "ui/ozone/platform/starboard/surface_factory_starboard.h"
@@ -115,7 +116,12 @@ class OzonePlatformStarboard : public OzonePlatform {
 
   void PostCreateMainMessageLoop(base::OnceCallback<void()> shutdown_cb,
                                  scoped_refptr<base::SingleThreadTaskRunner>
-                                     user_input_task_runner) override {}
+                                     user_input_task_runner) override {
+    if (auto* source = static_cast<PlatformEventSourceStarboard*>(
+            PlatformEventSource::GetInstance())) {
+      source->SetUserInputTaskRunner(std::move(user_input_task_runner));
+    }
+  }
 
   bool InitializeUI(const InitParams& params) override {
     if (!surface_factory_) {
