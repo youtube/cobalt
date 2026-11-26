@@ -107,7 +107,11 @@ CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
       {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
       // Enable precise memory info so we can make accurate client-side
       // measurements.
-      {::switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
+      // Use low quality image interpolation, the Blink default on Android.
+      // Medium quality makes cc upload a full mipmap chain for each image,
+      // which slows draws on the GPU thread.
+      {::switches::kEnableBlinkFeatures,
+       "PreciseMemoryInfo,UseLowQualityInterpolation"},
       // Enable autoplay video/audio, as Cobalt may launch directly into media
       // playback before user interaction.
       {::switches::kAutoplayPolicy, "no-user-gesture-required"},
