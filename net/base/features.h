@@ -805,6 +805,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kRestrictAbusePortsOnLocalhost);
 // Cobalt's HTTP cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
 
+// Enables batching standalone QUIC ACK-only packets across receive batches by
+// adding the client-only DAOP connection option.
+NET_EXPORT BASE_DECLARE_FEATURE(kCobaltQuicDeferAckOnlyPackets);
+
 // Caps the number of UDP packets requested per recvmmsg() call on Cobalt so
 // each pooled scratch buffer fits in a smaller PartitionAlloc slot span.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltQuicReadBatch);
