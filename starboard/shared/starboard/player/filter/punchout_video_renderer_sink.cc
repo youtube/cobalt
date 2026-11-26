@@ -42,6 +42,11 @@ PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
 void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
   SB_DCHECK(!render_cb_);
   SB_DCHECK(render_cb);
+  // RunLoop() and DrawFrame() call Application::Get(), so fail here on the
+  // caller's thread instead of later on the render thread.
+  SB_CHECK(Application::GetIfExists())
+      << "PunchoutVideoRendererSink requires a starboard::Application, which "
+         "is not available in all test executables.";
 
   render_cb_ = render_cb;
 
