@@ -23,6 +23,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "cc/base/math_util.h"
 #include "cc/test/render_pass_test_utils.h"
 #include "components/viz/common/features.h"
@@ -6764,6 +6765,70 @@ TEST_F(SurfaceAggregatorValidSurfaceTest, RootPassNoDamage) {
     EXPECT_FALSE(pass_list[1]->has_damage_from_contributing_content);
   }
 }
+
+#if BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
+// Verifies that on non-Android Cobalt with
+// kAllowUndamagedNonrootRenderPassToSkip enabled, translating an undamaged
+// non-root render pass strictly within the viewport does not mark it damaged,
+// while scrolling a partially clipped pass into view (expanding its pass-local
+// visible rect) does mark it damaged to prevent blank pixels.
+TEST_F(SurfaceAggregatorValidSurfaceTest,
+       CobaltPassLocalClipSkipsTranslationAndRedrawsOnReveal) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kAllowUndamagedNonrootRenderPassToSkip);
+
+  constexpr gfx::Size kRootSize(200, 200);
+  constexpr gfx::Size kPassSize(100, 100);
+  constexpr gfx::Rect kPassRect(kPassSize);
+
+  auto submit_at_offset = [&](const gfx::Vector2dF& offset) {
+    gfx::Transform transform;
+    transform.Translate(offset);
+    CompositorFrame root_frame =
+        CompositorFrameBuilder()
+            .AddRenderPass(
+                RenderPassBuilder(CompositorRenderPassId{1}, kPassSize)
+                    .AddSolidColorQuad(kPassRect, SkColors::kBlue)
+                    .SetTransformToRootTarget(transform)
+                    .SetHasDamageFromContributingContent(false)
+                    .SetDamageRect(gfx::Rect()))
+            .AddRenderPass(
+                RenderPassBuilder(CompositorRenderPassId{2}, kRootSize)
+                    .AddSolidColorQuad(gfx::Rect(kRootSize), SkColors::kGreen)
+                    .AddRenderPassQuad(kPassRect, CompositorRenderPassId{1})
+                    .SetQuadToTargetTransform(transform))
+            .Build();
+    root_sink_->SubmitCompositorFrame(root_surface_id_.local_surface_id(),
+                                      std::move(root_frame));
+    return AggregateFrame(root_surface_id_);
+  };
+
+  // Frame 1: Pass is partially offscreen at Y=150 (only top 50px visible).
+  {
+    auto frame = submit_at_offset(gfx::Vector2dF(10.0f, 150.0f));
+    ASSERT_EQ(2u, frame.render_pass_list.size());
+    EXPECT_TRUE(frame.render_pass_list[0]->has_damage_from_contributing_content);
+  }
+
+  // Frame 2: Pass scrolls into view at Y=40 (newly exposed bottom 50px must
+  // force redraw so unrendered regions are not composited as blank).
+  {
+    auto frame = submit_at_offset(gfx::Vector2dF(10.0f, 40.0f));
+    ASSERT_EQ(2u, frame.render_pass_list.size());
+    EXPECT_TRUE(frame.render_pass_list[0]->has_damage_from_contributing_content);
+  }
+
+  // Frame 3: Pass translates purely within the viewport from Y=40 to Y=10
+  // (pass-local visible rect stays (0,0,100,100) — no redraw required).
+  {
+    auto frame = submit_at_offset(gfx::Vector2dF(10.0f, 10.0f));
+    ASSERT_EQ(2u, frame.render_pass_list.size());
+    EXPECT_FALSE(
+        frame.render_pass_list[0]->has_damage_from_contributing_content);
+  }
+}
+#endif  // BUILDFLAG(IS_COBALT) && !BUILDFLAG(IS_ANDROID)
 
 // Tests that has_damage_from_contributing_content is aggregated correctly from
 // render pass quads.
