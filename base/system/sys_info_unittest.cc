@@ -51,6 +51,12 @@
 #include "base/test/scoped_feature_list.h"
 #endif  // BUILDFLAG(IS_MAC)
 
+#if BUILDFLAG(IS_COBALT)
+#include "base/base_switches.h"
+#include "base/test/scoped_amount_of_physical_memory_override.h"
+#include "base/test/scoped_command_line.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace base {
 
 #if BUILDFLAG(IS_ANDROID)
@@ -97,6 +103,20 @@ TEST_F(SysInfoTest, AmountOfMem) {
   // The maxmimal amount of virtual memory can be zero which means unlimited.
   EXPECT_GE(SysInfo::AmountOfVirtualMemory(), ByteSize(0));
 }
+
+#if BUILDFLAG(IS_COBALT)
+// Verifies that AmountOfActualPhysicalMemoryMB() returns the physical memory
+// size even when --enable-low-end-device-mode caps AmountOfPhysicalMemoryMB()
+// at 512 MB.
+TEST_F(SysInfoTest, AmountOfActualPhysicalMemoryMB) {
+  test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      switches::kEnableLowEndDeviceMode);
+  test::ScopedAmountOfPhysicalMemoryOverride memory_override(2048);
+  EXPECT_LE(SysInfo::AmountOfPhysicalMemoryMB(), 512);
+  EXPECT_EQ(2048, SysInfo::AmountOfActualPhysicalMemoryMB());
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)

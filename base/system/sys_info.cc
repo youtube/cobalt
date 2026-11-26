@@ -53,6 +53,17 @@ ByteSize SysInfo::AmountOfTotalPhysicalMemory() {
   return AmountOfTotalPhysicalMemoryImpl();
 }
 
+#if BUILDFLAG(IS_COBALT)
+// static
+int SysInfo::AmountOfActualPhysicalMemoryMB() {
+  if (g_amount_of_physical_memory_mb_for_testing) {
+    return base::saturated_cast<int>(
+        g_amount_of_physical_memory_mb_for_testing.value());
+  }
+  return base::saturated_cast<int>(AmountOfPhysicalMemoryImpl() / 1024 / 1024);
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 // static
 ByteSize SysInfo::AmountOfAvailablePhysicalMemory() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
