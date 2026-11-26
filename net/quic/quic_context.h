@@ -10,6 +10,7 @@
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_crypto_client_config.h"
@@ -281,7 +282,12 @@ class NET_EXPORT_PRIVATE QuicContext {
 };
 
 // Initializes QuicConfig based on the specified parameters.
+#if BUILDFLAG(IS_COBALT)
+NET_EXPORT_PRIVATE quic::QuicConfig InitializeQuicConfig(
+    const QuicParams& params);
+#else
 quic::QuicConfig InitializeQuicConfig(const QuicParams& params);
+#endif  // BUILDFLAG(IS_COBALT)
 
 // Configures QuicCryptoClientConfig with Chromium-specific settings.
 void ConfigureQuicCryptoClientConfig(

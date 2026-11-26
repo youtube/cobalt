@@ -35,6 +35,7 @@
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#include "net/base/features.h"
 #include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
@@ -249,6 +250,8 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
   enable_feature_if_set(
       flags::kEnableCobaltContentLengthAwareMojoPipeSizing,
       network::features::kCobaltContentLengthAwareMojoPipeSizing.name);
+  enable_feature_if_set(flags::kEnableCobaltQuicDeferAckOnlyPackets,
+                        net::features::kCobaltQuicDeferAckOnlyPackets.name);
 
   std::vector<std::string> interest_area_params;
   add_numeric_param(interest_area_params, flags::kInterestAreaSizeInPixels,

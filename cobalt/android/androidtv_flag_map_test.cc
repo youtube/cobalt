@@ -106,6 +106,16 @@ TEST(AndroidTvFlagMapTest, EnableQuic) {
   EXPECT_FALSE(cmd_line.HasSwitch(::switches::kDisableQuic));
 }
 
+// Verifies that setting the EnableCobaltQuicDeferAckOnlyPackets Kimono switch
+// on Android TV enables the CobaltQuicDeferAckOnlyPackets Finch feature.
+TEST(AndroidTvFlagMapTest, EnableCobaltQuicDeferAckOnlyPackets) {
+  const base::CommandLine cmd_line =
+      ExpandWith("EnableCobaltQuicDeferAckOnlyPackets");
+
+  EXPECT_EQ("CobaltQuicDeferAckOnlyPackets",
+            cmd_line.GetSwitchValueASCII(::switches::kEnableFeatures));
+}
+
 TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
   const base::CommandLine cmd_line = ExpandWith(
       "AllowCriticalMemoryPressureHandlingInForeground,"
@@ -122,6 +132,7 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
       "EnableCobaltContentLengthAwareMojoPipeSizing,"
       "EnableCobaltDynamicMojoPipeSizing,"
       "EnableCobaltMmapFontCache,"
+      "EnableCobaltQuicDeferAckOnlyPackets,"
       "EnableModerateMemoryPressure,"
       "EnableScalingClippedImages,"
       "EvictMemoryCacheOnCriticalMemoryPressure,"
@@ -160,6 +171,7 @@ TEST(AndroidTvFlagMapTest, AppliesAllExperiments) {
   EXPECT_EQ(
       "CobaltDynamicMojoPipeSizing:subresource_size/1024/media_size/2048,"
       "CobaltContentLengthAwareMojoPipeSizing,"
+      "CobaltQuicDeferAckOnlyPackets,"
       "SmallerInterestArea:size_in_pixels/400/reclaim_delay_s/5,"
       "CobaltBypassResourceLoadScheduler,"
       "CobaltBypassHTMLPreloadScanner,"
