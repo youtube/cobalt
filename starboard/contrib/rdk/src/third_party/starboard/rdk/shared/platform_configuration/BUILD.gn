@@ -37,12 +37,6 @@ config("platform_configuration") {
   defines = []
   cflags_cc = []
 
-  if (!build_with_separate_cobalt_toolchain) {
-    ldflags += [
-      "-Wl,--version-script," + rebase_path("exported-symbols.map", root_build_dir),
-    ]
-  }
-
   if (current_toolchain == host_toolchain) {
     cflags += [
       "-O2",

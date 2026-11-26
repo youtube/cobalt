@@ -14,6 +14,23 @@
 
 import("//starboard/build/config/sanitizers.gni")
 
+# Export only what the loaders look up in a modular library.
+config("exports") {
+  if (!use_asan && !use_tsan) {
+    inputs = [ "exports.lst" ]
+    ldflags =
+        [ "-Wl,--version-script=" + rebase_path(inputs[0], root_build_dir) ]
+  }
+}
+
+config("evergreen_exports") {
+  if (!use_asan && !use_tsan) {
+    inputs = [ "evergreen-exports.lst" ]
+    ldflags =
+        [ "-Wl,--version-script=" + rebase_path(inputs[0], root_build_dir) ]
+  }
+}
+
 config("modular") {
   ldflags = [ "-nostdlib" ]
 
