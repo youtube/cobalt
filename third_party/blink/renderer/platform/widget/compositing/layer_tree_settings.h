@@ -19,10 +19,11 @@ PLATFORM_EXPORT cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
 
 #if BUILDFLAG(IS_COBALT)
 // Returns Cobalt's default GPU tile memory budget, in MB, for devices where the
-// budget is capped by default (32-bit). The budget steps up with the UI
-// resolution in physical pixels (64 MB up to 1080p, 128 MB up to 1440p, 256 MB
-// above) and is capped at 1/8 of the device's physical memory, but never below
-// 64 MB. |physical_memory_mb| <= 0 means unknown.
+// budget is capped by default (32-bit, and 64-bit Android with a 96 MB floor).
+// The budget steps up with the UI resolution in physical pixels (64 MB up to
+// 1080p, 128 MB up to 1440p, 256 MB above) and is capped at 1/8 of the device's
+// physical memory, but never below 64 MB. |physical_memory_mb| <= 0 means
+// unknown.
 PLATFORM_EXPORT size_t
 GetCobaltDefaultGpuMemoryLimitMB(const gfx::Size& screen_size,
                                  float device_scale_factor,

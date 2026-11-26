@@ -166,6 +166,60 @@ TEST(LayerTreeSettings, CobaltDefaultGpuMemoryPolicyOn32Bit) {
 }
 #endif  // defined(ARCH_CPU_32_BITS)
 
+// NVIDIA SHIELD devices with a 4K UI, using the RAM they report (b/579558515).
+TEST(LayerTreeSettings, CobaltDefaultGpuMemoryLimitShield4k) {
+  // darcy_nova: 4 GB.
+  EXPECT_EQ(256u,
+            GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 1.f,
+                                             /*physical_memory_mb=*/3808));
+  // foster: 3 GB.
+  EXPECT_EQ(256u,
+            GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 1.f,
+                                             /*physical_memory_mb=*/2910));
+}
+
+#if defined(ARCH_CPU_64_BITS) && BUILDFLAG(IS_ANDROID)
+// Verifies that 64-bit Android uses the resolution-based default with a 96 MB
+// floor, instead of Chromium's 96 MB low-end budget, when Cobalt runs with
+// --enable-low-end-device-mode.
+TEST(LayerTreeSettings, CobaltDefaultGpuMemoryPolicyOn64BitAndroid) {
+  base::test::ScopedCommandLine scoped_command_line;
+  scoped_command_line.GetProcessCommandLine()->AppendSwitch(
+      ::switches::kEnableLowEndDeviceMode);
+  {
+    // darcy_nova: 4 GB, 4K UI.
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(3808);
+    auto policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                                     gfx::Size(3840, 2160), 1.f);
+    EXPECT_EQ(256u * 1024u * 1024u, policy.bytes_limit_when_visible);
+  }
+  base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(2910);
+  // foster: 3 GB, 4K UI.
+  auto policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                                   gfx::Size(3840, 2160), 1.f);
+  EXPECT_EQ(256u * 1024u * 1024u, policy.bytes_limit_when_visible);
+  // 1440p gets 128 MB.
+  policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                              gfx::Size(2560, 1440), 1.f);
+  EXPECT_EQ(128u * 1024u * 1024u, policy.bytes_limit_when_visible);
+  // 1080p and unknown screens keep 96 MB instead of dropping to 64 MB.
+  policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                              gfx::Size(1920, 1080), 1.f);
+  EXPECT_EQ(96u * 1024u * 1024u, policy.bytes_limit_when_visible);
+  policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256), gfx::Size(), 1.f);
+  EXPECT_EQ(96u * 1024u * 1024u, policy.bytes_limit_when_visible);
+
+  // The Finch feature overrides the resolution-based default.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      base::features::kCobaltForceGpuMemAvailable,
+      {{"force_gpu_mem_available_mb", "128"}});
+  policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                              gfx::Size(3840, 2160), 1.f);
+  EXPECT_EQ(128u * 1024u * 1024u, policy.bytes_limit_when_visible);
+}
+#endif  // defined(ARCH_CPU_64_BITS) && BUILDFLAG(IS_ANDROID)
+
 TEST(LayerTreeSettings, CobaltAnimationTileLookaheadSettings) {
   {
     base::test::ScopedFeatureList feature_list;

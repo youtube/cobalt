@@ -241,12 +241,26 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
     // cap the GPU tile memory by default. The cap steps up with the UI
     // resolution and is bounded by device memory: 64 MB up to 1080p, 128 MB up
     // to 1440p, 256 MB above.
-    // 64-bit devices are excluded to avoid capping high-end devices that
-    // require higher memory budgets for 4K UI rendering. The
-    // CobaltForceGpuMemAvailable Finch feature above overrides this default.
+    // 64-bit devices other than Android (below) are excluded to avoid capping
+    // high-end devices that require higher memory budgets for 4K UI
+    // rendering. The CobaltForceGpuMemAvailable Finch feature above overrides
+    // this default.
     force_gpu_mem_mb = base::checked_cast<int>(GetCobaltDefaultGpuMemoryLimitMB(
         initial_screen_size, initial_device_scale_factor,
         base::SysInfo::AmountOfActualPhysicalMemoryMB()));
+#elif BUILDFLAG(IS_ANDROID)
+  } else {
+    // On 64-bit Android, use the same resolution-based default, so that a 4K
+    // UI gets 256 MB even before the server config that sets it is cached
+    // (b/579558515). Otherwise Cobalt's low-end device mode falls through to
+    // Chromium's 96 MB below, which is too small for 4K. Keep that 96 MB as a
+    // floor so that 1080p devices don't drop to 64 MB.
+    constexpr size_t kMinAndroid64BitMemoryMB = 96;
+    force_gpu_mem_mb = base::checked_cast<int>(
+        std::max(kMinAndroid64BitMemoryMB,
+                 GetCobaltDefaultGpuMemoryLimitMB(
+                     initial_screen_size, initial_device_scale_factor,
+                     base::SysInfo::AmountOfActualPhysicalMemoryMB())));
 #endif  // defined(ARCH_CPU_32_BITS)
   }
   if (force_gpu_mem_mb > 0) {
