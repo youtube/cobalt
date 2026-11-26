@@ -23,7 +23,7 @@ declare_args() {
 }
 
 if (starboard_target_type == "") {
-  if (sb_is_modular && !use_evergreen) {
+  if (build_with_separate_cobalt_toolchain && !use_evergreen) {
     starboard_target_type = "shared_library"
   } else {
     starboard_target_type = "component"

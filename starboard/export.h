@@ -19,17 +19,18 @@
 #ifndef STARBOARD_EXPORT_H_
 #define STARBOARD_EXPORT_H_
 
+#include "build/build_config.h"
 #include "starboard/configuration.h"
 
 // COMPONENT_BUILD is defined when generating shared libraries for each project,
 // rather than static libraries. This means we need to be careful about
 // EXPORT/IMPORT.
 
-// SB_IS_MODULAR is defined when the binaries generated will be composed
-// entirely of the Starboard implementation and will provide the Starboard API,
-// with all client applications being built separately.
+// BUILDFLAG(IS_STARBOARD) is set when Starboard is the OS layer, and in every
+// toolchain that builds Starboard separately from its clients. In those
+// builds, the Starboard implementation exports the Starboard API.
 
-#if defined(COMPONENT_BUILD) || SB_IS(MODULAR)
+#if defined(COMPONENT_BUILD) || BUILDFLAG(IS_STARBOARD)
 
 // STARBOARD_IMPLEMENTATION is defined when building the Starboard library
 // sources, and shouldn't be defined when building sources that are clients of
@@ -54,11 +55,11 @@
 #define SB_EXPORT_PRIVATE SB_IMPORT_PLATFORM
 #define SB_IMPORT SB_EXPORT_PLATFORM
 #endif
-#else  // defined(COMPONENT_BUILD) || SB_IS(MODULAR)
+#else  // defined(COMPONENT_BUILD) || BUILDFLAG(IS_STARBOARD)
 #define SB_EXPORT
 #define SB_EXPORT_PRIVATE
 #define SB_IMPORT
-#endif  // defined(COMPONENT_BUILD)
+#endif  // defined(COMPONENT_BUILD) || BUILDFLAG(IS_STARBOARD)
 
 // Specification for an Android-specific symbol that should be exported for
 // use at layers above Starboard. Only needed for component builds.
