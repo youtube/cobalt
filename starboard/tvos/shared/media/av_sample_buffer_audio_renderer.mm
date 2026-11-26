@@ -14,6 +14,9 @@
 
 #include "starboard/tvos/shared/media/av_sample_buffer_audio_renderer.h"
 
+#include <algorithm>
+
+#include "base/apple/scoped_cftyperef.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/tvos/shared/media/avutil/utils.h"
 #include "starboard/tvos/shared/media/playback_capabilities.h"
@@ -53,6 +56,16 @@ bool HasRemoteAudioOutput() {
     index++;
   }
   return false;
+}
+
+void SetTrimDuration(CMSampleBufferRef sample_buffer,
+                     CFStringRef key,
+                     int64_t duration_usec) {
+  base::apple::ScopedCFTypeRef<CFDictionaryRef> trim_duration(
+      CMTimeCopyAsDictionary(CMTimeMake(duration_usec, 1000000),
+                             kCFAllocatorDefault));
+  CMSetAttachment(sample_buffer, key, trim_duration.get(),
+                  kCMAttachmentMode_ShouldPropagate);
 }
 
 }  // namespace
@@ -155,27 +168,54 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
     }
   }
 
-  CMSampleBufferRef sample_buffer;
+  base::apple::ScopedCFTypeRef<CMSampleBufferRef> sample_buffer;
   size_t frames_in_buffer;
   if (!sample_buffer_builder_->BuildSampleBuffer(
-          input_buffer, media_time_offset_, &sample_buffer,
+          input_buffer, media_time_offset_, sample_buffer.InitializeInto(),
           &frames_in_buffer)) {
     ReportError(sample_buffer_builder_->GetErrorMessage());
     return;
   }
 
-  int64_t buffer_end_time =
-      input_buffer->timestamp() +
+  // AVSampleBufferAudioRenderer consumes compressed samples directly, so the
+  // discarded durations have to be applied here instead of in a decoder.
+  const int64_t buffer_duration =
       frames_in_buffer * 1000000 / audio_stream_info_.samples_per_second;
+  const auto& sample_info = input_buffer->audio_sample_info();
+  const int64_t discarded_duration_from_front = std::clamp<int64_t>(
+      sample_info.discarded_duration_from_front, 0, buffer_duration);
+  const int64_t discarded_duration_from_back =
+      std::clamp<int64_t>(sample_info.discarded_duration_from_back, 0,
+                          buffer_duration - discarded_duration_from_front);
+
+  if (discarded_duration_from_front + discarded_duration_from_back >=
+      buffer_duration) {
+    // The whole buffer is discarded.
+    return;
+  }
+
+  int64_t buffer_end_time = input_buffer->timestamp() + buffer_duration -
+                            discarded_duration_from_back;
 
   if (buffer_end_time < seek_to_time_) {
     return;
   }
 
+  if (discarded_duration_from_front > 0) {
+    SetTrimDuration(sample_buffer.get(),
+                    kCMSampleBufferAttachmentKey_TrimDurationAtStart,
+                    discarded_duration_from_front);
+  }
+  if (discarded_duration_from_back > 0) {
+    SetTrimDuration(sample_buffer.get(),
+                    kCMSampleBufferAttachmentKey_TrimDurationAtEnd,
+                    discarded_duration_from_back);
+  }
+
   const SbDrmSampleInfo* drm_info = input_buffer->drm_info();
   if (drm_system_ && drm_info) {
     CFArrayRef attachments =
-        CMSampleBufferGetSampleAttachmentsArray(sample_buffer, YES);
+        CMSampleBufferGetSampleAttachmentsArray(sample_buffer.get(), YES);
     // There should be only 1 sample attachment here for non opus audio.
     SB_DCHECK(CFArrayGetCount(attachments) == 1);
 
@@ -188,8 +228,8 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
     SB_DCHECK(content_key);
 
     NSError* error;
-    BOOL result =
-        AVSampleBufferAttachContentKey(sample_buffer, content_key, &error);
+    BOOL result = AVSampleBufferAttachContentKey(sample_buffer.get(),
+                                                 content_key, &error);
     if (!result) {
       std::stringstream ss;
       ss << "Failed to attach content key.";
@@ -212,7 +252,7 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
   }
 
   @autoreleasepool {
-    [audio_renderer_ enqueueSampleBuffer:sample_buffer];
+    [audio_renderer_ enqueueSampleBuffer:sample_buffer.get()];
   }  // @autoreleasepool
 
   last_buffer_end_time_ = buffer_end_time;
@@ -224,8 +264,6 @@ void AVSBAudioRenderer::WriteSamples(const InputBuffers& input_buffers) {
       Schedule(prerolled_cb_);
     }
   }
-
-  CFRelease(sample_buffer);
 }
 
 void AVSBAudioRenderer::WriteEndOfStream() {
