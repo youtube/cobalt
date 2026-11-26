@@ -4,6 +4,7 @@
 
 import("//components/enterprise/buildflags/buildflags.gni")
 import("//extensions/buildflags/buildflags.gni")
+import("//printing/buildflags/buildflags.gni")
 import("//ui/base/ui_features.gni")
 
 # This library wraps //ui/views and can only be built where views is available.
@@ -52,7 +53,10 @@ source_set("unit_tests") {
     deps += [ "//components/enterprise/connectors/core:cloud_content_scanning" ]
   }
 
-  if (enable_extensions && enterprise_local_content_analysis) {
+  # Cobalt: //chrome/browser/printing:test_support only exists when
+  # enable_print_preview is true, which is not the case on Cobalt.
+  if (enable_extensions && enterprise_local_content_analysis &&
+      enable_print_preview) {
     sources += [ "print_utils_unittest.cc" ]
     deps += [ "//chrome/browser/printing:test_support" ]
   }

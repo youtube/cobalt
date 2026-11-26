@@ -330,9 +330,14 @@ std::queue<Operation> MakeOperations(
     const std::string& install_data) {
 
   std::queue<Operation> ops;
+#if !BUILDFLAG(IS_STARBOARD)
+  // Cobalt doesn't use the temp dir for the download, and relies on
+  // UpdateChecker::SkipUpdate to handle the case where available space is
+  // insufficient. It sends UpdateCheckError::OUT_OF_SPACE error to the server.
   ops.push(SkipIfCached(cache_check,
                         base::BindOnce(&SpaceCheckOperation, pipeline,
                                        get_available_space, event_adder)));
+#endif
   for (const ProtocolParser::Operation& operation : pipeline.operations) {
     if (operation.type == "download") {
       // expects: `urls` (list of url objects), `size`, and `out` (hash object)
@@ -344,18 +349,12 @@ std::queue<Operation> MakeOperations(
       }
       ops.push(SkipIfCached(
           cache_check,
-<<<<<<< ours
           base::BindOnce(&DownloadOperation, config, id, is_foreground,
                          operation.urls, operation.size, operation.sha256_out,
                          event_adder, state_tracker,
-=======
-          base::BindOnce(&DownloadOperation, config, id, get_available_space,
-                         is_foreground, operation.urls, operation.size,
-                         operation.sha256_out, event_adder, state_tracker,
 #if defined(IN_MEMORY_UPDATES)
                          crx_str,
 #endif
->>>>>>> theirs
                          download_progress_callback)));
     } else if (operation.type == "puff") {
       // expects: `previous` (hash object) and `out` (hash object)

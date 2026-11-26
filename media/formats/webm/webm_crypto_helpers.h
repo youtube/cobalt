@@ -9,11 +9,8 @@
 
 #include <memory>
 
-<<<<<<< ours
 #include "base/containers/span.h"
-=======
 #include "build/build_config.h"
->>>>>>> theirs
 #include "media/base/decoder_buffer.h"
 #include "media/base/media_export.h"
 

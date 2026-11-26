@@ -14,11 +14,13 @@
 
 #include "cobalt/testing/browser_tests/renderer/shell_content_renderer_test_client.h"
 
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/files/file.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/allow_check_is_test_for_testing.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/common/main_frame_counter_test_impl.h"
 #include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
@@ -147,6 +149,11 @@ class TestRendererServiceImpl : public mojom::TestService {
     std::move(callback).Run();
   }
 
+  void VerifyCheckIsTest(VerifyCheckIsTestCallback callback) override {
+    CHECK_IS_TEST();
+    std::move(callback).Run(true);
+  }
+
   void WriteToPreloadedPipe() override { NOTREACHED(); }
 
   mojo::Receiver<mojom::TestService> receiver_;
@@ -160,7 +167,12 @@ void CreateRendererTestService(
 
 }  // namespace
 
-ShellContentRendererTestClient::ShellContentRendererTestClient() = default;
+ShellContentRendererTestClient::ShellContentRendererTestClient() {
+  // Cobalt: //content/shell only allows CHECK_IS_TEST() when this runs in a
+  // renderer process. Cobalt browser tests always run in single-process mode,
+  // where that process-type check is always false, so allow it unconditionally.
+  base::test::AllowCheckIsTestForTesting();
+}
 
 ShellContentRendererTestClient::~ShellContentRendererTestClient() = default;
 

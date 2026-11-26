@@ -21,7 +21,9 @@
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_manager.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "content/browser/hid/hid_service.h"
+#endif
 #include "content/browser/loader/url_loader_factory_utils.h"
 #include "content/browser/network/cross_origin_embedder_policy_reporter.h"
 #include "content/browser/process_lock.h"
@@ -801,10 +803,7 @@ void EmbeddedWorkerInstance::BindCacheStorage(
   BindCacheStorageInternal();
 }
 
-<<<<<<< ours
-=======
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
+#if !BUILDFLAG(IS_COBALT)
 void EmbeddedWorkerInstance::BindHidService(
     const url::Origin& origin,
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
@@ -818,10 +817,7 @@ void EmbeddedWorkerInstance::BindHidService(
                        std::move(receiver));
   }
 }
-<<<<<<< ours
-=======
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
+#endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_COBALT)
 void EmbeddedWorkerInstance::BindUsbService(
