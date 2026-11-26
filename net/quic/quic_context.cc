@@ -4,7 +4,12 @@
 
 #include "net/quic/quic_context.h"
 
+<<<<<<< ours
 #include "net/base/features.h"
+=======
+#include "base/containers/contains.h"
+#include "build/build_config.h"
+>>>>>>> theirs
 #include "net/quic/platform/impl/quic_chromium_clock.h"
 #include "net/quic/quic_chromium_connection_helper.h"
 #include "net/ssl/cert_compression.h"
@@ -12,6 +17,11 @@
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quiche/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_constants.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "net/base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace net {
 
@@ -90,7 +100,17 @@ quic::QuicConfig InitializeQuicConfig(const QuicParams& params) {
       quic::QuicTime::Delta::FromMicroseconds(
           GetMaxIdleTimeBeforeCryptoHandshake(params).InMicroseconds()));
   config.SetConnectionOptionsToSend(params.connection_options);
+#if BUILDFLAG(IS_COBALT)
+  quic::QuicTagVector client_connection_options =
+      params.client_connection_options;
+  if (base::FeatureList::IsEnabled(features::kCobaltQuicDeferAckOnlyPackets) &&
+      !quic::ContainsQuicTag(client_connection_options, quic::kDAOP)) {
+    client_connection_options.push_back(quic::kDAOP);
+  }
+  config.SetClientConnectionOptions(client_connection_options);
+#else
   config.SetClientConnectionOptions(params.client_connection_options);
+#endif  // BUILDFLAG(IS_COBALT)
   config.set_max_undecryptable_packets(kMaxUndecryptablePackets);
   config.SetInitialSessionFlowControlWindowToSend(
       kQuicSessionMaxRecvWindowSize);

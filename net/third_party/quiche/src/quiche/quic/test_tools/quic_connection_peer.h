@@ -252,6 +252,7 @@ class QuicConnectionPeer {
 
   static bool CanReceiveAckFrequencyFrames(QuicConnection* connection);
 
+<<<<<<< ours
   static uint8_t GetNumPtosForRetransmittableOnWireTimeout(
       const QuicConnection* connection);
 
@@ -265,6 +266,12 @@ class QuicConnectionPeer {
 
   static QuicConnection::ReceivedPacketInfo& GetLastReceivedPacketInfo(
       QuicConnection* connection);
+=======
+#if BUILDFLAG(IS_COBALT)
+  static void SetAllowDeferringAckOnlyPackets(QuicConnection* connection,
+                                              bool allow);
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> theirs
 };
 
 }  // namespace test

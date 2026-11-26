@@ -146,6 +146,7 @@ source_set("androidtv_flags") {
     "//components/network_session_configurator/common",
     "//content/public/common",
     "//gpu/command_buffer/service",
+    "//net",
     "//services/network/public/cpp:flags_and_switches",
     "//third_party/blink/public/common",
   ]

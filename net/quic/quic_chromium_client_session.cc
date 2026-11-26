@@ -4002,6 +4002,12 @@ bool QuicChromiumClientSession::OnPacket(
   return true;
 }
 
+#if BUILDFLAG(IS_COBALT)
+quic::QuicConnection* QuicChromiumClientSession::GetConnection() {
+  return connection();
+}
+#endif  // BUILDFLAG(IS_COBALT)
+
 void QuicChromiumClientSession::NotifyFactoryOfSessionGoingAway() {
   going_away_ = true;
   if (session_pool_) {

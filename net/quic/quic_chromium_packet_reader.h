@@ -18,6 +18,9 @@
 
 namespace quic {
 class QuicClock;
+#if BUILDFLAG(IS_COBALT)
+class QuicConnection;
+#endif  // BUILDFLAG(IS_COBALT)
 }  // namespace quic
 namespace net {
 #if BUILDFLAG(IS_COBALT)
@@ -48,6 +51,9 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
     virtual bool OnPacket(const quic::QuicReceivedPacket& packet,
                           const quic::QuicSocketAddress& local_address,
                           const quic::QuicSocketAddress& peer_address) = 0;
+#if BUILDFLAG(IS_COBALT)
+    virtual quic::QuicConnection* GetConnection();
+#endif  // BUILDFLAG(IS_COBALT)
   };
 
   QuicChromiumPacketReader(std::unique_ptr<DatagramClientSocket> socket,
