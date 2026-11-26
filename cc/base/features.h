@@ -20,6 +20,11 @@ namespace features {
 // (equivalent to --enable-main-frame-before-activation), pipelining main-thread
 // frame production with pending tree rasterization and activation.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
+
+// When enabled, batches transfer cache entry unlocks into a single call in
+// GpuImageDecodeCache::RunPendingContextThreadOperations, reducing lock and IPC
+// overhead on the GPU thread.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltBatchTransferCacheUnlocks);
 #endif  // BUILDFLAG(IS_COBALT)
 
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kAlignSurfaceLayerImplToPixelGrid);
