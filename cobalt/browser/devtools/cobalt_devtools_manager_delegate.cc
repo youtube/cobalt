@@ -506,6 +506,9 @@ void CobaltDevToolsManagerDelegate::FlushPendingLogs() {
 
   bool any_truncated = false;
   for (content::DevToolsAgentHostClientChannel* channel : target_channels) {
+    if (!native_logging_enabled_) {
+      break;
+    }
     auto it = sessions_.find(channel);
     if (it == sessions_.end() || !it->second.native_log_sink ||
         !it->second.log_domain_enabled) {

@@ -1,6 +1,6 @@
 # Cobalt Memory Breakdown DevTools Extension (Side Panel)
 
-A lightweight Manifest V3 Chrome Extension providing real-time memory inspection, session P50 telemetry breakdowns, and time-windowed peak memory guardrail tracking for Cobalt/Chrobalt on Android TV, physical RDK devices, and Linux Desktop.
+A lightweight Manifest V3 Chrome Extension providing real-time memory inspection, session P50 telemetry breakdowns, time-windowed peak memory guardrail tracking, and interactive native log streaming controls for Cobalt/Chrobalt on Android TV, physical RDK devices, and Linux Desktop.
 
 ---
 
@@ -105,8 +105,10 @@ Tracks maximum memory peaks recorded across elapsed lifecycle time windows and i
 
 ## Native C++ Logs in DevTools Console
 
-Non-release Cobalt builds can stream in-process native `base::logging` and `SB_LOG` output into any attached Chrome DevTools Console as standard `Log.entryAdded` entries.
+Non-release Cobalt builds (`!cobalt_is_release_build`, matching `enable_devtools_backend`; omitted from `gold` release builds) can stream in-process native `base::logging` and `SB_LOG` output into any attached Chrome DevTools Console as standard `Log.entryAdded` entries.
 
-* **Interactive toggle:** Use the severity selector (`Verbose`, `Info`, `Warning`, `Error`, `Fatal`) and **Native Logs: Off / On** button in the extension toolbar. The toggle invokes `Cobalt.setNativeLogging` and `Cobalt.getNativeLoggingState` over CDP directly, so it works even while page JavaScript is paused at a breakpoint or before a document loads.
+* **Attaching Chrome DevTools Console:** Open `chrome://inspect` on your desktop Chrome browser (after forwarding port `9222` or configuring your device IP) or open `devtools://devtools/bundled/inspector.html?ws=<host>:9222/devtools/page/<target-id>`, and switch to the **Console** panel.
+* **Interactive toggle and severity filter:** Use the severity selector (`Verbose`, `Info`, `Warning`, `Error`, `Fatal`) and **Native Logs: Off / On** button in the extension toolbar. The toolbar probes `Cobalt.getNativeLoggingState` on connect (staying disabled on older non-release builds that do not implement the custom commands) and invokes `Cobalt.setNativeLogging` in the browser process, so streaming works even while page JavaScript is paused at a breakpoint or before a document loads.
+* **Console level filter & Fatal caveat:** `Verbose` entries only appear when Chrome DevTools Console's own **Verbose** level filter is enabled. Selecting `Fatal` alone rarely surfaces live messages because `LOG(FATAL)` and `SB_LOG(FATAL)` abort the process before the asynchronous flush runs.
 * **Startup boot logs:** Launch Cobalt with `--enable-devtools-native-logs` to buffer native logs from `PreEarlyInitialization` and replay them as soon as Chrome DevTools Console attaches.
-* **Idle overhead:** When disabled (the default without `--enable-devtools-native-logs`), collection stays inactive and releases its ring buffer automatically when the last DevTools client detaches.
+* **Idle overhead:** When disabled (the default without `--enable-devtools-native-logs`), collection stays inactive with no ring buffer allocated. Disabling streaming releases the ring buffer immediately; without the startup flag, detaching the final DevTools client disables collection automatically.

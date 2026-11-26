@@ -171,6 +171,8 @@ std::vector<uint8_t> EncodeCommand(
   return cbor;
 }
 
+// Test fixture providing a mock-time TaskEnvironment and CBOR CDP command
+// dispatch helpers for CobaltDevToolsManagerDelegate unit tests.
 class CobaltDevToolsManagerDelegateTest : public ::testing::Test {
  protected:
   CobaltDevToolsManagerDelegateTest()
@@ -654,10 +656,29 @@ TEST_F(CobaltDevToolsManagerDelegateTest,
   CobaltDevToolsManagerDelegate singleton_delegate(/*browser_context=*/nullptr);
   EXPECT_TRUE(CobaltLogCollector::GetInstance()->SnapshotStats().active);
 
-  // ShutdownNativeLogging() must release the live delegate's consumer even
-  // after the early-boot consumer was handed off on delegate construction.
+  // Interactive disable must free the ring buffer immediately, proving
+  // constructor handoff released GetBootLogConsumer().
+  FakeDevToolsChannel singleton_channel;
+  singleton_delegate.ClientAttached(&singleton_channel);
+  base::Value::Dict singleton_disable;
+  singleton_disable.Set("enabled", false);
+  EXPECT_FALSE(SendCommand(&singleton_delegate, &singleton_channel, 1,
+                           "Cobalt.setNativeLogging",
+                           std::move(singleton_disable)));
+  EXPECT_FALSE(CobaltLogCollector::GetInstance()->SnapshotStats().active);
+
+  // Re-enable interactively, then verify ShutdownNativeLogging() releases the
+  // live delegate's consumer during browser shutdown.
+  base::Value::Dict singleton_enable;
+  singleton_enable.Set("enabled", true);
+  EXPECT_FALSE(SendCommand(&singleton_delegate, &singleton_channel, 2,
+                           "Cobalt.setNativeLogging",
+                           std::move(singleton_enable)));
+  EXPECT_TRUE(CobaltLogCollector::GetInstance()->SnapshotStats().active);
+
   CobaltDevToolsManagerDelegate::ShutdownNativeLogging();
   EXPECT_FALSE(CobaltLogCollector::GetInstance()->SnapshotStats().active);
+  singleton_delegate.ClientDetached(&singleton_channel);
 }
 
 // Covers the edge case where a DevTools client disconnects synchronously while

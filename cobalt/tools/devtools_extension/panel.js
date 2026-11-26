@@ -389,6 +389,7 @@ async function connectCDP() {
 
     socket.onerror = (err) => {
       if (generation !== connectionGeneration || ws !== socket) return;
+      ws = null;
       console.error("WebSocket error:", err);
       setDisconnectedUi("Error");
     };

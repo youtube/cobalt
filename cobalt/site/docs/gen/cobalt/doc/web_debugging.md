@@ -240,6 +240,17 @@ expander so you can dig in to their properties. Logging from JavaScript with
 `console.log()` can show objects and exceptions as well, in contrast to the
 text-only messages shown in the console overlay.
 
+> **Cobalt 27+ Remote Debugging and Native Logs:** Cobalt 27 removed the
+> bundled DevTools frontend. On non-release builds (`!cobalt_is_release_build`,
+> omitted from `gold`), launch Cobalt with `--remote-debugging-port=9222` and
+> attach stock desktop Chrome DevTools via `chrome://inspect`. To stream
+> in-process native C++ and Starboard logs into the DevTools Console alongside
+> JavaScript output, toggle **Native Logs** in the unpacked Chrome extension
+> (`cobalt/tools/devtools_extension/README.md`), send the
+> `Cobalt.setNativeLogging` / `Cobalt.getNativeLoggingState` CDP commands, or
+> pass `--enable-devtools-native-logs` at launch to buffer early startup logs
+> until a Console attaches.
+
 Chrome docs:
 
 *   https://developers.google.com/web/tools/chrome-devtools/console/
