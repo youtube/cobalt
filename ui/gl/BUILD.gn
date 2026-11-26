@@ -521,6 +521,10 @@ source_set("run_all_unittests") {
       "//ui/ozone",
     ]
   }
+
+  if (is_starboard) {
+    deps += [ "//starboard:starboard_group" ]
+  }
 }
 
 test("gl_unittests") {
