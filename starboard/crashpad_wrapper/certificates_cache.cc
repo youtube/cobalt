@@ -15,6 +15,7 @@
 #include "starboard/crashpad_wrapper/certificates_cache.h"
 
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -22,19 +23,24 @@
 #include <algorithm>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
+#include "base/files/file_util.h"
 #include "base/logging.h"
+#include "base/posix/eintr_wrapper.h"
 #include "starboard/configuration_constants.h"
 
 namespace crashpad {
 
 namespace {
 
+// Files are opened with the 3-arg open() because, unlike fopen() and the 2-arg
+// open(), it goes through Starboard's POSIX wrapper for open(), which can read
+// APK files on AOSP (starboard/android/shared/posix_emu/file.cc).
+
 bool CopyFile(const std::string& src_path, const std::string& dst_path) {
-  // Don't use the 2-arg open() since _FORTIFY_SOURCE rewrites it to __open_2,
-  // which bypasses -Wl,--wrap=open.
   const int src = open(src_path.c_str(), O_RDONLY, 0);
   if (src < 0) {
     PLOG(ERROR) << "Couldn't open " << src_path;
@@ -50,11 +56,13 @@ bool CopyFile(const std::string& src_path, const std::string& dst_path) {
   bool ok = true;
   char buffer[4096];
   while (true) {
-    const ssize_t bytes_read = read(src, buffer, sizeof(buffer));
+    const ssize_t bytes_read = HANDLE_EINTR(read(src, buffer, sizeof(buffer)));
     if (bytes_read == 0) {
       break;
     }
-    if (bytes_read < 0 || write(dst, buffer, bytes_read) != bytes_read) {
+    if (bytes_read < 0 ||
+        !base::WriteFileDescriptor(
+            dst, std::string_view(buffer, static_cast<size_t>(bytes_read)))) {
       ok = false;
       break;
     }
@@ -71,7 +79,7 @@ bool ReadFile(const std::string& path, std::string* contents) {
   contents->clear();
   char buffer[4096];
   ssize_t bytes_read;
-  while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
+  while ((bytes_read = HANDLE_EINTR(read(fd, buffer, sizeof(buffer)))) > 0) {
     contents->append(buffer, bytes_read);
   }
   close(fd);
@@ -84,8 +92,7 @@ bool WriteFile(const std::string& path, const std::string& contents) {
   if (fd < 0) {
     return false;
   }
-  const bool ok = write(fd, contents.data(), contents.size()) ==
-                  static_cast<ssize_t>(contents.size());
+  const bool ok = base::WriteFileDescriptor(fd, contents);
   return close(fd) == 0 && ok;
 }
 
@@ -118,7 +125,9 @@ bool CopyDirContents(const std::string& src_dir_path,
     return false;
   }
   for (const std::string& name : *old_names) {
-    if (unlink((dst_dir_path + kSbFileSepChar + name).c_str()) != 0) {
+    // Android may have deleted the file already.
+    if (unlink((dst_dir_path + kSbFileSepChar + name).c_str()) != 0 &&
+        errno != ENOENT) {
       return false;
     }
   }
@@ -132,10 +141,12 @@ bool CopyDirContents(const std::string& src_dir_path,
 }
 
 // Returns a stamp of the CA certificates in `ca_certificates_path`: the path,
-// the manifest.json of the Evergreen package they ship in, and the file names.
-// The certificates are at content/ssl/certs in the package, and change only
-// with it. Returns an empty string when there's no manifest.json.
+// `install_stamp`, the manifest.json of the Evergreen package they ship in, and
+// the file names. The certificates are at content/ssl/certs in the package.
+// Returns an empty string when there's neither an install stamp nor a
+// manifest.json.
 std::string GetCACertificatesStamp(const std::string& ca_certificates_path,
+                                   const std::string& install_stamp,
                                    const std::vector<std::string>& names) {
   const base::FilePath manifest_path = base::FilePath(ca_certificates_path)
                                            .DirName()
@@ -144,9 +155,13 @@ std::string GetCACertificatesStamp(const std::string& ca_certificates_path,
                                            .Append("manifest.json");
   std::string manifest;
   if (!ReadFile(manifest_path.value(), &manifest)) {
-    return "";
+    manifest.clear();
+    if (install_stamp.empty()) {
+      return "";
+    }
   }
-  std::string stamp = ca_certificates_path + "\n" + manifest;
+  std::string stamp =
+      ca_certificates_path + "\n" + install_stamp + "\n" + manifest;
   for (const std::string& name : names) {
     stamp += "\n" + name;
   }
@@ -157,7 +172,8 @@ std::string GetCACertificatesStamp(const std::string& ca_certificates_path,
 
 std::optional<base::FilePath> SyncCACertificatesCache(
     const std::string& ca_certificates_path,
-    const std::string& cache_directory_path) {
+    const std::string& cache_directory_path,
+    const std::string& install_stamp) {
   if (ca_certificates_path.empty() || cache_directory_path.empty()) {
     return std::nullopt;
   }
@@ -181,7 +197,7 @@ std::optional<base::FilePath> SyncCACertificatesCache(
   // since Android can delete cache files.
   const std::string stamp_path = copy_path + ".stamp";
   const std::string stamp =
-      GetCACertificatesStamp(ca_certificates_path, *names);
+      GetCACertificatesStamp(ca_certificates_path, install_stamp, *names);
   std::string old_stamp;
   if (!stamp.empty() && ReadFile(stamp_path, &old_stamp) &&
       old_stamp == stamp && ListDir(copy_path) == names) {

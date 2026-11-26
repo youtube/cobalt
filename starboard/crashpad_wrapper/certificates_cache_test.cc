@@ -1,4 +1,4 @@
-// Copyright 2020 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,9 @@
 namespace crashpad {
 namespace {
 
+// Sets up an Evergreen package with a manifest.json and two certificates in
+// content/ssl/certs, an empty cache directory to copy them to, and an install
+// stamp.
 class SyncCACertificatesCacheTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -49,8 +52,8 @@ class SyncCACertificatesCacheTest : public ::testing::Test {
   }
 
   std::optional<base::FilePath> Sync() {
-    return SyncCACertificatesCache(certs_path_.value(),
-                                   cache_dir_.GetPath().value());
+    return SyncCACertificatesCache(
+        certs_path_.value(), cache_dir_.GetPath().value(), install_stamp_);
   }
 
   // Changes the copy of `name`, so that a test can tell whether the next
@@ -69,6 +72,7 @@ class SyncCACertificatesCacheTest : public ::testing::Test {
   base::ScopedTempDir cache_dir_;
   base::FilePath certs_path_;
   base::FilePath copy_path_;
+  std::string install_stamp_ = "install 1";
 };
 
 TEST_F(SyncCACertificatesCacheTest, CopiesCertificates) {
@@ -89,6 +93,15 @@ TEST_F(SyncCACertificatesCacheTest, CopiesAgainWhenManifestChanges) {
   ASSERT_EQ(Sync(), copy_path_);
   MarkCopy("a.0");
   WriteManifest("2.0");
+
+  EXPECT_EQ(Sync(), copy_path_);
+  EXPECT_EQ(ReadCopy("a.0"), "certificate a");
+}
+
+TEST_F(SyncCACertificatesCacheTest, CopiesAgainWhenInstallStampChanges) {
+  ASSERT_EQ(Sync(), copy_path_);
+  MarkCopy("a.0");
+  install_stamp_ = "install 2";
 
   EXPECT_EQ(Sync(), copy_path_);
   EXPECT_EQ(ReadCopy("a.0"), "certificate a");
@@ -116,8 +129,38 @@ TEST_F(SyncCACertificatesCacheTest, CopiesAgainWhenCopiedFileIsMissing) {
   EXPECT_EQ(ReadCopy("b.0"), "certificate b");
 }
 
-TEST_F(SyncCACertificatesCacheTest, CopiesEveryTimeWithoutManifest) {
+TEST_F(SyncCACertificatesCacheTest, CopiesAgainWhenStampIsMissing) {
+  ASSERT_EQ(Sync(), copy_path_);
+  MarkCopy("a.0");
+  ASSERT_TRUE(base::DeleteFile(cache_dir_.GetPath().Append("certs.stamp")));
+
+  EXPECT_EQ(Sync(), copy_path_);
+  EXPECT_EQ(ReadCopy("a.0"), "certificate a");
+  EXPECT_TRUE(base::PathExists(cache_dir_.GetPath().Append("certs.stamp")));
+}
+
+TEST_F(SyncCACertificatesCacheTest, RemovesUnexpectedFilesInCopy) {
+  ASSERT_EQ(Sync(), copy_path_);
+  MarkCopy("a.0");
+  ASSERT_TRUE(base::WriteFile(copy_path_.Append("stale.0"), "stale"));
+
+  EXPECT_EQ(Sync(), copy_path_);
+  EXPECT_FALSE(base::PathExists(copy_path_.Append("stale.0")));
+  EXPECT_EQ(ReadCopy("a.0"), "certificate a");
+}
+
+TEST_F(SyncCACertificatesCacheTest, ReusesCopyWithoutManifest) {
   ASSERT_TRUE(base::DeleteFile(package_dir_.GetPath().Append("manifest.json")));
+  ASSERT_EQ(Sync(), copy_path_);
+  MarkCopy("a.0");
+
+  EXPECT_EQ(Sync(), copy_path_);
+  EXPECT_EQ(ReadCopy("a.0"), "marked");
+}
+
+TEST_F(SyncCACertificatesCacheTest, CopiesEveryTimeWithoutManifestOrStamp) {
+  ASSERT_TRUE(base::DeleteFile(package_dir_.GetPath().Append("manifest.json")));
+  install_stamp_.clear();
   ASSERT_EQ(Sync(), copy_path_);
   MarkCopy("a.0");
 
@@ -131,9 +174,11 @@ TEST_F(SyncCACertificatesCacheTest, FailsWithoutCertificates) {
 }
 
 TEST_F(SyncCACertificatesCacheTest, FailsWithEmptyPaths) {
-  EXPECT_EQ(SyncCACertificatesCache("", cache_dir_.GetPath().value()),
+  EXPECT_EQ(
+      SyncCACertificatesCache("", cache_dir_.GetPath().value(), install_stamp_),
+      std::nullopt);
+  EXPECT_EQ(SyncCACertificatesCache(certs_path_.value(), "", install_stamp_),
             std::nullopt);
-  EXPECT_EQ(SyncCACertificatesCache(certs_path_.value(), ""), std::nullopt);
 }
 
 }  // namespace

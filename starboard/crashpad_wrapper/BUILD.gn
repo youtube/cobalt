@@ -90,7 +90,10 @@ if (use_evergreen && current_toolchain == starboard_toolchain) {
       "//third_party/crashpad/crashpad/util",
     ]
     if (is_android) {
-      deps += [ ":certificates_cache" ]
+      deps += [
+        ":certificates_cache",
+        "//base",
+      ]
     }
 
     data_deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler($native_toolchain)" ]

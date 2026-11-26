@@ -24,13 +24,16 @@ namespace crashpad {
 
 // Keeps a copy of the CA certificates in `ca_certificates_path` in
 // `cache_directory_path`/certs, and returns the path of the copy. The copy is
-// made again only when the certificates change: when the manifest.json of the
-// Evergreen package they ship in, or the certificate names, change, since
-// copying them out of an APK takes over 100 ms. Returns std::nullopt if the
-// copy fails.
+// made again only when the certificates may have changed, since copying them
+// out of an APK takes over 100 ms: when `install_stamp`, the manifest.json of
+// the Evergreen package they ship in, or the certificate names change.
+// `install_stamp` identifies the installed app and changes when the app is
+// installed or updated. With neither an install stamp nor a manifest.json, the
+// certificates are copied every time. Returns std::nullopt if the copy fails.
 std::optional<base::FilePath> SyncCACertificatesCache(
     const std::string& ca_certificates_path,
-    const std::string& cache_directory_path);
+    const std::string& cache_directory_path,
+    const std::string& install_stamp);
 
 }  // namespace crashpad
 
