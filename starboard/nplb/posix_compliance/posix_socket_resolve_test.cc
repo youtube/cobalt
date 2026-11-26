@@ -210,10 +210,7 @@ void PosixSocketResolveTest::CheckFlags(int flags,
   const bool must_succeed =
       GetAddressFamily() == AF_UNSPEC ||
       (GetAddressFamily() == AF_INET6 && (flags & AI_V4MAPPED));
-  if (must_succeed || result == 0) {
-    ASSERT_EQ(result, 0);
-    ASSERT_NE(nullptr, ai);
-  } else {
+  if (!must_succeed && result != 0) {
 #if defined(EAI_ADDRFAMILY)
     EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
                 result == EAI_FAMILY || result == EAI_ADDRFAMILY)
@@ -229,14 +226,15 @@ void PosixSocketResolveTest::CheckFlags(int flags,
         << " result = " << result;
 #endif
 #endif
-    ASSERT_EQ(nullptr, ai);
+    // POSIX doesn't define `ai` when getaddrinfo() fails, nor freeaddrinfo()
+    // of a null pointer.
+    return;
   }
+  ASSERT_EQ(result, 0);
+  ASSERT_NE(nullptr, ai);
 
+  // POSIX doesn't define the `ai_flags` of the results.
   for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
-    // Not all platforms report these flags with the results.
-    if (flags & ~(AI_PASSIVE | AI_CANONNAME | AI_ADDRCONFIG)) {
-      EXPECT_EQ(flags, i->ai_flags);
-    }
     if (GetAddressFamily() != AF_UNSPEC) {
       EXPECT_EQ(i->ai_addr->sa_family, GetAddressFamily());
     } else {
