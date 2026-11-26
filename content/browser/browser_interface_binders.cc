@@ -1271,21 +1271,21 @@ void PopulateBinderMapWithContext(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindNFCReceiver>);
 #endif  // !BUILDFLAG(IS_COBALT)
 #else
-<<<<<<< ours
+<<<<<<< HEAD
 =======
 #if !BUILDFLAG(IS_COBALT)
   map->Add<blink::mojom::HidService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetHidService>);
 #endif  // !BUILDFLAG(IS_COBALT)
 
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<blink::mojom::InstalledAppProvider>(
       &BindRenderFrameHostImpl<
           &RenderFrameHostImpl::CreateInstalledAppProvider>);
 #endif  // BUILDFLAG(IS_ANDROID) || (BUILDFLAG(IS_IOS) &&
         // !BUILDFLAG(IS_IOS_TVOS))
 
-<<<<<<< ours
+<<<<<<< HEAD
 #if !BUILDFLAG(IS_IOS)
   map->Add<blink::mojom::HidService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetHidService>);
@@ -1293,7 +1293,7 @@ void PopulateBinderMapWithContext(
 
 =======
 #if !BUILDFLAG(IS_COBALT)
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   map->Add<blink::mojom::SerialService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::BindSerialService>);
 #endif

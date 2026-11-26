@@ -162,7 +162,7 @@ void DownloadComplete(
 #endif
 }
 
-<<<<<<< ours
+<<<<<<< HEAD
 =======
 void HandleAvailableSpace(
     scoped_refptr<Configurator> config,
@@ -254,7 +254,7 @@ void HandleAvailableSpace(
 #endif
 }
 
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }  // namespace
 
 base::OnceClosure DownloadOperation(
@@ -281,7 +281,7 @@ base::OnceClosure DownloadOperation(
   state_tracker.Run(ComponentState::kDownloading);
   auto cancellation = base::MakeRefCounted<Cancellation>();
   progress_callback.Run(-1, -1);
-<<<<<<< ours
+<<<<<<< HEAD
   scoped_refptr<CrxDownloader> crx_downloader =
       config->GetCrxDownloaderFactory()->MakeCrxDownloader(
           config->GetProdId(),
@@ -323,7 +323,7 @@ base::OnceClosure DownloadOperation(
                      crx_str,
 #endif
                      std::move(callback)));
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return base::BindOnce(&Cancellation::Cancel, cancellation);
 }
 

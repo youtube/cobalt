@@ -938,7 +938,7 @@ NET_EXPORT BASE_DECLARE_FEATURE(kCacheCertVerification);
 // already be expired.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(int, kCacheCertVerificationTtlSecs);
 
-<<<<<<< ours
+<<<<<<< HEAD
 // If enabled, configures SSLClientSocketImpl to enable GREASE for
 // signature_algorithms. This is a killswitch for behavior that is enabled by
 // default.
@@ -951,7 +951,7 @@ NET_EXPORT BASE_DECLARE_FEATURE(kTlsGreaseSigalgs);
 // Cobalt's HTTP cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kCobaltHttpCacheFontAndPassThrough);
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace net::features
 

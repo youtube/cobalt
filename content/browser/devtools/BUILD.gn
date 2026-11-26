@@ -84,7 +84,7 @@ if (enable_devtools_backend) {
     args += [ rebase_path(output_file, root_build_dir) ]
   }
 
-<<<<<<< ours
+<<<<<<< HEAD
   if (use_clang_profiling_inside_sandbox && chrome_pgo_phase == 1) {
     native_profiling_pdl = "//content/browser/native_profiling.pdl"
     inputs += [ native_profiling_pdl ]
@@ -193,7 +193,7 @@ inspector_protocol_generate("protocol_sources") {
     inputs = [
       _concatenated_protocol_path,
       config_file,
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     ]
 
     # These are relative to $target_gen_dir.

@@ -442,11 +442,11 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
   session->CreateAndAddHandler<protocol::LogHandler>();
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   session->CreateAndAddHandler<protocol::FedCmHandler>();
-<<<<<<< ours
+<<<<<<< HEAD
   session->CreateAndAddHandler<protocol::DigitalCredentialsHandler>();
 =======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
->>>>>>> theirs
+>>>>>>> parent of b351beccb9a (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #if !BUILDFLAG(IS_ANDROID)
   session->CreateAndAddHandler<protocol::WebAuthnHandler>();
 #endif  // !BUILDFLAG(IS_ANDROID)
