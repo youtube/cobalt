@@ -48,6 +48,29 @@ if ((use_evergreen && current_toolchain == starboard_toolchain) ||
 }
 
 if (use_evergreen && current_toolchain == starboard_toolchain) {
+  source_set("certificates_cache") {
+    sources = [
+      "certificates_cache.cc",
+      "certificates_cache.h",
+    ]
+
+    deps = [
+      "//base",
+      "//starboard:starboard_headers_only",
+    ]
+  }
+
+  source_set("certificates_cache_test") {
+    testonly = true
+    sources = [ "certificates_cache_test.cc" ]
+
+    deps = [
+      ":certificates_cache",
+      "//base",
+      "//testing/gtest",
+    ]
+  }
+
   static_library("crashpad_wrapper") {
     sources = [
       "wrapper.cc",
@@ -66,6 +89,12 @@ if (use_evergreen && current_toolchain == starboard_toolchain) {
       "//third_party/crashpad/crashpad/snapshot",
       "//third_party/crashpad/crashpad/util",
     ]
+    if (is_android) {
+      deps += [
+        ":certificates_cache",
+        "//base",
+      ]
+    }
 
     data_deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler($native_toolchain)" ]
   }
