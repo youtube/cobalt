@@ -148,8 +148,7 @@ class MEDIA_EXPORT StarboardRendererClient
                                     PipelineStatusCallback init_cb,
                                     bool success);
 #if BUILDFLAG(IS_IOS_TVOS)
-  void OnExtensionUrlInitialized(MediaResource* media_resource,
-                                 RendererClient* client,
+  void OnExtensionUrlInitialized(RendererClient* client,
                                  PipelineStatusCallback init_cb,
                                  bool success);
 #endif  // BUILDFLAG(IS_IOS_TVOS)

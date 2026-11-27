@@ -464,7 +464,7 @@ void StarboardRendererClient::InitializeMojoRenderer(
         url_resource_->GetMediaUrl().spec(),
         mojo::WrapCallbackWithDefaultInvokeIfNotRun(
             base::BindOnce(&StarboardRendererClient::OnExtensionUrlInitialized,
-                           weak_factory_.GetWeakPtr(), media_resource, client,
+                           weak_factory_.GetWeakPtr(), client,
                            std::move(init_cb)),
             false));
     return;
@@ -517,7 +517,6 @@ void StarboardRendererClient::OnExtensionBypassInitialized(
 
 #if BUILDFLAG(IS_IOS_TVOS)
 void StarboardRendererClient::OnExtensionUrlInitialized(
-    MediaResource* media_resource,
     RendererClient* client,
     PipelineStatusCallback init_cb,
     bool success) {
@@ -527,7 +526,10 @@ void StarboardRendererClient::OnExtensionUrlInitialized(
     std::move(init_cb).Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
-  MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
+  // The platform player loads the URL itself, so send no streams.
+  static base::NoDestructor<EmptyMediaResource> empty_media_resource;
+  MojoRendererWrapper::Initialize(empty_media_resource.get(), client,
+                                  std::move(init_cb));
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
