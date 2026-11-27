@@ -235,33 +235,26 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   if (base::FeatureList::IsEnabled(
           base::features::kCobaltForceGpuMemAvailable)) {
     force_gpu_mem_mb = base::features::kCobaltForceGpuMemAvailableMb.Get();
-#if defined(ARCH_CPU_32_BITS)
   } else {
-    // On 32-bit devices (e.g. arm), where the address space is constrained,
-    // cap the GPU tile memory by default. The cap steps up with the UI
-    // resolution and is bounded by device memory: 64 MB up to 1080p, 128 MB up
-    // to 1440p, 256 MB above.
-    // 64-bit devices other than Android (below) are excluded to avoid capping
-    // high-end devices that require higher memory budgets for 4K UI
-    // rendering. The CobaltForceGpuMemAvailable Finch feature above overrides
-    // this default.
-    force_gpu_mem_mb = base::checked_cast<int>(GetCobaltDefaultGpuMemoryLimitMB(
+#if defined(ARCH_CPU_32_BITS) || BUILDFLAG(IS_ANDROID)
+    // Without a Finch override, cap the GPU tile memory by a default that
+    // steps up with the UI resolution and is bounded by device memory: 64 MB
+    // up to 1080p, 128 MB up to 1440p, 256 MB above. This applies to 32-bit
+    // devices, where the address space is constrained, and to 64-bit Android,
+    // so that a 4K UI gets 256 MB before the server config is cached
+    // (b/579558515). Other 64-bit platforms keep Chromium's defaults.
+    size_t default_gpu_mem_mb = GetCobaltDefaultGpuMemoryLimitMB(
         initial_screen_size, initial_device_scale_factor,
-        base::SysInfo::AmountOfActualPhysicalMemoryMB()));
-#elif BUILDFLAG(IS_ANDROID)
-  } else {
-    // On 64-bit Android, use the same resolution-based default, so that a 4K
-    // UI gets 256 MB even before the server config that sets it is cached
-    // (b/579558515). Otherwise Cobalt's low-end device mode falls through to
-    // Chromium's 96 MB below, which is too small for 4K. Keep that 96 MB as a
-    // floor so that 1080p devices don't drop to 64 MB.
-    constexpr size_t kMinAndroid64BitMemoryMB = 96;
-    force_gpu_mem_mb = base::checked_cast<int>(
-        std::max(kMinAndroid64BitMemoryMB,
-                 GetCobaltDefaultGpuMemoryLimitMB(
-                     initial_screen_size, initial_device_scale_factor,
-                     base::SysInfo::AmountOfActualPhysicalMemoryMB())));
-#endif  // defined(ARCH_CPU_32_BITS)
+        base::SysInfo::AmountOfActualPhysicalMemoryMB());
+#if !defined(ARCH_CPU_32_BITS)
+    // On 64-bit Android, keep Chromium's low-end 96 MB as a floor so that
+    // 1080p devices don't drop to 64 MB (b/568684747).
+    constexpr size_t kMinAndroid64BitGpuMemoryMB = 96;
+    default_gpu_mem_mb =
+        std::max(kMinAndroid64BitGpuMemoryMB, default_gpu_mem_mb);
+#endif  // !defined(ARCH_CPU_32_BITS)
+    force_gpu_mem_mb = base::checked_cast<int>(default_gpu_mem_mb);
+#endif  // defined(ARCH_CPU_32_BITS) || BUILDFLAG(IS_ANDROID)
   }
   if (force_gpu_mem_mb > 0) {
     actual.bytes_limit_when_visible =
