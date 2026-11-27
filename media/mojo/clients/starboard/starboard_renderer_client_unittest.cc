@@ -120,6 +120,10 @@ class FakeStarboardRendererExtension
       mojom::CommandBufferIdPtr command_buffer_id) override {}
 #if BUILDFLAG(IS_IOS_TVOS)
   void SetSourceUrl(const std::string& source_url) override {}
+  void InitializeWithUrl(const std::string& url,
+                         InitializeWithUrlCallback cb) override {
+    std::move(cb).Run(true);
+  }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
  private:
   FakeMojomRendererCallRecord* record_ = nullptr;
