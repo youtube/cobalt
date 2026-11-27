@@ -17,33 +17,17 @@
 #include <string.h>
 
 #include <algorithm>
-#include <cctype>
 #include <optional>
 #include <string>
 #include <string_view>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/string_util.h"
 
 namespace starboard {
 
 namespace {
-
-// Wrappers of isdigit(), isxdigit(), and isalpha() that are safe to call with
-// any char.  Passing a negative value other than EOF to the <cctype> functions
-// is undefined behavior, which happens with non-ASCII chars when char is
-// signed.
-bool IsDigit(char c) {
-  return isdigit(static_cast<unsigned char>(c)) != 0;
-}
-
-bool IsHexDigit(char c) {
-  return isxdigit(static_cast<unsigned char>(c)) != 0;
-}
-
-bool IsAlpha(char c) {
-  return std::isalpha(static_cast<unsigned char>(c)) != 0;
-}
 
 int hex_to_int(char hex) {
   if (hex >= '0' && hex <= '9') {
@@ -74,7 +58,7 @@ std::optional<T> ReadOneDigitHex(std::string_view str) {
     return static_cast<T>((str[0] - 'a' + 10));
   }
 
-  if (!IsDigit(str[0])) {
+  if (!IsAsciiDigit(str[0])) {
     return std::nullopt;
   }
 
@@ -90,7 +74,7 @@ std::optional<T> ReadDecimalUntilDot(std::string_view str) {
     if (c == '.') {
       break;
     }
-    if (!IsDigit(c)) {
+    if (!IsAsciiDigit(c)) {
       return std::nullopt;
     }
     output = output * 10 + (c - '0');
@@ -104,7 +88,7 @@ std::optional<T> ReadDecimalUntilDot(std::string_view str) {
 // characters is not a digit.
 template <typename T>
 std::optional<T> ReadTwoDigitDecimal(std::string_view str) {
-  if (str.size() < 2 || !IsDigit(str[0]) || !IsDigit(str[1])) {
+  if (str.size() < 2 || !IsAsciiDigit(str[0]) || !IsAsciiDigit(str[1])) {
     return std::nullopt;
   }
 
@@ -127,11 +111,11 @@ bool VerifyFormat(std::string_view format, std::string_view reference) {
     return false;
   }
   for (size_t i = 0; i < reference.size(); ++i) {
-    if (IsDigit(reference[i])) {
-      if (!IsDigit(format[i])) {
+    if (IsAsciiDigit(reference[i])) {
+      if (!IsAsciiDigit(format[i])) {
         return false;
       }
-    } else if (IsAlpha(reference[i])) {
+    } else if (IsAsciiAlpha(reference[i])) {
       if (reference[i] != format[i]) {
         return false;
       }
@@ -146,7 +130,8 @@ bool VerifyFormat(std::string_view format, std::string_view reference) {
   if (format.size() == reference.size()) {
     return true;
   }
-  return format[reference.size()] != '.' && !IsDigit(format[reference.size()]);
+  return format[reference.size()] != '.' &&
+         !IsAsciiDigit(format[reference.size()]);
 }
 
 // It works exactly the same as the above function, except that the size of

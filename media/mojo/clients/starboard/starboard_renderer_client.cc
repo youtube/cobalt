@@ -326,8 +326,6 @@ void StarboardRendererClient::OnDurationChange(base::TimeDelta duration) {
   if (url_resource_) {
     url_resource_->OnPlatformDurationChange(duration);
   }
-  has_url_player_duration_ = true;
-  MaybeRunInitCB();
 }
 
 void StarboardRendererClient::OnBufferedTimeRangesChange(
@@ -337,6 +335,17 @@ void StarboardRendererClient::OnBufferedTimeRangesChange(
   if (url_resource_) {
     url_resource_->OnPlatformBufferedRangesChange(start, length);
   }
+}
+
+void StarboardRendererClient::OnUrlPlayerMetadata(
+    base::TimeDelta duration,
+    const gfx::Size& natural_size) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (url_resource_) {
+    url_resource_->OnPlatformMetadata(duration, natural_size);
+  }
+  has_url_player_metadata_ = true;
+  MaybeRunInitCB();
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
@@ -523,7 +532,7 @@ void StarboardRendererClient::MaybeRunInitCB() {
     return;
   }
   const PipelineStatus status = pipeline_status();
-  // The rendering mode and the URL player duration come on the client
+  // The rendering mode and the URL player metadata come on the client
   // extension pipe, which is not ordered with the Initialize() reply. They
   // may not be sent on an init error, so don't wait for them then.
   if (status.is_ok()) {
@@ -531,7 +540,7 @@ void StarboardRendererClient::MaybeRunInitCB() {
       return;
     }
 #if BUILDFLAG(IS_IOS_TVOS)
-    if (IsUrlPlayer() && !has_url_player_duration_) {
+    if (IsUrlPlayer() && !has_url_player_metadata_) {
       return;
     }
 #endif  // BUILDFLAG(IS_IOS_TVOS)

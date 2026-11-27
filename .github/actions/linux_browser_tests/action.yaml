@@ -39,11 +39,6 @@ runs:
         cd unit_test/
         tar -I 'zstd -T0' -xf ../artifacts/cobalt_browsertests_deps.tar.zstd
 
-        out_dir="${GITHUB_WORKSPACE}/unit_test/src/out/${PLATFORM}_${CONFIG}"
-        LD_LIBRARY_PATH="${out_dir}/starboard"
-        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
-        export LD_LIBRARY_PATH
-
         export PATH="${GITHUB_WORKSPACE}/unit_test/depot_tools:${PATH}"
 
         # Use the stable one-by-one runner script located in the out directory.

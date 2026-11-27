@@ -17,30 +17,35 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
+#include <cstring>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/fake_media_codec.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/video_window.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/decode_target.h"
+#include "starboard/media.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/experimental_features.h"
+#include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 namespace {
 
 using ::jni_zero::AttachCurrentThread;
-using ::testing::_;
-using ::testing::Invoke;
-using ::testing::NiceMock;
-using ::testing::Return;
 
 const VideoStreamInfo kDefaultVideoStreamInfo = [] {
   VideoStreamInfo info;
@@ -61,6 +66,157 @@ const VideoStreamInfo kHdrVideoStreamInfo = [] {
   info.color_metadata.mastering_metadata.luminance_max = 1000;
   return info;
 }();
+
+const VideoStreamInfo kAv1VideoStreamInfo = [] {
+  VideoStreamInfo info = kDefaultVideoStreamInfo;
+  info.codec = kSbMediaVideoCodecAv1;
+  return info;
+}();
+
+ExperimentalFeatures MakeVideoDecoderImprovementsFeatures(int64_t flags) {
+  return ExperimentalFeatures(ExperimentalFeatures::Map{
+      {std::string(kMediaAndroidVideoDecoderImprovements.key()), flags}});
+}
+
+// Forces `MediaCapabilitiesCache::IsAv18kCappedAt30()` to return true so AV1
+// decoders deterministically delay `InitializeCodec()` until enough inputs
+// arrive to estimate frame rate.
+//
+// Lifetime & Ownership: Stack-allocated per test and restores the prior cache
+// state on destruction.
+//
+// Threading: Used on the main test thread.
+class ScopedForceAv1FpsCheck {
+ public:
+  ScopedForceAv1FpsCheck()
+      : was_enabled_(MediaCapabilitiesCache::GetInstance()->IsEnabled()) {
+    MediaCapabilitiesCache::GetInstance()->SetCacheEnabled(false);
+  }
+
+  ScopedForceAv1FpsCheck(const ScopedForceAv1FpsCheck&) = delete;
+  ScopedForceAv1FpsCheck& operator=(const ScopedForceAv1FpsCheck&) = delete;
+
+  ~ScopedForceAv1FpsCheck() {
+    MediaCapabilitiesCache::GetInstance()->SetCacheEnabled(was_enabled_);
+  }
+
+ private:
+  const bool was_enabled_;
+};
+
+// Ensures a global punch-out video surface is registered in `video_window.cc`
+// during a test (even on headless test runs) and restores the prior surface on
+// destruction.
+//
+// Lifetime & Ownership: Stack-allocated per test and owns any temporary
+// `SurfaceTexture` and `Surface` objects it creates.
+//
+// Threading: Used on the main test thread.
+class ScopedGlobalVideoSurface {
+ public:
+  ScopedGlobalVideoSurface() {
+    JNIEnv* env = AttachCurrentThread();
+    video_surface_view_class_.Reset(
+        jni_zero::GetClass(env, "dev/cobalt/media/VideoSurfaceView"));
+    notify_method_ = env->GetStaticMethodID(video_surface_view_class_.obj(),
+                                            "notifyVideoSurfaceChanged",
+                                            "(Landroid/view/Surface;)V");
+    jmethodID get_current_method =
+        env->GetStaticMethodID(video_surface_view_class_.obj(),
+                               "getCurrentSurface", "()Landroid/view/Surface;");
+    jni_zero::ScopedJavaLocalRef<jobject> current_surface(
+        env, env->CallStaticObjectMethod(video_surface_view_class_.obj(),
+                                         get_current_method));
+    original_surface_.Reset(current_surface);
+    if (VideoSurfaceHolder::IsVideoSurfaceAvailable()) {
+      return;
+    }
+
+    CreateTemporarySurface(env, &fallback_surface_texture_, &fallback_surface_);
+    NotifySurfaceChanged(env, fallback_surface_.obj());
+  }
+
+  ScopedGlobalVideoSurface(const ScopedGlobalVideoSurface&) = delete;
+  ScopedGlobalVideoSurface& operator=(const ScopedGlobalVideoSurface&) = delete;
+
+  ~ScopedGlobalVideoSurface() {
+    JNIEnv* env = AttachCurrentThread();
+    NotifySurfaceChanged(env, original_surface_.obj());
+    ReleaseTemporarySurface(env, &fallback_surface_,
+                            &fallback_surface_texture_);
+    ReleaseTemporarySurface(env, &replacement_surface_,
+                            &replacement_surface_texture_);
+  }
+
+  void ReplaceSurface() {
+    JNIEnv* env = AttachCurrentThread();
+    ReleaseTemporarySurface(env, &replacement_surface_,
+                            &replacement_surface_texture_);
+    CreateTemporarySurface(env, &replacement_surface_texture_,
+                           &replacement_surface_);
+    NotifySurfaceChanged(env, replacement_surface_.obj());
+  }
+
+ private:
+  static void CreateTemporarySurface(
+      JNIEnv* env,
+      jni_zero::ScopedJavaGlobalRef<jobject>* out_surface_texture,
+      jni_zero::ScopedJavaGlobalRef<jobject>* out_surface) {
+    jni_zero::ScopedJavaLocalRef<jclass> surface_texture_class(
+        env, env->FindClass("android/graphics/SurfaceTexture"));
+    jmethodID surface_texture_ctor =
+        env->GetMethodID(surface_texture_class.obj(), "<init>", "(I)V");
+    jni_zero::ScopedJavaLocalRef<jobject> surface_texture(
+        env, env->NewObject(surface_texture_class.obj(), surface_texture_ctor,
+                            /*texName=*/0));
+
+    jni_zero::ScopedJavaLocalRef<jclass> surface_class(
+        env, env->FindClass("android/view/Surface"));
+    jmethodID surface_ctor = env->GetMethodID(
+        surface_class.obj(), "<init>", "(Landroid/graphics/SurfaceTexture;)V");
+    jni_zero::ScopedJavaLocalRef<jobject> surface(
+        env, env->NewObject(surface_class.obj(), surface_ctor,
+                            surface_texture.obj()));
+
+    out_surface_texture->Reset(surface_texture);
+    out_surface->Reset(surface);
+  }
+
+  static void ReleaseTemporarySurface(
+      JNIEnv* env,
+      jni_zero::ScopedJavaGlobalRef<jobject>* surface,
+      jni_zero::ScopedJavaGlobalRef<jobject>* surface_texture) {
+    if (*surface) {
+      jni_zero::ScopedJavaLocalRef<jclass> surface_class(
+          env, env->FindClass("android/view/Surface"));
+      jmethodID release_method =
+          env->GetMethodID(surface_class.obj(), "release", "()V");
+      env->CallVoidMethod(surface->obj(), release_method);
+      surface->Reset();
+    }
+    if (*surface_texture) {
+      jni_zero::ScopedJavaLocalRef<jclass> surface_texture_class(
+          env, env->FindClass("android/graphics/SurfaceTexture"));
+      jmethodID release_method =
+          env->GetMethodID(surface_texture_class.obj(), "release", "()V");
+      env->CallVoidMethod(surface_texture->obj(), release_method);
+      surface_texture->Reset();
+    }
+  }
+
+  void NotifySurfaceChanged(JNIEnv* env, jobject surface) {
+    env->CallStaticVoidMethod(video_surface_view_class_.obj(), notify_method_,
+                              surface);
+  }
+
+  jni_zero::ScopedJavaGlobalRef<jclass> video_surface_view_class_;
+  jmethodID notify_method_ = nullptr;
+  jni_zero::ScopedJavaGlobalRef<jobject> original_surface_;
+  jni_zero::ScopedJavaGlobalRef<jobject> fallback_surface_texture_;
+  jni_zero::ScopedJavaGlobalRef<jobject> fallback_surface_;
+  jni_zero::ScopedJavaGlobalRef<jobject> replacement_surface_texture_;
+  jni_zero::ScopedJavaGlobalRef<jobject> replacement_surface_;
+};
 
 class MediaCodecVideoDecoderTest : public ::testing::Test {
  protected:
@@ -214,14 +370,17 @@ class MediaCodecVideoDecoderTest : public ::testing::Test {
   std::function<void()> on_render_cb_;
   JobQueue job_queue_;
   FakeMediaCodecFactory* fake_factory_ = nullptr;
+  int gles_context_runner_count_ = 0;
   // Punch-out decoders clean up the global video window on destruction, which
   // requires a provider when the test activity's video surface exists.
   SbDecodeTargetGraphicsContextProvider fake_graphics_context_provider_{
       nullptr, nullptr,
-      [](SbDecodeTargetGraphicsContextProvider*,
+      [](SbDecodeTargetGraphicsContextProvider* provider,
          SbDecodeTargetGlesContextRunnerTarget,
-         void*) {},
-      nullptr};
+         void*) {
+        ++*static_cast<int*>(provider->gles_context_runner_context);
+      },
+      &gles_context_runner_count_};
   const jni_zero::ScopedJavaGlobalRef<jstring> dummy_surface_{
       base::android::ConvertUTF8ToJavaString(AttachCurrentThread(),
                                              "dummy_surface")};
@@ -892,6 +1051,179 @@ TEST_F(MediaCodecVideoDecoderTest, PostResetCodecCreationFailureIsRetried) {
       kRetryWaitTimeoutMs));
   EXPECT_NE(GetFakeVideoCodec(), nullptr);
   EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       Av1DelayedInitSkipsSurfaceCleanupWhenGuarded) {
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  ScopedGlobalVideoSurface scoped_surface;
+  ASSERT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // Destroying an uninitialized AV1 decoder with 0 inputs should not clean up
+  // the video surface when bit 0 is enabled.
+  CreateDecoder(
+      /*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership));
+  ASSERT_EQ(GetFakeVideoCodec(), nullptr);
+  decoder_.reset();
+  EXPECT_EQ(gles_context_runner_count_, 0);
+
+  // Destroying an AV1 decoder after fewer than 3 inputs (even when
+  // `ResetForTeardown()` runs first, as in `~VideoRendererImpl()`) should also
+  // skip surface cleanup because `InitializeCodec()` still has not run.
+  CreateDecoder(
+      /*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership));
+  InitializeDecoder();
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kAv1VideoStreamInfo)});
+  ASSERT_EQ(GetFakeVideoCodec(), nullptr);
+  decoder_->ResetForTeardown();
+  decoder_.reset();
+  EXPECT_EQ(gles_context_runner_count_, 0);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       Av1DelayedInitCleansUpSurfaceWhenUnguardedOrNegativePlacebo) {
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  ScopedGlobalVideoSurface scoped_surface;
+  ASSERT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  CreateDecoder(/*max_video_capabilities=*/"", &kAv1VideoStreamInfo);
+  ASSERT_EQ(GetFakeVideoCodec(), nullptr);
+  decoder_.reset();
+  EXPECT_EQ(gles_context_runner_count_, 1);
+
+  CreateDecoder(/*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
+                MakeVideoDecoderImprovementsFeatures(-1));
+  ASSERT_EQ(GetFakeVideoCodec(), nullptr);
+  decoder_.reset();
+  EXPECT_EQ(gles_context_runner_count_, 2);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       InitializedDecodersStillCleanUpSurfaceAfterResetForTeardownWhenGuarded) {
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  ScopedGlobalVideoSurface scoped_surface;
+  ASSERT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // Eagerly initialized H.264 playback torn down via `ResetForTeardown()`.
+  CreateDecoder(
+      /*max_video_capabilities=*/"", /*initial_stream_info=*/nullptr,
+      MakeVideoDecoderImprovementsFeatures(
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership));
+  InitializeDecoder();
+  ASSERT_NE(GetFakeVideoCodec(), nullptr);
+  decoder_->WriteInputBuffers({CreateDummyVideoInputBuffer(0, 1024)});
+  decoder_->ResetForTeardown();
+  decoder_.reset();
+  EXPECT_EQ(gles_context_runner_count_, 1);
+
+  // Delayed AV1 playback once 3 inputs trigger `InitializeCodec()`, then torn
+  // down via `ResetForTeardown()`.
+  CreateDecoder(
+      /*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(
+          android_video_decoder_improvements::
+              kGuardSurfaceResetAndCleanupByOwnership));
+  InitializeDecoder();
+  ASSERT_EQ(GetFakeVideoCodec(), nullptr);
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kAv1VideoStreamInfo),
+       CreateDummyVideoInputBuffer(33'333, 1024, &kAv1VideoStreamInfo),
+       CreateDummyVideoInputBuffer(66'666, 1024, &kAv1VideoStreamInfo)});
+  ASSERT_NE(GetFakeVideoCodec(), nullptr);
+  decoder_->ResetForTeardown();
+  decoder_.reset();
+  EXPECT_EQ(gles_context_runner_count_, 2);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       GlobalSurfaceDestroyedOrHeldByOtherDecoderSkipsCleanupWhenGuarded) {
+  ScopedGlobalVideoSurface scoped_surface;
+  ASSERT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  MediaCodecVideoDecoder::StreamConfig global_surface_stream_config{
+      kDefaultVideoStreamInfo,
+      /*drm_system=*/kSbDrmSystemInvalid, kSbPlayerOutputModePunchOut,
+      /*decode_target_graphics_context_provider=*/
+      &fake_graphics_context_provider_,
+      /*surface_view=*/nullptr};
+  MediaCodecVideoDecoder::TunnelModeConfig tunnel_config;
+  MediaCodecVideoDecoder::PipelineConfig pipeline_config;
+  pipeline_config.experimental_features = MakeVideoDecoderImprovementsFeatures(
+      android_video_decoder_improvements::
+          kGuardSurfaceResetAndCleanupByOwnership);
+  MediaCodecVideoDecoder::PlatformOptions platform_options;
+
+  auto first_decoder = MediaCodecVideoDecoder::CreateForTesting(
+      std::make_unique<FakeMediaCodecFactory>(), &job_queue_,
+      global_surface_stream_config, tunnel_config, pipeline_config,
+      platform_options);
+  ASSERT_TRUE(first_decoder);
+  EXPECT_FALSE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+
+  // A second punch-out decoder failing to acquire the global surface must not
+  // clear the first decoder's active surface when its failed instance is
+  // destroyed.
+  auto second_decoder = MediaCodecVideoDecoder::CreateForTesting(
+      std::make_unique<FakeMediaCodecFactory>(), &job_queue_,
+      global_surface_stream_config, tunnel_config, pipeline_config,
+      platform_options);
+  EXPECT_FALSE(second_decoder);
+  EXPECT_EQ(gles_context_runner_count_, 0);
+
+  // Replacing the global surface triggers `OnSurfaceDestroyed()` on
+  // `first_decoder`; destroying `first_decoder` afterwards must not clear the
+  // replacement surface.
+  scoped_surface.ReplaceSurface();
+  EXPECT_TRUE(VideoSurfaceHolder::IsVideoSurfaceAvailable());
+  first_decoder.value().reset();
+  EXPECT_EQ(gles_context_runner_count_, 0);
+}
+
+TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
+  using android_video_decoder_improvements::
+      kGuardSurfaceResetAndCleanupByOwnership;
+  constexpr uint32_t kOtherImprovementBit = 1u << 1;
+
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(ExperimentalFeatures()),
+      kGuardSurfaceResetAndCleanupByOwnership));
+
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(0)),
+      kGuardSurfaceResetAndCleanupByOwnership));
+
+  // Negative values act as disabled/placebo even though bit 0 is set in two's
+  // complement representation.
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(-1)),
+      kGuardSurfaceResetAndCleanupByOwnership));
+
+  EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(kOtherImprovementBit)),
+      kGuardSurfaceResetAndCleanupByOwnership));
+
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceResetAndCleanupByOwnership)),
+      kGuardSurfaceResetAndCleanupByOwnership));
+
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceResetAndCleanupByOwnership | kOtherImprovementBit)),
+      kGuardSurfaceResetAndCleanupByOwnership));
 }
 
 }  // namespace

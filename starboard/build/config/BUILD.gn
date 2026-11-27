@@ -64,16 +64,6 @@ config("starboard") {
   if (is_clang && use_cxx17) {
     cflags_cc = [ "-Wc++20-extensions" ]
   }
-
-  # b/432642933: The rpath option causes lld to fail when targeting tvOS
-  # because -rpath=/path/to/something is not a valid linker option (and
-  # everything works fine without it anyway).
-  # Check for |target_os| because this also affects the host (macOS) side.
-  if (target_os != "ios") {
-    sb_out_dir =
-        get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
-    ldflags = [ "-Wl,-rpath=" + rebase_path("$sb_out_dir") ]
-  }
 }
 
 config("starboard_implementation") {
@@ -94,29 +84,6 @@ config("starboard_implementation") {
 
 config("cpp20_supported_config") {
   if (current_toolchain == default_toolchain) {
-    if (sb_is_modular || is_android) {
-      configs = [ ":modular_cpp20_config" ]
-    } else if (is_linux) {
-      configs = [ ":linux_non_modular_cpp20_config" ]
-    } else if (is_apple) {
-      configs = [ ":apple_cpp20_config" ]
-    } else {
-      assert(
-          false,
-          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
-    }
+    cflags_cc = [ "-std=c++20" ]
   }
-}
-
-config("apple_cpp20_config") {
-  cflags_cc = [ "-std=gnu++20" ]
-  cflags_objcc = [ "-std=gnu++20" ]
-}
-
-config("linux_non_modular_cpp20_config") {
-  cflags_cc = [ "-std=gnu++20" ]
-}
-
-config("modular_cpp20_config") {
-  cflags_cc = [ "-std=c++20" ]
 }

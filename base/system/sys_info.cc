@@ -13,11 +13,15 @@
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/system/sys_info_internal.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/sys_utils.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace base {
 namespace {
@@ -50,6 +54,17 @@ uint64_t SysInfo::AmountOfPhysicalMemory() {
 
   return AmountOfPhysicalMemoryImpl();
 }
+
+#if BUILDFLAG(IS_COBALT)
+// static
+int SysInfo::AmountOfActualPhysicalMemoryMB() {
+  if (g_amount_of_physical_memory_mb_for_testing) {
+    return base::saturated_cast<int>(
+        g_amount_of_physical_memory_mb_for_testing.value());
+  }
+  return base::saturated_cast<int>(AmountOfPhysicalMemoryImpl() / 1024 / 1024);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 // static
 uint64_t SysInfo::AmountOfAvailablePhysicalMemory() {
@@ -199,6 +214,14 @@ bool DetectLowEndDevice() {
   }
 
   int ram_size_mb = SysInfo::AmountOfPhysicalMemoryMB();
+#if BUILDFLAG(IS_ANDROID)
+  if (FeatureList::GetInstance() == nullptr) {
+    int threshold_mb = base::android::GetCachedLowMemoryDeviceThresholdMb();
+    if (threshold_mb > 0) {
+      return ram_size_mb > 0 && ram_size_mb <= threshold_mb;
+    }
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   return ram_size_mb > 0 &&
          static_cast<unsigned>(ram_size_mb) <= features::kLowMemoryDeviceThresholdMB.Get();
   // LINT.ThenChange(//base/android/java/src/org/chromium/base/SysUtils.java)

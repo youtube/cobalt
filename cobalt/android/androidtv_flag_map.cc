@@ -24,6 +24,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/features.h"
+#include "base/logging.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
@@ -35,6 +36,7 @@
 #include "components/network_session_configurator/common/network_switches.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#include "net/base/features.h"
 #include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/switches.h"
@@ -176,8 +178,14 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
     }
   };
 
-  if (!flag_map.Has(flags::kEnableQuic)) {
-    AppendSwitchIfAbsent(cmd_line, ::switches::kDisableQuic);
+  // On Android, QUIC is off unless the CobaltEnableQuic feature is enabled
+  // (net/base/features.h). The EnableQUIC key and --enable-quic are
+  // deprecated and no longer turn QUIC on; warn so that a stale startup
+  // config or launch switch does not go unnoticed.
+  if (flag_map.Has(flags::kEnableQuic) ||
+      cmd_line->HasSwitch(::switches::kEnableQuic)) {
+    LOG(WARNING) << "EnableQUIC and --enable-quic are deprecated and ignored. "
+                    "Use --enable-features=CobaltEnableQuic instead.";
   }
 
   if (flag_map.Has(flags::kUseMinorMsForMinorGc)) {
@@ -237,6 +245,8 @@ void ExpandAndroidTvFlags(const AndroidTvFlagMap& flag_map,
   enable_feature_if_set(
       flags::kEnableCobaltContentLengthAwareMojoPipeSizing,
       network::features::kCobaltContentLengthAwareMojoPipeSizing.name);
+  enable_feature_if_set(flags::kEnableCobaltQuicDeferAckOnlyPackets,
+                        net::features::kCobaltQuicDeferAckOnlyPackets.name);
 
   std::vector<std::string> interest_area_params;
   add_numeric_param(interest_area_params, flags::kInterestAreaSizeInPixels,

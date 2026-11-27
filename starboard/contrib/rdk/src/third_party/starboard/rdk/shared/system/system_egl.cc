@@ -189,20 +189,27 @@ void SbGlGetInteger64v(GLenum pname, GLint64* data) {
   static const auto gl_get_integer64v =
       reinterpret_cast<PFNGLGETINTEGER64VPROC>(
           eglGetProcAddress("glGetInteger64v"));
+  if (!gl_get_integer64v) {
+    return;
+  }
   gl_get_integer64v(pname, data);
   if (pname == GL_TIMESTAMP_EXT && data && *data > 0) {
     constexpr GLint64 kNanosecondsPerMicrosecond = 1000;
     constexpr GLint64 kMaliTicksPerMicrosecond = 24;
-    *data = (*data * kNanosecondsPerMicrosecond) / kMaliTicksPerMicrosecond;
+    *data = (*data / kMaliTicksPerMicrosecond) * kNanosecondsPerMicrosecond +
+            ((*data % kMaliTicksPerMicrosecond) * kNanosecondsPerMicrosecond) /
+                kMaliTicksPerMicrosecond;
   }
 }
 
 SbEglCastsToProperFunctionPointerType SbEglGetProcAddress(
     const char* procname) {
-  if (procname && std::strcmp(procname, "glGetInteger64v") == 0 &&
-      eglGetProcAddress(procname)) {
-    return reinterpret_cast<SbEglCastsToProperFunctionPointerType>(
-        &SbGlGetInteger64v);
+  if (procname && std::strcmp(procname, "glGetInteger64v") == 0) {
+    if (eglGetProcAddress(procname)) {
+      return reinterpret_cast<SbEglCastsToProperFunctionPointerType>(
+          &SbGlGetInteger64v);
+    }
+    return nullptr;
   }
   return eglGetProcAddress(procname);
 }

@@ -15,6 +15,7 @@
 package dev.cobalt.util;
 
 import androidx.annotation.VisibleForTesting;
+import dev.cobalt.features.CobaltFeatureList;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,16 +46,6 @@ public class JavaSwitches {
   // - Consumed in C++, but must be applied in Java because C++ reads it before the native
   //   initialization hook (ExpandAndroidTvFlags()) runs.
   // When an experiment concludes, its default belongs in the same layer as its key.
-
-  /**
-   * Opts out of --enable-low-end-device-mode.
-   *
-   * <p>Defined in Java to meet a timing requirement: the switch is read before the native
-   * initialization hook runs, by Java SysUtils.isLowEndDevice(), which caches the result, and by
-   * base::SysInfo::IsLowEndDevice() in JNI_LibraryLoader_LibraryLoaded(). It is therefore applied
-   * on the Java CommandLine before libcobalt.so loads (see addSwitchesReadBeforeNativeInit()).
-   */
-  public static final String DISABLE_LOW_END_DEVICE_MODE = "DisableLowEndDeviceMode";
 
   /**
    * Forces a 720p UI (--force-device-scale-factor=1.5) when the device has 1 GB of RAM or less and
@@ -222,7 +213,7 @@ public class JavaSwitches {
     if (!shouldApplyExperimentConfigs || javaSwitches == null) {
       javaSwitches = Collections.emptyMap();
     }
-    addSwitchesReadBeforeNativeInit(args, javaSwitches);
+    addSwitchesReadBeforeNativeInit(args, javaSwitches, shouldApplyExperimentConfigs);
     sNativeKeyValues = toNativeKeyValues(javaSwitches);
   }
 
@@ -235,11 +226,15 @@ public class JavaSwitches {
   }
 
   private static void addSwitchesReadBeforeNativeInit(
-      List<String> args, Map<String, String> javaSwitches) {
+      List<String> args, Map<String, String> javaSwitches, boolean shouldApplyExperimentConfigs) {
     // Read by Java SysUtils.isLowEndDevice(), which caches the result, and by
     // SysInfo::IsLowEndDevice() in JNI_LibraryLoader_LibraryLoaded() (orderfile optimization).
+    // On by default, which also makes base::SysInfo report at most 512 MB of RAM. If
+    // LowEndMemoryExperiment sets LowMemoryDeviceThresholdMB, as cached by the previous launch,
+    // base compares the device's RAM against it instead. In crash-streak safe mode, low-end device
+    // mode stays on.
     // TODO(cobalt, b/563373348): Investigate performance impact on high-end devices.
-    if (!javaSwitches.containsKey(DISABLE_LOW_END_DEVICE_MODE)) {
+    if (!shouldApplyExperimentConfigs || !CobaltFeatureList.isLowMemoryDeviceThresholdSet()) {
       args.add("--" + BaseSwitches.ENABLE_LOW_END_DEVICE_MODE);
     }
 

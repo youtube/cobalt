@@ -17,8 +17,16 @@
 
 namespace quic {
 class QuicClock;
+#if BUILDFLAG(IS_COBALT)
+class QuicConnection;
+#endif  // BUILDFLAG(IS_COBALT)
 }  // namespace quic
 namespace net {
+#if BUILDFLAG(IS_COBALT)
+namespace test {
+class QuicChromiumPacketReaderPeer;
+}  // namespace test
+#endif  // BUILDFLAG(IS_COBALT)
 
 // If more than this many packets have been read or more than that many
 // milliseconds have passed, QuicChromiumPacketReader::StartReading() yields by
@@ -38,6 +46,9 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
     virtual bool OnPacket(const quic::QuicReceivedPacket& packet,
                           const quic::QuicSocketAddress& local_address,
                           const quic::QuicSocketAddress& peer_address) = 0;
+#if BUILDFLAG(IS_COBALT)
+    virtual quic::QuicConnection* GetConnection();
+#endif  // BUILDFLAG(IS_COBALT)
   };
 
   QuicChromiumPacketReader(std::unique_ptr<DatagramClientSocket> socket,
@@ -69,6 +80,8 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   std::unique_ptr<DatagramClientSocket> socket_;
 
 #if BUILDFLAG(IS_COBALT)
+  friend class test::QuicChromiumPacketReaderPeer;
+
   // Version of StartReading that reads multiple packets per read call.
   int StartReadingMultiplePackets();
   // A completion callback invoked when a multiple packet read completes.

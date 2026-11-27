@@ -21,6 +21,7 @@
 #include "base/test/test_simple_task_runner.h"
 #include "base/time/time_override.h"
 #include "base/trace_event/process_memory_dump.h"
+#include "build/build_config.h"
 #include "cc/base/features.h"
 #include "cc/layers/recording_source.h"
 #include "cc/raster/raster_buffer.h"
@@ -60,6 +61,10 @@
 #include "third_party/skia/include/core/SkImageGenerator.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkSurface.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 using testing::_;
 using testing::Invoke;
@@ -4325,6 +4330,386 @@ TEST_F(TileManagerTileReclaimTest, ReclaimOldPrepainTilesOldYoungTiles) {
   // No progress can be made, do not repost a task.
   EXPECT_FALSE(task_runner()->HasPendingTask());
 }
+
+#if BUILDFLAG(IS_COBALT)
+class CobaltTileManagerLookaheadTest : public TileManagerTest {
+ public:
+  class CountingMockLayerTreeHostImpl : public MockLayerTreeHostImpl {
+   public:
+    CountingMockLayerTreeHostImpl(const LayerTreeSettings& settings,
+                                  TaskRunnerProvider* task_runner_provider,
+                                  TaskGraphRunner* task_graph_runner)
+        : MockLayerTreeHostImpl(settings,
+                                task_runner_provider,
+                                task_graph_runner) {}
+
+    std::unique_ptr<RasterTilePriorityQueue> BuildRasterQueue(
+        TreePriority tree_priority,
+        RasterTilePriorityQueue::Type type) override {
+      if (type == RasterTilePriorityQueue::Type::ALL) {
+        ++build_all_raster_queue_count_;
+      }
+      return MockLayerTreeHostImpl::BuildRasterQueue(tree_priority, type);
+    }
+
+    size_t build_all_raster_queue_count() const {
+      return build_all_raster_queue_count_;
+    }
+    void reset_build_all_raster_queue_count() {
+      build_all_raster_queue_count_ = 0;
+    }
+
+   private:
+    size_t build_all_raster_queue_count_ = 0;
+  };
+
+  LayerTreeSettings CreateSettings() override {
+    LayerTreeSettings settings = TileManagerTest::CreateSettings();
+    settings.default_tile_size = gfx::Size(256, 256);
+    // Keep soft_memory_limit_in_bytes == hard_memory_limit_in_bytes in this
+    // test fixture so ResourcePool::ResourceUsageTooHigh() remains false when
+    // within hard_memory_limit and build_all_raster_queue_count() directly
+    // verifies all_tiles_that_need_to_be_rasterized_are_scheduled_. The
+    // ALLOW_ABSOLUTE_MINIMUM policy still rejects all non-NOW tiles.
+    settings.max_memory_for_prepaint_percentage = 100;
+    settings.skewport_target_time_in_seconds = 0.3f;
+    settings.skewport_extrapolation_limit_in_screen_pixels = 432;
+    settings.tiling_interest_area_padding = 500;
+    return settings;
+  }
+
+  std::unique_ptr<FakeLayerTreeHostImpl> CreateHostImpl(
+      const LayerTreeSettings& settings,
+      TaskRunnerProvider* task_runner_provider,
+      TaskGraphRunner* task_graph_runner) override {
+    return std::make_unique<testing::NiceMock<CountingMockLayerTreeHostImpl>>(
+        settings, task_runner_provider, task_graph_runner);
+  }
+
+  CountingMockLayerTreeHostImpl& CountingHostImpl() {
+    return *static_cast<CountingMockLayerTreeHostImpl*>(host_impl());
+  }
+
+  TileManager* tile_manager() { return host_impl()->tile_manager(); }
+
+  void PrepareTilesAndWaitUntilDone(
+      const GlobalStateThatImpactsTilePriority& state) {
+    base::RunLoop run_loop;
+    EXPECT_CALL(MockHostImpl(), NotifyAllTileTasksCompleted())
+        .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+    tile_manager()->PrepareTiles(state);
+    run_loop.Run();
+    tile_manager()->PrepareToDraw();
+  }
+};
+
+// Verifies that under ALLOW_ABSOLUTE_MINIMUM, genuinely visible NOW tiles
+// (distance == 0) from both sibling active layers and the pending tree precede
+// offscreen skewport lookahead NOW tiles (distance > 0), including under
+// SMOOTHNESS_TAKES_PRIORITY.
+TEST_F(CobaltTileManagerLookaheadTest,
+       VisibleNowPrecedesLookaheadNowAcrossLayersAndTrees) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      base::features::kCobaltAnimationTileLookahead);
+
+  const gfx::Size layer_bounds(512, 2000);
+  host_impl()->active_tree()->SetDeviceViewportRect(gfx::Rect(0, 0, 512, 256));
+
+  // Create two drawing layers on the pending tree and activate so both exist
+  // on the active tree cleanly (FakePictureLayerImpl requires a sync tree on
+  // construction), then set up a fresh invalidated pending tree.
+  SetupPendingTree(FakeRasterSource::CreateFilledWithText(layer_bounds));
+  auto* pending_sibling = AddLayer<FakePictureLayerImpl>(
+      host_impl()->pending_tree(),
+      FakeRasterSource::CreateFilledWithText(layer_bounds));
+  const int sibling_id = pending_sibling->id();
+  pending_sibling->SetBounds(layer_bounds);
+  pending_sibling->SetDrawsContent(true);
+  CopyProperties(pending_layer(), pending_sibling);
+  UpdateDrawProperties(host_impl()->pending_tree());
+  ActivateTree();
+  SetupPendingTree(FakeRasterSource::CreateFilledWithText(layer_bounds),
+                   gfx::Size(), Region(gfx::Rect(0, 0, 512, 512)));
+
+  ManagedMemoryPolicy policy = host_impl()->ActualManagedMemoryPolicy();
+  policy.priority_cutoff_when_visible =
+      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
+  policy.bytes_limit_when_visible = 64 * 1024 * 1024;
+  host_impl()->SetMemoryPolicy(policy);
+  ASSERT_EQ(TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM,
+            host_impl()->global_tile_state().memory_limit_policy);
+
+  auto* active_sibling = static_cast<FakePictureLayerImpl*>(
+      host_impl()->active_tree()->LayerById(sibling_id));
+  ASSERT_NE(nullptr, active_sibling);
+  UpdateDrawProperties(host_impl()->active_tree());
+  UpdateDrawProperties(host_impl()->pending_tree());
+
+  // Update pending layer priorities so its invalidated visible region produces
+  // pending-tree NOW tiles (distance == 0) distinct from the active tree.
+  pending_layer()->picture_layer_tiling_set()->UpdateTilePriorities(
+      gfx::Rect(0, 60, 512, 256), 1.f, 1.016, Occlusion(), true);
+
+  active_sibling->picture_layer_tiling_set()->UpdateTilePriorities(
+      gfx::Rect(0, 60, 512, 256), 1.f, 1.016, Occlusion(), true);
+
+  // Advance active_layer() across two animated VSyncs so it creates both
+  // visible NOW tiles (distance == 0) and skewport lookahead NOW tiles
+  // (distance > 0).
+  PictureLayerTilingSet* active_set =
+      active_layer()->picture_layer_tiling_set();
+  active_set->set_skewport_lookahead_allowed(true);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 0, 512, 256), 1.f, 1.0,
+                                   Occlusion(), true);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 60, 512, 256), 1.f, 1.016,
+                                   Occlusion(), true);
+
+  for (TreePriority tree_priority :
+       {SAME_PRIORITY_FOR_BOTH_TREES, SMOOTHNESS_TAKES_PRIORITY}) {
+    std::unique_ptr<RasterTilePriorityQueue> queue =
+        host_impl()->BuildRasterQueue(tree_priority,
+                                      RasterTilePriorityQueue::Type::ALL);
+    bool seen_lookahead = false;
+    bool seen_active_sibling_visible = false;
+    bool seen_pending_visible = false;
+    for (; !queue->IsEmpty(); queue->Pop()) {
+      const PrioritizedTile& prio_tile = queue->Top();
+      const TilePriority& prio = prio_tile.priority();
+      if (prio.priority_bin != TilePriority::NOW) {
+        continue;
+      }
+      if (prio.distance_to_visible > 0.f) {
+        seen_lookahead = true;
+      } else {
+        EXPECT_FALSE(seen_lookahead)
+            << "Visible NOW tile yielded after lookahead NOW tile under "
+            << tree_priority;
+        if (prio_tile.tile()->layer_id() == active_sibling->id()) {
+          seen_active_sibling_visible = true;
+        }
+        if (prio_tile.source_tiling()->tree() == PENDING_TREE) {
+          seen_pending_visible = true;
+        }
+      }
+    }
+    EXPECT_TRUE(seen_active_sibling_visible);
+    EXPECT_TRUE(seen_pending_visible);
+    EXPECT_TRUE(seen_lookahead);
+  }
+}
+
+// Verifies that TileManager::AssignGpuMemoryToTiles():
+// 1. Caps skewport lookahead tiles at min(15% of hard_memory_limit, 8 MB)
+//    without setting OOM or scheduling a redundant
+//    CheckIfMoreTilesNeedToBePrepared() pass.
+// 2. Never evicts cached non-visible tiles when spare hard_memory_limit
+//    capacity is full, skipping lookahead tiles cleanly without OOM or extra
+//    prepare passes.
+TEST_F(CobaltTileManagerLookaheadTest, CapNoEvictionAndNoRedundantPrepare) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      base::features::kCobaltAnimationTileLookahead);
+
+  const gfx::Size layer_bounds(512, 2000);
+  host_impl()->active_tree()->SetDeviceViewportRect(gfx::Rect(0, 0, 512, 256));
+  SetupPendingTree(FakeRasterSource::CreateFilledWithText(layer_bounds));
+  ActivateTree();
+  UpdateDrawProperties(host_impl()->active_tree());
+
+  const size_t tile_bytes =
+      viz::SinglePlaneFormat::kRGBA_8888.EstimatedSizeInBytes(
+          gfx::Size(256, 256));
+  ASSERT_GT(tile_bytes, 0u);
+
+  // 16 tiles total budget (4 MB); 15% lookahead cap fits at most 2 tiles
+  // (2.4 * tile_bytes), while >= 4 skewport lookahead tiles are requested.
+  ManagedMemoryPolicy policy = host_impl()->ActualManagedMemoryPolicy();
+  policy.priority_cutoff_when_visible =
+      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
+  policy.bytes_limit_when_visible = 16 * tile_bytes;
+  host_impl()->SetMemoryPolicy(policy);
+  ASSERT_EQ(TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM,
+            host_impl()->global_tile_state().memory_limit_policy);
+
+  PictureLayerTilingSet* active_set =
+      active_layer()->picture_layer_tiling_set();
+  PictureLayerTiling* tiling = active_layer()->HighResTiling();
+  ASSERT_NE(nullptr, tiling);
+
+  active_set->set_skewport_lookahead_allowed(true);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 0, 512, 256), 1.f, 1.0,
+                                   Occlusion(), true);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 60, 512, 256), 1.f, 1.016,
+                                   Occlusion(), true);
+
+  CountingHostImpl().reset_build_all_raster_queue_count();
+  PrepareTilesAndWaitUntilDone(host_impl()->global_tile_state());
+
+  EXPECT_EQ(1u, CountingHostImpl().build_all_raster_queue_count());
+  EXPECT_TRUE(
+      tile_manager()->memory_stats_from_last_assign().had_enough_memory);
+  EXPECT_TRUE(tile_manager()->IsReadyToDraw());
+
+  size_t rasterized_lookahead = 0;
+  size_t skipped_lookahead = 0;
+  for (Tile* tile : tiling->AllTilesForTesting()) {
+    if (tiling->IsSkewportLookaheadTile(tile)) {
+      if (tile->draw_info().has_resource()) {
+        ++rasterized_lookahead;
+      } else {
+        ++skipped_lookahead;
+      }
+    }
+  }
+  EXPECT_EQ(2u, rasterized_lookahead);
+  EXPECT_GE(skipped_lookahead, 1u);
+
+  // Now drop lookahead, rasterize tiles across y=[0..600] so cached non-visible
+  // tiles at y=0 hold resources, then move to y=[600..856] and tighten
+  // hard_memory_limit to the exact already-allocated bytes (0 spare bytes,
+  // while 15% of hard_memory_limit is still >= 1 tile).
+  active_set->set_skewport_lookahead_allowed(false);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 0, 512, 512), 1.f, 2.0,
+                                   Occlusion(), true);
+  PrepareTilesAndWaitUntilDone(host_impl()->global_tile_state());
+
+  active_set->UpdateTilePriorities(gfx::Rect(0, 600, 512, 256), 1.f, 3.0,
+                                   Occlusion(), true);
+  PrepareTilesAndWaitUntilDone(host_impl()->global_tile_state());
+
+  Tile* cached_top_tile = tiling->TileAt(0, 0);
+  ASSERT_NE(nullptr, cached_top_tile);
+  ASSERT_TRUE(cached_top_tile->draw_info().has_resource());
+
+  size_t allocated_tiles = 0;
+  for (Tile* tile : tiling->AllTilesForTesting()) {
+    if (tile->draw_info().has_resource()) {
+      ++allocated_tiles;
+    }
+  }
+  ASSERT_GE(allocated_tiles, 7u);
+
+  // Trigger new lookahead tiles at y=[660..1092] with 0 spare bytes under
+  // hard_memory_limit; cached_top_tile must NOT be evicted, no new lookahead
+  // tiles may allocate, OOM must remain false, and no extra prepare pass runs.
+  policy.bytes_limit_when_visible = allocated_tiles * tile_bytes;
+  host_impl()->SetMemoryPolicy(policy);
+  active_set->set_skewport_lookahead_allowed(true);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 600, 512, 256), 1.f, 4.0,
+                                   Occlusion(), true);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 660, 512, 256), 1.f, 4.016,
+                                   Occlusion(), true);
+
+  CountingHostImpl().reset_build_all_raster_queue_count();
+  PrepareTilesAndWaitUntilDone(host_impl()->global_tile_state());
+
+  EXPECT_EQ(1u, CountingHostImpl().build_all_raster_queue_count());
+  EXPECT_TRUE(
+      tile_manager()->memory_stats_from_last_assign().had_enough_memory);
+  EXPECT_TRUE(tile_manager()->IsReadyToDraw());
+  EXPECT_TRUE(cached_top_tile->draw_info().has_resource());
+  for (Tile* tile : tiling->AllTilesForTesting()) {
+    if (tiling->IsSkewportLookaheadTile(tile)) {
+      EXPECT_FALSE(tile->draw_info().has_resource());
+    }
+  }
+}
+
+// Verifies that under ALLOW_ABSOLUTE_MINIMUM, offscreen skewport lookahead NOW
+// tiles on a drawing HIGH_RESOLUTION layer are evicted before genuinely visible
+// NOW tiles on a non-drawing layer.
+TEST_F(CobaltTileManagerLookaheadTest,
+       EvictionQueueEvictsLookaheadNowBeforeVisibleNow) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      base::features::kCobaltAnimationTileLookahead);
+
+  const gfx::Size layer_bounds(512, 2000);
+  host_impl()->active_tree()->SetDeviceViewportRect(gfx::Rect(0, 0, 512, 256));
+
+  SetupPendingTree(FakeRasterSource::CreateFilledWithText(layer_bounds));
+  auto* pending_sibling = AddLayer<FakePictureLayerImpl>(
+      host_impl()->pending_tree(),
+      FakeRasterSource::CreateFilledWithText(layer_bounds));
+  const int sibling_id = pending_sibling->id();
+  pending_sibling->SetBounds(layer_bounds);
+  pending_sibling->SetDrawsContent(true);
+  CopyProperties(pending_layer(), pending_sibling);
+  UpdateDrawProperties(host_impl()->pending_tree());
+  ActivateTree();
+
+  ManagedMemoryPolicy policy = host_impl()->ActualManagedMemoryPolicy();
+  policy.priority_cutoff_when_visible =
+      gpu::MemoryAllocation::CUTOFF_ALLOW_REQUIRED_ONLY;
+  policy.bytes_limit_when_visible = 64 * 1024 * 1024;
+  host_impl()->SetMemoryPolicy(policy);
+  ASSERT_EQ(TileMemoryLimitPolicy::ALLOW_ABSOLUTE_MINIMUM,
+            host_impl()->global_tile_state().memory_limit_policy);
+
+  auto* active_sibling = static_cast<FakePictureLayerImpl*>(
+      host_impl()->active_tree()->LayerById(sibling_id));
+  ASSERT_NE(nullptr, active_sibling);
+  UpdateDrawProperties(host_impl()->active_tree());
+
+  active_sibling->picture_layer_tiling_set()->UpdateTilePriorities(
+      gfx::Rect(0, 60, 512, 256), 1.f, 1.016, Occlusion(), true);
+
+  PictureLayerTilingSet* active_set =
+      active_layer()->picture_layer_tiling_set();
+  active_set->set_skewport_lookahead_allowed(true);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 0, 512, 256), 1.f, 1.0,
+                                   Occlusion(), true);
+  active_set->UpdateTilePriorities(gfx::Rect(0, 60, 512, 256), 1.f, 1.016,
+                                   Occlusion(), true);
+
+  PrepareTilesAndWaitUntilDone(host_impl()->global_tile_state());
+
+  ASSERT_NE(nullptr, active_sibling->HighResTiling());
+  size_t sibling_rasterized_tiles = 0;
+  for (Tile* tile : active_sibling->HighResTiling()->AllTilesForTesting()) {
+    if (tile->draw_info().has_resource()) {
+      ++sibling_rasterized_tiles;
+    }
+  }
+  ASSERT_GT(sibling_rasterized_tiles, 0u);
+
+  // Mark active_sibling non-drawing while keeping valid tile priorities
+  // (modeling a `raster_even_if_not_drawn()` layer) so EvictionOrderComparator
+  // compares a drawing HIGH_RESOLUTION lookahead NOW tile against a
+  // non-drawing visible NOW tile.
+  active_sibling->set_contributes_to_drawn_render_surface(false);
+  active_sibling->set_has_valid_tile_priorities(true);
+  ASSERT_TRUE(active_layer()->contributes_to_drawn_render_surface());
+  ASSERT_FALSE(active_sibling->contributes_to_drawn_render_surface());
+
+  std::unique_ptr<EvictionTilePriorityQueue> eviction_queue =
+      host_impl()->BuildEvictionQueue(SAME_PRIORITY_FOR_BOTH_TREES);
+  bool seen_visible_now = false;
+  bool seen_non_drawing_visible_now = false;
+  bool seen_lookahead_now = false;
+  for (; !eviction_queue->IsEmpty(); eviction_queue->Pop()) {
+    const PrioritizedTile& prio_tile = eviction_queue->Top();
+    const TilePriority& prio = prio_tile.priority();
+    if (prio.priority_bin != TilePriority::NOW) {
+      continue;
+    }
+    if (prio.distance_to_visible == 0.f) {
+      seen_visible_now = true;
+      if (prio_tile.tile()->layer_id() == active_sibling->id()) {
+        seen_non_drawing_visible_now = true;
+      }
+    } else {
+      EXPECT_FALSE(seen_visible_now)
+          << "Lookahead NOW tile evicted after visible NOW tile";
+      seen_lookahead_now = true;
+    }
+  }
+  EXPECT_TRUE(seen_lookahead_now);
+  EXPECT_TRUE(seen_visible_now);
+  EXPECT_TRUE(seen_non_drawing_visible_now);
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 }  // namespace
 }  // namespace cc

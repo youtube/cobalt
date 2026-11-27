@@ -19,13 +19,21 @@ inputs:
   test_device_family:
     description: "Test device family."
     required: true
-  test_attempts:
-    description: "Number of attempts for the tests."
+  test_type:
+    description: "Test type (unit_test, browser_test, e2e_test, yts_test)."
+    required: true
+  artifact_name:
+    description: "Name of the artifact on GCS (e.g. Cobalt.apk)."
+    required: false
     default: ""
   retry_all:
     description: "Whether to retry all tests instead of analyzing previous results."
     required: false
     default: "false"
+  retry_filter_key:
+    description: "Optional artifact key prefix for retry filters; defaults to test_results_key."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -34,7 +42,7 @@ runs:
       id: prepare-test-filters
       uses: ./.github/actions/prepare_test_filters
       with:
-        test_results_key: ${{ inputs.test_results_key }}
+        test_results_key: ${{ inputs.retry_filter_key || inputs.test_results_key }}
         platform: ${{ matrix.platform }}
         retry_all: ${{ inputs.retry_all }}
     - name: Install Requirements
@@ -58,6 +66,7 @@ runs:
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
+        COBALT_PATH: ${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ matrix.platform }}_qa
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -74,8 +83,8 @@ runs:
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_BASE_REF: ${{ github.base_ref || github.ref_name }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
-        TEST_ATTEMPTS: ${{ inputs.test_attempts }}
-        TEST_TYPE: unit_test
+        TEST_TYPE: ${{ inputs.test_type }}
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
         PLATFORM: ${{ matrix.platform }}
         TEST_DEVICE_FAMILY: ${{ inputs.test_device_family }}
         TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
@@ -83,35 +92,35 @@ runs:
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
         PYTHONPATH: "${GITHUB_WORKSPACE}:${PYTHONPATH:-}"
       run: |
-        set -x
+        set -euxo pipefail
 
-        # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --token ${GITHUB_TOKEN} \
+          --token "${GITHUB_TOKEN}" \
           trigger \
-          --test_type ${TEST_TYPE} \
+          --test_type "${TEST_TYPE}" \
           --device_family "${TEST_DEVICE_FAMILY}" \
           --targets "${TEST_TARGETS_JSON}" \
           --filter_json_dir "${FILTER_DIR}" \
-          --label chrobalt_on_device_test \
-          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
-          --label builder-${PLATFORM} \
-          --label builder_url-${GITHUB_RUN_URL} \
-          --label ${TEST_TYPE} \
-          --label github \
-          --label ${GITHUB_EVENT_NAME} \
-          --label ${GITHUB_WORKFLOW} \
-          --label actor-${GITHUB_ACTOR} \
-          --label actor_id-${GITHUB_ACTOR_ID} \
-          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
-          --label sha-${GITHUB_SHA} \
-          --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-${GITHUB_COMMIT_AUTHOR_USERNAME}} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-${GITHUB_COMMIT_AUTHOR_EMAIL}} \
-          --label branch:${GITHUB_REF_NAME} \
-          --label target_branch:${GITHUB_BASE_REF} \
+          --label "chrobalt_on_device_test" \
+          --label "github_${GITHUB_PR_NUMBER:-postsubmit}" \
+          --label "builder-${PLATFORM}" \
+          --label "builder_url-${GITHUB_RUN_URL}" \
+          --label "${TEST_TYPE}" \
+          --label "github" \
+          --label "${GITHUB_EVENT_NAME}" \
+          --label "${GITHUB_WORKFLOW}" \
+          --label "actor-${GITHUB_ACTOR}" \
+          --label "actor_id-${GITHUB_ACTOR_ID}" \
+          --label "triggering_actor-${GITHUB_TRIGGERING_ACTOR}" \
+          --label "sha-${GITHUB_SHA}" \
+          --label "repository-${GITHUB_REPO}" \
+          --label "author-${GITHUB_PR_HEAD_USER_LOGIN:-${GITHUB_COMMIT_AUTHOR_USERNAME}}" \
+          --label "author_id-${GITHUB_PR_HEAD_USER_ID:-${GITHUB_COMMIT_AUTHOR_EMAIL}}" \
+          --label "branch:${GITHUB_REF_NAME}" \
+          --label "target_branch:${GITHUB_BASE_REF}" \
           --dimensions "${TEST_DIMENSIONS}" \
-          ${TEST_ATTEMPTS:+"--test_attempts" "${TEST_ATTEMPTS}"} \
+          --cobalt_path "${COBALT_PATH}" \
+          ${ARTIFACT_NAME:+--artifact_name "${ARTIFACT_NAME}"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
@@ -125,6 +134,7 @@ runs:
       if: always()
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
+        TEST_TYPE: ${{ inputs.test_type }}
         PLATFORM: ${{ matrix.platform }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
@@ -135,20 +145,38 @@ runs:
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> "${GITHUB_ENV}"
 
-        # Test results (xml and logs) must be in a subfolder in results_dir.
-        # to be picked up by the test result processor.
+        # Test results (xml and logs) must be in a subfolder in results_dir
+        # to be picked up by the test result processor. Synthesized XMLs
+        # (crash reports and JSON conversions) must use the same relative path
+        # as GCS-delivered XMLs so download_test_results supersedes them on retries.
         mkdir -p "${test_output}/${PLATFORM}"
         gsutil -m cp -r "${GCS_RESULTS_PATH%/}/*" "${test_output}/${PLATFORM}/" || true
 
-        # Check for missing result xml files.
+        generate_crash_xml() {
+          local target="$1"
+          local log_files=(
+            "${test_output}/${PLATFORM}"/**/"${target}"*_symbolized_crash.txt
+            "${test_output}/${PLATFORM}"/**/"${target}"*_log.txt
+            "${test_output}/${PLATFORM}"/**/"${target}"*_cobalt.log
+            "${test_output}/${PLATFORM}"/**/"${target}"*_yts.log
+            "${test_output}/${PLATFORM}"/**/"${target}"*_device_logcat.txt
+          )
+          if [[ "${#log_files[@]}" -gt 0 ]]; then
+            python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" \
+              "${log_files[0]}" "${test_output}/${PLATFORM}/${target}_testoutput.xml"
+          fi
+        }
+
+        # Check for missing test results.
         target_failed=0
-        readarray -t test_target_entries < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -rc '.[] | if type == "object" then {target: .target, shards: (.shards // 1)} else {target: ., shards: 1} end')
+        readarray -t test_target_entries < <(echo "${TEST_TARGETS_JSON}" | jq -rc '.[] | {target: .target, shards: (.shards // 1), required: (.required != false)}')
         for entry in "${test_target_entries[@]}"; do
           test_target_with_path=$(echo "${entry}" | jq -r '.target')
           shards=$(echo "${entry}" | jq -r '.shards')
+          target_required=$(echo "${entry}" | jq -r '.required')
           if ! [[ "${shards}" =~ ^[0-9]+$ ]] || (( shards < 1 || shards > 10 )); then
             echo "::error::Invalid shards value (${shards}) for ${test_target_with_path}; expected integer in 1..10."
-            target_failed=1
+            [[ "${target_required}" != "false" ]] && target_failed=1
             continue
           fi
           test_target=${test_target_with_path#*:}
@@ -190,11 +218,11 @@ runs:
                     "${log_path}" \
                     "${shard_dir}/${test_target}_testoutput.xml"
                 fi
-                target_failed=1
+                [[ "${target_required}" != "false" ]] && target_failed=1
               elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
                 # Double-check the result XML for failures. ODT service has been known to report incorrect status.
                 echo "::error::Found failures in the test xml for ${test_target} shard ${shard_idx}."
-                target_failed=1
+                [[ "${target_required}" != "false" ]] && target_failed=1
               elif ! grep -q '<testcase' "${xml_files[@]}"; then
                 # A non-skipped shard that ran zero test cases (for example when
                 # device setup or test listing failed before execution) must not
@@ -207,31 +235,43 @@ runs:
                     "${log_path}" \
                     "${shard_dir}/${test_target}_testoutput.xml"
                 fi
-                target_failed=1
+                [[ "${target_required}" != "false" ]] && target_failed=1
               fi
             done
           else
             xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
-            if [[ "${#xml_files[@]}" -eq 0 ]]; then
-              # Target was NOT skipped, but XML is missing -> Crash.
-              echo "Test result xml is missing for ${test_target}."
-              log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
-              if [ -f "${log_paths[0]:-}" ]; then
-                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
+
+            # Convert per-target JSON report(s) to JUnit XML for e2e/yts runs when XML is absent.
+            if [[ "${#xml_files[@]}" -eq 0 ]] && [[ "${TEST_TYPE}" == "e2e_test" || "${TEST_TYPE}" == "yts_test" ]]; then
+              json_reports=("${test_output}/${PLATFORM}"/**/"${test_target}"*_report.json)
+              if [[ "${#json_reports[@]}" -gt 0 ]]; then
+                if ! python3 "${GITHUB_WORKSPACE}/.github/scripts/convert_json_to_junit_xml.py" \
+                  "${json_reports[@]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"; then
+                  echo "::error::Failed to convert JSON reports for ${test_target}."
+                fi
+                xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
               fi
-              target_failed=1
-            elif grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
-              # Double-check the result XML for failures. ODT service has been known to report incorrect status.
-              echo "::error::Found failures in the test xml."
-              target_failed=1
-            elif [[ "${test_target}" == *"cobalt_browsertests"* ]] && ! grep -q '<testcase' "${xml_files[@]}"; then
+            fi
+
+            # If test results are still missing, attempt to generate crash report from logs.
+            if [[ "${#xml_files[@]}" -eq 0 ]]; then
+              echo "Test results are missing for ${test_target}."
+              generate_crash_xml "${test_target}"
+              xml_files=("${test_output}/${PLATFORM}"/**/"${test_target}"*.xml)
+            fi
+
+            if [[ "${#xml_files[@]}" -eq 0 ]] || grep -q -e '<failure' -e '<error' "${xml_files[@]}"; then
+              if [[ "${target_required}" == "false" ]]; then
+                echo "Test results are missing or contain failures for non-required target ${test_target}; ignoring."
+              else
+                echo "::error::Test results are missing or contain failures for ${test_target}."
+                target_failed=1
+              fi
+            elif ! grep -q '<testcase' "${xml_files[@]}"; then
               echo "::error::Test result xml has no test cases for ${test_target}."
               rm -f "${xml_files[@]}"
-              log_paths=("${test_output}/${PLATFORM}"/**/"${test_target}"_log.txt)
-              if [ -f "${log_paths[0]:-}" ]; then
-                python3 "${GITHUB_WORKSPACE}/.github/scripts/generate_crash_report.py" "${log_paths[0]}" "${test_output}/${PLATFORM}/${test_target}_testoutput.xml"
-              fi
-              target_failed=1
+              generate_crash_xml "${test_target}"
+              [[ "${target_required}" != "false" ]] && target_failed=1
             fi
           fi
         done

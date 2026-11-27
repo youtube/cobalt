@@ -30,6 +30,24 @@ def get_out(cmd):
   return res.stdout
 
 
+def cleanup_conflict_branch(branch):
+  """Deletes obsolete local and remote conflict branches."""
+  remote_refs = set(
+      get_out([
+          'git', 'for-each-ref', '--format=%(refname:short)',
+          'refs/remotes/origin/'
+      ]).splitlines())
+  if branch in remote_refs or f'origin/{branch}' in remote_refs:
+    run(['git', 'push', 'origin', '--delete', branch])
+
+  local_refs = set(
+      get_out(
+          ['git', 'for-each-ref', '--format=%(refname:short)',
+           'refs/heads/']).splitlines())
+  if branch in local_refs:
+    run(['git', 'branch', '-D', branch])
+
+
 def get_start_sha(branch, autoroll_file):
   """Returns an autoroll start SHA or None if CONFLICTED."""
   start = get_out(['git', 'show', f'{branch}:{autoroll_file}']).strip()
@@ -247,6 +265,12 @@ def apply_and_commit(action,
         run(['git', 'reset', '--hard', 'HEAD'])
         return CommitStatus.FAILED, unmerged_files
 
+      # In a sparse checkout, conflicted paths outside the sparse cone are not
+      # guaranteed to be materialized in the working tree, which makes
+      # `git add` fail with "pathspec did not match any files". Recreate the
+      # conflicted merge result (with conflict markers) from the unmerged index
+      # entries so the files exist before staging them.
+      run(['git', 'checkout', '-m', '--'] + unmerged_files)
       run(['git', 'add', '--sparse', '--'] + unmerged_files)
       msg = f'CONFLICTED {msg}'
       result = CommitStatus.CONFLICTED

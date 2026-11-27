@@ -788,6 +788,9 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
   bool OnPacket(const quic::QuicReceivedPacket& packet,
                 const quic::QuicSocketAddress& local_address,
                 const quic::QuicSocketAddress& peer_address) override;
+#if BUILDFLAG(IS_COBALT)
+  quic::QuicConnection* GetConnection() override;
+#endif  // BUILDFLAG(IS_COBALT)
   void OnStreamClosed(quic::QuicStreamId stream_id) override;
   bool ShouldKeepConnectionAlive() const override;
 

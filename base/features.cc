@@ -48,6 +48,16 @@ BASE_FEATURE(kCobaltDiscardableSingleMapping,
              "CobaltDiscardableSingleMapping",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltDiscardableModeratePressureLimit,
+             "CobaltDiscardableModeratePressureLimit",
+             FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltDiscardableModeratePressureLimitFraction,
+                   &kCobaltDiscardableModeratePressureLimit,
+                   "moderate_limit_fraction",
+                   0.25);
+
 BASE_FEATURE(kCobaltMemoryPressureCooldown,
              "CobaltMemoryPressureCooldown",
              FEATURE_DISABLED_BY_DEFAULT);
@@ -159,6 +169,10 @@ BASE_FEATURE(kCobaltV8OptimizeForSize,
              FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+BASE_FEATURE(kCobaltV8FlushCodeOnCriticalMemoryPressure,
+             "CobaltV8FlushCodeOnCriticalMemoryPressure",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 // Enabled by default, except on Android where the upstream Chromium defaults
 // are kept until a dedicated experiment has been run there. The memory and
 // performance tradeoff of collapsing the skewport was only validated on TV
@@ -209,11 +223,31 @@ BASE_FEATURE(kCobaltLocalStorageReuseLogsAndSkipEmptyCommits,
              "CobaltLocalStorageReuseLogsAndSkipEmptyCommits",
              FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCobaltAnimationTileLookahead,
+             "CobaltAnimationTileLookahead",
+#if BUILDFLAG(IS_ANDROID)
+             FEATURE_DISABLED_BY_DEFAULT);
+#else
+             FEATURE_ENABLED_BY_DEFAULT);
+#endif
+
+BASE_FEATURE_PARAM(double,
+                   kCobaltAnimationTileLookaheadMaxViewportFraction,
+                   &kCobaltAnimationTileLookahead,
+                   "max_viewport_fraction",
+                   0.4);
+
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kCobaltAndroidDisplayCriticalInProcessRenderer,
              "CobaltAndroidDisplayCriticalInProcessRenderer",
              FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+BASE_FEATURE(kCobaltReduceStarboardThreadStackSize,
+             "CobaltReduceStarboardThreadStackSize",
+             FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_STARBOARD)
 #endif  // BUILDFLAG(IS_COBALT)
 
 // Controls caching within BASE_FEATURE_PARAM(). This is feature-controlled

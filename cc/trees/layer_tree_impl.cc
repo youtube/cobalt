@@ -30,6 +30,7 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/trace_event.h"
 #include "base/trace_event/traced_value.h"
+#include "build/build_config.h"
 #include "cc/base/devtools_instrumentation.h"
 #include "cc/base/features.h"
 #include "cc/base/histograms.h"
@@ -64,6 +65,11 @@
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/geometry/vector2d_conversions.h"
+
+#if BUILDFLAG(IS_COBALT)
+#include "base/feature_list.h"
+#include "base/features.h"
+#endif  // BUILDFLAG(IS_COBALT)
 
 namespace cc {
 namespace {
@@ -1786,6 +1792,24 @@ bool LayerTreeImpl::UpdateTiles() {
   bool tile_priorities_updated = false;
   const bool release_tile_resources_for_hidden_layers =
       settings().release_tile_resources_for_hidden_layers;
+#if BUILDFLAG(IS_COBALT)
+  // Scan the tree once per UpdateTiles() (O(L) rather than per-PictureLayerImpl
+  // O(P * L)) to detect any drawn video layer so speculative skewport tile
+  // lookahead is suppressed during 1080p/4K Watch playback, Playback+Scroll,
+  // and Shorts where video decoder buffers set peak process RSS (VmHWM).
+  has_visible_video_layer_ = false;
+  if (base::FeatureList::IsEnabled(
+          base::features::kCobaltAnimationTileLookahead)) {
+    for (const LayerImpl* layer : *this) {
+      if (layer->may_contain_video() &&
+          layer->contributes_to_drawn_render_surface() &&
+          layer->draws_content() && !layer->visible_layer_rect().IsEmpty()) {
+        has_visible_video_layer_ = true;
+        break;
+      }
+    }
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   for (PictureLayerImpl* layer : picture_layers_) {
     if (!layer->HasValidTilePriorities()) {
       if (release_tile_resources_for_hidden_layers) {

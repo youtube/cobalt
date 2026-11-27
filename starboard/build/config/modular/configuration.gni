@@ -14,18 +14,4 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-cobalt_font_package = "empty"
-
-nasm_exists = true
-
-final_executable_type = "shared_library"
-gtest_target_type = "shared_library"
-starboard_level_final_executable_type = "shared_library"
-starboard_level_gtest_target_type = "shared_library"
-
-pedantic_warnings_config_path =
-    "//starboard/build/config/modular:pedantic_warnings"
-no_pedantic_warnings_config_path =
-    "//starboard/build/config/modular:no_pedantic_warnings"
-
 sb_enable_benchmark = true

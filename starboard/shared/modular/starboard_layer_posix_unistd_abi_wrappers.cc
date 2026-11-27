@@ -433,7 +433,7 @@ long __abi_wrap_sysconf(int name) {
     case MUSL_SC_NPROCESSORS_ONLN:
       return sysconf(_SC_NPROCESSORS_ONLN);
     case MUSL_SC_PHYS_PAGES:
-      return sysconf(MUSL_SC_PHYS_PAGES);
+      return sysconf(_SC_PHYS_PAGES);
 #if defined(_SC_ATEXIT_MAX)
     case MUSL_SC_ATEXIT_MAX:
       return sysconf(_SC_ATEXIT_MAX);
