@@ -433,6 +433,12 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
     delta_bytes_read_ = 0;
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  if (entire_file_extracted && !delegate->Flush()) {
+    return false;
+  }
+#endif
+
   return entire_file_extracted;
 }
 
@@ -668,6 +674,12 @@ void FileWriterDelegate::OnError() {
   file_length_ = 0;
   file_->SetLength(0);
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+bool FileWriterDelegate::Flush() {
+  return file_->Flush();
+}
+#endif
 
 // FilePathWriterDelegate ------------------------------------------------------
 
