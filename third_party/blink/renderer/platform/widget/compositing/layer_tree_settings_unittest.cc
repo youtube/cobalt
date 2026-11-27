@@ -178,6 +178,13 @@ TEST(LayerTreeSettings, CobaltDefaultGpuMemoryLimitShield4k) {
                                              /*physical_memory_mb=*/2910));
 }
 
+// A 4K UI on a 2 GB device (1,984,872 KB reported) gets 1/8 of its RAM.
+TEST(LayerTreeSettings, CobaltDefaultGpuMemoryLimit2Gb4k) {
+  EXPECT_EQ(242u,
+            GetCobaltDefaultGpuMemoryLimitMB(gfx::Size(3840, 2160), 1.f,
+                                             /*physical_memory_mb=*/1938));
+}
+
 #if defined(ARCH_CPU_64_BITS) && BUILDFLAG(IS_ANDROID)
 // Verifies that 64-bit Android uses the resolution-based default with a 96 MB
 // floor, instead of Chromium's 96 MB low-end budget, when Cobalt runs with
@@ -192,6 +199,13 @@ TEST(LayerTreeSettings, CobaltDefaultGpuMemoryPolicyOn64BitAndroid) {
     auto policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
                                      gfx::Size(3840, 2160), 1.f);
     EXPECT_EQ(256u * 1024u * 1024u, policy.bytes_limit_when_visible);
+  }
+  {
+    // 2 GB, 4K UI: capped at 1/8 of RAM, well above Chromium's 96 MB.
+    base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(1938);
+    auto policy = GetGpuMemoryPolicy(cc::ManagedMemoryPolicy(256),
+                                     gfx::Size(3840, 2160), 1.f);
+    EXPECT_EQ(242u * 1024u * 1024u, policy.bytes_limit_when_visible);
   }
   base::test::ScopedAmountOfPhysicalMemoryOverride memory_override(2910);
   // foster: 3 GB, 4K UI.
