@@ -98,7 +98,11 @@ void VideoDecoderTestFixture::Initialize() {
   video_renderer_sink_ = std::move(sub_components->video.renderer_sink);
   ASSERT_TRUE(video_decoder_);
 
-  if (video_renderer_sink_) {
+  // The stub components always create a PunchoutVideoRendererSink, whose render
+  // thread calls Application::Get(). Test executables on non-Starboard OSes
+  // (e.g. Android) have no Application, and Render() is a no-op, so don't start
+  // the render thread for the stub decoder.
+  if (video_renderer_sink_ && !using_stub_decoder_) {
     video_renderer_sink_->SetRenderCB(
         std::bind(&VideoDecoderTestFixture::Render, this, _1));
   }
