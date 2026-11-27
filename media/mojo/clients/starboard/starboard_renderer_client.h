@@ -147,6 +147,11 @@ class MEDIA_EXPORT StarboardRendererClient
                                     RendererClient* client,
                                     PipelineStatusCallback init_cb,
                                     bool success);
+#if BUILDFLAG(IS_IOS_TVOS)
+  void OnExtensionUrlInitialized(RendererClient* client,
+                                 PipelineStatusCallback init_cb,
+                                 bool success);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   void InitAndConstructMojoRenderer(mojom::CommandBufferIdPtr command_buffer_id,
                                     base::OnceClosure complete_cb);
   bool AreMojoPipesConnected() const {

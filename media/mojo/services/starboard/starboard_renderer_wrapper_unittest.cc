@@ -542,6 +542,16 @@ TEST_F(StarboardRendererWrapperTest, TimerLifecycle) {
   task_environment_.RunUntilIdle();
 }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+// InitializeWithUrl() replies false for an empty URL, so the client fails init
+// instead of starting the URL player without a URL.
+TEST_F(StarboardRendererWrapperTest, InitializeWithEmptyUrlRepliesFalse) {
+  base::MockOnceCallback<void(bool)> url_init_cb;
+  EXPECT_CALL(url_init_cb, Run(false));
+  renderer_wrapper_->InitializeWithUrl(std::string(), url_init_cb.Get());
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 }  // namespace
 
 }  // namespace media

@@ -24,7 +24,7 @@ namespace media {
 
 // Empty media resource passed to MojoRenderer or MojoRendererService to avoid
 // creating unused MojoDemuxerStreamImpl / MediaResourceShim instances and
-// message pipes when the bypass bridge is active.
+// message pipes when the bypass bridge or the URL player is active.
 //
 // Lifetime and Ownership:
 // This class can be instantiated as a global static (e.g., base::NoDestructor)
