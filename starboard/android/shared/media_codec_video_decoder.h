@@ -175,11 +175,12 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // output surface and creates the media decoder. A failure to create the
   // MediaCodec itself is retried later while retry budget remains, keeping the
   // prepared surface; |codec_creation_retry_job_| then holds the scheduled
-  // retry, and success is returned.
+  // retry, and success is returned. On failure, the caller tears the codec
+  // down with TeardownCodec().
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
   // Sets up the surface the codec renders to: the Android video surface in
-  // punch-out mode, or a new decode target in decode-to-texture mode. Reuses
-  // the surface prepared by an earlier attempt that hasn't been torn down.
+  // punch-out mode, or a decode target in decode-to-texture mode. Reuses the
+  // surface prepared by an earlier attempt that hasn't been torn down.
   Result<jni_zero::ScopedJavaLocalRef<jobject>> PrepareOutputSurface();
   // Creates the media decoder for |video_stream_info| rendering to
   // |j_output_surface|.

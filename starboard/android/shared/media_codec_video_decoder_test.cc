@@ -19,7 +19,6 @@
 #include <condition_variable>
 #include <cstdint>
 #include <cstring>
-#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -846,12 +845,9 @@ TEST_F(MediaCodecVideoDecoderTest,
 TEST_F(MediaCodecVideoDecoderTest,
        FpsGatedCodecCreationRetryKeepsRequestingInput) {
   // AV1 codec creation is deferred until enough inputs arrive to estimate the
-  // fps, as long as 8K AV1 is treated as capped at 30fps.
-  MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(false);
-  ASSERT_TRUE(MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
-  VideoStreamInfo av1_info = kDefaultVideoStreamInfo;
-  av1_info.codec = kSbMediaVideoCodecAv1;
-  CreateDecoder(/*max_video_capabilities=*/"", &av1_info,
+  // fps.
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  CreateDecoder(/*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
                 CodecCreationRetryFeatures(3),
                 /*enable_flush_during_seek=*/false,
                 /*codec_creation_failures=*/1);
@@ -872,7 +868,7 @@ TEST_F(MediaCodecVideoDecoderTest,
   // retry. The decoder keeps requesting input while the retry is pending.
   for (int i = 0; i < 3; ++i) {
     decoder_->WriteInputBuffers(
-        {CreateDummyVideoInputBuffer(i * 33'333, 1024, &av1_info)});
+        {CreateDummyVideoInputBuffer(i * 33'333, 1024, &kAv1VideoStreamInfo)});
   }
   EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
   EXPECT_EQ(GetFakeVideoCodec(), nullptr);
@@ -887,18 +883,52 @@ TEST_F(MediaCodecVideoDecoderTest,
 
 TEST_F(MediaCodecVideoDecoderTest,
        FpsGatedEndOfStreamCreatesCodecAndForwardsEndOfStreamOnce) {
-  MediaCapabilitiesCache::GetInstance()->SetAv1OptEnabled(false);
-  ASSERT_TRUE(MediaCapabilitiesCache::GetInstance()->IsAv18kCappedAt30());
-  VideoStreamInfo av1_info = kDefaultVideoStreamInfo;
-  av1_info.codec = kSbMediaVideoCodecAv1;
-  CreateDecoder(/*max_video_capabilities=*/"", &av1_info);
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  CreateDecoder(/*max_video_capabilities=*/"", &kAv1VideoStreamInfo);
   InitializeDecoder();
 
   // The end of stream arrives before enough inputs for the fps estimate, so
   // it triggers codec creation.
   decoder_->WriteInputBuffers(
-      {CreateDummyVideoInputBuffer(0, 1024, &av1_info)});
+      {CreateDummyVideoInputBuffer(0, 1024, &kAv1VideoStreamInfo)});
   decoder_->WriteEndOfStream();
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+
+  for (int i = 0; i < 3; ++i) {
+    fake_codec->SimulateInputBufferAvailable(i);
+  }
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(2, 1000));
+  // No second end of stream follows.
+  EXPECT_FALSE(fake_codec->WaitForInputQueue(3, 200));
+  auto queued_inputs = fake_codec->ConsumeQueuedInputs();
+  ASSERT_EQ(queued_inputs.size(), 2U);
+  EXPECT_EQ(queued_inputs[0].flags & MediaCodec::kBufferFlagEndOfStream, 0);
+  EXPECT_NE(queued_inputs[1].flags & MediaCodec::kBufferFlagEndOfStream, 0);
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       FpsGatedEndOfStreamDuringCodecCreationRetryIsForwardedOnce) {
+  ScopedForceAv1FpsCheck force_av1_fps_check;
+  CreateDecoder(/*max_video_capabilities=*/"", &kAv1VideoStreamInfo,
+                CodecCreationRetryFeatures(3),
+                /*enable_flush_during_seek=*/false,
+                /*codec_creation_failures=*/1);
+  InitializeDecoder();
+  ASSERT_EQ(fake_factory_->video_codec_create_count(), 0);
+
+  // The end of stream arrives before enough inputs for the fps estimate, so
+  // it triggers codec creation, which fails and schedules a retry.
+  decoder_->WriteInputBuffers(
+      {CreateDummyVideoInputBuffer(0, 1024, &kAv1VideoStreamInfo)});
+  decoder_->WriteEndOfStream();
+  EXPECT_EQ(fake_factory_->video_codec_create_count(), 1);
+  EXPECT_EQ(GetFakeVideoCodec(), nullptr);
+
+  ASSERT_TRUE(PumpJobQueueUntil(
+      [this] { return fake_factory_->video_codec_create_count() == 2; },
+      kRetryWaitTimeoutMs));
   FakeMediaCodec* fake_codec = GetFakeVideoCodec();
   ASSERT_NE(fake_codec, nullptr);
 
