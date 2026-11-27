@@ -55,7 +55,7 @@ class ReadEvergreenVersionTest : public testing::Test {
 };
 
 TEST_F(ReadEvergreenVersionTest, ReadEvergreenVersionReturnsFalseIfAbsent) {
-  std::vector<char> current_version(kMaxEgVersionLength);
+  std::vector<char> current_version(kMaxEgVersionSize);
   Json::Value root;
   root["manifest_version"] = 2;
 
@@ -69,12 +69,12 @@ TEST_F(ReadEvergreenVersionTest, ReadEvergreenVersionReturnsFalseIfAbsent) {
             manifest_file_str.length());
 
   ASSERT_FALSE(ReadEvergreenVersion(manifest_path_, current_version.data(),
-                                    kMaxEgVersionLength));
+                                    kMaxEgVersionSize));
 }
 
 TEST_F(ReadEvergreenVersionTest,
        ReadEvergreenVersionReadsInVersionFromManifest) {
-  std::vector<char> current_version(kMaxEgVersionLength);
+  std::vector<char> current_version(kMaxEgVersionSize);
   Json::Value root;
   root["manifest_version"] = 2;
   root[kVersionKey] = kTestEvergreenVersion;
@@ -89,15 +89,15 @@ TEST_F(ReadEvergreenVersionTest,
             manifest_file_str.length());
 
   ASSERT_TRUE(ReadEvergreenVersion(manifest_path_, current_version.data(),
-                                   kMaxEgVersionLength));
+                                   kMaxEgVersionSize));
   ASSERT_STREQ(kTestEvergreenVersion, current_version.data());
 }
 
 TEST_F(ReadEvergreenVersionTest, ReadEvergreenVersionReturnsFalseIfTruncated) {
   const char kLongEvergreenVersion[] = "1.2.3.4.5.6.7.8.9.10.11.12";
-  ASSERT_GE(strlen(kLongEvergreenVersion), kMaxEgVersionLength);
+  ASSERT_GE(strlen(kLongEvergreenVersion), kMaxEgVersionSize);
 
-  std::vector<char> current_version(kMaxEgVersionLength);
+  std::vector<char> current_version(kMaxEgVersionSize);
   Json::Value root;
   root["manifest_version"] = 2;
   root[kVersionKey] = kLongEvergreenVersion;
@@ -112,7 +112,7 @@ TEST_F(ReadEvergreenVersionTest, ReadEvergreenVersionReturnsFalseIfTruncated) {
             manifest_file_str.length());
 
   ASSERT_FALSE(ReadEvergreenVersion(manifest_path_, current_version.data(),
-                                    kMaxEgVersionLength));
+                                    kMaxEgVersionSize));
 }
 
 }  // namespace
