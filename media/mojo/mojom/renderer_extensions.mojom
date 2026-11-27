@@ -170,10 +170,6 @@ interface StarboardRendererExtension {
   InitializeWithBypassBridge(uint32 bypass_bridge_id) => (bool success);
 
   [EnableIf=is_ios]
-  // Pass source URL for URL player.
-  SetSourceUrl(string source_url);
-
-  [EnableIf=is_ios]
   // Sets the URL for the URL player. Call Renderer Initialize() only after
   // the reply.
   InitializeWithUrl(string url) => (bool success);

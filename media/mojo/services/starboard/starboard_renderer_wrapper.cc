@@ -540,11 +540,6 @@ void StarboardRendererWrapper::InitializeWithBypassBridge(
 }
 
 #if BUILDFLAG(IS_IOS_TVOS)
-void StarboardRendererWrapper::SetSourceUrl(const std::string& source_url) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  GetRenderer()->SetSourceUrl(source_url);
-}
-
 void StarboardRendererWrapper::InitializeWithUrl(
     const std::string& url,
     InitializeWithUrlCallback callback) {
