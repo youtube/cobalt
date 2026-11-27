@@ -172,16 +172,25 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
  private:
   // Attempt to initialize the codec: estimates the fps if needed, prepares the
-  // output surface and creates the media decoder.
+  // output surface and creates the media decoder. A failure to create the
+  // MediaCodec itself is retried later while retry budget remains, keeping the
+  // prepared surface; |codec_creation_retry_job_| then holds the scheduled
+  // retry, and success is returned. On failure, the caller tears the codec
+  // down with TeardownCodec().
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
   // Sets up the surface the codec renders to: the Android video surface in
-  // punch-out mode, or a new decode target in decode-to-texture mode.
+  // punch-out mode, or a decode target in decode-to-texture mode. Reuses the
+  // surface prepared by an earlier attempt that hasn't been torn down.
   Result<jni_zero::ScopedJavaLocalRef<jobject>> PrepareOutputSurface();
   // Creates the media decoder for |video_stream_info| rendering to
   // |j_output_surface|.
   Result<void> CreateMediaDecoder(
       const VideoStreamInfo& video_stream_info,
       const jni_zero::JavaRef<jobject>& j_output_surface);
+  void RetryCodecCreation();
+  // Cancels a pending codec creation retry, if any, releasing the buffered
+  // inputs and the output surface kept for it.
+  void CancelPendingCodecCreationRetry();
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
@@ -313,11 +322,18 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // across codec resets/teardowns unless the surface itself is destroyed.
   bool owns_video_surface_ = false;
   bool needs_surface_reset_or_cleanup_ = false;
+  // The acquired global video surface, kept only while a codec creation retry
+  // is pending so that the retry can reuse it. Reset once a codec is created
+  // and in TeardownCodec().
+  jni_zero::ScopedJavaGlobalRef<jobject> j_acquired_video_surface_;
   std::mutex surface_destroy_mutex_;
   std::condition_variable surface_condition_variable_;
   bool surface_destroyed_ = false;  // Guarded by |surface_destroy_mutex_|.
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
+  // Stream info that the codec is created for: that of the constructor, then
+  // of the first input after each Reset().
+  VideoStreamInfo stream_info_;
   int video_fps_ = 0;
 
   // The variables below are used to calculate platform max supported MediaCodec
@@ -329,6 +345,17 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::optional<VideoOutputFormat> output_format_;
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
+
+  // Codec creation retries, from the `Media.VideoCodecCreationRetry` H5VCC
+  // setting (see kMediaVideoCodecCreationRetry). 0 when retries are disabled.
+  const int max_codec_creation_retries_;
+  // Attempt n waits n * |codec_creation_retry_base_delay_usec_|.
+  const int64_t codec_creation_retry_base_delay_usec_;
+  // Refilled on every successful codec creation and on Reset(), i.e. the
+  // budget applies per codec initialization episode.
+  int codec_creation_retries_left_;
+  // The scheduled codec creation retry job, if any.
+  std::optional<JobQueue::JobToken> codec_creation_retry_job_;
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateInternal(
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,

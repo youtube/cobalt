@@ -143,6 +143,12 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
     return last_created_video_codec_;
   }
   int video_codec_create_count() const { return video_codec_create_count_; }
+  // The next |count| CreateVideoMediaCodec() calls fail to simulate transient
+  // MediaCodec creation errors. Failed attempts still count towards
+  // video_codec_create_count().
+  void set_video_codec_creation_failures_remaining(int count) {
+    video_codec_creation_failures_remaining_ = count;
+  }
   std::optional<SbMediaColorMetadata> last_video_color_metadata() const {
     std::lock_guard lock(mutex_);
     return last_video_color_metadata_;
@@ -152,6 +158,7 @@ class FakeMediaCodecFactory : public MediaCodec::Factory {
   std::atomic<FakeMediaCodec*> last_created_audio_codec_{nullptr};
   std::atomic<FakeMediaCodec*> last_created_video_codec_{nullptr};
   std::atomic<int> video_codec_create_count_{0};
+  std::atomic<int> video_codec_creation_failures_remaining_{0};
   mutable std::mutex mutex_;
   std::optional<SbMediaColorMetadata>
       last_video_color_metadata_;  // Guarded by |mutex_|.
