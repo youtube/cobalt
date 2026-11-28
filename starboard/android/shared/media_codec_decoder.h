@@ -46,7 +46,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   using FrameRenderedCB = std::function<void(int64_t)>;
   using FirstTunnelFrameReadyCB = std::function<void(void)>;
 
-  // Experimental features of the video decoder, one per h5vcc setting
+  // Experimental features of the video decoder derived from h5vcc settings
   // ("Media.*", see starboard/shared/starboard/experimental_features.h), read
   // and passed in by MediaCodecVideoDecoder.
   struct VideoExperimentalOptions {
@@ -55,6 +55,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
     bool enable_trivial_optimizations = false;
     // Only has an effect when dual decoder threads are used.
     bool enable_codec_thread_improvements = false;
+    bool pop_input_buffer_index_from_back = false;
   };
 
   MediaCodec* media_codec() const { return media_codec_bridge_.get(); }
@@ -259,6 +260,7 @@ class MediaCodecDecoder final : private MediaCodec::Handler,
   // when |use_dual_threads_| is also true, as the improvements only apply to
   // the dual-thread video decoder.
   const bool enable_codec_thread_improvements_ = false;
+  const bool pop_input_buffer_index_from_back_ = false;
 
   ErrorCB error_cb_;
 

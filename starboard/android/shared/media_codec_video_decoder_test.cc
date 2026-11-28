@@ -788,5 +788,92 @@ TEST_F(MediaCodecVideoDecoderTest, AndroidVideoDecoderImprovementsBitfield) {
       kGuardSurfaceResetAndCleanupByOwnership));
 }
 
+TEST_F(MediaCodecVideoDecoderTest, PopsInputBufferIndexFromBackWhenEnabled) {
+  using android_video_decoder_improvements::
+      kGuardSurfaceResetAndCleanupByOwnership;
+  using android_video_decoder_improvements::kPopInputBufferIndexFromBack;
+
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(kPopInputBufferIndexFromBack)),
+      kPopInputBufferIndexFromBack));
+  EXPECT_TRUE(IsAndroidVideoDecoderImprovementEnabled(
+      GetAndroidVideoDecoderImprovementsFlags(
+          MakeVideoDecoderImprovementsFeatures(
+              kGuardSurfaceResetAndCleanupByOwnership |
+              kPopInputBufferIndexFromBack)),
+      kPopInputBufferIndexFromBack));
+
+  CreateDecoder(
+      /*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+      MakeVideoDecoderImprovementsFeatures(kPopInputBufferIndexFromBack));
+  FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+  ASSERT_NE(fake_codec, nullptr);
+  InitializeDecoder();
+
+  constexpr int kInputs = 4;
+  for (int i = 0; i < kInputs; ++i) {
+    fake_codec->SimulateInputBufferAvailable(i);
+  }
+  InputBuffers input_buffers;
+  for (int i = 0; i < kInputs; ++i) {
+    input_buffers.push_back(CreateDummyVideoInputBuffer(
+        i * 1000, 1024, &kDefaultVideoStreamInfo, /*is_key_frame=*/i == 0));
+  }
+  decoder_->WriteInputBuffers(input_buffers);
+
+  ASSERT_TRUE(fake_codec->WaitForInputQueue(kInputs, 1000));
+  auto queued = fake_codec->ConsumeQueuedInputs();
+  ASSERT_EQ(queued.size(), static_cast<size_t>(kInputs));
+  for (int i = 0; i < kInputs; ++i) {
+    EXPECT_EQ(queued[i].pts, i * 1000) << "at " << i;
+    EXPECT_EQ(queued[i].index, kInputs - 1 - i) << "at " << i;
+  }
+  EXPECT_FALSE(error_called_);
+}
+
+TEST_F(MediaCodecVideoDecoderTest,
+       PopsInputBufferIndexFromFrontWhenDisabledOrNegativePlacebo) {
+  using android_video_decoder_improvements::
+      kGuardSurfaceResetAndCleanupByOwnership;
+  using android_video_decoder_improvements::kPopInputBufferIndexFromBack;
+
+  constexpr int kInputs = 4;
+  for (int64_t flags :
+       {int64_t{0}, int64_t{-1},
+        static_cast<int64_t>(kGuardSurfaceResetAndCleanupByOwnership)}) {
+    SCOPED_TRACE(flags);
+    const auto features = MakeVideoDecoderImprovementsFeatures(flags);
+    EXPECT_FALSE(IsAndroidVideoDecoderImprovementEnabled(
+        GetAndroidVideoDecoderImprovementsFlags(features),
+        kPopInputBufferIndexFromBack));
+
+    CreateDecoder(/*max_video_capabilities=*/"", &kDefaultVideoStreamInfo,
+                  features);
+    FakeMediaCodec* fake_codec = GetFakeVideoCodec();
+    ASSERT_NE(fake_codec, nullptr);
+    InitializeDecoder();
+
+    for (int i = 0; i < kInputs; ++i) {
+      fake_codec->SimulateInputBufferAvailable(i);
+    }
+    InputBuffers input_buffers;
+    for (int i = 0; i < kInputs; ++i) {
+      input_buffers.push_back(CreateDummyVideoInputBuffer(
+          i * 1000, 1024, &kDefaultVideoStreamInfo, /*is_key_frame=*/i == 0));
+    }
+    decoder_->WriteInputBuffers(input_buffers);
+
+    ASSERT_TRUE(fake_codec->WaitForInputQueue(kInputs, 1000));
+    auto queued = fake_codec->ConsumeQueuedInputs();
+    ASSERT_EQ(queued.size(), static_cast<size_t>(kInputs));
+    for (int i = 0; i < kInputs; ++i) {
+      EXPECT_EQ(queued[i].pts, i * 1000) << "at " << i;
+      EXPECT_EQ(queued[i].index, i) << "at " << i;
+    }
+    EXPECT_FALSE(error_called_);
+  }
+}
+
 }  // namespace
 }  // namespace starboard

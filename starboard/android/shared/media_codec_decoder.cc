@@ -247,7 +247,9 @@ MediaCodecDecoder::MediaCodecDecoder(
           experimental_options.enable_trivial_optimizations),
       enable_codec_thread_improvements_(
           use_dual_threads &&
-          experimental_options.enable_codec_thread_improvements) {
+          experimental_options.enable_codec_thread_improvements),
+      pop_input_buffer_index_from_back_(
+          experimental_options.pop_input_buffer_index_from_back) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -291,7 +293,9 @@ MediaCodecDecoder::MediaCodecDecoder(
                << ", enable_trivial_optimizations="
                << ToString(enable_trivial_optimizations_)
                << ", enable_codec_thread_improvements="
-               << ToString(enable_codec_thread_improvements_);
+               << ToString(enable_codec_thread_improvements_)
+               << ", pop_input_buffer_index_from_back="
+               << ToString(pop_input_buffer_index_from_back_);
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
@@ -987,9 +991,13 @@ bool MediaCodecDecoder::ProcessOneInputBuffer(
     pending_input_to_retry_ = std::nullopt;
     input_buffer_already_written = true;
   } else {
-    input_buffer_index = input_buffer_indices->front();
-    // TODO(b/514758473): Experiment popping the index from the back.
-    input_buffer_indices->erase(input_buffer_indices->begin());
+    if (pop_input_buffer_index_from_back_) {
+      input_buffer_index = input_buffer_indices->back();
+      input_buffer_indices->pop_back();
+    } else {
+      input_buffer_index = input_buffer_indices->front();
+      input_buffer_indices->erase(input_buffer_indices->begin());
+    }
     if (enable_trivial_optimizations_) {
       pending_input = std::move(pending_inputs->front());
     } else {

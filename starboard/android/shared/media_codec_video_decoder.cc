@@ -938,7 +938,11 @@ Result<void> MediaCodecVideoDecoder::CreateMediaDecoder(
           /*enable_ndk_video=*/enable_ndk_video_,
           /*enable_trivial_optimizations=*/enable_trivial_optimizations_,
           /*enable_codec_thread_improvements=*/
-          enable_codec_thread_improvements_});
+          enable_codec_thread_improvements_,
+          /*pop_input_buffer_index_from_back=*/
+          IsAndroidVideoDecoderImprovementEnabled(
+              decoder_improvements_flags_, android_video_decoder_improvements::
+                                               kPopInputBufferIndexFromBack)});
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

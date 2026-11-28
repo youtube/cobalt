@@ -66,6 +66,12 @@ namespace android_video_decoder_improvements {
 // video surface ownership.
 inline constexpr uint32_t kGuardSurfaceResetAndCleanupByOwnership = 1u << 0;
 
+// Pops available MediaCodec input buffer indices from the back of the vector
+// (`back()` + `pop_back()`, O(1) LIFO) instead of erasing from the front
+// (`front()` + `erase(begin())`, O(N) FIFO) in
+// `MediaCodecDecoder::ProcessOneInputBuffer()`.
+inline constexpr uint32_t kPopInputBufferIndexFromBack = 1u << 4;
+
 }  // namespace android_video_decoder_improvements
 
 inline uint32_t GetAndroidVideoDecoderImprovementsFlags(
