@@ -18,6 +18,7 @@
 #include <memory>
 #include <string_view>
 
+#include "base/compiler_specific.h"
 #include "base/strings/string_split.h"
 #include "starboard/egl.h"
 #include "starboard/extension/configuration.h"
@@ -39,6 +40,25 @@ namespace {
 // per display refresh.
 constexpr int kDefaultEglSwapInterval = 1;
 
+// Returns the platform's CobaltEglSwapInterval(), or the default if the
+// platform does not configure one.
+//
+// Disable CFI checks for this function because it calls a function pointer
+// provided by the Starboard library, which cannot be verified across the DSO
+// boundary.
+NO_SANITIZE("cfi-icall")
+int GetPlatformEglSwapInterval() {
+  const auto* configuration =
+      static_cast<const CobaltExtensionConfigurationApi*>(
+          SbSystemGetExtension(kCobaltExtensionConfigurationName));
+  if (configuration &&
+      strcmp(configuration->name, kCobaltExtensionConfigurationName) == 0 &&
+      configuration->version >= 1 && configuration->CobaltEglSwapInterval) {
+    return configuration->CobaltEglSwapInterval();
+  }
+  return kDefaultEglSwapInterval;
+}
+
 // The window surface on Starboard platforms. It exists to swap at the
 // platform's CobaltEglSwapInterval() while vsync is enabled, as Cobalt 25 did.
 // It is ref-counted and created by GLOzoneEGLStarboard::CreateViewGLSurface(),
@@ -50,17 +70,7 @@ class GLSurfaceEGLStarboard : public gl::NativeViewGLSurfaceEGL {
 
  protected:
   int GetVSyncEnabledSwapInterval() const override {
-    static const int swap_interval = [] {
-      const auto* configuration =
-          static_cast<const CobaltExtensionConfigurationApi*>(
-              SbSystemGetExtension(kCobaltExtensionConfigurationName));
-      if (configuration &&
-          strcmp(configuration->name, kCobaltExtensionConfigurationName) == 0 &&
-          configuration->version >= 1 && configuration->CobaltEglSwapInterval) {
-        return configuration->CobaltEglSwapInterval();
-      }
-      return kDefaultEglSwapInterval;
-    }();
+    static const int swap_interval = GetPlatformEglSwapInterval();
     return swap_interval;
   }
 

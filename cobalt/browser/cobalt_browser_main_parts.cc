@@ -20,6 +20,7 @@
 #include "base/base_paths.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/features.h"
 #include "base/files/file_util.h"
@@ -466,6 +467,10 @@ void ApplyMinimumFrameInterval() {
 }  // namespace
 
 #if BUILDFLAG(IS_STARBOARD)
+// Disable CFI checks for this function because it calls a function pointer
+// provided by the Starboard library, which cannot be verified across the DSO
+// boundary.
+NO_SANITIZE("cfi-icall")
 std::optional<base::TimeDelta> GetThrottledFrameInterval(
     const CobaltExtensionGraphicsApi* graphics_extension,
     base::TimeDelta refresh_interval) {
