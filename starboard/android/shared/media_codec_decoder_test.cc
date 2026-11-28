@@ -228,6 +228,15 @@ class MediaCodecDecoderVideoDualThreadsTest
       return false;
     }));
 
+    RecreateDecoder(/*use_dual_threads=*/true,
+                    /*pop_input_buffer_index_from_back=*/false);
+  }
+
+  void RecreateDecoder(bool use_dual_threads,
+                       bool pop_input_buffer_index_from_back) {
+    job_queue_.RunUntilIdle();
+    decoder_.reset();
+    codec_ = nullptr;
     auto result = MediaCodecDecoder::CreateForVideo(
         factory_, &job_queue_, &host_, kSbMediaVideoCodecH264, Size(1920, 1080),
         /*max_frame_size=*/std::nullopt, /*fps=*/0,
@@ -238,14 +247,15 @@ class MediaCodecDecoderVideoDualThreadsTest
         /*first_tunnel_frame_ready_cb=*/[]() {},
         /*tunnel_mode_audio_session_id=*/std::nullopt,
         /*enable_frame_renderer_listener=*/false,
-        /*max_video_input_size=*/0, /*flush_delay_usec=*/0,
-        /*use_dual_threads=*/true,
+        /*max_video_input_size=*/0, /*flush_delay_usec=*/0, use_dual_threads,
         MediaCodecDecoder::VideoExperimentalOptions{
             /*skip_video_frames_over_60_fps=*/false,
             /*enable_ndk_video=*/false,
             /*enable_trivial_optimizations=*/false,
             /*enable_codec_thread_improvements=*/
-            enable_codec_thread_improvements()});
+            enable_codec_thread_improvements(),
+            /*pop_input_buffer_index_from_back=*/
+            pop_input_buffer_index_from_back});
     ASSERT_TRUE(result);
     decoder_ = std::move(result.value());
     codec_ = factory_.last_created_video_codec();
@@ -563,6 +573,81 @@ TEST_P(MediaCodecDecoderVideoDualThreadsTest,
   ASSERT_EQ(queued.size(), 1U);
   EXPECT_EQ(queued[0].index, 2);
   EXPECT_EQ(queued[0].pts, 10000);
+}
+
+TEST_P(MediaCodecDecoderVideoDualThreadsTest,
+       PopsInputBufferIndicesFromFrontByDefault) {
+  constexpr int kInputs = 4;
+  for (int i = 0; i < kInputs; ++i) {
+    codec_->SimulateInputBufferAvailable(i);
+  }
+  InputBuffers input_buffers;
+  for (int i = 0; i < kInputs; ++i) {
+    input_buffers.push_back(CreateVideoInputBuffer(i * 1000));
+  }
+  decoder_->WriteInputBuffers(input_buffers);
+  ASSERT_TRUE(codec_->WaitForInputQueue(kInputs, kMaxQueueLatencyMs));
+  auto queued = codec_->ConsumeQueuedInputs();
+  ASSERT_EQ(queued.size(), static_cast<size_t>(kInputs));
+  for (int i = 0; i < kInputs; ++i) {
+    EXPECT_EQ(queued[i].pts, i * 1000) << "at " << i;
+    EXPECT_EQ(queued[i].index, i) << "at " << i;
+  }
+}
+
+TEST_P(MediaCodecDecoderVideoDualThreadsTest,
+       PopsInputBufferIndicesFromBackWhenEnabled) {
+  constexpr int kInputs = 4;
+  for (bool use_dual_threads : {false, true}) {
+    SCOPED_TRACE(use_dual_threads ? "dual_threads" : "single_thread");
+    RecreateDecoder(use_dual_threads,
+                    /*pop_input_buffer_index_from_back=*/true);
+    for (int i = 0; i < kInputs; ++i) {
+      codec_->SimulateInputBufferAvailable(i);
+    }
+    InputBuffers input_buffers;
+    for (int i = 0; i < kInputs; ++i) {
+      input_buffers.push_back(CreateVideoInputBuffer(i * 1000));
+    }
+    decoder_->WriteInputBuffers(input_buffers);
+    ASSERT_TRUE(codec_->WaitForInputQueue(kInputs, kMaxQueueLatencyMs));
+    auto queued = codec_->ConsumeQueuedInputs();
+    ASSERT_EQ(queued.size(), static_cast<size_t>(kInputs));
+    for (int i = 0; i < kInputs; ++i) {
+      EXPECT_EQ(queued[i].pts, i * 1000) << "at " << i;
+      EXPECT_EQ(queued[i].index, kInputs - 1 - i) << "at " << i;
+    }
+  }
+}
+
+TEST_P(MediaCodecDecoderVideoDualThreadsTest,
+       RetriesSameBackPoppedIndexOnNoKey) {
+  RecreateDecoder(/*use_dual_threads=*/true,
+                  /*pop_input_buffer_index_from_back=*/true);
+  codec_->set_queue_input_buffer_status(MEDIA_CODEC_NO_KEY);
+  for (int i = 0; i < 4; ++i) {
+    codec_->SimulateInputBufferAvailable(i);
+  }
+  decoder_->WriteInputBuffers(
+      {CreateVideoInputBuffer(1000), CreateVideoInputBuffer(2000)});
+
+  const auto deadline = std::chrono::steady_clock::now() +
+                        std::chrono::milliseconds(kMaxQueueLatencyMs);
+  while (codec_->queue_input_buffer_attempts() == 0 &&
+         std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  ASSERT_GE(codec_->queue_input_buffer_attempts(), 1U);
+  EXPECT_FALSE(codec_->WaitForInputQueue(1, 0));
+
+  codec_->set_queue_input_buffer_status(MEDIA_CODEC_OK);
+  ASSERT_TRUE(codec_->WaitForInputQueue(2, kMaxQueueLatencyMs));
+  auto queued = codec_->ConsumeQueuedInputs();
+  ASSERT_EQ(queued.size(), 2U);
+  EXPECT_EQ(queued[0].index, 3);
+  EXPECT_EQ(queued[0].pts, 1000);
+  EXPECT_EQ(queued[1].index, 2);
+  EXPECT_EQ(queued[1].pts, 2000);
 }
 
 INSTANTIATE_TEST_SUITE_P(,
